@@ -21,6 +21,9 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Repository\ExperimentPinRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -100,6 +103,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
         private ExperimentDefinitionRepository $experimentDefinitions,
+        private ExperimentPinRepository $experimentPins,
+        private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
     ) {
@@ -129,7 +135,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     /**
      * With $metrics, the experiment lists those metrics, and each merged card gets a pull request that opened and merged.
-     * On a later seed, the experiment keeps its rows and only restores a card that a person deleted.
+     * A later seed looks up each record on its own and writes only a missing one. A merge event
+     * and a pull request have no fixed id, so they come only with a new card.
      *
      * @param array<string, mixed>|null $headline
      * @param list<string>|null         $metrics
@@ -137,12 +144,11 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     private function seedExperiment(SeedContext $context, Project $project, string $experiment, ?array $headline, ?array $metrics): void
     {
         $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
-        $fresh = !$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition;
-        if ($fresh && $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
-            return;
-        }
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
+                return;
+            }
 
-        if ($fresh) {
             $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
             $definition->metrics = $metrics ?? ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
             $definition->headline = $headline;
@@ -162,27 +168,27 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             $stored = $this->cards->find(DevSeedId::of('board/card/'.$key));
             $card = $stored ?? $this->card($context, $project, $column, $title, $type, $this->cards->nextNumber($project), $at->modify('-10 days'), DevSeedId::of('board/card/'.$key));
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-            if ($fresh) {
+            if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
                 $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
             }
 
             foreach ($runs as $position => [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
-                if ($fresh) {
-                    $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position)));
+                $runId = DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position));
+                if (!$this->workerRuns->find($runId) instanceof WorkerRun) {
+                    $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, $runId);
                 }
             }
             foreach ($fixReasons as $reason) {
-                if ($fresh) {
-                    $this->fixRequest($project, $card, $reason, $at->modify('+1 hour'));
+                $requestId = DevSeedId::of(\sprintf('bridge/work-request/%s/%s', $key, $reason));
+                if (!$this->workRequests->find($requestId) instanceof WorkRequest) {
+                    $this->fixRequest($context, $project, $card, $reason, $at->modify('+1 hour'), $requestId);
                 }
             }
             if ($stored instanceof Card) {
                 continue;
             }
-            if (!$fresh) {
-                $this->runCardLinks->relink($project, $cardId, $card->number);
-            }
+            $this->runCardLinks->relink($project, $cardId, $card->number);
             if ($merged) {
                 $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
                 if (null !== $metrics) {
@@ -218,7 +224,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     }
 
     /** A settled fix request, which the experiment counts as a fix round of the reason. */
-    private function fixRequest(Project $project, Card $card, string $reason, \DateTimeImmutable $at): void
+    private function fixRequest(SeedContext $context, Project $project, Card $card, string $reason, \DateTimeImmutable $at, Uuid $id): void
     {
         $request = new WorkRequest(
             project: $project,
@@ -234,6 +240,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $request->context = new WorkRequestContext(reason: $reason);
         $request->state = WorkRequestState::Done;
         $request->settledAt = $at->modify('+10 minutes');
+        $context->ids->assign($request, $id);
         $this->em->persist($request);
     }
 

@@ -108,6 +108,22 @@ final class FullDevSeedTest extends KernelTestCase
         }
     }
 
+    public function test_a_later_run_restores_deleted_parents_and_writes_no_second_child(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        self::assertGreaterThan(0, $counts['bridge_experiment_definitions']);
+        self::assertGreaterThan(0, $counts['insights_analyses']);
+        $connection = $this->em()->getConnection();
+        $connection->executeStatement('DELETE FROM bridge_experiment_definitions');
+        $connection->executeStatement('DELETE FROM insights_analyses');
+        self::assertNotSame($counts, $this->rowCounts());
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts());
+    }
+
     public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void
     {
         $this->seed(self::DAY);

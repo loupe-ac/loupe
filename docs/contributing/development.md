@@ -25,8 +25,9 @@ analysis pages show.
 
 - A run is safe to repeat. A seeder skips a record that exists, and a later day
   only adds the missing days of the time series. The seed never deletes a record
-  that has a fixed id. It restores a seeded card that a person deleted, and writes
-  the new card number to the runs of that card.
+  that has a fixed id. It looks up each record with a fixed id on its own, and
+  restores only the records that a person deleted. A restored card gets a new
+  number, and the seed writes that number to the runs of the card.
 - A record that a page address names has a fixed id, so a preview link opens
   the same record on every database. The dev and admin accounts keep the id they
   have, because an existing database points projects at them.
@@ -42,8 +43,8 @@ analysis pages show.
   seconds on a worktree. No test checks it, so a reviewer must read the printed
   times when a change adds a seeder.
 
-On 2026-11-01 a full seed of an empty, migrated database took 3.4 seconds by the
-wall clock, including the start of the command. The seeders took 2.6 seconds
+On 2026-11-01 a full seed of an empty, migrated database took 3.7 seconds by the
+wall clock, including the start of the command. The seeders took 3.0 seconds
 together. The run was on an Apple M1 Max with Docker, while other worktrees used
 the same stack. The time on other hardware is unknown.
 

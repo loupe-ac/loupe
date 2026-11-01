@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
@@ -31,6 +32,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Service\MarkdownRenderer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
@@ -41,8 +43,10 @@ use Symfony\Component\Uid\Uuid;
  * run, a waiting one, and a finished experiment analysis, so the Reports page
  * of a dev project shows each state. It also writes three time bucket rules, a
  * finished time analysis whose run holds tool calls, and one bucket rule
- * proposal. Each part runs only when its analysis is missing. The waiting analysis
- * opens no work request, so no bridge claims it.
+ * proposal. A later seed looks up each analysis, report and run on its own, and
+ * writes only a missing one. A proposal, a rule and a tool call have no fixed id,
+ * so they come only with a new analysis or run. The waiting analysis opens no
+ * work request, so no bridge claims it.
  */
 #[When('dev')]
 #[When('test')]
@@ -104,6 +108,8 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
         private AnalysisRepository $analyses,
+        private DocumentRepository $documents,
+        private WorkerRunRepository $workerRuns,
         private InsightsBucketRuleRepository $insightsBucketRules,
         private BucketTimeComputer $bucketTimes,
         private MarkdownRenderer $renderer,
@@ -127,53 +133,45 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
     {
         $project = $this->projects->find(DevProjectSeeder::devProjectId())
             ?? throw new \LogicException('The dev project does not exist.');
-        $experiment = DevExperimentSeeder::EXPERIMENT;
 
-        if (!$this->analyses->find(DevSeedId::of('insights/analysis/cost-report')) instanceof Analysis) {
-            $this->seedCost($context, $project);
-        }
-        if (!$this->analyses->find(DevSeedId::of('insights/analysis/time-report')) instanceof Analysis) {
-            $this->seedTime($context, $project);
-        }
-        if (!$this->analyses->find(DevSeedId::of('insights/analysis/experiment-'.$experiment)) instanceof Analysis) {
-            $this->seedExperiment($context, $project, $experiment);
-        }
+        $this->seedCost($context, $project);
+        $this->seedTime($context, $project);
+        $this->seedExperiment($context, $project, DevExperimentSeeder::EXPERIMENT);
     }
 
     private function seedCost(SeedContext $context, Project $project): void
     {
         $report = $this->report($context, $project, 'Cost report: last 90 days', self::REPORT, 'cost-report', $context->now->modify('-2 days'));
-
-        $done = $this->analysis($context, $project, 'cost-report', AnalysisTopic::Cost, new AnalysisScope(MetricRange::NinetyDays), $context->now->modify('-2 days'));
-        $this->em->persist($done);
-        $this->em->flush();
-        $done->start();
         $endedAt = $context->now->modify('-2 days +20 minutes');
-        $done->complete($report->id ?? throw new \LogicException('A stored document has an id.'), $endedAt);
+
+        $done = $this->storedAnalysis('cost-report');
+        if (!$done instanceof Analysis) {
+            $done = $this->finishedAnalysis($context, $project, 'cost-report', AnalysisTopic::Cost, new AnalysisScope(MetricRange::NinetyDays), $context->now->modify('-2 days'), $report, $endedAt);
+            $this->em->persist(new Proposal($done, ProposalKind::Card, 'Cache the dependencies between runs', "Each run installs the dependencies again.\nA shared cache keyed on the lock file skips that step.", null, 'About $4 a week', 0));
+            $dismissed = new Proposal($done, ProposalKind::Card, 'Run the lint stage on a smaller model', 'The lint stage reads short diffs, so a smaller model can do it.', null, 'About $1 a week', 1);
+            $dismissed->state = ProposalState::Dismissed;
+            $dismissed->dismissReason = 'The lint stage already runs on the smallest model.';
+            $this->em->persist($dismissed);
+        }
         $this->seedRun($context, $done, 'cost-report', $endedAt);
 
-        $this->em->persist(new Proposal($done, ProposalKind::Card, 'Cache the dependencies between runs', "Each run installs the dependencies again.\nA shared cache keyed on the lock file skips that step.", null, 'About $4 a week', 0));
-        $dismissed = new Proposal($done, ProposalKind::Card, 'Run the lint stage on a smaller model', 'The lint stage reads short diffs, so a smaller model can do it.', null, 'About $1 a week', 1);
-        $dismissed->state = ProposalState::Dismissed;
-        $dismissed->dismissReason = 'The lint stage already runs on the smallest model.';
-        $this->em->persist($dismissed);
-
-        $this->em->persist($this->analysis($context, $project, 'cost-waiting', AnalysisTopic::Cost, new AnalysisScope(MetricRange::ThirtyDays), $context->now->modify('-10 minutes')));
+        if (!$this->storedAnalysis('cost-waiting') instanceof Analysis) {
+            $this->em->persist($this->analysis($context, $project, 'cost-waiting', AnalysisTopic::Cost, new AnalysisScope(MetricRange::ThirtyDays), $context->now->modify('-10 minutes')));
+        }
         $this->em->flush();
     }
 
     private function seedExperiment(SeedContext $context, Project $project, string $experiment): void
     {
         $report = $this->report($context, $project, 'Experiment report: '.$experiment, self::EXPERIMENT_REPORT, 'experiment-report-'.$experiment, $context->now->modify('-1 day'));
-
-        $analysis = $this->analysis($context, $project, 'experiment-'.$experiment, AnalysisTopic::Experiment, new AnalysisScope(MetricRange::All, $experiment), $context->now->modify('-1 day'));
-        $this->em->persist($analysis);
-        $this->em->flush();
-        $analysis->start();
         $endedAt = $context->now->modify('-1 day +25 minutes');
-        $analysis->complete($report->id ?? throw new \LogicException('A stored document has an id.'), $endedAt);
+
+        $analysis = $this->storedAnalysis('experiment-'.$experiment);
+        if (!$analysis instanceof Analysis) {
+            $analysis = $this->finishedAnalysis($context, $project, 'experiment-'.$experiment, AnalysisTopic::Experiment, new AnalysisScope(MetricRange::All, $experiment), $context->now->modify('-1 day'), $report, $endedAt);
+            $this->em->persist(new Proposal($analysis, ProposalKind::Card, 'Run 10 more cards on each variant before a decision', "The cost gap is clear: $1.74 against $4.33 per merged card.\nThe merge rate and the fix rounds give no clear answer with 6 finished cards per variant.", null, null, 0));
+        }
         $this->seedRun($context, $analysis, 'experiment-'.$experiment, $endedAt);
-        $this->em->persist(new Proposal($analysis, ProposalKind::Card, 'Run 10 more cards on each variant before a decision', "The cost gap is clear: $1.74 against $4.33 per merged card.\nThe merge rate and the fix rounds give no clear answer with 6 finished cards per variant.", null, null, 0));
         $this->em->flush();
     }
 
@@ -182,33 +180,58 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         $endedAt = $context->now->modify('-1 day');
         $report = $this->report($context, $project, 'Time report: last 30 days', self::TIME_REPORT, 'time-report', $endedAt);
 
-        $done = $this->analysis($context, $project, 'time-report', AnalysisTopic::Time, new AnalysisScope(MetricRange::ThirtyDays), $endedAt->modify('-1 hour'));
-        $this->em->persist($done);
-        $this->em->flush();
-        $done->start();
-        $done->complete($report->id ?? throw new \LogicException('A stored document has an id.'), $endedAt);
-        $this->em->persist(new Proposal($done, ProposalKind::BucketRule, 'Put the make calls in a bucket of their own', "The calls `make test` and `make build` take 7 minutes of an 18 minute run.\nNo rule takes them, so they count in `other`.", ['pattern' => 'make *', 'bucket' => 'build'], null, 0));
+        $done = $this->storedAnalysis('time-report');
+        if (!$done instanceof Analysis) {
+            $done = $this->finishedAnalysis($context, $project, 'time-report', AnalysisTopic::Time, new AnalysisScope(MetricRange::ThirtyDays), $endedAt->modify('-1 hour'), $report, $endedAt);
+            $this->em->persist(new Proposal($done, ProposalKind::BucketRule, 'Put the make calls in a bucket of their own', "The calls `make test` and `make build` take 7 minutes of an 18 minute run.\nNo rule takes them, so they count in `other`.", ['pattern' => 'make *', 'bucket' => 'build'], null, 0));
 
-        if ([] === $this->insightsBucketRules->findOrdered($project)) {
-            foreach (self::RULES as $position => [$pattern, $bucket]) {
-                $this->em->persist(new InsightsBucketRule($project, $pattern, $bucket, $position));
+            if ([] === $this->insightsBucketRules->findOrdered($project)) {
+                foreach (self::RULES as $position => [$pattern, $bucket]) {
+                    $this->em->persist(new InsightsBucketRule($project, $pattern, $bucket, $position));
+                }
             }
         }
 
         $run = $this->seedRun($context, $done, 'time-report', $endedAt);
-        $this->seedToolCalls($run);
+        if ($run instanceof WorkerRun) {
+            $this->seedToolCalls($run);
+        }
         $this->em->flush();
-        $this->bucketTimes->recompute($project, [$run->id ?? throw new \LogicException('A stored run has an id.')]);
+        if ($run instanceof WorkerRun) {
+            $this->bucketTimes->recompute($project, [$run->id ?? throw new \LogicException('A stored run has an id.')]);
+        }
     }
 
     private function report(SeedContext $context, Project $project, string $title, string $markdown, string $slug, \DateTimeImmutable $createdAt): Document
     {
+        $id = DevSeedId::of('review/document/'.$slug);
+        $stored = $this->documents->find($id);
+        if ($stored instanceof Document) {
+            return $stored;
+        }
+
         $report = new Document($project->owner, $project, $title, $createdAt);
-        $context->ids->assign($report, DevSeedId::of('review/document/'.$slug));
+        $context->ids->assign($report, $id);
         $report->addVersion($markdown, $this->renderer->render($markdown));
         $this->em->persist($report);
 
         return $report;
+    }
+
+    private function storedAnalysis(string $slug): ?Analysis
+    {
+        return $this->analyses->find(DevSeedId::of('insights/analysis/'.$slug));
+    }
+
+    private function finishedAnalysis(SeedContext $context, Project $project, string $slug, AnalysisTopic $topic, AnalysisScope $scope, \DateTimeImmutable $createdAt, Document $report, \DateTimeImmutable $endedAt): Analysis
+    {
+        $analysis = $this->analysis($context, $project, $slug, $topic, $scope, $createdAt);
+        $this->em->persist($analysis);
+        $this->em->flush();
+        $analysis->start();
+        $analysis->complete($report->id ?? throw new \LogicException('A stored document has an id.'), $endedAt);
+
+        return $analysis;
     }
 
     private function analysis(SeedContext $context, Project $project, string $slug, AnalysisTopic $topic, AnalysisScope $scope, \DateTimeImmutable $createdAt): Analysis
@@ -226,9 +249,18 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         }
     }
 
-    /** WorkerRunFactListener writes the fact row on flush, and AnalysisRepository::costOf() sums it. */
-    private function seedRun(SeedContext $context, Analysis $analysis, string $slug, \DateTimeImmutable $endedAt): WorkerRun
+    /**
+     * WorkerRunFactListener writes the fact row on flush, and AnalysisRepository::costOf() sums it.
+     *
+     * @return WorkerRun|null the new run, or null when the run is stored
+     */
+    private function seedRun(SeedContext $context, Analysis $analysis, string $slug, \DateTimeImmutable $endedAt): ?WorkerRun
     {
+        $id = DevSeedId::of('insights/run/'.$slug);
+        if ($this->workerRuns->find($id) instanceof WorkerRun) {
+            return null;
+        }
+
         $run = new WorkerRun(
             project: $analysis->project,
             bridgeId: Uuid::v4(),
@@ -246,7 +278,7 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
             receivedAt: $endedAt,
         );
         $run->usageSource = WorkerRunUsageSource::Reported;
-        $context->ids->assign($run, DevSeedId::of('insights/run/'.$slug));
+        $context->ids->assign($run, $id);
         $this->em->persist($run);
         $this->em->persist(new WorkerRunUsage($run, $analysis->project, $run->subjectType, $run->subjectId, $run->workKind, 'claude-sonnet-5-5', WorkerRunUsageSource::Reported, 182_000, 9_400, 1_250_000, 64_000, '1.840000'));
 
