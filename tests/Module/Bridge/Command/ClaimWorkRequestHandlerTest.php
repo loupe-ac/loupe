@@ -12,6 +12,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
@@ -413,6 +414,87 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Claimed, $result->request?->state);
         self::assertSame([null, null], [$result->request->waitCause, $result->request->waitAccount]);
         self::assertSame('0', (string) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_work_matches'));
+    }
+
+    #[DataProvider('accountsTheBridgeDoesNotRunForTheKind')]
+    public function test_an_unknown_account_is_recorded_as_a_refusal_of_the_bridge_and_the_request(?string $account): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-row', WorkRequestState::Open);
+
+        $result = $this->claim($owner, $bridge, $request, $account);
+        $this->claim($owner, $bridge, $request, $account);
+
+        self::assertSame(WorkRequestRefusal::AccountUnknown, $result->refusal);
+        self::assertSame(
+            [[(string) $bridge->id, (string) $request->id, $account]],
+            $this->em()->getConnection()->fetchAllNumeric('SELECT bridge_id, work_request_id, account FROM bridge_claim_refusals'),
+        );
+    }
+
+    public function test_a_second_refusal_with_another_account_replaces_the_account_of_the_row(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-replace', WorkRequestState::Open);
+
+        $this->claim($owner, $bridge, $request, null);
+        $this->claim($owner, $bridge, $request, 'other');
+
+        self::assertSame([['other']], $this->em()->getConnection()->fetchAllNumeric('SELECT account FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_missing_capability_records_no_refusal(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-capability', WorkRequestState::Open);
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $request->capability = 'subject-analysis';
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request, null);
+
+        self::assertSame(WorkRequestRefusal::CapabilityMissing, $result->refusal);
+        self::assertSame('0', (string) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_claim_that_passes_the_account_check_removes_the_refusal_of_its_bridge_alone(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-passes', WorkRequestState::Open);
+        $other = $this->seedBridge($this->em(), $owner, projects: $bridge->projects);
+        $refusals = $this->refusals();
+        $ownerId = $owner->id ?? throw new \LogicException('The owner has an id.');
+        $requestId = $request->id ?? throw new \LogicException('The request has an id.');
+        $refusals->put($ownerId, $bridge->id, $requestId, null);
+        $refusals->put($ownerId, $other->id, $requestId, null);
+        $this->hold($request, $owner);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertSame(WorkRequestRefusal::CardHeld, $result->refusal);
+        self::assertSame([[(string) $other->id]], $this->em()->getConnection()->fetchAllNumeric('SELECT bridge_id FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_claim_that_succeeds_removes_the_refusals_of_every_bridge_for_the_request(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-success', WorkRequestState::Open);
+        $other = $this->seedBridge($this->em(), $owner, projects: $bridge->projects);
+        $unrelated = $this->seedWorkRequest($this->em(), $request->project, kind: 'fix');
+        $refusals = $this->refusals();
+        $ownerId = $owner->id ?? throw new \LogicException('The owner has an id.');
+        $requestId = $request->id ?? throw new \LogicException('The request has an id.');
+        $refusals->put($ownerId, $bridge->id, $requestId, null);
+        $refusals->put($ownerId, $other->id, $requestId, 'work');
+        $refusals->put($ownerId, $other->id, $unrelated->id ?? throw new \LogicException('The request has an id.'), null);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+        self::assertSame([[(string) $unrelated->id]], $this->em()->getConnection()->fetchAllNumeric('SELECT work_request_id FROM bridge_claim_refusals'));
+    }
+
+    private function refusals(): BridgeClaimRefusalRepository
+    {
+        $refusals = self::getContainer()->get(BridgeClaimRefusalRepository::class);
+        self::assertInstanceOf(BridgeClaimRefusalRepository::class, $refusals);
+
+        return $refusals;
     }
 
     /** Writes the row alone, because a real hold cancels the open requests of its card. */

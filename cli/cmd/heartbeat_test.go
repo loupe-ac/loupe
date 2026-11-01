@@ -73,6 +73,20 @@ func (c *fakeClock) advance(d time.Duration) {
 	c.t = c.t.Add(d)
 }
 
+// steppingClock moves 11 s at each read, so no send window holds a change.
+func steppingClock() func() time.Time {
+	var mu sync.Mutex
+	t := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+
+	return func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		t = t.Add(11 * time.Second)
+
+		return t
+	}
+}
+
 // fakeHeartbeats records each heartbeat and answers with the next error of its
 // list, then nil once the list runs out.
 type fakeHeartbeats struct {
@@ -337,17 +351,34 @@ func TestANewBodyGoesOutAtOnce(t *testing.T) {
 	}
 }
 
-// New hook rows go out at once, and a new body from a reload keeps them.
-func TestHookRowsGoOutAtOnceAndOutliveANewBody(t *testing.T) {
+// Hook rows wait for the window of the last send, like pool rows, and a new
+// body from a reload keeps them.
+func TestHookRowsWaitForTheWindowAndOutliveANewBody(t *testing.T) {
 	client := &fakeHeartbeats{}
-	hh := startHeartbeater(t, client, time.Minute)
+	clock := &fakeClock{t: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.now = clock.now })
 	rows := []api.HookReport{{Package: "acme/tool", Ref: "v1", Event: "busy", Outcome: "never"}}
 
+	clock.advance(4 * time.Second)
 	hh.h.setHooks(rows)
-	eventually(t, "the heartbeat of the rows", func() bool { return hh.queue.recorded() == 2 })
+	eventually(t, "a timer for the end of the window", func() bool { return hh.timers.count() == 2 })
+	if delay, _ := hh.timers.last(); delay != 6*time.Second {
+		t.Fatalf("window delay = %s, want 6s", delay)
+	}
+	hh.h.setHooks(slices.Clone(rows))
+	hh.drained(t)
+	if hh.queue.handed() != 1 {
+		t.Fatalf("%d heartbeats inside the window, want 1", hh.queue.handed())
+	}
+
+	clock.advance(6 * time.Second)
+	_, window := hh.timers.last()
+	window <- time.Now()
+	eventually(t, "the heartbeat at the end of the window", func() bool { return hh.queue.recorded() == 2 })
 	hh.h.setBody(api.Heartbeat{Projects: []string{"p2"}, CLIVersion: "b4e39aa7"})
 	eventually(t, "the heartbeat of the new body", func() bool { return hh.queue.recorded() == 3 })
-	hh.tick(t, time.Minute)
+	hh.timers.at(0) <- time.Now()
+	eventually(t, "the interval heartbeat", func() bool { return hh.queue.recorded() == 4 })
 
 	client.mu.Lock()
 	defer client.mu.Unlock()
@@ -359,9 +390,42 @@ func TestHookRowsGoOutAtOnceAndOutliveANewBody(t *testing.T) {
 			t.Fatalf("heartbeat %d = %+v", i+1, hb)
 		}
 	}
-	if !slices.Equal(client.sent[3].Projects, []string{"p2"}) {
-		t.Fatalf("last heartbeat = %+v", client.sent[3])
+	if !slices.Equal(client.sent[2].Projects, []string{"p2"}) {
+		t.Fatalf("heartbeat 2 = %+v", client.sent[2])
 	}
+}
+
+// After a failed heartbeat, only the timer tick sends. A body, a pause, hook
+// rows and pool rows wait for it, and the first success lets sends go out at
+// once again.
+func TestAFailedHeartbeatHoldsEverySendButTheTick(t *testing.T) {
+	client := &fakeHeartbeats{errors: []error{errors.New("HTTP 429")}}
+	clock := &fakeClock{t: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.now = clock.now })
+	rows := []api.HookReport{{Package: "acme/tool", Ref: "v1", Event: "busy", Outcome: "never"}}
+
+	clock.advance(11 * time.Second)
+	hh.h.setBody(api.Heartbeat{Projects: []string{"p2"}, CLIVersion: "b4e39aa7"})
+	hh.h.setPaused(true)
+	hh.h.send()
+	hh.h.setHooks(rows)
+	hh.h.setPools(poolsA)
+	hh.drained(t)
+	if hh.queue.handed() != 1 {
+		t.Fatalf("%d heartbeats after a failure, want only the first", hh.queue.handed())
+	}
+
+	hh.tick(t, time.Minute)
+	client.mu.Lock()
+	got := client.sent[1]
+	client.mu.Unlock()
+	if !slices.Equal(got.Projects, []string{"p2"}) || got.Paused == nil || !*got.Paused ||
+		!slices.Equal(got.Hooks, rows) || !slices.Equal(got.WorkerPools, poolsA) {
+		t.Fatalf("tick heartbeat = %+v", got)
+	}
+
+	hh.h.setBody(api.Heartbeat{Projects: []string{"p3"}, CLIVersion: "b4e39aa7"})
+	eventually(t, "the heartbeat of the body after a success", func() bool { return hh.queue.recorded() == 3 })
 }
 
 // The runner reports to a heartbeater that a bridge with no id never makes.
