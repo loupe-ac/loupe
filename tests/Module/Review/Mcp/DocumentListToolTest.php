@@ -56,8 +56,8 @@ final class DocumentListToolTest extends KernelTestCase
     }
 
     /**
-     * Created through the handler because `Document.searchVector` is written by
-     * the indexer alone. A hand-built document is never found by a search.
+     * Created through the handler because the first version writes the search
+     * text. A document with no version is never found by a search on its body.
      *
      * @param list<string> $tagNames
      */

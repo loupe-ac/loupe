@@ -14,13 +14,11 @@ namespace App\Doctrine;
  * it has no opinion about titles mattering more, and neither would a reusable
  * bundle.
  *
- * The weights are needed in a DQL call site (the repository, through the
- * library's functions) *and* in raw SQL (DocumentSearchIndexer's UPDATE, which
- * no DQL function can reach because it is not DQL). Delete this class and 'A'
- * and 'B' become string literals in both places, free to drift.
+ * The inbox and worker run indexers both need the weights in raw SQL. Delete
+ * this class and 'A' and 'B' become string literals in both places, free to drift.
  *
- * The stemming language is no longer here. It is a per-document column, so both
- * call sites read it off the row. {@see SearchLanguage}.
+ * The stemming language is not here. The inbox indexer reads it off each row
+ * {@see SearchLanguage}, and the worker run indexer names its own.
  */
 final class FullTextSearch
 {

@@ -21,7 +21,7 @@ final class Version20261028121530 extends AbstractMigration
         // cluster must allow it before this runs.
         $this->addSql('CREATE EXTENSION IF NOT EXISTS pg_trgm');
         $this->addSql('ALTER TABLE documents ADD search_text TEXT DEFAULT \'\' NOT NULL');
-        // DISTINCT ON picks the highest version number, as DocumentSearchIndexer does.
+        // DISTINCT ON picks the highest version number.
         $this->addSql(<<<'SQL'
             UPDATE documents d
             SET search_text = v.markdown_source

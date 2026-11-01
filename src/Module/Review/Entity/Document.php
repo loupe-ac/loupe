@@ -13,19 +13,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use MartinGeorgiev\Doctrine\DBAL\Type as PostgresType;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: DocumentRepository::class)]
-// No access method: DBAL's Postgres platform ignores index flags, and the
-// migration creates it USING gin. Do not "fix" this with flags: ['gin'] — the
-// comparator would emit a DROP plus a plain CREATE INDEX, silently downgrading
-// it to a B-tree index that @@ never uses.
-#[ORM\Index(name: 'idx_documents_search_vector', columns: ['search_vector'])]
-// Read by the search query, which asks a project which languages it holds
-// before it builds one constant tsquery per language.
-#[ORM\Index(name: 'idx_documents_project_search_language', columns: ['project_id', 'search_language'])]
 #[ORM\Table(name: 'documents')]
 // Postgres treats NULLs as distinct here, so every document outside a series
 // keeps a (NULL, NULL) pair of its own and only real numbering collides.
@@ -62,38 +53,16 @@ class Document implements ProjectScopedSubject
     public ?string $archiveReason = null;
 
     /**
-     * Title and current-version markdown, stemmed and weighted, as one searchable
-     * vector. It lives here rather than on DocumentVersion because searching every
-     * historical version would return a document for text it no longer contains,
-     * and because a list query already filters this table — one row per document
-     * keeps the GIN scan and the project/archived/status predicates together.
-     *
-     * The cost is on reads: the column is now in the SELECT list of every Document
-     * query in the app, and the paginator projects it once more per matching row.
-     * A 1:1 document_search table would keep it out of those reads, at the price of
-     * a join on the one query that wants it.
-     *
-     * Only Postgres can build a tsvector, so the ORM never writes this column:
-     * DocumentSearchIndexer maintains it, and the mapping exists so DQL can name
-     * it. Null until a document is next written — see the backfill migration.
-     */
-    #[ORM\Column(name: 'search_vector', type: PostgresType::TSVECTOR, nullable: true, insertable: false, updatable: false)]
-    public ?string $searchVector = null;
-
-    /**
      * The markdown of the current version, copied here so one trigram index can
      * serve a substring search without joining the version rows. A search for
      * text a revision removed must not return the document, so this holds the
-     * current version only.
-     *
-     * DocumentSearchIndexer maintains it, and the mapping exists so DQL can name
-     * it.
+     * current version only. addVersion() is the one writer.
      */
-    #[ORM\Column(name: 'search_text', type: Types::TEXT, insertable: false, updatable: false, options: ['default' => ''])]
+    #[ORM\Column(name: 'search_text', type: Types::TEXT, options: ['default' => ''])]
     public string $searchText = '';
 
     /** @var Collection<int, DocumentVersion> */
-    #[ORM\OneToMany(targetEntity: DocumentVersion::class, mappedBy: 'document', cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: DocumentVersion::class, mappedBy: 'document', cascade: ['persist'], fetch: 'EXTRA_LAZY', orphanRemoval: true)]
     #[ORM\OrderBy(['versionNumber' => 'ASC'])]
     public Collection $versions;
 
@@ -173,11 +142,7 @@ class Document implements ProjectScopedSubject
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
 
         /**
-         * The configuration $searchVector above is built with, and the one the
-         * query is parsed in for this row. Both sides must read it off the same
-         * row: a vector stemmed as French and a query parsed as English never
-         * meet. Assign a new value and the vector is stale until
-         * DocumentSearchIndexer::index() runs again.
+         * The language of the text. Search ignores it.
          */
         #[ORM\Column(name: 'search_language', length: 20, enumType: SearchLanguage::class, options: ['default' => SearchLanguage::DEFAULT->value])]
         public SearchLanguage $searchLanguage = SearchLanguage::DEFAULT,
@@ -192,6 +157,7 @@ class Document implements ProjectScopedSubject
     {
         $version = new DocumentVersion($this, $this->versions->count() + 1, $markdown, $renderedHtml, $description);
         $this->versions->add($version);
+        $this->searchText = $markdown;
 
         return $version;
     }
