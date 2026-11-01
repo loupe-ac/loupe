@@ -483,6 +483,10 @@ reason in its row of the Runs list, and in the drawer under **Closed because**.
    reaches Loupe only through the claude.ai connector sends no session header,
    so only its explicit `card_run_open` and `card_run_close` calls count.
 
+A session on a Lifecycle card that ends with no pull request sends the card
+back to Backlog, so no worker starts on work that a session began. A pull
+request link that comes later brings the card back to Implementation.
+
 A wrong close costs little. The next `card_run_open` call of the session opens a
 new run. A workflow rule that waits for "no session open" reacts to the close as
 it does to any other close, and a card in Product design can then ask for a new

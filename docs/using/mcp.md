@@ -322,7 +322,7 @@ Roughly in the order an agent uses them:
 | `card_get` | Read one card, with the pull requests and their stored state, the latest agent review of each pull request as `agentReview`, and the feedback linked to it. The `carriedTo` list of `agentReview` names each later head that Loupe made a carried check for. Its `postedAt` is null while that check is not posted yet |
 | `card_get_history` | Read a page of one card's history, newest first: its creation, its moves and the automation's actions |
 | `card_update` | Change a card, or move it to another column |
-| `card_run_open` | Record an open interactive session on a card, and optionally move the card in the same step |
+| `card_run_open` | Record an open interactive session on a card, and optionally move the card in the same step. On a Lifecycle board, pass the Implementation slug to start the work yourself with no worker. A message that starts `worker:` means a worker holds the card, so make no edit. See [Work a card in a session](workflows.md#work-a-card-in-a-session) |
 | `card_run_close` | Close the interactive run a session opened on a card, and ask the bridges for the usage of the run |
 | `artifact_list` | List the stored design artifacts of the project, newest first (off with `artifacts.enabled`, see [Artifact tools](../extending/artifact-tools.md)) |
 | `artifact_get` | Describe one artifact: its versions, and the files of one version |
