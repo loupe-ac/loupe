@@ -19,8 +19,8 @@ final readonly class SavedGraphLocker
     }
 
     /**
-     * Locks the project row, then reads the position and the removal time again, so a write sees a remove
-     * or a move from another tab. Entity refresh is not possible, because the entity has read-only fields.
+     * Locks the project row, then reads the fields that a write can change again, so a write sees a change
+     * from another tab. Entity refresh is not possible, because the entity has read-only fields.
      * Call it inside a transaction. It throws nothing, because a thrown exception closes the entity manager.
      *
      * @return bool false when the graph row is gone
@@ -32,6 +32,17 @@ final readonly class SavedGraphLocker
         if (null === $state) {
             return false;
         }
+        $graph->name = $state['name'];
+        $graph->metric = $state['metric'];
+        $graph->unit = $state['unit'];
+        $graph->statistic = $state['statistic'];
+        $graph->group = $state['metricGroup'];
+        $graph->range = $state['range'];
+        $graph->bucket = $state['bucket'];
+        $graph->compare = $state['compare'];
+        $graph->chartType = $state['chartType'];
+        $graph->width = $state['width'];
+        $graph->showLegend = $state['showLegend'];
         $graph->position = $state['position'];
         $graph->removedAt = $state['removedAt'];
 
