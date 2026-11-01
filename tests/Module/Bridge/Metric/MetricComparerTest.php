@@ -147,6 +147,43 @@ final class MetricComparerTest extends TestCase
         self::assertSame(MetricSign::Clear, $comparison->sign);
     }
 
+    public function test_a_maximum_has_a_change_and_no_sign(): void
+    {
+        $comparison = $this->comparer->compare(MetricStatistic::Max, MetricValueType::Percent, MetricUnit::Run, self::cards([40, 60, 80, 90, 70, 50]), self::cards([10, 20, 30, 40, 50, 60]), Confidence::forComparisons(1), 'seed');
+
+        self::assertSame(30.0, $comparison->change);
+        self::assertNull($comparison->sign);
+        self::assertNull($comparison->currentRange);
+    }
+
+    public function test_a_reading_has_a_change_and_no_sign_whatever_the_statistic(): void
+    {
+        $rows = static fn (array $values): array => array_map(static fn (int $value): MetricRow => new MetricRow(Uuid::v7(), null, 'desk/work session', new \DateTimeImmutable('2026-10-01'), $value), $values);
+
+        $comparison = $this->comparer->compare(MetricStatistic::Mean, MetricValueType::Percent, MetricUnit::Reading, $rows([50, 60, 70]), $rows([10, 20, 30]), Confidence::forComparisons(1), 'seed');
+
+        self::assertSame(40.0, $comparison->change);
+        self::assertSame(MetricChangeKind::Absolute, $comparison->changeKind);
+        self::assertNull($comparison->sign);
+        self::assertNull($comparison->currentRange);
+    }
+
+    public function test_a_usage_delta_that_rises_from_a_negative_value_reads_as_a_rise(): void
+    {
+        $comparison = $this->comparer->compare(MetricStatistic::Mean, MetricValueType::Percent, MetricUnit::Run, self::cards([1, 1]), self::cards([-1, -1]), Confidence::forComparisons(1), 'seed');
+
+        self::assertSame(2.0, $comparison->change);
+        self::assertSame(MetricChangeKind::Absolute, $comparison->changeKind);
+    }
+
+    public function test_a_count_of_a_percent_changes_as_a_count(): void
+    {
+        $comparison = $this->comparer->compare(MetricStatistic::Count, MetricValueType::Percent, MetricUnit::Run, self::cards([1, 2, 3, 4]), self::cards([1, 2]), Confidence::forComparisons(1), 'seed');
+
+        self::assertSame(1.0, $comparison->change);
+        self::assertSame(MetricChangeKind::Relative, $comparison->changeKind);
+    }
+
     public function test_runs_of_one_card_count_as_one_card_and_resample_together(): void
     {
         // Ten runs of two cards. A per-run range would be narrow, and a card resample draws two clusters.

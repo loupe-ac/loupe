@@ -31,7 +31,8 @@ final readonly class MetricComparer
         [$change, $kind] = [] === $now || [] === $before ? [null, null] : self::change($statistic, $type, $nowValue, $beforeValue);
         $cards = [self::distinctCards($now), self::distinctCards($before)];
 
-        if (!self::hasSign($statistic)) {
+        // A reading belongs to no card, and the readings of one window follow each other, so they have no sign.
+        if (!self::hasSign($statistic) || MetricUnit::Reading === $unit) {
             return new MetricComparison($previousPoint, $change, $kind, null, null, null, null, $cards[0], $cards[1]);
         }
 
@@ -58,10 +59,13 @@ final readonly class MetricComparer
         );
     }
 
-    /** A sum and a count add up what happened, so they have a change and no sign. */
+    /**
+     * A sum and a count add up what happened, so they have a change and no sign. A maximum has one too: a resample
+     * cannot draw above the highest value, so its range says nothing about the true peak.
+     */
     public static function hasSign(MetricStatistic $statistic): bool
     {
-        return !\in_array($statistic, [MetricStatistic::Sum, MetricStatistic::Count], true);
+        return !\in_array($statistic, [MetricStatistic::Sum, MetricStatistic::Count, MetricStatistic::Max], true);
     }
 
     /**
@@ -130,7 +134,8 @@ final readonly class MetricComparer
         if (MetricValueType::Ratio === $type && MetricStatistic::Count !== $statistic) {
             return [(float) ($now - $before), MetricChangeKind::Points];
         }
-        if (0.0 === (float) $before) {
+        // A percent is already a share and a usage delta can be negative, so a fraction of it would misstate the change.
+        if (0.0 === (float) $before || (MetricValueType::Percent === $type && MetricStatistic::Count !== $statistic)) {
             return [(float) ($now - $before), MetricChangeKind::Absolute];
         }
 

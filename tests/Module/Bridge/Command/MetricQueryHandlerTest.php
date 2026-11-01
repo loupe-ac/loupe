@@ -593,6 +593,28 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricWindow(new \DateTimeImmutable('2026-08-06 12:00:00'), new \DateTimeImmutable('2026-09-05 12:00:00')), $view->previous);
     }
 
+    public function test_a_compare_of_the_account_usage_keeps_each_reading_in_its_own_window(): void
+    {
+        $owner = $this->project->owner;
+        $bridge = $this->seedBridge($this->em, $owner, projects: [(string) $this->project->id]);
+        $bridge->name = 'laptop';
+        $this->em->flush();
+        // The window of 30 days ends at NOW, so the previous window runs from 2026-08-06 12:00 to 2026-09-05 12:00.
+        $this->seedAccountReading($this->em, $bridge, '2026-09-10 09:00:00', usedPercent: 80.0);
+        $this->seedAccountReading($this->em, $bridge, '2026-08-11 09:00:00', usedPercent: 30.0);
+        $this->seedAccountReading($this->em, $bridge, '2026-08-01 09:00:00', usedPercent: 99.0);
+
+        $view = $this->query(MetricUnit::Reading, Metric::AccountUsage, MetricStatistic::Max, MetricGroup::AccountWindow, MetricCompare::Previous);
+
+        $series = $view->series[0];
+        self::assertSame(80.0, $series->total->value);
+        self::assertNotNull($series->comparison);
+        self::assertEquals(new MetricPoint(null, 30.0, 1), $series->comparison->previous);
+        self::assertSame(50.0, $series->comparison->change);
+        self::assertSame(MetricChangeKind::Absolute, $series->comparison->changeKind);
+        self::assertNull($series->comparison->sign);
+    }
+
     public function test_a_compare_leaves_out_a_run_after_the_clock_reading(): void
     {
         $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000);

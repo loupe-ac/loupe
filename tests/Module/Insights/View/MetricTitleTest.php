@@ -70,6 +70,14 @@ final class MetricTitleTest extends TestCase
         }
     }
 
+    public function test_the_account_usage_names_its_reading_unit_and_its_window_group(): void
+    {
+        self::assertSame(
+            'Account usage per reading, maximum, by account window, last 30 days, per day',
+            self::title(new MetricShape(new MetricKey(Metric::AccountUsage)), MetricUnit::Reading, MetricStatistic::Max, MetricGroup::AccountWindow, MetricRange::ThirtyDays, MetricBucket::Day),
+        );
+    }
+
     public function test_it_names_every_kind_of_metric(): void
     {
         $title = self::translator();

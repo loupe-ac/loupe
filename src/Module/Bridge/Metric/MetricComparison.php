@@ -18,7 +18,7 @@ final readonly class MetricComparison
         public ?Interval $currentRange,
         public ?Interval $previousRange,
         public ?Interval $changeRange,
-        /** Null for a sum and a count, which have no likely range. */
+        /** Null for a sum, a count, a maximum and a reading, which have no likely range. */
         public ?MetricSign $sign,
         /** The distinct cards with a known value, on the current and on the previous period. */
         public int $currentCards,

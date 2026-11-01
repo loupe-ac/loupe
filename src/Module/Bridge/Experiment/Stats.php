@@ -109,8 +109,8 @@ final class Stats
         if ($resamples < 1) {
             throw new \InvalidArgumentException('A bootstrap needs at least one resample.');
         }
-        if (\in_array($statistic, [MetricStatistic::Sum, MetricStatistic::Count], true)) {
-            throw new \InvalidArgumentException('A sum and a count have no likely range.');
+        if (\in_array($statistic, [MetricStatistic::Sum, MetricStatistic::Count, MetricStatistic::Max], true)) {
+            throw new \InvalidArgumentException('A sum, a count and a maximum have no likely range.');
         }
 
         $count = \count($clusters);

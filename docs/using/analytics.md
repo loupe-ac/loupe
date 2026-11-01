@@ -287,15 +287,18 @@ shows the change under the figure. The other chart types show the current
 period only, and a note says that the table holds the previous period.
 
 Each series gets a change figure, such as "↓ 14%". A rate shows its change in
-percentage points, such as "↑ 3 pts". When the previous value is 0, the figure
-is the difference in the unit of the metric, such as "↑ $1.20". Every change has
+percentage points, such as "↑ 3 pts". A usage metric shows the difference of
+its percentages, such as "↑ 5 %". When the previous value is 0, the figure is
+the difference in the unit of the metric, such as "↑ $1.20". Every change has
 the same colour, because a rise is good for some metrics and bad for others.
 
 ### The real-or-noise sign
 
 Each change of **Median**, **Mean**, **90th percentile** or a rate carries a
 sign that says whether the change is real or noise. **Sum** and **Count** show
-the change and no sign, because they measure how much work ran.
+the change and no sign, because they measure how much work ran. **Maximum** shows
+the change and no sign, because one peak gives no likely range. **Account usage**
+has no sign with any statistic, because a reading belongs to no card.
 
 | Sign | Meaning |
 |---|---|

@@ -211,7 +211,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(13, $select->children('option'));
+        self::assertCount(16, $select->children('option'));
         $groups = $select->filter('optgroup');
         self::assertCount(3, $groups);
         self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));

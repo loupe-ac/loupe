@@ -8586,10 +8586,10 @@
             <trans-unit id="analytics.metrics.chart_type.donut"><source>analytics.metrics.chart_type.donut</source><target>Donut</target></trans-unit>
             <trans-unit id="analytics.metrics.chart_type.number"><source>analytics.metrics.chart_type.number</source><target>Number</target></trans-unit>
             <trans-unit id="analytics.metrics.note.locked.needs_several_lines"><source>analytics.metrics.note.locked.needs_several_lines</source><target>Stacked bars, 100% stacked and Donut need more than one line. Group the graph, or pick a metric that has several lines, to unlock them.</target></trans-unit>
-            <trans-unit id="analytics.metrics.note.locked.statistic_does_not_add"><source>analytics.metrics.note.locked.statistic_does_not_add</source><target>Stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.locked.statistic_does_not_add"><source>analytics.metrics.note.locked.statistic_does_not_add</source><target>Stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean, a maximum or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
             <trans-unit id="analytics.metrics.note.locked.rate_does_not_add"><source>analytics.metrics.note.locked.rate_does_not_add</source><target>Stacked bars, 100% stacked and Donut add the lines together. A rate does not add up, so they stay locked.</target></trans-unit>
             <trans-unit id="analytics.metrics.note.switched.needs_several_lines"><source>analytics.metrics.note.switched.needs_several_lines</source><target>Switched to bars: stacked bars, 100% stacked and Donut need more than one line. Group the graph, or pick a metric that has several lines, to use them.</target></trans-unit>
-            <trans-unit id="analytics.metrics.note.switched.statistic_does_not_add"><source>analytics.metrics.note.switched.statistic_does_not_add</source><target>Switched to bars: stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.switched.statistic_does_not_add"><source>analytics.metrics.note.switched.statistic_does_not_add</source><target>Switched to bars: stacked bars, 100% stacked and Donut add the lines together, so they need Sum or Count. A median, a mean, a maximum or a percentile does not add up. The mean of time in each bucket does.</target></trans-unit>
             <trans-unit id="analytics.metrics.note.switched.rate_does_not_add"><source>analytics.metrics.note.switched.rate_does_not_add</source><target>Switched to bars: stacked bars, 100% stacked and Donut add the lines together. A rate does not add up, so they stay locked.</target></trans-unit>
             <trans-unit id="analytics.metrics.note.previous_in_table"><source>analytics.metrics.note.previous_in_table</source><target>This chart shows the current period only. The table holds the previous period.</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.cost"><source>analytics.metrics.metric.cost</source><target>Cost</target></trans-unit>
@@ -8681,11 +8681,13 @@
             <trans-unit id="analytics.metrics.title.grouped"><source>analytics.metrics.title.grouped</source><target>%subject%, %statistic%, %group%, %range%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.title.unit.run"><source>analytics.metrics.title.unit.run</source><target>per run</target></trans-unit>
             <trans-unit id="analytics.metrics.title.unit.card"><source>analytics.metrics.title.unit.card</source><target>per finished card</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.unit.reading"><source>analytics.metrics.title.unit.reading</source><target>per reading</target></trans-unit>
             <trans-unit id="analytics.metrics.title.statistic.median"><source>analytics.metrics.title.statistic.median</source><target>median</target></trans-unit>
             <trans-unit id="analytics.metrics.title.statistic.mean"><source>analytics.metrics.title.statistic.mean</source><target>mean</target></trans-unit>
             <trans-unit id="analytics.metrics.title.statistic.sum"><source>analytics.metrics.title.statistic.sum</source><target>sum</target></trans-unit>
             <trans-unit id="analytics.metrics.title.statistic.p90"><source>analytics.metrics.title.statistic.p90</source><target>90th percentile</target></trans-unit>
             <trans-unit id="analytics.metrics.title.statistic.count"><source>analytics.metrics.title.statistic.count</source><target>count</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.statistic.max"><source>analytics.metrics.title.statistic.max</source><target>maximum</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.stage"><source>analytics.metrics.title.group.stage</source><target>by stage</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.model"><source>analytics.metrics.title.group.model</source><target>by model</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.variant"><source>analytics.metrics.title.group.variant</source><target>by variant</target></trans-unit>
@@ -8696,6 +8698,7 @@
             <trans-unit id="analytics.metrics.title.group.harness-version"><source>analytics.metrics.title.group.harness-version</source><target>by harness version</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.cli-version"><source>analytics.metrics.title.group.cli-version</source><target>by CLI version</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.skill-version"><source>analytics.metrics.title.group.skill-version</source><target>by plugin version</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.account-window"><source>analytics.metrics.title.group.account-window</source><target>by account window</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.last"><source>analytics.metrics.title.range.last</source><target>last %days% days</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.compared"><source>analytics.metrics.title.range.compared</source><target>last %days% days vs the %days% days before</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.all"><source>analytics.metrics.title.range.all</source><target>all time</target></trans-unit>
