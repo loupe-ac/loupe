@@ -8,7 +8,7 @@
     valueLabel    string   Header of the value column. Optional.
     changeLabel   string   Header of the change column. Optional.
 
-  Draws the plot, the legend and the table of a chart. A Line, Bars or stacked chart has one hover target for each time bucket,
+  Draws the plot, the legend and the closed table of a chart. A Line, Bars or stacked chart has one hover target for each time bucket,
   and a Donut has one for each slice. The server prints each hover card in a template, and chart_hover_controller.js shows it.
   A Number chart has no plot, no table and no hover card. The page draws it without JavaScript, minus the hover cards.
 #}
@@ -181,19 +181,22 @@
         {% if layout.comparing %}
             {% set columns = columns|merge([{label: changeLabel ?? 'analytics.chart.table.change'|trans, align: 'end'}]) %}
         {% endif %}
-        <twig:Ds:DataTable :label="'analytics.chart.table.label'|trans" :columns="columns">
-            {% for row in layout.table %}
-                <div class="lp-data-table__row" role="row">
-                    <span class="lp-data-table__cell lp-chart__key" role="cell"><span class="lp-chart__swatch lp-chart-slot--{{ row.series.slot }}"></span>{{ labels[row.series.position] ?? '' }}</span>
-                    <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.value ?? unknown }}</span>
-                    {% if hasShare %}
-                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.share }}</span>
-                    {% endif %}
-                    {% if layout.comparing %}
-                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% include '_chart_change.html.twig' with {row: row, id: chartId ~ '-sign-' ~ loop.index0} only %}</span>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </twig:Ds:DataTable>
+        <details class="lp-chart__table" data-chart-table="{{ chartId }}">
+            <summary class="lp-chart__table-toggle"><twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-chart__table-chevron" />{{ 'analytics.chart.table.toggle'|trans }}</summary>
+            <twig:Ds:DataTable :label="'analytics.chart.table.label'|trans" :columns="columns">
+                {% for row in layout.table %}
+                    <div class="lp-data-table__row" role="row">
+                        <span class="lp-data-table__cell lp-chart__key" role="cell"><span class="lp-chart__swatch lp-chart-slot--{{ row.series.slot }}"></span>{{ labels[row.series.position] ?? '' }}</span>
+                        <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.value ?? unknown }}</span>
+                        {% if hasShare %}
+                            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ row.share }}</span>
+                        {% endif %}
+                        {% if layout.comparing %}
+                            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% include '_chart_change.html.twig' with {row: row, id: chartId ~ '-sign-' ~ loop.index0} only %}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </twig:Ds:DataTable>
+        </details>
     {% endif %}
 </figure>

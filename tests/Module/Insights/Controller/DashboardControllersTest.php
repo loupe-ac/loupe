@@ -90,6 +90,7 @@ final class DashboardControllersTest extends WebTestCase
         self::assertSame($base.'/graphs/'.$graphId, $waiting->attr('src'));
         self::assertSame('lazy', $waiting->attr('loading'));
         self::assertSame('dashboard-graph-'.$graphId, $waiting->attr('id'));
+        self::assertCount(1, $waiting->filter('[role="status"] svg.lp-graph-tile__spinner'));
 
         $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertResponseIsSuccessful();

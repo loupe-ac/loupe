@@ -278,6 +278,7 @@ export const KEPT_CSS_WORDS = new Set([
     'at',
     'auto',
     'auto-fill',
+    'auto-fit',
     'backdrop-filter',
     'background-color',
     'balance',

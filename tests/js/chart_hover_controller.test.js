@@ -151,12 +151,43 @@ it('flips against the visible scroll box, not the whole surface', async () => {
     try {
         document.getElementById('first').dispatchEvent(new Event('focus'));
         const left = parseFloat(shown()[0].style.left);
-        // The visible box ends at 600 in surface coordinates, so the card stays left of it.
-        expect(left + 200).toBeLessThanOrEqual(600);
-        expect(left).toBeGreaterThanOrEqual(200);
+        expect(left + 200).toBeLessThanOrEqual(400);
+        expect(left).toBeGreaterThanOrEqual(0);
     } finally {
         HTMLElement.prototype.getBoundingClientRect = original;
     }
+});
+
+it('keeps a card taller than the plot inside the window', async () => {
+    await mount();
+    stub('[data-chart-hover-target="surface"]', rect(0, 600, 1000, 150));
+    stub('[data-chart-hover-target="viewport"]', rect(0, 600, 1000, 150));
+    stub('#first', rect(100, 620, 100, 100));
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+        return this.hasAttribute('data-chart-hover-card')
+            ? rect(0, 0, 200, 300)
+            : original.call(this);
+    };
+    try {
+        document.getElementById('first').dispatchEvent(new Event('focus'));
+        const top = parseFloat(shown()[0].style.top);
+        expect(top + 300).toBeLessThanOrEqual(window.innerHeight);
+        expect(top).toBeGreaterThanOrEqual(0);
+    } finally {
+        HTMLElement.prototype.getBoundingClientRect = original;
+    }
+});
+
+it('moves the card with its target when the page scrolls', async () => {
+    await mount();
+    stub('#first', rect(100, 20, 100, 200));
+    document.getElementById('first').dispatchEvent(new Event('focus'));
+    expect(shown()[0].style.top).toBe('20px');
+
+    stub('#first', rect(100, 60, 100, 200));
+    window.dispatchEvent(new Event('scroll'));
+    expect(shown()[0].style.top).toBe('60px');
 });
 
 it('marks the active target and clears the mark on hide', async () => {

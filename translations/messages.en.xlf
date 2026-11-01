@@ -8566,6 +8566,7 @@
             <trans-unit id="analytics.metrics.table.vs_previous"><source>analytics.metrics.table.vs_previous</source><target>Vs previous period</target></trans-unit>
             <trans-unit id="analytics.chart.table.name"><source>analytics.chart.table.name</source><target>Name</target></trans-unit>
             <trans-unit id="analytics.chart.table.value"><source>analytics.chart.table.value</source><target>Value</target></trans-unit>
+            <trans-unit id="analytics.chart.table.toggle"><source>analytics.chart.table.toggle</source><target>Table</target></trans-unit>
             <trans-unit id="analytics.chart.table.share"><source>analytics.chart.table.share</source><target>Share</target></trans-unit>
             <trans-unit id="analytics.chart.table.change"><source>analytics.chart.table.change</source><target>Change</target></trans-unit>
             <trans-unit id="analytics.chart.change.up"><source>analytics.chart.change.up</source><target>Up</target></trans-unit>

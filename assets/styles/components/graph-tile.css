@@ -31,10 +31,22 @@
         @apply flex shrink-0 items-center gap-2;
     }
     .lp-graph-tile__body {
-        @apply min-w-0;
+        @apply flex min-w-0 flex-1 flex-col;
     }
     .lp-graph-tile__note {
         @apply m-0 py-10 text-center text-sm text-fg-dim;
+    }
+    .lp-graph-tile__loading {
+        @apply flex items-center justify-center gap-2;
+    }
+    .lp-graph-tile__spinner {
+        @apply animate-spin;
+    }
+    /* A spinner is the only sign that the graph still loads, so it slows down rather than stopping. */
+    @media (prefers-reduced-motion: reduce) {
+        .lp-graph-tile__spinner {
+            animation-duration: 3s;
+        }
     }
     .lp-graph-tile--no-legend .lp-chart__legend {
         @apply hidden;

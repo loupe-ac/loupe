@@ -143,9 +143,9 @@
         @apply inline-block w-4.5 border-t-2 border-dashed border-current;
     }
 
-    /* The hover card floats inside the plot surface and never takes the pointer. */
+    /* The hover card floats over the page, so the plot scroller cannot clip it, and it never takes the pointer. */
     .lp-chart__card {
-        @apply pointer-events-none absolute z-10 flex min-w-48 flex-col gap-1 rounded-lg border border-line bg-surface-1 px-3 py-2.5 text-xs text-fg shadow-lg;
+        @apply pointer-events-none fixed top-0 left-0 z-50 flex min-w-48 flex-col gap-1 rounded-lg border border-line bg-surface-1 px-3 py-2.5 text-xs text-fg shadow-lg;
     }
     .lp-chart__card-title {
         @apply m-0 mb-1 flex items-center gap-2 font-semibold text-ink;
@@ -206,20 +206,42 @@
         @apply flex flex-col;
     }
 
+    /* The table stays closed until a person opens it. */
+    .lp-chart__table-toggle {
+        @apply inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-xs font-medium text-fg-mute outline-none select-none hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-chart__table-toggle::-webkit-details-marker {
+        display: none;
+    }
+    .lp-chart__table[open] > .lp-chart__table-toggle {
+        @apply mb-2;
+    }
+    .lp-chart__table[open] .lp-chart__table-chevron {
+        @apply rotate-90;
+    }
+
+    /* A figure fills the room it gets, and several figures share the width. */
+    .lp-chart--number {
+        @apply flex-1;
+    }
     .lp-chart__figures {
-        @apply grid grid-cols-1 gap-3 sm:grid-cols-3;
+        @apply grid flex-1 gap-3;
+        grid-template-columns: repeat(
+            auto-fit,
+            minmax(calc(var(--spacing) * 48), 1fr)
+        );
     }
     .lp-chart__figure {
-        @apply rounded-xl border border-line bg-surface-1 px-4 py-3;
+        @apply flex flex-col items-center justify-center rounded-xl border border-line bg-surface-1 px-6 py-10 text-center;
     }
     .lp-chart__figure-name {
-        @apply m-0 flex items-center gap-1.5 truncate text-xs text-fg-label;
+        @apply m-0 flex max-w-full items-center gap-1.5 truncate text-sm text-fg-label;
     }
     .lp-chart__figure-value {
-        @apply m-0 mt-1 font-display text-2xl font-bold text-ink;
+        @apply m-0 mt-1 font-display text-5xl font-bold text-ink;
     }
     .lp-chart__figure-change {
-        @apply m-0 mt-1 text-sm;
+        @apply m-0 mt-2 text-sm;
     }
     .lp-chart__figure-previous {
         @apply m-0 mt-0.5 text-xs text-fg-dim;
@@ -229,6 +251,9 @@
         .lp-chart__guide,
         .lp-chart__slice {
             @apply transition-opacity;
+        }
+        .lp-chart__table-chevron {
+            @apply transition-transform;
         }
     }
 }

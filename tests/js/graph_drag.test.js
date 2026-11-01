@@ -149,3 +149,148 @@ it('ignores a press that does not start on a grip', () => {
 
     expect(submitted).toEqual([]);
 });
+
+const grid = () => document.getElementById('grid');
+const lifted = () => grid().querySelector('.lp-dashboard-grid__lifted');
+const slot = () => grid().querySelector('.lp-dashboard-grid__placeholder');
+const order = () =>
+    [...grid().children]
+        .map((child) => child.dataset.graphId)
+        .filter((id) => id !== undefined);
+
+it('lifts a copy that follows the pointer and carries no controller hooks', () => {
+    grip(0)
+        .closest('[data-graph-id]')
+        .insertAdjacentHTML(
+            'beforeend',
+            '<div id="inner" data-controller="chart-hover"><template></template></div>',
+        );
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 80);
+
+    expect(lifted().style.top).toBe('30px');
+    pointer('pointermove', grip(0), 90);
+    expect(lifted().style.top).toBe('40px');
+    expect(lifted().inert).toBe(true);
+    expect(
+        lifted().querySelector('form, template, [id], [data-controller]'),
+    ).toBe(null);
+    expect(
+        grip(0)
+            .closest('[data-graph-id]')
+            .classList.contains('lp-dashboard-grid__cell--dragging'),
+    ).toBe(true);
+});
+
+it('marks the landing place after a later tile and before an earlier one', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    expect(slot().previousElementSibling.dataset.graphId).toBe('b');
+
+    pointer('pointermove', grip(0), 50);
+    expect(slot()).toBe(null);
+    pointer('pointercancel', grip(0), 50);
+
+    pointer('pointerdown', grip(2), 270);
+    pointer('pointermove', grip(2), 160);
+    expect(slot().nextElementSibling.dataset.graphId).toBe('b');
+});
+
+it('keeps the marked place while the pointer rests on the slot', () => {
+    pointer('pointerdown', grip(2), 270);
+    pointer('pointermove', grip(2), 160);
+    slot().getBoundingClientRect = () => ({
+        left: 0,
+        right: 100,
+        top: 0,
+        bottom: 400,
+    });
+    pointer('pointermove', grip(2), 50);
+    expect(slot().nextElementSibling.dataset.graphId).toBe('b');
+
+    pointer('pointerup', grip(2), 50);
+    expect(submitted).toEqual(['-1']);
+});
+
+it('moves the tile at once on a drop and leaves no drag marks', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    pointer('pointerup', grip(0), 160);
+
+    expect(order()).toEqual(['b', 'a', 'c']);
+    expect(lifted()).toBe(null);
+    expect(slot()).toBe(null);
+});
+
+it('puts the tile back when the server refuses the move', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    pointer('pointerup', grip(0), 160);
+    const form = grid().querySelector('[data-graph-id="a"] form');
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { success: false },
+        }),
+    );
+
+    expect(order()).toEqual(['a', 'b', 'c']);
+});
+
+it('refuses a second drag until the move answers', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    pointer('pointerup', grip(0), 160);
+    const form = grid().querySelector('[data-graph-id="a"] form');
+
+    pointer('pointerdown', grip(2), 270);
+    pointer('pointermove', grip(2), 50);
+    expect(lifted()).toBe(null);
+    pointer('pointerup', grip(2), 50);
+
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { success: true },
+        }),
+    );
+    pointer('pointerdown', grip(2), 270);
+    pointer('pointermove', grip(2), 160);
+    expect(lifted()).not.toBe(null);
+});
+
+it('drops nothing when Escape ends the drag', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(lifted()).toBe(null);
+    expect(slot()).toBe(null);
+    pointer('pointerup', grip(0), 160);
+    expect(submitted).toEqual([]);
+    expect(order()).toEqual(['a', 'b', 'c']);
+});
+
+it('scrolls the page while the pointer rests near its bottom edge', () => {
+    const frames = [];
+    const request = vi
+        .spyOn(window, 'requestAnimationFrame')
+        .mockImplementation((callback) => frames.push(callback));
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    grid().before(scroller);
+    scroller.append(grid());
+    scroller.getBoundingClientRect = () => ({ top: 0, bottom: 300 });
+
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    expect(frames).toHaveLength(0);
+
+    pointer('pointermove', grip(0), 290);
+    expect(frames).toHaveLength(1);
+    frames.shift()();
+    expect(scroller.scrollTop).toBeGreaterThan(0);
+
+    pointer('pointercancel', grip(0), 290);
+    request.mockRestore();
+});

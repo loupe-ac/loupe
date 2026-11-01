@@ -7678,11 +7678,18 @@
     .lp-dashboard-grid__cell--full {
         @apply lg:col-span-2;
     }
-    .lp-dashboard-grid__cell--dragging {
-        @apply opacity-50;
+    /* During a drag the tile leaves a faded copy in its slot, a lifted copy follows the pointer, and a dashed slot marks where it lands. */
+    .lp-dashboard-grid[data-dragging] {
+        @apply select-none;
     }
-    .lp-dashboard-grid__cell--drop .lp-graph-tile {
-        @apply border-accent-border bg-accent-faint;
+    .lp-dashboard-grid__cell--dragging {
+        @apply opacity-40;
+    }
+    .lp-dashboard-grid__placeholder {
+        @apply rounded-xl border-2 border-dashed border-accent-border bg-accent-faint;
+    }
+    .lp-dashboard-grid__lifted {
+        @apply pointer-events-none fixed z-50 rounded-xl opacity-95 shadow-xl;
     }
     /* The slot after the last tile that leads to Metrics. */
     .lp-graph-add {

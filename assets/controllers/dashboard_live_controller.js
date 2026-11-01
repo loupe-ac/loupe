@@ -26,7 +26,8 @@ const BUSY_SELECTOR = '[data-dragging], [data-renaming], dialog[open]';
  * because the page already shows that change. A reconnect fetches once, since
  * the hub may have lost signals. A drag, an open rename form or an open dialog
  * holds the fetch until it ends. A failed fetch tries again with a growing
- * wait, and after the last try the page says that live updates stopped.
+ * wait, and after the last try the page says that live updates stopped. A
+ * table that a person opened stays open when a stream replaces its tile.
  */
 export default class extends Controller {
     static targets = ['status'];
@@ -36,16 +37,40 @@ export default class extends Controller {
     connect() {
         this.sequence = 0;
         this.deadline = null;
+        this.onBeforeStream = (event) => this.keepTablesOpen(event);
+        document.addEventListener(
+            'turbo:before-stream-render',
+            this.onBeforeStream,
+        );
         this.unsubscribe = on(SIGNAL_TYPE, (change) => this.changed(change), {
             onReconnect: () => this.schedule(),
         });
     }
 
     disconnect() {
+        document.removeEventListener(
+            'turbo:before-stream-render',
+            this.onBeforeStream,
+        );
         clearTimeout(this.timer);
         this.sequence += 1;
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+    }
+
+    keepTablesOpen(event) {
+        const render = event.detail.render;
+        event.detail.render = async (stream) => {
+            const open = [
+                ...this.element.querySelectorAll('[data-chart-table][open]'),
+            ].map((table) => table.dataset.chartTable);
+            await render(stream);
+            open.forEach((name) => {
+                this.element
+                    .querySelector(`[data-chart-table="${CSS.escape(name)}"]`)
+                    ?.setAttribute('open', '');
+            });
+        };
     }
 
     changed(change) {

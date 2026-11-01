@@ -273,3 +273,30 @@ it('stops listening when the page leaves', async () => {
 
     expect(subscription().removed).toBe(true);
 });
+
+it('keeps an open table open when a stream replaces its tile', async () => {
+    await mount(
+        '<details data-chart-table="tile-a" open></details><details data-chart-table="tile-b"></details>',
+    );
+    const event = new CustomEvent('turbo:before-stream-render', {
+        detail: {
+            render: async () => {
+                document.getElementById('dashboard-grid').innerHTML =
+                    '<details data-chart-table="tile-a"></details><details data-chart-table="tile-b"></details>';
+            },
+        },
+    });
+    document.dispatchEvent(event);
+    await event.detail.render(null);
+
+    expect(
+        document
+            .querySelector('[data-chart-table="tile-a"]')
+            .hasAttribute('open'),
+    ).toBe(true);
+    expect(
+        document
+            .querySelector('[data-chart-table="tile-b"]')
+            .hasAttribute('open'),
+    ).toBe(false);
+});

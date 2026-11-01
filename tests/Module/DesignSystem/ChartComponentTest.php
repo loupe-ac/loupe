@@ -55,7 +55,7 @@ final class ChartComponentTest extends KernelTestCase
         $crawler = $this->chart($specimen['layout'], $specimen['labels']);
 
         self::assertCount(1, $crawler->filter('figure.lp-chart--'.$type->value));
-        self::assertCount(MetricChartType::Number === $type ? 0 : 1, $crawler->filter('.lp-data-table'));
+        self::assertCount(MetricChartType::Number === $type ? 0 : 1, $crawler->filter('details.lp-chart__table:not([open]) > summary + * .lp-data-table, details.lp-chart__table:not([open]) > .lp-table-cue .lp-data-table'));
         self::assertCount(MetricChartType::Number === $type ? 0 : 1, $crawler->filter('svg.lp-chart__svg'));
     }
 

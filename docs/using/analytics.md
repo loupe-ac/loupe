@@ -227,10 +227,10 @@ value of each series, the value of the previous period when you compare, and the
 total when the values add up. On a **Donut**, the card shows the share and the
 value of one slice. **Number** has no hover card.
 
-Under every chart except **Number**, a table lists each series with its value,
-its share when the values add up, and its change when you compare. The table
-holds every number of the chart, so a page with no JavaScript loses only the
-hover card.
+Under every chart except **Number**, a closed **Table** section opens a table
+that lists each series with its value, its share when the values add up, and its
+change when you compare. The table holds every number of the chart, so a page
+with no JavaScript loses only the hover card.
 
 ## Unknown values
 
