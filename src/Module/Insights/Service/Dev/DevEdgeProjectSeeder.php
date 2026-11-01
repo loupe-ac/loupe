@@ -30,7 +30,7 @@ use Symfony\Component\Uid\Uuid;
  * Writes three more projects of the dev user, one for each edge state of the Metrics dashboard: a project with no
  * runs, a project that holds as many saved graphs as the default cap allows, and a project whose dashboard holds a
  * graph that names a bucket the project has no rule for. The graphs go in directly, because the save handler
- * refuses a save at the cap. A later seed writes only a project or a graph list that is missing.
+ * refuses a save at the cap. A later seed restores a graph that is missing or removed, and keeps an edited graph.
  */
 #[When('dev')]
 #[When('test')]
@@ -63,6 +63,7 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private EntityManagerInterface $em,
         private EventDispatcherInterface $events,
+        private DevProjectSeeder $devProjects,
     ) {
     }
 
@@ -100,18 +101,14 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         $this->project($context, self::noRunsProjectId(), self::NO_RUNS_NAME, 60);
 
         $atCap = $this->project($context, self::atCapProjectId(), self::AT_CAP_NAME, 120);
-        if ($this->hasNoGraph($atCap)) {
-            foreach (self::CAP_METRICS as $position => [$metric, $unit]) {
-                $name = \sprintf('%s per %s', ucfirst(str_replace('-', ' ', $metric)), $unit->value);
-                $this->graph($context, $atCap, $name, $metric, $unit, $position, 3600 - $position * 60);
-            }
+        foreach (self::CAP_METRICS as $position => [$metric, $unit]) {
+            $name = \sprintf('%s per %s', ucfirst(str_replace('-', ' ', $metric)), $unit->value);
+            $this->graph($context, 'graph-cap', $atCap, $name, $metric, $unit, $position, 3600 - $position * 60);
         }
 
         $broken = $this->project($context, self::brokenGraphProjectId(), self::BROKEN_GRAPH_NAME, 180);
-        if ($this->hasNoGraph($broken)) {
-            $this->graph($context, $broken, 'Cost per run', 'cost', MetricUnit::Run, 0, 120);
-            $this->graph($context, $broken, 'Time in tests', 'bucket-time:tests', MetricUnit::Run, 1, 60);
-        }
+        $this->graph($context, 'broken-graph', $broken, 'Cost per run', 'cost', MetricUnit::Run, 0, 120);
+        $this->graph($context, 'broken-graph', $broken, 'Time in tests', 'bucket-time:tests', MetricUnit::Run, 1, 60);
 
         $this->em->flush();
     }
@@ -123,6 +120,8 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
             return $existing;
         }
 
+        $this->devProjects->renameOldProject($context->devUser(), $name);
+
         $project = new Project($context->devUser(), $name, createdAt: $context->at($secondsAgo));
         $context->ids->assign($project, $id);
         $this->em->persist($project);
@@ -132,14 +131,18 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         return $project;
     }
 
-    private function hasNoGraph(Project $project): bool
+    private function graph(SeedContext $context, string $list, Project $project, string $name, string $metric, MetricUnit $unit, int $position, int $secondsAgo): void
     {
-        return [] === $this->insightsSavedGraphs->findBy(['project' => $project]);
-    }
+        $id = DevSeedId::of(\sprintf('insights/graph/%s/%s-%s', $list, str_replace(':', '-', $metric), $unit->value));
+        $stored = $this->insightsSavedGraphs->find($id);
+        if ($stored instanceof InsightsSavedGraph) {
+            // A removed graph keeps its row, and the project must still show this edge state.
+            $stored->removedAt = null;
 
-    private function graph(SeedContext $context, Project $project, string $name, string $metric, MetricUnit $unit, int $position, int $secondsAgo): void
-    {
-        $this->em->persist(new InsightsSavedGraph(
+            return;
+        }
+
+        $graph = new InsightsSavedGraph(
             $project,
             $name,
             $metric,
@@ -154,6 +157,8 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
             true,
             $position,
             $context->at($secondsAgo),
-        ));
+        );
+        $context->ids->assign($graph, $id);
+        $this->em->persist($graph);
     }
 }
