@@ -26,6 +26,8 @@ use App\Module\Board\Service\CardLinkResolver;
 use App\Module\Board\Service\CardLinkSync;
 use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
+use App\Module\Board\Service\ChildDesignChoices;
+use App\Module\Board\Service\ChildDesignDecision;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
@@ -59,10 +61,32 @@ final readonly class CreateCardHandler
         private CardEventRepository $cardEvents,
         private CardEventActor $eventActor,
         private HumanReviewSwitch $humanReviewSwitch,
+        private ChildDesignDecision $childDesign,
+        private ChildDesignChoices $childChoices,
     ) {
     }
 
+    /** @throws ChildDesignRefused when the child design choice is wrong, or the workflow refuses it */
     public function __invoke(CreateCardCommand $command): Card
+    {
+        if (null === $command->childDesign && !$command->requireChildDesign) {
+            return $this->create($command);
+        }
+        $choice = $this->childDesign->resolve(
+            $command->project,
+            $command->parentCardId,
+            null,
+            $command->childDesign,
+            array_values($command->documentIds),
+            null !== $command->column,
+        );
+
+        return null === $choice
+            ? $this->create($command)
+            : $this->childChoices->write($command->project, fn (): Card => $this->create($command), $choice);
+    }
+
+    private function create(CreateCardCommand $command): Card
     {
         $title = trim($command->title);
         if ('' === $title) {

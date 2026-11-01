@@ -28,6 +28,13 @@ use App\Module\Workflow\Contract\CardEventCause;
  * card lands above or below. A named neighbour wins over $position, and one
  * the column does not hold sends the card to the end.
  *
+ * $clearParent removes the parent. Naming a parent too is refused.
+ *
+ * $childDesign says whether the tech design of the parent covers the card: inherit or own.
+ * The handler runs the choice with the update, in one transaction, and a refusal writes nothing.
+ * $requireChildDesign refuses a parent change that states no choice, where the owner would get a question.
+ * A caller that sets neither keeps the update as it was.
+ *
  * $reporter is absent on purpose. It records who first raised the card.
  *
  * $expectedFingerprint is the Card::contentFingerprint() the editor opened.
@@ -97,6 +104,9 @@ final readonly class UpdateCardCommand
         public ?string $humanReviewRuleId = null,
         public bool $onlyRaiseHumanReview = false,
         public ?array $values = null,
+        public bool $clearParent = false,
+        public ?string $childDesign = null,
+        public bool $requireChildDesign = false,
     ) {
     }
 }

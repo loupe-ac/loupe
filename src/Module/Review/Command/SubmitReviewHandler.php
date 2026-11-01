@@ -16,6 +16,9 @@ use App\Module\Review\Service\DecisionSummaryReader;
 use App\Module\Review\Service\DraftStateSignal;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Ubermuda\AuditBundle\Auditor;
+use Ubermuda\AuditBundle\AuditOutcome;
+use Ubermuda\AuditBundle\AuditSubject;
 
 final readonly class SubmitReviewHandler
 {
@@ -28,6 +31,7 @@ final readonly class SubmitReviewHandler
         private EventDispatcherInterface $events,
         private DraftStateSignal $draftState,
         private DecisionSummaryReader $decisionSummary,
+        private Auditor $auditor,
     ) {
     }
 
@@ -111,6 +115,18 @@ final readonly class SubmitReviewHandler
         $this->draftState->send(
             $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
             $document->id ?? throw new \LogicException('A persisted document has an id.'),
+        );
+
+        $this->auditor->record(
+            'review.document_verdict_submitted',
+            AuditOutcome::Success,
+            [
+                'documentId' => (string) $document->id,
+                'verdict' => $result->verdict->value,
+                'reviewerId' => (string) $command->reviewer->id,
+                ...($command->throughAgent ? ['throughAgent' => true] : []),
+            ],
+            new AuditSubject('document', (string) $document->id),
         );
 
         return $result;
