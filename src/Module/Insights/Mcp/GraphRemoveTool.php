@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Mcp;
 
+use App\Exception\DomainErrors;
 use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
 use App\Module\Insights\Command\RemoveSavedGraphCommand;
@@ -32,6 +33,7 @@ final readonly class GraphRemoveTool
         private WorkerSession $workerSession,
         private RemoveSavedGraphHandler $removeGraph,
         private ListSavedGraphsHandler $listGraphs,
+        private InsightsToolErrorMessages $messages,
     ) {
     }
 
@@ -60,12 +62,11 @@ final readonly class GraphRemoveTool
                     'message' => 'Nothing is removed yet. Show the name of the graph to the owner. When the owner agrees, call graph_remove again with this graphId and this confirmation. The code works once.',
                 ];
             }
-            if (!$this->confirmations->consume($graph, $confirmation)) {
-                throw new ToolCallException('confirmation: This code does not fit the graph any more. Call graph_remove with no confirmation to preview the graph again, then ask the owner.');
-            }
 
             try {
-                ($this->removeGraph)(new RemoveSavedGraphCommand($graph));
+                ($this->removeGraph)(new RemoveSavedGraphCommand($graph, $confirmation));
+            } catch (DomainErrors $e) {
+                throw $this->messages->forAgent($e);
             } catch (NotFoundHttpException) {
                 throw new ToolCallException(SavedGraphFinder::GONE);
             }

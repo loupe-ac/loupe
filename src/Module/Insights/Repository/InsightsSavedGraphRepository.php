@@ -5,7 +5,15 @@ declare(strict_types=1);
 namespace App\Module\Insights\Repository;
 
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -78,15 +86,29 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
     }
 
     /**
-     * The position and the removal time as the database holds them now, or null when the row is gone.
+     * The fields that a write can change, as the database holds them now, or null when the row is gone.
      *
-     * @return array{position: int, removedAt: ?\DateTimeImmutable}|null
+     * @return array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable}|null
      */
     public function findStateOf(InsightsSavedGraph $graph): ?array
     {
-        /** @var array{position: int, removedAt: ?\DateTimeImmutable}|null $state */
+        /** @var array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable}|null $state */
         $state = $this->createQueryBuilder('g')
-            ->select('g.position AS position', 'g.removedAt AS removedAt')
+            ->select(
+                'g.name AS name',
+                'g.metric AS metric',
+                'g.unit AS unit',
+                'g.statistic AS statistic',
+                'g.group AS metricGroup',
+                'g.range AS range',
+                'g.bucket AS bucket',
+                'g.compare AS compare',
+                'g.chartType AS chartType',
+                'g.width AS width',
+                'g.showLegend AS showLegend',
+                'g.position AS position',
+                'g.removedAt AS removedAt',
+            )
             ->andWhere('g.id = :id')
             ->setParameter('id', $graph->id, UuidType::NAME)
             ->getQuery()

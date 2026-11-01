@@ -13,6 +13,7 @@ use App\Module\Insights\Command\RemoveSavedGraphHandler;
 use App\Module\Insights\Command\RestoreSavedGraphCommand;
 use App\Module\Insights\Command\RestoreSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Mcp\GraphListTool;
 use App\Module\Insights\Mcp\GraphMoveTool;
 use App\Module\Insights\Mcp\GraphRemoveTool;
@@ -22,6 +23,7 @@ use App\Module\Insights\Mcp\GraphUpdateTool;
 use App\Module\Insights\Mcp\InsightsToolErrorMessages;
 use App\Module\Insights\Mcp\SavedGraphFinder;
 use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphLocker;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use App\Module\Insights\View\MetricChartLock;
 use App\Module\Review\Service\WorkerSession;
@@ -425,6 +427,58 @@ final class GraphToolsTest extends KernelTestCase
         $this->expectExceptionMessage('confirmation: This code does not fit the graph any more.');
 
         $this->tool(GraphRemoveTool::class)((string) $graph->id, $code);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function editsBehindTheEntity(): iterable
+    {
+        yield 'name' => ['name', 'Renamed'];
+        yield 'metric' => ['metric', 'cost'];
+        yield 'statistic' => ['statistic', 'mean'];
+        yield 'group' => ['group', 'stage'];
+        yield 'unit' => ['unit', 'card'];
+        yield 'range' => ['range', 'seven-days'];
+        yield 'bucket' => ['bucket', 'week'];
+        yield 'compare' => ['compare', 'previous'];
+        yield 'chart' => ['chartType', 'bars'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('editsBehindTheEntity')]
+    public function test_a_code_is_refused_when_an_edit_commits_after_the_finder_read(string $field, string $value): void
+    {
+        $project = $this->scenarioProject('graphs-remove-race-'.$field);
+        $graph = $this->seedSavedGraph($project, 'Tests');
+        $this->actAsMcpTokenBoundTo($project);
+        $code = $this->removalCode((string) $graph->id);
+
+        // The row changes behind the entity, so the finder still reads the old values, as it does when the other session commits after that read.
+        $this->em()->createQuery(\sprintf('UPDATE %s g SET g.%s = :value WHERE g.id = :id', InsightsSavedGraph::class, $field))
+            ->setParameter('value', $value)
+            ->setParameter('id', $graph->id, UuidType::NAME)
+            ->execute();
+
+        try {
+            $this->tool(GraphRemoveTool::class)((string) $graph->id, $code);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertStringStartsWith('confirmation: This code does not fit the graph any more.', $e->getMessage());
+        }
+        self::assertSame([(string) $graph->id], array_column($this->tool(GraphListTool::class)()['graphs'], 'id'));
+    }
+
+    public function test_the_lock_reads_the_width_and_the_legend_again(): void
+    {
+        $graph = $this->seedSavedGraph($this->scenarioProject('graphs-lock-fields'), 'Tests');
+        $this->em()->createQuery(\sprintf("UPDATE %s g SET g.width = 'full', g.showLegend = false WHERE g.id = :id", InsightsSavedGraph::class))
+            ->setParameter('id', $graph->id, UuidType::NAME)
+            ->execute();
+        $locker = self::getContainer()->get(SavedGraphLocker::class);
+        self::assertInstanceOf(SavedGraphLocker::class, $locker);
+
+        $this->em()->wrapInTransaction(static fn (): bool => $locker->lockActive($graph));
+
+        self::assertSame(SavedGraphWidth::Full, $graph->width);
+        self::assertFalse($graph->showLegend);
     }
 
     public function test_a_wrong_code_removes_nothing(): void

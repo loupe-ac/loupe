@@ -30,7 +30,7 @@ final readonly class SavedGraphConfirmations
         return self::code($graph, $secret);
     }
 
-    /** Deletes the stored value first, so a failed removal needs a new preview. */
+    /** Deletes the stored value first, so a refused code needs a new preview. Call it under the lock of SavedGraphLocker, so the code covers the graph as the removal finds it. */
     public function consume(InsightsSavedGraph $graph, string $code): bool
     {
         $item = $this->cache->getItem(self::key($graph));

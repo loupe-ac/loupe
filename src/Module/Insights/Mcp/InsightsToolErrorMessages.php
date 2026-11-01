@@ -7,6 +7,7 @@ namespace App\Module\Insights\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
+use App\Module\Insights\Command\RemoveSavedGraphHandler;
 use App\Module\Insights\Command\ReportAnalysisHandler;
 use App\Module\Insights\Command\UpdateAnalyticsSettingsHandler;
 use App\Module\Insights\Entity\InsightsBucketRule;
@@ -60,6 +61,7 @@ final readonly class InsightsToolErrorMessages
             SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'needs_several_lines' => 'This chart type needs several lines to add up. Group the graph first, or pick another chart type.',
             SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'statistic_does_not_add' => 'This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.',
             SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'rate_does_not_add' => 'The rates of several lines never add up to a whole. Pick another chart type.',
+            RemoveSavedGraphHandler::CONFIRMATION_REFUSED => 'This code does not fit the graph any more. Call graph_remove with no confirmation to preview the graph again, then ask the owner.',
             default => self::UNMAPPED,
         };
     }
