@@ -6108,10 +6108,6 @@
                 <source>inbox.openrouter_key.body.project</source>
                 <target>OpenRouter refused the key of this project. Loupe cannot read the billed cost of runs with it. Open the project settings, select OpenRouter, and replace the key. Remove the key to use your account key again.</target>
             </trans-unit>
-            <trans-unit id="inbox.openrouter_key.closed">
-                <source>inbox.openrouter_key.closed</source>
-                <target>OpenRouter accepts the key again since %end%. It was refused from %start%.</target>
-            </trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
                 <target>%repository% does not fit the workflow</target>

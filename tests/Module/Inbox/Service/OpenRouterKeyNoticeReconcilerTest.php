@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxOpenRouterKeyNotice;
@@ -153,8 +155,9 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $closed = array_values(array_filter($this->notices(), static fn (InboxOpenRouterKeyNotice $notice): bool => null !== $notice->endedAt));
         self::assertCount(2, $closed);
         foreach ($closed as $notice) {
-            self::assertSame(InboxItemState::Done, $notice->item->state);
-            self::assertSame('OpenRouter accepts the key again since '.self::stamp('2026-10-31 12:10:00').'. It was refused from '.self::stamp(self::NOW).'.', $notice->item->closeNote);
+            self::assertSame(InboxItemState::Resolved, $notice->item->state);
+            self::assertNull($notice->item->note);
+            self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$notice->item->closedBy, $notice->item->closeCause]);
             self::assertEquals(new \DateTimeImmutable('2026-10-31 12:10:00'), $notice->endedAt);
         }
         self::assertCount(1, $this->openNotices(), 'the notice of another key stays open');
@@ -172,19 +175,20 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable(self::NOW), $this->onlyNotice()->endedAt);
     }
 
-    public function test_a_removed_key_closes_its_notices_as_obsolete_with_no_note(): void
+    public function test_a_removed_key_closes_its_notices_as_cancelled_with_no_note(): void
     {
         $this->reconciler->refused($this->keyId, true, $this->project->requireId());
 
         $this->reconciler->removed($this->keyId);
 
         $notice = $this->onlyNotice();
-        self::assertSame(InboxItemState::Obsolete, $notice->item->state);
-        self::assertNull($notice->item->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $notice->item->state);
+        self::assertNull($notice->item->note);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$notice->item->closedBy, $notice->item->closeCause]);
         self::assertNotNull($notice->endedAt);
     }
 
-    public function test_a_works_signal_for_a_removed_key_closes_its_notice_as_obsolete(): void
+    public function test_a_works_signal_for_a_removed_key_closes_its_notice_as_cancelled(): void
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
         $this->em->getConnection()->executeStatement('DELETE FROM openrouter_keys WHERE id = :id', ['id' => $this->keyId->toRfc4122()]);
@@ -192,8 +196,9 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $this->reconciler->works($this->keyId);
 
         $notice = $this->onlyNotice();
-        self::assertSame(InboxItemState::Obsolete, $notice->item->state);
-        self::assertNull($notice->item->closeNote);
+        self::assertSame(InboxItemState::Cancelled, $notice->item->state);
+        self::assertNull($notice->item->note);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$notice->item->closedBy, $notice->item->closeCause]);
         self::assertNotNull($notice->endedAt);
     }
 
@@ -214,7 +219,7 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
     {
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
         $first = $this->onlyNotice();
-        $first->item->state = InboxItemState::Obsolete;
+        $first->item->state = InboxItemState::Cancelled;
         $this->em->flush();
 
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
@@ -239,14 +244,13 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         $this->reconciler->refused($this->keyId, false, $this->project->requireId());
         $notice = $this->onlyNotice();
         self::assertSame(InboxItemState::Open, $notice->item->state);
-        $this->em->getConnection()->executeStatement("UPDATE inbox_items SET state = 'obsolete' WHERE id = :id", ['id' => (string) $notice->item->id]);
+        $this->em->getConnection()->executeStatement("UPDATE inbox_items SET state = 'cancelled' WHERE id = :id", ['id' => (string) $notice->item->id]);
         $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
 
         $this->reconciler->works($this->keyId);
 
-        self::assertSame(InboxItemState::Obsolete, $notice->item->state);
-        self::assertNull($notice->item->closeNote);
-        self::assertSame('obsolete', $this->em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $notice->item->id]));
+        self::assertSame(InboxItemState::Cancelled, $notice->item->state);
+        self::assertSame('cancelled', $this->em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $notice->item->id]));
         self::assertNotNull($notice->endedAt);
     }
 
@@ -320,11 +324,6 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
             "SELECT COUNT(*) FROM inbox_items WHERE project_id = :project AND search_vector @@ websearch_to_tsquery('english', :query)",
             ['project' => (string) $this->project->id, 'query' => $query],
         );
-    }
-
-    private static function stamp(string $moment): string
-    {
-        return new \DateTimeImmutable($moment)->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i').' UTC';
     }
 
     private function repository(): InboxOpenRouterKeyNoticeRepository

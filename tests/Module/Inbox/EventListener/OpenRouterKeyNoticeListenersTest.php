@@ -52,17 +52,17 @@ final class OpenRouterKeyNoticeListenersTest extends KernelTestCase
         $this->events->dispatch(new OpenRouterKeyWorks($keyId, false, $this->project->requireId()));
         $notice = $this->only();
         self::assertNotNull($notice->endedAt);
-        self::assertSame(InboxItemState::Done, $notice->item->state);
+        self::assertSame(InboxItemState::Resolved, $notice->item->state);
     }
 
-    public function test_a_removed_key_closes_its_notice_as_obsolete(): void
+    public function test_a_removed_key_closes_its_notice_as_cancelled(): void
     {
         $keyId = $this->openRouterKey($this->em);
         $this->events->dispatch(new OpenRouterKeyRefused($keyId, true, $this->project->requireId()));
 
         $this->events->dispatch(new OpenRouterKeyRemoved($keyId));
 
-        self::assertSame(InboxItemState::Obsolete, $this->only()->item->state);
+        self::assertSame(InboxItemState::Cancelled, $this->only()->item->state);
     }
 
     /** @return list<?\DateTimeImmutable> */
