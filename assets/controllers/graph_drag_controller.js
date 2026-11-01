@@ -361,12 +361,19 @@ export default class extends Controller {
         });
     }
 
+    /** Ends the slides, so each box is its place again and the slot can read the pointer. */
+    #settleSlides(press) {
+        press.slides.forEach((slide) => slide.cancel());
+        press.slides = [];
+    }
+
     #up(event) {
         const press = this.press;
         if (press === null || event.pointerId !== press.pointerId) {
             return;
         }
         if (press.dragging) {
+            this.#settleSlides(press);
             this.#mark(press, event);
         }
         const steps = stepsBetween(press.from, press.to);
@@ -412,8 +419,7 @@ export default class extends Controller {
         if (press.scrollFrame !== null) {
             cancelAnimationFrame(press.scrollFrame);
         }
-        press.slides.forEach((slide) => slide.cancel());
-        press.slides = [];
+        this.#settleSlides(press);
         for (const holder of [press.grip, this.element]) {
             if (holder.hasPointerCapture?.(press.pointerId)) {
                 holder.releasePointerCapture(press.pointerId);

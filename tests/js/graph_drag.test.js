@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { Application } from '@hotwired/stimulus';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GraphDragController, {
     DRAG_THRESHOLD,
     indexAtPoint,
@@ -299,6 +299,36 @@ it('slides the other tiles and waits for them before it reads the pointer again'
     finish();
     await settle();
     expect(places()).toEqual(['b', 'c', 'slot']);
+});
+
+describe('a release while the tiles slide', () => {
+    let cancel;
+
+    beforeEach(() => {
+        cancel = vi.fn();
+        HTMLElement.prototype.animate = vi.fn(() => ({
+            finished: new Promise(() => {}),
+            cancel,
+        }));
+        pointer('pointerdown', grip(0), 50);
+        pointer('pointermove', grip(0), 160);
+        expect(places()).toEqual(['b', 'slot', 'c']);
+    });
+
+    it('lands the tile under the pointer, past the place of the slide', () => {
+        pointer('pointerup', grip(0), 270);
+
+        expect(cancel).toHaveBeenCalled();
+        expect(submitted).toEqual(['2']);
+        expect(order()).toEqual(['b', 'c', 'a']);
+    });
+
+    it('posts nothing when the pointer returns to the first place', () => {
+        pointer('pointerup', grip(0), 50);
+
+        expect(submitted).toEqual([]);
+        expect(order()).toEqual(['a', 'b', 'c']);
+    });
 });
 
 it('shows the tile again where it was when Escape ends the drag', () => {
