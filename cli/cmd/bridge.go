@@ -600,6 +600,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 				hook = r.update.handover(r, version)
 			}
 			updates = newUpdater(r.log, version, dir, func() bool { return autoUpdateOn(r.rules(), r.assumeAutoUpdate) }, hook)
+			r.updateCheck = func() { updates.nudge(time.Now()) }
 			if r.update != nil {
 				updates.executable = r.update.installed
 				if r.update.crashedFrom != "" {

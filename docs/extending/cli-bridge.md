@@ -132,6 +132,14 @@ that run at once, three by default, and requests past the bound wait in a
 queue. A card runs one worker at a time. A request for a busy card waits and
 runs after that worker exits, so a later request for another card can start
 first. A waiting request holds no claim, so another bridge can take it first.
+
+When the server refuses a claim, the bridge remembers the request and ignores
+its offers for a while. The wait is one minute. A lasting refusal (HTTP 422),
+such as `account_unknown`, doubles the wait on each refusal, up to 15 minutes.
+The bridge logs the wait as `retry_in_seconds` in `work_request_not_claimed`.
+Other requests and other bridges are not affected. A restart, a successful
+claim and a `loupe bridge reload` clear the wait. A lasting refusal also starts
+an [update](#updates) check, at most once every 10 minutes.
 Stopping the bridge drops whatever is still queued and logs the count, and each
 card with its kind.
 

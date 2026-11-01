@@ -27,8 +27,8 @@ const minHeartbeatSeconds = 10
 // heartbeat.
 const heartbeatLane = "heartbeat"
 
-// poolsWindow is the shortest time between a heartbeat and one that a pool
-// change sends.
+// poolsWindow is the shortest time between a heartbeat and one that a change
+// of the hook rows or the pool rows sends.
 const poolsWindow = 10 * time.Second
 
 // bridgeCapabilities names what this bridge supports to the server.
@@ -90,9 +90,10 @@ type heartbeater struct {
 	// hooks lives apart from body, because a reload replaces body. Nil sends
 	// no hooks key, which keeps the rows the server holds.
 	hooks []api.HookReport
-	// pools lives apart from body too. poolsSent and sentAt are the rows and
-	// the time of the last send.
+	// pools lives apart from body too. hooksSent, poolsSent and sentAt are the
+	// rows and the time of the last send.
 	pools     []api.WorkerPoolReport
+	hooksSent []api.HookReport
 	poolsSent []api.WorkerPoolReport
 	// paused is the pause of a person that the router applies. It lives apart
 	// from body too.
@@ -111,11 +112,16 @@ type heartbeater struct {
 	interval time.Duration
 	// reset wakes the loop to arm its timer with a new interval.
 	reset chan struct{}
-	// poolsChanged wakes the loop to send changed pool rows.
+	// poolsChanged wakes the loop to send changed hook rows or pool rows.
 	poolsChanged chan struct{}
 	done         chan struct{}
 	// now is time.Now, and a field so a test controls the pool window.
 	now func() time.Time
+
+	// holding is set while the last heartbeat failed. Every send except the
+	// timer tick returns at once then, so a failing server sees one heartbeat
+	// an interval.
+	holding atomic.Bool
 
 	// The queue calls record from the one goroutine of the lane, and nothing
 	// else reads or writes these.
@@ -182,7 +188,8 @@ func (h *heartbeater) setInterval(d time.Duration) {
 }
 
 // setBody applies a new body, and sends it at once, so the server reads the
-// new projects before the next interval.
+// new projects before the next interval. After a failed heartbeat, the next
+// tick sends it.
 func (h *heartbeater) setBody(b api.Heartbeat) {
 	h.mu.Lock()
 	h.body = b
@@ -191,17 +198,22 @@ func (h *heartbeater) setBody(b api.Heartbeat) {
 	h.send()
 }
 
-// setHooks applies the rows of the hook runner and sends them at once. A nil
-// heartbeater, which a bridge with no id has, drops them.
+// setHooks applies the rows of the hook runner. The loop sends a change, at
+// most once per poolsWindow. It never blocks. A nil heartbeater, which a
+// bridge with no id has, drops them.
 func (h *heartbeater) setHooks(rows []api.HookReport) {
 	if h == nil {
 		return
 	}
 	h.mu.Lock()
+	same := sameHooks(rows, h.hooks)
 	h.hooks = rows
 	h.mu.Unlock()
+	if same {
+		return
+	}
 
-	h.send()
+	h.wake()
 }
 
 // setPaused applies the pause the router holds, and sends a change at once.
@@ -238,6 +250,17 @@ func (h *heartbeater) setPools(rows []api.WorkerPoolReport) {
 		return
 	}
 
+	h.wake()
+}
+
+// sameHooks compares hook rows. Nil sends no hooks key and an empty list
+// clears the rows the server holds, so the two differ.
+func sameHooks(a, b []api.HookReport) bool {
+	return (a == nil) == (b == nil) && slices.Equal(a, b)
+}
+
+// wake tells the loop that the hook rows or the pool rows changed.
+func (h *heartbeater) wake() {
 	select {
 	case h.poolsChanged <- struct{}{}:
 	default:
@@ -290,14 +313,15 @@ func (h *heartbeater) dropHostSamples(upto uint64) {
 	}
 }
 
-// sendPools sends the pool rows when they differ from the last sent ones.
-// Inside the window of the last send, it returns a timer for the window end.
-func (h *heartbeater) sendPools() <-chan time.Time {
+// sendChanges sends the hook rows and the pool rows when they differ from the
+// last sent ones. Inside the window of the last send, it returns a timer for
+// the window end. While a heartbeat has failed, the next tick carries them.
+func (h *heartbeater) sendChanges() <-chan time.Time {
 	h.mu.Lock()
-	changed := !slices.Equal(h.pools, h.poolsSent)
+	changed := !slices.Equal(h.pools, h.poolsSent) || !sameHooks(h.hooks, h.hooksSent)
 	wait := poolsWindow - h.now().Sub(h.sentAt)
 	h.mu.Unlock()
-	if !changed {
+	if !changed || h.holding.Load() {
 		return nil
 	}
 	if wait > 0 {
@@ -318,9 +342,9 @@ func (h *heartbeater) currentInterval() time.Duration {
 func (h *heartbeater) loop() {
 	defer close(h.done)
 
-	h.send()
+	h.dispatch()
 	tick := h.after(h.currentInterval())
-	// window fires at the end of the window a pool change waits for.
+	// window fires at the end of the window a change of rows waits for.
 	var window <-chan time.Time
 	for {
 		select {
@@ -329,20 +353,29 @@ func (h *heartbeater) loop() {
 		case <-h.reset:
 			tick = h.after(h.currentInterval())
 		case <-tick:
-			h.send()
+			h.dispatch()
 			tick = h.after(h.currentInterval())
 		case <-h.poolsChanged:
 			if window == nil {
-				window = h.sendPools()
+				window = h.sendChanges()
 			}
 		case <-window:
-			window = h.sendPools()
+			window = h.sendChanges()
 		}
 	}
 }
 
-// send hands one heartbeat to the queue.
+// send hands one heartbeat to the queue, unless the last one failed. Then the
+// next timer tick sends the latest state.
 func (h *heartbeater) send() {
+	if h.holding.Load() {
+		return
+	}
+	h.dispatch()
+}
+
+// dispatch hands one heartbeat to the queue. The timer tick calls it direct.
+func (h *heartbeater) dispatch() {
 	h.mu.Lock()
 	body := h.body
 	body.Hooks = h.hooks
@@ -350,7 +383,7 @@ func (h *heartbeater) send() {
 	body.WorkClaims = h.claims
 	paused := h.paused
 	body.Paused, body.Capabilities = &paused, slices.Concat(bridgeCapabilities, body.Capabilities)
-	h.poolsSent, h.sentAt = h.pools, h.now()
+	h.hooksSent, h.poolsSent, h.sentAt = h.hooks, h.pools, h.now()
 	h.mu.Unlock()
 	if h.update != nil {
 		if u := h.update(); u.State != "" {
@@ -414,6 +447,7 @@ func (h *heartbeater) send() {
 // record logs only what an operator acts on: the first heartbeat that lands,
 // each run of 404 answers once, and each failure streak at its start and its end.
 func (h *heartbeater) record(err error) {
+	h.holding.Store(err != nil)
 	switch {
 	case err == nil:
 		if !h.sent || h.failed > 0 || h.unsupported {
