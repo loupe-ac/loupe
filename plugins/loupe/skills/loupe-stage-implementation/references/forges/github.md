@@ -146,17 +146,15 @@ Report mergeability, as the next section says.
 ## Read the merge state
 
 ```bash
-gh pr view <url> --json state,isDraft,headRefOid,baseRefName,reviewDecision,mergeable,mergeStateStatus
+gh pr view <url> --json state,isDraft,headRefOid,baseRefName,mergeable,mergeStateStatus
 gh pr checks <url> --required --json bucket -q 'group_by(.bucket)|map("\(.[0].bucket)=\(length)")|join(" ")'
 ```
 
-`reviewDecision` is `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED` or empty. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means `pass=<required count>` and no other bucket.
+The approval is not part of this read. "Check the approval covers the head" reads it. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means `pass=<required count>` and no other bucket.
 
 Report state: `OPEN` is `open`, `MERGED` is `merged`, and `CLOSED` is `closed`.
 
 Report draft: `isDraft` `true` is `yes`, and `false` is `no`.
-
-Report review: `APPROVED` is `approved`, `CHANGES_REQUESTED` is `changes-requested`, `REVIEW_REQUIRED` is `required`, and empty is `none`.
 
 Report checks: `passed` when green. `failed` when the `fail` or `cancel` bucket holds a check. Otherwise `pending`.
 
@@ -173,7 +171,7 @@ For an epic child, replace the second command with the by-name read of "Read the
 
 ## Check the approval covers the head
 
-GitHub keeps `reviewDecision` at `APPROVED` after a push when the branch rules do not dismiss a stale review. A review's `commit_id` does not show what the reviewer saw either, because GitHub moves it onto the head that a later merge creates. So read the approval by time with the script that sits next to this file. `<forge dir>` is the directory of this file:
+The approval is whatever the rules of the base branch require: a check from a GitHub App, a number of approving reviews, or both. `reviewDecision` is no source for it. It stays empty when the rules require a check and no review, and it stays `APPROVED` after a push when the rules do not dismiss a stale review. Read the approval with the script that sits next to this file. `<forge dir>` is the directory of this file:
 
 ```bash
 APPROVER=<login> <forge dir>/github-approval-covers.sh --conflicts <covered|hold> <url> <sha>
@@ -181,18 +179,27 @@ APPROVER=<login> <forge dir>/github-approval-covers.sh --conflicts <covered|hold
 
 Set `--conflicts` from the project rule: `hold` when `workflow_get` returns `approvalCoversConflictResolution` false, and `covered` otherwise. A flag left out means `covered`.
 
-Set `APPROVER` when the profile `Merge` section names an approver. Then only that reviewer's approval counts. Otherwise omit it, and every reviewer counts.
+Set `APPROVER` when the profile `Merge` section names an approver. The named reviewer must then also hold a current approval that covers the head. This adds a condition and lowers no count that the rules require. Otherwise omit it.
 
-The script takes each reviewer's last approving or blocking review. The earliest approval that is still current sets the time, so every current approver must have seen each commit. The script reads the pushes to the head branch, and takes the head of the last push before that time. A commit in that head is covered. The script sorts every other commit.
+The script reads `repos/<nameWithOwner>/rules/branches/<base>`, which lists the active rules of every ruleset that applies:
 
-The script uses a push time because a commit made before the approval can reach the branch after it. It prints one line:
+1. A rule that requires the check `Loupe / Approval` selects the App that may post it. The script needs a successful run of that check on the head commit from each selected App. A run of the same name from another App does not count. A check belongs to one commit, so a success on the head covers the head. When a rule selects no App, the script holds.
+2. A rule that requires approving reviews gives a count. GitHub enforces the largest count of all the rules, and so does the script. It takes each reviewer's last approving or blocking review, and needs that many current approvals. Each of the newest approvals must cover the head, by time. The script reads the pushes to the head branch, and takes the head of the last push before the approval. A commit in that head is covered. The script sorts every other commit. A review's `commit_id` does not show what the reviewer saw, because GitHub moves it onto the head that a later merge creates.
+3. When the rules require both, both must hold.
+4. When the rules require neither, the script asks for one current approval that covers the head. It reads rulesets only, and a repository can still require a review through the older branch protection.
+
+The script prints one line:
 
 | Line | Exit | Meaning |
 |---|---|---|
-| `COVERED ...` | 0 | Every later commit is a merge from the base. With `--conflicts hold`, git also makes each merge again with no conflict. |
+| `COVERED ...` | 0 | The rules hold. Every later commit of a counted review is a merge from the base. With `--conflicts hold`, git also makes each merge again with no conflict. |
 | `HOLD commits after approval: ...` | 1 | A later commit adds new content. |
 | `HOLD conflict resolution after approval: ...` | 1 | With `--conflicts hold`, a merge from the base holds a conflict resolution or a hand edit. |
-| `HOLD head moved`, `HOLD no approval`, `HOLD no push ...`, `HOLD 250 commits or more ...` | 1 | The item fails for that reason. |
+| `HOLD no approval check on the head` | 1 | A rule requires the check, and a selected App posted no success on the head. |
+| `HOLD the rules select no App for Loupe / Approval` | 1 | A rule requires the check and selects no App, so the script cannot tell a forged run from a real one. |
+| `HOLD <found> of <count> approvals` | 1 | The rules require more current approvals than exist. |
+| `HOLD no approval from <login>` | 1 | The named approver holds no current approval. |
+| `HOLD head moved`, `HOLD no push ...`, `HOLD 250 commits or more ...` | 1 | The item fails for that reason. |
 | `UNREAD: ...` | 2 | A read failed. |
 
 Report approval: the script line is the report, as it is.
