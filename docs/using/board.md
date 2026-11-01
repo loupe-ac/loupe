@@ -989,9 +989,11 @@ only when the rules of the base branch require a branch to be up to date before
 it merges. On another base, a pull request that is behind can merge as it is, so
 nothing syncs.
 
-A pull request counts as approved when a person with write access approved its
-current head. An approval of a head that Loupe synced still counts, so a sync
-needs no new review. The exception is a base branch whose rules dismiss stale
+A pull request counts as approved when it holds the approval that the rules of
+its base branch require: the `Loupe / Approval` check, a number of reviews, or
+both. A review comes from a person with write access and covers the current
+head. An approval of a head that Loupe synced still counts, so a sync needs no
+new review. The exception is a base branch whose rules dismiss stale
 approvals on a push. GitHub then removes the approval when Loupe syncs, and the
 pull request then needs a new approval before it merges. A request for
 changes stops the sync of a pull request into the default branch. A sync only
