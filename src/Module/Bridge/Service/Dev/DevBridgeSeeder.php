@@ -21,8 +21,7 @@ use Symfony\Component\Uid\Uuid;
  * Two bridges of the dev user follow "Dev Project": one that reported a moment
  * ago, with account usage on the Agents page and the live runs, and one that went
  * quiet. The quiet one carries the id that the 60 days of demo runs name, and the
- * metrics seeder deletes every run of that bridge it does not own. Each day adds
- * one reading per usage window, so the bars never age into an unknown state.
+ * metrics seeder deletes every run of that bridge it does not own.
  */
 #[When('dev')]
 #[When('test')]
@@ -46,6 +45,9 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
         'claude-main' => ['session' => 42.0, 'week' => 71.0],
         'codex-main' => ['session' => 96.0, 'week' => 38.0],
     ];
+
+    /** The date format that names the reading of each window. It must roll over before a reading can reset, or a later seed leaves the window unknown. */
+    private const array READING_PERIODS = ['session' => 'Y-m-d-H', 'week' => 'Y-m-d'];
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -96,15 +98,14 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
         $this->seedReadings($context, $main);
     }
 
-    /** One reading per window and day. Each window resets later than the clock, so the bar shows its percentage. */
+    /** One reading per window and period. Each window resets later than the clock, so the bar shows its percentage. */
     private function seedReadings(SeedContext $context, Bridge $bridge): void
     {
-        $day = $context->now->format('Y-m-d');
         $resets = ['session' => $context->now->modify('+3 hours'), 'week' => $context->now->modify('+4 days')];
 
         foreach (self::USAGE as $account => $windows) {
             foreach ($windows as $window => $percent) {
-                $id = DevSeedId::of(\sprintf('bridge/account-reading/%s/%s/%s', $account, $window, $day));
+                $id = DevSeedId::of(\sprintf('bridge/account-reading/%s/%s/%s', $account, $window, $context->now->format(self::READING_PERIODS[$window])));
                 if ($this->bridgeAccountReadings->find($id) instanceof BridgeAccountReading) {
                     continue;
                 }

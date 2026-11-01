@@ -71,7 +71,12 @@ final readonly class DevBillingSeeder implements DevSeederInterface
         if ($member instanceof User) {
             $profile = $this->profile($context, 'member', $member);
             $profile->stripeCustomerId ??= 'cus_dev_member';
-            $stripe = $this->subscription($context, 'member-stripe', $profile, SubscriptionKind::Stripe, $now->modify('-20 days'), $now->modify('+10 days'));
+            $renewsAt = $now->modify('+10 days');
+            $stored = $this->em->find(Subscription::class, DevSeedId::of('billing/subscription/member-stripe'));
+            if ($stored instanceof Subscription) {
+                $stored->endsAt = $renewsAt;
+            }
+            $stripe = $this->subscription($context, 'member-stripe', $profile, SubscriptionKind::Stripe, $now->modify('-20 days'), $renewsAt);
             if ($stripe instanceof Subscription) {
                 $stripe->stripeSubscriptionId = 'sub_dev_member';
                 $stripe->stripeStatus = BillingStatus::Active;

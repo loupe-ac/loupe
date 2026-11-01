@@ -14,6 +14,7 @@ use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
@@ -99,6 +100,9 @@ final readonly class DevAgentRunSeeder implements DevSeederInterface
             $id = DevSeedId::of('bridge/run/agent-runs/'.$row['key']);
             $stored = $this->workerRuns->find($id);
             if ($stored instanceof WorkerRun) {
+                if (null === $row['minutes'] && null === $stored->endedAt) {
+                    $this->keepOpen($context, $stored, $row['state'], $row['startedAgo']);
+                }
                 $this->recordUsage($context, $stored, $row['state']);
 
                 continue;
@@ -131,6 +135,16 @@ final readonly class DevAgentRunSeeder implements DevSeederInterface
             $this->recordUsage($context, $run, $row['state']);
         }
         $this->em->flush();
+    }
+
+    /** No bridge reports these runs, so the sweep for a quiet bridge times out each one that it reads as open. */
+    private function keepOpen(SeedContext $context, WorkerRun $run, WorkerRunState $state, int $startedAgo): void
+    {
+        $run->startedAt = $context->at($startedAgo * 60);
+        if (WorkerRunState::TimedOut === $run->state) {
+            $run->moveTo($state);
+            $this->em->persist(new WorkerRunStateChange($run, $state, $context->now, $context->now));
+        }
     }
 
     private function recordUsage(SeedContext $context, WorkerRun $run, WorkerRunState $state): void
