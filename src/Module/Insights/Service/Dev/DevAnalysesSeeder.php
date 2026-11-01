@@ -9,10 +9,10 @@ use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
-use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -112,6 +112,7 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         private WorkerRunRepository $workerRuns,
         private InsightsBucketRuleRepository $insightsBucketRules,
         private BucketTimeComputer $bucketTimes,
+        private DevRunUsage $runUsage,
         private MarkdownRenderer $renderer,
     ) {
     }
@@ -280,7 +281,7 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         $run->usageSource = WorkerRunUsageSource::Reported;
         $context->ids->assign($run, $id);
         $this->em->persist($run);
-        $this->em->persist(new WorkerRunUsage($run, $analysis->project, $run->subjectType, $run->subjectId, $run->workKind, 'claude-sonnet-5-5', WorkerRunUsageSource::Reported, 182_000, 9_400, 1_250_000, 64_000, '1.840000'));
+        $this->runUsage->record($context, $run, 'claude-sonnet-5-5', 182_000, 9_400, 1_250_000, 64_000, '1.840000');
 
         return $run;
     }

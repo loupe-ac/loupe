@@ -27,7 +27,8 @@ analysis pages show.
   only adds the missing days of the time series. The seed never deletes a record
   that has a fixed id. It looks up each record with a fixed id on its own, and
   restores only the records that a person deleted. A restored card gets a new
-  number, and the seed writes that number to the runs of the card.
+  number, and the seed writes that number to the runs of the card. A restored
+  run links its stored usage row again, so the cost of a card stays the same.
 - A record that a page address names has a fixed id, so a preview link opens
   the same record on every database. The dev and admin accounts keep the id they
   have, because an existing database points projects at them.

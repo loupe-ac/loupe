@@ -18,13 +18,13 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
-use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
+use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
@@ -108,6 +108,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private WorkRequestRepository $workRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
+        private DevRunUsage $runUsage,
     ) {
     }
 
@@ -271,6 +272,6 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $context->ids->assign($run, $id);
         $this->em->persist($run);
         $tokens = (int) round((float) $costUsd * 40_000);
-        $this->em->persist(new WorkerRunUsage($run, $project, $run->subjectType, $run->subjectId, $run->workKind, self::MODELS[$variant], WorkerRunUsageSource::Reported, $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $costUsd));
+        $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $costUsd);
     }
 }

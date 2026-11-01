@@ -15,10 +15,10 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
-use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
+use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -66,6 +66,7 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
         private WorkerRunRepository $workerRuns,
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
+        private DevRunUsage $runUsage,
     ) {
     }
 
@@ -149,7 +150,7 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
         $context->ids->assign($run, self::runId($index));
         $this->em->persist($run);
         $tokens = (int) round((float) $costUsd * 60_000);
-        $this->em->persist(new WorkerRunUsage($run, $project, $run->subjectType, $run->subjectId, $run->workKind, self::MODEL, WorkerRunUsageSource::Reported, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd));
+        $this->runUsage->record($context, $run, self::MODEL, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
 
         $startedAt = $run->startedAt ?? throw new \LogicException('A seeded run has a start.');
         foreach (self::CALLS as $index => [$tool, $kind, $offset, $durationMs, $inSubagent, $signatures]) {

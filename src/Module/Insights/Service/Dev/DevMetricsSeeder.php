@@ -19,6 +19,7 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
+use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -74,6 +75,7 @@ final readonly class DevMetricsSeeder
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
+        private DevRunUsage $runUsage,
     ) {
     }
 
@@ -223,7 +225,7 @@ final readonly class DevMetricsSeeder
 
         $costUsd = \sprintf('%.6f', $baseCost * $wave * $trend);
         $tokens = (int) round((float) $costUsd * 60_000);
-        $this->em->persist(new WorkerRunUsage($run, $project, $run->subjectType, $run->subjectId, $workKind, $model, WorkerRunUsageSource::Reported, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd));
+        $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
 
         foreach (self::CALLS as $position => [$tool, $offset, $durationMs, $signatures]) {
             $kind = 'Agent' === $tool ? WorkerRunToolCallKind::Subagent : WorkerRunToolCallKind::Shell;

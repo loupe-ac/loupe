@@ -41,6 +41,8 @@ final class FullDevSeedTest extends KernelTestCase
         'bridge_worker_run_tool_calls', 'bridge_worker_run_usage', 'bridge_worker_run_bucket_times',
     ];
 
+    private const string SPEND_QUERY = 'SELECT SUM(cost_usd) AS cost, SUM(input_tokens) AS input, SUM(output_tokens) AS output FROM bridge_worker_run_usage';
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -142,6 +144,26 @@ final class FullDevSeedTest extends KernelTestCase
 
         self::assertSame($runs, $this->rowCounts()['bridge_worker_runs']);
         self::assertSame([], array_values(array_diff($deleted, array_map(strval(...), $connection->fetchFirstColumn('SELECT id FROM bridge_worker_runs')))));
+    }
+
+    public function test_a_restored_run_links_its_stored_usage_and_the_spend_stays_the_same(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        self::assertGreaterThan(0, $counts['bridge_worker_run_usage']);
+        $spend = $connection->fetchAssociative(self::SPEND_QUERY);
+        $connection->executeStatement('DELETE FROM bridge_worker_runs');
+        self::assertSame($counts['bridge_worker_run_usage'], (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_usage WHERE run_id IS NULL'));
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts['bridge_worker_run_usage'], $this->rowCounts()['bridge_worker_run_usage'], 'A restored run wrote a second usage row.');
+        self::assertSame($spend, $connection->fetchAssociative(self::SPEND_QUERY), 'A restored run changed the spend.');
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_usage WHERE run_id IS NULL'), 'A restored run left its usage row with no link.');
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM bridge_worker_run_usage u LEFT JOIN bridge_worker_run_facts f ON f.run_id = u.run_id WHERE f.tokens_in IS DISTINCT FROM u.input_tokens',
+        ), 'The fact row of a restored run does not hold its usage.');
     }
 
     public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void
