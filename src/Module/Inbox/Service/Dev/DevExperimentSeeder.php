@@ -136,8 +136,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     /**
      * With $metrics, the experiment lists those metrics, and each merged card gets a pull request that opened and merged.
-     * A later seed looks up each record on its own and writes only a missing one. A merge event
-     * and a pull request have no fixed id, so they come only with a new card.
+     * A later seed looks up each record on its own and writes only a missing one. A pull request
+     * link is found by its URL. A merge event has no fixed id, so it comes only with a new card.
      *
      * @param array<string, mixed>|null $headline
      * @param list<string>|null         $metrics
@@ -186,16 +186,18 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
                     $this->fixRequest($context, $project, $card, $reason, $at->modify('+1 hour'), $requestId);
                 }
             }
+            if ($merged) {
+                if (null !== $metrics) {
+                    $this->pullRequest($project, $card, $openedAt, $at->modify('+2 hours'));
+                }
+                if (!$stored instanceof Card) {
+                    $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
+                }
+            }
             if ($stored instanceof Card) {
                 continue;
             }
             $this->runCardLinks->relink($project, $cardId, $card->number);
-            if ($merged) {
-                $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
-                if (null !== $metrics) {
-                    $this->pullRequest($project, $card, $openedAt, $at->modify('+2 hours'));
-                }
-            }
             if ($column->terminal) {
                 $card->completedAt = $at->modify('+2 hours');
             }
@@ -214,11 +216,21 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         return $card;
     }
 
+    /** Writes the link and the state that are missing, each on its own, and keeps a stored state. */
     private function pullRequest(Project $project, Card $card, \DateTimeImmutable $openedAt, \DateTimeImmutable $mergedAt): void
     {
-        $this->em->persist(new CardPullRequest($card, 'https://github.com/example/experiment/pull/'.$card->number, Forge::GitHub, 'example/experiment', $card->number));
-        $state = $this->forgePullRequests->findOneBy(['project' => $project, 'forge' => 'github', 'repository' => 'example/experiment', 'number' => $card->number])
-            ?? new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
+        $url = 'https://github.com/example/experiment/pull/'.$card->number;
+        if (!$card->pullRequests->exists(static fn (int $key, CardPullRequest $link): bool => $url === $link->url)) {
+            $link = new CardPullRequest($card, $url, Forge::GitHub, 'example/experiment', $card->number);
+            $this->em->persist($link);
+            $card->pullRequests->add($link);
+        }
+
+        if ($this->forgePullRequests->findOneBy(['project' => $project, 'forge' => 'github', 'repository' => 'example/experiment', 'number' => $card->number]) instanceof ForgePullRequest) {
+            return;
+        }
+
+        $state = new ForgePullRequest($project, 'github', 'example/experiment', $card->number);
         $state->openedAt = $openedAt;
         $state->mergedAt = $mergedAt;
         $this->em->persist($state);

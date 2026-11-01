@@ -18,6 +18,7 @@ use App\Module\Board\Entity\CardSource;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Bridge\Entity\WorkerRun;
@@ -46,7 +47,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Writes the showcase cards of the dev project: pull requests in every
  * state, a card with history, an epic lane, a paused card and a card with an
- * outdated approval. Each record has a fixed id and is restored on its own.
+ * outdated approval. A later seed looks up each card, pull request link, pull
+ * request state, run and pause on its own, and writes only a missing one. The
+ * history rows have no fixed id, so they come only with a new card.
  */
 #[When('dev')]
 #[When('test')]
@@ -76,6 +79,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         private BoardColumnRepository $boardColumns,
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
+        private CardPauseRepository $cardPauses,
         private PullRequestUrlResolver $pullRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
@@ -113,7 +117,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $backlog = $columns['backlog'] ?? throw new \LogicException('The project has no backlog column.');
         $inProgress = $columns['in-progress'] ?? $backlog;
 
-        [$checkout, $created] = $this->card($context, $project, 'checkout', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+        [$checkout] = $this->card($context, $project, 'checkout', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
             column: $inProgress,
             title: 'A simpler checkout',
@@ -123,9 +127,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
             createdAt: $at,
             source: new CardSource(CardSourceKind::Person),
         ));
-        if ($created) {
-            $this->linkPullRequest($context, $checkout, 438, PullRequestChecks::Failed, PullRequestMergeability::Mergeable, PullRequestReview::Required, ['phpunit', 'e2e-chromium']);
-        }
+        $this->linkPullRequest($context, $checkout, 438, PullRequestChecks::Failed, PullRequestMergeability::Mergeable, PullRequestReview::Required, ['phpunit', 'e2e-chromium']);
 
         [$history, $created] = $this->card($context, $project, 'history', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
@@ -136,14 +138,14 @@ final readonly class DevBoardSeeder implements DevSeederInterface
             type: 'feature',
             createdAt: $at,
         ));
+        $this->linkPullRequest($context, $history, 441, PullRequestChecks::Passed, PullRequestMergeability::Conflicting, PullRequestReview::Required);
+        $this->linkPullRequest($context, $history, 449, PullRequestChecks::Passed, PullRequestMergeability::Blocked, PullRequestReview::Required);
         if ($created) {
-            $this->linkPullRequest($context, $history, 441, PullRequestChecks::Passed, PullRequestMergeability::Conflicting, PullRequestReview::Required);
-            $this->linkPullRequest($context, $history, 449, PullRequestChecks::Passed, PullRequestMergeability::Blocked, PullRequestReview::Required);
             $this->seedHistoryEvents($context, $project, $history, $owner, $columns);
         }
         $this->seedHistoryRuns($context, $project, $history);
 
-        [$columnRules, $created] = $this->card($context, $project, 'column-rules', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+        [$columnRules] = $this->card($context, $project, 'column-rules', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
             column: $columns['next'] ?? $backlog,
             title: 'Safer column changes',
@@ -153,11 +155,9 @@ final readonly class DevBoardSeeder implements DevSeederInterface
             createdAt: $at,
             source: CardSource::run(DevSeedId::of('board/source/column-rules/project'), DevSeedId::of('board/source/column-rules/run')),
         ));
-        if ($created) {
-            $this->linkPullRequest($context, $columnRules, 445, PullRequestChecks::Failed, PullRequestMergeability::Mergeable, PullRequestReview::ChangesRequested, ['lint']);
-        }
+        $this->linkPullRequest($context, $columnRules, 445, PullRequestChecks::Failed, PullRequestMergeability::Mergeable, PullRequestReview::ChangesRequested, ['lint']);
 
-        [$onboarding, $created] = $this->card($context, $project, 'onboarding', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+        [$onboarding] = $this->card($context, $project, 'onboarding', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
             column: $columns['tech-design'] ?? $this->techDesignColumn($project, $columns),
             title: self::WAITING_CARD_TITLE,
@@ -167,9 +167,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
             createdAt: $at,
             source: new CardSource(CardSourceKind::Loupe),
         ));
-        if ($created) {
-            $this->linkPullRequest($context, $onboarding, 447, PullRequestChecks::Passed, PullRequestMergeability::Mergeable, PullRequestReview::Approved);
-        }
+        $this->linkPullRequest($context, $onboarding, 447, PullRequestChecks::Passed, PullRequestMergeability::Mergeable, PullRequestReview::Approved);
 
         $this->seedEpicLane($context, $project, $columns['next'] ?? $backlog, $inProgress);
         $this->seedPausedCard($context, $project, $inProgress);
@@ -226,14 +224,27 @@ final readonly class DevBoardSeeder implements DevSeederInterface
     }
 
     /**
+     * Writes the link and the state that are missing, each on its own, and keeps a stored state.
      * No App installation reads example/atlas, so a refresh fails as not
      * transient and keeps this state.
      *
-     * @param list<string> $failedChecks
+     * @param list<string>                            $failedChecks
+     * @param (\Closure(ForgePullRequest): void)|null $adjust       runs only on a new state
      */
-    private function linkPullRequest(SeedContext $context, Card $card, int $number, PullRequestChecks $checks, PullRequestMergeability $mergeability, PullRequestReview $review, array $failedChecks = []): ForgePullRequest
+    private function linkPullRequest(SeedContext $context, Card $card, int $number, PullRequestChecks $checks, PullRequestMergeability $mergeability, PullRequestReview $review, array $failedChecks = [], ?\Closure $adjust = null): void
     {
-        [, $state] = $this->link($card, $number);
+        $url = 'https://github.com/example/atlas/pull/'.$number;
+        if (!$card->pullRequests->exists(static fn (int $key, CardPullRequest $link): bool => $url === $link->url)) {
+            $link = $this->pullRequests->linksFor($card, [$url])[0] ?? throw new \LogicException('The pull request resolver returned no link.');
+            $this->em->persist($link);
+            $card->pullRequests->add($link);
+        }
+
+        if ($this->forgePullRequests->findOneBy(['project' => $card->project, 'forge' => 'github', 'repository' => 'example/atlas', 'number' => $number]) instanceof ForgePullRequest) {
+            return;
+        }
+
+        $state = new ForgePullRequest($card->project, 'github', 'example/atlas', $number);
         $state->headSha = hash('sha1', 'atlas-'.$number);
         $state->baseBranch = 'main';
         $state->checks = $checks;
@@ -243,23 +254,10 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $state->review = $review;
         $state->changesRequestedAt = PullRequestReview::ChangesRequested === $review ? $context->at(1_800) : null;
         $state->refreshedAt = $context->at(300);
-
-        return $state;
-    }
-
-    /** @return array{CardPullRequest, ForgePullRequest} */
-    private function link(Card $card, int $number): array
-    {
-        $links = $this->pullRequests->linksFor($card, ['https://github.com/example/atlas/pull/'.$number]);
-        $link = $links[0] ?? throw new \LogicException('The pull request resolver returned no link.');
-        $this->em->persist($link);
-        $card->pullRequests->add($link);
-
-        $state = $this->forgePullRequests->findOneBy(['project' => $card->project, 'forge' => 'github', 'repository' => 'example/atlas', 'number' => $number])
-            ?? new ForgePullRequest($card->project, 'github', 'example/atlas', $number);
+        if (null !== $adjust) {
+            $adjust($state);
+        }
         $this->em->persist($state);
-
-        return [$link, $state];
     }
 
     /**
@@ -401,7 +399,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
     /** A blocked review run and the pause it caused, which the wait item shows as one line. */
     private function seedPausedCard(SeedContext $context, Project $project, BoardColumn $column): void
     {
-        [$card, $created] = $this->card($context, $project, 'sync-forge-state', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+        [$card] = $this->card($context, $project, 'sync-forge-state', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
             column: $column,
             title: 'Sync the forge state',
@@ -430,7 +428,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         ), static function (WorkerRun $run): void {
             $run->resultFields = ['title' => 'Restore the network of the review worker'];
         });
-        if ($created) {
+        if (!$this->cardPauses->findLatestForCard($card) instanceof CardPause) {
             $this->em->persist(new CardPause($card, $project, 'work-stopped', 'review', PauseKind::WorkStopped, $endedAt));
             $this->em->flush();
         }
@@ -439,7 +437,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
     /** A pull request that passes every check, with an approval of a head before the last push. */
     private function seedOutdatedApproval(SeedContext $context, Project $project, BoardColumn $column): void
     {
-        [$card, $created] = $this->card($context, $project, 'outdated-approval', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+        [$card] = $this->card($context, $project, 'outdated-approval', fn (int $number, \DateTimeImmutable $at): Card => new Card(
             project: $project,
             column: $column,
             title: self::OUTDATED_APPROVAL_TITLE,
@@ -448,17 +446,15 @@ final readonly class DevBoardSeeder implements DevSeederInterface
             type: 'feature',
             createdAt: $at,
         ));
-        if (!$created) {
-            return;
-        }
 
-        $state = $this->linkPullRequest($context, $card, 457, PullRequestChecks::Passed, PullRequestMergeability::Mergeable, PullRequestReview::Approved);
-        $state->defaultBranch = 'main';
-        $state->approvalId = 'atlas-review-457';
-        $state->approvedAt = $context->at(3 * 3_600);
-        $state->approvalSha = $state->coveredSha = hash('sha1', 'atlas-457-old');
-        $state->uncoveredSha = $state->headSha;
-        $state->readyToMerge = false;
+        $this->linkPullRequest($context, $card, 457, PullRequestChecks::Passed, PullRequestMergeability::Mergeable, PullRequestReview::Approved, [], static function (ForgePullRequest $state) use ($context): void {
+            $state->defaultBranch = 'main';
+            $state->approvalId = 'atlas-review-457';
+            $state->approvedAt = $context->at(3 * 3_600);
+            $state->approvalSha = $state->coveredSha = hash('sha1', 'atlas-457-old');
+            $state->uncoveredSha = $state->headSha;
+            $state->readyToMerge = false;
+        });
         $this->em->flush();
     }
 

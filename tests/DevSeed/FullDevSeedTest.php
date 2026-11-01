@@ -326,6 +326,39 @@ final class FullDevSeedTest extends KernelTestCase
         self::assertSame($counts['inbox_item_cards'], $this->rowCounts()['inbox_item_cards'], 'The restored card did not go back on its items.');
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function partialBoardDeletions(): iterable
+    {
+        yield 'the link of the checkout card' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/438'"];
+        yield 'one of the two links of a card' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/449'"];
+        yield 'the link of the outdated approval' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/457'"];
+        yield 'one link of an experiment card' => ["DELETE FROM board_card_pull_requests WHERE id = (SELECT id FROM board_card_pull_requests WHERE repository = 'example/experiment' LIMIT 1)"];
+        yield 'every link' => ['DELETE FROM board_card_pull_requests'];
+        yield 'one state' => ["DELETE FROM forge_pull_requests WHERE repository = 'example/atlas' AND number = 441"];
+        yield 'every state' => ['DELETE FROM forge_pull_requests'];
+        yield 'every pause' => ['DELETE FROM card_pauses'];
+    }
+
+    #[DataProvider('partialBoardDeletions')]
+    public function test_a_later_run_restores_each_pull_request_link_state_and_pause_while_the_card_remains(string $deletion): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        self::assertGreaterThan(0, $connection->executeStatement($deletion));
+        self::assertNotSame($counts, $this->rowCounts());
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts());
+        self::assertIsString($connection->fetchOne(\sprintf("SELECT pull_request_id FROM inbox_reviews WHERE item_id = '%s'", DevSeedId::of('inbox/item/pull-request'))), 'The review of the pull request item has no link.');
+        self::assertSame(
+            1,
+            (int) $connection->fetchOne("SELECT COUNT(*) FROM forge_pull_requests WHERE repository = 'example/atlas' AND number = 457 AND approval_id = 'atlas-review-457' AND ready_to_merge = false"),
+            'The state of the outdated approval lost its approval.',
+        );
+    }
+
     public function test_the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void
     {
         $this->seed(self::DAY);
