@@ -655,20 +655,19 @@ The notice lists each card that waits. It tells you to start a bridge, or to run
 notice. A project has one such notice at a time. The `inbox:` list of the
 template does not turn it off.
 
-Loupe closes the notice as **done** when a bridge can take the work again. The
-note says when no bridge could take work, and how many cards waited. Loupe closes
-it as **obsolete** when the waiting work ended and no bridge came back, for
-example when the work was cancelled. It also closes the notice as obsolete when
-you switch the inbox off.
+Loupe closes the notice as **resolved** when a bridge can take the work again.
+Loupe closes it as **cancelled** when the waiting work ended and no bridge came
+back, for example when the work was cancelled. It also closes the notice as
+cancelled when you switch the inbox off.
 
 Loupe opens the notice **OpenRouter refused the key** when OpenRouter refuses an
 [OpenRouter key](openrouter.md) on a cost read. The notice says whether the key
 is the account key or the key of the project. It tells you to open the
 OpenRouter settings and replace the key. A project has one such notice for each
 refused key. An account key that OpenRouter refuses in several projects opens one
-notice in each of those projects. Loupe closes the notices of a key as **done**
-when OpenRouter accepts the key again. The note says since when. Loupe closes
-them as **obsolete** when you replace or remove the key, because the refusal no
+notice in each of those projects. Loupe closes the notices of a key as **resolved**
+when OpenRouter accepts the key again. Loupe closes
+them as **cancelled** when you replace or remove the key, because the refusal no
 longer describes a key that exists. With the inbox off, Loupe opens no notice.
 
 Loupe opens the notice **"repository" does not fit the workflow** when the
@@ -678,7 +677,7 @@ The notice says that new work is paused and that running work finishes. It links
 to the guide on the Repositories tab and has a **Check again** button for each
 blocking repository. A project has one such notice at a time. It follows the
 check: the notice changes when a repository gains or loses a blocking gap, and
-Loupe closes it as **done** when no repository has a blocking gap any more. It
+Loupe closes it as **resolved** when no repository has a blocking gap any more. It
 also closes when you remove the last blocking repository. With the inbox off,
 Loupe opens no notice and the pause still applies. Each card that waits for the
 pause also shows the `repository-misfit` marker.
@@ -687,11 +686,12 @@ Loupe opens one notice for each agent account that is at its hard limit while
 cards wait for it. An account belongs to one bridge, so two bridges with an
 account of the same name get one notice each. The title names the account, its
 bridge, the window, the number of cards and the reset time. An account at its stop value gets no notice. Loupe closes
-the notice when the account can take work again. A person who manages the
+the notice as **resolved** when the account can take work again, and as
+**cancelled** when the waiting work ended first or you switch the inbox off. A person who manages the
 project can press [Try now](board.md#try-now) before the reset.
 
 Loupe once opened a notice while a bridge rule raced the sync of the project.
-Bridge rules are gone, so Loupe closed each such notice as **obsolete**, and
+Bridge rules are gone, so Loupe closed each such notice as **cancelled**, and
 opens no new one.
 
 ### Workflow questions
@@ -709,7 +709,7 @@ The answer is final. You cannot change it, you cannot close the item without
 an answer, and an agent cannot withdraw it. Loupe runs the option you picked
 after you answer. The ask that holds the item closes with your answer.
 
-An open workflow question closes as **withdrawn**, with no answer, in these
+An open workflow question closes as **cancelled**, with no answer, in these
 cases:
 
 - The rule stops holding. For example, the card links an approved tech design.
@@ -779,11 +779,11 @@ describes.
 
 The item closes when its last wait ends:
 
-- It closes as **done** when its last wait ended by its own cause, such as a
+- It closes as **resolved** when its last wait ended by its own cause, such as a
   verdict, an archive, a newer run, an approval of a pull request or a move of
   the card.
-- It closes as **obsolete** when the card finishes or someone deletes it.
-- It closes as **obsolete** when an administrator turns the inbox off. The
+- It closes as **cancelled** when the card finishes or someone deletes it.
+- It closes as **cancelled** when an administrator turns the inbox off. The
   15-minute check closes it.
 
 The Loupe ask that holds the item closes with it.
