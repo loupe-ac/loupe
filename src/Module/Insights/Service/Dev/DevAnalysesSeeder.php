@@ -258,7 +258,10 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
     private function seedRun(SeedContext $context, Analysis $analysis, string $slug, \DateTimeImmutable $endedAt): ?WorkerRun
     {
         $id = DevSeedId::of('insights/run/'.$slug);
-        if ($this->workerRuns->find($id) instanceof WorkerRun) {
+        $stored = $this->workerRuns->find($id);
+        if ($stored instanceof WorkerRun) {
+            $this->recordUsage($context, $stored);
+
             return null;
         }
 
@@ -281,8 +284,13 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         $run->usageSource = WorkerRunUsageSource::Reported;
         $context->ids->assign($run, $id);
         $this->em->persist($run);
-        $this->runUsage->record($context, $run, 'claude-sonnet-5-5', 182_000, 9_400, 1_250_000, 64_000, '1.840000');
+        $this->recordUsage($context, $run);
 
         return $run;
+    }
+
+    private function recordUsage(SeedContext $context, WorkerRun $run): void
+    {
+        $this->runUsage->record($context, $run, 'claude-sonnet-5-5', 182_000, 9_400, 1_250_000, 64_000, '1.840000');
     }
 }

@@ -14,8 +14,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 
 /**
- * A usage row outlives its run, and the spend of a card counts it. A seeder that
- * restores a deleted run links the stored row again, so the spend does not double.
+ * A usage row outlives its run, and the spend of a card counts it. A seeder calls
+ * this for each run, stored or new: a restored run links the stored row again, so
+ * the spend does not double, and a stored run gets a deleted row back.
  */
 #[When('dev')]
 #[When('test')]
@@ -27,8 +28,12 @@ final readonly class DevRunUsage
     ) {
     }
 
-    /** Call it after the run is persisted, because the row takes its id from the run. */
-    public function record(SeedContext $context, WorkerRun $run, string $model, int $inputTokens, int $outputTokens, int $cacheReadTokens, int $cacheWriteTokens, string $costUsd): void
+    /**
+     * Call it after the run is persisted, because the row takes its id from the run.
+     *
+     * @return bool true when the row was missing
+     */
+    public function record(SeedContext $context, WorkerRun $run, string $model, int $inputTokens, int $outputTokens, int $cacheReadTokens, int $cacheWriteTokens, string $costUsd): bool
     {
         $runId = $run->id ?? throw new \LogicException('A persisted run has an id.');
         $id = DevSeedId::of(\sprintf('bridge/usage/%s/%s', $runId->toRfc4122(), $model));
@@ -37,11 +42,13 @@ final readonly class DevRunUsage
         if ($stored instanceof WorkerRunUsage) {
             $stored->run = $run;
 
-            return;
+            return false;
         }
 
         $usage = new WorkerRunUsage($run, $run->project, $run->subjectType, $run->subjectId, $run->workKind, $model, WorkerRunUsageSource::Reported, $inputTokens, $outputTokens, $cacheReadTokens, $cacheWriteTokens, $costUsd);
         $context->ids->assign($usage, $id);
         $this->em->persist($usage);
+
+        return true;
     }
 }

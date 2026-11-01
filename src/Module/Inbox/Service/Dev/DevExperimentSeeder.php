@@ -176,9 +176,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             foreach ($runs as $position => [$cost, $minutes]) {
                 $at = $at->modify('+20 hours');
                 $runId = DevSeedId::of(\sprintf('bridge/run/%s/%d', $key, $position));
-                if (!$this->workerRuns->find($runId) instanceof WorkerRun) {
-                    $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $cost, $runId);
-                }
+                $run = $this->workerRuns->find($runId) ?? $this->run($context, $project, $card, $experiment, $variant, $at, $minutes, $runId);
+                $tokens = (int) round((float) $cost * 40_000);
+                $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $cost);
             }
             foreach ($fixReasons as $reason) {
                 $requestId = DevSeedId::of(\sprintf('bridge/work-request/%s/%s', $key, $reason));
@@ -246,7 +246,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     }
 
     /** WorkerRunFactListener writes the fact row of the run on flush. */
-    private function run(SeedContext $context, Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, string $costUsd, Uuid $id): void
+    private function run(SeedContext $context, Project $project, Card $card, string $experiment, string $variant, \DateTimeImmutable $endedAt, int $minutes, Uuid $id): WorkerRun
     {
         $run = new WorkerRun(
             project: $project,
@@ -271,7 +271,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $run->usageSource = WorkerRunUsageSource::Reported;
         $context->ids->assign($run, $id);
         $this->em->persist($run);
-        $tokens = (int) round((float) $costUsd * 40_000);
-        $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $costUsd);
+
+        return $run;
     }
 }

@@ -80,7 +80,7 @@ final readonly class DevMetricsSeeder
     }
 
     /**
-     * False when every run and every saved graph exists.
+     * False when every run, usage row and saved graph exists.
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
@@ -103,6 +103,7 @@ final readonly class DevMetricsSeeder
             return $cards[$from->format('Y-m-d')] ??= $cardFor($from, $from->modify(\sprintf('+%d days', self::SPAN_DAYS)));
         };
 
+        /** @var array<string, WorkerRun> $stored */
         $stored = [];
         $stale = [];
         /** @var array<string, array{Uuid, int}> $restored the cards whose number differs from the number their runs hold */
@@ -114,7 +115,7 @@ final readonly class DevMetricsSeeder
             $id = $run->id ?? throw new \LogicException('A stored run has an id.');
             $card = $cardOf($run->startedAt);
             if ($card[0]->equals($run->subjectId)) {
-                $stored[$id->toRfc4122()] = true;
+                $stored[$id->toRfc4122()] = $run;
                 if ($card[1] !== $run->cardNumber) {
                     $restored[$card[0]->toRfc4122()] = $card;
                 }
@@ -128,17 +129,23 @@ final readonly class DevMetricsSeeder
         }
 
         $runs = [];
+        $usageRestored = false;
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
             foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
-                if (!isset($stored[self::runId($day, $index)->toRfc4122()])) {
+                $run = $stored[self::runId($day, $index)->toRfc4122()] ?? null;
+                if (null === $run) {
                     /** @var array{Uuid, int} $card */
                     $card = $cardOf($day);
-                    $runs[] = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $cost, $minutes);
+                    $run = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $minutes);
+                    $runs[] = $run;
                 }
+                $costUsd = \sprintf('%.6f', $cost * self::wave($daysAgo, $index) * self::trend($daysAgo));
+                $tokens = (int) round((float) $costUsd * 60_000);
+                $usageRestored = $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd) || $usageRestored;
             }
         }
-        if ([] === $runs) {
+        if ([] === $runs && !$usageRestored) {
             return [] !== $stale || [] !== $restored;
         }
 
@@ -156,6 +163,16 @@ final readonly class DevMetricsSeeder
     private static function runsOf(\DateTimeImmutable $day): array
     {
         return self::spanStart($day)->format('Y-m-d') === $day->format('Y-m-d') ? [...self::MODELS, self::MODELS[1]] : self::MODELS;
+    }
+
+    private static function wave(int $daysAgo, int $index): float
+    {
+        return 1 + 0.25 * sin($daysAgo * 0.9 + $index);
+    }
+
+    private static function trend(int $daysAgo): float
+    {
+        return $daysAgo > 30 ? 1.15 : 1.0;
     }
 
     private static function runId(\DateTimeImmutable $day, int $index): Uuid
@@ -193,11 +210,10 @@ final readonly class DevMetricsSeeder
      *
      * @param array{Uuid, int} $card
      */
-    private function run(SeedContext $context, Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, float $baseCost, int $baseMinutes): WorkerRun
+    private function run(SeedContext $context, Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, int $baseMinutes): WorkerRun
     {
-        $wave = 1 + 0.25 * sin($daysAgo * 0.9 + $index);
-        $trend = $daysAgo > 30 ? 1.15 : 1.0;
-        $minutes = (int) round($baseMinutes * $wave * $trend);
+        $wave = self::wave($daysAgo, $index);
+        $minutes = (int) round($baseMinutes * $wave * self::trend($daysAgo));
         $startedAt = $day->setTime(8 + 2 * $index, 15);
         $endedAt = $startedAt->modify(\sprintf('+%d minutes', $minutes));
         $workKind = self::WORK_KINDS[($daysAgo + $index) % \count(self::WORK_KINDS)];
@@ -222,10 +238,6 @@ final readonly class DevMetricsSeeder
         $run->usageSource = WorkerRunUsageSource::Reported;
         $context->ids->assign($run, self::runId($day, $index));
         $this->em->persist($run);
-
-        $costUsd = \sprintf('%.6f', $baseCost * $wave * $trend);
-        $tokens = (int) round((float) $costUsd * 60_000);
-        $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
 
         foreach (self::CALLS as $position => [$tool, $offset, $durationMs, $signatures]) {
             $kind = 'Agent' === $tool ? WorkerRunToolCallKind::Subagent : WorkerRunToolCallKind::Shell;

@@ -92,9 +92,13 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
 
         $runs = [];
         foreach (self::RUNS as $index => [$daysAgo, $costUsd]) {
-            if (!$this->workerRuns->find(self::runId($index)) instanceof WorkerRun) {
-                $runs[] = $this->run($context, $project, $card, $index, $context->now->modify(\sprintf('-%d days', $daysAgo)), $costUsd);
+            $run = $this->workerRuns->find(self::runId($index));
+            if (!$run instanceof WorkerRun) {
+                $run = $this->run($context, $project, $card, $index, $context->now->modify(\sprintf('-%d days', $daysAgo)));
+                $runs[] = $run;
             }
+            $tokens = (int) round((float) $costUsd * 60_000);
+            $this->runUsage->record($context, $run, self::MODEL, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
         }
         $this->em->flush();
         $this->runCardLinks->relink($project, $cardId, $card->number);
@@ -124,7 +128,7 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
     }
 
     /** WorkerRunFactListener writes the fact row on flush, after the tool calls of the same flush. */
-    private function run(SeedContext $context, Project $project, Card $card, int $index, \DateTimeImmutable $endedAt, string $costUsd): WorkerRun
+    private function run(SeedContext $context, Project $project, Card $card, int $index, \DateTimeImmutable $endedAt): WorkerRun
     {
         $run = new WorkerRun(
             project: $project,
@@ -149,8 +153,6 @@ final readonly class DevCodexRunSeeder implements DevSeederInterface
         $run->peakContextTokens = 148_000;
         $context->ids->assign($run, self::runId($index));
         $this->em->persist($run);
-        $tokens = (int) round((float) $costUsd * 60_000);
-        $this->runUsage->record($context, $run, self::MODEL, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
 
         $startedAt = $run->startedAt ?? throw new \LogicException('A seeded run has a start.');
         foreach (self::CALLS as $index => [$tool, $kind, $offset, $durationMs, $inSubagent, $signatures]) {

@@ -166,6 +166,24 @@ final class FullDevSeedTest extends KernelTestCase
         ), 'The fact row of a restored run does not hold its usage.');
     }
 
+    public function test_a_later_run_restores_a_deleted_usage_row_of_a_stored_run(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        $spend = $connection->fetchAssociative(self::SPEND_QUERY);
+        $connection->executeStatement('DELETE FROM bridge_worker_run_usage');
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts(), 'The seed did not restore each usage row, or it wrote another row.');
+        self::assertSame($spend, $connection->fetchAssociative(self::SPEND_QUERY), 'A restored usage row changed the spend.');
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_usage WHERE run_id IS NULL'), 'A restored usage row has no link to its run.');
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM bridge_worker_run_usage u LEFT JOIN bridge_worker_run_facts f ON f.run_id = u.run_id WHERE f.tokens_in IS DISTINCT FROM u.input_tokens',
+        ), 'The fact row of the run does not hold its restored usage.');
+    }
+
     public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void
     {
         $this->seed(self::DAY);
