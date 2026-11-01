@@ -1083,7 +1083,9 @@ See [Interactive sessions](worker-runs.md#interactive-sessions).
 A move that an agent makes through the MCP names its worker run in the card
 history. This works when the `loupe` CLI sends the session of the agent in the
 `X-Loupe-Session` header. A `card_run_open` call that moves the card names the
-run it opens.
+run it opens. The Lifecycle template allows one such move for a session, from
+Backlog or Next to Implementation. See
+[Work a card in a session](workflows.md#work-a-card-in-a-session).
 
 `status` takes a column slug on `card_create`, `card_update` and `card_list`. An
 unknown slug is refused. The error lists the slugs the board has, such as
