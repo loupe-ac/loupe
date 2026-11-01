@@ -18,6 +18,7 @@ use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Bridge\Service\Dev\DevRunCardLinks;
 use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -49,8 +50,8 @@ final readonly class DevMetricsSeeder
     /** The runs of this many days share one card. */
     public const int SPAN_DAYS = 3;
 
-    /** Marks the demo runs. No table holds a bridge, so the id is only a label. */
-    public const string BRIDGE = '01a19300-0000-7000-8000-00000000de00';
+    /** The bridge row of the demo runs, which the bridge seeder writes. */
+    public const string BRIDGE = DevBridgeSeeder::HISTORY_BRIDGE;
 
     /** @var list<array{string, float, int}> model, base cost in dollars, base duration in minutes */
     private const array MODELS = [

@@ -8,13 +8,23 @@ use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Admin\Service\Dev\DevFeatureFlagSeeder;
 use App\Module\Artifact\Entity\Artifact;
+use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Board\Command\DeleteCardCommand;
 use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Command\TimeOutQuietWorkerRunsCommand;
+use App\Module\Bridge\Command\TimeOutQuietWorkerRunsHandler;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Bridge\Service\AccountLimits;
+use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
+use App\Module\Bridge\ValueObject\WindowLimitState;
+use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
 use App\Module\Insights\Service\SavedGraphCap;
@@ -44,6 +54,7 @@ final class FullDevSeedTest extends KernelTestCase
     private const array TIME_SERIES_TABLES = [
         'board_cards', 'board_card_events', 'bridge_worker_runs', 'bridge_worker_run_facts',
         'bridge_worker_run_tool_calls', 'bridge_worker_run_usage', 'bridge_worker_run_bucket_times',
+        'bridge_account_readings',
     ];
 
     private const string SPEND_QUERY = 'SELECT SUM(cost_usd) AS cost, SUM(input_tokens) AS input, SUM(output_tokens) AS output FROM bridge_worker_run_usage';
@@ -62,7 +73,7 @@ final class FullDevSeedTest extends KernelTestCase
         $em->flush();
     }
 
-    public function test_a_second_run_on_the_same_day_writes_no_row_and_a_later_day_only_adds_time_series(): void
+    public function test_a_second_run_at_the_same_time_writes_no_row_and_a_later_day_only_adds_time_series(): void
     {
         $this->seed(self::DAY);
         $afterFirst = $this->rowCounts();
@@ -189,6 +200,55 @@ final class FullDevSeedTest extends KernelTestCase
         ), 'The fact row of the run does not hold its restored usage.');
     }
 
+    public function test_a_later_run_on_the_same_day_keeps_every_usage_window_known(): void
+    {
+        $this->seed(self::DAY);
+        $this->seed('2026-11-01 16:00:00');
+
+        $bridge = $this->em()->find(Bridge::class, ['owner' => $this->users()->findOneByEmail(SeedContext::DEV_EMAIL)?->id, 'id' => Uuid::fromString(DevBridgeSeeder::MAIN_BRIDGE)]);
+        self::assertInstanceOf(Bridge::class, $bridge);
+        $limits = self::getContainer()->get(AccountLimits::class)->forBridge($bridge);
+        self::assertCount(2, $limits);
+        foreach ($limits as $account => $limit) {
+            self::assertCount(2, $limit->windows, $account);
+            foreach ($limit->windows as $window) {
+                self::assertNotSame(WindowLimitState::Unknown, $window->state, $account.' '.$window->reading->window);
+            }
+        }
+    }
+
+    public function test_a_later_run_renews_the_stripe_grant_of_the_member(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts()['subscriptions'];
+
+        $this->seed('2026-11-20 12:00:00');
+
+        $member = $this->users()->findOneByEmail(DevAccountSeeder::MEMBER_EMAIL) ?? throw new \LogicException('The member is missing.');
+        $profile = self::getContainer()->get(BillingProfileRepository::class)->findOneByUser($member);
+        self::assertNotNull($profile?->currentSubscriptionOfKind(SubscriptionKind::Stripe, new \DateTimeImmutable('2026-11-20 12:00:00')));
+        self::assertSame($counts, $this->rowCounts()['subscriptions']);
+    }
+
+    public function test_a_later_run_reopens_the_open_runs_that_the_quiet_sweep_timed_out(): void
+    {
+        $this->seed(self::DAY);
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+        $clock->modify('+1 hour');
+        self::getContainer()->get(TimeOutQuietWorkerRunsHandler::class)(new TimeOutQuietWorkerRunsCommand());
+        $runRow = static fn (string $sql, string $key): mixed => self::getContainer()->get(Connection::class)->fetchOne($sql, [DevSeedId::of('bridge/run/agent-runs/'.$key)->toRfc4122()]);
+        $stateOf = static fn (string $key): mixed => $runRow('SELECT state FROM bridge_worker_runs WHERE id = ?', $key);
+        self::assertSame('timed-out', $stateOf('running'));
+
+        $this->seed('2026-11-01 13:00:00');
+
+        self::assertSame('running', $stateOf('running'));
+        self::assertSame('running', $runRow('SELECT outcome FROM bridge_worker_run_facts WHERE run_id = ?', 'running'));
+        self::assertSame('succeeded', $stateOf('succeeded'));
+        self::assertStringStartsWith('2026-11-01 12:46:00', (string) $runRow('SELECT started_at FROM bridge_worker_runs WHERE id = ?', 'running'));
+    }
+
     public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void
     {
         $this->seed(self::DAY);
@@ -205,6 +265,31 @@ final class FullDevSeedTest extends KernelTestCase
         $title = $em->getConnection()->fetchOne("SELECT title FROM board_cards WHERE title LIKE 'Demo runs from %' ORDER BY title LIMIT 1");
         self::assertIsString($title);
         self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/demo-runs-'.substr($title, -10))));
+    }
+
+    public function test_the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void
+    {
+        $this->seed(self::DAY);
+
+        $connection = self::getContainer()->get(Connection::class);
+        self::assertGreaterThanOrEqual(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridges'));
+        self::assertGreaterThanOrEqual(2, (int) $connection->fetchOne("SELECT COUNT(DISTINCT account) FROM bridge_account_readings WHERE bridge_id = '".DevBridgeSeeder::MAIN_BRIDGE."'"));
+        $states = $connection->fetchFirstColumn("SELECT DISTINCT state FROM bridge_worker_runs WHERE bridge_id = '".DevBridgeSeeder::MAIN_BRIDGE."'");
+        foreach (['running', 'waiting-for-person', 'succeeded', 'failed', 'usage-limit', 'stopped', 'timed-out'] as $state) {
+            self::assertContains($state, $states, $state);
+        }
+        self::assertInstanceOf(Card::class, $this->em()->find(Card::class, DevAgentRunSeeder::cardId()));
+
+        $now = new \DateTimeImmutable(self::DAY);
+        foreach ([SeedContext::DEV_EMAIL, SeedContext::ADMIN_EMAIL] as $email) {
+            $user = $this->users()->findOneByEmail($email) ?? throw new \LogicException($email.' is missing.');
+            $profile = self::getContainer()->get(BillingProfileRepository::class)->findOneByUser($user);
+            self::assertTrue($profile?->hasCurrentSubscription($now), $email);
+        }
+        self::assertSame(3, (int) $connection->fetchOne('SELECT COUNT(*) FROM beta_invites'));
+        self::assertSame(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM push_devices'));
+        self::assertSame(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM notification_preferences'));
+        self::assertTrue($this->flag('billing.enabled')?->value);
     }
 
     public function test_the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void
@@ -303,6 +388,7 @@ final class FullDevSeedTest extends KernelTestCase
         $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
 
         self::assertSame($before, $this->flagRows());
+        self::assertSame(0, (int) self::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM billing_profiles'));
         self::assertInstanceOf(Project::class, $this->em()->find(Project::class, DevProjectSeeder::devProjectId()));
     }
 
