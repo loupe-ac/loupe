@@ -77,6 +77,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/inbox');
     }
 
+    /** The topic the OpenRouter key section of a project listens on. The message names no key. */
+    public function forOpenRouter(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/openrouter';
+    }
+
+    /** The project a forOpenRouter() topic names, or null for any other string. */
+    public function projectIdFromOpenRouterTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/openrouter');
+    }
+
     /** The topic the review page of one document listens on. */
     public function forDocument(Uuid $projectId, Uuid $documentId): string
     {

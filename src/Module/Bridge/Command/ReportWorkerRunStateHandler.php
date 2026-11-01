@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunBilledCost;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Event\BilledCostAwaited;
 use App\Module\Bridge\Event\ResumableWorkerRunEnded;
 use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -38,6 +41,7 @@ final readonly class ReportWorkerRunStateHandler
     public function __construct(
         private ProjectRepository $projects,
         private WorkerRunRepository $workerRuns,
+        private WorkerRunBilledCostRepository $workerRunBilledCosts,
         private WorkRequestRepository $workRequests,
         private WorkerRunStateChangeRepository $workerRunStateChanges,
         private WorkerRunSearchIndexer $searchIndexer,
@@ -52,13 +56,13 @@ final readonly class ReportWorkerRunStateHandler
 
     public function __invoke(ReportWorkerRunStateCommand $command): ReportWorkerRunStateResult
     {
-        /** @var array{ReportWorkerRunStateResult, bool, bool} $outcome */
+        /** @var array{ReportWorkerRunStateResult, bool, bool, bool} $outcome */
         $outcome = $this->em->wrapInTransaction(function () use ($command): array {
             // The project lock serialises two first reports of one run, which
             // would otherwise both miss the read and trip the unique index.
             $project = $this->lockedProject($command);
             if (null === $project) {
-                return [new ReportWorkerRunStateResult(null, newState: false), false, false];
+                return [new ReportWorkerRunStateResult(null, newState: false), false, false, false];
             }
 
             $run = $this->workerRuns->findOneByRunKey($project, $command->bridgeId, $command->runKey);
@@ -107,9 +111,10 @@ final readonly class ReportWorkerRunStateHandler
             $reopens = WorkerRunState::TimedOut === $run->state && $moves && $repeat;
             $newState = $reopens || !$repeat;
             $closes = false;
+            $billed = self::isBilled($run, $command);
             if ($newState) {
                 if ($moves) {
-                    $this->apply($run, $command);
+                    $this->apply($run, $command, $billed);
                     $closes = !$command->state->isOpen();
                 }
                 // A retry carries its first time, which precedes the timeout.
@@ -118,18 +123,25 @@ final readonly class ReportWorkerRunStateHandler
             }
 
             $this->em->flush();
+            $awaited = $closes && $billed && $this->awaitBilledCost($run);
             $this->searchIndexer->index($run);
 
-            return [new ReportWorkerRunStateResult($run, $newState), $closes, $poolMoved || $harnessChanged];
+            return [new ReportWorkerRunStateResult($run, $newState), $closes, $poolMoved || $harnessChanged, $awaited];
         });
 
-        [$result, $closes, $shownChanged] = $outcome;
+        [$result, $closes, $shownChanged, $awaited] = $outcome;
         // A repeat of a state the run already held changes nothing a page shows, unless it moves the pool or names the harness.
         if (($result->newState || $shownChanged) && null !== $result->run) {
             $this->publisher->runsChanged($result->run->project);
             foreach (WorkerRunChanged::ofRuns([$result->run]) as $event) {
                 $this->events->dispatch($event);
             }
+        }
+        if ($awaited && null !== $result->run) {
+            $this->events->dispatch(new BilledCostAwaited(
+                projectId: $result->run->project->requireId(),
+                runId: $result->run->id ?? throw new \LogicException('A persisted run has an id.'),
+            ));
         }
         if ($closes && null !== $result->run) {
             $this->audit($result->run);
@@ -165,6 +177,35 @@ final readonly class ReportWorkerRunStateHandler
         }
 
         return $current->isOpen() && $reported->rank() > $current->rank();
+    }
+
+    /** Only a worker run with a run key has a session that OpenRouter can bill. */
+    private static function isBilled(WorkerRun $run, ReportWorkerRunStateCommand $command): bool
+    {
+        return ReportWorkerRunStateCommand::COST_SOURCE_OPENROUTER === $command->costSource
+            && WorkerRunKind::Worker === $run->kind
+            && null !== $run->runKey;
+    }
+
+    /** Answers whether the row is new. A repeated report finds the row and awaits nothing twice. */
+    private function awaitBilledCost(WorkerRun $run): bool
+    {
+        $runId = $run->id ?? throw new \LogicException('A flushed run has an id.');
+        if (null !== $this->workerRunBilledCosts->find($runId)) {
+            return false;
+        }
+
+        $this->em->persist(new WorkerRunBilledCost(
+            runId: $runId,
+            runKey: $run->runKey ?? throw new \LogicException('A billed run has a run key.'),
+            project: $run->project,
+            subjectType: $run->subjectType,
+            subjectId: $run->subjectId,
+            runStartedAt: $run->startedAt ?? $run->receivedAt,
+        ));
+        $this->em->flush();
+
+        return true;
     }
 
     /** A stop is the choice of a person, so no later resume overrides it. */
@@ -212,14 +253,14 @@ final readonly class ReportWorkerRunStateHandler
         $run->switchedFrom = $command->switchedFrom;
     }
 
-    private function apply(WorkerRun $run, ReportWorkerRunStateCommand $command): void
+    private function apply(WorkerRun $run, ReportWorkerRunStateCommand $command, bool $billed): void
     {
         if (WorkerRunState::Stopped === $command->state) {
             $run->recordStop($command->endedAt ?? $command->at, $command->output);
             $this->fillPeakContext($run, $command);
             $this->fillHarnessEvents($run, $command);
             if (null !== $command->usage) {
-                $this->usageRecorder->record($run, $command->usage);
+                $this->usageRecorder->record($run, $command->usage, $billed);
             }
 
             return;
@@ -247,7 +288,7 @@ final readonly class ReportWorkerRunStateHandler
         $this->fillHarnessEvents($run, $command);
 
         if (null !== $command->usage) {
-            $this->usageRecorder->record($run, $command->usage);
+            $this->usageRecorder->record($run, $command->usage, $billed);
         }
     }
 

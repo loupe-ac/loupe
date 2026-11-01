@@ -1,0 +1,15 @@
+{# The Remove button and the dialog that confirms it. Both key status frames include it. #}
+<div data-controller="modal">
+    <twig:Ds:Button variant="danger-ghost" size="sm" type="button" data-action="click->modal#open" data-testid="openrouter-key-remove">{{ label }}</twig:Ds:Button>
+    <twig:Ds:Dialog aria-labelledby="openrouter-remove-title" data-action="cancel->modal#close" data-testid="openrouter-remove-dialog">
+        <h2 class="lp-dialog-title" id="openrouter-remove-title">{{ title }}</h2>
+        <p class="lp-dialog-desc">{{ description }}</p>
+        <form method="post" action="{{ action }}" data-turbo-frame="_top">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('openrouter-key-remove') }}">
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'openrouter.key.cancel'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="danger" type="submit" data-testid="openrouter-key-remove-confirm">{{ 'openrouter.remove.confirm'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </form>
+    </twig:Ds:Dialog>
+</div>

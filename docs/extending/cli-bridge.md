@@ -724,9 +724,56 @@ but profile P names Y`.
 
 #### Prices from OpenRouter
 
-The bridge prices a Codex run only for a model that its price table lists. A
-model that the table lacks has an unknown cost. Add `openRouterPrices: true` at
-the top of `rules.yaml` to price the models of OpenRouter too:
+A Codex run on OpenRouter has no price from the bridge. Loupe reads the billed
+cost of the run from OpenRouter instead, because a list price is not the price
+of the provider that served the run. The bridge finds such a run by the
+`base_url` of its provider. The run is on OpenRouter when the host of that URL
+is `openrouter.ai`. The provider name comes from the profile file first, then
+from `config.toml`, and so does its `base_url`. The bridge reads them once,
+when the run starts, so a profile change during the run does not change how
+the bridge reports it.
+
+For such a run, the bridge adds this override to `codex exec`, and to the
+`codex` command of an interactive session. `<provider>` is
+the name of the provider table and `<run key>` is the id of the run:
+
+```text
+-c model_providers.<provider>.http_headers.x-session-id="<run key>"
+```
+
+OpenRouter groups the requests of the run in one session with that header.
+Codex keeps the headers that your profile sets. The bridge then reports the run
+with token counts, no cost, and the cost source `openrouter`. A preset such as
+`deepseek/deepseek-v4-flash@preset/relace-only` needs no price row for this.
+An interactive Codex session on OpenRouter sends the header too, and keeps the
+bridge price.
+
+To run the workers of an account on a preset, follow these steps:
+
+1. Create the preset on the [presets page](https://openrouter.ai/settings/presets/new)
+   of OpenRouter, such as `relace-only` with Relace as its only provider.
+2. Set `model` in the account of `rules.yaml` to the model and the preset,
+   such as `deepseek/deepseek-v4-flash@preset/relace-only`.
+3. Set the same value as `model` in the profile file of the account.
+4. Run `loupe bridge reload`.
+
+```yaml
+accounts:
+  openrouter:
+    harness: codex
+    codexHome: ~/.codex
+    profile: openrouter
+    model: deepseek/deepseek-v4-flash@preset/relace-only
+    envFile: ~/loupe/openrouter.env
+```
+
+A gateway on another address is not found. Run `loupe update` on each bridge
+host, because an older bridge sends no header and keeps the old pricing.
+
+For a run that is not on OpenRouter, the bridge prices a Codex run only for a
+model that its price table lists. A model that the table lacks has an unknown
+cost. Add `openRouterPrices: true` at the top of `rules.yaml` to price the
+models of OpenRouter too:
 
 ```yaml
 openRouterPrices: true
@@ -775,8 +822,9 @@ subagents.
 
 Limits of this release:
 
-- The cost of a Codex run is empty for a model that no price list holds, as
-  [Prices from OpenRouter](#prices-from-openrouter) says.
+- The cost of a Codex run is empty for a model that no price list holds, and
+  for a run on OpenRouter, as [Prices from OpenRouter](#prices-from-openrouter)
+  says.
 - The `effort` of a work request does not reach Codex.
 
 ### Account checks

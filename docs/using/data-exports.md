@@ -56,6 +56,8 @@ deletes the entry.
 invite. It is empty for a user who redeemed none. The admin's note on the invite
 stays out of the export.
 
+`openrouter_keys.json` holds one row for each [OpenRouter key](openrouter.md) of the user: the account key, and the key of each project the user owns. A row gives the scope, the project id, the state and the dates. It never holds the key, and it does not hold the end of the key.
+
 `worker_run_facts.json` holds the metrics row of each worker run of the projects
 the user owns, with its outcome, its duration, its cost, its token sums, its
 timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.
