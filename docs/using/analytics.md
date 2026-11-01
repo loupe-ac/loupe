@@ -96,9 +96,9 @@ Their unit is card, and they take the groups **By variant**, **By card type** an
 names it keeps working. A project whose template declares no metric shows none.
 
 The shipped Lifecycle template declares **Fix rounds**, **Design review rounds**,
-**Merge rate**, **Hours to merge**, **Hours to agent review pass** and **Hours
-waiting for approval**. The shipped Simple template declares **Merge rate** and
-**Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
+**Merge rate**, **Hours to merge**, **Hours to agent review pass**, **Hours
+waiting for approval** and **Hours to ready to merge**. The shipped Simple
+template declares **Merge rate** and **Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
 
 The metric picker lists one **Time in** metric for each bucket that has data
 on a run of the project. A bucket has data on a run when the run stores a time
