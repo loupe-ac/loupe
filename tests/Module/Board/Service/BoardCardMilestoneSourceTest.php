@@ -10,9 +10,11 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\BoardCardMilestoneSource;
 use App\Module\Bridge\Metric\CardMilestone;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\DurationEvent;
@@ -118,7 +120,54 @@ final class BoardCardMilestoneSourceTest extends KernelTestCase
         ], $this->found($milestones[(string) $card] ?? []));
     }
 
-    public function test_a_ready_read_keeps_its_time_when_the_pull_request_merges_later(): void
+    public function test_a_ready_read_of_one_repository_leaves_the_merge_fallback_of_the_same_number_in_another(): void
+    {
+        $project = $this->makeProject('milestones-two-repositories');
+        $card = $this->card($project, 1, 'in-progress');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
+        $widgets = $this->pullRequest($project, $card, 7, $at('08:00:00'), $at('12:00:00'));
+        $this->pullRequest($project, $card, 7, $at('08:30:00'), $at('15:00:00'), 'Acme/Gears');
+        $this->event($card, CardEventKind::ReadyToMerge, ['pullRequest' => 7, 'pullRequestId' => $widgets->id?->toRfc4122()], $at('10:00:00'));
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card], new TemplateMetricSet(slotColumns: []));
+
+        self::assertSame([
+            DurationEvent::PR_MERGED.'||12:00',
+            DurationEvent::PR_MERGED.'||15:00',
+            DurationEvent::PR_OPENED.'||08:00',
+            DurationEvent::PR_OPENED.'||08:30',
+            DurationEvent::READY_TO_MERGE.'||10:00',
+            DurationEvent::READY_TO_MERGE.'||15:00',
+        ], $this->found($milestones[(string) $card] ?? []));
+    }
+
+    public function test_a_ready_read_still_matches_its_pull_request_after_the_repository_moves(): void
+    {
+        $project = $this->makeProject('milestones-moved');
+        $card = $this->card($project, 1, 'in-progress');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
+        $row = $this->pullRequest($project, $card, 7, $at('08:00:00'), $at('15:00:00'));
+        $this->event($card, CardEventKind::ReadyToMerge, ['pullRequest' => 7, 'pullRequestId' => $row->id?->toRfc4122()], $at('10:00:00'));
+        $projectId = $project->id ?? throw new \LogicException('A flushed project has an id.');
+        $forgePullRequests = self::getContainer()->get(ForgePullRequestRepository::class);
+        self::assertInstanceOf(ForgePullRequestRepository::class, $forgePullRequests);
+        $forgePullRequests->repoint($projectId, Forge::GitHub->value, 'Acme/Widgets', 'Acme/Moved');
+        $cardPullRequests = self::getContainer()->get(CardPullRequestRepository::class);
+        self::assertInstanceOf(CardPullRequestRepository::class, $cardPullRequests);
+        $cardPullRequests->repoint($projectId, Forge::GitHub, 'Acme/Widgets', 'Acme/Moved');
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card], new TemplateMetricSet(slotColumns: []));
+
+        self::assertSame([
+            DurationEvent::PR_MERGED.'||15:00',
+            DurationEvent::PR_OPENED.'||08:00',
+            DurationEvent::READY_TO_MERGE.'||10:00',
+        ], $this->found($milestones[(string) $card] ?? []));
+    }
+
+    public function test_an_older_ready_read_with_only_a_number_keeps_its_time_when_the_pull_request_merges_later(): void
     {
         $project = $this->makeProject('milestones-merged-read');
         $card = $this->card($project, 1, 'in-progress');
@@ -193,15 +242,17 @@ final class BoardCardMilestoneSourceTest extends KernelTestCase
         $this->em->flush();
     }
 
-    private function pullRequest(Project $project, Uuid $cardId, int $number, \DateTimeImmutable $openedAt, ?\DateTimeImmutable $mergedAt): void
+    private function pullRequest(Project $project, Uuid $cardId, int $number, \DateTimeImmutable $openedAt, ?\DateTimeImmutable $mergedAt, string $repository = 'Acme/Widgets'): ForgePullRequest
     {
         $card = $this->em->find(Card::class, $cardId) ?? throw new \LogicException('The card exists.');
-        $this->em->persist(new CardPullRequest($card, 'https://github.com/Acme/Widgets/pull/'.$number, Forge::GitHub, 'Acme/Widgets', $number));
-        $row = new ForgePullRequest($project, Forge::GitHub->value, 'Acme/Widgets', $number);
+        $this->em->persist(new CardPullRequest($card, 'https://github.com/'.$repository.'/pull/'.$number, Forge::GitHub, $repository, $number));
+        $row = new ForgePullRequest($project, Forge::GitHub->value, $repository, $number);
         $row->openedAt = $openedAt;
         $row->mergedAt = $mergedAt;
         $this->em->persist($row);
         $this->em->flush();
+
+        return $row;
     }
 
     private function card(Project $project, int $number, string $column): Uuid

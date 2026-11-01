@@ -57,7 +57,7 @@ final class RecordReadyToMergeOnPullRequestStateChangedTest extends KernelTestCa
             $events = $this->cardEvents($linked);
             self::assertCount(1, $events);
             self::assertSame(CardEventKind::ReadyToMerge, $events[0]->kind);
-            self::assertSame(['pullRequest' => 5], $events[0]->detail);
+            self::assertSame(['pullRequest' => 5, 'pullRequestId' => $this->pullRequest->id?->toRfc4122()], $events[0]->detail);
             self::assertEquals($readyAt, $events[0]->occurredAt);
             $updates = array_filter($changes->getArrayCopy(), static fn (array $change): bool => [(string) $linked->id, CardChanged::UPDATED] === $change);
             self::assertCount(1, $updates, 'The ready edge tells each linked card once.');

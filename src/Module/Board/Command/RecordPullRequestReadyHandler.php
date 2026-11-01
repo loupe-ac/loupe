@@ -47,8 +47,12 @@ final readonly class RecordPullRequestReadyHandler
             return;
         }
 
+        $detail = [
+            'pullRequest' => $pullRequest->number,
+            'pullRequestId' => ($pullRequest->id ?? throw new \LogicException('A stored pull request has an id.'))->toRfc4122(),
+        ];
         foreach ($cards as $card) {
-            $this->cardEvents->record($card, CardEventKind::ReadyToMerge, Actor::System, null, ['pullRequest' => $pullRequest->number], $command->readyAt);
+            $this->cardEvents->record($card, CardEventKind::ReadyToMerge, Actor::System, null, $detail, $command->readyAt);
         }
         $this->em->flush();
     }

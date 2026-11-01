@@ -45,7 +45,8 @@ final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInte
             }
             if (CardEventKind::ReadyToMerge === $row['kind']) {
                 $milestones[$row['cardId']][] = new CardMilestone(DurationEvent::READY_TO_MERGE, $at);
-                $readPullRequests[$row['cardId']][] = $row['detail']['pullRequest'] ?? null;
+                // An older event holds only the number, so it can only match by number.
+                $readPullRequests[$row['cardId']][] = $row['detail']['pullRequestId'] ?? $row['detail']['pullRequest'] ?? null;
                 continue;
             }
             $sides = CardEventKind::Created === $row['kind'] ? [DurationEvent::ARRIVED => 'column'] : [DurationEvent::ARRIVED => 'to', DurationEvent::LEFT => 'from'];
@@ -68,7 +69,8 @@ final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInte
                 }
                 $milestones[$cardId][] = new CardMilestone(DurationEvent::PR_MERGED, $time['mergedAt']);
                 // The merge can come before the next forge read, and a merge proves that the pull request was ready.
-                if (!\in_array($time['number'], $readPullRequests[$cardId] ?? [], true)) {
+                $read = $readPullRequests[$cardId] ?? [];
+                if (!\in_array($time['id'], $read, true) && !\in_array($time['number'], $read, true)) {
                     $milestones[$cardId][] = new CardMilestone(DurationEvent::READY_TO_MERGE, $time['mergedAt']);
                 }
             }
