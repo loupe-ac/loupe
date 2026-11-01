@@ -4,22 +4,31 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Mcp;
 
+use App\Exception\DomainErrors;
 use App\Mercure\LiveUpdatePublisher;
+use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Command\RemoveSavedGraphCommand;
 use App\Module\Insights\Command\RemoveSavedGraphHandler;
 use App\Module\Insights\Command\RestoreSavedGraphCommand;
 use App\Module\Insights\Command\RestoreSavedGraphHandler;
+use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Mcp\GraphListTool;
 use App\Module\Insights\Mcp\GraphMoveTool;
 use App\Module\Insights\Mcp\GraphRemoveTool;
 use App\Module\Insights\Mcp\GraphRestoreTool;
 use App\Module\Insights\Mcp\GraphSaveTool;
 use App\Module\Insights\Mcp\GraphUpdateTool;
+use App\Module\Insights\Mcp\InsightsToolErrorMessages;
+use App\Module\Insights\Mcp\SavedGraphFinder;
 use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphSettingsResolver;
+use App\Module\Insights\View\MetricChartLock;
 use App\Module\Review\Service\WorkerSession;
 use App\Tests\Module\Insights\InsightsScenario;
 use App\Tests\Support\McpTokenScenario;
 use Mcp\Exception\ToolCallException;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class GraphToolsTest extends KernelTestCase
@@ -111,6 +120,7 @@ final class GraphToolsTest extends KernelTestCase
         yield 'unknown chart' => [['cost', 'card', 'sum', null, null, null, null, null, 'pie'], 'chart: Unknown chart "pie". Use one of:'];
         yield 'chart that needs several lines' => [['cost', 'card', 'sum', null, null, null, null, null, 'stacked-bars'], 'chart: This chart type needs several lines to add up. Group the graph first, or pick another chart type.'];
         yield 'chart whose statistic does not add' => [['cost', 'card', 'median', null, 'stage', null, null, null, 'donut'], 'chart: This chart type needs a sum, a count or a mean of a metric that adds up.'];
+        yield 'chart whose metric is a rate' => [['stop-rate', 'run', 'mean', null, 'stage', null, null, null, 'donut'], 'chart: The rates of several lines never add up to a whole. Pick another chart type.'];
         yield 'name past the column' => [['cost', 'card', 'sum', str_repeat('a', 121)], 'name: A name is at most 120 characters.'];
     }
 
@@ -128,6 +138,15 @@ final class GraphToolsTest extends KernelTestCase
             self::assertStringContainsString($message, $e->getMessage());
         }
         self::assertSame([], $this->tool(GraphListTool::class)()['graphs']);
+    }
+
+    public function test_every_chart_lock_has_a_sentence_for_an_agent(): void
+    {
+        foreach (MetricChartLock::cases() as $lock) {
+            $errors = new DomainErrors(['chart' => SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.str_replace('-', '_', $lock->value)]);
+
+            self::assertStringNotContainsString(InsightsToolErrorMessages::UNMAPPED, new InsightsToolErrorMessages()->forAgent($errors)->getMessage(), $lock->value);
+        }
     }
 
     public function test_save_refuses_a_full_dashboard_in_words(): void
@@ -263,6 +282,46 @@ final class GraphToolsTest extends KernelTestCase
         $this->tool(GraphUpdateTool::class)((string) $graph->id, name: 'x');
     }
 
+    public function test_each_write_answers_in_words_when_another_session_removes_the_graph_during_the_call(): void
+    {
+        $project = $this->scenarioProject('graphs-race');
+        $this->actAsMcpTokenBoundTo($project);
+        $settings = $this->seedSavedGraph($project, 'Settings', 0);
+        $settings->metric = 'cost';
+        $settings->unit = MetricUnit::Card;
+        $settings->statistic = MetricStatistic::Sum;
+        $this->em()->flush();
+        $rename = $this->seedSavedGraph($project, 'Rename', 1);
+        $resize = $this->seedSavedGraph($project, 'Resize', 2);
+        $legend = $this->seedSavedGraph($project, 'Legend', 3);
+        $move = $this->seedSavedGraph($project, 'Move', 4);
+        $remove = $this->seedSavedGraph($project, 'Remove', 5);
+        $code = $this->removalCode((string) $remove->id);
+        $writes = [
+            [$settings, fn () => $this->tool(GraphUpdateTool::class)((string) $settings->id, statistic: 'mean')],
+            [$rename, fn () => $this->tool(GraphUpdateTool::class)((string) $rename->id, name: 'Renamed')],
+            [$resize, fn () => $this->tool(GraphUpdateTool::class)((string) $resize->id, width: 'full')],
+            [$legend, fn () => $this->tool(GraphUpdateTool::class)((string) $legend->id, showLegend: false)],
+            [$move, fn () => $this->tool(GraphMoveTool::class)((string) $move->id, 0)],
+            [$remove, fn () => $this->tool(GraphRemoveTool::class)((string) $remove->id, $code)],
+        ];
+
+        foreach ($writes as [$graph, $write]) {
+            // The row changes behind the entity, so the finder still reads the graph as on show, as it does when the other session commits after that read.
+            $this->em()->createQuery('UPDATE '.InsightsSavedGraph::class.' g SET g.removedAt = :now WHERE g.id = :id')
+                ->setParameter('now', new \DateTimeImmutable())
+                ->setParameter('id', $graph->id, UuidType::NAME)
+                ->execute();
+
+            try {
+                $write();
+                self::fail(\sprintf('Expected a refusal for %s.', $graph->name));
+            } catch (ToolCallException $e) {
+                self::assertSame(SavedGraphFinder::GONE, $e->getMessage(), $graph->name);
+            }
+        }
+    }
+
     public function test_move_puts_the_graph_in_the_given_place(): void
     {
         $project = $this->scenarioProject('graphs-move');
@@ -301,12 +360,18 @@ final class GraphToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         $preview = $this->tool(GraphRemoveTool::class)((string) $graph->id);
-        self::assertArrayHasKey('preview', $preview);
+        if (!isset($preview['confirmation'])) {
+            self::fail('Expected a preview.');
+        }
+        self::assertTrue($preview['preview']);
         self::assertSame('Tests', $preview['graph']['name']);
         self::assertCount(1, $this->tool(GraphListTool::class)()['graphs']);
 
         $removed = $this->tool(GraphRemoveTool::class)((string) $graph->id, $preview['confirmation']);
 
+        if (!isset($removed['removedGraphId'])) {
+            self::fail('Expected a removal.');
+        }
         self::assertSame((string) $graph->id, $removed['removedGraphId']);
         self::assertSame([], $removed['graphs']);
         self::assertSame([(string) $graph->id], array_column($removed['removed'], 'id'));
@@ -318,7 +383,7 @@ final class GraphToolsTest extends KernelTestCase
         $project = $this->scenarioProject('graphs-remove-once');
         $graph = $this->seedSavedGraph($project, 'Tests');
         $this->actAsMcpTokenBoundTo($project);
-        $code = $this->tool(GraphRemoveTool::class)((string) $graph->id)['confirmation'];
+        $code = $this->removalCode((string) $graph->id);
         $this->tool(GraphRemoveTool::class)((string) $graph->id, $code);
         $this->tool(GraphRestoreTool::class)((string) $graph->id);
 
@@ -333,7 +398,7 @@ final class GraphToolsTest extends KernelTestCase
         $project = $this->scenarioProject('graphs-remove-web');
         $graph = $this->seedSavedGraph($project, 'Tests');
         $this->actAsMcpTokenBoundTo($project);
-        $code = $this->tool(GraphRemoveTool::class)((string) $graph->id)['confirmation'];
+        $code = $this->removalCode((string) $graph->id);
 
         $remove = self::getContainer()->get(RemoveSavedGraphHandler::class);
         $restore = self::getContainer()->get(RestoreSavedGraphHandler::class);
@@ -353,7 +418,7 @@ final class GraphToolsTest extends KernelTestCase
         $project = $this->scenarioProject('graphs-remove-changed');
         $graph = $this->seedSavedGraph($project, 'Tests');
         $this->actAsMcpTokenBoundTo($project);
-        $code = $this->tool(GraphRemoveTool::class)((string) $graph->id)['confirmation'];
+        $code = $this->removalCode((string) $graph->id);
         $this->tool(GraphUpdateTool::class)((string) $graph->id, name: 'Renamed');
 
         $this->expectException(ToolCallException::class);
@@ -448,9 +513,20 @@ final class GraphToolsTest extends KernelTestCase
         $this->assertSignal('resized', fn () => $this->tool(GraphUpdateTool::class)($saved, width: 'full'));
         $this->assertSignal('legend-changed', fn () => $this->tool(GraphUpdateTool::class)($saved, showLegend: false));
         $this->assertSignal('moved', fn () => $this->tool(GraphMoveTool::class)((string) $a->id, 1));
-        $code = $this->tool(GraphRemoveTool::class)($saved)['confirmation'];
+        $code = $this->removalCode($saved);
         $this->assertSignal('removed', fn () => $this->tool(GraphRemoveTool::class)($saved, $code));
         $this->assertSignal('restored', fn () => $this->tool(GraphRestoreTool::class)($saved));
+    }
+
+    /** The code of a graph_remove preview. */
+    private function removalCode(string $graphId): string
+    {
+        $preview = $this->tool(GraphRemoveTool::class)($graphId);
+        if (!isset($preview['confirmation'])) {
+            self::fail('Expected a preview.');
+        }
+
+        return $preview['confirmation'];
     }
 
     private function assertSignal(string $kind, callable $write): void
