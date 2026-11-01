@@ -22,7 +22,15 @@ final class MetricValueExtension extends AbstractExtension
     #[\Override]
     public function getFilters(): array
     {
-        return [new TwigFilter('metric_value', $this->metricValue(...))];
+        return [
+            new TwigFilter('metric_value', $this->metricValue(...)),
+            new TwigFilter('metric_tick', $this->metricTick(...)),
+        ];
+    }
+
+    public function metricTick(int|float $value, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic = null, ?int $moneyDecimals = null): string
+    {
+        return new MetricValueFormatter(\Locale::getDefault())->axisTick($value, $metric, $statistic, $moneyDecimals);
     }
 
     /** Symfony sets the default locale from the request, as format_currency reads it. */
