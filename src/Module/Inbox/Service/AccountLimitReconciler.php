@@ -6,6 +6,8 @@ namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\TryNowOverrides;
 use App\Module\Bridge\Service\WorkTakers;
@@ -53,6 +55,7 @@ final readonly class AccountLimitReconciler
         private InboxChangedPublisher $inboxChanged,
         private InboxAvailability $inbox,
         private TryNowOverrides $tryNowOverrides,
+        private BridgeRepository $bridges,
         private TranslatorInterface $translator,
         private ClockInterface $clock,
         private MessageBusInterface $bus,
@@ -190,11 +193,13 @@ final readonly class AccountLimitReconciler
     private function open(Project $project, AccountLimit $limit, array $cards, \DateTimeImmutable $now): InboxAccountLimit
     {
         $account = $limit->account;
+        $bridgeId = $limit->bridgeId ?? throw new \LogicException('A work taker reads the limits of one bridge.');
+        $bridge = $this->bridgeLabel($project, $bridgeId);
         $item = new InboxItem(
             project: $project,
             number: $this->inboxItems->nextNumber($project),
             kind: InboxItemKind::Notice,
-            title: $this->title($account, $limit, \count($cards)),
+            title: $this->title($account, $bridge, $limit, \count($cards)),
             blocking: false,
             origin: InboxAskOrigin::Loupe,
             createdAt: $now,
@@ -203,8 +208,8 @@ final readonly class AccountLimitReconciler
         foreach ($cards as $card) {
             $item->cards->add(new InboxItemCard($item, $card, $now));
         }
-        $item->body = $this->body($item, $account, $limit);
-        $episode = new InboxAccountLimit($project, $item, $limit->bridgeId ?? throw new \LogicException('A work taker reads the limits of one bridge.'), $account, $now);
+        $item->body = $this->body($item, $account, $bridge, $limit);
+        $episode = new InboxAccountLimit($project, $item, $bridgeId, $account, $now);
         $this->em->persist($item);
         $this->em->persist($episode);
         // The Doctrine transport commits the message with the notice.
@@ -236,8 +241,9 @@ final readonly class AccountLimitReconciler
             }
         }
 
-        $title = $this->title($limit->account, $limit, \count($cards));
-        $body = $this->body($item, $limit->account, $limit);
+        $bridge = $this->bridgeLabel($item->project, $limit->bridgeId ?? throw new \LogicException('A work taker reads the limits of one bridge.'));
+        $title = $this->title($limit->account, $bridge, $limit, \count($cards));
+        $body = $this->body($item, $limit->account, $bridge, $limit);
         if ($title === $item->title && $body === $item->body) {
             return false;
         }
@@ -249,20 +255,27 @@ final readonly class AccountLimitReconciler
         return true;
     }
 
-    private function title(string $account, AccountLimit $limit, int $cards): string
+    /** Two bridges can each run an account of the same name, so every text names the bridge too. */
+    private function bridgeLabel(Project $project, Uuid $bridgeId): string
+    {
+        return $this->bridges->findOneByOwnerAndId($project->owner, $bridgeId)->label ?? Bridge::labelFor($bridgeId, null);
+    }
+
+    private function title(string $account, string $bridge, AccountLimit $limit, int $cards): string
     {
         $window = $this->limitedWindows($limit)[0];
         $name = $window->reading->window;
 
         return $this->translator->trans('inbox.account_limit.title', [
             '%account%' => $account,
+            '%bridge%' => $bridge,
             '%window%' => \in_array($name, ['session', 'week'], true) ? $this->translator->trans('inbox.account_limit.window.'.$name, [], null, $this->locale) : $name,
             '%count%' => $cards,
             '%resets%' => self::stamp($limit->releaseAt() ?? $window->reading->resetsAt),
         ], null, $this->locale);
     }
 
-    private function body(InboxItem $item, string $account, AccountLimit $limit): string
+    private function body(InboxItem $item, string $account, string $bridge, AccountLimit $limit): string
     {
         $cards = array_map(static fn (InboxItemCard $link): Card => $link->card, $item->cards->toArray());
         usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
@@ -279,7 +292,7 @@ final readonly class AccountLimitReconciler
             $cards,
         );
 
-        return $this->translator->trans('inbox.account_limit.body.intro', ['%account%' => $account], null, $this->locale)
+        return $this->translator->trans('inbox.account_limit.body.intro', ['%account%' => $account, '%bridge%' => $bridge], null, $this->locale)
             ."\n\n".implode("\n", $windows)
             ."\n\n".$this->translator->trans('inbox.account_limit.body.cards', [], null, $this->locale)
             ."\n\n".implode("\n", $lines)
@@ -318,6 +331,7 @@ final readonly class AccountLimitReconciler
 
         $note = $recovered ? $this->translator->trans('inbox.account_limit.closed', [
             '%account%' => $episode->account,
+            '%bridge%' => $this->bridgeLabel($episode->project, $episode->bridgeId),
             '%start%' => self::stamp($episode->startedAt),
             '%end%' => self::stamp($now),
         ], null, $this->locale) : null;

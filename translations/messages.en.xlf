@@ -6048,7 +6048,7 @@
             </trans-unit>
             <trans-unit id="inbox.account_limit.title">
                 <source>inbox.account_limit.title</source>
-                <target>{0}%account% is at its %window% limit · no cards wait · resets %resets%|{1}%account% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% is at its %window% limit · %count% cards wait · resets %resets%</target>
+                <target>{0}%account% on %bridge% is at its %window% limit · no cards wait · resets %resets%|{1}%account% on %bridge% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% on %bridge% is at its %window% limit · %count% cards wait · resets %resets%</target>
             </trans-unit>
             <trans-unit id="inbox.account_limit.window.session">
                 <source>inbox.account_limit.window.session</source>
@@ -6068,7 +6068,7 @@
             </trans-unit>
             <trans-unit id="inbox.account_limit.body.intro">
                 <source>inbox.account_limit.body.intro</source>
-                <target>%account% reached its usage limit. These windows are at their limit:</target>
+                <target>%account% on %bridge% reached its usage limit. These windows are at their limit:</target>
             </trans-unit>
             <trans-unit id="inbox.account_limit.body.window">
                 <source>inbox.account_limit.body.window</source>
@@ -6088,7 +6088,7 @@
             </trans-unit>
             <trans-unit id="inbox.account_limit.closed">
                 <source>inbox.account_limit.closed</source>
-                <target>%account% could take work again at %end%. It was at its limit from %start%.</target>
+                <target>%account% on %bridge% could take work again at %end%. It was at its limit from %start%.</target>
             </trans-unit>
             <trans-unit id="bridge.try_now.error.unknown_bridge">
                 <source>bridge.try_now.error.unknown_bridge</source>

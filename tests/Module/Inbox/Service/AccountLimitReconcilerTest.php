@@ -66,6 +66,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
 
         $this->bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable(self::NOW)->modify('-10 seconds'));
+        $this->bridge->name = 'laptop';
         $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_TRY_NOW];
         $this->bridge->workKinds = ['implement'];
         $this->bridge->accounts = [
@@ -89,7 +90,8 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemKind::Notice, $item->kind);
         self::assertSame(InboxItemState::Open, $item->state);
         self::assertFalse($item->blocking);
-        self::assertSame('claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertSame('claude on laptop is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertStringStartsWith('claude on laptop reached its usage limit.', $item->body ?? '');
         self::assertStringContainsString("- Week: resets Sat 17 Oct, 17:00 UTC\n", $item->body ?? '');
         self::assertStringContainsString('- Card 12: Ship it', $item->body ?? '');
         self::assertEquals([new NotifyInboxOwner((string) $item->id, NotifyInboxOwnerKind::Notice)], $this->queuedPushes());
@@ -146,7 +148,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $episodes = $this->episodes();
         self::assertSame(['claude', 'codex'], array_map(static fn (InboxAccountLimit $episode): string => $episode->account, $episodes));
         self::assertNotSame($episodes[0]->item, $episodes[1]->item);
-        self::assertSame('codex is at its session limit · 1 card waits · resets Fri 16 Oct, 15:00 UTC', $episodes[1]->item->title);
+        self::assertSame('codex on laptop is at its session limit · 1 card waits · resets Fri 16 Oct, 15:00 UTC', $episodes[1]->item->title);
         self::assertSame(2, $this->itemCount());
     }
 
@@ -164,8 +166,8 @@ final class AccountLimitReconcilerTest extends KernelTestCase
             $titles[$episode->bridgeId->toRfc4122()] = $episode->item->title;
         }
         self::assertEquals([
-            $this->bridge->id->toRfc4122() => 'claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC',
-            $other->id->toRfc4122() => 'claude is at its session limit · 1 card waits · resets Fri 16 Oct, 15:00 UTC',
+            $this->bridge->id->toRfc4122() => 'claude on laptop is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC',
+            $other->id->toRfc4122() => 'claude on studio is at its session limit · 1 card waits · resets Fri 16 Oct, 15:00 UTC',
         ], $titles);
     }
 
@@ -200,7 +202,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $item = $this->onlyEpisode()->item;
-        self::assertSame('claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertSame('claude on laptop is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
         self::assertStringContainsString("- Week: resets Sat 17 Oct, 17:00 UTC\n- Session: resets Fri 16 Oct, 15:00 UTC", $item->body ?? '');
     }
 
@@ -230,7 +232,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $item = $this->onlyEpisode()->item;
-        self::assertSame('claude is at its weekly limit · 2 cards wait · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertSame('claude on laptop is at its weekly limit · 2 cards wait · resets Sat 17 Oct, 17:00 UTC', $item->title);
         self::assertStringContainsString('- Card 13:', $item->body ?? '');
         self::assertSame([], $this->queuedPushes());
     }
@@ -249,7 +251,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
 
         $item = $this->onlyEpisode()->item;
         self::assertSame(InboxItemState::Open, $item->state);
-        self::assertSame('claude is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
+        self::assertSame('claude on laptop is at its weekly limit · 1 card waits · resets Sat 17 Oct, 17:00 UTC', $item->title);
         self::assertStringContainsString('- Card 12:', $item->body ?? '');
         self::assertStringNotContainsString('- Card 13:', $item->body ?? '');
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_item_cards WHERE item_id = :item', ['item' => (string) $item->id]));
@@ -268,7 +270,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
 
         self::assertSame(InboxItemState::Done, $episode->item->state);
         self::assertEquals(new \DateTimeImmutable('2026-10-16 12:10:00'), $episode->endedAt);
-        self::assertSame('claude could take work again at Fri 16 Oct, 12:10 UTC. It was at its limit from Fri 16 Oct, 12:00 UTC.', $episode->item->closeNote);
+        self::assertSame('claude on laptop could take work again at Fri 16 Oct, 12:10 UTC. It was at its limit from Fri 16 Oct, 12:00 UTC.', $episode->item->closeNote);
     }
 
     public function test_the_notice_is_obsolete_when_the_waiting_work_ended_before_the_account_recovered(): void
@@ -352,6 +354,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
     private function secondBridge(): Bridge
     {
         $bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable(self::NOW)->modify('-10 seconds'));
+        $bridge->name = 'studio';
         $bridge->capabilities = $this->bridge->capabilities;
         $bridge->workKinds = $this->bridge->workKinds;
         $bridge->accounts = $this->bridge->accounts;
