@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Mcp;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeClaimRefusal;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Mcp\BridgeListTool;
@@ -16,6 +17,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\McpTokenScenario;
@@ -492,6 +494,10 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         $open = $this->seedRun($em, $project, cardNumber: 3, workKind: 'plan', bridgeId: $live->id, state: WorkerRunState::Running);
         $this->seedRun($em, $project, bridgeId: $live->id, state: WorkerRunState::Succeeded);
         $this->seedRun($em, $other, bridgeId: $live->id, state: WorkerRunState::Running);
+        $refused = $this->seedWorkRequest($em, $project, kind: 'fix');
+        $em->persist(new BridgeClaimRefusal(Uuid::v7(), $live, $refused, 'work'));
+        $em->persist(new BridgeClaimRefusal(Uuid::v7(), $live, $this->seedWorkRequest($em, $other, kind: 'fix'), null));
+        $em->persist(new BridgeClaimRefusal(Uuid::v7(), $live, $this->seedWorkRequest($em, $project, kind: 'review', state: WorkRequestState::Done), null));
         $em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
@@ -520,6 +526,8 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         self::assertNull($bridges[$quiet->id->toRfc4122()]['accounts']);
         self::assertNull($bridges[$quiet->id->toRfc4122()]['accountsReportedAt']);
         self::assertSame([['runId' => (string) $open->id, 'subjectType' => 'card', 'subjectId' => (string) $open->subjectId, 'cardNumber' => 3, 'workKind' => 'plan', 'state' => 'running']], $row['openRuns']);
+        self::assertSame([['workRequestId' => (string) $refused->id, 'subjectType' => 'card', 'subjectId' => (string) $refused->subjectId, 'kind' => 'fix', 'account' => 'work']], $row['refusedRequests']);
+        self::assertSame([], $bridges[$quiet->id->toRfc4122()]['refusedRequests']);
         self::assertSame('quiet', $bridges[$quiet->id->toRfc4122()]['liveness']);
         self::assertNull($bridges[$quiet->id->toRfc4122()]['name']);
         self::assertSame('laptop', $bridges[$quiet->id->toRfc4122()]['requestedName']);

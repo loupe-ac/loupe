@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\BridgeReported;
+use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
@@ -68,6 +69,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private BridgeHostSampleRepository $bridgeHostSamples,
         private AccountReadingRecorder $readings,
         private BridgeWorkMatchRepository $bridgeWorkMatches,
+        private BridgeClaimRefusalRepository $bridgeClaimRefusals,
         private AccountLimits $accountLimits,
         private HostSampling $hostSampling,
         private WorkerRunRepository $workerRuns,
@@ -108,6 +110,7 @@ final readonly class RecordBridgeHeartbeatHandler
             $pausedBefore = true === $bridge?->pausedReported;
             $capabilitiesBefore = $bridge?->capabilities;
             $kindsBefore = $bridge->workKinds ?? [];
+            $versionChanged = null !== $bridge && $bridge->cliVersion !== $command->cliVersion;
             $repositoriesBefore = $bridge->repositories ?? [];
             if (null === $bridge) {
                 $bridge = new Bridge($command->owner, $command->bridgeId, $projects, $command->cliVersion, $now);
@@ -134,7 +137,8 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->workerPools = $command->workerPools;
                 $bridge->workerPoolsReportedAt = $now;
             }
-            $usageChanged = null !== $command->accounts && $bridge->accounts !== $command->accounts;
+            $accountsChanged = null !== $command->accounts && $bridge->accounts !== $command->accounts;
+            $usageChanged = $accountsChanged;
             if (null !== $command->accounts) {
                 $bridge->accounts = $command->accounts;
                 $bridge->accountsReportedAt = $now;
@@ -220,6 +224,7 @@ final readonly class RecordBridgeHeartbeatHandler
             // The new readings and the new bridge row must reach the database before the limits read them.
             $this->em->flush();
             $this->keepWorkMatches($bridge, $command->skipped);
+            $this->keepClaimRefusals($bridge, $versionChanged || $accountsChanged);
             $blocked = $this->accountLimits->blockedOf($bridge);
             $workRequests = $bridge->takesWorkRequests()
                 ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS, $this->heldProjects->among($bridge->projects), $now, array_map(strval(...), array_keys($blocked)))
@@ -358,6 +363,21 @@ final readonly class RecordBridgeHeartbeatHandler
                 $this->bridgeWorkMatches->put($ownerId, $bridge->id, $entry->workRequestId, $entry->account);
             }
         }
+    }
+
+    /**
+     * A new version or new accounts can end a refusal, so the bridge gets to claim again. Otherwise the heartbeat
+     * drops only the refusals of requests that closed.
+     */
+    private function keepClaimRefusals(Bridge $bridge, bool $reportChanged): void
+    {
+        if ($reportChanged) {
+            $this->bridgeClaimRefusals->deleteOfBridge($bridge->id);
+
+            return;
+        }
+
+        $this->bridgeClaimRefusals->deleteOfClosedRequests($bridge->owner->id ?? throw new \LogicException('An authenticated user always has an id.'), $bridge->id);
     }
 
     /** Whether Loupe can offer the open request to the bridge. A report about any other request is dropped. */

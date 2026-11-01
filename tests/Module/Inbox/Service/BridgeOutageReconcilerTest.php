@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeClaimRefusal;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Inbox\Entity\InboxAskOrigin;
@@ -409,6 +410,72 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $body = $this->bodyOf($this->onlyOutage()->item);
         self::assertStringContainsString('The logins of macbookpro, studio expired. Run `loupe login` on each of those machines.', $body);
         self::assertStringNotContainsString('that machine', $body);
+    }
+
+    public function test_a_notice_tells_the_owner_to_update_a_bridge_whose_old_cli_names_no_account(): void
+    {
+        $request = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $bridge->cliVersion = '1.32.0';
+        $this->refuse($bridge, $request, null);
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('macbookpro runs a CLI that names no account in its claims. Run `loupe update` on that machine.', $body);
+        self::assertStringNotContainsString('Start a bridge', $body);
+    }
+
+    public function test_a_notice_names_the_account_that_the_server_refused(): void
+    {
+        $request = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->refuse($bridge, $request, 'work');
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('The server refused macbookpro for the account work. Check the account of the work entry or the experiment variant in `rules.yaml`, then run `loupe bridge reload`.', $body);
+        self::assertStringNotContainsString('loupe update', $body);
+    }
+
+    public function test_a_notice_for_a_current_cli_that_named_no_account_points_at_the_work_entry(): void
+    {
+        $request = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $bridge->cliVersion = '1.33.0';
+        $this->refuse($bridge, $request, null);
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringContainsString('The server refused macbookpro because its claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.', $body);
+        self::assertStringNotContainsString('loupe update', $body);
+    }
+
+    public function test_a_notice_lists_a_refused_bridge_once_for_all_the_requests_it_was_refused(): void
+    {
+        $other = $this->card($this->em, $this->project, 13);
+        $this->em->flush();
+        $first = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $second = $this->waitingRequest($other, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->refuse($bridge, $first, 'work');
+        $this->refuse($bridge, $second, 'work');
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(1, substr_count($this->bodyOf($this->onlyOutage()->item), 'The server refused macbookpro'));
+    }
+
+    private function refuse(Bridge $bridge, WorkRequest $request, ?string $account): void
+    {
+        $this->em->persist(new BridgeClaimRefusal(Uuid::v7(), $bridge, $request, $account));
+        $this->em->flush();
     }
 
     private function bodyOf(InboxItem $item): string
