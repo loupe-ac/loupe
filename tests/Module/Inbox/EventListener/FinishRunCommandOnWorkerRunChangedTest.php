@@ -152,7 +152,7 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
         $action = $this->actionOf($item);
         $command = $this->em()->find(BridgeCommand::class, $action->bridgeCommandId);
         self::assertInstanceOf(BridgeCommand::class, $command);
-        self::assertSame([BridgeCommandKind::ResumeRun, BridgeCommandCause::InboxAction, (string) $stopped->id], [$command->kind, $command->cause, (string) $command->workerRun->id]);
+        self::assertSame([BridgeCommandKind::ResumeRun, BridgeCommandCause::InboxAction, (string) $stopped->id], [$command->kind, $command->cause, (string) $command->workerRun?->id]);
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 

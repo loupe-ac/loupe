@@ -14,17 +14,23 @@ use App\Module\Bridge\Command\SettleWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\AccountReadingRecorder;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
@@ -186,6 +192,12 @@ final class NoWorkFinishFlowTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers([]),
+            $this->service(BridgeRepository::class),
+            $this->service(BridgeWorkMatchRepository::class),
+            $this->service(AccountReadingRecorder::class),
+            $this->service(ProjectRepository::class),
+            $this->service(WorkerRunChangedPublisher::class),
+            $this->service(EventDispatcherInterface::class),
         );
 
         $result = $handler(new SettleWorkRequestCommand(

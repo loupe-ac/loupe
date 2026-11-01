@@ -61,7 +61,7 @@ final readonly class AcknowledgeBridgeCommandHandler
                     'state' => $settled->state->value,
                     'kind' => $settled->kind->value,
                     'projectId' => (string) $settled->project->id,
-                    'runId' => (string) $settled->workerRun->id,
+                    'runId' => null === $settled->workerRun ? null : (string) $settled->workerRun->id,
                     'bridgeId' => (string) $settled->bridgeId,
                 ],
                 new AuditSubject('bridge_command', (string) $settled->id),

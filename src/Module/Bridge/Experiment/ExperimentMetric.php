@@ -69,7 +69,7 @@ final readonly class ExperimentMetric
                 MetricValueType::Money => 'currency',
                 MetricValueType::Ratio, MetricValueType::Boolean => 'percent',
                 MetricValueType::Tokens => 'integer',
-                MetricValueType::Count, MetricValueType::Duration => 'decimal',
+                MetricValueType::Count, MetricValueType::Duration, MetricValueType::Percent => 'decimal',
             },
         };
     }

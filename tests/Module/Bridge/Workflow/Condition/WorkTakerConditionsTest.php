@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Workflow\Condition;
 
+use App\Module\Bridge\ValueObject\AccountLimit;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
+use App\Module\Bridge\ValueObject\UsageLimitWait;
+use App\Module\Bridge\ValueObject\WindowLimit;
+use App\Module\Bridge\ValueObject\WindowLimitState;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Bridge\Workflow\Condition\RunWorkNoCapableTaker;
 use App\Module\Bridge\Workflow\Condition\RunWorkNoTaker;
+use App\Module\Bridge\Workflow\Condition\RunWorkOpen;
+use App\Module\Bridge\Workflow\Condition\RunWorkTakerDisconnected;
+use App\Module\Bridge\Workflow\Condition\RunWorkTakerLimited;
 use App\Module\Bridge\Workflow\Condition\RunWorkTakerPaused;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class WorkTakerConditionsTest extends TestCase
 {
@@ -87,9 +96,124 @@ final class WorkTakerConditionsTest extends TestCase
         self::assertNull(new RunWorkTakerPaused()->changesAt($facts, []));
     }
 
+    public function test_a_limited_request_holds_the_limited_condition_only(): void
+    {
+        $facts = self::facts(['implement' => self::limitedReading([self::account('claude', 'week', 100.0, '2026-11-01 17:00:00', true)])]);
+
+        self::assertTrue(new RunWorkTakerLimited()->evaluate($facts, []));
+        self::assertFalse(new RunWorkNoTaker()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerPaused()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerLimited()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Available)]), []));
+    }
+
+    public function test_a_request_with_no_taker_hides_the_limited_condition_of_another_request(): void
+    {
+        $facts = self::facts([
+            'implement' => self::limitedReading([self::account('claude', 'week', 100.0, '2026-11-01 17:00:00', true)]),
+            'fix' => self::reading(WorkTakerState::None),
+        ]);
+
+        self::assertFalse(new RunWorkTakerLimited()->evaluate($facts, []));
+    }
+
+    public function test_the_limited_evidence_of_a_hard_limit_names_the_window_that_releases_the_work_first(): void
+    {
+        $facts = self::facts(['implement' => self::limitedReading([
+            self::account('spare', 'week', 100.0, '2026-11-03 09:00:00', true),
+            self::account('claude', 'week', 100.0, '2026-11-01 17:00:00', true),
+        ])]);
+
+        $evidence = new RunWorkTakerLimited()->evidence($facts, []);
+
+        self::assertSame(['%cause%' => 'limit', '%account%' => 'claude', '%window%' => 'week', '%use%' => 100, '%stopAt%' => 95, '%resetsAt%' => new \DateTimeImmutable('2026-11-01 17:00:00')->getTimestamp(), '%bridgeId%' => '', '%canTryNow%' => 0], $evidence?->params);
+    }
+
+    public function test_the_limited_evidence_names_the_bridge_and_whether_it_takes_try_now(): void
+    {
+        $bridgeId = Uuid::v4();
+        $reading = new AccountReadingReport('claude', 'week', 100.0, new \DateTimeImmutable('2026-11-01 17:00:00'), true, 'stream', new \DateTimeImmutable('2026-10-16 11:00:00'));
+        $account = new AccountLimit('claude', [new WindowLimit($reading, WindowLimitState::AtLimit)], 95, false, $bridgeId, true);
+
+        $evidence = new RunWorkTakerLimited()->evidence(self::facts(['implement' => self::limitedReading([$account])]), []);
+
+        self::assertSame((string) $bridgeId, $evidence?->params['%bridgeId%']);
+        self::assertSame(1, $evidence->params['%canTryNow%']);
+    }
+
+    public function test_the_limited_evidence_of_a_stop_value_carries_the_use_and_the_stop_value(): void
+    {
+        $facts = self::facts(['implement' => self::limitedReading([self::account('claude', 'week', 96.2, '2026-11-01 17:00:00', false)])]);
+
+        $params = new RunWorkTakerLimited()->evidence($facts, [])?->params;
+
+        self::assertSame('stop', $params['%cause%'] ?? null);
+        self::assertSame(96, $params['%use%'] ?? null);
+        self::assertSame(95, $params['%stopAt%'] ?? null);
+    }
+
+    public function test_the_limited_evidence_leaves_the_use_empty_when_the_reading_has_none(): void
+    {
+        $facts = self::facts(['implement' => self::limitedReading([self::account('claude', 'session', null, '2026-11-01 17:00:00', true)])]);
+
+        self::assertSame('', new RunWorkTakerLimited()->evidence($facts, [])?->params['%use%'] ?? null);
+        self::assertNull(new RunWorkTakerLimited()->evidence(self::facts([]), []));
+    }
+
+    public function test_the_limited_condition_changes_at_the_first_reset(): void
+    {
+        $reading = self::limitedReading([self::account('claude', 'week', 100.0, '2026-11-01 17:00:00', true)], quietAt: '2026-11-01 17:00:00');
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-01 17:00:00'), new RunWorkTakerLimited()->changesAt(self::facts(['implement' => $reading]), []));
+    }
+
+    public function test_a_disconnected_request_holds_the_disconnected_condition_only(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 12:05:00')]);
+
+        self::assertTrue(new RunWorkTakerDisconnected()->evaluate($facts, []));
+        self::assertFalse(new RunWorkNoTaker()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerPaused()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerLimited()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Available)]), []));
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate(self::facts([]), []));
+    }
+
+    public function test_a_request_with_no_taker_hides_the_disconnected_condition_of_another_request(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected), 'fix' => self::reading(WorkTakerState::None)]);
+
+        self::assertFalse(new RunWorkTakerDisconnected()->evaluate($facts, []));
+    }
+
+    public function test_the_disconnected_condition_changes_when_the_lease_or_the_wait_ends(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 12:05:00')]);
+
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:05:00'), new RunWorkTakerDisconnected()->changesAt($facts, []));
+        self::assertNull(new RunWorkTakerDisconnected()->changesAt(self::facts(['implement' => self::reading(WorkTakerState::Disconnected, quietAt: '2026-10-16 11:59:00')]), []));
+    }
+
+    public function test_the_disconnected_evidence_names_the_machine(): void
+    {
+        $named = new WorkTakerReading(WorkTakerState::Disconnected, new \DateTimeImmutable('2026-10-16 11:00:00'), null, bridgeLabel: 'laptop');
+
+        self::assertSame(['%machine%' => 'laptop'], new RunWorkTakerDisconnected()->evidence(self::facts(['implement' => $named]), [])?->params);
+        self::assertSame(['%machine%' => ''], new RunWorkTakerDisconnected()->evidence(self::facts(['implement' => self::reading(WorkTakerState::Disconnected)]), [])?->params);
+        self::assertNull(new RunWorkTakerDisconnected()->evidence(self::facts([]), []));
+    }
+
+    public function test_a_claimed_request_is_not_an_open_one(): void
+    {
+        $claimed = new WorkTakerReading(WorkTakerState::Disconnected, new \DateTimeImmutable('2026-10-16 11:00:00'), null, claimed: true);
+
+        self::assertFalse(new RunWorkOpen()->evaluate(self::facts(['implement' => $claimed]), []));
+        self::assertTrue(new RunWorkOpen()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Disconnected)]), []));
+        self::assertTrue(new RunWorkOpen()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::Available)]), []));
+    }
+
     public function test_the_conditions_name_their_facts_and_their_waiting_sentences(): void
     {
-        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkNoCapableTaker(), 'run_work_no_capable_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused']] as [$condition, $suffix]) {
+        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkNoCapableTaker(), 'run_work_no_capable_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused'], [new RunWorkTakerLimited(), 'run_work_taker_limited'], [new RunWorkTakerDisconnected(), 'run_work_taker_disconnected']] as [$condition, $suffix]) {
             self::assertSame([WorkTakerFacts::class], $condition->reads([]));
             self::assertSame('workflow.waiting.'.$suffix, $condition->waitingFor([])->getMessage());
             self::assertSame('workflow.waiting.not.'.$suffix, $condition->waitingFor([], negated: true)->getMessage());
@@ -100,6 +224,19 @@ final class WorkTakerConditionsTest extends TestCase
     private static function facts(array $readings): Facts
     {
         return FactsMother::facts(now: new \DateTimeImmutable(self::NOW), provided: [WorkTakerFacts::class => new WorkTakerFacts($readings)]);
+    }
+
+    private static function account(string $name, string $window, ?float $usedPercent, string $resetsAt, bool $limited): AccountLimit
+    {
+        $reading = new AccountReadingReport($name, $window, $usedPercent, new \DateTimeImmutable($resetsAt), $limited, 'stream', new \DateTimeImmutable('2026-10-16 11:00:00'));
+
+        return new AccountLimit($name, [new WindowLimit($reading, $limited ? WindowLimitState::AtLimit : WindowLimitState::AtStop)], 95);
+    }
+
+    /** @param non-empty-list<AccountLimit> $accounts */
+    private static function limitedReading(array $accounts, ?string $quietAt = null): WorkTakerReading
+    {
+        return new WorkTakerReading(WorkTakerState::Limited, new \DateTimeImmutable('2026-10-16 11:00:00'), null === $quietAt ? null : new \DateTimeImmutable($quietAt), limit: new UsageLimitWait($accounts));
     }
 
     private static function reading(WorkTakerState $state, string $since = '2026-10-16 11:00:00', ?string $quietAt = null): WorkTakerReading

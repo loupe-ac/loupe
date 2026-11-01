@@ -11,6 +11,7 @@ enum MetricStatistic: string
     case Sum = 'sum';
     case P90 = 'p90';
     case Count = 'count';
+    case Max = 'max';
 
     /**
      * Null for no value, but the count of no value is 0. A percentile interpolates between ranks, as numpy's default does.
@@ -26,6 +27,7 @@ enum MetricStatistic: string
         return match ($this) {
             self::Count => \count($values),
             self::Sum => array_sum($values),
+            self::Max => max($values),
             self::Mean => array_sum($values) / \count($values),
             self::Median => self::percentile($values, 0.5),
             self::P90 => self::percentile($values, 0.9),

@@ -13,6 +13,7 @@ use App\Outbox\AgentPush;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
@@ -20,8 +21,8 @@ use Symfony\Component\Uid\Uuid;
 use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 /**
- * Claims a work request for one of the caller's bridges. The firewall admits
- * agent-scoped tokens alone. The answer carries the claim token, and the
+ * Claims a work request for one of the caller's bridges, on the account named
+ * in the body. The firewall admits agent-scoped tokens alone. The answer carries the claim token, and the
  * bridge sends it back with the result.
  *
  * The bridge reads a 404 with no error code as a server with no such endpoint,
@@ -43,8 +44,12 @@ final class ClaimWorkRequestController extends AppController
     ) {
     }
 
-    public function __invoke(string $bridgeId, string $workRequestId): JsonResponse
-    {
+    /** An empty body gives a null payload, which the claim refuses as a claim with no account. */
+    public function __invoke(
+        string $bridgeId,
+        string $workRequestId,
+        #[MapRequestPayload] ?ClaimWorkRequestRequest $payload = null,
+    ): JsonResponse {
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw new \LogicException('Work request claim endpoint reached without an authenticated User.');
@@ -54,6 +59,7 @@ final class ClaimWorkRequestController extends AppController
             owner: $user,
             bridgeId: Uuid::fromString($bridgeId),
             workRequestId: Uuid::fromString($workRequestId),
+            account: $payload?->account(),
         ));
 
         $request = $result->request;

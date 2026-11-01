@@ -31,7 +31,6 @@ final readonly class BoundWorkflowView
         public array $markers,
         public array $metrics,
         public array $backoffMinutes,
-        public int $workTimeoutMinutes,
         public ?array $workFailedBackoffMinutes,
     ) {
     }

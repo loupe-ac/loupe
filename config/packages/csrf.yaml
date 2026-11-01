@@ -31,6 +31,7 @@ framework:
             - insights-bucket-rule-delete
             - insights-bucket-rule-move
             - bridge-pause
+            - bridge-try-now
             - card-agents
             - workflow-pause-release
             - billing-checkout

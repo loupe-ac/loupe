@@ -138,7 +138,7 @@ Read the `**Parked.**` section above before you move a card out of Backlog.
 The workflow of the board checks a card after each move. When a rule of its template fires, it can move the card again, or ask a bridge for work on it. A bridge that runs that kind of work then starts a worker.
 
 - A rule fires only when its condition turns true. A move back into the same slot does not fire a rule that already fired.
-- When no bridge runs, the request waits. After the work timeout, the card pauses with "no bridge took the work".
+- When no bridge runs, the request waits until a bridge takes it. The card shows "No bridge is online to take this work." as Waiting.
 - A card that a person made unmanaged gets no work, whatever you move.
 - A managed card takes only the moves that the template lists, and it refuses any other move.
 

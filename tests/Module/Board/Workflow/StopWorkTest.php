@@ -55,7 +55,7 @@ final class StopWorkTest extends KernelTestCase
         $commands = $this->service(BridgeCommandRepository::class)->findAll();
         self::assertCount(1, $commands);
         self::assertSame(BridgeCommandKind::StopRun, $commands[0]->kind);
-        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun->id);
+        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun?->id);
         self::assertNull($commands[0]->requestedBy);
         self::assertSame('Stopped by the product-design-undo workflow rule.', $commands[0]->reason);
 
@@ -82,7 +82,7 @@ final class StopWorkTest extends KernelTestCase
 
         self::assertEquals(ActionOutcome::done(), $this->stop($card));
 
-        $stopped = array_map(static fn ($command): string => (string) $command->workerRun->id, $this->service(BridgeCommandRepository::class)->findAll());
+        $stopped = array_map(static fn ($command): string => (string) $command->workerRun?->id, $this->service(BridgeCommandRepository::class)->findAll());
         self::assertSame([(string) $byRule->id], $stopped);
         self::assertNotContains((string) $byRequest->id, $stopped);
         self::assertNotContains((string) $byCopy->id, $stopped);
@@ -165,7 +165,7 @@ final class StopWorkTest extends KernelTestCase
 
         $commands = $this->service(BridgeCommandRepository::class)->findAll();
         self::assertCount(1, $commands);
-        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun->id);
+        self::assertSame((string) $worker->id, (string) $commands[0]->workerRun?->id);
         self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $fix->id)?->state);
     }
 

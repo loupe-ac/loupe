@@ -38,7 +38,7 @@ final class ResumeAskingRunHandlerTest extends KernelTestCase
 
         $commands = $this->commands();
         self::assertCount(1, $commands);
-        self::assertSame((string) $newest->id, (string) $commands[0]->workerRun->id);
+        self::assertSame((string) $newest->id, (string) $commands[0]->workerRun?->id);
         self::assertSame(BridgeCommandKind::ResumeRun, $commands[0]->kind);
         self::assertNull($commands[0]->requestedBy);
         self::assertSame(BridgeCommandCause::AskClosed, $commands[0]->cause);

@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\ReopenLapsedWorkRequestsHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
@@ -201,7 +202,7 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         $announcer = self::getContainer()->get(WorkRequestAnnouncer::class);
         self::assertInstanceOf(WorkRequestAnnouncer::class, $announcer);
 
-        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock(self::NOW), $announcer, self::getContainer()->get(HeldProjects::class));
+        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock(self::NOW), $announcer, self::getContainer()->get(HeldProjects::class), self::getContainer()->get(BridgeLiveness::class));
     }
 
     /** @return list<array<string, mixed>> */

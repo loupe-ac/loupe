@@ -48,6 +48,7 @@ final class HeldCardFlowTest extends KernelTestCase
         self::assertSame(['tech-design', WorkRequestState::Open], [$request->kind, $request->state]);
         $bridge = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
         $bridge->capabilities = array_values(array_filter([Bridge::CAPABILITY_WORK_REQUESTS, $request->capability]));
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => [$request->kind]]];
         $this->em()->persist($bridge);
         $this->em()->flush();
         self::assertCount(1, $this->offers($project->id, $bridge));
@@ -57,7 +58,7 @@ final class HeldCardFlowTest extends KernelTestCase
         $this->evaluate($card, '2026-10-05 15:10:00');
 
         self::assertSame([], $this->offers($project->id, $bridge));
-        $claim = $this->service(ClaimWorkRequestHandler::class)(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.')));
+        $claim = $this->service(ClaimWorkRequestHandler::class)(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.'), 'work'));
         self::assertNull($claim->request);
         self::assertSame(WorkRequestRefusal::CardHeld, $claim->refusal);
         self::assertSame(WorkRequestState::Cancelled, $this->onlyRequest($card)->state);
