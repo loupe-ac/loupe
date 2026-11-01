@@ -29,6 +29,8 @@ use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Metric\MetricWindow;
 use App\Module\Bridge\Metric\TemplateMetricValues;
+use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -453,6 +455,72 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertEquals(new MetricPoint(null, 0, 1), $byVariant->series[2]->total);
     }
 
+    public function test_the_account_usage_reads_the_readings_of_the_named_bridges_that_follow_the_project(): void
+    {
+        $owner = $this->project->owner;
+        $follows = [(string) $this->project->id];
+        $laptop = $this->seedBridge($this->em, $owner, projects: $follows);
+        $laptop->name = 'laptop';
+        $nameless = $this->seedBridge($this->em, $owner, projects: $follows);
+        $desk = $this->seedBridge($this->em, $owner, projects: []);
+        $desk->name = 'desk';
+        $stranger = $this->seedBridge($this->em, $this->user($this->em, 'metric-stranger-'.uniqid().'@example.com'), projects: $follows);
+        $stranger->name = 'stranger';
+        $this->em->flush();
+        $this->seedAccountReading($this->em, $laptop, '2026-10-01 10:00:00', usedPercent: 40.0);
+        $this->seedAccountReading($this->em, $laptop, '2026-10-01 18:00:00', usedPercent: 70.0);
+        $this->seedAccountReading($this->em, $laptop, '2026-10-03 09:00:00', usedPercent: 20.0);
+        $this->seedAccountReading($this->em, $laptop, '2026-10-02 09:00:00', usedPercent: null);
+        $this->seedAccountReading($this->em, $laptop, '2026-08-01 09:00:00', usedPercent: 99.0);
+        $this->seedAccountReading($this->em, $laptop, '2026-10-01 10:00:00', window: 'week', usedPercent: 30.0);
+        $this->seedAccountReading($this->em, $nameless, '2026-10-01 10:00:00', usedPercent: 95.0);
+        $this->seedAccountReading($this->em, $desk, '2026-10-01 10:00:00', usedPercent: 96.0);
+        $this->seedAccountReading($this->em, $stranger, '2026-10-01 10:00:00', usedPercent: 97.0);
+
+        $view = $this->query(MetricUnit::Reading, Metric::AccountUsage, MetricStatistic::Max, MetricGroup::AccountWindow);
+
+        self::assertSame(['laptop/work session', 'laptop/work week'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        [$session, $week] = $view->series;
+        self::assertEquals([
+            new MetricPoint(new \DateTimeImmutable('2026-10-01 00:00:00 UTC'), 70.0, 2),
+            new MetricPoint(new \DateTimeImmutable('2026-10-03 00:00:00 UTC'), 20.0, 1),
+        ], $session->points);
+        self::assertEquals(new MetricPoint(null, 70.0, 3), $session->total);
+        self::assertSame([20.0, 70.0, 40.0], array_map(static fn (MetricRow $row): int|float|null => $row->value, $session->rows));
+        self::assertNull($session->rows[0]->cardNumber);
+        self::assertEquals(new MetricPoint(null, 30.0, 1), $week->total);
+    }
+
+    public function test_the_account_usage_has_no_rows_for_a_project_no_bridge_follows(): void
+    {
+        $bridge = $this->seedBridge($this->em, $this->project->owner, projects: []);
+        $bridge->name = 'idle';
+        $this->em->flush();
+        $this->seedAccountReading($this->em, $bridge, '2026-10-01 10:00:00', usedPercent: 40.0);
+
+        $view = $this->query(MetricUnit::Reading, Metric::AccountUsage, MetricStatistic::Max, MetricGroup::AccountWindow);
+
+        self::assertSame([], $view->series);
+    }
+
+    public function test_the_session_and_week_usage_read_the_change_of_the_run_fact(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', sessionUsageDelta: 5.5, weekUsageDelta: 1.0);
+        $this->fact($card, endedAt: '2026-10-01 17:00:00', sessionUsageDelta: 2.5, weekUsageDelta: null);
+        $this->fact($card, endedAt: '2026-10-02 08:00:00');
+
+        $session = $this->query(MetricUnit::Run, Metric::SessionUsage, MetricStatistic::Mean);
+        $max = $this->query(MetricUnit::Run, Metric::SessionUsage, MetricStatistic::Max);
+        $week = $this->query(MetricUnit::Run, Metric::WeekUsage, MetricStatistic::Max);
+
+        self::assertEquals(new MetricPoint(null, 4.0, 2), $session->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 5.5, 2), $max->series[0]->total);
+        self::assertSame([null, 2.5, 5.5], array_map(static fn (MetricRow $row): int|float|null => $row->value, $session->series[0]->rows));
+        self::assertEquals(new MetricPoint(null, 1.0, 1), $week->series[0]->total);
+        self::assertSame(3, \count($week->series[0]->rows));
+    }
+
     private function request(Uuid $card, string $kind, ?string $role, ?string $reason): void
     {
         $request = $this->seedWorkRequest($this->em, $this->project, $card, $kind, state: WorkRequestState::Done, subject: WorkSubject::card($card));
@@ -480,6 +548,16 @@ final class MetricQueryHandlerTest extends KernelTestCase
         yield 'a template rate by harness' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
         yield 'a template rate by skill version' => [MetricUnit::Card, $rate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
         yield 'a template count by account' => [MetricUnit::Card, $count, MetricStatistic::Sum, MetricGroup::Account, 'group'];
+        yield 'the account usage on the run unit' => [MetricUnit::Run, $built(Metric::AccountUsage), MetricStatistic::Max, MetricGroup::AccountWindow, 'unit'];
+        yield 'a sum of the account usage' => [MetricUnit::Reading, $built(Metric::AccountUsage), MetricStatistic::Sum, MetricGroup::AccountWindow, 'statistic'];
+        yield 'the account usage with no grouping' => [MetricUnit::Reading, $built(Metric::AccountUsage), MetricStatistic::Max, MetricGroup::None, 'group'];
+        yield 'the account usage by stage' => [MetricUnit::Reading, $built(Metric::AccountUsage), MetricStatistic::Max, MetricGroup::Stage, 'group'];
+        yield 'a session usage on the card unit' => [MetricUnit::Card, $built(Metric::SessionUsage), MetricStatistic::Max, MetricGroup::None, 'unit'];
+        yield 'a week usage on the reading unit' => [MetricUnit::Reading, $built(Metric::WeekUsage), MetricStatistic::Max, MetricGroup::None, 'unit'];
+        yield 'a sum of a session usage' => [MetricUnit::Run, $built(Metric::SessionUsage), MetricStatistic::Sum, MetricGroup::None, 'statistic'];
+        yield 'a session usage by account window' => [MetricUnit::Run, $built(Metric::SessionUsage), MetricStatistic::Max, MetricGroup::AccountWindow, 'group'];
+        yield 'the max of a cost' => [MetricUnit::Run, $built(Metric::Cost), MetricStatistic::Max, MetricGroup::None, 'statistic'];
+        yield 'a cost on the reading unit' => [MetricUnit::Reading, $built(Metric::Cost), MetricStatistic::Mean, MetricGroup::None, 'unit'];
     }
 
     #[DataProvider('refusals')]
@@ -725,7 +803,11 @@ final class MetricQueryHandlerTest extends KernelTestCase
         $workRequests = self::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         $values = new TemplateMetricValues($workRequests, $reports, $templates, [$milestones]);
-        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values), new MockClock(self::NOW.' UTC'));
+        $bridges = self::getContainer()->get(BridgeRepository::class);
+        self::assertInstanceOf(BridgeRepository::class, $bridges);
+        $readings = self::getContainer()->get(BridgeAccountReadingRepository::class);
+        self::assertInstanceOf(BridgeAccountReadingRepository::class, $readings);
+        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values, $bridges, $readings), new MockClock(self::NOW.' UTC'));
 
         return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, $range, $bucket, $compare));
     }
@@ -756,6 +838,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?string $cliVersion = null,
         ?string $skillVersion = null,
         ?string $variant = null,
+        ?float $sessionUsageDelta = null,
+        ?float $weekUsageDelta = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -778,6 +862,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'cli_version' => $cliVersion,
             'skill_version' => $skillVersion,
             'variant' => $variant,
+            'session_usage_delta' => $sessionUsageDelta,
+            'week_usage_delta' => $weekUsageDelta,
         ]);
 
         return $runId;

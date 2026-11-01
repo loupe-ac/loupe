@@ -133,7 +133,7 @@ func accountReports(set *rules.Set) []api.AccountReport {
 	used := set.UsedAccounts()
 	for _, name := range set.DeclaredAccounts() {
 		run, _ := set.Account(name, "")
-		row := api.AccountReport{Name: name, Harness: harnessNameOf(run), State: api.AccountReady, Used: slices.Contains(used, name)}
+		row := api.AccountReport{Name: name, Harness: harnessNameOf(run), State: api.AccountReady, Used: slices.Contains(used, name), Kinds: nonNil(set.AccountKinds(name)), StopAt: set.StopAt(name)}
 		if reason := off[name]; reason != "" {
 			row.State, row.Reason = api.AccountFailing, cutReason(reason)
 		}
@@ -151,4 +151,13 @@ func cutReason(reason string) string {
 	}
 
 	return string(runes[:maxAccountReason-1]) + "…"
+}
+
+// nonNil turns a nil slice into an empty one, so a JSON field shows as [] and not null.
+func nonNil(kinds []string) []string {
+	if kinds == nil {
+		return []string{}
+	}
+
+	return kinds
 }

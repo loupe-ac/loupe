@@ -33,6 +33,11 @@ final readonly class ClearRunAskOnResumeFailed
             return;
         }
 
-        ($this->clearRunAsk)(new ClearRunAskCommand($command->workerRun));
+        $run = $command->workerRun;
+        if (null === $run) {
+            return;
+        }
+
+        ($this->clearRunAsk)(new ClearRunAskCommand($run));
     }
 }

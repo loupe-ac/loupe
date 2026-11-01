@@ -22,7 +22,9 @@ use App\Module\Board\EventListener\EvaluateCardOnCardDocumentsChanged;
 use App\Module\Board\EventListener\EvaluateCardOnWorkRequestChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnDeleted;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnTerminalChanged;
+use App\Module\Board\EventListener\EvaluateCardsOnBridgeAccountReadingsStored;
 use App\Module\Board\EventListener\EvaluateCardsOnBridgeAvailabilityChanged;
+use App\Module\Board\EventListener\EvaluateCardsOnBridgeNameChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnCardBlockersChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnCardMoved;
 use App\Module\Board\EventListener\EvaluateCardsOnCardParentChanged;
@@ -36,7 +38,9 @@ use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardMove;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
+use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Event\CardHoldsReleased;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkRequestChanged;
@@ -413,6 +417,38 @@ final class EvaluationListenersTest extends KernelTestCase
 
         $this->transport()->reset();
         $listener(new BridgeAvailabilityChanged([]));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_stored_account_reading_asks_for_the_cards_in_open_columns_of_the_projects(): void
+    {
+        [$backlog, $running] = [$this->card($this->project, 'backlog'), $this->card($this->project, 'in-progress')];
+        $this->card($this->project, 'done');
+        $other = $this->workflowProject('listeners-readings-other');
+        $this->card($other, 'next');
+        $listener = new EvaluateCardsOnBridgeAccountReadingsStored($this->service(CardRepository::class), $this->trigger());
+
+        $listener(new BridgeAccountReadingsStored([$this->projectId()->toRfc4122()]));
+        self::assertSame($this->ids($backlog, $running), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new BridgeAccountReadingsStored([]));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_bridge_rename_with_no_new_reading_asks_for_the_cards_in_open_columns_of_the_projects(): void
+    {
+        [$backlog, $running] = [$this->card($this->project, 'backlog'), $this->card($this->project, 'in-progress')];
+        $this->card($this->project, 'done');
+        $other = $this->workflowProject('listeners-rename-other');
+        $this->card($other, 'next');
+        $listener = new EvaluateCardsOnBridgeNameChanged($this->service(CardRepository::class), $this->trigger());
+
+        $listener(new BridgeNameChanged([$this->project]));
+        self::assertSame($this->ids($backlog, $running), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new BridgeNameChanged([]));
         self::assertSame([], $this->sent());
     }
 

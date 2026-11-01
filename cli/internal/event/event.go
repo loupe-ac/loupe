@@ -255,6 +255,10 @@ func CheckCommand(c api.Command) (api.Command, error) {
 	}
 	switch c.Kind {
 	case api.CommandStopRun, api.CommandResumeRun, api.CommandRerunCommand:
+	case api.CommandTryNow:
+		if strings.TrimSpace(c.Account) == "" {
+			return c, fmt.Errorf("command %s names no account", c.CommandID)
+		}
 	case api.CommandCollectSessionUsage:
 		if err := checkRunWindow(c); err != nil {
 			return c, fmt.Errorf("command %s: %w", c.CommandID, err)
@@ -262,8 +266,11 @@ func CheckCommand(c api.Command) (api.Command, error) {
 	default:
 		return c, fmt.Errorf("command has an unknown kind %q", c.Kind)
 	}
-	if err := checkSubject(c.SubjectType, c.SubjectID, c.CardNumber); err != nil {
-		return c, fmt.Errorf("command %s %w", c.CommandID, err)
+	// A try-now command names an account, and no run or subject.
+	if c.Kind != api.CommandTryNow {
+		if err := checkSubject(c.SubjectType, c.SubjectID, c.CardNumber); err != nil {
+			return c, fmt.Errorf("command %s %w", c.CommandID, err)
+		}
 	}
 	if c.WorkKind != "" && !KindPattern.MatchString(c.WorkKind) {
 		return c, fmt.Errorf("command has an invalid workKind %q", c.WorkKind)

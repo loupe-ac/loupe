@@ -16,7 +16,8 @@ final readonly class BridgeCommandSettled
     public function __construct(
         public Uuid $projectId,
         public Uuid $commandId,
-        public Uuid $workerRunId,
+        /** Null for a command about an account, which names no run. */
+        public ?Uuid $workerRunId,
     ) {
     }
 
@@ -25,7 +26,7 @@ final readonly class BridgeCommandSettled
         return new self(
             $command->project->id ?? throw new \LogicException('A stored project has an id.'),
             $command->id ?? throw new \LogicException('A stored command has an id.'),
-            $command->workerRun->id ?? throw new \LogicException('A stored run has an id.'),
+            null === $command->workerRun ? null : ($command->workerRun->id ?? throw new \LogicException('A stored run has an id.')),
         );
     }
 }

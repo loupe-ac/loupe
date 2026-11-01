@@ -36,7 +36,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(13, $form->filter('select[name="metric"] option'));
+        self::assertCount(16, $form->filter('select[name="metric"] option'));
         self::assertSame(['Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
         self::assertCount(1, $form->filter('noscript'));
 
@@ -141,6 +141,35 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame(['plan', 'review'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell')->first()->text())));
         self::assertSame(['5 min', '5 min'], $rows->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell--end')->first()->text())));
         self::assertCount(2, $crawler->filter('[data-metrics-chart] path.lp-chart__line'));
+    }
+
+    public function test_the_account_usage_charts_the_readings_as_percents_by_account_window(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'metrics-usage@example.com');
+        $project = $this->project($em, $owner, 'Usage metrics');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $bridge->name = 'studio-mac';
+        $em->flush();
+        $this->seedAccountReading($em, $bridge, '2026-09-01 10:00:00', usedPercent: 96.0);
+        $this->seedAccountReading($em, $bridge, '2026-09-01 12:00:00', usedPercent: 40.0);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=account-usage&statistic=max&range=all&bucket=day');
+
+        self::assertResponseIsSuccessful();
+        $form = $crawler->filter('form[data-metrics-form]');
+        self::assertSame(['reading'], self::options($form, 'unit'));
+        self::assertSame(['max', 'mean', 'median', 'p90', 'count'], self::options($form, 'statistic'));
+        self::assertSame(['account-window'], self::options($form, 'group'));
+        self::assertSame('account-usage', self::selected($form)['metric']);
+        $row = $crawler->filter('[data-metrics-chart] .lp-data-table__row');
+        self::assertCount(1, $row);
+        self::assertSame('studio-mac/work session', trim($row->filter('.lp-data-table__cell')->first()->text()));
+        self::assertSame('96 %', trim($row->filter('.lp-data-table__cell--end')->first()->text()));
     }
 
     public function test_a_bridge_series_shows_the_label_of_its_bridge(): void

@@ -60,8 +60,6 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class Engine
 {
-    public const string NO_BRIDGE_TOOK_WORK = 'no-bridge-took-work';
-
     public const string REPAIR_FAILED = 'repair-failed';
 
     public const string STILL_TRUE = 'still-true';
@@ -514,15 +512,14 @@ final readonly class Engine
     }
 
     /**
-     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`), and expires the open ones no bridge took in time.
-     * An expiry pauses the card, unless the rule expires its work with no pause.
+     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`).
+     * An open request otherwise waits for a bridge with no time limit.
      * A rule with `onNoTaker: fail` expires an open request at once when no online bridge could take it, with no pause.
-     * A baseline pauses nothing, so it leaves an overdue request to the next pass.
+     * A baseline expires nothing, so it leaves such a request to the next pass.
      */
     private function settleWorkRequests(Evaluation $run, Uuid $cardId, bool $expire = true): void
     {
         $withdrawn = false;
-        $expired = [];
         foreach ($this->ledger->live($cardId) as $request) {
             $requestId = $request->id;
             if (PersonWork::owns($request->ruleId)) {
@@ -550,30 +547,11 @@ final readonly class Engine
                     continue;
                 }
             }
-
-            $deadline = ($request->reopenedAt ?? $request->createdAt)->add(new \DateInterval(\sprintf('PT%dM', $run->template->workTimeoutMinutes)));
-            if ($expire && WorkState::Open === $request->state && $deadline <= $run->now
-                && $this->ledger->withdraw($requestId, WithdrawKind::Expired, onlyIfOpen: true)) {
-                $withdrawn = true;
-                // A repair always pauses, because nothing else ends its escalation.
-                $state = $run->states[$rule->id] ?? null;
-                $repair = null !== $state && $state->repaired && null !== $state->workRequestId && $state->workRequestId->equals($requestId);
-                if ($repair || 'expire' !== ActionParams::optionalString($rule, 'onTimeout')) {
-                    $this->pause($run, PauseKind::WorkTimeout, self::NO_BRIDGE_TOOK_WORK, $rule->id);
-                    $expired[$rule->id] = $rule;
-                }
-            }
         }
 
         if ($withdrawn) {
             // The first build of the pass logged its failed sources already.
             $run->facts = $this->facts($run->card, $run->now, $run->facts);
-        }
-        // The facts after the expiry, so the closed request does not end the pause it made.
-        foreach ($expired as $rule) {
-            $this->write($run, $this->state($run, $rule), function (WorkflowRuleState $state) use ($run, $rule): void {
-                $state->fingerprint = $this->fingerprint->of($this->ruleSubject->bind($rule, $run->facts)->facts, $rule->when->reads());
-            });
         }
     }
 
@@ -714,7 +692,7 @@ final readonly class Engine
                 $this->refills($run, $rule, $stored) => self::REFILLED,
                 default => null,
             },
-            PauseKind::Retries, PauseKind::WorkTimeout, PauseKind::WorkStopped => match (true) {
+            PauseKind::Retries, PauseKind::WorkStopped => match (true) {
                 !$applies => 'facts-changed',
                 null !== $rule->when->unreadable($run->facts) => null,
                 !$bound->truth,

@@ -76,9 +76,10 @@ The path holds no project, because one bridge follows several projects.
 | `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `repositories` | optional. A list of at most 500 rows, one for each followed project whose folder the rule file names. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
-| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `try-now` says that the bridge takes a command of the kind `try-now`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
+| `skipped` | optional. A list of at most 200 rows, one for each offered request that the bridge skipped since its last heartbeat, because the account it matched to the request is blocked. See [Skipped requests](#skipped-requests). A missing or `null` value changes nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
 
 Each row of `hooks` holds these fields:
@@ -117,6 +118,31 @@ Each row of `accounts` holds these fields:
 | `state` | required. `ready` when the last check of the account passed, and `failing` when it did not |
 | `reason` | optional. Why the check failed, at most 200 characters after trimming. The server keeps it for a `failing` row only, and stores a blank value as no value |
 | `used` | optional. `false` when no rule uses the account, so a failing check turns off nothing. The CLI always sends it. A missing value reads as `true` |
+| `kinds` | optional. The work kinds that can run on the account, with the same rule as `workKinds`, at most 50. The server keeps each kind once. A missing value stores no `kinds` for the row |
+| `stopAt` | optional. The percentage of use at which the account takes no new work, an integer from 1 to 100. A missing value stores no `stopAt` for the row, and the server reads 95 |
+| `readings` | optional. A list of at most 8 rows, the latest reading of each usage window of the account. A missing or `null` value stores no reading |
+
+Each row of `readings` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `window` | required. The name of the usage window, such as `session` or `week`. It holds 1 to 16 lower-case letters and digits |
+| `usedPercent` | optional. The use of the window as a percentage, from 0 to 200. A value above 100 is use past the limit. It is `null` or missing when the source gives no use |
+| `resetsAt` | required. When the window resets, as an RFC 3339 date. It may be at most 31 days ahead of the server clock |
+| `limited` | required. `true` when the tool says the account is at its limit |
+| `source` | required. Where the bridge read the value, 1 to 40 characters after trimming |
+| `readAt` | required. When the bridge read the value, as an RFC 3339 date |
+
+The server stores a reading only when its `usedPercent`, `resetsAt` or
+`limited` value differs from the latest reading it holds for the same bridge,
+account and window. A reading with the same values moves the last seen time of
+the stored reading forward, and the agents page counts the age of the reading
+from that time. A moved last seen time reloads an open agents page. A window whose reset time has passed, with no newer
+reading, counts as unknown and blocks nothing. The server deletes old
+readings with the worker runs, and keeps the latest reading of each window of
+each account. The account data export lists the readings in
+`bridge_account_readings.json`. It lists the [Try now](#try-now) overrides in
+`bridge_account_try_now.json`.
 
 The [agents page](../using/worker-runs.md#bridge-health) shows the accounts on
 the card of the bridge, with the time of the heartbeat that carried them. The
@@ -158,6 +184,27 @@ heartbeat with no list keeps the rows and their time. A heartbeat with no
 CLI, which pushes with the git setup of the machine. It clears the git identity
 rows and their time. The
 [`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
+
+### Skipped requests
+
+An account takes no new work at its hard limit, and also at or above its
+`stopAt` value, which is 95 by default. The reply lists such an account in
+`blockedAccounts`, with the time that it takes work again. The bridge matches a
+request to one account first. When that account is blocked, the bridge skips the
+request. It never tries another entry or another account for it.
+
+The bridge reports each skipped request in `skipped` on its next heartbeat. Each
+row holds these fields:
+
+| Field | Rule |
+|---|---|
+| `workRequestId` | required. The id of the skipped request, a uuid |
+| `account` | required. The account that the bridge matched to the request, with the same rule as the `name` of an account row |
+
+Loupe keeps that match until the request is claimed or closes. The offers in
+`workRequests` leave out a request whose matched account is blocked on this
+bridge. The card of the request shows the same account. A heartbeat that leaves
+a request out of `skipped` does not remove its match.
 
 ### Host samples
 
@@ -313,6 +360,7 @@ The reply carries these fields:
 | `commands` | the pending commands of the bridge, oldest first |
 | `workRequests` | the open work requests the bridge can claim, oldest first. It is empty for a bridge that does not report `work-requests`. See [Work requests](#work-requests) |
 | `lostClaims` | the ids from `workClaims` that the bridge no longer holds. It is empty when the body has no `workClaims` |
+| `blockedAccounts` | the accounts of the bridge that take no new work now. Each row is `{"account":"claude","until":"2026-11-01T17:00:00+00:00"}`. `until` is when the account takes work again. See [Skipped requests](#skipped-requests) |
 
 ## The interval
 
@@ -397,9 +445,9 @@ holds, by `commandId`. Each command carries these fields:
 | `projectId` | the project of the run |
 | `subject` | `{"type":"bridge-command","id":<commandId>}` |
 | `commandId` | the id of the command |
-| `kind` | `stop-run`, `resume-run`, `rerun-command` or `collect-session-usage` |
+| `kind` | `stop-run`, `resume-run`, `rerun-command`, `collect-session-usage` or `try-now` |
 | `bridgeId` | the bridge that must act. Another bridge drops the event |
-| `runId` | the id the server gave the run |
+| `runId` | the id the server gave the run, or `null` for a `try-now` command |
 | `runKey`, `sessionId` | the run and its session, or `null` when the run has none |
 | `subjectType`, `subjectId` | the subject of the run, such as `card` and the card id |
 | `cardNumber` | the number of the card of a `card` subject, as a label for a person, or `null` for any other subject |
@@ -409,7 +457,7 @@ holds, by `commandId`. Each command carries these fields:
 | `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, or `inbox-action` when the owner clicked an action on an inbox item. The bridge words the resume prompt from it. An `inbox-action` resume uses the prompt of a person's resume |
 | `context` | the context of the work request of the run, taken when the command was stored, with the seven keys of the [work request context](#work-requests). Each key is `null` for a run with no work request. A server from before the context sends no `context` key |
 | `model`, `effort` | the [model and the effort](#work-requests) of the work request of the run, taken when the command was stored, or `null`. A resume runs with them, as the first run did. A server from before these keys sends none |
-| `harness`, `account`, `runModel` | what the run started on, as its reports recorded them, or `null` when a report named none. A resume runs on that account, with that model. A server from before these keys sends none of them |
+| `harness`, `account`, `runModel` | what the run started on, as its reports recorded them, or `null` when a report named none. A resume runs on that account, with that model. A server from before these keys sends none of them. A `try-now` command sets `account` to the account to try, and `harness` and `runModel` to `null` |
 
 The `bridge.command_ttl_minutes` feature flag sets how long a command waits,
 and you change it at **`/admin/feature-flags`**. The default is 15 minutes, from
@@ -440,6 +488,67 @@ with the `runId` of the command, then answers `done`. A bridge that holds no
 transcript answers `refused`. So does a bridge whose report the server refused,
 such as with a 409. A `card_run_close` call on a closed run that has no usage
 sends the commands again, when no such command waits.
+
+### Try now
+
+A person who may manage the project presses Try now on the Agents page or on
+the status of a waiting card. The server then sends a command of the kind
+`try-now` to the bridge that holds the account. It sends it only to a bridge
+that reports both the `commands` and the `try-now` capabilities. The command
+names no run, so every key of the run is `null`. `account` names the account.
+This is the command as the heartbeat reply carries it in `commands`:
+
+```json
+{
+  "type": "bridge.command",
+  "projectId": "0198d5a5-7c45-7b0e-9c2e-3b1f6a1d0a10",
+  "subject": {"type": "bridge-command", "id": "0198d5a5-9a10-7d3c-8a52-5f2d1c7e9b44"},
+  "commandId": "0198d5a5-9a10-7d3c-8a52-5f2d1c7e9b44",
+  "kind": "try-now",
+  "bridgeId": "0198d5a4-1b2c-7e5f-b6a7-8d9c0e1f2a3b",
+  "runId": null,
+  "runKey": null,
+  "sessionId": null,
+  "subjectType": null,
+  "subjectId": null,
+  "cardNumber": null,
+  "workRequestId": null,
+  "workKind": null,
+  "ruleId": null,
+  "startedAt": null,
+  "endedAt": null,
+  "expiresAt": "2026-11-01T12:15:00+00:00",
+  "cause": "person",
+  "context": {"pullRequestNumber": null, "pullRequestUrl": null, "headSha": null, "reason": null, "documentId": null, "inboxActionId": null, "inboxItemNumber": null, "inboxItemId": null, "epicBranch": null},
+  "model": null,
+  "effort": null,
+  "harness": null,
+  "account": "claude",
+  "runModel": null,
+  "inboxActionId": null,
+  "inboxItemNumber": null,
+  "inboxItemId": null
+}
+```
+
+The server stores an override for the account. While the override holds, the
+account is not in `blockedAccounts`, and the server offers its waiting work
+again, also when a reading shows a limit or a use at or above `stopAt`. The
+server writes no reading for the press. The override ends at the first reading
+of the account that the bridge read after the press, or 15 minutes after the
+press, whichever comes first.
+
+On the command, the bridge drops the account from its own blocked list and
+claims the waiting work of the account as it would after any offer. It then
+answers `done`. The server also pushes a `bridge.work_request` event for each
+open request that the bridge matched to the account. A run that finds the limit
+in place reads a limited reading, and the next heartbeat reports it. The server
+then blocks the account again.
+
+The bridge must report a reading with a `readAt` that is the time it read the
+usage, not the time it sent it. A reading read before the press does not end
+the override. A reading equal to the stored one ends it, although the server
+stores no new row for it.
 
 ### Stop timings
 
@@ -472,7 +581,7 @@ as the heartbeat.
 
 | Field | Rule |
 |---|---|
-| `state` | required. `done` or `refused` |
+| `state` | required. `done`, `refused` or `open`. The state `open` gives the work back, as the next section says |
 | `reason` | optional. Text of at most 1000 characters |
 
 A pending command takes the state. A command that is already `done`, `refused`,
@@ -576,7 +685,8 @@ The event and the reply never carry the claim token.
 `POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
 
 The bridge claims an open request before it starts the work. It uses the same
-token as the heartbeat, and the request has no body. Of two bridges that claim
+token as the heartbeat. The body names the account that the bridge chose for the
+request: `{"account":"claude"}`. Of two bridges that claim
 one request, one gets the claim and the other gets `already_claimed`.
 
 ```json
@@ -603,9 +713,17 @@ record holds no claim token.
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
 | 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
+| 409 | `{"error":"waiting"}` | the request waits for a time that has not passed yet |
+| 409 | `{"error":"account_blocked"}` | the named account is at its hard limit, or at or above its stop value |
+| 422 | `{"error":"account_unknown"}` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |
+
+A refused claim leaves the request open and spends no retry. The bridge tries
+again at the next offer. A bridge from before the account field sends no
+account, so each of its claims gets `account_unknown`. It claims no work until
+you run `loupe update`.
 
 ### The lease
 
@@ -628,8 +746,10 @@ A second task runs each minute and expires each open request about a subject
 other than a card that no bridge claimed within 2 hours. A reopen starts the
 wait again. `app.bridge.subject_work_timeout_minutes` in the same file sets the
 wait, and `app:expire-subject-work-requests` runs the same sweep once by hand.
-The workflow expires the open requests of a card by the work timeout of its
-template.
+An open request of a card has no time limit. It waits until a bridge claims it,
+its rule cancels it, or the person who asked for it cancels the action. The one
+exception is a `session` request of a person, which expires after 2 minutes,
+because the person waits at the screen.
 
 The claim stays with its holder after `leaseUntil` passes, until that task
 opens the request again. Until then, the holder can still renew or settle the
@@ -671,6 +791,53 @@ writes a `bridge.work_request_settled` record to the audit log.
 | 409 | `{"error":"claim_lost"}` | this bridge does not hold the claim with this token, or the request already settled with another state |
 | 422 | `{"error":"invalid_state"}`, `{"error":"invalid_claim_token"}` or `{"error":"invalid_reason"}` | the body is invalid |
 | 429 | | more than 60 results in one minute from one token |
+
+### Giving a request back at a usage limit
+
+A run that stops at a usage limit ends with the state `open`. The request opens
+again, Loupe spends no retry, and the card shows Waiting. The body adds these
+fields:
+
+| Field | Rule |
+|---|---|
+| `cause` | required with `open`. `usage-limit` |
+| `account` | required with `open`. The account of the run |
+| `reading` | required with `open`. The reading that showed the limit, with the fields `window`, `usedPercent`, `resetsAt`, `limited` and `source` of a heartbeat reading |
+| `sessionId` | optional. The session of the run, a uuid or `null` |
+| `hasAssistantTurn` | required with `open`. `true` when the run did at least one assistant turn |
+
+The request waits for the account, not for a time. It is offered again when the
+account takes work: at its reset, when a reading shows the limit lifted early, or
+at once to another bridge with room. A run with `hasAssistantTurn` set to `true`
+waits for its own bridge, and the bridge resumes the same session.
+
+### Giving a request back after a network outage
+
+A run that a network outage stops ends with the state `open` and the cause
+`network`. The request opens again, Loupe spends no retry, and the card shows
+Waiting. The body has these fields:
+
+| Field | Rule |
+|---|---|
+| `cause` | required with `open`. `network` |
+| `account` | required with `open`. The account of the run |
+| `sessionId` | optional. The session of the run, a uuid or `null` |
+| `hasAssistantTurn` | required with `open`. `true` when the run did at least one assistant turn |
+
+The body has no `reading`, and Loupe ignores one that it finds. Loupe stores no
+reading and no account match for this cause.
+
+```json
+{"claimToken": "5b0a4c8e-2f61-4d3a-9c7e-8a1b2c3d4e5f", "state": "open", "cause": "network", "account": "work", "sessionId": null, "hasAssistantTurn": true}
+```
+
+No bridge may claim the request for five minutes. A claim in that time answers
+409 `waiting`. A run with `hasAssistantTurn` set to `true` waits for its own bridge,
+and the bridge resumes the same session.
+
+A claim whose lease ran out while its bridge sent no heartbeat opens the same
+way. The request waits five minutes, keeps the session of the last run of the
+claim, and binds to that bridge when the run has a session.
 
 ## Deletion and export
 

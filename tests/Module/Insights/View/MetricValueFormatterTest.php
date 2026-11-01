@@ -38,6 +38,9 @@ final class MetricValueFormatterTest extends TestCase
         yield 'a template duration is in hours' => [self::template(TemplateMetricSets::duration()), 5.24, '5.2 h'];
         yield 'a template rate' => [self::template(TemplateMetricSets::rate()), 0.125, '12.5%'];
         yield 'a whole ratio keeps its decimal' => [self::built(Metric::StopRate), 1, '100.0%'];
+        yield 'a whole usage percent' => [self::built(Metric::AccountUsage), 96.0, '96 %'];
+        yield 'a usage percent keeps one decimal' => [self::built(Metric::SessionUsage), 8.54, '8.5 %'];
+        yield 'a usage past the limit' => [self::built(Metric::WeekUsage), 104, '104 %'];
         yield 'zero ratio' => [self::built(Metric::StopRate), 0, '0.0%'];
     }
 

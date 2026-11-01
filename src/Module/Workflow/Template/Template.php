@@ -57,7 +57,6 @@ final readonly class Template
         public array $rules,
         public array $manualMoves,
         public array $backoffMinutes,
-        public int $workTimeoutMinutes,
         public array $types,
         public string $defaultType,
         public ?WorkFailurePolicy $onWorkFailed = null,

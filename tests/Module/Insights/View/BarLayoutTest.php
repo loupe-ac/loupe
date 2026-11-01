@@ -51,6 +51,28 @@ final class BarLayoutTest extends TestCase
         self::assertNull($layout->table[0]->share);
     }
 
+    public function test_a_negative_value_hangs_below_a_zero_line_inside_the_plot(): void
+    {
+        $layout = BarLayout::build(
+            MetricChartType::Bars,
+            new MetricShape(new MetricKey(Metric::SessionUsage)),
+            MetricStatistic::Median,
+            MetricBucket::Week,
+            [ChartSeries::of(null, ['2026-09-28' => -1.0, '2026-10-05' => 3.0])],
+            new MetricValueFormatter('en'),
+            false,
+        );
+
+        self::assertNotNull($layout);
+        $fell = $layout->buckets[0]->bars[0];
+        self::assertSame(170.67, $fell->top);
+        self::assertStringStartsWith('M258 170.67V', $fell->path);
+        self::assertStringContainsString(' 209.33', $fell->path);
+        $rose = $layout->buckets[1]->bars[0];
+        self::assertSame(54.67, $rose->top);
+        self::assertStringStartsWith('M694 170.67V', $rose->path);
+    }
+
     public function test_stacked_bars_pile_the_series_in_one_column(): void
     {
         $layout = self::build(MetricChartType::StackedBars, [

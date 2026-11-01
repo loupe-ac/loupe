@@ -16,6 +16,7 @@
                     </li>
                 {% endfor %}
             </ul>
+            <p class="lp-home-card__lead">{{ 'landing.requirements.need.usage_limit'|trans }}</p>
             {% set setupUrl = app_url('app_setup_instructions') %}
             <p class="lp-home-card__lead" data-agent-setup>{{ 'landing.requirements.need.agent_setup'|trans }} <a href="{{ setupUrl }}" class="lp-home-card__link">{{ setupUrl }}</a>.</p>
             <twig:Ds:Button variant="primary" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="requirements-ready" class="lp-home-card__action">{{ 'landing.requirements.need.action'|trans }}</twig:Ds:Button>

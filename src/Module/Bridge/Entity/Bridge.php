@@ -24,7 +24,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @phpstan-type HookRow array{package: string, ref: string, event: string, lastRunAt: ?string, outcome: string, error: ?string}
  * @phpstan-type WorkerPoolRow array{name: string, size: int, inUse: int, queued: int}
- * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool}
+ * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int}
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
  * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
@@ -60,6 +60,9 @@ class Bridge
 
     /** The capability of a bridge that reports the usage of an interactive run from the session transcript. */
     public const string CAPABILITY_SESSION_USAGE = 'session-usage';
+
+    /** The capability of a bridge that takes a command of the kind `try-now`. */
+    public const string CAPABILITY_TRY_NOW = 'try-now';
 
     /** The capability of a bridge that reports its git identities, so a heartbeat without it clears the stored rows. */
     public const string CAPABILITY_GIT_IDENTITIES = 'git-identities';
@@ -282,6 +285,11 @@ class Bridge
         return $this->takesWorkRequests() && \in_array(self::CAPABILITY_RUN_COMMAND, $this->capabilities ?? [], true);
     }
 
+    public function takesTryNow(): bool
+    {
+        return $this->takesCommands() && \in_array(self::CAPABILITY_TRY_NOW, $this->capabilities ?? [], true);
+    }
+
     public function takesSessionUsage(): bool
     {
         return $this->takesCommands() && \in_array(self::CAPABILITY_SESSION_USAGE, $this->capabilities ?? [], true);
@@ -317,6 +325,31 @@ class Bridge
     public static function workKindOf(string $subjectType, string $kind): string
     {
         return WorkSubject::CARD === $subjectType ? $kind : $subjectType.':'.$kind;
+    }
+
+    /** Whether the last heartbeat lists the account with the work kind, so a worker of the bridge can run the kind on it. */
+    public function accountRuns(string $account, string $workKind): bool
+    {
+        foreach ($this->accounts ?? [] as $row) {
+            if ($row['name'] === $account) {
+                return \in_array($workKind, $row['kinds'] ?? [], true);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the bridge reports the kinds of every account and no account runs the work kind.
+     * A claim of such work names no account, as the bridge answers it with no worker.
+     */
+    public function runsOnNoAccount(string $workKind): bool
+    {
+        if (null === $this->accounts) {
+            return false;
+        }
+
+        return array_all($this->accounts, fn ($row) => !(!isset($row['kinds']) || \in_array($workKind, $row['kinds'], true)));
     }
 
     public function nameClashes(): bool

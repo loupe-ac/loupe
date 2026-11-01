@@ -9,7 +9,6 @@ slots:
     - { key: review, label: workflow.slot.review }
 manualMoves: []
 backoffMinutes: [10]
-workTimeoutMinutes: 120
 rules: []
 markers:
     - key: has-pull-request

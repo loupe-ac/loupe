@@ -38,6 +38,12 @@ enum WorkerRunState: string
 
     case Dropped = 'dropped';
 
+    /** A usage limit stopped the run. The bridge gave the work request back, and it starts again when an account has room. */
+    case UsageLimit = 'usage-limit';
+
+    /** A network outage stopped the run. The bridge gave the work request back, and it starts again after a short wait on the same bridge. */
+    case Network = 'network';
+
     case Succeeded = 'succeeded';
 
     case Failed = 'failed';
@@ -125,7 +131,7 @@ enum WorkerRunState: string
     /** How a worker process ended. Only these states carry an exit code or a failure reason. */
     public function isOutcome(): bool
     {
-        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp], true);
+        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp, self::UsageLimit, self::Network], true);
     }
 
     /** The ends where the work broke. A stop for a person and work that remains are not failures. */
@@ -179,6 +185,8 @@ enum WorkerRunState: string
             self::Stopped => 'bridge.worker_runs.state.stopped',
             self::WaitingForPerson => 'bridge.worker_runs.state.waiting_for_person',
             self::Dropped => 'bridge.worker_runs.state.dropped',
+            self::UsageLimit => 'bridge.worker_runs.state.usage_limit',
+            self::Network => 'bridge.worker_runs.state.network',
             self::Succeeded => 'bridge.worker_runs.state.succeeded',
             self::Failed => 'bridge.worker_runs.state.failed',
             self::NotStarted => 'bridge.worker_runs.state.not_started',
@@ -201,7 +209,7 @@ enum WorkerRunState: string
             self::Failed, self::NoResult, self::GaveUp, self::Dropped, self::TimedOut, self::Lost => 'failed',
             // The bridge or a person set these runs aside by design, so nothing waits and nothing failed.
             self::Replaced, self::Skipped, self::Stopped => 'resolved',
-            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::NotStarted, self::Unfinished, self::Blocked, self::WaitingOnForge => 'pending',
+            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::UsageLimit, self::Network, self::NotStarted, self::Unfinished, self::Blocked, self::WaitingOnForge => 'pending',
         };
     }
 }

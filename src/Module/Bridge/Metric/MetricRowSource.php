@@ -8,9 +8,12 @@ use App\Module\Bridge\Cost\FinishedCard;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
+use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\AccountUsageReading;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetric;
@@ -26,6 +29,8 @@ final readonly class MetricRowSource
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
         private WorkerRunRepository $workerRuns,
         private TemplateMetricValues $templateValues,
+        private BridgeRepository $bridges,
+        private BridgeAccountReadingRepository $bridgeAccountReadings,
     ) {
     }
 
@@ -42,6 +47,9 @@ final readonly class MetricRowSource
         $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
         if ($metric->isBucketEach()) {
             return $this->bucketEachRows($project, $unit, $metric, $from, $to);
+        }
+        if (MetricUnit::Reading === $unit) {
+            return Metric::AccountUsage === $metric ? $this->readingRows($project, $from, $to) : [];
         }
 
         return MetricUnit::Run === $unit
@@ -148,6 +156,39 @@ final readonly class MetricRowSource
         }
 
         return $rows;
+    }
+
+    /**
+     * One row per stored reading that has a use value, of the named bridges of the owner that follow the project. A
+     * bridge with no name has no label for its group, so its readings stay out.
+     *
+     * @return list<MetricRow>
+     */
+    private function readingRows(Project $project, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    {
+        $names = [];
+        foreach ($this->bridges->findFollowingProject($project) as $bridge) {
+            if (null !== $bridge->name) {
+                $names[$bridge->id->toRfc4122()] = $bridge->name;
+            }
+        }
+        if ([] === $names) {
+            return [];
+        }
+
+        $ownerId = $project->owner->id ?? throw new \LogicException('A persisted owner has an id.');
+        $readings = $this->bridgeAccountReadings->findUsageOfBridges($ownerId, array_map(Uuid::fromString(...), array_keys($names)), $from, $to);
+
+        return array_map(
+            static fn (AccountUsageReading $reading): MetricRow => new MetricRow(
+                $reading->id,
+                null,
+                \sprintf('%s/%s %s', $names[$reading->bridgeId->toRfc4122()], $reading->account, $reading->window),
+                $reading->readAt,
+                $reading->usedPercent,
+            ),
+            $readings,
+        );
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
@@ -328,13 +369,17 @@ final readonly class MetricRowSource
             MetricGroup::CliVersion => $fact->cliVersion,
             MetricGroup::SkillVersion => $fact->skillVersion,
             MetricGroup::CardType => 'card' === $fact->subjectType ? $types[(string) $fact->subjectId] ?? null : null,
-            MetricGroup::None => null,
+            MetricGroup::None, MetricGroup::AccountWindow => null,
         };
     }
 
     private static function runValue(WorkerRunFact $fact, Metric $metric): int|float|null
     {
-        return self::inDollars(self::rawValue($fact, $metric), $metric);
+        return match ($metric) {
+            Metric::SessionUsage => $fact->sessionUsageDelta,
+            Metric::WeekUsage => $fact->weekUsageDelta,
+            default => self::inDollars(self::rawValue($fact, $metric), $metric),
+        };
     }
 
     /** Cost stays in micro-dollars here, so a sum adds integers. */
@@ -348,7 +393,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
-            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach, Metric::HarnessEvents => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
+            Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach, Metric::HarnessEvents, Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }
 

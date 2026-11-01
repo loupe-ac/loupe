@@ -16,6 +16,7 @@ use App\Module\Insights\View\MetricChartChange;
 use App\Module\Insights\View\MetricChartDirection;
 use App\Module\Insights\View\MetricChartDot;
 use App\Module\Insights\View\MetricChartSeries;
+use App\Module\Insights\View\MetricChartTick;
 use App\Module\Insights\View\MetricValueFormatter;
 use App\Tests\Support\ChartSeries;
 use PHPUnit\Framework\TestCase;
@@ -64,6 +65,23 @@ final class LineLayoutTest extends TestCase
         self::assertSame([500.0], array_map(static fn (MetricChartDot $dot): float => $dot->x, $layout->lines[0]->dots));
         self::assertCount(1, $layout->hoverTargets);
         self::assertSame(872.0, $layout->hoverTargets[0]->width);
+    }
+
+    public function test_a_negative_value_sits_below_the_zero_tick(): void
+    {
+        $layout = LineLayout::build(
+            new MetricShape(new MetricKey(Metric::SessionUsage)),
+            MetricStatistic::Median,
+            MetricBucket::Week,
+            [ChartSeries::of(null, ['2026-09-28' => -1.0, '2026-10-05' => 3.0])],
+            new MetricValueFormatter('en'),
+            false,
+        );
+
+        self::assertNotNull($layout);
+        self::assertSame([-2.0, 0.0, 2.0, 4.0], array_map(static fn (MetricChartTick $tick): float => $tick->value, $layout->yTicks));
+        self::assertSame(209.33, $layout->lines[0]->dots[0]->y);
+        self::assertSame(54.67, $layout->lines[0]->dots[1]->y);
     }
 
     public function test_the_previous_period_is_a_second_path_on_the_same_axis(): void

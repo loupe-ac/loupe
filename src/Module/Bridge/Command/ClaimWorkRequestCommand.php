@@ -13,6 +13,8 @@ final readonly class ClaimWorkRequestCommand
         public User $owner,
         public Uuid $bridgeId,
         public Uuid $workRequestId,
+        /** The account the bridge chose for the request. Null from a bridge that sends none, which the claim refuses. */
+        public ?string $account = null,
     ) {
     }
 }

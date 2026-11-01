@@ -82,14 +82,14 @@ final readonly class BarLayout
         $percent = MetricChartType::PercentStacked === $type;
         $stacked = MetricChartType::Bars !== $type;
         if ($percent) {
-            [$top, $step] = MetricChartScale::shareAxis();
+            [$top, $step, $bottom] = MetricChartScale::shareAxis();
         } else {
             $values = [];
             foreach ($cells as $column) {
                 $known = array_map(static fn (MetricPoint $point): float => (float) $point->value, $column);
                 $values = [...$values, ...($stacked && [] !== $known ? [array_sum($known)] : $known)];
             }
-            [$top, $step] = MetricChartScale::axis($metric, $statistic, $values);
+            [$top, $step, $bottom] = MetricChartScale::axis($metric, $statistic, $values);
         }
 
         $chartSeries = MetricChartScale::series($series);
@@ -97,7 +97,7 @@ final readonly class BarLayout
         foreach ($cells as $index => $column) {
             $bars = $stacked
                 ? self::stack($column, $chartSeries, $axis, $index, $top, $percent)
-                : self::beside($column, $chartSeries, $axis, $index, $top, \count($series));
+                : self::beside($column, $chartSeries, $axis, $index, $top, $bottom, \count($series));
             $buckets[] = new MetricChartBucket($axis->starts[$index], $axis->centre($index), $bars);
         }
 
@@ -108,7 +108,7 @@ final readonly class BarLayout
             bucket: $bucket,
             buckets: $buckets,
             series: $chartSeries,
-            yTicks: MetricChartScale::yTicks($top, $step),
+            yTicks: MetricChartScale::yTicks($top, $step, $bottom),
             moneyDecimals: MetricChartScale::moneyDecimals($step),
             xTicks: $axis->ticks,
             longSpan: $axis->longSpan,
@@ -132,9 +132,11 @@ final readonly class BarLayout
      *
      * @return list<MetricChartBar>
      */
-    private static function beside(array $column, array $chartSeries, MetricChartTimeAxis $axis, int $index, float $top, int $seriesCount): array
+    private static function beside(array $column, array $chartSeries, MetricChartTimeAxis $axis, int $index, float $top, float $bottom, int $seriesCount): array
     {
         $plotHeight = MetricChartScale::plotHeight();
+        $span = $top - $bottom;
+        $zero = MetricChartScale::BASELINE + $bottom / $span * $plotHeight;
         $slotWidth = $axis->bucketWidth * self::BAR_SHARE / $seriesCount;
         $gap = min(self::GAP, $slotWidth / 4);
         $barWidth = min(self::MAX_BAR_WIDTH, $slotWidth - $gap);
@@ -142,16 +144,21 @@ final readonly class BarLayout
 
         $bars = [];
         foreach ($column as $position => $point) {
-            $value = $point->value ?? 0;
+            $value = (float) $point->value;
             $x = $axis->left($index) + $groupOffset + $position * ($barWidth + $gap);
-            $height = $value > 0 ? min($plotHeight, max(self::MIN_BAR_HEIGHT, $value / $top * $plotHeight)) : 0.0;
+            $height = 0.0 === $value ? 0.0 : min($plotHeight, max(self::MIN_BAR_HEIGHT, abs($value) / $span * $plotHeight));
+            $barTop = $value > 0 ? $zero - $height : $zero;
             $bars[] = new MetricChartBar(
                 series: $chartSeries[$position],
                 point: $point,
                 x: round($x, 2),
                 width: round($barWidth, 2),
-                top: round(MetricChartScale::BASELINE - $height, 2),
-                path: $height > 0 ? self::roundedTop($x, MetricChartScale::BASELINE - $height, $barWidth, $height) : '',
+                top: round($barTop, 2),
+                path: match (true) {
+                    $value > 0 => self::roundedTop($x, $barTop, $barWidth, $height),
+                    $value < 0 => self::roundedBottom($x, $barTop, $barWidth, $height),
+                    default => '',
+                },
                 height: round($height, 2),
             );
         }
@@ -226,6 +233,32 @@ final readonly class BarLayout
             $number($right),
             $number($top + $radius),
             $number($bottom),
+        );
+    }
+
+    /** A rectangle that hangs from the zero line, with its bottom corners rounded. */
+    private static function roundedBottom(float $x, float $top, float $width, float $height): string
+    {
+        $radius = min(self::RADIUS, $width / 2, $height);
+        $right = $x + $width;
+        $bottom = $top + $height;
+        $number = MetricChartScale::number(...);
+
+        return \sprintf(
+            'M%s %sV%sQ%s %s %s %sH%sQ%s %s %s %sV%sZ',
+            $number($x),
+            $number($top),
+            $number($bottom - $radius),
+            $number($x),
+            $number($bottom),
+            $number($x + $radius),
+            $number($bottom),
+            $number($right - $radius),
+            $number($right),
+            $number($bottom),
+            $number($right),
+            $number($bottom - $radius),
+            $number($top),
         );
     }
 

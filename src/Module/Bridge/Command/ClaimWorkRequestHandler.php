@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\BridgeEventType;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
-use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\Service\ClaimGate;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestLease;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
-use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Repository\ProjectRepository;
-use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -25,8 +25,9 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Claims an open work request for one bridge of the caller, with a lease and
- * a fresh claim token. Of two bridges that race, one wins and the other gets
+ * Claims an open work request for one bridge of the caller on the account it
+ * names, with a lease and a fresh claim token. The claim gate must allow the
+ * account. Of two bridges that race, one wins and the other gets
  * already_claimed. The outbox event of the claim lets the others drop the offer.
  */
 final readonly class ClaimWorkRequestHandler
@@ -40,9 +41,9 @@ final readonly class ClaimWorkRequestHandler
         private ClockInterface $clock,
         private Auditor $auditor,
         private WorkRequestAnnouncer $announcer,
-        private CardHolds $cardHolds,
+        private ClaimGate $gate,
         private ProjectRepository $projects,
-        private WorkHolds $workHolds,
+        private BridgeWorkMatchRepository $bridgeWorkMatches,
     ) {
     }
 
@@ -66,20 +67,27 @@ final readonly class ClaimWorkRequestHandler
                 return WorkRequestRefusal::CapabilityMissing;
             }
 
-            // Serialises with a hold, which locks the project row: a claim that reads the hold sees every hold committed before it.
-            $this->projects->lockKeyShare($request->project);
-            if (WorkSubject::CARD === $request->subjectType && $this->cardHolds->isHeld($request->project, $request->subjectId)) {
-                return WorkRequestRefusal::CardHeld;
+            $account = $command->account;
+            $workKind = Bridge::workKindOf($request->subjectType, $request->kind);
+            $known = null === $account ? $bridge->runsOnNoAccount($workKind) : $bridge->accountRuns($account, $workKind);
+            if (!$known) {
+                return WorkRequestRefusal::AccountUnknown;
             }
-            // The key share above makes this read wait for a summary write that holds the project row.
-            if (null !== $request->project->id && null !== $this->workHolds->heldProject($request->project->id)) {
-                return WorkRequestRefusal::ProjectHeld;
+
+            // Serialises with a hold, which locks the project row: a claim that reads the hold sees every hold committed before it.
+            // The key share also makes the project hold read wait for a summary write that holds the project row.
+            $this->projects->lockKeyShare($request->project);
+            $refusal = $this->gate->refusalFor($bridge, $request, $account);
+            if (null !== $refusal) {
+                return $refusal;
             }
 
             $leaseUntil = $this->lease->until($this->clock->now());
             if (!$this->workRequests->claim($command->workRequestId, $command->bridgeId, Uuid::v4(), $leaseUntil)) {
                 return WorkRequestRefusal::AlreadyClaimed;
             }
+            // A claimed request waits for no bridge, so no bridge keeps a match for it.
+            $this->bridgeWorkMatches->deleteOfRequest($command->workRequestId);
             // The claim writes with native SQL, so the managed copy is stale until this read.
             $claimed = $this->workRequests->findOneLocked($command->workRequestId)
                 ?? throw new \LogicException('A claimed work request exists.');
@@ -104,6 +112,7 @@ final readonly class ClaimWorkRequestHandler
                 'kind' => $claimed->kind,
                 'bridgeId' => (string) $command->bridgeId,
                 'claims' => $claimed->claims,
+                'account' => $command->account,
             ],
             new AuditSubject('work_request', (string) $claimed->id),
         );

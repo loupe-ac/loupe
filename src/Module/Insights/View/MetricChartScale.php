@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
@@ -32,60 +33,62 @@ final class MetricChartScale
     ];
 
     /**
-     * The top of the value axis and its step. A count scales as a count. A ratio
-     * tops at 100%. Another metric tops at a floor of its own, so tiny values still read.
+     * The top of the value axis, its step and its bottom. A count scales as a count. A ratio
+     * tops at 100%. The account usage tops at 100 or above. Another metric tops at a floor of its own, so tiny values still read.
+     * The axis starts at zero, or below zero when a value is negative, such as a run usage delta that fell.
      *
      * @param list<float> $values
      *
-     * @return array{float, float}
+     * @return array{float, float, float}
      */
     public static function axis(MetricShape $metric, MetricStatistic $statistic, array $values): array
     {
         $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : $metric->valueType();
         if (MetricValueType::Ratio === $type) {
-            return [1.0, 0.25];
+            return [1.0, 0.25, 0.0];
         }
 
-        $floor = match ($type) {
-            MetricValueType::Money => 0.04,
-            MetricValueType::Duration => $metric->isInHours() ? 1.0 : 1000.0,
+        $floor = match (true) {
+            MetricValueType::Percent === $type && Metric::AccountUsage === $metric->key->metric => 100.0,
+            MetricValueType::Money === $type => 0.04,
+            MetricValueType::Duration === $type => $metric->isInHours() ? 1.0 : 1000.0,
             default => (float) self::TARGET_TICKS,
         };
         $max = max([$floor, ...$values]);
-        $step = MetricValueType::Duration === $type && !$metric->isInHours()
-            ? self::durationStep($max / self::TARGET_TICKS)
-            : self::niceStep($max / self::TARGET_TICKS);
+        $min = min([0.0, ...$values]);
+        $raw = ($max - $min) / self::TARGET_TICKS;
+        $step = MetricValueType::Duration === $type && !$metric->isInHours() ? self::durationStep($raw) : self::niceStep($raw);
 
-        return [ceil($max / $step - 1e-9) * $step, $step];
+        return [ceil($max / $step - 1e-9) * $step, $step, $min < 0 ? floor($min / $step + 1e-9) * $step : 0.0];
     }
 
     /**
      * The share axis of a 100% stack.
      *
-     * @return array{float, float}
+     * @return array{float, float, float}
      */
     public static function shareAxis(): array
     {
-        return [1.0, 0.25];
+        return [1.0, 0.25, 0.0];
     }
 
     /** @return list<MetricChartTick> */
-    public static function yTicks(float $top, float $step): array
+    public static function yTicks(float $top, float $step, float $bottom = 0.0): array
     {
         $ticks = [];
-        $tickCount = (int) round($top / $step);
+        $tickCount = (int) round(($top - $bottom) / $step);
         for ($tick = 0; $tick <= $tickCount; ++$tick) {
-            $value = round($tick * $step, 10);
-            $ticks[] = new MetricChartTick(self::y($value, $top), $value);
+            $value = round($bottom + $tick * $step, 10);
+            $ticks[] = new MetricChartTick(self::y($value, $top, $bottom), $value);
         }
 
         return $ticks;
     }
 
-    /** The y of a value on an axis that tops at $top. */
-    public static function y(float $value, float $top): float
+    /** The y of a value on an axis that runs from $bottom to $top. */
+    public static function y(float $value, float $top, float $bottom = 0.0): float
     {
-        return round(self::BASELINE - $value / $top * self::plotHeight(), 2);
+        return round(self::BASELINE - ($value - $bottom) / ($top - $bottom) * self::plotHeight(), 2);
     }
 
     public static function plotHeight(): int

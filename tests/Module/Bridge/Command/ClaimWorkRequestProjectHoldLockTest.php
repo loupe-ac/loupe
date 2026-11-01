@@ -50,6 +50,7 @@ final class ClaimWorkRequestProjectHoldLockTest extends KernelTestCase
         $this->project = $this->project($em, $this->owner, 'Project claim hold lock');
         $this->bridge = $this->seedBridge($em, $this->owner, projects: [(string) $this->project->id?->toRfc4122()]);
         $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $this->bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'fix']]];
         $em->flush();
         $this->first = $this->seedWorkRequest($em, $this->project);
         $this->second = $this->seedWorkRequest($em, $this->project, kind: 'fix');
@@ -159,6 +160,6 @@ final class ClaimWorkRequestProjectHoldLockTest extends KernelTestCase
         $handler = self::getContainer()->get(ClaimWorkRequestHandler::class);
         self::assertInstanceOf(ClaimWorkRequestHandler::class, $handler);
 
-        return $handler(new ClaimWorkRequestCommand($this->owner, $this->bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.')));
+        return $handler(new ClaimWorkRequestCommand($this->owner, $this->bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.'), 'work'));
     }
 }

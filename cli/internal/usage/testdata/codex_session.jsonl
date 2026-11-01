@@ -1,0 +1,2 @@
+{"timestamp":"2026-10-20T13:49:40.000Z","type":"session_meta","payload":{"id":"t1"}}
+{"timestamp":"2026-10-20T13:49:46.375Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1}},"rate_limits":{"limit_id":"codex","primary":{"used_percent":29.0,"window_minutes":300,"resets_at":1793105206},"secondary":{"used_percent":12.5,"window_minutes":10080,"resets_at":1793700000},"rate_limit_reached_type":null}}}

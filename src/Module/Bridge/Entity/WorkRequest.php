@@ -47,6 +47,15 @@ class WorkRequest
 
     public const int MAX_REASON_LENGTH = 64;
 
+    /** The wait of a request that a usage limit handed back. */
+    public const string WAIT_USAGE_LIMIT = 'usage-limit';
+
+    /** The wait of a request that a network outage handed back. */
+    public const string WAIT_NETWORK = 'network';
+
+    /** How long a request waits after a network outage before any bridge may take it again. */
+    public const int NETWORK_WAIT_SECONDS = 300;
+
     /** The withdraw reasons of an open request that no online bridge could take. */
     public const string REASON_NO_TAKER = 'no-taker';
     public const string REASON_NO_CAPABLE_TAKER = 'no-capable-taker';
@@ -103,6 +112,18 @@ class WorkRequest
     /** The session of an unfinished run of the card and kind, which the bridge resumes. Null for a fresh start. */
     #[ORM\Column(name: 'resume_session_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $resumeSessionId = null;
+
+    /** Why an open request waits, such as usage-limit or network. Null for a request that waits for nothing. */
+    #[ORM\Column(name: 'wait_cause', length: 20, nullable: true)]
+    public ?string $waitCause = null;
+
+    /** The account whose limit holds the request. Null when the wait has no account. */
+    #[ORM\Column(name: 'wait_account', length: 40, nullable: true)]
+    public ?string $waitAccount = null;
+
+    /** No bridge may claim the request before this time. Null for a request that waits on no clock. */
+    #[ORM\Column(name: 'wait_until', nullable: true)]
+    public ?\DateTimeImmutable $waitUntil = null;
 
     #[ORM\Column(name: 'reason', length: self::MAX_REASON_LENGTH, nullable: true)]
     public ?string $reason = null;
@@ -239,6 +260,61 @@ class WorkRequest
         $this->state = $state;
         $this->reason = $reason;
         $this->settledAt = $now;
+
+        return true;
+    }
+
+    /**
+     * Opens a claimed request again for a usage limit. The claim goes, and the
+     * request waits on the account instead of a clock. A run that did work binds
+     * the request to its bridge, because the session and the changes live there.
+     * Answers false when the request is not claimed.
+     */
+    public function handBackForUsageLimit(string $account, ?Uuid $sessionId, bool $bindToBridge, \DateTimeImmutable $now): bool
+    {
+        if (WorkRequestState::Claimed !== $this->state) {
+            return false;
+        }
+
+        if ($bindToBridge) {
+            $this->targetBridgeId = $this->bridgeId;
+        }
+        $this->state = WorkRequestState::Open;
+        $this->bridgeId = null;
+        $this->claimToken = null;
+        $this->leaseUntil = null;
+        $this->reopenedAt = $now;
+        $this->resumeSessionId = $sessionId;
+        $this->waitCause = self::WAIT_USAGE_LIMIT;
+        $this->waitAccount = $account;
+        $this->waitUntil = null;
+
+        return true;
+    }
+
+    /**
+     * Opens a claimed request again for a network outage. The claim goes, and no bridge may take the request for a
+     * few minutes. A run that did work binds the request to its bridge, because the session and the changes live there.
+     * Answers false when the request is not claimed.
+     */
+    public function handBackForNetwork(string $account, ?Uuid $sessionId, bool $bindToBridge, \DateTimeImmutable $now): bool
+    {
+        if (WorkRequestState::Claimed !== $this->state) {
+            return false;
+        }
+
+        if ($bindToBridge) {
+            $this->targetBridgeId = $this->bridgeId;
+        }
+        $this->state = WorkRequestState::Open;
+        $this->bridgeId = null;
+        $this->claimToken = null;
+        $this->leaseUntil = null;
+        $this->reopenedAt = $now;
+        $this->resumeSessionId = $sessionId;
+        $this->waitCause = self::WAIT_NETWORK;
+        $this->waitAccount = $account;
+        $this->waitUntil = $now->modify('+'.self::NETWORK_WAIT_SECONDS.' seconds');
 
         return true;
     }

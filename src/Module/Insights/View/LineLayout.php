@@ -62,7 +62,7 @@ final readonly class LineLayout
                 }
             }
         }
-        [$top, $step] = MetricChartScale::axis($metric, $statistic, $values);
+        [$top, $step, $bottom] = MetricChartScale::axis($metric, $statistic, $values);
 
         $chartSeries = MetricChartScale::series($series);
         $lines = [];
@@ -70,10 +70,10 @@ final readonly class LineLayout
             $dots = [];
             foreach ($item->points as $point) {
                 if (null !== $point->start && null !== $point->value) {
-                    $dots[] = new MetricChartDot($point, $axis->centre($axis->index($point->start)), MetricChartScale::y($point->value, $top));
+                    $dots[] = new MetricChartDot($point, $axis->centre($axis->index($point->start)), MetricChartScale::y($point->value, $top, $bottom));
                 }
             }
-            $lines[] = new MetricChartLine($chartSeries[$position], self::path($item->points, $axis, $top), $dots, self::path($item->previousPoints, $axis, $top));
+            $lines[] = new MetricChartLine($chartSeries[$position], self::path($item->points, $axis, $top, $bottom), $dots, self::path($item->previousPoints, $axis, $top, $bottom));
         }
 
         return new self(
@@ -82,7 +82,7 @@ final readonly class LineLayout
             bucket: $bucket,
             series: $chartSeries,
             lines: $lines,
-            yTicks: MetricChartScale::yTicks($top, $step),
+            yTicks: MetricChartScale::yTicks($top, $step, $bottom),
             moneyDecimals: MetricChartScale::moneyDecimals($step),
             xTicks: $axis->ticks,
             longSpan: $axis->longSpan,
@@ -99,7 +99,7 @@ final readonly class LineLayout
     }
 
     /** @param list<MetricPoint> $points */
-    private static function path(array $points, MetricChartTimeAxis $axis, float $top): string
+    private static function path(array $points, MetricChartTimeAxis $axis, float $top, float $bottom): string
     {
         $parts = [];
         $last = null;
@@ -110,7 +110,7 @@ final readonly class LineLayout
                 continue;
             }
             $index = $axis->index($point->start);
-            $parts[] = (null !== $last && 1 === $index - $last ? 'L' : 'M').MetricChartScale::number($axis->centre($index)).' '.MetricChartScale::number(MetricChartScale::y($point->value, $top));
+            $parts[] = (null !== $last && 1 === $index - $last ? 'L' : 'M').MetricChartScale::number($axis->centre($index)).' '.MetricChartScale::number(MetricChartScale::y($point->value, $top, $bottom));
             $last = $index;
         }
 

@@ -6,10 +6,12 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
+use App\Module\Bridge\ValueObject\SkippedWorkRequest;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -41,6 +43,8 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<BridgeSessionReading>   $interactiveSessions what the bridge saw of the sessions the last reply asked it to watch
      * @param int                          $gitIdentitiesAge    the seconds since the bridge read $gitIdentities, which dates the rows
      * @param string|null                  $accessTokenId       the access token that signed the heartbeat. Null keeps the stored login
+     * @param list<AccountReadingReport>   $accountReadings     the latest reading of each usage window, which Loupe stores when it differs from the one before
+     * @param list<SkippedWorkRequest>     $skipped             the offered requests the bridge skipped because the account it matched is blocked
      */
     public function __construct(
         public User $owner,
@@ -66,6 +70,8 @@ final readonly class RecordBridgeHeartbeatCommand
         public int $gitIdentitiesAge = 0,
         public array $interactiveSessions = [],
         public ?string $accessTokenId = null,
+        public array $accountReadings = [],
+        public array $skipped = [],
     ) {
     }
 }
