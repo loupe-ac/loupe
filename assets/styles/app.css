@@ -295,9 +295,18 @@
     }
 
     /* The detail pane reaches the window edge, so its scrollbar sits there as on the
-       document review page. Its padding keeps the content inside the page frame. */
+       document review page. Its padding keeps the content inside the page frame.
+       Here 100% is the pane column, so the inset adds back the page padding, the list
+       column and the gap to its left. The frame binds only where that list is full width. */
+    .lp-core-inbox .lp-inbox-request-detail,
+    .lp-core-inbox .lp-inbox-pane-loading {
+        --inbox-pane-inset: calc(
+            max(0px, 100% + var(--spacing) * 88 - var(--container-7xl)) +
+                var(--inbox-gutter)
+        );
+    }
     .lp-core-inbox .lp-inbox-request-detail {
-        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+        padding-right: var(--inbox-pane-inset);
     }
 
     /* Only the entries scroll. The tabs, the search and the filters stay above them. */
@@ -446,12 +455,11 @@
         color: var(--accent-ink);
     }
 
-    .lp-core-inbox .lp-inbox-item__actions[data-inbox-locked] {
-        @apply opacity-70;
-    }
-
+    /* Its own stacking context, so no layer inside the pane, such as the entry
+       animation of a reply card, paints above the loading cover. */
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
+        isolation: isolate;
     }
 
     /* While a picked row loads, a spinner covers the detail pane, as on the board's card drawer.
@@ -465,7 +473,9 @@
         grid-area: 1 / 2;
     }
 
+    /* The cover ends where the pane content ends, at the frame of the top bar. */
     .lp-core-inbox .lp-inbox-pane-loading {
+        margin-right: var(--inbox-pane-inset);
         z-index: 10;
         display: flex;
         align-items: center;
@@ -506,6 +516,7 @@
         .lp-core-inbox .lp-inbox-pane-loading {
             position: fixed;
             inset: 0;
+            margin-right: 0;
             z-index: 30;
         }
     }
@@ -693,6 +704,9 @@
     }
 
     .lp-core-inbox .lp-inbox-item__kind {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 1);
         margin-left: auto;
         padding: 0;
         background: transparent;
@@ -723,17 +737,9 @@
         border-radius: var(--radius-lg);
     }
 
-    /* The document under review, as a quiet card above the verdict. */
+    /* The document under review, as a card that stands out from the reply card around it. */
     .lp-inbox-review-document {
-        display: flex;
-        align-items: center;
-        gap: calc(var(--spacing) * 3);
-        margin-bottom: calc(var(--spacing) * 3.5);
-        padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
-        border-radius: var(--radius-xl);
-        background: var(--surface-2);
-        color: var(--ink);
-        text-decoration: none;
+        @apply mb-3.5 flex items-center gap-3 rounded-xl border border-line bg-surface-1 px-4 py-3.5 text-ink no-underline shadow-xs transition-colors hover:border-line-strong;
     }
 
     .lp-inbox-review-document__icon {
@@ -776,6 +782,10 @@
         margin-left: auto;
     }
 
+    .lp-core-inbox .lp-status-chip + .lp-inbox-ask__byline-actions {
+        margin-left: 0;
+    }
+
     .lp-core-inbox [data-inbox-replies] {
         gap: calc(var(--spacing) * 3);
         margin-top: calc(var(--spacing) * 6.5);
@@ -794,8 +804,8 @@
 
     .lp-core-inbox .lp-inbox-item + .lp-inbox-item {
         margin-top: calc(var(--spacing) * 9);
-        padding-top: calc(var(--spacing) * 7);
-        border-top: 1px solid var(--border-faint);
+        padding-top: 0;
+        border-top: 0;
     }
 
     /* The ask names the request in large type; an item title sits below it, smaller. */
@@ -5291,7 +5301,10 @@
     }
     .lp-core-inbox .lp-stopped-warning:has(.lp-flash) {
         @apply mb-0 pt-4;
-        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+        padding-right: calc(
+            max(0px, 100% + var(--spacing) * 8 - var(--container-7xl)) +
+                var(--inbox-gutter)
+        );
     }
     .lp-device-row--blocked,
     .lp-device-row:has(> .lp-device-row__blocked:not([hidden])) {
@@ -7963,9 +7976,6 @@
     .lp-inbox-ask__title {
         @apply m-0 font-display text-xl font-extrabold tracking-tight text-ink;
     }
-    .lp-inbox-ask__target {
-        @apply m-0 text-sm text-fg-dim;
-    }
     /* The anchor around an agent avatar with a bridge dot. Hover or focus shows
        the tooltip. */
     .lp-presence {
@@ -8029,9 +8039,6 @@
     .lp-inbox-item__response {
         @apply flex flex-col gap-1.5 rounded-lg bg-tint py-2.5 px-3 text-sm text-ink;
     }
-    .lp-inbox-item__response-title {
-        @apply m-0 text-sm font-semibold text-fg-dim;
-    }
     /* A picked option reads as a checked line, as the closed ask of the prototype draws it. */
     .lp-inbox-item__choices {
         @apply m-0 p-0 list-none flex flex-col gap-1;
@@ -8045,9 +8052,6 @@
     .lp-inbox-item__answer-text,
     .lp-inbox-item__note {
         @apply m-0 whitespace-pre-line;
-    }
-    .lp-inbox-item__editable {
-        @apply m-0 text-xs text-fg-mute;
     }
     .lp-inbox-item__refusal {
         @apply rounded-lg bg-status-danger-bg text-status-danger-deep py-2 px-3 text-sm;
@@ -9012,16 +9016,18 @@
     @apply whitespace-pre-line;
 }
 .lp-inbox-thread__status {
-    @apply flex flex-col items-start gap-1.5 border-t border-accent-border pt-2.5;
+    @apply flex items-center justify-between gap-3 border-t border-accent-border pt-2.5;
+}
+.lp-inbox-thread__note-label {
+    @apply mt-2 mb-0;
 }
 .lp-inbox-thread .lp-comment-composer--untargeted {
     @apply mb-0 max-w-none;
 }
+/* The field keeps one height, so the buttons below it never move under the pointer.
+   A ring marks focus, as on every other field, and moves nothing. */
 .lp-inbox-thread .lp-comment-composer textarea {
-    @apply h-13 min-h-0;
-}
-.lp-inbox-thread .lp-comment-composer textarea:focus {
-    @apply h-21;
+    @apply h-21 min-h-0 focus:ring-2 focus:ring-accent-ink;
 }
 .inbox-split__hint {
     @apply mr-auto;

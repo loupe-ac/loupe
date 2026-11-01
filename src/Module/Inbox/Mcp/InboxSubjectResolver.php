@@ -116,6 +116,7 @@ final readonly class InboxSubjectResolver
                 reviewDocumentId: null === ($item['reviewDocumentId'] ?? null) ? null : $this->string($item, 'reviewDocumentId', $index),
                 reviewPullRequestId: null === ($item['reviewPullRequestId'] ?? null) ? null : $this->string($item, 'reviewPullRequestId', $index),
                 suggestedActions: $this->suggestions($item, $index),
+                dismissible: $this->bool($item, 'dismissible', $index) ?? true,
             );
         }
 

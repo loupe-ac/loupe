@@ -180,6 +180,25 @@ func head(s string, n int) string {
 	return string(r[:n])
 }
 
+// isItemSession reports whether p opens the session of an inbox item that has
+// no single card, which works in a worktree of its own.
+func isItemSession(p pending) bool {
+	return p.isWork() && p.action == rules.ActionInteractive && p.work.Kind == rules.SessionKind && p.work.SubjectType == api.SubjectInboxItem
+}
+
+// endItemLaunch ends the launch of the item worktree at dir: it hands the
+// worktree to the sweep when the launch worked, and removes it when not. An
+// empty dir is no item launch.
+func (r *router) endItemLaunch(dir string, launched bool) {
+	switch {
+	case dir == "":
+	case launched:
+		r.itemSessions().finish(dir)
+	default:
+		r.itemSessions().discard(context.Background(), dir)
+	}
+}
+
 // launch is one interactive session to open, with what its run needs.
 type launch struct {
 	p       pending
@@ -237,7 +256,18 @@ func (r *router) beginLaunch(l launch) func(start func() error) error {
 func (r *router) runLaunch(l launch) {
 	p := l.p
 	reason := ""
-	env, err := p.spec.accountEnv()
+	var err error
+	itemDir := ""
+	if isItemSession(p) {
+		itemDir, err = r.itemSessions().prepare(context.Background(), p.spec.dir, p.project, p.work.Context.InboxItemNumber, p.spec.sessionID)
+		if err == nil {
+			p.spec.dir = itemDir
+		}
+	}
+	var env []string
+	if err == nil {
+		env, err = p.spec.accountEnv()
+	}
 	path := ""
 	adapter := p.spec.adapter()
 	program := ""
@@ -263,19 +293,26 @@ func (r *router) runLaunch(l launch) {
 		if err == nil {
 			os.Remove(path)
 		}
+		r.endItemLaunch(itemDir, false)
 		if rec, ok := adapter.(harn.LaunchRecorder); ok {
 			rec.ForgetLaunch(p.spec.sessionID)
 		}
 	case err != nil:
 		reason = err.Error()
+		r.endItemLaunch(itemDir, false)
 	default:
 		if r.beforeLaunch != nil {
 			r.beforeLaunch()
 		}
 		_, number := cardOf(p.event)
+		cardNumber := ""
+		if number > 0 {
+			cardNumber = strconv.Itoa(number)
+		}
 		reason = runLauncher(l.ctx, l.command.Argv(rules.LaunchValues{
-			Script: path, Dir: p.spec.dir, SessionID: p.spec.sessionID, CardNumber: strconv.Itoa(number), Project: p.project,
+			Script: path, Dir: p.spec.dir, SessionID: p.spec.sessionID, CardNumber: cardNumber, Project: p.project,
 		}), l.command.Timeout, r.beginLaunch(l))
+		r.endItemLaunch(itemDir, reason == "")
 		if reason != "" {
 			os.Remove(path)
 			if rec, ok := adapter.(harn.LaunchRecorder); ok {
@@ -295,9 +332,12 @@ func (r *router) runLaunch(l launch) {
 	r.mu.Lock()
 	r.launching--
 	cardID, number := cardOf(p.event)
-	if r.reporting() && number >= 1 {
+	if r.reporting() && (number >= 1 || isItemSession(p)) {
 		report.BridgeID, report.WorkKind, report.At = r.bridgeID, p.rule, time.Now()
 		report.SubjectType, report.SubjectID, report.CardNumber = api.SubjectCard, cardID, number
+		if isItemSession(p) {
+			report.SubjectType, report.SubjectID, report.CardNumber = api.SubjectInboxItem, p.work.SubjectID, 0
+		}
 		if p.isWork() {
 			report.WorkRequestID, report.WorkKind, report.RuleID = p.work.WorkRequestID, p.work.Kind, p.work.RuleID
 		}

@@ -10,13 +10,17 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunAction;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
+use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReviewTargetKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandView;
@@ -45,6 +49,8 @@ final readonly class ItemActions
         private RunCommandRuns $runCommandRuns,
         private CardWaitText $cardWaitText,
         private CardHoldRepository $cardHolds,
+        private InboxReviewLookup $inboxReviews,
+        private SessionPromptWriter $sessionPrompts,
     ) {
     }
 
@@ -87,7 +93,7 @@ final readonly class ItemActions
      */
     public function waitFor(InboxItem $item, InboxActionKind $kind): ?InboxCardWait
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         $match = match ($kind) {
@@ -108,7 +114,7 @@ final readonly class ItemActions
     /** The newest open wait of the item, or null. An action that needs no run or pause answers this wait. */
     public function newestOpenWait(InboxItem $item): ?InboxCardWait
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         return array_last($waits);
@@ -117,7 +123,7 @@ final readonly class ItemActions
     /** The card and the stage work that Send an agent starts for the item now, or null when the action does not fit. */
     public function sendAgentFor(InboxItem $item): ?SendAgentTarget
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
 
         return $this->sendAgentTargets([$item], null === $watch ? [] : [self::key($item) => $watch->cardId])[self::key($item)] ?? null;
     }
@@ -130,7 +136,7 @@ final readonly class ItemActions
      */
     public function runCommandFor(InboxItem $item, ?string $branch = null, ?array $params = null): ?RunCommandView
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
         $runs = $this->runsOf($waits);
         $suggestion = $this->suggestionsOf($item, $waits, $runs)[InboxActionKind::RunCommand->value] ?? null;
@@ -145,10 +151,34 @@ final readonly class ItemActions
     public function runCommandCardId(InboxItem $item): ?Uuid
     {
         if ($item->isAutomatic()) {
-            return ($this->inboxCardWatches->findForItems([$item])[0] ?? null)?->cardId;
+            return $this->watchOf($item)?->cardId;
         }
 
         return self::onlyCardOf($item);
+    }
+
+    /**
+     * What a session that starts from the item is about: the card when the item has exactly one, else the item itself.
+     * A card that the asking agent named in its suggestion counts as the one card.
+     */
+    public function sessionSubjectOf(InboxItem $item): WorkSubject
+    {
+        $watch = $this->watchOf($item);
+        $cardId = self::sessionCardOf($item, $watch?->cardId);
+
+        return null === $cardId ? new WorkSubject(InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('A stored item has an id.')) : WorkSubject::card($cardId);
+    }
+
+    /** The prompt that fills the field of the session: the one the agent suggested, else the written one. */
+    public function sessionPromptFor(InboxItem $item): string
+    {
+        $suggested = self::suggestedSessionPrompt($item);
+        if (null !== $suggested) {
+            return $suggested;
+        }
+        $watch = $this->watchOf($item);
+
+        return $this->sessionPrompts->write($item, null === $watch ? [] : self::openWaits($watch->waits->toArray()));
     }
 
     private static function typeOf(InboxActionKind $kind): InboxCardWaitType
@@ -159,7 +189,7 @@ final readonly class ItemActions
     /** The card that an action on the item acts on: the card of its watch, else the card its suggestion names, else its first linked card. */
     public function cardIdOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
-        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $watch = $this->watchOf($item);
         if (null !== $watch) {
             return $watch->cardId;
         }
@@ -170,7 +200,7 @@ final readonly class ItemActions
 
     /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
-     * One bridge read per project that has an item with a card, and one read of the live requests of their cards.
+     * One bridge read per project, and one read of the live requests of the cards and of the items that a session can start from.
      * A work-limit pause reads the story of its rule and the hold of its card, with a few reads per such item.
      *
      * @param list<InboxItem> $items
@@ -179,20 +209,25 @@ final readonly class ItemActions
      */
     public function forItems(array $items): array
     {
+        return $this->forComplexItems($items);
+    }
+
+    /**
+     * @param list<InboxItem> $items
+     *
+     * @return array<string, list<ItemAction>> keyed by the RFC 4122 item id
+     */
+    private function forComplexItems(array $items): array
+    {
         $openWaits = [];
-        $cardIds = [];
         $watchedCards = [];
-        foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
+        foreach ($this->inboxCardWatches->findForItems(array_values(array_filter($items, static fn (InboxItem $item): bool => $item->isAutomatic()))) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
-            $cardIds[self::key($watch->item)] = $watch->cardId->toRfc4122();
             $watchedCards[self::key($watch->item)] = $watch->cardId;
         }
+        $sessionCards = [];
         foreach ($items as $item) {
-            $link = $item->cards->first();
-            $linkedId = self::suggestedCardOf($item, InboxActionKind::StartSession) ?? (false === $link ? null : $link->card->id);
-            if (!isset($cardIds[self::key($item)]) && null !== $linkedId) {
-                $cardIds[self::key($item)] = $linkedId->toRfc4122();
-            }
+            $sessionCards[self::key($item)] = self::sessionCardOf($item, $watchedCards[self::key($item)] ?? null);
         }
 
         $runs = $this->runsOf(array_merge(...array_values($openWaits)));
@@ -200,14 +235,18 @@ final readonly class ItemActions
         $resumableRuns = $this->resumableRuns($runs);
         $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
 
-        $withCard = array_filter($items, static fn (InboxItem $item): bool => isset($cardIds[self::key($item)]));
-        $sessionOnline = $this->sessionBridges->onlineFor(array_values(array_map(static fn (InboxItem $item): Project => $item->project, $withCard)));
-        $liveSessions = [];
-        foreach ($this->workRequests->findLiveRowsForCards(array_values(array_unique($cardIds))) as $row) {
+        $liveBridges = $this->sessionBridges->liveFor(array_values(array_map(static fn (InboxItem $item): Project => $item->project, $items)));
+        $liveCardSessions = [];
+        foreach ($this->workRequests->findLiveRowsForCards(array_values(array_unique(array_map(static fn (Uuid $cardId): string => $cardId->toRfc4122(), array_filter($sessionCards))))) as $row) {
             if (WorkRequest::SESSION_KIND === $row['kind']) {
-                $liveSessions[$row['card_id']] = true;
+                $liveCardSessions[$row['card_id']] = true;
             }
         }
+        $liveItemSessions = $this->workRequests->findSubjectIdsWithLiveRequest(
+            InboxItem::SUBJECT_TYPE,
+            WorkRequest::SESSION_KIND,
+            array_values(array_map(self::key(...), $items)),
+        );
 
         $suggested = [];
         $commandItems = [];
@@ -223,7 +262,14 @@ final readonly class ItemActions
         $actions = [];
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
-            $cardId = $cardIds[self::key($item)] ?? null;
+            $sessionCard = $sessionCards[self::key($item)];
+            $bridges = $liveBridges[(string) $item->project->id] ?? [];
+            if (null === $sessionCard) {
+                $bridges = array_values(array_filter($bridges, SessionBridges::opensItemSessions(...)));
+            }
+            $sessionOffered = null !== $sessionCard || [] !== $bridges;
+            $sessionOnline = [] !== $bridges;
+            $sessionLive = isset($liveItemSessions[self::key($item)]) || (null !== $sessionCard && isset($liveCardSessions[$sessionCard->toRfc4122()]));
             $suggestions = $suggested[self::key($item)];
             $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
             $runCommand = null === $commandSuggestion?->command
@@ -231,23 +277,28 @@ final readonly class ItemActions
                 : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
             $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
             $holdable = null !== $story && null !== ($watchedCards[self::key($item)] ?? null) && !$this->cardHolds->existsForCard($item->project, $watchedCards[self::key($item)]);
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand, $story, $holdable);
-            if (self::offersOnlySuggestions($item)) {
-                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), $sessionOffered && !$sessionLive, null !== $runCommand, $story, $holdable);
+            // A sent response is final, so a closed item offers nothing but a new session, suggested or not.
+            if (InboxItemState::Open !== $item->state) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::StartSession === $kind && $sessionOnline));
+            } elseif (self::offersOnlySuggestions($item)) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => $kind->isResponse() || InboxActionKind::StartSession === $kind || isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             // A retry alone repeats a loop whose last run stopped for a person, so it is not the default then.
             if (InboxActionKind::RetryCard === $default && true === $story?->lastRunStopped()) {
                 $default = \in_array(InboxActionKind::OpenPullRequest, $fitting, true) ? InboxActionKind::OpenPullRequest : InboxActionKind::Open;
             }
+            $sessionPrompt = \in_array(InboxActionKind::StartSession, $fitting, true) ? ($suggestions[InboxActionKind::StartSession->value]->prompt ?? ($sessionOnline ? $this->sessionPrompts->write($item, $waits) : null)) : null;
             $actions[self::key($item)] = array_map(
                 static fn (InboxActionKind $kind): ItemAction => self::forStory(ItemAction::for(
                     $kind,
                     $kind === $default,
-                    InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : self::commandReason($kind, $runCommand),
+                    InboxActionKind::StartSession === $kind && !$sessionOnline ? 'inbox.action.start-session.disabled' : self::commandReason($kind, $runCommand),
                     $suggestions[$kind->value]->reason ?? null,
                     InboxActionKind::RunCommand === $kind ? $runCommand : null,
-                    InboxActionKind::StartSession === $kind ? ($suggestions[$kind->value]->prompt ?? null) : null,
+                    InboxActionKind::StartSession === $kind ? $sessionPrompt : null,
+                    InboxActionKind::StartSession === $kind && null === $sessionCard && 1 === \count($bridges) ? $bridges[0]->label : null,
                 ), $story),
                 $fitting,
             );
@@ -261,7 +312,7 @@ final readonly class ItemActions
      * @param array<string, true> $resumableRuns    run ids that offer Resume
      * @param array<string, true> $releasablePauses pause ids a person can release
      * @param bool                $sendAgent        Send an agent has a card and a stage work that are free now
-     * @param bool                $sessionFits      the item has a card, and no session request of that card is live
+     * @param bool                $sessionFits      no session request of the subject is live, and the item has a card or a bridge that opens sessions is online
      * @param bool                $runCommand       the item has a run-command suggestion, which the action shows even when it is off
      * @param WorkLimitStory|null $story            the story of a work-limit pause of the item, which names the pull request of its rule
      * @param bool                $holdable         the item has a work-limit pause, and its card has no hold
@@ -271,6 +322,9 @@ final readonly class ItemActions
     private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand, ?WorkLimitStory $story, bool $holdable): array
     {
         $fits = [
+            [InboxActionKind::Answer, \in_array($item->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true)],
+            [InboxActionKind::Complete, InboxItemKind::Todo === $item->kind],
+            [InboxActionKind::SubmitReview, InboxItemKind::Review === $item->kind && !$item->isAutomatic()],
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
             [InboxActionKind::OpenPullRequest, null !== $story?->pullRequestUrl],
@@ -281,7 +335,7 @@ final readonly class ItemActions
             [InboxActionKind::Open, self::fitsOpen($item)],
             [InboxActionKind::StartSession, $sessionFits],
             [InboxActionKind::RunCommand, $runCommand],
-            [InboxActionKind::Dismiss, self::fitsDismiss($item)],
+            [InboxActionKind::Dismiss, $this->fitsDismiss($item)],
         ];
 
         $fitting = [];
@@ -381,6 +435,11 @@ final readonly class ItemActions
         return null;
     }
 
+    private static function sessionCardOf(InboxItem $item, ?Uuid $watched): ?Uuid
+    {
+        return $watched ?? self::suggestedCardOf($item, InboxActionKind::StartSession) ?? self::onlyCardOf($item);
+    }
+
     /** The card of a non-wait item that links exactly one card. */
     private static function onlyCardOf(InboxItem $item): ?Uuid
     {
@@ -418,9 +477,29 @@ final readonly class ItemActions
         return $item->isAutomatic() || !$item->cards->isEmpty() || !$item->documents->isEmpty();
     }
 
-    private static function fitsDismiss(InboxItem $item): bool
+    /** The flag decides. A review whose document or pull request is gone can always be dismissed, because no verdict is possible. */
+    private function fitsDismiss(InboxItem $item): bool
     {
-        return $item->isAutomatic();
+        if ($item->dismissible) {
+            return true;
+        }
+        if (InboxItemKind::Review !== $item->kind || $item->isAutomatic()) {
+            return false;
+        }
+        $review = $this->inboxReviews->forItem($item);
+
+        return null === $review || (InboxReviewTargetKind::Document === $review->targetKind ? null === $review->document : null === $review->pullRequest);
+    }
+
+    /** The action that carries the response of the owner for the kind of the item, or null when the item takes none by itself. */
+    private static function responseKind(InboxItem $item): ?InboxActionKind
+    {
+        return match (true) {
+            \in_array($item->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true) => InboxActionKind::Answer,
+            InboxItemKind::Todo === $item->kind => InboxActionKind::Complete,
+            InboxItemKind::Review === $item->kind && !$item->isAutomatic() => InboxActionKind::SubmitReview,
+            default => null,
+        };
     }
 
     /**
@@ -464,7 +543,8 @@ final readonly class ItemActions
     }
 
     /**
-     * The recommended suggestion when it fits. Otherwise the kind of the newest open wait when it fits,
+     * The recommended suggestion when it fits. Otherwise the response of a question, a to-do, a workflow question
+     * or a review of a person. Otherwise the kind of the newest open wait when it fits,
      * otherwise Open, so a wait item always has a default that fits.
      *
      * @param list<InboxCardWait>            $waits       open waits, oldest first
@@ -473,18 +553,19 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
+        $response = self::responseKind($item);
         if (!$item->isAutomatic() && !\in_array($item->kind, [InboxItemKind::Todo, InboxItemKind::Question], true)) {
-            return null;
+            return null !== $response && \in_array($response, $fitting, true) ? $response : null;
         }
 
         foreach ($fitting as $kind) {
-            if (InboxActionKind::Dismiss !== $kind && true === ($suggestions[$kind->value]->recommended ?? false)) {
+            if (InboxActionKind::Dismiss !== $kind && !$kind->isResponse() && true === ($suggestions[$kind->value]->recommended ?? false)) {
                 return $kind;
             }
         }
 
         if (self::offersOnlySuggestions($item)) {
-            return null;
+            return null !== $response && \in_array($response, $fitting, true) ? $response : null;
         }
 
         $newest = end($waits);
@@ -648,6 +729,12 @@ final readonly class ItemActions
         }
 
         return $releasable;
+    }
+
+    /** Only an automatic item has a watch, so any other item costs no read. */
+    private function watchOf(InboxItem $item): ?InboxCardWatch
+    {
+        return $item->isAutomatic() ? ($this->inboxCardWatches->findForItems([$item])[0] ?? null) : null;
     }
 
     private static function key(InboxItem $item): string

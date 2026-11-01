@@ -24,6 +24,7 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Messenger\ReconcileCardWaits;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -142,7 +143,9 @@ final class ReconcileCardWaitsTriggersTest extends KernelTestCase
 
         $handler = self::getContainer()->get(WithdrawInboxItemHandler::class);
         self::assertInstanceOf(WithdrawInboxItemHandler::class, $handler);
-        $handler(new WithdrawInboxItemCommand($item, 'No longer needed'));
+        $asks = self::getContainer()->get(InboxAskRepository::class);
+        self::assertInstanceOf(InboxAskRepository::class, $asks);
+        $handler(new WithdrawInboxItemCommand($item, 'No longer needed', $asks->findHolding($item)[0]->sessionId ?? throw new \LogicException('An ask of a session.')));
 
         self::assertSame([(string) $this->card->id], $this->evaluated());
     }

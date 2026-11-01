@@ -341,7 +341,7 @@ for (const target of ['document', 'pull-request']) {
         await form
             .getByRole('button', { name: 'Submit review', exact: true })
             .click();
-        await expect(item.locator('[data-inbox-review-verdict]')).toHaveText(
+        await expect(item.locator('[data-inbox-review-verdict]')).toContainText(
             'Changes requested',
         );
         await expect(item.locator('[data-inbox-response]')).toContainText(
@@ -364,7 +364,7 @@ for (const target of ['document', 'pull-request']) {
         await expect(recovery.locator('li')).toHaveText(['Approved']);
         await expect(
             draftItem.locator('[data-inbox-review-verdict]'),
-        ).toHaveText('Changes requested');
+        ).toContainText('Changes requested');
         await recovery.getByRole('button', { name: 'Discard draft' }).click();
         await expect(recovery).toBeHidden();
         // A one-item ask shows its title once, as the ask's heading.
@@ -381,7 +381,7 @@ for (const target of ['document', 'pull-request']) {
         const completed = page.locator(`#inbox-item-${number}`);
         await expect(
             completed.locator('[data-inbox-review-verdict]'),
-        ).toHaveText('Changes requested');
+        ).toContainText('Changes requested');
         await expect(completed.locator('[data-inbox-response]')).toContainText(
             'Explain retries before implementation.',
         );
@@ -403,7 +403,7 @@ for (const target of ['document', 'pull-request']) {
             ).toContainText('withdrew this verdict');
             await expect(
                 completed.locator('[data-inbox-review-verdict]'),
-            ).toHaveText('Changes requested');
+            ).toContainText('Changes requested');
         }
     });
 }
@@ -470,7 +470,7 @@ test('an unavailable pull request keeps its unsent review recoverable', async ({
         .locator(`.lp-sidebar__link[href="/projects/${projectId}/inbox"]`)
         .click();
     await expect(item).toContainText(
-        'The review target is no longer available.',
+        'The review target is no longer available, so it takes no verdict.',
     );
     const recovery = item.locator('[data-inbox-draft-kind="review"]');
     await expect(recovery).toBeVisible();
@@ -597,35 +597,12 @@ for (const surface of ['page', 'drawer']) {
         await expect(question.locator('[data-inbox-response]')).toContainText(
             'The importer reads CSV.',
         );
-        // Decline carries whatever stands in the item's own answer field.
-        await question
-            .getByLabel('Note for the agent')
-            .fill('Wait for the new importer.');
-        if (surface === 'drawer') {
-            await drawer.getByRole('link', { name: 'Close card' }).click();
-            await expect(drawer).toBeHidden();
-            await page.getByRole('link', { name: /Ship the export/ }).click();
-            await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(
-                question.getByLabel('Note for the agent'),
-            ).toBeVisible();
-            await expect(question.getByLabel('Note for the agent')).toHaveValue(
-                'Wait for the new importer.',
-            );
-        }
-        await question.getByRole('button', { name: 'Decline' }).click();
-        await expect(page.locator('.lp-flash')).toContainText(
-            `Item ${questionNumber} is closed.`,
-        );
-        await expect(question.locator('[data-inbox-response]')).toContainText(
-            'Wait for the new importer.',
-        );
-        await expect(page).toHaveURL(
-            surface === 'drawer' ? boardUrl : `${cardUrl}?tab=conversation`,
-        );
+        // A sent answer is final, so the closed question offers no form to change or decline it.
+        await expect(question.locator('.lp-comment-composer')).toHaveCount(0);
+        await expect(question.locator('form')).toHaveCount(0);
         await expect(
-            page.getByRole('tab', { name: 'Conversation' }),
-        ).toHaveAttribute('aria-selected', 'true');
+            question.getByRole('button', { name: 'Dismiss' }),
+        ).toHaveCount(0);
         if (surface === 'drawer') {
             await expect(drawer).toBeVisible();
             await page.keyboard.press('Escape');
@@ -635,9 +612,9 @@ for (const surface of ['page', 'drawer']) {
             ).toBeFocused();
         }
         await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
-        // The decline replaced the answer, and the inbox reads the same record.
+        // The inbox reads the same record.
         await expect(
             page.locator(`#inbox-item-${questionNumber} [data-inbox-response]`),
-        ).toContainText('Wait for the new importer.');
+        ).toContainText('The importer reads CSV.');
     });
 }

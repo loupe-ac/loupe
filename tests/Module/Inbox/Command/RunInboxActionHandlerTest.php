@@ -41,11 +41,15 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\CancelInboxActionCommand;
 use App\Module\Inbox\Command\CancelInboxActionHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\RunInboxActionCommand;
 use App\Module\Inbox\Command\RunInboxActionHandler;
+use App\Module\Inbox\Command\SubmitInboxDocumentReviewHandler;
+use App\Module\Inbox\Command\SubmitInboxPullRequestReviewHandler;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
@@ -54,22 +58,28 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReview;
+use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\Service\SessionPromptLimit;
+use App\Module\Inbox\Service\SessionPromptWriter;
 use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
 use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionOutcome;
@@ -246,7 +256,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $action = $this->runAction($item, InboxActionKind::Dismiss, 'Not now');
 
         self::assertNull($action);
-        self::assertSame([InboxItemState::Declined, 'Not now'], [$item->state, $item->closeNote]);
+        self::assertSame([InboxItemState::Declined, 'Not now'], [$item->state, $item->note]);
         self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
         self::assertSame(
             ['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'dismiss', 'hasNote' => true],
@@ -260,6 +270,145 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->runAction($item, InboxActionKind::Dismiss);
 
         $this->assertRefused($item, InboxActionKind::Dismiss, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_an_answer_closes_a_question_as_resolved_by_the_owner_with_no_cause_and_audits_the_kind(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, ['JSON', 'CSV'], freeText: true);
+
+        $action = $this->respond($item, InboxActionKind::Answer, 'Because it imports.', selectedOptions: '1');
+
+        self::assertNull($action);
+        self::assertSame([InboxItemState::Resolved, InboxCloser::Owner, null, [1], 'Because it imports.'], [$item->state, $item->closedBy, $item->closeCause, $item->selectedOptions, $item->note]);
+        self::assertSame(
+            ['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'answer', 'hasNote' => true],
+            $this->audit->record('inbox.action_requested')->context,
+        );
+    }
+
+    public function test_a_complete_closes_a_to_do_as_resolved_by_the_owner_with_no_cause(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Todo);
+
+        $this->respond($item, InboxActionKind::Complete);
+
+        self::assertSame([InboxItemState::Resolved, InboxCloser::Owner, null], [$item->state, $item->closedBy, $item->closeCause]);
+        self::assertSame('complete', $this->audit->record('inbox.action_requested')->context['kind']);
+    }
+
+    public function test_a_complete_keeps_the_note_of_the_owner(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Todo);
+
+        $this->respond($item, InboxActionKind::Complete, '  Exported.  ');
+
+        self::assertSame([InboxItemState::Resolved, 'Exported.'], [$item->state, $item->note]);
+        self::assertTrue($this->audit->record('inbox.action_requested')->context['hasNote']);
+    }
+
+    public function test_a_dismiss_closes_a_question_as_declined_by_the_owner_with_its_note(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, ['A']);
+
+        $this->respond($item, InboxActionKind::Dismiss, 'Not mine.');
+
+        self::assertSame([InboxItemState::Declined, InboxCloser::Owner, null, 'Not mine.'], [$item->state, $item->closedBy, $item->closeCause, $item->note]);
+    }
+
+    public function test_a_dismiss_of_an_item_that_is_not_dismissible_is_refused(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, ['A']);
+        $item->dismissible = false;
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::Dismiss, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+        self::assertSame(InboxItemState::Open, $item->state);
+    }
+
+    public function test_a_response_that_the_kind_of_the_item_does_not_take_is_refused(): void
+    {
+        $todo = $this->askedItem(InboxItemKind::Todo);
+        $question = $this->askedItem(InboxItemKind::Question, ['A']);
+
+        $this->assertRefused($todo, InboxActionKind::Answer, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+        $this->assertRefused($question, InboxActionKind::Complete, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+        $this->assertRefused($question, InboxActionKind::SubmitReview, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+        self::assertSame([InboxItemState::Open, InboxItemState::Open], [$todo->state, $question->state]);
+    }
+
+    public function test_a_response_to_a_closed_item_is_refused_and_keeps_the_first_response(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, ['A', 'B']);
+        $this->respond($item, InboxActionKind::Answer, selectedOptions: '0');
+
+        foreach ([InboxActionKind::Answer, InboxActionKind::Dismiss] as $kind) {
+            try {
+                $this->respond($item, $kind, selectedOptions: '1');
+                self::fail('A sent response is final.');
+            } catch (DomainErrors $e) {
+                self::assertSame(['action' => RunInboxActionHandler::NOT_AVAILABLE], $e->errors);
+            }
+        }
+        self::assertSame([InboxItemState::Resolved, [0]], [$item->state, $item->selectedOptions]);
+    }
+
+    public function test_an_answer_names_the_fields_of_the_page_in_its_errors(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, ['A', 'B']);
+
+        $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.unknown_option'], selectedOptions: '5');
+        $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.empty'], note: 'extra');
+        $this->assertRespondRefused($item, ['selectedOptions' => 'inbox.answer.error.empty']);
+    }
+
+    public function test_a_long_answer_is_not_cut_at_the_limit_of_an_action_note(): void
+    {
+        $item = $this->askedItem(InboxItemKind::Question, [], freeText: true);
+
+        $this->respond($item, InboxActionKind::Answer, str_repeat('a', InboxAction::MAX_NOTE_LENGTH + 1));
+
+        self::assertSame(InboxItemState::Resolved, $item->state);
+    }
+
+    public function test_a_verdict_on_a_pull_request_closes_the_review_and_names_the_note_field_when_it_is_missing(): void
+    {
+        $target = new CardPullRequest($this->card, 'https://github.com/example/project/pull/12');
+        $item = new InboxItem($this->project, ++$this->number, InboxItemKind::Review, 'Review the pull request', true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $target);
+        foreach ([$target, $item, $review] as $entity) {
+            $this->em()->persist($entity);
+        }
+        $this->em()->flush();
+
+        try {
+            $this->respond($item, InboxActionKind::SubmitReview, verdict: 'changes-requested', expectedUrl: $target->url);
+            self::fail('Changes need a note.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['note' => 'review.document.flash.note_required'], $e->errors);
+        }
+
+        $this->respond($item, InboxActionKind::SubmitReview, 'Add a retry limit.', verdict: 'changes-requested', expectedUrl: $target->url);
+
+        self::assertSame([InboxItemState::Resolved, InboxCloser::Owner, null, 'Add a retry limit.'], [$item->state, $item->closedBy, $item->closeCause, $item->note]);
+        self::assertSame(InboxReviewVerdict::ChangesRequested, $review->verdict);
+        self::assertSame('submit-review', $this->audit->record('inbox.action_requested')->context['kind']);
+    }
+
+    public function test_a_verdict_on_a_document_needs_the_version_the_owner_read(): void
+    {
+        $document = new Document($this->project->owner, $this->project, 'The design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $item = new InboxItem($this->project, ++$this->number, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
+        foreach ([$document, $item, new InboxReview($item, $document)] as $entity) {
+            $this->em()->persist($entity);
+        }
+        $this->em()->flush();
+
+        $this->assertRespondRefused($item, ['versionNumber' => 'inbox.review.error.target_changed'], kind: InboxActionKind::SubmitReview, verdict: 'approved');
+
+        $this->respond($item, InboxActionKind::SubmitReview, 'Looks good.', verdict: 'approved', versionNumber: 1);
+
+        self::assertSame([InboxItemState::Resolved, InboxCloser::Owner], [$item->state, $item->closedBy]);
     }
 
     public function test_a_kind_that_is_not_run_here_is_refused_even_when_it_fits(): void
@@ -412,7 +561,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $two->cards->add(new InboxItemCard($two, $other));
         $this->em()->flush();
 
-        self::assertSame([InboxActionKind::SendAgent, InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($one)));
+        self::assertSame([InboxActionKind::Answer, InboxActionKind::SendAgent, InboxActionKind::Open, InboxActionKind::StartSession, InboxActionKind::Dismiss], array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($one)));
         self::assertNull($this->itemActions()->sendAgentFor($two));
         self::assertNull($this->itemActions()->sendAgentFor($none));
     }
@@ -652,6 +801,20 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame(1, (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM outbox_events WHERE type = 'bridge.work_request'"));
     }
 
+    public function test_a_session_starts_from_a_closed_item(): void
+    {
+        $this->sessionBridge();
+        $item = $this->runItem();
+        $this->runAction($item, InboxActionKind::Dismiss);
+        self::assertSame(InboxItemState::Declined, $item->state);
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        self::assertSame(InboxActionKind::StartSession, $action->kind);
+        self::assertInstanceOf(WorkRequest::class, $this->em()->find(WorkRequest::class, $action->workRequestId));
+        self::assertSame(InboxItemState::Declined, $item->state);
+    }
+
     public function test_a_session_without_a_prompt_sends_none_and_audits_no_prompt(): void
     {
         $this->sessionBridge();
@@ -779,6 +942,89 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->flush();
 
         $this->assertRefused($item, InboxActionKind::StartSession, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    private function noteItem(string $title = 'No card'): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: $title, blocking: false, origin: InboxAskOrigin::Loupe, body: 'The remote is blocked.');
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    public function test_a_session_from_an_item_with_no_card_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession, '', 'Look at the remote.') ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+        self::assertSame(
+            [InboxItem::SUBJECT_TYPE, (string) $item->id, null, 'session', 'session', 'inbox:start-session', WorkRequestState::Open, 'Look at the remote.'],
+            [$request->subjectType, (string) $request->subjectId, $request->cardNumber, $request->kind, $request->capability, $request->ruleId, $request->state, $request->prompt],
+        );
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [$request->context->inboxActionId, $request->context->inboxItemNumber, $request->context->inboxItemId]);
+        self::assertSame('Look at the remote.', $action->sessionPrompt);
+        self::assertSame(1, (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM outbox_events WHERE type = 'bridge.work_request'"));
+    }
+
+    public function test_a_session_from_a_closed_item_with_no_card_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->askedItem(InboxItemKind::Question, ['A', 'B']);
+        $this->respond($item, InboxActionKind::Answer, selectedOptions: '0');
+        self::assertSame(InboxItemState::Resolved, $item->state);
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id], [$request?->subjectType, (string) $request?->subjectId]);
+        self::assertSame(InboxItemState::Resolved, $item->state);
+    }
+
+    public function test_a_session_from_an_item_with_several_cards_opens_a_request_about_the_item(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem('Two cards');
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $other = new Card(project: $this->project, column: $this->card->column, title: 'Other', body: 'Body', number: 99);
+        $this->em()->persist($other);
+        $item->cards->add(new InboxItemCard($item, $other));
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([InboxItem::SUBJECT_TYPE, null], [$request?->subjectType, $request?->cardNumber]);
+    }
+
+    public function test_a_session_from_an_item_with_one_card_still_runs_on_the_card(): void
+    {
+        $this->sessionBridge();
+        $item = $this->noteItem('One card');
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame([WorkSubject::CARD, $this->card->number], [$request?->subjectType, $request?->cardNumber]);
+    }
+
+    public function test_a_session_from_an_item_is_refused_while_its_session_request_is_live_and_leaves_no_row(): void
+    {
+        $this->sessionBridge(itemSessions: true);
+        $item = $this->noteItem();
+        $this->runAction($item, InboxActionKind::StartSession);
+
+        $this->assertRefused($item, InboxActionKind::StartSession, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        $this->em()->clear();
+        self::assertCount(1, $this->service(InboxActionRepository::class)->findByItem($item));
     }
 
     public function test_a_session_is_refused_while_a_session_request_of_the_card_is_live_and_leaves_no_row(): void
@@ -1103,7 +1349,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $this->commandBridge();
         $item = $this->commandTodo();
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
         $this->em()->flush();
 
         $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
@@ -1227,7 +1473,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $this->addBridge();
         $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
-        $item->state = InboxItemState::Done;
+        $item->state = InboxItemState::Resolved;
         $this->em()->flush();
 
         $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
@@ -1366,9 +1612,10 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         return $item;
     }
 
-    private function sessionBridge(): void
+    private function sessionBridge(bool $itemSessions = false): void
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->workKinds = $itemSessions ? [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)] : [];
         $this->bridge->projects = [(string) $this->project->id];
         $this->em()->flush();
     }
@@ -1392,6 +1639,33 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         } catch (DomainErrors $e) {
             self::assertSame(['action' => $key], $e->errors);
         }
+    }
+
+    /** @param list<string> $options */
+    private function askedItem(InboxItemKind $kind, array $options = [], bool $freeText = false): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: $kind, title: 'Which?', blocking: false, origin: InboxAskOrigin::Agent, options: $options, freeText: $freeText);
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    private function respond(InboxItem $item, InboxActionKind $kind, string $note = '', string $selectedOptions = '', ?string $verdict = null, ?int $versionNumber = null, ?string $expectedUrl = null): ?InboxAction
+    {
+        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner, selectedOptions: $selectedOptions, verdict: $verdict, versionNumber: $versionNumber, expectedUrl: $expectedUrl));
+    }
+
+    /** @param array<string, string> $errors */
+    private function assertRespondRefused(InboxItem $item, array $errors, InboxActionKind $kind = InboxActionKind::Answer, string $note = '', string $selectedOptions = '', ?string $verdict = null): void
+    {
+        try {
+            $this->respond($item, $kind, $note, $selectedOptions, $verdict);
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame($errors, $e->errors);
+        }
+        self::assertSame(InboxItemState::Open, $item->state);
     }
 
     private function runAction(InboxItem $item, InboxActionKind $kind, string $note = '', ?string $sessionPrompt = null): ?InboxAction
@@ -1424,6 +1698,11 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->audit->auditor,
             $this->service(SessionPromptLimit::class),
             $this->service(PauseCardAgentsHandler::class),
+            $this->service(AnswerInboxItemHandler::class),
+            $this->service(MarkInboxItemDoneHandler::class),
+            $this->service(SubmitInboxDocumentReviewHandler::class),
+            $this->service(SubmitInboxPullRequestReviewHandler::class),
+            $this->service(InboxReviewLookup::class),
         );
     }
 
@@ -1442,6 +1721,8 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(RunCommandRuns::class),
             $this->service(CardWaitText::class),
             $this->service(CardHoldRepository::class),
+            $this->service(InboxReviewLookup::class),
+            $this->service(SessionPromptWriter::class),
         );
     }
 

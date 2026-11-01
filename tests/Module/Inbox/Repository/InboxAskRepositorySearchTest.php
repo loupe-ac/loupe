@@ -142,7 +142,7 @@ final class InboxAskRepositorySearchTest extends KernelTestCase
         $page = $this->search('checkout');
 
         self::assertSame([(string) $ask->id], $this->ids($page->rows));
-        self::assertSame(InboxItemState::Answered, $item->state);
+        self::assertSame(InboxItemState::Resolved, $item->state);
     }
 
     public function test_an_open_item_of_a_closed_ask_comes_back_as_its_own_row_too(): void

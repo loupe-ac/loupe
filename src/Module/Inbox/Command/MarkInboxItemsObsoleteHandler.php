@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Command;
 
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
@@ -14,7 +16,7 @@ use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Inbox\Service\InboxItemCloser;
 
 /**
- * Closes as obsolete every open item of the moved cards whose linked cards all
+ * Cancels every open item of the moved cards whose linked cards all
  * sit in terminal columns. An item with one unfinished card stays open. With
  * the inbox off it closes nothing, so a board write never closes an ask.
  *
@@ -44,7 +46,7 @@ final readonly class MarkInboxItemsObsoleteHandler
         $now = new \DateTimeImmutable();
         $closed = array_values(array_filter(
             $this->inboxItems->findOpenWithEveryCardFinished($command->cardIds),
-            fn (InboxItem $item): bool => $this->closer->close($item, InboxItemState::Obsolete, null, $now),
+            fn (InboxItem $item): bool => $this->closer->close($item, InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::CardFinished, null, $now),
         ));
         foreach ($closed as $item) {
             // Signalled before the move commits. The signal holds no count, so after a

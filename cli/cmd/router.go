@@ -129,6 +129,10 @@ type router struct {
 	update *bridgeUpdate
 	// scriptDir holds the launch scripts, and "" means defaultScriptDir.
 	scriptDir string
+	// items makes and removes the worktrees of the item sessions. Use
+	// itemSessions, which makes it on first use.
+	items     *itemSessions
+	itemsOnce sync.Once
 	// worktrees lists the worktrees of a project folder. A nil one runs git.
 	worktrees func(ctx context.Context, dir string) ([]worktree, error)
 
@@ -274,6 +278,18 @@ type router struct {
 
 	// wg counts the workers in flight. Tests wait on it instead of sleeping.
 	wg sync.WaitGroup
+}
+
+// itemSessions is the tracker of the item session worktrees, made on first use.
+func (r *router) itemSessions() *itemSessions {
+	r.itemsOnce.Do(func() {
+		if r.items == nil {
+			r.items = newItemSessions(r.log, newSessionLiveness(r.rules).readings)
+			r.items.codex = codexLaunched
+		}
+	})
+
+	return r.items
 }
 
 // rules is the current rule set.

@@ -1,182 +1,228 @@
-{#- A wait item as a thread: what stopped, the owner's reply with its split button, and the actions the owner already took.
-   Params: item, watch (InboxCardWatch), inbox, refusedForm, actionParams, responseFrame, hostCardId, cardDrawer,
-   reply (whether this page takes the owner's reply), todoButtons (optional: declineFormId, declineLabel, doneFormId of a to-do),
-   withNote (optional, default true: whether the reply card takes a note for the action). -#}
-{% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
-{% set todoButtons = todoButtons ?? null %}
-{% set withNote = (withNote ?? true) and not todoButtons %}
-{% set shownWaits = watch is null ? [] : inbox_page_waits(watch.waits) %}
-{% set statuses = reply ? inbox_action_statuses(item) : [] %}
-{% set lastStatus = statuses|last %}
-{# Another open wait, or an expired or cancelled action, brings the reply card back. #}
-{% set answering = lastStatus and lastStatus.answers(watch ? watch.waits : []) %}
-{% set actions = reply ? inbox_actions(item, hostCardId) : null %}
-{# The one run-command row of the item, whether it is the main button or in the menu. #}
-{% set commandRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.runCommand)|first : null %}
+{#- One item as a thread: the request, what the owner did, the response or the closing message, and the reply card.
+   A sent response is final, so a closed item has no reply card.
+   Params: item, ask (InboxAsk or null), inbox (InboxItemsView), refusedForm, cardDrawer, hostCardId (optional),
+   showHead (optional: the number, title, kind and Blocking mark of an item in an ask with several), position (optional). -#}
+{% set home = inbox.isHome(item, ask) %}
+{% set open = item.state.value == 'open' %}
+{% set thread = inbox_thread(item, hostCardId ?? null) %}
+{% set card = thread.replyCard %}
+{% set actionParams = {projectId: item.project.id, itemId: item.id}|merge(inbox.actionQuery) %}
+{% set responseFrame = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' ? 'card-drawer-frame' : '_top' %}
+{% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
+{% set granted = home and open and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+{% set reviewDenied = granted and card and card.review and card.review.document and not is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::REVIEW_DOCUMENT'), item) %}
+{# An action under way hides the card, but its run and the command it started still show. #}
+{% set fallback = granted and not card ? inbox_actions(item, hostCardId ?? null) : null %}
+{% set rows = not granted ? [] : (card ? [card.main]|merge(card.menu) : (fallback ? [fallback.main]|merge(fallback.menu) : [])) %}
+{% set commandRow = rows|filter(row => row and row.action.runCommand)|first %}
 {% set runCommand = commandRow ? commandRow.action.runCommand : null %}
-{% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
-{# The enabled start-session row that carries a prompt of the asking agent. The owner reads and edits it before the click. #}
-{% set sessionRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.sessionPrompt is not null and row.action.disabledReasonKey is null)|first : null %}
-{# The field shows when Start session is the main button. From the menu, the row shows it first, with its own button. #}
-{% set sessionMain = sessionRow and sessionRow is same as(actions.main) %}
-{# The dialog posts the reply form, so it needs the reply card on the page. #}
-{% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
-{# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
-{% set addEntryDialog = runCommand and runCommand.canAddEntry and not answering %}
+{% set sessionRow = rows|filter(row => row and row.action.sessionPrompt is not null and row.action.disabledReasonKey is null)|first %}
+{% set sessionMain = card and sessionRow and sessionRow is same as(card.main) %}
+{% set showCard = granted and card and not reviewDenied %}
+{# A sent response is final, but a closed item still starts a new session. #}
+{% set closedSession = home and not open and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) ? inbox_actions(item, hostCardId ?? null).main : null %}
+{% set closedSession = closedSession and closedSession.action.sessionPrompt is not null ? closedSession : null %}
+{% set commandDialog = showCard and runCommand and runCommand.canOpenDialog %}
+{% set addEntryDialog = showCard and runCommand and runCommand.canAddEntry %}
+{% set form = showCard ? inbox_reply_form(item, refusedForm ?? null) : null %}
+{% set misfit = home and open ? inbox_repository_misfit(item) : null %}
 {% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', held: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
-<div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
-    {% if shownWaits %}
-    <ul class="lp-inbox-thread__messages" data-inbox-waits>
-        {% for wait in shownWaits %}
-            {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
-            {%- set runWait = wait.type.value == 'worker-run' -%}
-            <li class="lp-inbox-thread__message{{ wait.endedAt ? ' lp-inbox-thread__message--ended' }}" data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
+{% set agentRequest = item.origin.value == 'agent' %}
+<article class="lp-inbox-item"{% if home %} id="inbox-item-{{ item.number }}"{% endif %} data-inbox-item="{{ item.number }}" data-inbox-item-open="{{ open ? 'true' : 'false' }}">
+    {% if showHead ?? false %}
+    <div class="lp-inbox-item__head">
+        <span class="lp-inbox-item__number" aria-hidden="true">{{ position ?? item.number }}</span>
+        <h3 class="lp-inbox-item__title">{{ item.title|reference_plain }}</h3>
+        <span class="lp-inbox-item__kind">
+            {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: item.kind.value, class: 'lp-icon lp-icon--sm'} only %}
+            {{ ('inbox.item.kind.' ~ item.kind.value)|trans }}
+        </span>
+        {% if item.blocking %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
+    </div>
+    {% endif %}
+    <div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
+        {% if thread.body or thread.waits %}
+        <ul class="lp-inbox-thread__messages"{% if thread.waits %} data-inbox-waits{% endif %}>
+            {% if thread.body %}
+            <li class="lp-inbox-thread__message">
                 <div class="lp-comment-thread__header lp-inbox-thread__head">
-                    <twig:Ds:Avatar :icon="runWait ? 'lucide:bot' : 'lucide:search'" size="xs" tone="tint" aria-hidden="true" />
-                    <span class="lp-comment-author">{{ runWait ? line.params['%Worker%'] : 'inbox.thread.loupe'|trans }}</span>
-                    <twig:Ds:Hint as="span">{{ (runWait ? 'inbox.thread.stopped' : 'inbox.thread.waiting')|trans({'%time%': wait.startedAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}
+                    <twig:Ds:Avatar :icon="agentRequest ? 'lucide:bot' : 'lucide:search'" size="xs" tone="tint" aria-hidden="true" />
+                    <span class="lp-comment-author">{{ (agentRequest ? 'inbox.thread.agent' : 'inbox.thread.loupe')|trans }}</span>
+                    <twig:Ds:Hint as="span">{{ (item.kind.value == 'notice' ? 'inbox.thread.waiting' : 'inbox.thread.asked')|trans({'%time%': item.createdAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}
                 </div>
                 <div class="lp-comment-thread">
-                    {%- if runWait and line.detail %}
-                        {# Worker Markdown, rendered and sanitized the way a card body is. #}
-                        {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
-                    {%- else %}
-                        <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
-                        {%- if line.detail %}
-                            {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
-                        {%- endif %}
-                    {%- endif %}
-                    {%- if wait.endedAt %}
-                        <twig:Ds:Hint>{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</twig:Ds:Hint>
-                    {%- endif %}
+                    {# Agent Markdown, rendered and sanitized the way a card body is. #}
+                    {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose lp-inbox-item__body" data-references>{{ thread.body|inbox_markdown }}</div>{% endapply %}
                 </div>
             </li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-
-    {% for status in statuses %}
-        {% set requestedTime = status.action.requestedAt|date('H:i') %}
-        <div class="lp-readiness-discovery lp-inbox-thread__you" data-inbox-action-status="{{ status.state.value }}">
-            <div class="lp-comment-thread__header lp-inbox-thread__head">
-                <twig:Ds:Avatar :name="app.user.fullName" size="xs" aria-hidden="true" />
-                <span class="lp-comment-author">{{ 'inbox.thread.you'|trans }}</span>
-                <twig:Ds:Hint as="span">{{ ('inbox.thread.you_verb.' ~ status.action.kind.value)|trans({'%time%': requestedTime}) }}</twig:Ds:Hint>
-                <twig:Ds:StatusChip class="lp-inbox-thread__chip" :modifier="chips[status.state.value]" :label="status.labelKey|trans(status.labelParameters|merge(status.at ? {'%time%': status.at|date('H:i')} : {}))" />
-            </div>
-            {% if status.action.note|trim is not empty %}
-                <div class="lp-comment-body lp-inbox-thread__note">{{ status.action.note }}</div>
             {% endif %}
-            {% if status.offline or status.cancellable %}
-                <div class="lp-inbox-thread__status">
-                    {% if status.offline %}<twig:Ds:Hint as="span" data-inbox-action-offline>{{ 'inbox.action.status.offline'|trans }}</twig:Ds:Hint>{% endif %}
-                    {% if status.cancellable %}
-                        {% set cancelForm = inbox_action_cancel_form(status.action, refusedForm) %}
-                        {{ form_start(cancelForm, {action: path('app_inbox_item_action_cancel', actionParams|merge({actionId: status.action.id})), attr: {class: 'lp-inbox-thread__cancel', 'data-turbo-frame': responseFrame}}) }}
-                            <twig:Ds:FieldErrors :fieldView="cancelForm" />
-                            <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'inbox.thread.cancel'|trans }}</twig:Ds:Button>
-                        {{ form_end(cancelForm) }}
-                    {% endif %}
+            {% set linkedDocumentIds = thread.waits ? item.documents|map(link => link.document.id.toRfc4122()) : [] %}
+            {% for wait in thread.waits %}
+                {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
+                {%- set runWait = wait.type.value == 'worker-run' -%}
+                <li class="lp-inbox-thread__message{{ wait.endedAt ? ' lp-inbox-thread__message--ended' }}" data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
+                    <div class="lp-comment-thread__header lp-inbox-thread__head">
+                        <twig:Ds:Avatar :icon="runWait ? 'lucide:bot' : 'lucide:search'" size="xs" tone="tint" aria-hidden="true" />
+                        <span class="lp-comment-author">{{ runWait ? line.params['%Worker%'] : 'inbox.thread.loupe'|trans }}</span>
+                        <twig:Ds:Hint as="span">{{ (runWait ? 'inbox.thread.stopped' : 'inbox.thread.waiting')|trans({'%time%': wait.startedAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}
+                    </div>
+                    <div class="lp-comment-thread">
+                        {%- if runWait and line.detail %}
+                            {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
+                        {%- else %}
+                            <p class="lp-comment-body">{{ line.pageKey|trans(line.params) }}</p>
+                            {%- if line.detail %}
+                                {% apply link_references(item.project) %}<div class="prose lp-prose lp-review-doc__prose" data-inbox-wait-detail data-references>{{ line.detail|inbox_markdown }}</div>{% endapply %}
+                            {%- endif %}
+                        {%- endif %}
+                        {%- if wait.endedAt %}
+                            <twig:Ds:Hint>{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</twig:Ds:Hint>
+                        {%- endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if misfit %}
+            {% include '@Inbox/_inbox_repository_misfit_actions.html.twig' with {item: item, misfit: misfit} only %}
+        {% endif %}
+
+        {% for status in thread.actions %}
+            <div class="lp-readiness-discovery lp-inbox-thread__you" data-inbox-action-status="{{ status.state.value }}">
+                <div class="lp-comment-thread__header lp-inbox-thread__head">
+                    <twig:Ds:Avatar :name="app.user.fullName" size="xs" aria-hidden="true" />
+                    <span class="lp-comment-author">{{ 'inbox.thread.you'|trans }}</span>
+                    <twig:Ds:Hint as="span">{{ ('inbox.thread.you_verb.' ~ status.action.kind.value)|trans({'%time%': status.action.requestedAt|date('H:i')}) }}</twig:Ds:Hint>
+                    <twig:Ds:StatusChip class="lp-inbox-thread__chip" :modifier="chips[status.state.value]" :label="status.labelKey|trans(status.labelParameters|merge(status.at ? {'%time%': status.at|date('H:i')} : {}))" />
                 </div>
-            {% endif %}
-        </div>
-    {% endfor %}
-
-    {% if runCommand and runCommand.run %}
-        {% include '@Inbox/_inbox_run_command_run.html.twig' with {item: item, command: runCommand, actionParams: actionParams, responseFrame: responseFrame, refusedForm: refusedForm ?? null, rerun: commandDialog, doneFormId: todoButtons ? todoButtons.doneFormId : null} only %}
-    {% endif %}
-
-    {% if reply and not answering %}
-        {% set declineForm = inbox_decline_form(item, refusedForm) %}
-        {% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
-        <div class="lp-inbox-item__actions">
-            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}|merge(sessionRow and not sessionMain ? {'data-controller': 'inbox-session-prompt'} : {})}) }}
-                {% if actions.main %}
-                    <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</h3>
+                {% set sentNote = status.action.note|trim %}
+                {% if sentNote is not empty %}
+                    <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.note_label'|trans }}</twig:Ds:Label>
+                    <div class="prose lp-prose lp-inbox-thread__note" data-inbox-action-note><blockquote><p>{{ sentNote|nl2br }}</p></blockquote></div>
                 {% endif %}
-                {% set entryProposed = runCommand and runCommand.entryYaml and runCommand.disabledReasonKey == 'inbox.action.run-command.disabled.entry_missing' %}
-                {% if runCommand and not runCommand.canOpenDialog and not (runCommand.run and runCommand.run.state.isLive) %}
-                    {% if entryProposed %}
-                        <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ (runCommand.addEntryLive ? 'inbox.run_command.missing.adding' : (runCommand.acceptsEntries ? 'inbox.run_command.missing.reason_proposed' : 'inbox.run_command.missing.reason_no_opt_in'))|trans({'%entry%': runCommand.entry, '%bridge%': runCommand.bridgeName}) }}</p>
-                    {% else %}
-                        <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ runCommand.disabledReasonKey|trans }}</p>
-                    {% endif %}
+                {% set sentPrompt = status.action.kind.value == 'start-session' ? status.action.sessionPrompt|default('')|trim : '' %}
+                {% if sentPrompt is not empty %}
+                    <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.session_prompt_label'|trans }}</twig:Ds:Label>
+                    <div class="prose lp-prose lp-inbox-thread__note" data-inbox-action-prompt><blockquote><p>{{ sentPrompt|nl2br }}</p></blockquote></div>
                 {% endif %}
-                {% if entryProposed %}
-                    {% if runCommand.acceptsEntries %}
-                        <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label_add'|trans" :text="runCommand.entryYaml|trim" :copy="false" data-inbox-run-command-proposed />
-                    {% else %}
-                        <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label'|trans" :text="runCommand.entryYaml|trim" :copyLabel="'inbox.run_command.missing.copy'|trans" :copiedLabel="'inbox.run_command.missing.copied'|trans" data-inbox-run-command-proposed />
-                        <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
-                    {% endif %}
-                {% endif %}
-                {% if withNote %}
-                    {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
-                    <twig:Ds:FieldErrors :fieldView="actionForm.note" />
-                {% endif %}
-                {% if sessionMain %}
-                    <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
-                {% elseif sessionRow %}
-                    <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
-                        <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
-                        <twig:Ds:FormActions>
-                            <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans(sessionRow.action.labelParams) }}</twig:Ds:Button>
-                        </twig:Ds:FormActions>
+                {% if status.offline or (status.cancellable and granted) %}
+                    <div class="lp-inbox-thread__status">
+                        {% if status.offline %}<twig:Ds:Hint as="span" data-inbox-action-offline>{{ 'inbox.action.status.offline'|trans }}</twig:Ds:Hint>{% endif %}
+                        {% if status.cancellable and granted %}
+                            {% set cancelForm = inbox_action_cancel_form(status.action, refusedForm ?? null) %}
+                            {{ form_start(cancelForm, {action: path('app_inbox_item_action_cancel', actionParams|merge({actionId: status.action.id})), attr: {class: 'lp-inbox-thread__cancel', 'data-turbo-frame': responseFrame}}) }}
+                                <twig:Ds:FieldErrors :fieldView="cancelForm" />
+                                <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'inbox.thread.cancel'|trans }}</twig:Ds:Button>
+                            {{ form_end(cancelForm) }}
+                        {% endif %}
                     </div>
                 {% endif %}
-                <twig:Ds:FieldErrors :fieldView="actionForm" />
-                {{ form_widget(actionForm._token) }}
-                <div class="lp-comment-composer__actions">
-                    <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (withNote ? 'inbox.thread.note_hint'|trans : '') }}</twig:Ds:Hint>
-                    {% if todoButtons %}
-                        {% include '@Inbox/_decline_button.html.twig' with {formId: todoButtons.declineFormId, label: todoButtons.declineLabel} only %}
-                        <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.doneFormId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
-                    {% endif %}
-                    {% if not actions.main and not actions.menu and actions.dismiss %}
-                        {# Nothing else fits, so Dismiss is the one action and needs no menu. #}
-                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans(actions.dismiss.action.labelParams) }}</twig:Ds:Button>
-                    {% elseif actions.main or actions.menu %}
-                    <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
-                        <twig:block name="main">
-                        {% if actions.main and actions.main.isLink %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-drawer-title="actions.main.card and cardDrawer ? item.title|reference_plain : null" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
-                        {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" data-action="click->modal#open" data-inbox-action="add-entry">{{ 'inbox.action.add-entry.label'|trans }}</twig:Ds:Button>
-                        {% elseif actions.main and actions.main.action.runCommand %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
-                        {% elseif actions.main %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans(actions.main.action.labelParams) }}</twig:Ds:Button>
-                        {% endif %}
-                        </twig:block>
-                        <twig:block name="content">
-                            {% for row in actions.menu %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: row, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
-                            {% endfor %}
-                            {% if actions.menu and actions.dismiss %}
-                                <twig:Ds:MenuDivider />
-                            {% endif %}
-                            {% if actions.dismiss %}
-                                {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer, drawerTitle: item.title|reference_plain} only %}
-                            {% endif %}
-                        </twig:block>
-                    </twig:Ds:SplitButton>
+            </div>
+        {% endfor %}
+
+        {% if runCommand and runCommand.run %}
+            {% include '@Inbox/_inbox_run_command_run.html.twig' with {item: item, command: runCommand, actionParams: actionParams, responseFrame: responseFrame, refusedForm: refusedForm ?? null, rerun: commandDialog, doneFormId: form and item.kind.value == 'todo' ? form.vars.id : null} only %}
+        {% endif %}
+
+        {% if thread.reply %}
+            {% set reply = thread.reply %}
+            <div class="lp-readiness-discovery lp-inbox-thread__you" data-inbox-response>
+                <div class="lp-comment-thread__header lp-inbox-thread__head">
+                    <twig:Ds:Avatar :name="app.user.fullName" size="xs" aria-hidden="true" />
+                    <span class="lp-comment-author">{{ 'inbox.thread.you'|trans }}</span>
+                    <twig:Ds:Hint as="span">{{ reply.verbKey|trans({'%time%': reply.at ? reply.at|date('H:i') : ''}) }}</twig:Ds:Hint>
+                    {% if review and review.reviewedVersionNumber %}<twig:Ds:Hint as="span">{{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}</twig:Ds:Hint>{% endif %}
+                    {% if reply.outcome %}
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: reply.outcome} only %}</span>
                     {% endif %}
                 </div>
-            {{ form_end(actionForm, {render_rest: false}) }}
+                {% if reply.options %}
+                    <ul class="lp-inbox-item__choices" data-inbox-choices>
+                        {% for option in reply.options %}
+                            <li><twig:ux:icon name="lucide:check" class="lp-inbox-item__choice-icon" />{{ option }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% if reply.note is not null %}
+                    <twig:Ds:Label as="p" class="lp-inbox-thread__note-label">{{ 'inbox.thread.note_label'|trans }}</twig:Ds:Label>
+                    <div class="prose lp-prose lp-inbox-thread__note"><blockquote><p>{{ reply.note }}</p></blockquote></div>
+                {% endif %}
+                {% if reply.throughAgent %}<twig:Ds:Hint data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</twig:Ds:Hint>{% endif %}
+                {% if review and review.verdict %}
+                    {% set withdrawal = inbox_review_withdrawal(review) %}
+                    {% if withdrawal %}
+                        <twig:Ds:Hint data-inbox-review-withdrawal>{{ 'inbox.review.withdrawn'|trans({'%name%': withdrawal.reviewer.fullName, '%time%': withdrawal.submittedAt|date('j M Y, H:i')}) }}</twig:Ds:Hint>
+                        {% if review.document %}<a class="lp-inbox-item__jump" href="{{ path('app_document_review', {projectId: item.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top">{{ 'inbox.review.open_document'|trans }}</a>{% endif %}
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% elseif thread.closing %}
+            {% set closing = thread.closing %}
+            {% set closer = closing.closer.value ?? 'loupe' %}
+            {% set workflowRule = review and review.verdict ? review.documentReview.workflowRule ?? null : null %}
+            <div class="lp-inbox-thread__message" data-inbox-response data-inbox-closing="{{ closer }}">
+                <div class="lp-comment-thread__header lp-inbox-thread__head">
+                    <twig:Ds:Avatar :icon="closer == 'agent' ? 'lucide:bot' : 'lucide:search'" size="xs" tone="tint" aria-hidden="true" />
+                    <span class="lp-comment-author">{{ ('inbox.thread.closing.author.' ~ closer)|trans }}</span>
+                    <twig:Ds:Hint as="span">{{ 'inbox.thread.closing.hint'|trans({'%time%': closing.at ? closing.at|relative_time : ''}) }}</twig:Ds:Hint>{# @design-system-ignore #}
+                    {% if closing.outcome %}
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: closing.outcome} only %}</span>
+                    {% endif %}
+                </div>
+                <div class="lp-comment-thread">
+                    {% if closing.note is not null %}
+                        <p class="lp-comment-body">{{ closing.note }}</p>
+                    {% elseif workflowRule and review.verdict.value == 'approved' %}
+                        <p class="lp-comment-body">{{ 'review.document.verdict.workflow_approved_note'|trans }} <twig:Ds:Tag tone="neutral">{{ workflowRule }}</twig:Ds:Tag></p>
+                    {% else %}
+                        <p class="lp-comment-body">{{ ('inbox.thread.closing.' ~ (item.closeCause.value ?? 'default'))|trans({'%closer%': ('inbox.thread.closing.author.' ~ closer)|trans}) }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
 
-            {# Dismiss ignores the note, so this form carries none. Its button sits in the menu above, through the form attribute. #}
-            {% if actions.dismiss %}
-            {{ form_start(declineForm, {action: path('app_inbox_item_decline', actionParams), attr: {id: declineForm.vars.id, class: 'lp-inbox-decline__form', 'data-turbo-frame': responseFrame}}) }}
-                {{ form_widget(declineForm.closeNote) }}
-                <twig:Ds:FieldErrors>{{ form_errors(declineForm) }}{{ form_errors(declineForm.closeNote) }}</twig:Ds:FieldErrors>
-            {{ form_end(declineForm) }}
+        {% if not home %}
+            {# The forms of an item live at one place, which another page or another queue can hold. A copy shows the way there. #}
+            <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (open and item.kind.value != 'notice' ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
+        {% else %}
+            {% set refusals = open ? [] : inbox_refusals(item, refusedForm ?? null) %}
+            {% if not open %}
+                {% if refusals|length > 0 %}
+                    <div class="lp-inbox-item__refusal" role="alert" data-inbox-refusal>
+                        {% for message in refusals %}<p>{{ message }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+                {% if item.kind.value in ['question', 'workflow'] %}
+                    {% set refusedAnswer = refusals|length > 0 and refusedForm.selectedOptions is defined %}
+                    {% include '@Inbox/_response_draft.html.twig' with {
+                        kind: 'answer', key: item.id, options: item.options, title: 'inbox.answer.unsent',
+                        fallbackNote: refusedAnswer ? refusedForm.note.vars.value : '',
+                        fallbackOptions: refusedAnswer ? refusedForm.selectedOptions.vars.value|default('')|split(',')|map(i => item.options[i|trim] ?? null)|filter(label => label is not null) : [],
+                    } only %}
+                {% endif %}
             {% endif %}
-        </div>
-    {% endif %}
+            {% if reviewDenied %}
+                <p role="status">{{ 'inbox.review.error.target_unavailable'|trans }}</p>
+            {% elseif showCard %}
+                {% include '@Inbox/_reply_card.html.twig' with {item: item, card: card, form: form, actionParams: actionParams, responseFrame: responseFrame, cardDrawer: cardDrawer ?? false, refusedForm: refusedForm ?? null, runCommand: runCommand, commandDialog: commandDialog, addEntryDialog: addEntryDialog, sessionRow: sessionRow, sessionMain: sessionMain} only %}
+            {% endif %}
+            {% if closedSession %}
+                {% include '@Inbox/_session_card.html.twig' with {item: item, row: closedSession, form: inbox_reply_form(item, refusedForm ?? null), actionParams: actionParams, responseFrame: responseFrame} only %}
+            {% endif %}
+            {% if review and (not open or reviewDenied or (card and card.targetGone)) %}
+                {% include '@Inbox/_response_draft.html.twig' with {
+                    kind: 'review', key: item.id ~ ':review', options: [], title: 'inbox.review.unsent', fallbackTitle: 'inbox.review.unsent_note', hint: 'inbox.review.unsent_unavailable',
+                    labels: {approved: 'inbox.review.verdict.approved'|trans, 'changes-requested': 'inbox.review.verdict.changes-requested'|trans},
+                    fallbackNote: refusedForm.note is defined and refusals|length > 0 ? refusedForm.note.vars.value : ''
+                } only %}
+            {% endif %}
+        {% endif %}
 
-    {% if commandDialog %}
-        {% include '@Inbox/_inbox_run_command_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: actionForm.vars.id, fieldName: actionForm.vars.full_name} only %}
-    {% elseif addEntryDialog %}
-        {% include '@Inbox/_inbox_add_entry_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: actionForm.vars.id} only %}
-    {% endif %}
-</div>
+        {% if commandDialog %}
+            {% include '@Inbox/_inbox_run_command_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: form.vars.id, fieldName: form.vars.full_name} only %}
+        {% elseif addEntryDialog %}
+            {% include '@Inbox/_inbox_add_entry_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: form.vars.id} only %}
+        {% endif %}
+    </div>
+</article>

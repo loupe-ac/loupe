@@ -284,33 +284,6 @@ class InboxAskRepository extends ServiceEntityRepository
     }
 
     /**
-     * The ids of the given items that a closed ask holds, which makes an answer on them final.
-     *
-     * @param list<InboxItem> $items
-     *
-     * @return list<string>
-     */
-    public function findItemIdsHeldByClosedAsks(array $items): array
-    {
-        if ([] === $items) {
-            return [];
-        }
-
-        /** @var list<array{id: mixed}> $rows */
-        $rows = $this->getEntityManager()->createQueryBuilder()
-            ->select('DISTINCT IDENTITY(l.item) AS id')
-            ->from(InboxAskItem::class, 'l')
-            ->join('l.ask', 'a')
-            ->andWhere('l.item IN (:items)')
-            ->andWhere('a.closedAt IS NOT NULL')
-            ->setParameter('items', $items)
-            ->getQuery()
-            ->getArrayResult();
-
-        return array_map(static fn (array $row): string => (string) $row['id'], $rows);
-    }
-
-    /**
      * Stamps the read on each given item that a closed ask of the session holds.
      * An earlier stamp stays, so the first read after the close is the one kept.
      *

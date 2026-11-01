@@ -161,7 +161,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
     {
         $owner = $this->signedUpUser($this->em, 'account-inbox-loose');
         $project = $this->inboxProject($this->em, $owner);
-        $done = $this->answered($this->em, $this->question($this->em, $project, 1), InboxItemState::Done);
+        $done = $this->answered($this->em, $this->question($this->em, $project, 1), InboxItemState::Resolved);
         $leftOpen = $this->todo($this->em, $project, 2, 'Review pull request 482');
         $this->askHolding($this->em, $project, [$done, $leftOpen], closedAt: new \DateTimeImmutable('-1 hour'));
         $this->setInboxFlag(true);
@@ -181,7 +181,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
         $page = $this->client->request(Request::METHOD_GET, $path);
         self::assertResponseIsSuccessful();
         self::assertCount(1, $page->filter('[data-inbox-item="2"]'));
-        self::assertCount(1, $page->filter('form[name="inbox_done_'.$leftOpen->id.'"]'));
+        self::assertCount(1, $page->filter('form[name="inbox_response_'.$leftOpen->id.'"]'));
     }
 
     public function test_the_page_reads_every_ask_item_and_project_in_one_query(): void

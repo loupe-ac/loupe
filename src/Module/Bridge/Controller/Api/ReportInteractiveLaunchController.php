@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ReportInteractiveLaunchCommand;
 use App\Module\Bridge\Command\ReportInteractiveLaunchHandler;
+use App\Module\Bridge\Command\ReportInteractiveLaunchResult;
 use App\Outbox\AgentPush;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -16,7 +17,7 @@ use Symfony\Component\Uid\Uuid;
 use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 /**
- * Records how the bridge's launch of one interactive session on a card went.
+ * Records how the bridge's launch of one interactive session on a card, or on another subject such as an inbox item, went.
  * The firewall admits agent-scoped tokens alone.
  *
  * The bridge reads a 404 with no error code as a server with no such endpoint,
@@ -52,8 +53,8 @@ final class ReportInteractiveLaunchController extends AppController
             handle: $handle,
             sessionId: Uuid::fromString($sessionId),
             bridgeId: $payload->bridgeId(),
-            cardId: $payload->cardId(),
-            cardNumber: $payload->cardNumber ?? throw new \LogicException('cardNumber is required after validation.'),
+            subject: $payload->subject(),
+            cardNumber: $payload->cardNumber,
             workKind: $payload->workKind(),
             state: $payload->state(),
             at: $payload->at(),
@@ -67,7 +68,7 @@ final class ReportInteractiveLaunchController extends AppController
         ));
 
         if (null === $result->run) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            return $this->json(['error' => $result->error], ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE === $result->error ? JsonResponse::HTTP_UNPROCESSABLE_ENTITY : JsonResponse::HTTP_NOT_FOUND);
         }
 
         return $this->json(

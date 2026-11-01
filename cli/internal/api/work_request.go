@@ -122,6 +122,9 @@ var Efforts = []string{"low", "medium", "high", "xhigh", "max"}
 // SubjectCard is the subject type of a card.
 const SubjectCard = "card"
 
+// SubjectInboxItem is the subject type of an inbox item.
+const SubjectInboxItem = "inbox-item"
+
 // OnCard reports whether the work is about a card.
 func (w WorkRequest) OnCard() bool {
 	return w.SubjectType == SubjectCard

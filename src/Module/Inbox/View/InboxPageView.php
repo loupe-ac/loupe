@@ -7,8 +7,6 @@ namespace App\Module\Inbox\View;
 use App\Module\Bridge\View\BridgeStatus;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Entity\InboxItemKind;
-use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 
 /** The project inbox page: the rows of one view, and the row the pane shows. */
@@ -20,7 +18,6 @@ final readonly class InboxPageView implements InboxItemsView
      * @param int                         $openCount      every open row, whatever the filter
      * @param int                         $total          the rows the view matches, over all its pages
      * @param list<int|null>              $pageList       page numbers, null for a gap
-     * @param array<string, true>         $finalItemIds   items of the selected row that a closed ask holds
      * @param array<string, BridgeStatus> $bridgeStatuses the bridge of the selected ask, by bridge id
      * @param bool                        $pickedNothing  the address named an ask or an item that the project does not hold
      */
@@ -34,7 +31,6 @@ final readonly class InboxPageView implements InboxItemsView
         public int $page,
         public int $totalPages,
         public array $pageList,
-        public array $finalItemIds,
         public array $bridgeStatuses,
         public bool $pickedNothing = false,
     ) {
@@ -48,16 +44,6 @@ final readonly class InboxPageView implements InboxItemsView
         }
 
         return null !== array_find($this->selected->items, static fn (InboxItem $held): bool => $held->id?->equals($item->id) ?? false);
-    }
-
-    #[\Override]
-    public function acceptsResponse(InboxItem $item): bool
-    {
-        if (InboxItemKind::Notice === $item->kind || ((InboxItemKind::Workflow === $item->kind || (InboxItemKind::Review === $item->kind && !$item->isAutomatic())) && InboxItemState::Open !== $item->state)) {
-            return false;
-        }
-
-        return $item->state->acceptsResponse(isset($this->finalItemIds[(string) $item->id]));
     }
 
     /** The view the owner is on, with the row the pane shows named, so a response returns to it. */

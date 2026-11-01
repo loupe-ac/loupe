@@ -5,22 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Mcp;
 
 use App\Mcp\FlagGatedToolInterface;
-use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Form\AnswerInboxItemRequest;
+use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Mcp\InboxActionRunTool;
 use App\Module\Inbox\Mcp\InboxActionsTool;
-use App\Module\Inbox\Mcp\InboxAnswerTool;
 use App\Module\Inbox\Mcp\InboxAskTool;
-use App\Module\Inbox\Mcp\InboxDeclineTool;
-use App\Module\Inbox\Mcp\InboxDoneTool;
 use App\Module\Inbox\Mcp\InboxGetTool;
 use App\Module\Inbox\Mcp\InboxJoinTool;
 use App\Module\Inbox\Mcp\InboxListTool;
 use App\Module\Inbox\Mcp\InboxSearchTool;
 use App\Module\Inbox\Mcp\InboxWithdrawTool;
+use App\Module\Inbox\Mcp\RemovedInboxToolsCallHandler;
 use App\Module\Project\Mcp\AdvertisedTools;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Capability\Registry;
@@ -62,9 +59,6 @@ final class InboxToolRegistrationTest extends KernelTestCase
         yield 'inbox_list' => [InboxListTool::NAME, InboxListTool::class];
         yield 'inbox_get' => [InboxGetTool::NAME, InboxGetTool::class];
         yield 'inbox_withdraw' => [InboxWithdrawTool::NAME, InboxWithdrawTool::class];
-        yield 'inbox_answer' => [InboxAnswerTool::NAME, InboxAnswerTool::class];
-        yield 'inbox_decline' => [InboxDeclineTool::NAME, InboxDeclineTool::class];
-        yield 'inbox_done' => [InboxDoneTool::NAME, InboxDoneTool::class];
         yield 'inbox_action_run' => [InboxActionRunTool::NAME, InboxActionRunTool::class];
     }
 
@@ -98,7 +92,7 @@ final class InboxToolRegistrationTest extends KernelTestCase
         $names = array_column($this->advertised()->enabled(), 'name');
         $inbox = array_values(array_filter($names, static fn (string $name): bool => str_starts_with($name, 'inbox_')));
 
-        self::assertSame([InboxAskTool::NAME, InboxActionsTool::NAME, InboxSearchTool::NAME, InboxJoinTool::NAME, InboxListTool::NAME, InboxGetTool::NAME, InboxWithdrawTool::NAME, InboxAnswerTool::NAME, InboxDeclineTool::NAME, InboxDoneTool::NAME, InboxActionRunTool::NAME], $inbox);
+        self::assertSame([InboxAskTool::NAME, InboxActionsTool::NAME, InboxSearchTool::NAME, InboxJoinTool::NAME, InboxListTool::NAME, InboxGetTool::NAME, InboxWithdrawTool::NAME, InboxActionRunTool::NAME], $inbox);
     }
 
     public function test_inbox_ask_publishes_its_items_as_a_list_of_objects(): void
@@ -131,7 +125,7 @@ final class InboxToolRegistrationTest extends KernelTestCase
 
         $withdraw = $this->registry->getTool(InboxWithdrawTool::NAME)->tool->inputSchema;
         self::assertSame(InboxLimits::MAX_WITHDRAW_REASON_LENGTH, $withdraw['properties']['reason']['maxLength']);
-        self::assertSame(['itemId', 'reason'], $withdraw['required']);
+        self::assertSame(['itemId', 'sessionId', 'reason'], $withdraw['required']);
     }
 
     public function test_inbox_join_requires_the_item_and_the_session(): void
@@ -160,32 +154,39 @@ final class InboxToolRegistrationTest extends KernelTestCase
         self::assertArrayHasKey('readerSessionId', $schema['properties']);
     }
 
-    public function test_inbox_withdraw_requires_a_reason(): void
+    public function test_inbox_withdraw_requires_the_session_and_a_reason(): void
     {
         $schema = $this->registry->getTool(InboxWithdrawTool::NAME)->tool->inputSchema;
 
-        self::assertSame(['itemId', 'reason'], $schema['required']);
+        self::assertSame(['itemId', 'sessionId', 'reason'], $schema['required']);
     }
 
-    public function test_the_response_tools_publish_their_arguments_and_limits(): void
+    public function test_inbox_ask_publishes_dismissible_for_each_item(): void
     {
-        $answer = $this->registry->getTool(InboxAnswerTool::NAME)->tool->inputSchema;
-        self::assertSame(['itemId'], $answer['required']);
-        self::assertSame('array', $answer['properties']['selectedOptions']['type']);
-        self::assertSame('integer', ((object) $answer['properties']['selectedOptions']['items'])->type);
-        self::assertSame(AnswerInboxItemRequest::MAX_ANSWER_LENGTH, $answer['properties']['answerText']['maxLength']);
+        $item = $this->registry->getTool(InboxAskTool::NAME)->tool->inputSchema['properties']['items']['items']['properties'];
 
-        $decline = $this->registry->getTool(InboxDeclineTool::NAME)->tool->inputSchema;
-        self::assertSame(['itemId'], $decline['required']);
-        self::assertSame(AnswerInboxItemRequest::MAX_ANSWER_LENGTH, $decline['properties']['note']['maxLength']);
+        self::assertSame('boolean', $item['dismissible']['type']);
+    }
 
-        self::assertSame(['itemId'], $this->registry->getTool(InboxDoneTool::NAME)->tool->inputSchema['required']);
+    public function test_the_removed_response_tools_are_not_published(): void
+    {
+        foreach (RemovedInboxToolsCallHandler::REMOVED as $name) {
+            self::assertFalse($this->registry->hasTool($name), $name);
+        }
+    }
 
+    public function test_the_action_tool_publishes_the_responses_and_their_limits(): void
+    {
         $run = $this->registry->getTool(InboxActionRunTool::NAME)->tool->inputSchema;
+
         self::assertSame(['itemId', 'action'], $run['required']);
-        self::assertSame(InboxAction::MAX_NOTE_LENGTH, $run['properties']['note']['maxLength']);
+        self::assertSame(RunInboxActionRequest::MAX_RESPONSE_LENGTH, $run['properties']['note']['maxLength']);
+        self::assertSame('array', $run['properties']['selectedOptions']['type']);
+        self::assertSame('integer', ((object) $run['properties']['selectedOptions']['items'])->type);
         self::assertSame('object', $run['properties']['params']['type']);
-        self::assertContains('run-command', $run['properties']['action']['enum']);
+        foreach (['answer', 'complete', 'dismiss', 'run-command'] as $action) {
+            self::assertContains($action, $run['properties']['action']['enum']);
+        }
         self::assertNotContains('open', $run['properties']['action']['enum']);
     }
 

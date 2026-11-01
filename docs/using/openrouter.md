@@ -48,8 +48,8 @@ project whose cost read fails gets its own notice.
 
 Loupe closes the notices of a key in two cases:
 
-- OpenRouter accepts the key again on a later read. The notice closes as **done**.
-- You replace or remove the key. The notice closes as **obsolete**.
+- OpenRouter accepts the key again on a later read. The notice closes as **resolved**.
+- You replace or remove the key. The notice closes as **cancelled**.
 
 With the inbox off, Loupe opens no notice. The **Refused by OpenRouter** chip
 on this page still shows the state of the key.

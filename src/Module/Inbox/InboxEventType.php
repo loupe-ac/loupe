@@ -12,10 +12,10 @@ final class InboxEventType
     /** The owner closed the last blocking item. */
     public const string ACTOR_HUMAN = 'human';
 
-    /** An agent withdrew the last blocking item, or its cards finished. */
+    /** An agent withdrew the last blocking item. */
     public const string ACTOR_AGENT = 'agent';
 
-    /** A workflow rule wrote the verdict that closed the last blocking item. */
+    /** Loupe or a workflow rule closed the last blocking item, for example because its cards finished. */
     public const string ACTOR_SYSTEM = 'system';
 
     private function __construct()

@@ -8,10 +8,14 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -275,7 +279,8 @@ final class InteractiveLaunchApiTest extends WebTestCase
         yield 'a missing bridge id' => [['bridgeId' => null]];
         yield 'a bridge id that is not a uuid' => [['bridgeId' => 'nope']];
         yield 'a missing subject type' => [['subjectType' => null]];
-        yield 'a subject that is no card, because an interactive run is about a card' => [['subjectType' => 'analysis']];
+        yield 'a subject type that is no code' => [['subjectType' => 'Not A Code']];
+        yield 'a card number on an item subject' => [['subjectType' => 'inbox-item', 'cardNumber' => 3]];
         yield 'a missing subject id' => [['subjectId' => null]];
         yield 'a subject id that is not a uuid' => [['subjectId' => 'nope']];
         yield 'a missing card number' => [['cardNumber' => null]];
@@ -347,6 +352,120 @@ final class InteractiveLaunchApiTest extends WebTestCase
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload());
         self::assertResponseStatusCodeSame(429);
+    }
+
+    public function test_a_launch_about_an_inbox_item_opens_a_run_with_no_card_number(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-item@example.com');
+        $project = $this->project($em, $owner, 'Launch Item');
+        $item = $this->item($em, $project);
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+        $payload = $this->itemPayload($item, ['workKind' => 'session', 'workRequestId' => (string) Uuid::v7(), 'ruleId' => 'inbox:start-session']);
+
+        $this->put($client, $path, $raw, $payload);
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->onlyRun();
+        $first = $this->idOf($client);
+        self::assertSame($first, (string) $run->id);
+        self::assertSame(WorkerRunKind::Interactive, $run->kind);
+        self::assertSame(WorkerRunState::Running, $run->state);
+        self::assertSame(['inbox-item', (string) $item->id, null, 'session'], [$run->subjectType, (string) $run->subjectId, $run->cardNumber, $run->workKind]);
+
+        $this->put($client, $path, $raw, $payload);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($first, $this->idOf($client));
+        $this->onlyRun();
+    }
+
+    public function test_a_failed_launch_about_an_inbox_item_records_a_run_that_never_started(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-item-failed@example.com');
+        $project = $this->project($em, $owner, 'Launch Item Failed');
+        $item = $this->item($em, $project);
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->itemPayload($item, ['state' => 'not-started', 'failureReason' => 'git worktree failed']));
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->onlyRun();
+        self::assertSame([WorkerRunState::NotStarted, 'inbox-item', null, 'git worktree failed'], [$run->state, $run->subjectType, $run->cardNumber, $run->failureReason]);
+    }
+
+    public function test_the_same_session_id_keeps_a_card_run_and_an_item_run_apart(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-item-apart@example.com');
+        $project = $this->project($em, $owner, 'Launch Item Apart');
+        $item = $this->item($em, $project);
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+
+        $this->put($client, $path, $raw, $this->payload());
+        self::assertResponseStatusCodeSame(201);
+        $this->put($client, $path, $raw, $this->itemPayload($item));
+        self::assertResponseStatusCodeSame(201);
+
+        self::assertCount(2, $this->allRuns());
+    }
+
+    public function test_an_item_of_another_project_or_an_unknown_item_answers_subject_not_found(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-item-other@example.com');
+        $project = $this->project($em, $owner, 'Launch Item Mine');
+        $elsewhere = $this->item($em, $this->project($em, $owner, 'Launch Item Elsewhere'));
+        $raw = $this->agentToken($client, $owner);
+
+        foreach ([$elsewhere->id, Uuid::v7()] as $id) {
+            $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->itemPayload($elsewhere, ['subjectId' => (string) $id]));
+
+            self::assertResponseStatusCodeSame(404);
+            self::assertJsonStringEqualsJsonString('{"error":"subject_not_found"}', (string) $client->getResponse()->getContent());
+        }
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_subject_type_that_no_module_registers_is_refused_with_a_code(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-subject-type@example.com');
+        $project = $this->project($em, $owner, 'Launch Subject Type');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => 'unheard-of', 'cardNumber' => null]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertJsonStringEqualsJsonString('{"error":"unknown_subject_type"}', (string) $client->getResponse()->getContent());
+        self::assertSame([], $this->allRuns());
+    }
+
+    private function item(EntityManagerInterface $em, Project $project): InboxItem
+    {
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A notice', blocking: false, origin: InboxAskOrigin::Loupe);
+        $em->persist($item);
+        $em->flush();
+
+        return $item;
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private function itemPayload(InboxItem $item, array $overrides = []): array
+    {
+        return $this->payload([...['subjectType' => 'inbox-item', 'subjectId' => (string) $item->id, 'cardNumber' => null, 'workKind' => 'session'], ...$overrides]);
     }
 
     private function path(?Uuid $projectId, string $sessionId): string

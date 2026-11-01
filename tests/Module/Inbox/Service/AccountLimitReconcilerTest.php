@@ -13,6 +13,8 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Inbox\Entity\InboxAccountLimit;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
@@ -268,12 +270,14 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->reading('claude', 'week', 40.0, self::WEEK_RESET, limited: false, readAt: '2026-10-16 12:10:00');
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Done, $episode->item->state);
+        self::assertSame(InboxItemState::Resolved, $episode->item->state);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$episode->item->closedBy, $episode->item->closeCause]);
+        self::assertFalse($episode->item->dismissible);
         self::assertEquals(new \DateTimeImmutable('2026-10-16 12:10:00'), $episode->endedAt);
-        self::assertSame('claude on laptop could take work again at Fri 16 Oct, 12:10 UTC. It was at its limit from Fri 16 Oct, 12:00 UTC.', $episode->item->closeNote);
+        self::assertNull($episode->item->note);
     }
 
-    public function test_the_notice_is_obsolete_when_the_waiting_work_ended_before_the_account_recovered(): void
+    public function test_the_notice_is_cancelled_when_the_waiting_work_ended_before_the_account_recovered(): void
     {
         $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);
         $request = $this->waitingRequest($this->card);
@@ -284,7 +288,8 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->em->flush();
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Obsolete, $episode->item->state);
+        self::assertSame(InboxItemState::Cancelled, $episode->item->state);
+        self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$episode->item->closedBy, $episode->item->closeCause]);
         self::assertNotNull($episode->endedAt);
     }
 
@@ -323,7 +328,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(InboxItemState::Obsolete, $episode->item->state);
+        self::assertSame(InboxItemState::Cancelled, $episode->item->state);
     }
 
     public function test_a_notice_closed_elsewhere_ends_its_episode_and_a_new_one_opens_while_the_limit_holds(): void
@@ -332,7 +337,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $this->waitingRequest($this->card);
         $this->reconciler->reconcile($this->project);
         $first = $this->onlyEpisode();
-        $first->item->state = InboxItemState::Obsolete;
+        $first->item->state = InboxItemState::Cancelled;
         $this->em->flush();
 
         $this->reconciler->reconcile($this->project);
