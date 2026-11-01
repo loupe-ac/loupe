@@ -1,5 +1,5 @@
 key: lifecycle
-version: 33
+version: 34
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -363,9 +363,12 @@ rules:
               - card.document.approved: { tag: tech-design }
               - not: { card.document.changes_requested: { tag: tech-design } }
               - not: { card.blocker.open: {} }
+              # The open-blocker branch never lets the rule fire. It keeps the open blocker the only false leaf,
+              # so a card with an open and a closed blocker shows as held by its blocker.
               - any:
                     - not: { card.blocker.closed: {} }
                     - card.run.finished_with: { kind: tech-design-recheck, reason: done }
+                    - card.blocker.open: {}
       then: { move: { to: implementation } }
 
     - id: implement
