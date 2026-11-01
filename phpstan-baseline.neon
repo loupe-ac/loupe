@@ -31,3 +31,9 @@ parameters:
 			identifier: controller.templateName
 			count: 1
 			path: src/Module/Project/Controller/Wizard/CreateFirstProjectController.php
+
+		-
+			message: '#^Access to undefined constant NumberFormatter::DECIMAL_COMPACT_SHORT\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: src/Module/Insights/View/MetricValueFormatter.php
