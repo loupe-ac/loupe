@@ -26,6 +26,7 @@ use App\Module\Workflow\Contract\Actor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -255,6 +256,74 @@ final class FullDevSeedTest extends KernelTestCase
         foreach (['inbox_items', 'inbox_asks', 'bridge_worker_runs'] as $table) {
             self::assertSame($counts[$table], $this->rowCounts()[$table], $table);
         }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function partialInboxDeletions(): iterable
+    {
+        yield 'one ask, which keeps its item' => [\sprintf("DELETE FROM inbox_asks WHERE id = '%s'", DevSeedId::of('inbox/ask/retries'))];
+        yield 'one item, which keeps its ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/retries'))];
+        yield 'one of the two items of an ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/pull-request'))];
+        yield 'one item of a completed ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/reviewed'))];
+        yield 'the item of a session ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/session-checklist'))];
+        yield 'the item of a command run' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/command-run-0'))];
+        yield 'the ask of a command run' => [\sprintf("DELETE FROM inbox_asks WHERE id = '%s'", DevSeedId::of('inbox/ask/command-run-1'))];
+        yield 'every ask' => ['DELETE FROM inbox_asks'];
+        yield 'every item' => ['DELETE FROM inbox_items'];
+        yield 'every ask link' => ['DELETE FROM inbox_ask_items'];
+        yield 'every card link' => ['DELETE FROM inbox_item_cards'];
+        yield 'every document link' => ['DELETE FROM inbox_item_documents'];
+        yield 'every review' => ['DELETE FROM inbox_reviews'];
+        yield 'every action' => ['DELETE FROM inbox_actions'];
+    }
+
+    #[DataProvider('partialInboxDeletions')]
+    public function test_a_later_run_restores_each_inbox_record_on_its_own(string $deletion): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        self::assertGreaterThan(0, $connection->executeStatement($deletion));
+        self::assertNotSame($counts, $this->rowCounts());
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts());
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE search_vector IS NULL'), 'A restored item has no search vector.');
+    }
+
+    public function test_a_later_run_restores_the_session_bridge_of_a_stored_ask(): void
+    {
+        $this->seed(self::DAY);
+        $bridgeCount = 'SELECT COUNT(*) FROM bridges WHERE id = ?';
+        $bridgeId = (string) DevSeedId::of('bridge/bridge/session');
+        $connection = $this->em()->getConnection();
+        self::assertSame(1, $connection->executeStatement('DELETE FROM bridges WHERE id = ?', [$bridgeId]));
+
+        $this->seed(self::DAY);
+
+        self::assertSame(1, (int) $connection->fetchOne($bridgeCount, [$bridgeId]));
+    }
+
+    public function test_the_pull_request_review_points_at_the_link_on_a_first_run_and_after_a_restored_card(): void
+    {
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        $linkedReview = \sprintf("SELECT pull_request_id FROM inbox_reviews WHERE item_id = '%s'", DevSeedId::of('inbox/item/pull-request'));
+        $first = $connection->fetchOne($linkedReview);
+        self::assertIsString($first, 'The first run left the pull request review with no link.');
+
+        $em = $this->em();
+        $em->clear();
+        $card = $em->find(Card::class, DevSeedId::of('board/card/checkout')) ?? throw new \LogicException('The card is missing.');
+        self::getContainer()->get(DeleteCardHandler::class)(new DeleteCardCommand($card, Actor::Human));
+        self::assertFalse(\is_string($connection->fetchOne($linkedReview)), 'The deleted card kept the link of the review.');
+
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+
+        self::assertIsString($connection->fetchOne($linkedReview), 'The restored card did not go back on the review.');
+        self::assertSame($counts['inbox_item_cards'], $this->rowCounts()['inbox_item_cards'], 'The restored card did not go back on its items.');
     }
 
     public function test_the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void

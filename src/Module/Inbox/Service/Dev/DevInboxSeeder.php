@@ -39,7 +39,9 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
+use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
@@ -62,6 +64,9 @@ use Symfony\Component\Uid\Uuid;
  * It writes every request directly, so they exist whatever inbox.enabled
  * says. The wait item of the onboarding card is the one exception: the
  * workflow engine opens it, and only while the flag is on.
+ *
+ * Each ask, item and link is found or written on its own, so a re-seed restores
+ * whichever one is missing and joins it to the records that remain.
  */
 #[When('dev')]
 #[When('test')]
@@ -79,6 +84,8 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         private CardRepository $cards,
         private DocumentRepository $documents,
         private InboxItemRepository $inboxItems,
+        private InboxReviewRepository $inboxReviews,
+        private InboxActionRepository $inboxActions,
         private BridgeRepository $bridges,
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private InboxSearchIndexer $inboxSearch,
@@ -118,14 +125,16 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $this->linkDocument($context, $onboarding, $handoffDocument);
         $this->linkFeedback($checkout, $basket);
 
-        $new = [];
-        array_push($new, ...$this->seedOpenRequests($context, $project, $checkout, $history, $columnRules, $onboarding, $historyDocument, $rulesDocument));
-        array_push($new, ...$this->seedCompleted($context, $project, $reviewer, $rulesDocument));
-        array_push($new, ...$this->seedSessionPromptItems($context, $project, $owner, $onboarding));
-        array_push($new, ...$this->seedCommandRuns($context, $project, $owner, $onboarding));
+        $items = [
+            ...$this->seedOpenRequests($context, $project, $checkout, $history, $columnRules, $onboarding, $historyDocument, $rulesDocument),
+            ...$this->seedCompleted($context, $project, $reviewer, $rulesDocument),
+            ...$this->seedSessionPromptItems($context, $project, $owner, $onboarding),
+            ...$this->seedCommandRuns($context, $project, $owner, $onboarding),
+        ];
         $this->em->flush();
 
-        foreach ($new as $item) {
+        // The vector holds the titles of the linked cards, so a restored link needs it too.
+        foreach ($items as $item) {
             $this->inboxSearch->index($item);
         }
 
@@ -168,64 +177,50 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $this->em->flush();
     }
 
-    /** @return list<InboxItem> the items this call wrote */
+    /** @return list<InboxItem> */
     private function seedOpenRequests(SeedContext $context, Project $project, Card $checkout, Card $history, Card $columnRules, Card $onboarding, Document $historyDocument, Document $rulesDocument): array
     {
-        $new = [];
+        $retries = $this->item($context, 'retries', $project, InboxItemKind::Question, self::MARKER_TITLE, true, 360, [
+            'body' => 'The new checkout can retry a failed payment automatically, or leave the next attempt to the customer. Which behavior should I implement?',
+            'options' => ['Retry once, then let the customer decide', 'Always let the customer retry'],
+            'freeText' => true,
+        ]);
+        $this->linkCard($retries, $checkout);
+        $this->ask($context, 'retries', $project, [$retries], 360, 'Working on the **checkout** card. I need one decision before I write the recovery flow.', DevSeedId::of('bridge/bridge/ask-retries'));
 
-        if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/retries')) instanceof InboxAsk) {
-            $retries = $this->item($context, 'retries', $project, InboxItemKind::Question, self::MARKER_TITLE, true, 360, [
-                'body' => 'The new checkout can retry a failed payment automatically, or leave the next attempt to the customer. Which behavior should I implement?',
-                'options' => ['Retry once, then let the customer decide', 'Always let the customer retry'],
-                'freeText' => true,
-            ]);
-            $retries->cards->add(new InboxItemCard($retries, $checkout));
-            $this->ask($context, 'retries', $project, [$retries], 360, 'Working on the **checkout** card. I need one decision before I write the recovery flow.', DevSeedId::of('bridge/bridge/ask-retries'));
-            $new[] = $retries;
-        }
+        $runHistory = $this->item($context, 'run-history', $project, InboxItemKind::Review, 'Worker run history is ready to review', false, 720, [
+            'body' => 'Two sections changed. One comment needs your confirmation before I carry on.',
+        ]);
+        $this->linkCard($runHistory, $history);
+        $this->linkDocumentToItem($runHistory, $historyDocument);
+        $this->review($runHistory, $historyDocument);
 
-        if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/run-history')) instanceof InboxAsk) {
-            $runHistory = $this->item($context, 'run-history', $project, InboxItemKind::Review, 'Worker run history is ready to review', false, 720, [
-                'body' => 'Two sections changed. One comment needs your confirmation before I carry on.',
-            ]);
-            $runHistory->cards->add(new InboxItemCard($runHistory, $history));
-            $runHistory->documents->add(new InboxItemDocument($runHistory, $historyDocument));
-            $pullRequest = $this->item($context, 'pull-request', $project, InboxItemKind::Review, 'Review pull request 438', true, 7_200, [
-                'body' => 'The subscription migration is ready. Approving here records your decision; it posts no review to the code host.',
-            ]);
-            $pullRequest->cards->add(new InboxItemCard($pullRequest, $checkout));
-            $this->ask($context, 'run-history', $project, [$runHistory, $pullRequest], 720, 'The plan and the pull request are both ready for you. Either order is fine.', null);
-            $this->em->persist(new InboxReview($runHistory, $historyDocument));
-            $link = $checkout->pullRequests->first();
-            if ($link instanceof CardPullRequest) {
-                $this->em->persist(new InboxReview($pullRequest, $link));
-            }
-            array_push($new, $runHistory, $pullRequest);
+        $pullRequest = $this->item($context, 'pull-request', $project, InboxItemKind::Review, 'Review pull request 438', true, 7_200, [
+            'body' => 'The subscription migration is ready. Approving here records your decision; it posts no review to the code host.',
+        ]);
+        $this->linkCard($pullRequest, $checkout);
+        $link = $checkout->pullRequests->first();
+        if ($link instanceof CardPullRequest) {
+            $this->review($pullRequest, $link);
         }
+        $this->ask($context, 'run-history', $project, [$runHistory, $pullRequest], 720, 'The plan and the pull request are both ready for you. Either order is fine.', null);
 
-        if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/column-rules')) instanceof InboxAsk) {
-            $rules = $this->item($context, 'column-rules', $project, InboxItemKind::Review, 'Safer column changes', false, 2_280, [
-                'body' => 'Tester has a design specification for you. It settles what a rename does to a rule that points at the column.',
-            ]);
-            $rules->cards->add(new InboxItemCard($rules, $columnRules));
-            $rules->documents->add(new InboxItemDocument($rules, $rulesDocument));
-            $this->ask($context, 'column-rules', $project, [$rules], 2_280, 'A specification rather than code. Read it when the board work settles.', DevSeedId::of('bridge/bridge/ask-column-rules'));
-            $this->em->persist(new InboxReview($rules, $rulesDocument));
-            $new[] = $rules;
-        }
+        $rules = $this->item($context, 'column-rules', $project, InboxItemKind::Review, 'Safer column changes', false, 2_280, [
+            'body' => 'Tester has a design specification for you. It settles what a rename does to a rule that points at the column.',
+        ]);
+        $this->linkCard($rules, $columnRules);
+        $this->linkDocumentToItem($rules, $rulesDocument);
+        $this->review($rules, $rulesDocument);
+        $this->ask($context, 'column-rules', $project, [$rules], 2_280, 'A specification rather than code. Read it when the board work settles.', DevSeedId::of('bridge/bridge/ask-column-rules'));
 
         // No ask holds this one, so it is the open item the list shows on its own.
-        if (!$this->em->find(InboxItem::class, DevSeedId::of('inbox/item/handoff')) instanceof InboxItem) {
-            $handoff = $this->item($context, 'handoff', $project, InboxItemKind::Todo, 'Give the first handoff a quick look', true, 3_600, [
-                'body' => 'Read the first useful handoff document and confirm that the first five minutes feel clear. Leave a note if a step still needs work.',
-            ]);
-            $handoff->cards->add(new InboxItemCard($handoff, $onboarding));
-            $this->em->persist($handoff);
-            $new[] = $handoff;
-        }
+        $handoff = $this->item($context, 'handoff', $project, InboxItemKind::Todo, 'Give the first handoff a quick look', true, 3_600, [
+            'body' => 'Read the first useful handoff document and confirm that the first five minutes feel clear. Leave a note if a step still needs work.',
+        ]);
+        $this->linkCard($handoff, $onboarding);
         $this->em->flush();
 
-        return $new;
+        return [$retries, $runHistory, $pullRequest, $rules, $handoff];
     }
 
     /**
@@ -237,57 +232,50 @@ final readonly class DevInboxSeeder implements DevSeederInterface
      */
     private function seedCompleted(SeedContext $context, Project $project, User $reviewer, Document $rulesDocument): array
     {
-        $new = [];
+        $answered = $this->item($context, 'answered', $project, InboxItemKind::Question, 'Which database should the export read from?', true, 172_800, [
+            'body' => 'The replica lags by a few seconds. The primary is always current and costs more.',
+            'options' => ['The read replica', 'The primary'],
+            'freeText' => true,
+        ], static function (InboxItem $item) use ($context): void {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::Owner;
+            $item->selectedOptions = [0];
+            $item->note = 'A few seconds of lag is fine for an export.';
+            $item->closedAt = $context->at(172_800 - 1_800);
+        });
 
-        if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/export-source')) instanceof InboxAsk) {
-            $answered = $this->item($context, 'answered', $project, InboxItemKind::Question, 'Which database should the export read from?', true, 172_800, [
-                'body' => 'The replica lags by a few seconds. The primary is always current and costs more.',
-                'options' => ['The read replica', 'The primary'],
-                'freeText' => true,
-            ]);
-            $answered->state = InboxItemState::Resolved;
-            $answered->closedBy = InboxCloser::Owner;
-            $answered->selectedOptions = [0];
-            $answered->note = 'A few seconds of lag is fine for an export.';
-            $answered->closedAt = $context->at(172_800 - 1_800);
+        $declined = $this->item($context, 'declined', $project, InboxItemKind::Todo, 'Write the release notes for 1.4', true, 172_740, [
+            'body' => 'A short summary of the export work, for the changelog.',
+        ], static function (InboxItem $item) use ($context): void {
+            $item->state = InboxItemState::Declined;
+            $item->closedBy = InboxCloser::Owner;
+            $item->note = 'Someone else writes the notes this cycle. Ask again at 1.5.';
+            $item->closedAt = $context->at(172_800 - 2_700);
+        });
+        $this->ask($context, 'export-source', $project, [$answered, $declined], 172_800, 'Two things before I open the export pull request.', DevSeedId::of('bridge/bridge/ask-export-source'), $context->at(172_800 - 2_700));
 
-            $declined = $this->item($context, 'declined', $project, InboxItemKind::Todo, 'Write the release notes for 1.4', true, 172_740, [
-                'body' => 'A short summary of the export work, for the changelog.',
-            ]);
-            $declined->state = InboxItemState::Declined;
-            $declined->closedBy = InboxCloser::Owner;
-            $declined->note = 'Someone else writes the notes this cycle. Ask again at 1.5.';
-            $declined->closedAt = $context->at(172_800 - 2_700);
-
-            $this->ask($context, 'export-source', $project, [$answered, $declined], 172_800, 'Two things before I open the export pull request.', DevSeedId::of('bridge/bridge/ask-export-source'), $context->at(172_800 - 2_700));
-            array_push($new, $answered, $declined);
-        }
-
-        if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/spec-ready')) instanceof InboxAsk) {
-            $reviewed = $this->item($context, 'reviewed', $project, InboxItemKind::Review, 'Column rules specification is ready', true, 259_200, [
-                'body' => 'It answers what a rename does to a rule that points at the column.',
-            ]);
-            $reviewed->state = InboxItemState::Resolved;
-            $reviewed->closedBy = InboxCloser::Owner;
-            $reviewed->note = 'Say what happens to a rule whose column is deleted rather than renamed.';
-            $reviewed->closedAt = $context->at(259_200 - 7_200);
-            $review = new InboxReview($reviewed, $rulesDocument);
+        $reviewed = $this->item($context, 'reviewed', $project, InboxItemKind::Review, 'Column rules specification is ready', true, 259_200, [
+            'body' => 'It answers what a rename does to a rule that points at the column.',
+        ], static function (InboxItem $item) use ($context): void {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::Owner;
+            $item->note = 'Say what happens to a rule whose column is deleted rather than renamed.';
+            $item->closedAt = $context->at(259_200 - 7_200);
+        });
+        $this->review($reviewed, $rulesDocument, static function (InboxReview $review) use ($context, $reviewer): void {
             $review->verdict = InboxReviewVerdict::ChangesRequested;
             $review->reviewer = $reviewer;
             $review->submittedAt = $context->at(259_200 - 7_200);
             $review->reviewedVersionNumber = 1;
-            $this->em->persist($review);
+        });
 
-            $leftOpen = $this->item($context, 'left-open', $project, InboxItemKind::Todo, 'Check the export against a real customer file', false, 259_140, [
-                'body' => 'Nobody waits on this one, and it is still worth doing.',
-            ]);
-
-            $this->ask($context, 'spec-ready', $project, [$reviewed, $leftOpen], 259_200, 'The specification is ready to read.', DevSeedId::of('bridge/bridge/ask-spec-ready'), $context->at(259_200 - 7_200));
-            array_push($new, $reviewed, $leftOpen);
-        }
+        $leftOpen = $this->item($context, 'left-open', $project, InboxItemKind::Todo, 'Check the export against a real customer file', false, 259_140, [
+            'body' => 'Nobody waits on this one, and it is still worth doing.',
+        ]);
+        $this->ask($context, 'spec-ready', $project, [$reviewed, $leftOpen], 259_200, 'The specification is ready to read.', DevSeedId::of('bridge/bridge/ask-spec-ready'), $context->at(259_200 - 7_200));
         $this->em->flush();
 
-        return $new;
+        return [$answered, $declined, $reviewed, $leftOpen];
     }
 
     /**
@@ -298,10 +286,6 @@ final readonly class DevInboxSeeder implements DevSeederInterface
      */
     private function seedSessionPromptItems(SeedContext $context, Project $project, User $owner, Card $card): array
     {
-        if ($this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/session-rebuild')) instanceof InboxAsk) {
-            return [];
-        }
-
         $bridgeId = DevSeedId::of('bridge/bridge/session');
         if (!$this->bridges->findOneBy(['id' => $bridgeId]) instanceof Bridge) {
             $bridge = new Bridge($owner, $bridgeId, [(string) $project->id], self::CLI_VERSION, $context->now->modify('+10 years'));
@@ -309,21 +293,23 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             $this->em->persist($bridge);
         }
 
-        $item = $this->item($context, 'session-rebuild', $project, InboxItemKind::Todo, 'Rebuild the Design System artifact', false, 300, []);
-        $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
-        $item->cards->add(new InboxItemCard($item, $card));
-        $this->ask($context, 'session-rebuild', $project, [$item], 300, 'The rebuild needs a session.', null);
+        $rebuild = $this->item($context, 'session-rebuild', $project, InboxItemKind::Todo, 'Rebuild the Design System artifact', false, 300, [], static function (InboxItem $item): void {
+            $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
+        });
+        $this->linkCard($rebuild, $card);
+        $this->ask($context, 'session-rebuild', $project, [$rebuild], 300, 'The rebuild needs a session.', null);
 
-        $question = $this->item($context, 'session-checklist', $project, InboxItemKind::Question, 'Which steps does the onboarding checklist keep?', false, 240, [
+        $checklist = $this->item($context, 'session-checklist', $project, InboxItemKind::Question, 'Which steps does the onboarding checklist keep?', false, 240, [
             'options' => ['All five', 'Only the first three'],
             'freeText' => true,
-        ]);
-        $question->suggestedActions = [['action' => 'start-session', 'reason' => 'Walk through the checklist together.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Read the onboarding checklist card, and go through each step with the owner.']];
-        $question->cards->add(new InboxItemCard($question, $card));
-        $this->ask($context, 'session-checklist', $project, [$question], 240, 'The checklist needs a choice.', null);
+        ], static function (InboxItem $item): void {
+            $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Walk through the checklist together.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Read the onboarding checklist card, and go through each step with the owner.']];
+        });
+        $this->linkCard($checklist, $card);
+        $this->ask($context, 'session-checklist', $project, [$checklist], 240, 'The checklist needs a choice.', null);
         $this->em->flush();
 
-        return [$item, $question];
+        return [$rebuild, $checklist];
     }
 
     /**
@@ -344,7 +330,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             $this->em->persist($bridge);
         }
 
-        $new = [];
+        $items = [];
         foreach ([
             [WorkerRunState::Running, 'Export the design system for the rebuild', 12, 20],
             [WorkerRunState::Succeeded, 'Export the design system again', 40, 14],
@@ -370,17 +356,17 @@ final readonly class DevInboxSeeder implements DevSeederInterface
                 $this->em->flush();
             }
 
-            if (!$this->em->find(InboxAsk::class, DevSeedId::of('inbox/ask/'.$slug)) instanceof InboxAsk) {
-                $item = $this->item($context, $slug, $project, InboxItemKind::Todo, $title, false, 600 - $index * 20, []);
+            $item = $this->item($context, $slug, $project, InboxItemKind::Todo, $title, false, 600 - $index * 20, [], static function (InboxItem $item): void {
                 $item->suggestedActions = [['action' => 'run-command', 'reason' => 'The canvas needs the new tokens.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'main', 'params' => ['out' => 'var/design-system']], 'proposedEntry' => null]];
-                $item->cards->add(new InboxItemCard($item, $card));
-                $this->ask($context, $slug, $project, [$item], 600 - $index * 20, 'The export needs a run on your machine.', $bridge->id);
-
+            });
+            $this->linkCard($item, $card);
+            $this->ask($context, $slug, $project, [$item], 600 - $index * 20, 'The export needs a run on your machine.', $bridge->id);
+            if ([] === $this->inboxActions->findByItem($item)) {
                 $action = new InboxAction($item, InboxActionKind::RunCommand, $owner, '', $context->at(60 - $index * 10));
                 $action->workRequestId = $requestId;
                 $this->em->persist($action);
-                $new[] = $item;
             }
+            $items[] = $item;
 
             $runId = DevSeedId::of('bridge/run/'.$slug);
             if (!$this->em->find(WorkerRun::class, $runId) instanceof WorkerRun) {
@@ -410,12 +396,23 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         }
         $this->em->flush();
 
-        return $new;
+        return $items;
     }
 
-    /** @param array{body?: string, options?: list<string>, freeText?: bool} $fields */
-    private function item(SeedContext $context, string $slug, Project $project, InboxItemKind $kind, string $title, bool $blocking, int $secondsAgo, array $fields): InboxItem
+    /**
+     * Finds the item by its fixed id, or stores a new one.
+     *
+     * @param array{body?: string, options?: list<string>, freeText?: bool} $fields
+     * @param (\Closure(InboxItem): void)|null                              $adjust runs only on a new item
+     */
+    private function item(SeedContext $context, string $slug, Project $project, InboxItemKind $kind, string $title, bool $blocking, int $secondsAgo, array $fields, ?\Closure $adjust = null): InboxItem
     {
+        $id = DevSeedId::of('inbox/item/'.$slug);
+        $existing = $this->em->find(InboxItem::class, $id);
+        if ($existing instanceof InboxItem) {
+            return $existing;
+        }
+
         $item = new InboxItem(
             project: $project,
             number: $this->inboxItems->nextNumber($project),
@@ -428,7 +425,10 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             freeText: $fields['freeText'] ?? false,
             createdAt: $context->at($secondsAgo),
         );
-        $context->ids->assign($item, DevSeedId::of('inbox/item/'.$slug));
+        if (null !== $adjust) {
+            $adjust($item);
+        }
+        $context->ids->assign($item, $id);
         $this->em->persist($item);
         // The next number reads the stored items, so each item is stored before the next one asks.
         $this->em->flush();
@@ -436,21 +436,71 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         return $item;
     }
 
-    /** @param list<InboxItem> $items */
+    private function linkCard(InboxItem $item, Card $card): void
+    {
+        if (!$item->cards->exists(static fn (int $key, InboxItemCard $link): bool => $link->card === $card)) {
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+    }
+
+    private function linkDocumentToItem(InboxItem $item, Document $document): void
+    {
+        if (!$item->documents->exists(static fn (int $key, InboxItemDocument $link): bool => $link->document === $document)) {
+            $item->documents->add(new InboxItemDocument($item, $document));
+        }
+    }
+
+    /**
+     * A deleted target leaves the review with a null key, so a restored target goes back on it.
+     *
+     * @param (\Closure(InboxReview): void)|null $adjust runs only on a new review
+     */
+    private function review(InboxItem $item, Document|CardPullRequest $target, ?\Closure $adjust = null): void
+    {
+        $review = $this->inboxReviews->findOneBy(['item' => $item]);
+        if ($review instanceof InboxReview) {
+            if ($target instanceof Document) {
+                $review->document ??= $target;
+            } else {
+                $review->pullRequest ??= $target;
+            }
+
+            return;
+        }
+
+        $review = new InboxReview($item, $target);
+        if (null !== $adjust) {
+            $adjust($review);
+        }
+        $this->em->persist($review);
+    }
+
+    /**
+     * Finds the ask by its fixed id, or stores a new one, and joins each item that it does not hold yet.
+     *
+     * @param list<InboxItem> $items
+     */
     private function ask(SeedContext $context, string $slug, Project $project, array $items, int $secondsAgo, string $text, ?Uuid $bridgeId, ?\DateTimeImmutable $closedAt = null): void
     {
-        $ask = new InboxAsk(
-            project: $project,
-            sessionId: DevSeedId::of('inbox/session/'.$slug),
-            bridgeId: $bridgeId,
-            context: $text,
-            createdAt: $context->at($secondsAgo),
-        );
-        $ask->closedAt = $closedAt;
-        foreach ($items as $item) {
-            $ask->items->add(new InboxAskItem($ask, $item));
+        $id = DevSeedId::of('inbox/ask/'.$slug);
+        $ask = $this->em->find(InboxAsk::class, $id);
+        if (!$ask instanceof InboxAsk) {
+            $ask = new InboxAsk(
+                project: $project,
+                sessionId: DevSeedId::of('inbox/session/'.$slug),
+                bridgeId: $bridgeId,
+                context: $text,
+                createdAt: $context->at($secondsAgo),
+            );
+            $ask->closedAt = $closedAt;
+            $context->ids->assign($ask, $id);
+            $this->em->persist($ask);
         }
-        $context->ids->assign($ask, DevSeedId::of('inbox/ask/'.$slug));
-        $this->em->persist($ask);
+
+        foreach ($items as $item) {
+            if (!$ask->items->exists(static fn (int $key, InboxAskItem $link): bool => $link->item === $item)) {
+                $ask->items->add(new InboxAskItem($ask, $item));
+            }
+        }
     }
 }

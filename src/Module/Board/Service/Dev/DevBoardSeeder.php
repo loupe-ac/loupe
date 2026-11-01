@@ -253,6 +253,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $links = $this->pullRequests->linksFor($card, ['https://github.com/example/atlas/pull/'.$number]);
         $link = $links[0] ?? throw new \LogicException('The pull request resolver returned no link.');
         $this->em->persist($link);
+        $card->pullRequests->add($link);
 
         $state = $this->forgePullRequests->findOneBy(['project' => $card->project, 'forge' => 'github', 'repository' => 'example/atlas', 'number' => $number])
             ?? new ForgePullRequest($card->project, 'github', 'example/atlas', $number);
