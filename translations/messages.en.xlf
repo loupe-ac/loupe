@@ -6140,10 +6140,6 @@
                 <source>inbox.account_limit.body.remedy</source>
                 <target>The work starts again by itself when the account can take work. To start it sooner, press Try now on the Agents page.</target>
             </trans-unit>
-            <trans-unit id="inbox.account_limit.closed">
-                <source>inbox.account_limit.closed</source>
-                <target>%account% on %bridge% could take work again at %end%. It was at its limit from %start%.</target>
-            </trans-unit>
             <trans-unit id="bridge.try_now.error.unknown_bridge">
                 <source>bridge.try_now.error.unknown_bridge</source>
                 <target>This bridge is not connected to your account.</target>
