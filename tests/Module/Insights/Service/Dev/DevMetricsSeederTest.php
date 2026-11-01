@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Service\Dev;
 
+use App\DevSeed\DevSeedId;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Repository\BoardColumnRepository;
-use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Experiment\Stats;
@@ -14,15 +13,14 @@ use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
-use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Inbox\Service\Dev\DevMetricsCardSeeder;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\Dev\DevMetricsSeeder;
 use App\Module\Project\Entity\Project;
+use App\Tests\DevSeed\SeedContextFactory;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 
 final class DevMetricsSeederTest extends KernelTestCase
@@ -44,7 +42,7 @@ final class DevMetricsSeederTest extends KernelTestCase
     {
         $project = $this->projectWithColumns('dev-metrics');
 
-        self::assertTrue($this->seeder(self::NOW)->seed($project, $this->cardFor($project)));
+        self::assertTrue($this->seed($project, self::NOW));
 
         $this->em()->clear();
         $runs = $this->demoRuns($project);
@@ -73,7 +71,7 @@ final class DevMetricsSeederTest extends KernelTestCase
     {
         $project = $this->projectWithColumns('dev-metrics-units');
 
-        $this->seeder(self::NOW)->seed($project, $this->cardFor($project));
+        $this->seed($project, self::NOW);
 
         $graphs = $this->service(InsightsSavedGraphRepository::class)->findActive($project);
         self::assertCount(5, $graphs);
@@ -85,11 +83,11 @@ final class DevMetricsSeederTest extends KernelTestCase
     public function test_a_second_run_on_the_same_day_adds_nothing(): void
     {
         $project = $this->projectWithColumns('dev-metrics-twice');
-        $this->seeder(self::NOW)->seed($project, $this->cardFor($project));
+        $this->seed($project, self::NOW);
 
         $cards = $this->service(CardRepository::class)->count(['project' => $project]);
 
-        self::assertFalse($this->seeder(self::NOW)->seed($project, $this->cardFor($project)));
+        self::assertFalse($this->seed($project, self::NOW));
         self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
 
         $this->em()->clear();
@@ -100,17 +98,79 @@ final class DevMetricsSeederTest extends KernelTestCase
     public function test_a_run_on_a_later_day_fills_only_the_new_days(): void
     {
         $project = $this->projectWithColumns('dev-metrics-later');
-        $this->seeder(self::NOW)->seed($project, $this->cardFor($project));
+        $this->seed($project, self::NOW);
 
-        self::assertTrue($this->seeder('2026-11-02 09:00:00')->seed($project, $this->cardFor($project)));
+        self::assertTrue($this->seed($project, '2026-11-02 09:00:00'));
 
         $this->em()->clear();
         $days = array_count_values($this->days($this->demoRuns($project)));
         ksort($days);
         self::assertSame('2026-11-01', array_key_last($days));
-        self::assertSame(3, $days['2026-10-31'], 'A day that lacked runs gains one run per model.');
+        self::assertSame(3, $days['2026-11-01'], 'A day that lacked runs gains one run per model.');
+        self::assertSame(4, $days['2026-10-31'], 'The first day of a span also gains a fourth run.');
         self::assertSame(4, $days['2026-10-28'], 'A day that held runs gains none.');
+        self::assertSame(3, $days['2026-10-27'], 'A day that held runs gains none when its distance from today changes.');
         self::assertCount(5, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
+    }
+
+    public function test_the_runs_the_cards_and_the_graphs_have_fixed_ids(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-ids');
+        $this->seed($project, self::NOW);
+
+        $this->em()->clear();
+        $runs = $this->service(WorkerRunRepository::class);
+        self::assertNotNull($runs->find(DevSeedId::of('insights/run/2026-10-30/0')));
+        self::assertNotNull($runs->find(DevSeedId::of('insights/run/2026-10-30/2')));
+        self::assertNotNull($this->service(InsightsSavedGraphRepository::class)->find(DevSeedId::of('insights/graph/cost-per-run')));
+        $cardIds = array_map(static fn (WorkerRun $run): string => (string) $run->cardId(), $this->demoRuns($project));
+        self::assertContains((string) DevSeedId::of('board/card/demo-runs-2026-10-28'), $cardIds);
+    }
+
+    public function test_a_card_that_a_person_deleted_comes_back_and_its_runs_take_its_new_number(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-restored');
+        $this->seed($project, self::NOW);
+        $cards = $this->service(CardRepository::class);
+        $card = $cards->find(DevSeedId::of('board/card/demo-runs-2026-10-28')) ?? throw new \LogicException('The card is missing.');
+        $oldNumber = $card->number;
+        $this->em()->remove($card);
+        $this->em()->flush();
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        $runs = $this->demoRuns($project);
+        self::assertCount(self::RUNS, $runs);
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('insights/run/2026-10-28/0')));
+        $restored = $cards->find(DevSeedId::of('board/card/demo-runs-2026-10-28')) ?? throw new \LogicException('The card did not come back.');
+        self::assertNotSame($oldNumber, $restored->number);
+        $this->assertEachRunLinksAStoredCard($project, $runs);
+        foreach ($this->service(WorkerRunFactRepository::class)->findBy(['project' => $project->id, 'subjectId' => $restored->id]) as $fact) {
+            self::assertSame($restored->number, $fact->cardNumber);
+        }
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
+    }
+
+    public function test_a_deleted_run_comes_back_with_its_fixed_id_on_a_day_that_keeps_other_runs(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-deleted-run');
+        $this->seed($project, self::NOW);
+        $id = DevSeedId::of('insights/run/2026-10-28/1');
+        $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_runs WHERE id = ?', [$id->toRfc4122()]);
+        $this->em()->clear();
+        self::assertCount(self::RUNS - 1, $this->demoRuns($project));
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        self::assertCount(self::RUNS, $this->demoRuns($project));
+        self::assertNotNull($this->service(WorkerRunRepository::class)->find($id));
+        self::assertNotNull($this->service(WorkerRunFactRepository::class)->find($id));
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
     }
 
     public function test_it_replaces_a_demo_run_whose_card_does_not_exist(): void
@@ -119,7 +179,7 @@ final class DevMetricsSeederTest extends KernelTestCase
         $stale = $this->seedRun($this->em(), $project, cardNumber: 261030, bridgeId: Uuid::fromString(DevMetricsSeeder::BRIDGE), cardId: Uuid::v4());
         $staleId = $stale->id;
 
-        self::assertTrue($this->seeder(self::NOW)->seed($project, $this->cardFor($project)));
+        self::assertTrue($this->seed($project, self::NOW));
 
         $this->em()->clear();
         $runs = $this->demoRuns($project);
@@ -168,12 +228,16 @@ final class DevMetricsSeederTest extends KernelTestCase
         return $project;
     }
 
-    /** @return \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} */
-    private function cardFor(Project $project): \Closure
+    private function seed(Project $project, string $now): bool
     {
-        $seeder = new DevMetricsCardSeeder($this->em(), $this->service(BoardColumnRepository::class), $this->service(CardRepository::class), $this->service(CardEventRepository::class));
+        $context = SeedContextFactory::create(self::getContainer(), now: new \DateTimeImmutable($now));
+        $cards = $this->service(DevMetricsCardSeeder::class);
 
-        return static fn (\DateTimeImmutable $from, \DateTimeImmutable $to): array => $seeder->cardFor($project, $from, $to);
+        return $this->service(DevMetricsSeeder::class)->seed(
+            $context,
+            $project,
+            static fn (\DateTimeImmutable $from, \DateTimeImmutable $to): array => $cards->cardFor($context, $project, $from, $to),
+        );
     }
 
     /**
@@ -190,17 +254,6 @@ final class DevMetricsSeederTest extends KernelTestCase
     private function demoRuns(Project $project): array
     {
         return array_values($this->service(WorkerRunRepository::class)->findBy(['project' => $project->id, 'bridgeId' => Uuid::fromString(DevMetricsSeeder::BRIDGE)]));
-    }
-
-    private function seeder(string $now): DevMetricsSeeder
-    {
-        return new DevMetricsSeeder(
-            $this->em(),
-            $this->service(WorkerRunRepository::class),
-            $this->service(InsightsSavedGraphRepository::class),
-            $this->service(BucketTimeComputer::class),
-            new MockClock($now),
-        );
     }
 
     /**
