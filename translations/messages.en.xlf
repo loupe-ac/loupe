@@ -6050,6 +6050,22 @@
                 <source>inbox.bridge_outage.closed</source>
                 <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
             </trans-unit>
+            <trans-unit id="inbox.openrouter_key.title">
+                <source>inbox.openrouter_key.title</source>
+                <target>OpenRouter refused the key</target>
+            </trans-unit>
+            <trans-unit id="inbox.openrouter_key.body.account">
+                <source>inbox.openrouter_key.body.account</source>
+                <target>OpenRouter refused the account key. Loupe cannot read the billed cost of runs with it. Open Your account, select OpenRouter, and replace the key. Remove the key if you no longer use it.</target>
+            </trans-unit>
+            <trans-unit id="inbox.openrouter_key.body.project">
+                <source>inbox.openrouter_key.body.project</source>
+                <target>OpenRouter refused the key of this project. Loupe cannot read the billed cost of runs with it. Open the project settings, select OpenRouter, and replace the key. Remove the key to use your account key again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.openrouter_key.closed">
+                <source>inbox.openrouter_key.closed</source>
+                <target>OpenRouter accepts the key again since %end%. It was refused from %start%.</target>
+            </trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
                 <target>%repository% does not fit the workflow</target>
@@ -7347,6 +7363,12 @@
             <trans-unit id="bridge.worker_runs.details.metrics"><source>bridge.worker_runs.details.metrics</source><target>Metrics</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cost"><source>bridge.worker_runs.details.metric.cost</source><target>Cost</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.unknown"><source>bridge.worker_runs.details.metric.unknown</source><target>unknown</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.pending"><source>bridge.worker_runs.details.metric.pending</source><target>Pending</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-key"><source>bridge.worker_runs.details.metric.reason.no-key</source><target>No OpenRouter key</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.key-refused"><source>bridge.worker_runs.details.metric.reason.key-refused</source><target>OpenRouter refused the key</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-answer"><source>bridge.worker_runs.details.metric.reason.no-answer</source><target>OpenRouter did not answer</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.reason.no-cost-found"><source>bridge.worker_runs.details.metric.reason.no-cost-found</source><target>No cost found</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.metric.key_settings"><source>bridge.worker_runs.details.metric.key_settings</source><target>Open the OpenRouter key settings</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.input_tokens"><source>bridge.worker_runs.details.metric.input_tokens</source><target>Input tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.output_tokens"><source>bridge.worker_runs.details.metric.output_tokens</source><target>Output tokens</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.metric.cache_read_tokens"><source>bridge.worker_runs.details.metric.cache_read_tokens</source><target>Cache read tokens</target></trans-unit>
@@ -7765,6 +7787,8 @@
             <trans-unit id="board.card.runs.usage.estimated"><source>board.card.runs.usage.estimated</source><target>Estimated</target></trans-unit>
             <trans-unit id="board.card.runs.usage.partial"><source>board.card.runs.usage.partial</source><target>{0}All runs have usage|{1}1 run has no usage|]1,Inf[%count% runs have no usage</target></trans-unit>
             <trans-unit id="board.card.runs.usage.unknown"><source>board.card.runs.usage.unknown</source><target>Usage unknown</target></trans-unit>
+            <trans-unit id="board.card.runs.usage.pending"><source>board.card.runs.usage.pending</source><target>{0}No runs pending|{1}1 run pending|]1,Inf[%count% runs pending</target></trans-unit>
+            <trans-unit id="board.card.runs.usage.no_cost"><source>board.card.runs.usage.no_cost</source><target>{0}No cost is unknown|{1}1 run has no cost|]1,Inf[%count% runs have no cost</target></trans-unit>
             <trans-unit id="board.card.conversation.title"><source>board.card.conversation.title</source><target>Conversation</target></trans-unit>
             <trans-unit id="board.card.conversation.description"><source>board.card.conversation.description</source><target>Inbox requests linked to this card share their original records.</target></trans-unit>
             <trans-unit id="board.card.feedback.description"><source>board.card.feedback.description</source><target>Feedback captured by the live review widget for this card.</target></trans-unit>
@@ -10032,6 +10056,50 @@
             <trans-unit id="notification.event.other_inbox_item.description"><source>notification.event.other_inbox_item.description</source><target>A notice or a to-do that nothing waits on.</target></trans-unit>
             <trans-unit id="notification.channel.web_push.label"><source>notification.channel.web_push.label</source><target>Web push</target></trans-unit>
             <trans-unit id="notification.form.change_notification_preferences_form.save.label"><source>notification.form.change_notification_preferences_form.save.label</source><target>Save choices</target></trans-unit>
+            <trans-unit id="account.settings.nav.openrouter"><source>account.settings.nav.openrouter</source><target>OpenRouter</target></trans-unit>
+            <trans-unit id="project.edit.nav.openrouter"><source>project.edit.nav.openrouter</source><target>OpenRouter</target></trans-unit>
+            <trans-unit id="openrouter.account.page.title"><source>openrouter.account.page.title</source><target>OpenRouter</target></trans-unit>
+            <trans-unit id="openrouter.account.heading"><source>openrouter.account.heading</source><target>OpenRouter</target></trans-unit>
+            <trans-unit id="openrouter.account.description"><source>openrouter.account.description</source><target>Loupe reads the billed cost of your Codex runs on OpenRouter with a management key. It covers every project you own, unless a project sets its own key.</target></trans-unit>
+            <trans-unit id="openrouter.account.empty"><source>openrouter.account.empty</source><target>No key yet. Add a management key to see the billed cost of your Codex runs on OpenRouter.</target></trans-unit>
+            <trans-unit id="openrouter.project.page.title"><source>openrouter.project.page.title</source><target>OpenRouter key</target></trans-unit>
+            <trans-unit id="openrouter.project.heading"><source>openrouter.project.heading</source><target>OpenRouter key</target></trans-unit>
+            <trans-unit id="openrouter.project.description"><source>openrouter.project.description</source><target>Loupe reads the billed cost of this project's Codex runs on OpenRouter with a management key.</target></trans-unit>
+            <trans-unit id="openrouter.project.key_in_use"><source>openrouter.project.key_in_use</source><target>Key in use</target></trans-unit>
+            <trans-unit id="openrouter.project.own_key"><source>openrouter.project.own_key</source><target>This project's key</target></trans-unit>
+            <trans-unit id="openrouter.project.account_key"><source>openrouter.project.account_key</source><target>Your account key</target></trans-unit>
+            <trans-unit id="openrouter.project.hint_remove"><source>openrouter.project.hint_remove</source><target>Remove the project key to use the key of your account again.</target></trans-unit>
+            <trans-unit id="openrouter.project.hint_account"><source>openrouter.project.hint_account</source><target>This project uses the key of your account. A key set here overrides it for this project only.</target></trans-unit>
+            <trans-unit id="openrouter.project.use_own"><source>openrouter.project.use_own</source><target>Use a key for this project</target></trans-unit>
+            <trans-unit id="openrouter.project.replace"><source>openrouter.project.replace</source><target>Replace</target></trans-unit>
+            <trans-unit id="openrouter.project.remove"><source>openrouter.project.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="openrouter.project.none"><source>openrouter.project.none</source><target>No key is set. Loupe cannot read the billed cost of this project's Codex runs on OpenRouter.</target></trans-unit>
+            <trans-unit id="openrouter.project.add_project"><source>openrouter.project.add_project</source><target>Add a key for this project</target></trans-unit>
+            <trans-unit id="openrouter.project.add_account"><source>openrouter.project.add_account</source><target>Add a key for your account</target></trans-unit>
+            <trans-unit id="openrouter.key.connected"><source>openrouter.key.connected</source><target>Connected</target></trans-unit>
+            <trans-unit id="openrouter.key.refused"><source>openrouter.key.refused</source><target>Refused by OpenRouter</target></trans-unit>
+            <trans-unit id="openrouter.key.refused_since"><source>openrouter.key.refused_since</source><target>Since %time%. Runs since then show no cost.</target></trans-unit>
+            <trans-unit id="openrouter.key.last_read"><source>openrouter.key.last_read</source><target>Last cost read</target></trans-unit>
+            <trans-unit id="openrouter.key.never_read"><source>openrouter.key.never_read</source><target>No cost read yet</target></trans-unit>
+            <trans-unit id="openrouter.key.replace"><source>openrouter.key.replace</source><target>Replace the key</target></trans-unit>
+            <trans-unit id="openrouter.key.remove"><source>openrouter.key.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="openrouter.key.save"><source>openrouter.key.save</source><target>Save the key</target></trans-unit>
+            <trans-unit id="openrouter.key.cancel"><source>openrouter.key.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="openrouter.remove.account.title"><source>openrouter.remove.account.title</source><target>Remove your OpenRouter key?</target></trans-unit>
+            <trans-unit id="openrouter.remove.account.description"><source>openrouter.remove.account.description</source><target>Loupe forgets the key. Projects that use it show no billed cost for new runs until you add a key again.</target></trans-unit>
+            <trans-unit id="openrouter.remove.project.title"><source>openrouter.remove.project.title</source><target>Remove the key of this project?</target></trans-unit>
+            <trans-unit id="openrouter.remove.project.description"><source>openrouter.remove.project.description</source><target>Loupe forgets the key of this project. The project then uses the key of your account, when you have one.</target></trans-unit>
+            <trans-unit id="openrouter.remove.confirm"><source>openrouter.remove.confirm</source><target>Remove the key</target></trans-unit>
+            <trans-unit id="openrouter.form.hint"><source>openrouter.form.hint</source><target>The key can manage your whole OpenRouter account. Loupe uses it only to read costs.</target></trans-unit>
+            <trans-unit id="openrouter.form.open_router_key_form.secret.label"><source>openrouter.form.open_router_key_form.secret.label</source><target>Management key</target></trans-unit>
+            <trans-unit id="openrouter.form.open_router_key_form.secret.placeholder"><source>openrouter.form.open_router_key_form.secret.placeholder</source><target>sk-or-v1-…</target></trans-unit>
+            <trans-unit id="openrouter.error.not_management_key"><source>openrouter.error.not_management_key</source><target>OpenRouter says this is not a management key.</target></trans-unit>
+            <trans-unit id="openrouter.error.key_refused"><source>openrouter.error.key_refused</source><target>OpenRouter refused the key.</target></trans-unit>
+            <trans-unit id="openrouter.error.unreachable"><source>openrouter.error.unreachable</source><target>Loupe could not reach OpenRouter. Try again.</target></trans-unit>
+            <trans-unit id="openrouter.error.create_management_key"><source>openrouter.error.create_management_key</source><target>Create a management key on OpenRouter</target></trans-unit>
+            <trans-unit id="openrouter.flash.saved"><source>openrouter.flash.saved</source><target>The OpenRouter key is saved.</target></trans-unit>
+            <trans-unit id="openrouter.flash.removed"><source>openrouter.flash.removed</source><target>The OpenRouter key is removed.</target></trans-unit>
+            <trans-unit id="openrouter.live_stopped"><source>openrouter.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
         </body>
     </file>
 </xliff>

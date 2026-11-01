@@ -12,6 +12,7 @@ use App\Module\Bridge\Command\ReportWorkerRunStateHandler;
 use App\Module\Bridge\Command\ReportWorkerRunStateResult;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Event\BilledCostAwaited;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
@@ -22,6 +23,8 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageReport;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\OpenRouter\Entity\OpenRouterKey;
+use App\Module\OpenRouter\Messenger\ReadBilledCost;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
@@ -31,6 +34,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -1020,6 +1025,99 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertNull($run->ruleId);
     }
 
+    public function test_an_openrouter_outcome_flags_its_usage_and_awaits_the_billed_cost_after_the_commit(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-billed');
+        $runKey = Uuid::v4();
+        $awaited = DispatchedEvents::of(self::getContainer(), BilledCostAwaited::class);
+        $depth = $this->em()->getConnection()->getTransactionNestingLevel();
+
+        $result = $this->report($owner, $project, $runKey, WorkerRunState::Succeeded, usage: new WorkerRunUsageReport(WorkerRunUsageSource::Reported, [new WorkerRunModelUsage('deepseek', 10, 1, 2, 3, null)]), costSource: 'openrouter');
+
+        $run = $result->run ?? throw new \LogicException('The run exists.');
+        self::assertCount(1, $awaited->events());
+        self::assertEquals($run->id, $awaited->events()[0]->runId);
+        self::assertSame([$depth], $awaited->transactionDepths());
+        $connection = $this->em()->getConnection();
+        self::assertSame([true], $connection->fetchFirstColumn('SELECT billed_cost FROM bridge_worker_run_usage WHERE run_id = ?', [(string) $run->id]));
+        self::assertSame($runKey->toRfc4122(), $connection->fetchOne('SELECT run_key FROM bridge_worker_run_billed_costs WHERE run_id = ?', [(string) $run->id]));
+    }
+
+    public function test_a_repeated_openrouter_outcome_awaits_the_billed_cost_once(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-billed-repeat');
+        $runKey = Uuid::v4();
+        $awaited = DispatchedEvents::of(self::getContainer(), BilledCostAwaited::class);
+
+        $this->report($owner, $project, $runKey, WorkerRunState::Succeeded, costSource: 'openrouter');
+        $this->report($owner, $project, $runKey, WorkerRunState::Succeeded, costSource: 'openrouter');
+
+        self::assertCount(1, $awaited->events());
+        self::assertSame(1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_billed_costs'));
+    }
+
+    /** @return iterable<string, array{?string, WorkerRunState, WorkerRunKind}> */
+    public static function unbilledReports(): iterable
+    {
+        yield 'no cost source' => [null, WorkerRunState::Succeeded, WorkerRunKind::Worker];
+        yield 'another cost source' => ['anthropic', WorkerRunState::Succeeded, WorkerRunKind::Worker];
+        yield 'a run that still runs' => ['openrouter', WorkerRunState::Running, WorkerRunKind::Worker];
+        yield 'a command run' => ['openrouter', WorkerRunState::Succeeded, WorkerRunKind::Command];
+    }
+
+    #[DataProvider('unbilledReports')]
+    public function test_a_report_that_is_not_an_ended_openrouter_worker_run_awaits_nothing(?string $costSource, WorkerRunState $state, WorkerRunKind $kind): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-unbilled-'.($costSource ?? 'none').$state->value.$kind->value);
+        $awaited = DispatchedEvents::of(self::getContainer(), BilledCostAwaited::class);
+
+        $result = $this->report($owner, $project, Uuid::v4(), $state, usage: new WorkerRunUsageReport(WorkerRunUsageSource::Reported, [new WorkerRunModelUsage('deepseek', 10, 1, 2, 3, null)]), costSource: $costSource, kind: $kind);
+
+        self::assertSame([], $awaited->events());
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_billed_costs'));
+        self::assertNotNull($result->run);
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_worker_run_usage WHERE run_id = ? AND billed_cost', [(string) $result->run->id]));
+    }
+
+    public function test_an_openrouter_run_in_a_project_with_no_key_is_unknown_at_once_and_reads_nothing(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-billed-nokey');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        $result = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Succeeded, costSource: 'openrouter');
+
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT state, reason FROM bridge_worker_run_billed_costs WHERE run_id = ?', [(string) $result->run?->id]);
+        self::assertSame(['state' => 'unknown', 'reason' => 'no-key'], $row);
+        $reads = array_filter($transport->getSent(), static fn ($envelope): bool => $envelope->getMessage() instanceof ReadBilledCost);
+        self::assertSame([], $reads);
+    }
+
+    public function test_an_openrouter_run_in_a_project_with_a_key_waits_for_a_delayed_read(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-billed-key');
+        $this->em()->persist(new OpenRouterKey('sk-or-v1-0000000000000000a3f9', project: $project));
+        $this->em()->flush();
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        $result = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Succeeded, costSource: 'openrouter');
+
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT state, reason FROM bridge_worker_run_billed_costs WHERE run_id = ?', [(string) $result->run?->id]);
+        self::assertSame(['state' => 'pending', 'reason' => null], $row);
+        $reads = array_values(array_filter($transport->getSent(), static fn ($envelope): bool => $envelope->getMessage() instanceof ReadBilledCost));
+        self::assertCount(1, $reads);
+        $message = $reads[0]->getMessage();
+        self::assertInstanceOf(ReadBilledCost::class, $message);
+        self::assertSame((string) $result->run?->id, $message->runId);
+        self::assertSame(120_000, $reads[0]->last(DelayStamp::class)?->getDelay());
+    }
+
     /** @return array{User, Project} */
     private function scenario(string $name): array
     {
@@ -1066,6 +1164,8 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         ?string $harnessVersion = null,
         ?string $cliVersion = null,
         ?string $skillVersion = null,
+        ?string $costSource = null,
+        WorkerRunKind $kind = WorkerRunKind::Worker,
     ): ReportWorkerRunStateResult {
         $outcome = $state->isOutcome();
         $started = $withStart && ($outcome || WorkerRunState::Running === $state);
@@ -1111,6 +1211,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             variant: $experiment['variant'] ?? null,
             requestedModel: $experiment['requestedModel'] ?? null,
             switchedFrom: $experiment['switchedFrom'] ?? null,
+            kind: $kind,
             harness: $harness,
             account: $account,
             model: $model,
@@ -1120,6 +1221,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             skillVersion: $skillVersion,
             peakContextTokens: $peakContextTokens,
             harnessEvents: $harnessEvents,
+            costSource: $costSource,
         ));
     }
 

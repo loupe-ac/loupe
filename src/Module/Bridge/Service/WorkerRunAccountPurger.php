@@ -59,6 +59,10 @@ final readonly class WorkerRunAccountPurger implements AccountDataPurgerInterfac
             ['id' => $id],
         );
         $connection->executeStatement(
+            'DELETE FROM bridge_worker_run_billed_costs WHERE project_id IN (SELECT id FROM projects WHERE owner_id = :id)',
+            ['id' => $id],
+        );
+        $connection->executeStatement(
             'DELETE FROM bridge_worker_run_facts WHERE project_id IN (SELECT id FROM projects WHERE owner_id = :id)',
             ['id' => $id],
         );

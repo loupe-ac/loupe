@@ -17,6 +17,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxOpenRouterKeyNotice;
 use App\Module\Inbox\Entity\InboxRepositoryMisfit;
 use App\Module\Inbox\EventListener\DeleteInboxDataOnProjectDeleting;
 use App\Module\Project\Entity\Project;
@@ -26,12 +27,13 @@ use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_repository_misfits'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_openrouter_key_notices', 'inbox_repository_misfits'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -127,6 +129,10 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($notice);
         $outage = new InboxBridgeOutage($project, $notice, new \DateTimeImmutable('2026-10-16 11:00:00'));
         $this->em->persist($outage);
+        $keyNoticeItem = new InboxItem(project: $project, number: 5, kind: InboxItemKind::Notice, title: 'OpenRouter refused the key', blocking: false, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($keyNoticeItem);
+        $keyNotice = new InboxOpenRouterKeyNotice($project, $keyNoticeItem, Uuid::v7(), new \DateTimeImmutable('2026-10-31 11:00:00'));
+        $this->em->persist($keyNotice);
         $misfitNotice = new InboxItem(project: $project, number: 4, kind: InboxItemKind::Notice, title: 'acme/widgets does not fit the workflow', blocking: false, origin: InboxAskOrigin::Loupe);
         $this->em->persist($misfitNotice);
         $misfit = new InboxRepositoryMisfit($project, $misfitNotice, new \DateTimeImmutable('2026-10-27 11:00:00'), []);
@@ -142,6 +148,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_card_waits' => $wait,
             'inbox_actions' => $action,
             'inbox_bridge_outages' => $outage,
+            'inbox_openrouter_key_notices' => $keyNotice,
             'inbox_repository_misfits' => $misfit,
         ]];
     }

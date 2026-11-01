@@ -16,6 +16,7 @@
     {label: 'project.edit.nav.automation'|trans, url: path('app_board_automation_settings', {id: project.id}), icon: 'lucide:bot', active: 'automation' == section},
     {label: 'project.edit.nav.readiness'|trans, url: path('app_readiness_settings', {id: project.id}), icon: 'lucide:list-checks', active: 'readiness' == section},
     {label: 'project.edit.nav.connections'|trans, url: path('app_project_connect', {id: project.id}), icon: 'lucide:link', active: 'connections' == section},
+    is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) ? {label: 'project.edit.nav.openrouter'|trans, url: path('app_project_openrouter', {id: project.id}), icon: 'lucide:key-round', active: 'openrouter' == section},
     is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) ? {label: 'project.edit.nav.repositories'|trans, url: path('app_project_repositories_settings', {id: project.id}), icon: 'lucide:git-pull-request', active: 'repositories' == section},
 ]|filter(item => item) %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">

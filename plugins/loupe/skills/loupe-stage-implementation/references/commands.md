@@ -140,7 +140,7 @@ The implementation stage and the fix round sync the worker folder with this proc
 
    `git merge-tree` needs git 2.38 or later. A merge that holds a conflict resolution or a hand edit is not a sync, so the procedure keeps it. The script prints one `content` line for each commit that is not a sync. On a push retry, skip this item and item 5, and merge.
 5. When the script prints nothing, every local commit is a sync of the base. Run `git reset --hard origin/<head>`. The gate merges the base again, and the approval of the pull request still covers the head.
-6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of "Resolve a conflict with the base" in `../../loupe-stage-fix-round/references/pull-request-feedback.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. Skip its refresh, because item 7 refreshes once.
+6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of `../../loupe-stage-fix-round/references/conflict.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. Skip its refresh, because item 7 refreshes once.
 
    The implementation stage resolves only a mechanical conflict, as the gate does. When a conflict cannot be resolved, run `git merge --abort`, and stop with `STAGE RESULT: blocked: local branch diverged from origin`. This stop form replaces the stop form of that section.
 7. When the branch switch before the sync or the sync itself moved HEAD, refresh the environment once, as "Refresh the environment" says.

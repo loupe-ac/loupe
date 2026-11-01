@@ -189,6 +189,10 @@ final class ReportWorkerRunStateRequest
          * @var array<mixed>|null
          */
         public ?array $harnessEvents = null,
+
+        /** "openrouter" when the run went through OpenRouter, which then bills its cost. A source from a newer bridge reads as none. */
+        #[Assert\Length(max: 40)]
+        public ?string $costSource = null,
     ) {
     }
 

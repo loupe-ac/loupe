@@ -10,7 +10,7 @@ Codex lists the MCP tools from its configuration directly, so the tools of the `
 
 ## Load an instruction
 
-Codex finds skills in `.agents/skills` in each folder from the working directory up to the repository root, and in `$HOME/.agents/skills`. It follows symbolic links. Load a named instruction, such as `loupe-board`, before you act. Read its whole `SKILL.md` with a shell command. Read each file that the instruction names in the same way.
+Codex finds skills in `.agents/skills` in each folder from the working directory up to the repository root, and in `$HOME/.agents/skills`. It follows symbolic links. Load a named instruction, such as `loupe-documents`, before you act. Read its whole `SKILL.md` with a shell command. Read each file that the instruction names in the same way.
 
 ## Ask nothing
 

@@ -52,6 +52,10 @@ final readonly class DeleteWorkerRunsOnProjectDeleting
         )->setParameter('project', $event->project)->execute();
 
         $this->em->createQuery(
+            'DELETE App\Module\Bridge\Entity\WorkerRunBilledCost b WHERE b.project = :project',
+        )->setParameter('project', $event->project)->execute();
+
+        $this->em->createQuery(
             'DELETE App\Module\Bridge\Entity\WorkerRunFact f WHERE f.project = :project',
         )->setParameter('project', $event->project)->execute();
 

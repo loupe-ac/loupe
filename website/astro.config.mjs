@@ -89,6 +89,7 @@ export default defineConfig({
             { slug: 'using/documents' },
             { slug: 'using/mcp' },
             { slug: 'using/connected-apps' },
+            { slug: 'using/openrouter' },
             { slug: 'using/live-review' },
             { slug: 'using/board' },
             { slug: 'using/workflows' },
@@ -180,6 +181,7 @@ export default defineConfig({
             { slug: 'contributing/design-system' },
             { slug: 'contributing/worktrees' },
             { slug: 'contributing/lifecycle' },
+            { slug: 'contributing/instruction-audit' },
           ],
         },
         {

@@ -108,6 +108,24 @@ final class DeleteWorkerRunsOnProjectDeletingTest extends KernelTestCase
         self::assertSame((string) $keptUsageId, $em->getConnection()->fetchOne('SELECT id FROM bridge_worker_run_usage'));
     }
 
+    /** A billed cost row outlives its run, so the project delete must take it too. */
+    public function test_deleting_a_project_takes_its_billed_costs_and_leaves_another_projects_billed_costs(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'billed-delete@example.com');
+        $doomed = $this->project($em, $owner, 'Doomed Billed');
+        $kept = $this->project($em, $owner, 'Kept Billed');
+        $this->seedBilledCost($em, $this->seedRun($em, $doomed));
+        $keptRow = $this->seedBilledCost($em, $this->seedRun($em, $kept));
+
+        $deleter = self::getContainer()->get(ProjectDeleter::class);
+        self::assertInstanceOf(ProjectDeleter::class, $deleter);
+        $deleter->delete($doomed);
+
+        self::assertSame([(string) $keptRow->runId], $em->getConnection()->fetchFirstColumn('SELECT run_id FROM bridge_worker_run_billed_costs'));
+    }
+
     /** The run foreign key cascades, and the DQL delete of the runs is a plain DELETE in the database. */
     public function test_deleting_a_project_takes_the_tool_calls_of_its_runs(): void
     {
