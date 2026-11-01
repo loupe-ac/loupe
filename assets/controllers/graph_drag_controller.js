@@ -47,6 +47,8 @@ const DRAGGING_CLASS = 'lp-dashboard-grid__cell--dragging';
 const PLACEHOLDER_CLASS = 'lp-dashboard-grid__placeholder';
 const LIFTED_CLASS = 'lp-dashboard-grid__lifted';
 
+const SLIDE_DURATION = 200;
+
 const contains = (rectangle, x, y) =>
     x >= rectangle.left &&
     x <= rectangle.right &&
@@ -55,11 +57,12 @@ const contains = (rectangle, x, y) =>
 
 /**
  * Reorders the tiles of the Dashboard. A person drags a tile by its grip. A
- * lifted copy follows the pointer, the tile stays faded in its slot, and a
- * dashed slot marks where a release lands it. The drop moves the tile at once
- * and posts its move form with the step count. The server answers with a
- * redirect, so the page shows the saved order, and a refused move puts the tile
- * back. The Move up and Move down menu items are the keyboard way. The grid
+ * lifted copy follows the pointer, and a dashed slot takes the place of the
+ * tile. The slot moves under the pointer and the other tiles slide around it, so
+ * the grid always shows the order that a release gives. The drop moves the tile
+ * at once and posts its move form with the step count. The server answers with
+ * a redirect, so the page shows the saved order, and a refused move puts the
+ * tile back. The Move up and Move down menu items are the keyboard way. The grid
  * carries `data-dragging` during a drag, so the live update waits.
  */
 export default class extends Controller {
@@ -124,6 +127,8 @@ export default class extends Controller {
             scrollFrame: null,
             lastEvent: null,
             originNext: null,
+            displaced: null,
+            slides: [],
             offsetX: 0,
             offsetY: 0,
         };
@@ -212,14 +217,17 @@ export default class extends Controller {
 
         press.placeholder = document.createElement('div');
         press.placeholder.className = `${press.cell.className} ${PLACEHOLDER_CLASS}`;
-        press.placeholder.style.height = `${box.height}px`;
+        press.placeholder.style.minHeight = `${box.height}px`;
 
         press.lifted = this.#liftedCopy(press.cell);
         press.lifted.style.width = `${box.width}px`;
         press.lifted.style.height = `${box.height}px`;
         this.element.append(press.lifted);
 
+        press.cell.before(press.placeholder);
         press.cell.classList.add(DRAGGING_CLASS);
+        // The tile hides now, so the grid holds the capture for the rest of the drag.
+        this.element.setPointerCapture?.(press.pointerId);
         this.element.dataset.dragging = '';
         // Turbo reads this on an ancestor, so no link under the pointer prefetches.
         this.element.dataset.turboPrefetch = 'false';
@@ -252,35 +260,105 @@ export default class extends Controller {
         return lifted;
     }
 
+    /** The places of the grid during a drag: the dashed slot and the other tiles. */
+    #slots(press) {
+        return [...this.element.children].filter(
+            (child) =>
+                child === press.placeholder ||
+                (child !== press.cell && child.dataset.graphId !== undefined),
+        );
+    }
+
     /**
-     * Puts the dashed slot where a release at this point lands the tile. The
-     * slot pushes the other tiles along, so a pointer that rests on the slot
-     * keeps the place it marks.
+     * Moves the dashed slot into the place under this point. A swap can change
+     * the height of a row and leave the pointer on the tile that the slot just
+     * passed. That tile then does not count until the pointer leaves it, or the
+     * slot would swap back and forth.
      */
     #mark(press, event) {
-        if (
-            press.placeholder.isConnected &&
-            contains(
+        if (press.slides.length > 0) {
+            return;
+        }
+        const slots = this.#slots(press);
+        const target =
+            slots[
+                indexAtPoint(
+                    slots.map((slot) => slot.getBoundingClientRect()),
+                    event.clientX,
+                    event.clientY,
+                )
+            ];
+        if (target === press.displaced) {
+            return;
+        }
+        press.displaced = null;
+        if (target === press.placeholder) {
+            return;
+        }
+        const later = slots.indexOf(target) > slots.indexOf(press.placeholder);
+        this.#slide(press, () => {
+            if (later) {
+                target.after(press.placeholder);
+            } else {
+                target.before(press.placeholder);
+            }
+            press.displaced = contains(
                 press.placeholder.getBoundingClientRect(),
                 event.clientX,
                 event.clientY,
             )
+                ? null
+                : target;
+        });
+        press.to = this.#slots(press).indexOf(press.placeholder);
+    }
+
+    /**
+     * Applies a change of order, and slides each tile from its old place to its
+     * new one. While the tiles slide their boxes are not their places, so the
+     * slot waits and then reads the pointer again.
+     */
+    #slide(press, change) {
+        const children = [...this.element.children].filter(
+            (child) => child !== press.lifted && child !== press.cell,
+        );
+        const before = children.map((child) => child.getBoundingClientRect());
+        change();
+        if (
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+            typeof this.element.animate !== 'function'
         ) {
             return;
         }
-        const cells = this.#cells();
-        press.to = indexAtPoint(
-            cells.map((cell) => cell.getBoundingClientRect()),
-            event.clientX,
-            event.clientY,
-        );
-        if (press.to === press.from) {
-            press.placeholder.remove();
-        } else if (press.to > press.from) {
-            cells[press.to].after(press.placeholder);
-        } else {
-            cells[press.to].before(press.placeholder);
-        }
+        const easing =
+            getComputedStyle(this.element)
+                .getPropertyValue('--ease-deck')
+                .trim() || 'ease-out';
+        press.slides = children.flatMap((child, index) => {
+            const after = child.getBoundingClientRect();
+            const x = before[index].left - after.left;
+            const y = before[index].top - after.top;
+            if (x === 0 && y === 0) {
+                return [];
+            }
+
+            return [
+                child.animate(
+                    [
+                        { transform: `translate(${x}px, ${y}px)` },
+                        { transform: 'none' },
+                    ],
+                    { duration: SLIDE_DURATION, easing },
+                ),
+            ];
+        });
+        const slides = press.slides;
+        Promise.allSettled(slides.map((slide) => slide.finished)).then(() => {
+            if (this.press === press && press.slides === slides) {
+                press.slides = [];
+                this.#mark(press, press.lastEvent);
+            }
+        });
     }
 
     #up(event) {
@@ -334,8 +412,12 @@ export default class extends Controller {
         if (press.scrollFrame !== null) {
             cancelAnimationFrame(press.scrollFrame);
         }
-        if (press.grip.hasPointerCapture?.(press.pointerId)) {
-            press.grip.releasePointerCapture(press.pointerId);
+        press.slides.forEach((slide) => slide.cancel());
+        press.slides = [];
+        for (const holder of [press.grip, this.element]) {
+            if (holder.hasPointerCapture?.(press.pointerId)) {
+                holder.releasePointerCapture(press.pointerId);
+            }
         }
         delete this.element.dataset.dragging;
         delete this.element.dataset.turboPrefetch;

@@ -43,15 +43,26 @@ function cell(id) {
     </turbo-frame>`;
 }
 
-function place(grid) {
-    [...grid.children].forEach((child, index) => {
-        child.getBoundingClientRect = () => ({
+/** Lays the visible children of the grid out in one column, as the browser would. */
+function layOut() {
+    HTMLElement.prototype.getBoundingClientRect = function box() {
+        const visible = [...this.parentElement.children].filter(
+            (child) =>
+                !child.classList.contains(
+                    'lp-dashboard-grid__cell--dragging',
+                ) && !child.classList.contains('lp-dashboard-grid__lifted'),
+        );
+        const index = visible.indexOf(this);
+
+        return {
             left: 0,
             right: 100,
             top: index * 110,
             bottom: index * 110 + 100,
-        });
-    });
+            width: 100,
+            height: 100,
+        };
+    };
 }
 
 function pointer(type, target, y, extra = {}) {
@@ -77,10 +88,12 @@ beforeEach(async () => {
     application = Application.start();
     application.register('graph-drag', GraphDragController);
     await settle();
-    place(document.getElementById('grid'));
+    layOut();
 });
 
 afterEach(async () => {
+    delete HTMLElement.prototype.getBoundingClientRect;
+    delete HTMLElement.prototype.animate;
     document.body.replaceChildren();
     await settle();
     application.stop();
@@ -182,34 +195,122 @@ it('lifts a copy that follows the pointer and carries no controller hooks', () =
     ).toBe(true);
 });
 
-it('marks the landing place after a later tile and before an earlier one', () => {
-    pointer('pointerdown', grip(0), 50);
-    pointer('pointermove', grip(0), 160);
-    expect(slot().previousElementSibling.dataset.graphId).toBe('b');
+const places = () =>
+    [...grid().children]
+        .filter(
+            (child) =>
+                child === slot() ||
+                (child.dataset.graphId !== undefined &&
+                    !child.classList.contains(
+                        'lp-dashboard-grid__cell--dragging',
+                    )),
+        )
+        .map((child) => (child === slot() ? 'slot' : child.dataset.graphId));
 
-    pointer('pointermove', grip(0), 50);
-    expect(slot()).toBe(null);
-    pointer('pointercancel', grip(0), 50);
+it('hides the tile and puts the slot in its place when the drag begins', () => {
+    pointer('pointerdown', grip(1), 160);
+    pointer('pointermove', grip(1), 170);
 
-    pointer('pointerdown', grip(2), 270);
-    pointer('pointermove', grip(2), 160);
+    expect(places()).toEqual(['a', 'slot', 'c']);
     expect(slot().nextElementSibling.dataset.graphId).toBe('b');
 });
 
-it('keeps the marked place while the pointer rests on the slot', () => {
+it('moves the slot into the place under the pointer, in both directions', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 60);
+    pointer('pointermove', grip(0), 160);
+    expect(places()).toEqual(['b', 'slot', 'c']);
+
+    pointer('pointermove', grip(0), 50);
+    expect(places()).toEqual(['slot', 'b', 'c']);
+    pointer('pointercancel', grip(0), 50);
+
+    pointer('pointerdown', grip(2), 270);
+    pointer('pointermove', grip(2), 260);
+    pointer('pointermove', grip(2), 160);
+    expect(places()).toEqual(['a', 'slot', 'b']);
+});
+
+it('lands the tile in the place that the slot shows', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 60);
+    pointer('pointermove', grip(0), 160);
+    pointer('pointerup', grip(0), 160);
+
+    expect(submitted).toEqual(['1']);
+    expect(order()).toEqual(['b', 'a', 'c']);
+});
+
+it('keeps the place while the pointer rests on the slot', () => {
     pointer('pointerdown', grip(2), 270);
     pointer('pointermove', grip(2), 160);
     slot().getBoundingClientRect = () => ({
         left: 0,
         right: 100,
-        top: 0,
+        top: 110,
         bottom: 400,
     });
-    pointer('pointermove', grip(2), 50);
-    expect(slot().nextElementSibling.dataset.graphId).toBe('b');
+    pointer('pointermove', grip(2), 300);
+    expect(places()).toEqual(['a', 'slot', 'b']);
 
-    pointer('pointerup', grip(2), 50);
+    pointer('pointerup', grip(2), 300);
     expect(submitted).toEqual(['-1']);
+});
+
+it('does not swap back while a taller row leaves the pointer on the passed tile', () => {
+    const passed = grid().querySelector('[data-graph-id="b"]');
+    passed.getBoundingClientRect = () => ({
+        left: 0,
+        right: 100,
+        top: 0,
+        bottom: 300,
+    });
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 250);
+    expect(places()).toEqual(['b', 'slot', 'c']);
+
+    pointer('pointermove', grip(0), 255);
+    expect(places()).toEqual(['b', 'slot', 'c']);
+});
+
+it('lets the slot swap back at once when the row heights stay the same', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    pointer('pointermove', grip(0), 50);
+
+    expect(places()).toEqual(['slot', 'b', 'c']);
+});
+
+it('slides the other tiles and waits for them before it reads the pointer again', async () => {
+    let finish;
+    const finished = new Promise((resolve) => {
+        finish = resolve;
+    });
+    const animate = vi.fn(() => ({ finished, cancel: vi.fn() }));
+    HTMLElement.prototype.animate = animate;
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 160);
+    expect(animate).toHaveBeenCalled();
+    expect(places()).toEqual(['b', 'slot', 'c']);
+
+    pointer('pointermove', grip(0), 270);
+    expect(places()).toEqual(['b', 'slot', 'c']);
+
+    finish();
+    await settle();
+    expect(places()).toEqual(['b', 'c', 'slot']);
+});
+
+it('shows the tile again where it was when Escape ends the drag', () => {
+    pointer('pointerdown', grip(0), 50);
+    pointer('pointermove', grip(0), 60);
+    pointer('pointermove', grip(0), 160);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(grid().querySelector('.lp-dashboard-grid__cell--dragging')).toBe(
+        null,
+    );
+    expect(order()).toEqual(['a', 'b', 'c']);
 });
 
 it('moves the tile at once on a drop and leaves no drag marks', () => {

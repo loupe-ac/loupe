@@ -7795,12 +7795,12 @@
     .lp-dashboard-grid__cell--full {
         @apply lg:col-span-2;
     }
-    /* During a drag the tile leaves a faded copy in its slot, a lifted copy follows the pointer, and a dashed slot marks where it lands. */
+    /* During a drag a dashed slot takes the place of the hidden tile, and a lifted copy follows the pointer. */
     .lp-dashboard-grid[data-dragging] {
         @apply select-none;
     }
     .lp-dashboard-grid__cell--dragging {
-        @apply opacity-40;
+        @apply hidden;
     }
     .lp-dashboard-grid__placeholder {
         @apply rounded-xl border-2 border-dashed border-accent-border bg-accent-faint;
