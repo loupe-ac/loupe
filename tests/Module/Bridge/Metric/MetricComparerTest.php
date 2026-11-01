@@ -158,9 +158,7 @@ final class MetricComparerTest extends TestCase
 
     public function test_a_reading_has_a_change_and_no_sign_whatever_the_statistic(): void
     {
-        $rows = static fn (array $values): array => array_map(static fn (int $value): MetricRow => new MetricRow(Uuid::v7(), null, 'desk/work session', new \DateTimeImmutable('2026-10-01'), $value), $values);
-
-        $comparison = $this->comparer->compare(MetricStatistic::Mean, MetricValueType::Percent, MetricUnit::Reading, $rows([50, 60, 70]), $rows([10, 20, 30]), Confidence::forComparisons(1), 'seed');
+        $comparison = $this->comparer->compare(MetricStatistic::Mean, MetricValueType::Percent, MetricUnit::Reading, self::readings([50, 60, 70]), self::readings([10, 20, 30]), Confidence::forComparisons(1), 'seed');
 
         self::assertSame(40.0, $comparison->change);
         self::assertSame(MetricChangeKind::Absolute, $comparison->changeKind);
@@ -238,6 +236,16 @@ final class MetricComparerTest extends TestCase
             $this->median($current, $previous),
             $this->median($current, $previous),
         );
+    }
+
+    /**
+     * @param list<int> $values
+     *
+     * @return list<MetricRow>
+     */
+    private static function readings(array $values): array
+    {
+        return array_map(static fn (int $value): MetricRow => new MetricRow(Uuid::v7(), null, 'desk/work session', new \DateTimeImmutable('2026-10-01'), $value), $values);
     }
 
     /**
