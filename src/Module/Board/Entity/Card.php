@@ -86,7 +86,7 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
-    /** Whether a session run brought the card into its column. Every other move of the card clears it. */
+    /** Whether a session run brought the card into its column. Any other move to another column clears it. */
     #[ORM\Column(name: 'arrived_in_session', options: ['default' => false])]
     public bool $arrivedInSession = false;
 

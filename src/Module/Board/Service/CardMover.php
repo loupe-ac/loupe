@@ -52,7 +52,9 @@ final readonly class CardMover
         }
 
         $card->column = $column;
-        $card->arrivedInSession = false;
+        if (!$staysInColumn) {
+            $card->arrivedInSession = false;
+        }
 
         if ($column->terminal) {
             // A terminal column sorts by completion and maintains no position,

@@ -87,6 +87,21 @@ final class SessionMoveTest extends KernelTestCase
         self::assertFalse($this->stored($card)->arrivedInSession);
     }
 
+    public function test_a_rank_change_in_the_same_column_keeps_the_arrival(): void
+    {
+        $card = $this->card('backlog');
+        $this->open($card);
+        $neighbour = $this->card('in-progress');
+
+        $this->updateCard()(new UpdateCardCommand(card: $card, actor: Actor::Human, afterCardId: $neighbour->id?->toRfc4122()));
+
+        self::assertSame('in-progress', $card->column->slug);
+        self::assertSame(1, $card->position);
+        self::assertTrue($card->arrivedInSession);
+        $this->em()->clear();
+        self::assertTrue($this->stored($card)->arrivedInSession);
+    }
+
     public function test_moving_a_whole_column_clears_the_arrival(): void
     {
         $card = $this->card('backlog');

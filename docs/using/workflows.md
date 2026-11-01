@@ -239,7 +239,7 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   repository has an active GitHub App installation.
 - `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
-- `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move of the card clears it.
+- `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move to another column clears it. A new rank in the same column keeps it.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
   the round and the `rounds` limit.
