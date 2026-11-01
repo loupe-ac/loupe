@@ -272,10 +272,11 @@ func TestAnEarlyReturnStillFiresStop(t *testing.T) {
 	}
 }
 
-// Each run sends the rows to the heartbeat at once.
+// Each run sends the rows to the heartbeat, once the window of the last send
+// has ended.
 func TestARunSendsTheRowsToTheHeartbeat(t *testing.T) {
 	client := &fakeHeartbeats{}
-	hh := startHeartbeater(t, client, time.Minute)
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.now = steppingClock() })
 	hr := newHookRunner([]hooks.Hook{scriptHook(t, "acme/tool", "true\n", hookBusy)}, testBridgeID, newBridgeLogger(&syncBuffer{}))
 
 	hr.attach(hh.h)

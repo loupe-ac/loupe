@@ -58,6 +58,8 @@ stays out of the export.
 
 `openrouter_keys.json` holds one row for each [OpenRouter key](openrouter.md) of the user: the account key, and the key of each project the user owns. A row gives the scope, the project id, the state and the dates. It never holds the key, and it does not hold the end of the key.
 
+`bridge_claim_refusals.json` holds one row for each refused claim that still waits: the bridge id, the work request id and the account the claim named, if any.
+
 `worker_run_facts.json` holds the metrics row of each worker run of the projects
 the user owns, with its outcome, its duration, its cost, its token sums, its
 timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.

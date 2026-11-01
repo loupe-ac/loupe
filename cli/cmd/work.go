@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
@@ -142,10 +143,16 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 		return
 	}
 	if w.State == api.WorkRequestOpen {
+		if r.claimWaits.waiting(w.WorkRequestID, r.claimTime()) {
+			r.log.Debug("work_request_skipped", append(workAttrs(w, source), "reason", "claim_wait")...)
+
+			return
+		}
 		r.offerWork(w, source)
 
 		return
 	}
+	r.claimWaits.clear(w.WorkRequestID)
 	r.quiesce.RLock()
 	defer r.quiesce.RUnlock()
 	r.mu.Lock()
@@ -281,7 +288,7 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 	}
 	if err := r.registerClaimLocked(p); err != nil {
 		r.mu.Unlock()
-		r.logClaimFailed(about(p.event, p.rule), err)
+		r.claimFailed(id, about(p.event, p.rule), err)
 
 		return
 	}
@@ -291,6 +298,9 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 		defer r.wg.Done()
 
 		claim, err := r.requestClaim(p)
+		if err == nil {
+			r.claimWaits.clear(id)
+		}
 		r.mu.Lock()
 		c := r.claims[id]
 		if err != nil || c == nil || c.gone || r.shut() {
@@ -299,7 +309,7 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 			}
 			r.mu.Unlock()
 			if err != nil {
-				r.logClaimFailed(about(p.event, p.rule), err)
+				r.claimFailed(id, about(p.event, p.rule), err)
 			}
 
 			return
@@ -522,6 +532,7 @@ func (r *router) takeClaimLocked(p pending, claim api.Claim, err error, register
 	id := p.work.WorkRequestID
 	attrs := about(p.event, p.rule)
 	if err == nil {
+		r.claimWaits.clear(id)
 		err = checkClaim(claim, p.work)
 		if err != nil {
 			r.log.Warn("work_request_claim_invalid", append(attrs, "error", err.Error())...)
@@ -539,7 +550,7 @@ func (r *router) takeClaimLocked(p pending, claim api.Claim, err error, register
 		if registered && c != nil && c.token == "" {
 			delete(r.claims, id)
 		}
-		r.logClaimFailed(attrs, err)
+		r.claimFailed(id, attrs, err)
 
 		return p, claimSkip
 	}
@@ -576,6 +587,29 @@ func checkClaim(claim api.Claim, offer api.WorkRequest) error {
 	}
 
 	return nil
+}
+
+// claimTime is the time the claim waits count from.
+func (r *router) claimTime() time.Time {
+	if r.claimClock != nil {
+		return r.claimClock()
+	}
+
+	return time.Now()
+}
+
+// claimFailed logs a failed claim and sets the wait before the bridge claims
+// the request again. A lasting refusal asks for an update check, because a
+// newer release may fix it.
+func (r *router) claimFailed(id string, attrs []any, err error) {
+	wait := r.claimWaits.note(id, err, r.claimTime())
+	if wait > 0 {
+		attrs = append(slices.Clip(attrs), "retry_in_seconds", int(wait/time.Second))
+	}
+	r.logClaimFailed(attrs, err)
+	if wait > 0 && lastingRefusal(err) && r.updateCheck != nil {
+		r.updateCheck()
+	}
 }
 
 // logClaimFailed says why a claim gave nothing. The heartbeat offers an open

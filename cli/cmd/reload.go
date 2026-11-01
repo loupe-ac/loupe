@@ -233,6 +233,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 		killGone(set, id)
 	}
 	r.set.Store(set)
+	r.claimWaits.reset()
 	r.hookRunner.setHooks(b.hooks)
 	r.setSeq = seq
 	dropped := r.rewriteLocked(set)

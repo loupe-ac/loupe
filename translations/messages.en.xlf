@@ -6108,6 +6108,18 @@
                 <source>inbox.bridge_outage.body.remedy</source>
                 <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
             </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.version_gap">
+                <source>inbox.bridge_outage.body.refused.version_gap</source>
+                <target>%bridge% runs a CLI that names no account in its claims. Run `loupe update` on that machine.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.account">
+                <source>inbox.bridge_outage.body.refused.account</source>
+                <target>The server refused %bridge% for the account %account%. Check the account of the work entry or the experiment variant in `rules.yaml`, then run `loupe bridge reload`.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.no_account">
+                <source>inbox.bridge_outage.body.refused.no_account</source>
+                <target>The server refused %bridge% because its claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.</target>
+            </trans-unit>
             <trans-unit id="inbox.account_limit.title">
                 <source>inbox.account_limit.title</source>
                 <target>{0}%account% on %bridge% is at its %window% limit · no cards wait · resets %resets%|{1}%account% on %bridge% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% on %bridge% is at its %window% limit · %count% cards wait · resets %resets%</target>
@@ -8493,6 +8505,10 @@
             <trans-unit id="bridge.agents.status.login_expired"><source>bridge.agents.status.login_expired</source><target>Login expired</target></trans-unit>
             <trans-unit id="bridge.agents.hint.login_expired"><source>bridge.agents.hint.login_expired</source><target>Run `loupe login` on %name%.</target></trans-unit>
             <trans-unit id="bridge.agents.hint.stale"><source>bridge.agents.hint.stale</source><target>Run `loupe bridge status` on %name% to see why.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.chip"><source>bridge.agents.refused.chip</source><target>Cannot take work</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.version_gap"><source>bridge.agents.refused.cause.version_gap</source><target>This CLI names no account in its claims. Run `loupe update`.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.account"><source>bridge.agents.refused.cause.account</source><target>The server refused the account %account%. Check the work entry or experiment variant in `rules.yaml`, then run `loupe bridge reload`.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.no_account"><source>bridge.agents.refused.cause.no_account</source><target>The claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.</target></trans-unit>
             <trans-unit id="bridge.agents.status.healthy"><source>bridge.agents.status.healthy</source><target>Healthy</target></trans-unit>
             <trans-unit id="bridge.agents.project_connection"><source>bridge.agents.project_connection</source><target>Receives eligible work for %project%.</target></trans-unit>
             <trans-unit id="bridge.agents.runtime"><source>bridge.agents.runtime</source><target>CLI version</target></trans-unit>

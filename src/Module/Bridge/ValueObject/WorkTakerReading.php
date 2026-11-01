@@ -31,6 +31,12 @@ final readonly class WorkTakerReading
         public ?UsageLimitWait $limit = null,
         /** On a disconnected reading: a bridge holds the claim of the request, and the request is not open. */
         public bool $claimed = false,
+        /**
+         * On a not-capable reading: the online bridges that the server refused for this request.
+         *
+         * @var list<RefusedTaker>
+         */
+        public array $refusedTakers = [],
     ) {
     }
 }
