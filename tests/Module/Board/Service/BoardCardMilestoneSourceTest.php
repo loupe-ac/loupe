@@ -76,24 +76,64 @@ final class BoardCardMilestoneSourceTest extends KernelTestCase
             DurationEvent::PR_OPENED.'||08:00',
             DurationEvent::PR_OPENED.'||10:00',
             DurationEvent::READY_TO_MERGE.'||11:00',
+            DurationEvent::READY_TO_MERGE.'||12:30',
         ];
         sort($expected);
         self::assertSame($expected, $found);
         self::assertSame([], $this->source->milestonesOf($project, [], $templates));
     }
 
-    public function test_it_counts_an_approval_check_pass_as_ready_to_merge_and_not_a_dismissal(): void
+    public function test_an_approval_check_pass_is_no_ready_time_because_the_branch_can_be_behind(): void
     {
         $project = $this->makeProject('milestones-approval');
         $card = $this->card($project, 1, 'in-progress');
+        $read = $this->card($project, 2, 'in-progress');
         $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
         $this->event($card, CardEventKind::AutoApproved, ['pullRequest' => 7, 'headSha' => 'abc123', 'rule' => 'approval-check-auto'], $at('10:30:00'));
-        $this->event($card, CardEventKind::ApprovalDismissed, ['pullRequest' => 7, 'rule' => 'approval-check-revoke'], $at('11:00:00'));
+        $this->event($read, CardEventKind::AutoApproved, ['pullRequest' => 8, 'headSha' => 'abc123', 'rule' => 'approval-check-auto'], $at('10:30:00'));
+        $this->event($read, CardEventKind::ReadyToMerge, ['pullRequest' => 8], $at('12:00:00'));
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card, $read], new TemplateMetricSet(slotColumns: []));
+
+        self::assertSame([(string) $read], array_keys($milestones));
+        self::assertSame([DurationEvent::READY_TO_MERGE.'||12:00'], $this->found($milestones[(string) $read]));
+    }
+
+    public function test_a_pull_request_that_merged_with_no_ready_read_was_ready_at_its_merge(): void
+    {
+        $project = $this->makeProject('milestones-merged-unread');
+        $card = $this->card($project, 1, 'in-progress');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
+        $this->event($card, CardEventKind::AutoApproved, ['pullRequest' => 7, 'headSha' => 'abc123', 'rule' => 'approval-check-auto'], $at('10:30:00'));
+        $this->pullRequest($project, $card, 7, $at('08:00:00'), $at('10:45:00'));
         $this->em->clear();
 
         $milestones = $this->source->milestonesOf($project, [$card], new TemplateMetricSet(slotColumns: []));
 
-        self::assertSame([DurationEvent::READY_TO_MERGE.'||10:30'], $this->found($milestones[(string) $card] ?? []));
+        self::assertSame([
+            DurationEvent::PR_MERGED.'||10:45',
+            DurationEvent::PR_OPENED.'||08:00',
+            DurationEvent::READY_TO_MERGE.'||10:45',
+        ], $this->found($milestones[(string) $card] ?? []));
+    }
+
+    public function test_a_ready_read_keeps_its_time_when_the_pull_request_merges_later(): void
+    {
+        $project = $this->makeProject('milestones-merged-read');
+        $card = $this->card($project, 1, 'in-progress');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-09-01 '.$time);
+        $this->event($card, CardEventKind::ReadyToMerge, ['pullRequest' => 7], $at('10:00:00'));
+        $this->pullRequest($project, $card, 7, $at('08:00:00'), $at('15:00:00'));
+        $this->em->clear();
+
+        $milestones = $this->source->milestonesOf($project, [$card], new TemplateMetricSet(slotColumns: []));
+
+        self::assertSame([
+            DurationEvent::PR_MERGED.'||15:00',
+            DurationEvent::PR_OPENED.'||08:00',
+            DurationEvent::READY_TO_MERGE.'||10:00',
+        ], $this->found($milestones[(string) $card] ?? []));
     }
 
     public function test_it_counts_a_creation_as_an_arrival_in_each_slot_of_its_column_and_never_as_a_departure(): void

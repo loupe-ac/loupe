@@ -13,7 +13,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\DurationEvent;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 
-/** The events that the board knows: the pull requests of a card, its ready-to-merge and approval rows, its creation and its moves between columns. */
+/** The events that the board knows: the pull requests of a card, its ready-to-merge rows, its creation and its moves between columns. */
 final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInterface
 {
     public function __construct(
@@ -37,24 +37,15 @@ final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInte
         }
 
         $milestones = [];
-        foreach ($this->cardPullRequests->findPullRequestTimesOfCards($project, $cardIds) as $cardId => $times) {
-            foreach ($times as $time) {
-                if (null !== $time['openedAt']) {
-                    $milestones[$cardId][] = new CardMilestone(DurationEvent::PR_OPENED, $time['openedAt']);
-                }
-                if (null !== $time['mergedAt']) {
-                    $milestones[$cardId][] = new CardMilestone(DurationEvent::PR_MERGED, $time['mergedAt']);
-                }
-            }
-        }
-
-        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::ReadyToMerge, CardEventKind::AutoApproved, CardEventKind::Created, CardEventKind::Moved]) as $row) {
+        $readPullRequests = [];
+        foreach ($this->cardEvents->findKindsOfCards($project, $cardIds, [CardEventKind::ReadyToMerge, CardEventKind::Created, CardEventKind::Moved]) as $row) {
             $at = $row['at'];
             if (null === $at) {
                 continue;
             }
-            if (CardEventKind::ReadyToMerge === $row['kind'] || CardEventKind::AutoApproved === $row['kind']) {
+            if (CardEventKind::ReadyToMerge === $row['kind']) {
                 $milestones[$row['cardId']][] = new CardMilestone(DurationEvent::READY_TO_MERGE, $at);
+                $readPullRequests[$row['cardId']][] = $row['detail']['pullRequest'] ?? null;
                 continue;
             }
             $sides = CardEventKind::Created === $row['kind'] ? [DurationEvent::ARRIVED => 'column'] : [DurationEvent::ARRIVED => 'to', DurationEvent::LEFT => 'from'];
@@ -63,6 +54,22 @@ final readonly class BoardCardMilestoneSource implements CardMilestoneSourceInte
                 $columnId = \is_array($column) ? $column['id'] ?? null : null;
                 foreach (\is_string($columnId) ? $slotsOfColumn[$columnId] ?? [] : [] as $slot) {
                     $milestones[$row['cardId']][] = new CardMilestone($event, $at, $slot);
+                }
+            }
+        }
+
+        foreach ($this->cardPullRequests->findPullRequestTimesOfCards($project, $cardIds) as $cardId => $times) {
+            foreach ($times as $time) {
+                if (null !== $time['openedAt']) {
+                    $milestones[$cardId][] = new CardMilestone(DurationEvent::PR_OPENED, $time['openedAt']);
+                }
+                if (null === $time['mergedAt']) {
+                    continue;
+                }
+                $milestones[$cardId][] = new CardMilestone(DurationEvent::PR_MERGED, $time['mergedAt']);
+                // The merge can come before the next forge read, and a merge proves that the pull request was ready.
+                if (!\in_array($time['number'], $readPullRequests[$cardId] ?? [], true)) {
+                    $milestones[$cardId][] = new CardMilestone(DurationEvent::READY_TO_MERGE, $time['mergedAt']);
                 }
             }
         }

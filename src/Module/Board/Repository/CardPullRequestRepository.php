@@ -308,7 +308,7 @@ class CardPullRequestRepository extends ServiceEntityRepository
      *
      * @param list<Uuid> $cardIds
      *
-     * @return array<string, list<array{openedAt: ?\DateTimeImmutable, mergedAt: ?\DateTimeImmutable}>> card id => one entry per pull request
+     * @return array<string, list<array{number: int, openedAt: ?\DateTimeImmutable, mergedAt: ?\DateTimeImmutable}>> card id => one entry per pull request
      */
     public function findPullRequestTimesOfCards(Project $project, array $cardIds): array
     {
@@ -317,9 +317,9 @@ class CardPullRequestRepository extends ServiceEntityRepository
         }
 
         $connection = $this->getEntityManager()->getConnection();
-        /** @var list<array{card_id: string, opened_at: ?string, merged_at: ?string}> $rows */
+        /** @var list<array{card_id: string, number: int|string, opened_at: ?string, merged_at: ?string}> $rows */
         $rows = $connection->fetchAllAssociative(
-            'SELECT c.id AS card_id, pr.opened_at, pr.merged_at
+            'SELECT c.id AS card_id, pr.number, pr.opened_at, pr.merged_at
             FROM board_card_pull_requests link
             JOIN board_cards c ON c.id = link.card_id
             JOIN forge_pull_requests pr ON pr.project_id = c.project_id AND pr.forge = link.forge
@@ -340,6 +340,7 @@ class CardPullRequestRepository extends ServiceEntityRepository
             $openedAt = $type->convertToPHPValue($row['opened_at'], $platform);
             $mergedAt = $type->convertToPHPValue($row['merged_at'], $platform);
             $times[$row['card_id']][] = [
+                'number' => (int) $row['number'],
                 'openedAt' => $openedAt instanceof \DateTimeImmutable ? $openedAt : null,
                 'mergedAt' => $mergedAt instanceof \DateTimeImmutable ? $mergedAt : null,
             ];

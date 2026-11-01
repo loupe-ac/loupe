@@ -653,11 +653,11 @@ the last time the event happened. A card with a start and no end after it has
 no value.
 
 The event `ready-to-merge` happens when Loupe reads that a pull request is ready
-to merge. It also happens when the check `Loupe / Approval` passes, which writes
-an `auto-approved` row in the history of the card. So a pull request that merges
-before the next read still has a ready time. A later dismissal of the approval
-does not remove that time. The event `{ arrived: <slot> }` happens when a card
-moves into the column of the slot, and also when a card is created in it.
+to merge. A pull request that merges with no such read has its ready time at the
+merge, because a merge can come before the next read. A pass of the check
+`Loupe / Approval` is not a ready time, because the branch can still be behind
+its base. The event `{ arrived: <slot> }` happens when a card moves into the
+column of the slot, and also when a card is created in it.
 
 The Workflow page lists the metrics of the template in a **Metrics** section, after
 the card markers. Each row shows the label and the description, the key, the type
