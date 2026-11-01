@@ -1422,7 +1422,7 @@ class WorkerRunRepository extends ServiceEntityRepository
         $factModels = $this->getEntityManager()->createQueryBuilder()
             ->select('DISTINCT f.model')
             ->from(WorkerRunFact::class, 'f')
-            ->innerJoin(WorkerRun::class, 'r', Join::WITH, 'r.id = f.runId')
+            ->innerJoin(WorkerRun::class, 'r', Join::ON, 'r.id = f.runId')
             ->andWhere('r.project = :project')
             ->andWhere('r.model IS NULL')
             ->andWhere('f.model IS NOT NULL')
