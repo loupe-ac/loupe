@@ -327,6 +327,11 @@ policy: a newer heartbeat replaces one that has not gone out, and a failed one
 is not sent again. The next interval sends a fresh one. A slow or failing
 heartbeat never delays a run report.
 
+A hook result does not send a heartbeat at once. The bridge sends the changed
+hook rows and worker pool rows in a window of at most 10 seconds. After a failed
+heartbeat, the bridge sends nothing else until the next interval. A reload and a
+pause then reach the server up to one interval late.
+
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"cliRange":"^1.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[]}` | the heartbeat is accepted |

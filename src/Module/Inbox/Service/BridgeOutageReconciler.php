@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkTakers;
+use App\Module\Bridge\ValueObject\RefusedTaker;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Inbox\Entity\InboxAskOrigin;
@@ -99,6 +100,7 @@ final readonly class BridgeOutageReconciler
 
             $expired = array_values(array_unique(array_merge(...array_map(static fn (array $row): array => $row['reading']->expiredTakers, array_values($withoutTaker)))));
             sort($expired);
+            $refused = self::refusedOf($withoutTaker);
 
             if (null === $outage) {
                 $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
@@ -108,14 +110,14 @@ final readonly class BridgeOutageReconciler
                     return null;
                 }
 
-                $outage = $this->open($project, $cards, self::earliest($due), $now, $expired);
+                $outage = $this->open($project, $cards, self::earliest($due), $now, $expired, $refused);
                 $this->em->flush();
                 $this->searchIndexer->index($outage->item);
 
                 return true;
             }
 
-            if (!$this->extend($outage->item, $cards, $now, $expired)) {
+            if (!$this->extend($outage->item, $cards, $now, $expired, $refused)) {
                 return null;
             }
             $this->em->flush();
@@ -197,10 +199,31 @@ final readonly class BridgeOutageReconciler
     }
 
     /**
+     * Each refused bridge once, whatever the number of requests it was refused.
+     *
+     * @param array<string, array{request: WorkRequest, reading: WorkTakerReading}> $rows
+     *
+     * @return list<RefusedTaker>
+     */
+    private static function refusedOf(array $rows): array
+    {
+        $refused = [];
+        foreach ($rows as $row) {
+            foreach ($row['reading']->refusedTakers as $taker) {
+                $refused[$taker->label."\0".$taker->account."\0".(int) $taker->versionGap] = $taker;
+            }
+        }
+        ksort($refused);
+
+        return array_values($refused);
+    }
+
+    /**
      * @param array<string, Card> $cards
      * @param list<string>        $expired
+     * @param list<RefusedTaker>  $refused
      */
-    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now, array $expired): InboxBridgeOutage
+    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now, array $expired, array $refused): InboxBridgeOutage
     {
         $item = new InboxItem(
             project: $project,
@@ -215,7 +238,7 @@ final readonly class BridgeOutageReconciler
         foreach ($cards as $card) {
             $item->cards->add(new InboxItemCard($item, $card, $now));
         }
-        $item->body = $this->body($item, $expired);
+        $item->body = $this->body($item, $expired, $refused);
         $outage = new InboxBridgeOutage($project, $item, $startedAt);
         $this->em->persist($item);
         $this->em->persist($outage);
@@ -231,8 +254,9 @@ final readonly class BridgeOutageReconciler
      *
      * @param array<string, Card> $cards
      * @param list<string>        $expired
+     * @param list<RefusedTaker>  $refused
      */
-    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now, array $expired): bool
+    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now, array $expired, array $refused): bool
     {
         $linked = [];
         foreach ($item->cards as $link) {
@@ -246,7 +270,7 @@ final readonly class BridgeOutageReconciler
                 $added = true;
             }
         }
-        $body = $this->body($item, $expired);
+        $body = $this->body($item, $expired, $refused);
         if (!$added && $body === $item->body) {
             return false;
         }
@@ -257,8 +281,11 @@ final readonly class BridgeOutageReconciler
         return true;
     }
 
-    /** @param list<string> $expired */
-    private function body(InboxItem $item, array $expired): string
+    /**
+     * @param list<string>       $expired
+     * @param list<RefusedTaker> $refused
+     */
+    private function body(InboxItem $item, array $expired, array $refused): string
     {
         $cards = array_map(static fn (InboxItemCard $link): Card => $link->card, $item->cards->toArray());
         usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
@@ -268,9 +295,28 @@ final readonly class BridgeOutageReconciler
             $cards,
         );
 
-        return $this->translator->trans('inbox.bridge_outage.body.intro', [], null, $this->locale)
-            ."\n\n".implode("\n", $lines)
-            ."\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
+        $body = $this->translator->trans('inbox.bridge_outage.body.intro', [], null, $this->locale)
+            ."\n\n".implode("\n", $lines);
+        // The start-a-bridge advice is wrong while an online bridge is the one the server refused.
+        if ([] === $refused || [] !== $expired) {
+            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
+        }
+        if ([] !== $refused) {
+            $body .= "\n\n".implode("\n", array_map($this->refusedLine(...), $refused));
+        }
+
+        return $body;
+    }
+
+    private function refusedLine(RefusedTaker $taker): string
+    {
+        $key = match (true) {
+            $taker->versionGap => 'inbox.bridge_outage.body.refused.version_gap',
+            null !== $taker->account => 'inbox.bridge_outage.body.refused.account',
+            default => 'inbox.bridge_outage.body.refused.no_account',
+        };
+
+        return '- '.$this->translator->trans($key, ['%bridge%' => $taker->label, '%account%' => $taker->account ?? ''], null, $this->locale);
     }
 
     /**

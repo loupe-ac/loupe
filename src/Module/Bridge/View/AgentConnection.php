@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\ValueObject\AccountLimit;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
+use App\Module\Bridge\ValueObject\RefusedRequest;
 use App\Module\Bridge\ValueObject\WindowLimit;
 use App\Module\Bridge\ValueObject\WindowLimitState;
 
@@ -25,6 +26,9 @@ final readonly class AgentConnection
         public array $limits = [],
         /** @var array<string, BridgeAccountTryNow> the newest Try now override of each account that has one */
         public array $tryNows = [],
+        public ?AgentRefusalChip $refusalChip = null,
+        /** @var list<RefusedRequest> the open requests of the project that the server refused to this bridge */
+        public array $refusals = [],
     ) {
     }
 

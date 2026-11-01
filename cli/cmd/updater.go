@@ -126,8 +126,10 @@ type updater struct {
 	// saying so, where it would otherwise say current.
 	rolledBack string
 	kick       chan struct{}
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
+	// nudged is the time of the last check a refused claim asked for.
+	nudged time.Time
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 
 	// logged holds each once-only line already written. Only the holder of
 	// token reads or writes it.
@@ -188,6 +190,29 @@ func (u *updater) setRange(r string) {
 		return
 	}
 	u.cliRange = r
+	u.mu.Unlock()
+
+	select {
+	case u.kick <- struct{}{}:
+	default:
+	}
+}
+
+// nudgeWindow is the shortest time between two checks that a refused claim
+// asks for.
+const nudgeWindow = 10 * time.Minute
+
+// nudge asks for a check at now, unless one was asked for inside nudgeWindow.
+// The loop runs it, and the autoUpdate key still decides whether it installs.
+// It never blocks.
+func (u *updater) nudge(now time.Time) {
+	u.mu.Lock()
+	if !u.nudged.IsZero() && now.Sub(u.nudged) < nudgeWindow {
+		u.mu.Unlock()
+
+		return
+	}
+	u.nudged = now
 	u.mu.Unlock()
 
 	select {
