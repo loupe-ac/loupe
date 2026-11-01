@@ -298,11 +298,15 @@
        document review page. Its padding keeps the content inside the page frame.
        Here 100% is the pane column, so the inset adds back the page padding, the list
        column and the gap to its left. The frame binds only where that list is full width. */
-    .lp-core-inbox .lp-inbox-request-detail {
-        padding-right: calc(
+    .lp-core-inbox .lp-inbox-request-detail,
+    .lp-core-inbox .lp-inbox-pane-loading {
+        --inbox-pane-inset: calc(
             max(0px, 100% + var(--spacing) * 88 - var(--container-7xl)) +
                 var(--inbox-gutter)
         );
+    }
+    .lp-core-inbox .lp-inbox-request-detail {
+        padding-right: var(--inbox-pane-inset);
     }
 
     /* Only the entries scroll. The tabs, the search and the filters stay above them. */
@@ -451,8 +455,11 @@
         color: var(--accent-ink);
     }
 
+    /* Its own stacking context, so no layer inside the pane, such as the entry
+       animation of a reply card, paints above the loading cover. */
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
+        isolation: isolate;
     }
 
     /* While a picked row loads, a spinner covers the detail pane, as on the board's card drawer.
@@ -466,7 +473,9 @@
         grid-area: 1 / 2;
     }
 
+    /* The cover ends where the pane content ends, at the frame of the top bar. */
     .lp-core-inbox .lp-inbox-pane-loading {
+        margin-right: var(--inbox-pane-inset);
         z-index: 10;
         display: flex;
         align-items: center;
@@ -507,6 +516,7 @@
         .lp-core-inbox .lp-inbox-pane-loading {
             position: fixed;
             inset: 0;
+            margin-right: 0;
             z-index: 30;
         }
     }
@@ -8910,9 +8920,10 @@
 .lp-inbox-thread .lp-comment-composer--untargeted {
     @apply mb-0 max-w-none;
 }
-/* The field keeps one height, so the buttons below it never move under the pointer. */
+/* The field keeps one height, so the buttons below it never move under the pointer.
+   A ring marks focus, as on every other field, and moves nothing. */
 .lp-inbox-thread .lp-comment-composer textarea {
-    @apply h-21 min-h-0;
+    @apply h-21 min-h-0 focus:ring-2 focus:ring-accent-ink;
 }
 .inbox-split__hint {
     @apply mr-auto;
