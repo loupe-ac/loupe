@@ -63,6 +63,7 @@ framework:
             App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
             App\Module\Notification\Messenger\DeliverWebPush: jobs
+            App\Module\OpenRouter\Messenger\ReadBilledCost: jobs
             App\Module\Workflow\Messenger\EvaluateCard: card_eval
             App\Module\Workflow\Messenger\RunRuleAskAnswer: interactive
 

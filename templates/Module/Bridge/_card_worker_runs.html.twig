@@ -4,7 +4,7 @@
 {% set canManage = is_granted('project.manage', project) %}
 <turbo-frame id="card-worker-runs" class="lp-live-frame" target="_top">
 {# A manager always sees the section, because the pause control shows on a card with no runs. #}
-{% if canManage or runs is not empty or usage.known or held or commandErrors|default([]) is not empty %}
+{% if canManage or runs is not empty or usage.known or usage.pendingRuns > 0 or usage.noCostRuns > 0 or held or commandErrors|default([]) is not empty %}
 <section class="lp-card-overview__section" data-card-runs>
     <twig:Ds:SectionHeading>{{ (runs is not empty ? 'board.card.runs.open_title' : 'board.card.runs.title')|trans }}
         <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_worker_runs', {id: project.id}) }}" data-turbo-frame="_top" data-card-runs-all>{{ 'board.card.runs.all'|trans }}</a></twig:block>
@@ -52,6 +52,8 @@
         {% else %}
         <span data-card-usage-unknown>{{ 'board.card.runs.usage.unknown'|trans }}</span>
         {% endif %}
+        {% if usage.pendingRuns > 0 %}<twig:Ds:Tag tone="neutral" data-card-usage-pending>{{ 'board.card.runs.usage.pending'|trans({'%count%': usage.pendingRuns}) }}</twig:Ds:Tag>{% endif %}
+        {% if usage.noCostRuns > 0 %}<twig:Ds:Tag tone="amber" data-card-usage-no-cost>{{ 'board.card.runs.usage.no_cost'|trans({'%count%': usage.noCostRuns}) }}</twig:Ds:Tag>{% endif %}
     </p>
 </section>
 {% endif %}

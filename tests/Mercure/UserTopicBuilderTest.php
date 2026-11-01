@@ -63,4 +63,24 @@ final class UserTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->userIdFromNotificationsTopic(str_replace((string) $userId, 'not-a-uuid', $topic)));
         self::assertNull($builder->userIdFromNotificationsTopic('https://elsewhere.test/users/'.$userId.'/notifications'));
     }
+
+    public function test_the_openrouter_topic_is_apart_from_the_other_user_topics_and_names_its_user(): void
+    {
+        self::bootKernel();
+
+        $builder = self::getContainer()->get(UserTopicBuilder::class);
+        self::assertInstanceOf(UserTopicBuilder::class, $builder);
+        $userId = Uuid::v7();
+
+        $topic = $builder->forOpenRouter($userId);
+
+        self::assertStringEndsWith('/users/'.$userId.'/openrouter', $topic);
+        self::assertNotSame($builder->forUser($userId), $topic);
+        self::assertNotSame($builder->forNotifications($userId), $topic);
+        self::assertEquals($userId, $builder->userIdFromOpenRouterTopic($topic));
+        self::assertNull($builder->userIdFromOpenRouterTopic($builder->forUser($userId)));
+        self::assertNull($builder->userIdFromOpenRouterTopic($builder->forNotifications($userId)));
+        self::assertNull($builder->userIdFromOpenRouterTopic(str_replace((string) $userId, 'not-a-uuid', $topic)));
+        self::assertNull($builder->userIdFromNotificationsTopic($topic));
+    }
 }

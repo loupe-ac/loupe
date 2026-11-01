@@ -20,6 +20,10 @@ final readonly class CardUsageTotal
         public int $partialRuns = 0,
         /** True when a row is an estimate, or a row has no price. */
         public bool $estimated = false,
+        /** Runs whose billed cost OpenRouter has not answered yet. */
+        public int $pendingRuns = 0,
+        /** Runs whose billed cost is unknown, whatever the reason. */
+        public int $noCostRuns = 0,
     ) {
     }
 

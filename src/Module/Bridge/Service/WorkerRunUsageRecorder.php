@@ -23,7 +23,7 @@ final readonly class WorkerRunUsageRecorder
     }
 
     /** Answers whether the usage of the run changed. */
-    public function record(WorkerRun $run, WorkerRunUsageReport $report): bool
+    public function record(WorkerRun $run, WorkerRunUsageReport $report, bool $billedCost = false): bool
     {
         if (!$report->replaces($run->usageSource)) {
             return false;
@@ -48,6 +48,7 @@ final readonly class WorkerRunUsageRecorder
                 cacheReadTokens: $model->cacheReadTokens,
                 cacheWriteTokens: $model->cacheWriteTokens,
                 costUsd: $model->costUsd,
+                billedCost: $billedCost,
             ));
         }
 

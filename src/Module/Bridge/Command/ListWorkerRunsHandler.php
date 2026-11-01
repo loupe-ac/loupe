@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -32,6 +33,7 @@ final readonly class ListWorkerRunsHandler
         private BridgeLabels $bridgeLabels,
         private WorkerRunFactRepository $workerRunFacts,
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
+        private WorkerRunBilledCostRepository $workerRunBilledCosts,
     ) {
     }
 
@@ -67,10 +69,11 @@ final readonly class ListWorkerRunsHandler
         $runIds = array_values(array_filter(array_map(static fn (WorkerRun $run): ?Uuid => $run->id, $runs)));
         $facts = $this->workerRunFacts->findByRunIds($command->project, $runIds);
         $buckets = $this->workerRunBucketTimes->findViewsOfRuns($runIds);
+        $billedCosts = $this->workerRunBilledCosts->findByRunIds($runIds);
 
         return new ListWorkerRunsView(
             items: array_map(
-                static fn (WorkerRun $run): WorkerRunListItem => new WorkerRunListItem($run, $now, $histories[(string) $run->id] ?? [], $titles[(string) $run->cardId()] ?? null, $controls[(string) $run->id] ?? null, $facts[(string) $run->id] ?? null, $buckets[(string) $run->id] ?? null),
+                static fn (WorkerRun $run): WorkerRunListItem => new WorkerRunListItem($run, $now, $histories[(string) $run->id] ?? [], $titles[(string) $run->cardId()] ?? null, $controls[(string) $run->id] ?? null, $facts[(string) $run->id] ?? null, $buckets[(string) $run->id] ?? null, $billedCosts[(string) $run->id] ?? null),
                 $runs,
             ),
             filteredTotal: $total,

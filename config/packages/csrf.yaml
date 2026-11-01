@@ -54,3 +54,4 @@ framework:
             - billing-beta-invite-claim
             - artifact-archive
             - artifact-unarchive
+            - openrouter-key-remove

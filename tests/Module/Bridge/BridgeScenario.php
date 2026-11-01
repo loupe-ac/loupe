@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunBilledCost;
 use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
@@ -16,6 +17,8 @@ use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
 use App\Module\Bridge\Service\BucketFigures;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
+use App\Module\Bridge\ValueObject\BilledCostReason;
+use App\Module\Bridge\ValueObject\BilledCostState;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
@@ -142,13 +145,39 @@ trait BridgeScenario
         WorkerRunUsageSource $source = WorkerRunUsageSource::Reported,
         ?string $costUsd = '0.012345',
         int $inputTokens = 100,
+        bool $billedCost = false,
     ): WorkerRunUsage {
-        $usage = new WorkerRunUsage($run, $run->project, $run->subjectType, $run->subjectId, $run->workKind, $model, $source, $inputTokens, 20, 300, 40, $costUsd);
+        $usage = new WorkerRunUsage($run, $run->project, $run->subjectType, $run->subjectId, $run->workKind, $model, $source, $inputTokens, 20, 300, 40, $costUsd, $billedCost);
         $run->usageSource = $source;
         $em->persist($usage);
         $em->flush();
 
         return $usage;
+    }
+
+    /** A billed run: its usage rows carry tokens and no price, and the billed cost row holds the cost. */
+    private function seedBilledCost(
+        EntityManagerInterface $em,
+        WorkerRun $run,
+        BilledCostState $state = BilledCostState::Billed,
+        ?string $costUsd = '0.500000',
+        ?BilledCostReason $reason = null,
+    ): WorkerRunBilledCost {
+        $billed = new WorkerRunBilledCost(
+            runId: $run->id ?? throw new \LogicException('The run has no id.'),
+            runKey: $run->runKey ?? Uuid::v4(),
+            project: $run->project,
+            subjectType: $run->subjectType,
+            subjectId: $run->subjectId,
+            runStartedAt: $run->startedAt ?? $run->receivedAt,
+        );
+        $billed->state = $state;
+        $billed->costUsd = $costUsd;
+        $billed->reason = $reason;
+        $em->persist($billed);
+        $em->flush();
+
+        return $billed;
     }
 
     /**

@@ -44,7 +44,8 @@ failure reason and the output.
 The drawer also shows a **Metrics** block from the metrics row of the run. The
 block gives the cost, the input, output, cache read and cache write tokens, the
 model and the duration. A run with no price shows the cost as **unknown**. A
-token count or a model that the run did not report has no line. A command run
+Codex run on OpenRouter shows its [billed cost](#the-billed-cost-of-an-openrouter-run)
+instead. A token count or a model that the run did not report has no line. A command run
 shows no **Metrics** block, and a run with no metrics row shows none either.
 
 A bridge runs its workers in named worker pools, and each report of a run names
@@ -353,12 +354,14 @@ run in progress shows the line alone when its usage is known. The line shows the
 cost in US dollars, then the input, output, cache read and cache write tokens.
 A large count is short, such as `45.3k` or `1.2M`.
 
-The line can carry two marks:
+The line can carry four marks:
 
 | Mark | Meaning |
 |---|---|
 | **Estimated** | the bridge counted some tokens from the session transcript, or a model has no known price. The dollar total can be low |
 | **n runs have no usage** | n worker runs started and closed, and reported no usage. The total leaves them out |
+| **n runs pending** | n Codex runs on OpenRouter wait for their [billed cost](#the-billed-cost-of-an-openrouter-run). The total leaves them out until the cost arrives |
+| **n runs have no cost** | n Codex runs on OpenRouter have an unknown billed cost. The total leaves them out |
 
 An open run, a run that never started and an interactive session never count
 as runs with no usage. When no model of the card has a price, the line shows
@@ -368,6 +371,45 @@ A card whose runs all come from an older bridge, or are all still open, shows
 **Usage unknown** instead of $0.00. A run that reported usage with no models
 spent nothing, so a card with only such runs shows $0.00. See
 [Usage](../reference/worker-runs.md#usage) for how a bridge reports usage.
+
+## The billed cost of an OpenRouter run
+
+A Codex run that goes through OpenRouter has no price in the bridge price table.
+Loupe reads the cost that OpenRouter billed for the run instead. The cost is at
+the rate of the provider that served the replies. Nothing marks it as billed,
+so it looks like any other cost.
+
+Loupe needs an OpenRouter management key to read the cost. Save the key in the
+[account settings or in the project settings](openrouter.md). A project key wins
+over the account key. Loupe sends OpenRouter only the key, the session of the
+run and its time range. It sends no prompt, no code and no card content.
+
+The cost of a run goes through these steps:
+
+1. The run ends. Loupe looks for a key. The cost line of the drawer reads
+   **Pending** while Loupe waits for OpenRouter. The usage total of the card
+   shows **n runs pending**.
+2. Loupe reads the cost from OpenRouter after a delay. The drawer then shows the
+   cost. The pending mark goes, and the total includes the cost.
+3. When Loupe cannot get the cost, the drawer shows **unknown** with the
+   reason. The usage total shows **n runs have no cost**. A gear button next to
+   the reason opens the OpenRouter key settings. The button opens the project
+   settings when you may manage the project, and the account settings otherwise.
+
+The reasons are:
+
+| Reason | Meaning |
+|---|---|
+| **No OpenRouter key** | The project has no key and the owner of the project has no account key. Save a key, and the next runs get their cost |
+| **OpenRouter refused the key** | OpenRouter does not accept the key. Replace the key |
+| **OpenRouter did not answer** | OpenRouter did not answer in time, on every try. Loupe stops trying after a few tries |
+| **No cost found** | OpenRouter answered and holds no cost for the run |
+
+Loupe does not read the cost again for a run that is unknown, and a saved key
+does not fix a run that is already unknown. Only the runs that end after you
+save the key get a cost. An interactive session on OpenRouter has no billed cost.
+A run from an older bridge keeps the price table. Run `loupe update` to get
+billed costs.
 
 ## The cost of finished cards
 

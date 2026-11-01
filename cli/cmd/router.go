@@ -1607,6 +1607,7 @@ func (r *router) outcome(p pending, e endedRun) api.RunStateReport {
 		report.ResultFields = r.resultFields(p, e.res.fields)
 	}
 	report.Usage = r.usage(p, e.res.usage)
+	report.CostSource = e.res.costSource
 	report.PeakContextTokens = e.res.peakContextTokens
 	report.HarnessVersion, report.SkillVersion = e.res.harnessVersion, e.res.skillVersion
 	if e.res.harnessEvents != nil {

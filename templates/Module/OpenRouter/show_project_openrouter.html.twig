@@ -1,0 +1,31 @@
+{% extends '@Project/_settings_layout.html.twig' %}
+
+{% block title %}{{ 'openrouter.project.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans, url: path('app_project_edit', {id: project.id})},
+        {label: 'project.edit.nav.openrouter'|trans},
+    ]" />
+{% endblock %}
+
+{% block settings_section 'openrouter' %}
+
+{% block settings_content %}
+{% do mercure_subscribe(openrouter_topic(project)) %}
+{% do mercure_subscribe(openrouter_topic(project.owner)) %}
+<twig:Ds:Panel as="section" class="lp-connect-block{{ replaceOpen ? ' disclosure-open' }}" data-testid="openrouter-section"
+    data-controller="live-pill disclosure"
+    data-live-pill-events-value="{{ ['openrouter_key.changed']|json_encode }}"
+    data-live-pill-url-value="{{ path('app_project_openrouter_status', {id: project.id}) }}"
+    data-live-pill-stopped-value="{{ 'openrouter.live_stopped'|trans }}">
+    <twig:Ds:SectionHeading :description="'openrouter.project.description'|trans">{{ 'openrouter.project.heading'|trans }}</twig:Ds:SectionHeading>
+
+    {% include '@OpenRouter/_project_key_status.html.twig' with {view: view, project: project} only %}
+    <p class="lp-live-stopped" role="status" data-live-pill-target="status"></p>
+
+    <div id="openrouter-replace" class="lp-openrouter-replace{{ replaceOpen ? ' open' }}" data-disclosure-target="content">
+        {% include '@OpenRouter/_key_form.html.twig' with {keyForm: keyForm, action: path('app_project_openrouter_save', {id: project.id}), notManagementKey: notManagementKey, cancellable: true} only %}
+    </div>
+</twig:Ds:Panel>
+{% endblock %}

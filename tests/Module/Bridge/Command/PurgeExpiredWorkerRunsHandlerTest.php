@@ -10,12 +10,14 @@ use App\Module\Bridge\Entity\BridgeAccountTryNow;
 use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunBilledCost;
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
 use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkerRunUsageRepository;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -48,6 +50,30 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         $em->clear();
         self::assertNull($em->find(WorkerRun::class, $expired->id));
         self::assertNotNull($em->find(WorkerRun::class, $fresh->id));
+    }
+
+    /** The billed cost row has no foreign key to the run, so the sweep cannot take it. */
+    public function test_the_card_total_keeps_the_billed_cost_of_a_swept_run(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'billed-sweep@example.com'), 'Swept Billed');
+        $cardId = Uuid::v7();
+        $expired = $this->seedRun($em, $project, new \DateTimeImmutable('2026-01-01 00:00:00'), cardId: $cardId, runKey: Uuid::v4());
+        $this->seedUsage($em, $expired, 'deepseek', costUsd: null, billedCost: true);
+        $billed = $this->seedBilledCost($em, $expired, costUsd: '0.500000');
+        $usages = self::getContainer()->get(WorkerRunUsageRepository::class);
+        self::assertInstanceOf(WorkerRunUsageRepository::class, $usages);
+        self::assertSame('0.500000', $usages->sumForCard($project, $cardId)['cost']);
+
+        self::assertSame(1, ($this->handler())(new PurgeExpiredWorkerRunsCommand()));
+
+        $em->clear();
+        self::assertNull($em->find(WorkerRun::class, $billed->runId));
+        self::assertNotNull($em->find(WorkerRunBilledCost::class, $billed->runId));
+        $sum = $usages->sumForCard($em->find(Project::class, $project->id) ?? throw new \LogicException('The project exists.'), $cardId);
+        self::assertSame('0.500000', $sum['cost']);
+        self::assertFalse($sum['estimated']);
     }
 
     /** The sweep deletes runs in bulk, so only the foreign key can take their commands. */

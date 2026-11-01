@@ -1,11 +1,11 @@
 ---
-description: Wrong passage in loupe-documents. document_list search matches substrings and puts title matches first. Expected to fail until the passage is fixed.
+description: Wrong passage in loupe-documents. Search matches substrings and puts title matches first. The search parameter description of document_list is right, so the case passes while the skill is wrong. It catches a change that leaves the agent with the full-text rule.
 tags: [wrong-passage, loupe-documents]
 max_turns: 6
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Load the loupe-documents skill, and answer from what it says about the `search` argument of document_list. Do not call document_list.
+Load the loupe-documents skill. Answer from the skill and the tool description of document_list. Do not call document_list.
 
 Reply with exactly two lines:
 

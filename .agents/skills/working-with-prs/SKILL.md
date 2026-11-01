@@ -11,8 +11,7 @@ path skips this.
 ## The gate, before you open anything
 
 1. `just cs` applies the formatter and rector fixes. Commit anything it
-   changed. It works from a worktree. The finder uses explicit excludes and
-   throws if it matches zero files, so a vacuous pass is not possible.
+   changed. It works from a worktree.
 2. Run `just phpstan`, `just arkitect` and `just gamache`. These check the
    whole project.
 3. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or
@@ -25,29 +24,33 @@ path skips this.
    including ones that pre-date your change.
 
 A `PreToolUse` hook, `.agents/hooks/no-full-ci.sh`, refuses `just ci` and a
-full PHPUnit run for an agent. `just audit` is not in the local list, because
-CI runs it. A worker learns of a failed required check from the board. The
+full PHPUnit run for an agent. CI runs `just audit`, so the local list leaves
+it out. A worker learns of a failed required check from the board, and the
 `checks-failed` fix round covers every required check.
 
-e2e is not in the local gate. The eight `e2e-*` checks on the pull request gate
-the suite. Do not run the full suite locally before you open the pull request.
-"Running the suite locally is debugging, not gating" lists the legs, and the
-cases that still want a local run.
+e2e is not in the local gate. Do not run the full suite locally before you open
+the pull request. "Running the suite locally is debugging, not gating" lists
+the e2e checks.
 
 ### The agent review
 
-Open the pull request as a draft. A review worker reads the whole change at the
-head commit. That worker is never the worker that wrote the code. Loupe posts
-the result as the check `Loupe / Agent review`, with each finding beside its
-line. `docs/using/workflows.md` "Agent review" describes the flow.
+Open every pull request as a draft: `gh pr create --draft`. A review worker
+reads the whole change at the head commit. That worker is never the worker that
+wrote the code. Loupe posts the result as the check `Loupe / Agent review`,
+with each finding beside its line. `docs/using/workflows.md` "Agent review"
+describes the flow.
 
 - A failed review asks for a fix at once. The fix round reads the findings of
   the head commit from `card_get`, in `agentReview`.
-- When the review passes and CI is green, Loupe marks the pull request ready.
-  The card then moves to In review. Never run `gh pr ready` for it yourself.
-- The workflow of the project must hold the agent review rules, as Lifecycle
-  does. Without them, Loupe marks nothing ready and the draft stays a draft.
-  Tell the owner in the body when you open a draft in such a project.
+- When the review passes and CI is green, Loupe marks the pull request ready,
+  and the owner then sees it. The card moves to In review. Never run
+  `gh pr ready` yourself, and do not wait for the review of the owner to
+  un-draft it.
+- A draft that stays a draft after a passed review and green checks is a fault
+  of the setup. The usual cause is a workflow with no agent review rules, as
+  Lifecycle has, or a bridge with no `review` work entry. Say so in the body.
+- Ready does not mean merged. `main` still needs the check `Loupe / Approval`,
+  and you never approve your own work.
 - Review the diff against `origin/<base>`, never `main`. The local `main` of a
   worktree is often stale, so a review against it reports findings for
   already-merged code.
@@ -56,19 +59,15 @@ line. `docs/using/workflows.md` "Agent review" describes the flow.
 
 ### The Design System artifact rebuild
 
-After the gate checks, run `bin/agents/design-system-changed origin/<base>`. The script prints the changed design system paths. It prints nothing when none changed.
+After the gate checks, run `bin/agents/design-system-changed origin/<base>`. The
+script prints the changed design system paths. It prints nothing when none
+changed.
 
-When it prints a path, try the rebuild with the `loupe-design-rebuild` skill. Do not skip this step.
-
-When the rebuild cannot write, hand it to the owner:
-
-1. Write the line `Design system rebuild: pending` in the pull request body. A rebuild cannot write when the `Artifact` tool is missing, as in a headless worker.
-2. Call `inbox_search` with `Design system rebuild`. Stop here when a row with state `open` asks for the rebuild. One rebuild covers every pull request that is pending, so a second item only adds noise.
-3. Otherwise call `inbox_ask` with one `todo` item titled `Rebuild the Design System artifact`. Set `blocking` to `false`, so the ask closes at once and does not end your turn. Link the card in `cardIds`.
-   Suggest one `start-session` action with the `cardId` of that card and `recommended: true`. Give it a one-line `reason`.
-   Set its `prompt` to: "Use the loupe-design-rebuild skill in this main checkout. First check that the branch is `main`, and run `git pull --ff-only`."
-   The `loupe-inbox` skill gives the full parameters.
-4. Leave the card and the pull request out of the title. The `Design system rebuild: pending` line on each pull request names the work.
+When it prints a path, try the rebuild with the `loupe-design-rebuild` skill. Do
+not skip this step. When the rebuild cannot write, as in a headless worker with
+no `Artifact` tool, write the line `Design system rebuild: pending` in the pull
+request body. Then follow `references/design-system-rebuild.md`, which raises
+one non-blocking to-do for the owner and never a duplicate.
 
 ## A check is a fault until you have seen it fail
 
@@ -76,20 +75,17 @@ A check that comes back clean is a fault in the check, until it has failed on a
 known-bad input.
 
 A check that comes back one short is a fault in the check, until you prove
-otherwise.
-
-Nobody tests the second one, because a check that reports a problem looks
-self-justifying.
+otherwise. Nobody tests this direction, because a check that reports a problem
+looks self-justifying.
 
 A tool reports what it did. It does not report what it found. Doing nothing
 successfully and finding nothing wrong produce the same output. So break the
 check on purpose, and watch it go red. Then restore it and trust the green.
 
-Confirm that the break landed before you read the result. One session broke a
-rule with a `perl` one-liner whose escaping was wrong. The file did not change,
-the suite stayed green, and that green read as "the rule is fine". `git diff
---quiet` caught it. A falsifier that does nothing is the same fault one level
-up, and it is the more convincing of the two.
+Confirm that the break landed before you read the result, for example with
+`git diff --quiet`. A break with wrong escaping leaves the file unchanged, and
+the green then reads as "the rule is fine". A falsifier that does nothing is the
+same fault one level up, and it is the more convincing of the two.
 
 | Signal | What it cannot distinguish |
 |---|---|
@@ -99,57 +95,18 @@ up, and it is the more convincing of the two.
 | a conflict report naming one file | the other files being unchanged from being reverted |
 | `pass=10` on a pull request | a current head from a head that has since moved |
 
-Four sessions hit this about fifteen times in one evening on 2026-09-11. The
-falsifier broke it each time. One falsifier was a file that called a constructor
-with no arguments, so the arity error proved that the rule runs. Another added
-the forbidden filter to the listener, so the test that forbids it went red.
+A good falsifier is small. A file that calls a constructor with no arguments
+proves that an arity rule runs. Adding the forbidden filter to a listener proves
+that the test which forbids it goes red.
 
-Grep is where the second direction bites. A grep for the five `var/tailwind`
-negation rules in `.gitignore` matched four, because the pattern could not match
-a bare `!/var/`. All five were present. Two sessions made that mistake on the
-same five lines, with different patterns, forty minutes apart. Read the region.
-Do not grep for what you expect to find.
+Grep is where the second direction bites. A pattern that cannot match one form
+of the line reports one short, while every line is present. Read the region. Do
+not grep for what you expect to find.
 
-### Prove a resolution lost nothing
-
-A union resolve on a shared prose file can keep your line and drop the line of
-someone else. Nothing in this repository reports that. Use this check for any
-file where branches append at a shared anchor:
-
-```bash
-git show origin/main:<file> | grep "^<entry prefix>" | sort > a
-grep "^<entry prefix>" <resolved>                    | sort > b
-comm -23 a b   # on main, missing from the resolution: must be empty
-comm -13 a b   # invented by the resolution: this branch's own lines alone
-```
-
-A count of occurrences per entry is weaker. It needs a hypothesis about what to
-expect, so it catches only a loss that somebody thought to look for. `comm`
-needs no hypothesis and answers both directions at once.
-
-### A stacked branch conflicts after its parent squashes
-
-A branch stacked on a pull request that merged by squash conflicts in files that
-it is a strict superset of. The squash gives `main` the same content under a new
-commit that shares no history with the branch. Expect this at every stack merge.
-Retarget the child to `main` first, as "Open a stacked pull request against its
-parent's branch" says.
-
-Apply the section above to a different unit. That section compares entries at a
-shared anchor. This check compares test method names in `$F`, the test file that
-both sides edited:
-
-```bash
-comm -23 <(git show origin/main:$F | grep -oE "public function test_[a-z_]+" | sort) \
-         <(grep -oE "public function test_[a-z_]+" $F | sort)   # lost from main: must be empty
-comm -13 <(git show HEAD:$F     | grep -oE "public function test_[a-z_]+" | sort) \
-         <(grep -oE "public function test_[a-z_]+" $F | sort)   # lost from the branch: must be empty
-```
-
-Both directions matter. `comm` proves that no test disappeared. It does not
-prove that any test still asserts what it did. It compares names, so a
-resolution that keeps every name and guts a body passes it. This check
-complements a read of the diff, and it never replaces it.
+A conflict resolution needs the same proof. Before you accept a resolution of a
+shared prose file, or of a stacked branch after its parent squashed, read
+`references/conflicts.md`. Its `comm` checks prove that no entry and no test
+disappeared.
 
 ### Ask what reads what you write
 
@@ -167,8 +124,10 @@ the output.
 ## Documentation-only branches run `just cs` and push
 
 Skip the local checks. Say so in the PR body, so the record shows that the gate
-was reduced deliberately and not forgotten. CI still runs its own checks,
-including the e2e shards, and the agent review still reads the pull request.
+was reduced deliberately and not forgotten. CI still runs every check, e2e
+included, because Markdown is not inert here. Prettier covers some of it, the
+gamache checks read `docs/`, and a docs commit can break a build that greps
+them. The agent review still reads the pull request.
 
 The test is the diff, not the intent. Every changed file must end in `.md`.
 Check it, and do not assume:
@@ -181,10 +140,6 @@ Any output at all means that the full gate applies. A branch that also touches
 `.env`, a Twig template, a fixture, `composer.json` or a `justfile` recipe is
 not documentation-only, however small the change looks.
 
-CI still runs every check, because Markdown is not inert here. Prettier covers
-some of it, the gamache checks read `docs/`, and a docs commit can break a build
-that greps them.
-
 The reduced gate does not extend to Markdown that a script *executes*. A `.md`
 file that a script parses for commands is code with a `.md` suffix, so gate it
 fully. A `SKILL.md` sits at the edge. An agent reads it and no script parses it,
@@ -192,19 +147,6 @@ so the reduced gate applies. Note that call on the gate line.
 
 The reason is proportion. A gate that can never fail teaches a reader to stop
 trusting gate results.
-
-## Open it as a draft
-
-Open every pull request as a draft: `gh pr create --draft`. The agent review
-runs on the draft. When the review passes and CI is green, Loupe marks the
-pull request ready, and the owner then sees it. Do not run `gh pr ready`. Do not
-wait for the review of the owner to un-draft it.
-
-A draft that stays a draft after a passed review and green checks is a fault of
-the setup. The usual cause is a workflow with no agent review rules, or a
-bridge with no `review` work entry. Say so in the body. Ready does not mean
-merged. `main` still needs one approving review, and you never approve your own
-work.
 
 ## Keep the body brief
 
@@ -302,11 +244,37 @@ sign-in failed. The count must be 1 or more, or the state is not seeded. For a
 signed link, fetch the bare page URL once without the link, and confirm that
 the count is 0.
 
+A page that shows records needs a second proof. The marker must show only when
+the page holds its data. A page title, a heading, a panel id or a chart
+container fails, because the page renders them with no data too. In
+`pr:loupe-ac/loupe#1381`, the Metrics marker `data-metrics-title` counted 1 on a
+project with 0 runs, so every chart was empty. Pick a marker that the template
+prints once for each record, such as a row id or a `data-series` attribute.
+The temporary seed command also creates an empty twin of the record and prints
+its path. Mint a link to that path, and fetch it with the same cookie jar:
+
+```bash
+twin=$( ( cd .worktrees/<name> && bin/worktrees/compose-exec.sh \
+    bin/console app:dev:preview-login-link --path=/projects/<twin id>/analytics/metrics ) | tail -1 )
+/usr/bin/curl -sSL -c "$jar" -b "$jar" -o "$page" \
+    -w '%{http_code} %{url_effective}\n' "$twin"
+grep -c 'data-series' "$page"
+```
+
+The count on the twin page must be 0. The bare URL fetch proves the sign-in,
+and the twin fetch proves the data. End the line with the empty path:
+
+```markdown
+- [Metrics, three runs](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `data-series`, empty `/projects/<twin id>/analytics/metrics`
+```
+
+A state that shows no records, such as a form or a dialog, ends with `no data`.
+
 Write one Markdown list item per link in the Preview section. Name the marker
 that you found:
 
 ```markdown
-- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`
+- [Board, empty Next column](https://card-42.loupe.dev.localhost/dev/preview-login?…), marker `lp-empty-state`, no data
 ```
 
 A page that only a signed-out visitor sees, such as the landing page at `/`,
@@ -337,8 +305,7 @@ the code under review after the branch moves.
 
 Put the card URL on its own line under the Preview section, when a card exists.
 `loupe-board` says how to build that URL and how to add the pull request to the
-card. Keep the card line when you strip the Preview section, because a card URL
-stays valid after the merge.
+card.
 
 Every such URL must be clickable. That means one whole absolute URL in plain
 text. A body with several pages to point at tends to give a bare host followed
@@ -353,25 +320,22 @@ that the seeding was for. So follow these rules:
   destination, even when that repeats the host five times.
 - Paste one into a browser before you open the pull request.
 
-Strip the `## Preview` section out of the body before you merge. `main`
-squashes, so the body becomes the permanent commit message. A signed
-`*.dev.localhost` link points at a worktree that is torn down within hours.
-Name the commit that the preview was built from, so a later reader knows which
-code the links showed. Never write "this branch's head". The phrase is true of
-every branch at every moment, so no reader can check it. An epic child keeps its
-`## Preview` section, because the merge stage copies its links to the epic pull
-request after the merge.
+Leave the `## Preview` section in the body. The squash message is the commit
+messages of the branch, and the merge sends no body, so the links never reach
+`git log`. A signed `*.dev.localhost` link points at a worktree that is torn
+down within hours. Name the commit that the preview was built from, so a later
+reader knows which code the links showed. Never write "this branch's head". The
+phrase is true of every branch at every moment, so no reader can check it. The
+merge stage copies the links of an epic child to the epic pull request after the
+merge.
 
 The same rule covers a branch with no worktree of its own. Link the page on
 whatever instance does serve it. Do not describe the route and leave the reader
 to construct it.
 
-"Nothing to click" is a claim about the options of the reviewer, not about
-routing. A branch that adds no route can still produce reviewable output, such
-as HTML from a renderer, a generated report or a file. To say that it has
-nothing to look at because nothing is wired up is wrong. It also reads as
-though nobody can judge the work until a later branch lands. Publish the output
-as an artifact and link it. Say which questions it answers and which it defers.
+A branch that adds no route can still produce reviewable output, such as HTML
+from a renderer, a generated report or a file. Publish the output as an
+artifact and link it. Say which questions it answers and which it defers.
 
 Seed the data the change needs. `bin/console app:dev:seed` creates a user, an
 admin and a project, and no documents, comments, verdicts or exports. A diff
@@ -385,10 +349,9 @@ empty. Fixtures must never reach the branch.
 
 ## Reviewing work you did not write
 
-A green gate is not evidence that the change is correct. One wave had six
-branches, all green on `just cs`, `just ci` and e2e. A review found a real
-defect in every one, and two of them could lose data. The gate proves that the
-suite passes. It does not prove that the change is right.
+A green gate is not evidence that the change is correct. One wave had six green
+branches, and a review found a real defect in every one. The gate proves that
+the suite passes. It does not prove that the change is right.
 
 So read the diff yourself, especially the part that the author called routine.
 An agent can report a decision that it made on your behalf. Check whether that
@@ -418,68 +381,16 @@ Each leg is a required check only after the owner adds it to the main ruleset.
 On `main`, the `lint` job fails and names each leg that the ruleset does not
 require.
 
-Locally the same suite is slower, destructive, and measurably less truthful.
-In one wave of five branches, every local e2e problem was environmental, and CI
-passed all five. Three runs failed on the `MAILPIT_URL` omission below. One
-failed on cross-worktree contention that CI then cleared. A gate that fails for
-reasons unrelated to the diff is worse than no local gate. Someone has to spend
-judgement to decide which failures to believe.
+Locally the suite is slower, destructive, and fails for reasons unrelated to the
+diff. So push, then read the checks, and fix every failure they report. Run one
+named spec locally while you change or debug it, with
+`just e2e tests/<area>/<spec>.spec.ts`. The `.agents/hooks/no-full-e2e.sh` hook
+refuses a full run.
 
-So push, then read the check. Fix every failure it reports, pre-existing ones
-included.
-
-Run it locally when you work on a spec, not when you finish a branch. One case
-earns it: a named spec that you change or debug, with
-`just e2e tests/<area>/<spec>.spec.ts`. It is fast, and it is the only way to
-iterate on a selector, which neither `just lint` nor `just phpstan` exercises.
-
-Nothing earns a full local run, including a branch that you cannot push yet.
-The `.agents/hooks/no-full-e2e.sh` hook refuses one.
-
-### Aiming a local run at a sibling worktree
-
-Name the spec here too. Set both variables:
-
-```bash
-E2E_BASE_URL=https://<slug>.loupe.dev.localhost \
-MAILPIT_URL=https://mailpit-<slug>.loupe.dev.localhost \
-just e2e tests/<area>/<spec>.spec.ts --workers=1
-```
-
-`E2E_BASE_URL` alone suppresses worktree detection. The run then reads the
-*shared* Mailpit, while the app of the worktree sends to its own sidecar.
-Nothing collides and nothing warns, and the assertions never see a message.
-About two dozen registration, login and verification specs then fail. The
-failure reads as broken auth, not broken mail. Each registration *succeeds*,
-times out while it waits for mail that went elsewhere, and its retry fails as a
-duplicate email. Diagnose it with `bin/e2e-target.sh`, with and without the
-variable, and diff the fourth line. Do not diagnose it by a re-run.
-
-Warm its cache first:
-
-```bash
-( cd .worktrees/<name> && bin/worktrees/compose-exec.sh bin/console cache:warmup )
-```
-
-This destroys the dev data of that worktree. The `install-reset` project of the
-suite truncates every table. `just e2e` normally repairs the worktree
-afterwards. `bin/e2e-target.sh` deliberately blanks the worktree name when you
-set `E2E_BASE_URL` by hand, so the automatic repair does not run for exactly
-this invocation. Repair it yourself:
-
-```bash
-bin/worktrees/worktree-bootstrap.sh <worktree-name>   # from the main checkout
-```
-
-Use bootstrap, not a bare `app:dev:seed`. Bootstrap re-seeds, and it also
-re-runs the migrations, restores the per-worktree `.env.local` values and
-rebuilds the stylesheet.
-
-Two runs that omit `MAILPIT_URL` cannot overlap. Each worktree has its own
-Mailpit sidecar. Runs started with plain `just e2e` in different worktrees are
-therefore isolated, and so are runs that set both variables above. Two runs that
-set only `E2E_BASE_URL` both fall back to the *shared* instance and read the
-mail of each other. Serialise those, or give each its own `MAILPIT_URL`.
+A run with `E2E_BASE_URL` set by hand to a sibling worktree wipes the dev data
+of that worktree and skips the automatic repair. Run
+`bin/worktrees/worktree-bootstrap.sh <worktree-name>` after it, and read
+`project-e2e` `references/sibling-worktree-run.md` before it.
 
 ## Merging
 
@@ -488,6 +399,11 @@ GitHub refuses a merge from a branch that is behind `main`. The sync below is a
 hard block, not a caution. Every merge to `main` puts every other open branch
 behind, so a queue of N branches costs N sync-and-gate cycles. Two sessions
 cannot interleave their merges, so one session holds the queue at a time.
+
+Before you hand-merge a pull request, or while you hold the queue, read
+`references/merging.md`. It holds the detail of item 5, item 7 on a "not
+mergeable" error after a push, and item 8 on how to count the checks of the
+head you merge. A green reading of an old head merges untested code.
 
 1. The final gate of a branch happens on the branch fully merged with current
    main. A branch cut before a sibling merged has not really been gated. Its
@@ -506,152 +422,49 @@ cannot interleave their merges, so one session holds the queue at a time.
    flipped. A tree destroyed first turns a retry into a rebuild from origin.
    Nothing is lost while the branch is still on origin, so verify that before
    anything else.
-5. A conflict-free merge is not a correct merge. When one branch renames a
-   class, a *new* file on another branch merges cleanly while it still imports
-   the old name. Git sees no conflict, because the file never existed on both
-   sides. Push the merged result and read CI before you trust such a merge.
-   phpstan catches this, and git does not.
-
-   The signature variant is the same blind spot with a different tell. A branch
-   that makes an argument required lives on and absorbs merges. Each incoming
-   merge can bring a *new* file from a sibling that constructs the old shape.
-   The file existed on only one side, so git has nothing to report, and the
-   result is a runtime `ArgumentCountError`. A grep for the changed symbol is a
-   good first pass, and it is not sufficient. It finds only the shapes you
-   thought to search for, and it goes stale at the next merge.
-
-   A formatter that reads a signature belongs to the same family. `just cs`
-   moved a `number:` argument to the last position on one branch. The `Card`
-   class of that branch had no `$number` property, because the parent branch
-   added it. The rule is Rector's built-in `SortCallLikeNamedArgsRector`. It
-   comes through `GamacheSetList::CONVENTIONS` and is declared in
-   `vendor/ubermuda/gamache/src/Rector/config/conventions.php`, so a grep of
-   `rector.php` finds nothing. It sorts by `$order[$name] ?? \PHP_INT_MAX`, so a
-   name that the constructor does not carry sorts last.
-
-   An unchanged file does not prove that the ordering is correct. The rule bails
-   out when it cannot resolve the class, and a silent no-op reads exactly like a
-   pass. A green `cs-check` dry-run does not prove it either. On one branch the
-   dry-run flagged nothing, and `just cs` then reordered that file with the same
-   rule set in both legs.
-
-   Verify on a detached HEAD that merges the branch onto its parent. Run the
-   tests there, then return with the branch ref unmoved. That tests the change
-   in its destination, not in the tree it was written in. Read the version of
-   one file on the parent with `git show origin/<parent>:<path>`, which has no
-   effect on the cut point.
+5. A conflict-free merge is not a correct merge. A class rename on one branch
+   and a *new* file on another that uses the old name merge with no conflict.
+   So does a required argument against a new file that constructs the old
+   shape. Push the merged result and read CI before you trust such a merge.
 6. A resolution that takes one side can silently revert the fix of the other
    side. Before you accept a resolution, re-verify the *behaviour* that both
    branches were protecting. The absence of markers is not enough. The sharpest
    form is rename/rename. There neither side is correct, and the answer is the
    content of the newer branch at the path of the other branch.
-7. "Pull Request is not mergeable" right after `git push` usually means GitHub
-   has not recomputed mergeability yet. Wait a few seconds and retry.
-8. Read the checks against the head you are about to merge. After you sync a
-   branch, the rollup can still describe the *previous* head. A green reading
-   is then evidence about a commit that no longer matters. Key the wait on
-   `headRefOid`, then count the checks:
-
-   ```bash
-   gh pr view <n> --json headRefOid -q .headRefOid
-   gh pr checks <n> --required --json bucket \
-     -q 'group_by(.bucket)|map("\(.[0].bucket)=\(length)")|join(" ")'
-   ```
-
-   Count `pass`, `fail` and `pending` against the number of checks the ruleset
-   requires. A green reading is `pass=<that number>` and nothing else. Observe
-   all-green, and never infer it from an absence. The rule covers the polling
-   monitor and the one-shot check before a merge. A monitor that reports early
-   costs you a wait. A pre-merge check that reports a false green is acted on at
-   once, and the merge happens.
-
-   Lead with `gh pr checks`. Its `--required` flag reads the ruleset, so your
-   denominator cannot go stale the way a written list does. It prints an
-   explicit `pending` bucket, so it avoids the field problem of the raw rollup.
-   Its `--json` mode exits 0 while checks are pending, so read the counts and
-   not the exit code.
-
-   `gh pr view --json statusCheckRollup` gives you the raw rollup, and it needs
-   care. `references/reading-the-rollup.md` holds the jq expression that reads
-   it, and the test for any replacement.
-
-   A rollup with fewer entries than the ruleset requires is the same hole one
-   level up. A run that has not registered reads the same as "nothing left to
-   wait for". Counting closes both.
 
 ## The changelog entry rides the pull request it describes
 
 Every pull request that changes something a reader can act on carries its own
 changelog fragment, in its own branch, at `changelog.d/<number>.md`. Write it as
 you write the change. Do not open a second pull request for it. Never edit
-`docs/CHANGELOG.md` itself.
+`docs/CHANGELOG.md` itself. `changelog.d/README.md` holds the format, the six
+tags, the exemptions and how the fragments reach a reader.
 
-Name the file after the pull request number, and anchor the entry to the same
-number. `changelog.d/209.md` reads:
+Nothing checks that a branch carries a fragment at all. `just lint` runs
+`php bin/changelog.php --check`, which reads format only. So the rule above is
+yours to keep. A rule that checks it belongs in a pull request on
+https://github.com/ubermuda/gamache.
 
-```
-- (#209) — **Fixed:** what changed, from the reader's side.
-```
-
-The number exists as soon as you open the pull request. The squash SHA does
-not, which is why the old rule sent the entry to a later branch. The subject of
-the squash commit ends with `(#209)`. `git log --first-parent --grep='(#209)$'`
-therefore recovers the commit from the number, and
-`gh pr view 209 --json mergeCommit` gives the SHA directly. Entries written
-before this rule carry a SHA as well. Leave them alone.
-
-Keep the `$` on that grep. `--grep` reads the whole commit message, and a body
-that cites another pull request in the same `(#209)` form matches as well. The
-log already holds 50 such citations, and `--grep='(#371)'` returns five commits
-with the real one last. The anchor ties the match to the end of the subject
-line, where the squash number lives, and returns exactly one.
-
-Re-read your own entry when review changes what the branch does. The entry now
+Re-read your own entry when review changes what the branch does. The entry
 rides the branch, so a feature cut in review leaves a line that describes work
 that never shipped. It is your own diff, which is the one you stop reading.
 
-One fragment per pull request means that two branches never write one file, so
-two entries never conflict. That replaces the old rule, which put every entry at
-the top of `[Unreleased]` and made the conflict certain. On 2026-09-11 three
-merges each turned every remaining branch CONFLICTING. `docs/CHANGELOG.md` was
-almost always the only conflicted file.
+A pull request about changelog discipline that changes a skill file earns a
+fragment, and it carries that fragment itself.
 
-The fragments reach a reader twice, and neither step is yours. The image build
-folds them on every deploy. The `docs` stage of `docker/prod/Dockerfile` runs
-`php bin/changelog.php --keep` before Astro reads `docs/`. The published
-changelog therefore carries every merged fragment, and the files stay where they
-are. `just changelog` folds them into the committed file and deletes them, which
-is the release step.
+The subject of the squash commit ends with `(#209)`. So
+`git log --first-parent --grep='(#209)$'` recovers the commit from the number,
+and `gh pr view 209 --json mergeCommit` gives the SHA directly. Keep the `$` on
+that grep. `--grep` reads the whole commit message, and a body that cites
+another pull request in the same form matches as well. `--grep='(#371)'`
+returns five commits with the real one last.
 
-`php bin/changelog.php --check` reads the fragments and reports a malformed one.
-`just lint` runs it, so the gate catches a bad anchor on the branch that wrote
-it. The check reads format only. Nothing asks whether a branch carries a
-fragment at all, and that rule belongs in a pull request on
-https://github.com/ubermuda/gamache.
-
-An older entry keeps the position that its SHA gives it in
-`git log --first-parent`.
-
-Tag it with one of the six tags Keep a Changelog defines: `Added`, `Changed`,
-`Deprecated`, `Removed`, `Fixed` or `Security`. `bin/changelog.php` rejects any
-other word. Write one sentence that says what changed from the reader's side.
-Leave the reasoning to the pull request body.
-
-Write one entry per pull request, not one per branch. A branch that shipped six
-features earns six lines. A reader who looks for when tags arrived should find a
-line about tags, not a paragraph about the wave that contained them.
-
-A pull request whose whole diff is `docs/CHANGELOG.md` and `changelog.d/` earns
-no fragment. A fold is the usual case. The exemption keys on content, not on
-subject. A pull request about changelog discipline that changes a skill file
-does earn one, and it carries that fragment itself.
-
-To read an older entry, you match a 7-character SHA. Derive it with
-`git rev-parse --short=7`, never with `git log --format=%h`. `%h` honours
-`core.abbrev`, which is unset here, so git picks a length from the object count
-and returns 8 today. A grep built on `%h` reports zero hits on every commit,
-which reads as a file that records nothing. A row of zeros is a fault in the
-check before it is a hole in the file.
+Entries written before this rule carry a SHA. Leave them alone. An older entry
+keeps the position that its SHA gives it in `git log --first-parent`. To match
+its 7-character SHA, derive it with `git rev-parse --short=7`, never with
+`git log --format=%h`. `%h` honours `core.abbrev`, which is unset here, so git
+returns 8 characters today. A grep built on `%h` reports zero hits on every
+commit. A row of zeros is a fault in the check before it is a hole in the file.
 
 ## What the ruleset actually requires
 
@@ -668,57 +481,45 @@ id=$(gh api repos/loupe-ac/loupe/rulesets -q '.[]|select(.name=="main")|.id')
 gh api repos/loupe-ac/loupe/rulesets/$id -q '.rules[]|select(.type=="pull_request")|.parameters'
 ```
 
-That prints one approving review. It also sets `require_code_owner_review`,
-which is inert while the repository has no `CODEOWNERS` file. Read the required
-checks from the same ruleset, named `main`:
+That prints `required_approving_review_count` 0, so GitHub needs no approving
+review. Read the required checks from the same ruleset, named `main`:
 
 ```bash
 gh api repos/loupe-ac/loupe/rulesets/$id \
   -q '.rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
 ```
 
-On 2026-10-06 it printed twelve contexts: `lint`, `cs-check`, `phpstan`,
-`arkitect`, `gamache`, `audit`, `phpunit`, `js-test`, `cli-test`,
-`e2e-chromium`, `e2e-rest` and `e2e-chromium-2`. Run the command, and do not
-trust that snapshot. It read ten before the e2e shard jobs arrived, and
-thirteen while a fan-in `e2e` job also ran. Nothing in the repository fails
-when it goes stale.
+On 2026-10-31 it printed 18 contexts. One of them is `Loupe / Approval`, the
+check that Loupe posts as its GitHub App. `docs/using/workflows.md` "Approval
+of a pull request" says when Loupe posts it. Run the command, and do not trust
+that count. Nothing in the repository fails when it goes stale.
 
-No ruleset covers `refs/heads/epic/*` since 2026-10-02. Loupe gives a pull
-request into `epic/<n>` the required checks of `main`, and the merge stage
-checks an epic child against them by name:
+No ruleset covers `epic/*`. A pull request into `epic/<n>` gets the required
+checks of `main` by name, and `--required` fails there. Never force-push an
+epic branch. `references/epics.md` holds the commands that check an epic child.
 
-```bash
-gh api repos/loupe-ac/loupe/rules/branches/main \
-  -q '.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
-gh pr checks <n> --json name,bucket
-```
-
-Each name must have a check in the `pass` bucket. A direct push to `epic/<n>`
-works, so the epic branch syncs by a merge of `main`, and a fix round pushes
-to it. Never force-push it.
-
-An approval in chat is not a GitHub approval. Check it before you conclude that
-something else blocks a merge:
+An approval in chat is not an approval. Check `Loupe / Approval` on the head
+before you conclude that something else blocks a merge:
 
 ```bash
-gh pr view <n> --json reviewDecision,mergeStateStatus
+gh pr checks <n> --json name,bucket -q '.[]|select(.name=="Loupe / Approval")'
+gh pr view <n> --json mergeStateStatus
 ```
 
 A job that runs in CI but is not in that list cannot block anything. To add one
 is a repository setting, so a branch cannot do it. If you add a CI job, say in
 the PR body that requiring it is still owed. Otherwise the job is decoration.
 
-Never approve your own work. The review itself stays with a human.
+Never approve your own work on GitHub.
 
-Merging does not stay with a human. A PR that is *approved* with *all required
-checks green* is good to merge. Merge it without asking, when no workflow rule
-will merge it. A PR linked to a card belongs to the `merge-ready` rule, so leave
-it to that rule. Hand-merge only a PR that no rule reaches. The approval already
-carried the decision, and a wait for a second confirmation parks finished work
-in a queue. Follow the merge protocol above when you hand-merge one. Sync with
-current main, let the checks re-run on the synced head, merge, then run
-`just cs` on main.
+Merging does not stay with a human. A PR with *all required checks green*,
+`Loupe / Approval` included, is good to merge. Merge it without asking, when no
+workflow rule will merge it. A PR linked to a card belongs to the `merge-ready`
+rule, so leave it to that rule. Hand-merge only a PR that no rule reaches. The
+approval already carried the decision, and a wait for a second confirmation
+parks finished work in a queue. Follow the merge protocol above when you
+hand-merge one. Sync with current main, let the checks re-run on the synced
+head, merge, then run `just cs` on main.
 
 Never merge something unapproved. Never merge past a failing or pending check.
 Never use `--admin` to bypass either.
@@ -728,37 +529,28 @@ Never use `--admin` to bypass either.
 Do not stop because a pull request is unmerged. Stack on it and carry on.
 Stacking is the recommendation of the owner, and a wait for an approval is not a
 block. Branch off the pull request your work needs, and build the next piece.
-Say in the body which branch it stands on and why.
 
 Genuinely blocked means that there is nothing you can do. Examples are a
 decision only the owner can make, a credential you do not have, or a service
 that is down. An unapproved pull request is none of those. Neither is a queue.
 
-This overrides the caution that a session may carry from a bad wave. One wave
-of five stacked board branches went wrong, and was collapsed into a single pull
-request. That history says what to watch, not what to avoid. Every failure in it
-was a merge that git could not see:
+This overrides the caution that a session may carry from a bad wave of stacked
+branches. Every failure in that wave was a merge that git could not see. A
+`CONFLICTING` pull request also never ran CI, because `pull_request` does not
+fire without a merge commit. So the discipline is merge-protocol item 5, not
+abstinence. Push the merged result and read CI. Do not trust a clean
+`git merge`. Check that the stack is not `CONFLICTING` before you believe a
+green check.
 
-1. A formatter reversed a fix because the branch could not see the signature of
-   its parent.
-2. A required constructor parameter broke four files with no conflict reported.
-3. A `CONFLICTING` pull request never ran CI at all, because `pull_request`
-   does not fire without a merge commit.
-
-So the discipline is merge-protocol item 5, not abstinence. Push the merged
-result and read CI. Do not trust a clean `git merge`. Check that the stack is
-not `CONFLICTING` before you believe a green check.
-
-Say in the body which pull request the branch stacks on. The reviewer needs it,
-and so does whoever holds the merge queue. A stack has an order, and approvals
-that arrive out of sequence do not respect it.
+Say in the body which pull request the branch stacks on, and why. The reviewer
+needs it, and so does whoever holds the merge queue. A stack has an order, and
+approvals that arrive out of sequence do not respect it.
 
 ### Open a stacked pull request against its parent's branch
 
 A stacked pull request targets the branch of the pull request it stacks on.
 Never target `main` from it. Against `main`, GitHub shows the commits of the
-parent as part of the child. One stacked branch showed 272 changed files
-against `main`, and 205 against its parent.
+parent as part of the child.
 
 ```bash
 gh pr create --base <parent-branch> --title "<title>" --body-file <file>
@@ -766,11 +558,10 @@ gh pr edit <n> --base <parent-branch>   # fix one opened against main
 ```
 
 - Write `Stacks on #<parent>. Merge #<parent> first.` near the top of the body.
-- CI runs on every pull request, whatever its base. A pull request into an
-  `epic/*` branch has no required checks on GitHub, so `--required` fails
-  there. The merge stage checks it by name against the required checks of
-  `main`. A pull request stacked on any other branch has no required checks.
-  Read `gh pr checks <n>` without `--required`, and count every check.
+- CI runs on every pull request, whatever its base. A pull request stacked on a
+  branch other than `main` has no required checks, so `--required` fails there.
+  Read `gh pr checks <n>` without `--required`, and count every check. The merge
+  stage checks an epic child by name against the required checks of `main`.
 - Never merge the child while it targets the branch of its parent. That merge
   lands on the parent branch with no required check, and never reaches `main`.
   An epic child that targets `epic/<n>` is the exception, as "A child of an epic
@@ -786,35 +577,21 @@ git fetch origin && git merge origin/main
 ```
 
 Merge `main` in. Never rebase a branch that holds merge commits. Expect
-conflicts in files that the child only extends, as "A stacked branch conflicts
-after its parent squashes" says, and prove the resolution there.
+conflicts in files that the child only extends, because the squash gave `main`
+the same content under a commit that shares no history with the child. Prove
+the resolution with `references/conflicts.md`.
 
 ### A child of an epic targets the epic branch
 
 When an epic has an `epic/<n>` branch, each child cuts its branch from
 `origin/epic/<n>`. Its pull request targets `epic/<n>`, never `main` and never
-the branch of a sibling.
+the branch of a sibling. An epic whose breakdown ran before the epic branch
+existed has no `epic/<n>`, and its children target `main`.
 
-This child is not a stacked pull request in the sense above. The merge stage
-squash-merges it into `epic/<n>` with no approval, once its required checks
-pass. No ruleset covers `epic/<n>`, so GitHub sends no behind event. The
-stage compares the child with `epic/<n>`, and merges `epic/<n>` in when the
-child is behind.
-
-The epic pull request from `epic/<n>` into `main` needs the approval of the
-owner, as any pull request into `main` does. It syncs by a merge of `main`,
-through `gh pr update-branch` or the app sync, and the approval covers that
-merge. An epic whose breakdown ran before the epic branch existed has no
-`epic/<n>`, and its children target `main`.
-
-The app opens the epic pull request as a draft after the first child merge.
-While the epic sits in In review, an `epic-preview` work request on the epic
-card has the merge stage refresh the epic preview. The preview is at
-`https://epic-<n>.loupe.dev.localhost`, and the refresh runs once for each head
-of the epic pull request. The stage carries the preview links of the children
-to the `## Preview` section of the epic pull request. It re-mints each signed
-link from its `to` and `email` parameters. It carries a plain signed-out link
-by its path, and proves it on the epic preview with no cookie jar.
+The merge stage merges the child into `epic/<n>` with no approval, and it
+carries the preview links of the child to the epic pull request.
+`references/epics.md` holds how the child merges, what the epic pull request
+needs, and how the epic preview refreshes.
 
 So write each Preview line of a child with a signed link, or a plain link for a
 signed-out page. Add its marker in backticks, and a `State:` text. The database
