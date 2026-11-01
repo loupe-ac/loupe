@@ -16,7 +16,10 @@ use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Board\Command\DeleteCardCommand;
 use App\Module\Board\Command\DeleteCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
+use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\Dev\DevBoardSeeder;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsCommand;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsHandler;
 use App\Module\Bridge\Entity\Bridge;
@@ -24,6 +27,7 @@ use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Service\AccountLimits;
 use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Bridge\ValueObject\WindowLimitState;
+use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
@@ -33,10 +37,14 @@ use App\Module\Insights\View\BrokenGraphReason;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Review\Entity\Document;
+use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Service\Dev\DevSiteFeedbackSeeder;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -265,6 +273,196 @@ final class FullDevSeedTest extends KernelTestCase
         $title = $em->getConnection()->fetchOne("SELECT title FROM board_cards WHERE title LIKE 'Demo runs from %' ORDER BY title LIMIT 1");
         self::assertIsString($title);
         self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/demo-runs-'.substr($title, -10))));
+    }
+
+    public function test_the_showcase_exists_with_fixed_ids_and_its_requests_do_not_need_the_inbox_flag(): void
+    {
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+
+        $em = $this->em();
+        self::assertNotTrue($this->flag('inbox.enabled')?->value);
+        foreach (['checkout', 'history', 'column-rules', 'onboarding', 'project-export', 'export-documents', 'sync-forge-state', 'outdated-approval', 'empty-basket'] as $slug) {
+            self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/'.$slug)), $slug);
+        }
+        foreach (['worker-run-history', 'column-rules', 'first-handoff'] as $slug) {
+            self::assertInstanceOf(Document::class, $em->find(Document::class, DevSeedId::of('review/document/'.$slug)), $slug);
+        }
+        foreach (['retries', 'run-history', 'pull-request', 'column-rules', 'handoff', 'answered', 'declined', 'reviewed', 'left-open'] as $slug) {
+            self::assertInstanceOf(InboxItem::class, $em->find(InboxItem::class, DevSeedId::of('inbox/item/'.$slug)), $slug);
+        }
+        foreach (DevSiteFeedbackSeeder::SLUGS as $slug) {
+            self::assertInstanceOf(SiteReviewComment::class, $em->find(SiteReviewComment::class, DevSiteFeedbackSeeder::commentId($slug)), $slug);
+        }
+
+        $connection = $em->getConnection();
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM card_pauses'));
+        self::assertSame(4, (int) $connection->fetchOne('SELECT COUNT(*) FROM board_card_site_review_comments'));
+        self::assertSame(1, (int) $connection->fetchOne("SELECT COUNT(*) FROM board_cards WHERE parent_card_id IS NOT NULL AND title = 'Export the documents'"));
+        $cards = array_map(static fn (string $slug): string => (string) DevSeedId::of('board/card/'.$slug), ['checkout', 'history', 'column-rules', 'onboarding', 'project-export', 'export-documents', 'sync-forge-state', 'outdated-approval', 'empty-basket']);
+        $lists = [
+            'board_cards' => $connection->fetchFirstColumn('SELECT created_at FROM board_cards WHERE id IN (?)', [$cards], [ArrayParameterType::STRING]),
+            'inbox_items' => $connection->fetchFirstColumn('SELECT created_at FROM inbox_items'),
+            'documents' => $connection->fetchFirstColumn('SELECT created_at FROM documents WHERE id IN (?)', [array_map(static fn (string $slug): string => (string) DevSeedId::of('review/document/'.$slug), ['worker-run-history', 'column-rules', 'first-handoff'])], [ArrayParameterType::STRING]),
+        ];
+        foreach ($lists as $table => $column) {
+            $times = array_map(strval(...), $column);
+            self::assertSame($times, array_values(array_unique($times)), $table.' holds two records with one creation time.');
+        }
+    }
+
+    public function test_a_later_run_restores_a_deleted_inbox_item_group_and_a_deleted_showcase_run(): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        $connection->executeStatement('DELETE FROM inbox_asks');
+        $connection->executeStatement('DELETE FROM inbox_items');
+        $connection->executeStatement("DELETE FROM bridge_worker_runs WHERE work_kind IN ('design-export', 'fix', 'review')");
+
+        $this->seed(self::DAY);
+
+        foreach (['inbox_items', 'inbox_asks', 'bridge_worker_runs'] as $table) {
+            self::assertSame($counts[$table], $this->rowCounts()[$table], $table);
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function partialInboxDeletions(): iterable
+    {
+        yield 'one ask, which keeps its item' => [\sprintf("DELETE FROM inbox_asks WHERE id = '%s'", DevSeedId::of('inbox/ask/retries'))];
+        yield 'one item, which keeps its ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/retries'))];
+        yield 'one of the two items of an ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/pull-request'))];
+        yield 'one item of a completed ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/reviewed'))];
+        yield 'the item of a session ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/session-checklist'))];
+        yield 'the item of a command run' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/command-run-0'))];
+        yield 'the ask of a command run' => [\sprintf("DELETE FROM inbox_asks WHERE id = '%s'", DevSeedId::of('inbox/ask/command-run-1'))];
+        yield 'every ask' => ['DELETE FROM inbox_asks'];
+        yield 'every item' => ['DELETE FROM inbox_items'];
+        yield 'every ask link' => ['DELETE FROM inbox_ask_items'];
+        yield 'every card link' => ['DELETE FROM inbox_item_cards'];
+        yield 'every document link' => ['DELETE FROM inbox_item_documents'];
+        yield 'every review' => ['DELETE FROM inbox_reviews'];
+        yield 'every action' => ['DELETE FROM inbox_actions'];
+    }
+
+    #[DataProvider('partialInboxDeletions')]
+    public function test_a_later_run_restores_each_inbox_record_on_its_own(string $deletion): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        self::assertGreaterThan(0, $connection->executeStatement($deletion));
+        self::assertNotSame($counts, $this->rowCounts());
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts());
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE search_vector IS NULL'), 'A restored item has no search vector.');
+    }
+
+    public function test_a_later_run_restores_the_session_bridge_of_a_stored_ask(): void
+    {
+        $this->seed(self::DAY);
+        $bridgeCount = 'SELECT COUNT(*) FROM bridges WHERE id = ?';
+        $bridgeId = (string) DevSeedId::of('bridge/bridge/session');
+        $connection = $this->em()->getConnection();
+        self::assertSame(1, $connection->executeStatement('DELETE FROM bridges WHERE id = ?', [$bridgeId]));
+
+        $this->seed(self::DAY);
+
+        self::assertSame(1, (int) $connection->fetchOne($bridgeCount, [$bridgeId]));
+    }
+
+    public function test_the_pull_request_review_points_at_the_link_on_a_first_run_and_after_a_restored_card(): void
+    {
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        $linkedReview = \sprintf("SELECT pull_request_id FROM inbox_reviews WHERE item_id = '%s'", DevSeedId::of('inbox/item/pull-request'));
+        $first = $connection->fetchOne($linkedReview);
+        self::assertIsString($first, 'The first run left the pull request review with no link.');
+
+        $em = $this->em();
+        $em->clear();
+        $card = $em->find(Card::class, DevSeedId::of('board/card/checkout')) ?? throw new \LogicException('The card is missing.');
+        self::getContainer()->get(DeleteCardHandler::class)(new DeleteCardCommand($card, Actor::Human));
+        self::assertFalse(\is_string($connection->fetchOne($linkedReview)), 'The deleted card kept the link of the review.');
+
+        $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
+
+        self::assertIsString($connection->fetchOne($linkedReview), 'The restored card did not go back on the review.');
+        self::assertSame($counts['inbox_item_cards'], $this->rowCounts()['inbox_item_cards'], 'The restored card did not go back on its items.');
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function partialBoardDeletions(): iterable
+    {
+        yield 'the link of the checkout card' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/438'"];
+        yield 'one of the two links of a card' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/449'"];
+        yield 'the link of the outdated approval' => ["DELETE FROM board_card_pull_requests WHERE url = 'https://github.com/example/atlas/pull/457'"];
+        yield 'one link of an experiment card' => ["DELETE FROM board_card_pull_requests WHERE id = (SELECT id FROM board_card_pull_requests WHERE repository = 'example/experiment' LIMIT 1)"];
+        yield 'every link' => ['DELETE FROM board_card_pull_requests'];
+        yield 'one state' => ["DELETE FROM forge_pull_requests WHERE repository = 'example/atlas' AND number = 441"];
+        yield 'every state' => ['DELETE FROM forge_pull_requests'];
+        yield 'every pause' => ['DELETE FROM card_pauses'];
+    }
+
+    #[DataProvider('partialBoardDeletions')]
+    public function test_a_later_run_restores_each_pull_request_link_state_and_pause_while_the_card_remains(string $deletion): void
+    {
+        $this->seed(self::DAY);
+        $counts = $this->rowCounts();
+        $connection = $this->em()->getConnection();
+        self::assertGreaterThan(0, $connection->executeStatement($deletion));
+        self::assertNotSame($counts, $this->rowCounts());
+
+        $this->seed(self::DAY);
+
+        self::assertSame($counts, $this->rowCounts());
+        self::assertIsString($connection->fetchOne(\sprintf("SELECT pull_request_id FROM inbox_reviews WHERE item_id = '%s'", DevSeedId::of('inbox/item/pull-request'))), 'The review of the pull request item has no link.');
+        self::assertSame(
+            1,
+            (int) $connection->fetchOne("SELECT COUNT(*) FROM forge_pull_requests WHERE repository = 'example/atlas' AND number = 457 AND approval_id = 'atlas-review-457' AND ready_to_merge = false"),
+            'The state of the outdated approval lost its approval.',
+        );
+    }
+
+    public function test_a_restored_pull_request_link_goes_back_on_its_review_while_an_older_link_remains(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $checkout = $em->find(Card::class, DevSeedId::of('board/card/checkout')) ?? throw new \LogicException('The card is missing.');
+        $em->persist(new CardPullRequest($checkout, 'https://github.com/example/atlas/pull/1', addedAt: new \DateTimeImmutable('2020-01-01')));
+        $em->flush();
+        $connection = $em->getConnection();
+        self::assertSame(1, $connection->executeStatement('DELETE FROM board_card_pull_requests WHERE url = ?', [DevBoardSeeder::pullRequestUrl(438)]));
+        $em->clear();
+
+        $this->seed(self::DAY);
+
+        self::assertSame(DevBoardSeeder::pullRequestUrl(438), $connection->fetchOne(
+            'SELECT link.url FROM inbox_reviews review JOIN board_card_pull_requests link ON link.id = review.pull_request_id WHERE review.item_id = ?',
+            [(string) DevSeedId::of('inbox/item/pull-request')],
+        ));
+    }
+
+    public function test_a_later_run_restores_the_handoff_link_while_the_card_holds_another_document(): void
+    {
+        $this->seed(self::DAY);
+        $em = $this->em();
+        $onboarding = $em->find(Card::class, DevSeedId::of('board/card/onboarding')) ?? throw new \LogicException('The card is missing.');
+        $other = $em->find(Document::class, DevSeedId::of('review/document/column-rules')) ?? throw new \LogicException('The document is missing.');
+        $em->persist(new CardDocument($onboarding, $other));
+        $em->flush();
+        $connection = $em->getConnection();
+        $handoffLink = 'SELECT COUNT(*) FROM board_card_documents WHERE card_id = ? AND document_id = ?';
+        $handoffKeys = [(string) $onboarding->id, (string) DevSeedId::of('review/document/first-handoff')];
+        self::assertSame(1, $connection->executeStatement('DELETE FROM board_card_documents WHERE card_id = ? AND document_id = ?', $handoffKeys));
+        $em->clear();
+
+        $this->seed(self::DAY);
+
+        self::assertSame(1, (int) $connection->fetchOne($handoffLink, $handoffKeys));
     }
 
     public function test_the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void
