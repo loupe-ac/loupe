@@ -20,9 +20,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Ubermuda\AuditBundle\Auditor;
-use Ubermuda\AuditBundle\AuditOutcome;
-use Ubermuda\AuditBundle\AuditSubject;
 
 #[IsGranted(DocumentVoter::CONTRIBUTE, subject: 'document')]
 #[Route(
@@ -35,7 +32,6 @@ final class SubmitReviewController extends AppController
     public function __construct(
         private readonly SubmitReviewHandler $submitReviewHandler,
         private readonly TranslatorInterface $translator,
-        private readonly Auditor $auditor,
     ) {
     }
 
@@ -60,7 +56,7 @@ final class SubmitReviewController extends AppController
 
         if ($form->isSubmitted() && $form->isValid() && null !== $data->versionNumber) {
             try {
-                $review = ($this->submitReviewHandler)(new SubmitReviewCommand(
+                ($this->submitReviewHandler)(new SubmitReviewCommand(
                     reviewer: $user,
                     document: $document,
                     verdict: $data->verdict ?? '',
@@ -70,20 +66,6 @@ final class SubmitReviewController extends AppController
                 ));
 
                 $this->addFlash('success', $this->translator->trans('review.document.flash.verdict_submitted'));
-
-                $this->auditor->record(
-                    'review.document_verdict_submitted',
-                    AuditOutcome::Success,
-                    [
-                        'documentId' => (string) $document->id,
-                        'verdict' => $review->verdict->value,
-                        // Whose verdict the Review row carries, not who acted — the
-                        // Auditor resolves the actor itself. The two coincide only
-                        // while a reviewer can submit on nobody else's behalf.
-                        'reviewerId' => (string) $user->id,
-                    ],
-                    new AuditSubject('document', (string) $document->id),
-                );
 
                 return $this->redirectToRoute('app_document_review', [
                     'projectId' => (string) $project->id,

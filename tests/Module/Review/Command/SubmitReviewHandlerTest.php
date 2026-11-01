@@ -18,6 +18,7 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\ValueObject\Anchor;
+use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -47,6 +48,63 @@ final class SubmitReviewHandlerTest extends KernelTestCase
         $second = $handler(new SubmitReviewCommand($reviewer, $document, 'changes-requested', 1, 'A current decision.', (string) $first->id));
         self::assertSame(2, $second->sequence);
         self::assertSame(Verdict::ChangesRequested, $second->verdict);
+    }
+
+    public function test_a_submitted_verdict_is_audited_once(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'audited');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+        $audit->forget();
+
+        $review = $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, throughAgent: true));
+
+        $record = $audit->record('review.document_verdict_submitted');
+        self::assertSame('approved', $record->context['verdict']);
+        self::assertSame((string) $document->id, $record->context['documentId']);
+        self::assertSame((string) $reviewer->id, $record->context['reviewerId']);
+        self::assertTrue($record->context['throughAgent']);
+        self::assertSame(Verdict::Approved, $review->verdict);
+    }
+
+    public function test_a_verdict_not_through_an_agent_carries_no_agent_mark_in_its_record(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'audited-web');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+        $audit->forget();
+
+        $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1));
+
+        self::assertArrayNotHasKey('throughAgent', $audit->record('review.document_verdict_submitted')->context);
+    }
+
+    public function test_a_refused_verdict_is_not_audited(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'audited-refused');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+        $audit->forget();
+
+        try {
+            $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 9));
+            self::fail('A stale version must be refused.');
+        } catch (DomainErrors) {
+        }
+
+        self::assertSame([], $audit->records('review.document_verdict_submitted'));
     }
 
     public function test_a_verdict_submitted_through_an_agent_carries_the_mark(): void

@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Mcp;
 
-use App\Module\SiteReview\Command\MarkSiteReviewCommentAddressedOutcome;
-use App\Module\SiteReview\Command\MarkSiteReviewCommentsAddressedCommand;
-use App\Module\SiteReview\Command\MarkSiteReviewCommentsAddressedHandler;
-use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Command\MarkSiteReviewCommentIdsAddressedCommand;
+use App\Module\SiteReview\Command\MarkSiteReviewCommentIdsAddressedHandler;
 use App\Module\SiteReview\Mcp\SiteReviewSubjectResolver;
-use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * The agent's only write on feedback: Pending to Addressed. Resolved stays with
@@ -25,7 +21,7 @@ final readonly class FeedbackMarkAddressedTool
 
     public function __construct(
         private SiteReviewSubjectResolver $subjects,
-        private MarkSiteReviewCommentsAddressedHandler $markCommentsAddressed,
+        private MarkSiteReviewCommentIdsAddressedHandler $markCommentsAddressed,
     ) {
     }
 
@@ -39,60 +35,17 @@ final readonly class FeedbackMarkAddressedTool
      */
     public function __invoke(array $feedbackIds): array
     {
-        $addressed = [];
-        $skipped = [];
-
         try {
             // An unbound token is refused once, even for an empty batch.
-            $this->subjects->requireProject();
+            $project = $this->subjects->requireProject();
 
-            /** @var list<array{id: string, reason: ?string}> $plan one entry per id, in the order given */
-            $plan = [];
-            /** @var list<SiteReviewComment> $comments the ids that resolved, in the same order */
-            $comments = [];
-
-            foreach ($feedbackIds as $id) {
-                try {
-                    $uuid = Uuid::fromString($id);
-                } catch (\InvalidArgumentException) {
-                    $plan[] = ['id' => $id, 'reason' => 'invalid_id'];
-                    continue;
-                }
-
-                $comment = $this->subjects->findComment($uuid, McpBoundProjectVoter::SITE_REVIEW_WRITE);
-                if (null === $comment) {
-                    $plan[] = ['id' => $id, 'reason' => 'unknown'];
-                    continue;
-                }
-
-                $comments[] = $comment;
-                $plan[] = ['id' => $id, 'reason' => null];
-            }
-
-            $outcomes = ($this->markCommentsAddressed)(new MarkSiteReviewCommentsAddressedCommand($comments));
-
-            $next = 0;
-            foreach ($plan as $entry) {
-                $reason = $entry['reason'] ?? match ($outcomes[$next++] ?? throw new \LogicException('handler returned fewer outcomes than comments')) {
-                    MarkSiteReviewCommentAddressedOutcome::Addressed => null,
-                    MarkSiteReviewCommentAddressedOutcome::AlreadyAddressed => 'already_addressed',
-                    MarkSiteReviewCommentAddressedOutcome::AlreadyResolved => 'resolved',
-                    MarkSiteReviewCommentAddressedOutcome::NotFound => 'unknown',
-                };
-
-                if (null === $reason) {
-                    $addressed[] = $entry['id'];
-                    continue;
-                }
-
-                $skipped[] = ['id' => $entry['id'], 'reason' => $reason];
-            }
+            $result = ($this->markCommentsAddressed)(new MarkSiteReviewCommentIdsAddressedCommand($project, array_values($feedbackIds)));
         } catch (ToolCallException $e) {
             throw $e;
         } catch (\Throwable $e) {
             throw new ToolCallException('The feedback could not be marked as addressed. The error has been logged.', previous: $e);
         }
 
-        return ['addressed' => $addressed, 'skipped' => $skipped];
+        return ['addressed' => $result->addressed, 'skipped' => $result->skipped];
     }
 }
