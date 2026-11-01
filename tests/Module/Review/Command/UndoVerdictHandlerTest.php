@@ -23,6 +23,7 @@ use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Event\VerdictWithdrawn;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Tests\Support\DispatchedEvents;
+use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -47,6 +48,27 @@ final class UndoVerdictHandlerTest extends KernelTestCase
         $doc = $createHandler(new CreateDocumentCommand($project, 'Auth PRD', '# Auth'));
 
         return [$user, $doc];
+    }
+
+    public function test_a_withdrawal_is_audited_once(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, 'audited');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $submit);
+        self::assertInstanceOf(UndoVerdictHandler::class, $undo);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        $audit->forget();
+
+        $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id, throughAgent: true));
+
+        $record = $audit->record('review.document_verdict_undone');
+        self::assertSame((string) $doc->id, $record->context['documentId']);
+        self::assertSame($doc->status->value, $record->context['status']);
+        self::assertTrue($record->context['throughAgent']);
     }
 
     public function test_undo_appends_a_withdrawal_and_keeps_the_verdict_it_takes_back(): void

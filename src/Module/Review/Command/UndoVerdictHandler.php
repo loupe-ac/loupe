@@ -14,6 +14,9 @@ use App\Module\Review\Repository\ReviewRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Ubermuda\AuditBundle\Auditor;
+use Ubermuda\AuditBundle\AuditOutcome;
+use Ubermuda\AuditBundle\AuditSubject;
 
 final readonly class UndoVerdictHandler
 {
@@ -22,6 +25,7 @@ final readonly class UndoVerdictHandler
         private DocumentVersionRepository $documentVersions,
         private ReviewRepository $reviews,
         private EventDispatcherInterface $events,
+        private Auditor $auditor,
     ) {
     }
 
@@ -81,6 +85,17 @@ final readonly class UndoVerdictHandler
             $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
             $document->id ?? throw new \LogicException('A persisted document has an id.'),
         ));
+
+        $this->auditor->record(
+            'review.document_verdict_undone',
+            AuditOutcome::Success,
+            [
+                'documentId' => (string) $document->id,
+                'status' => $document->status->value,
+                ...($command->throughAgent ? ['throughAgent' => true] : []),
+            ],
+            new AuditSubject('document', (string) $document->id),
+        );
 
         return $result;
     }
