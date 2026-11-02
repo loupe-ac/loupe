@@ -101,8 +101,7 @@ waiting for approval** and **Hours to ready to merge**. The shipped Simple
 template declares **Merge rate** and **Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
 
 **Hours to ready to merge** starts at the first arrival of the card in
-Implementation. A later release of the Lifecycle template starts it at the earlier
-of that arrival and the first pull request opening. A session that links its pull
+Implementation, or at the first pull request opening when that is earlier. A session that links its pull
 request late then still gets a correct start. A template can already name two
 starts with [`earliest`](workflows.md#metrics).
 
