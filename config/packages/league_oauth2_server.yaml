@@ -22,7 +22,7 @@ league_oauth2_server:
     # repository refuses a scope it does not know. A project:<uuid> scope is not
     # listed, because ProjectScopeRepository accepts that one itself.
     scopes:
-        available: ['mcp', 'site-review', 'agent', 'projects']
+        available: ['mcp', 'site-review', 'agent', 'public', 'projects']
         default: ['mcp']
     persistence:
         doctrine: null

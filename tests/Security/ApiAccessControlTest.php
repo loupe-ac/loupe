@@ -42,6 +42,38 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertFalse($this->decide('/api/versions/x', self::ALL_ROLES));
     }
 
+    public function test_the_public_scope_reaches_the_project_routes_and_no_other_scope_does(): void
+    {
+        self::assertTrue($this->decide('/api/v1/projects', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertTrue($this->decide('/api/v1/projects/my-project', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects', ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project', ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']));
+    }
+
+    /** A rule per route shape, so a route the contract adds later inherits no grant from the project rule. */
+    public function test_the_project_rule_opens_no_nested_route(): void
+    {
+        self::assertFalse($this->decide('/api/v1/projects/my-project/cards', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projectsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
+    public function test_the_public_scope_reaches_the_column_routes_and_no_other_scope_does(): void
+    {
+        foreach (['/api/v1/projects/my-project/board/columns', '/api/v1/projects/my-project/board/columns/order', '/api/v1/projects/my-project/board/columns/next'] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_column_rule_opens_no_other_board_route(): void
+    {
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columns/next/cards', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columns/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columnsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
     public function test_the_deny_rule_does_not_shadow_the_site_review_scope(): void
     {
         self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));

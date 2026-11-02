@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\AddFeedbackCommand;
@@ -37,7 +38,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
     new OA\Response(response: 409, description: 'Refused: `delivery_conflict`, `delivery_invalid`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 422, description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new RateLimitedResponse(),
 ])]
 #[Route(
     '/api/v1/live-review-widget/feedback',

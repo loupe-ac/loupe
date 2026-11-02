@@ -45,9 +45,10 @@ final readonly class Page
     }
 
     /**
-     * @param \Closure(T): mixed $present turns an item into its wire form
+     * @param \Closure(T): mixed   $present turns an item into its wire form
+     * @param array<string, mixed> $extra   members a list adds beside `items` and `next`
      */
-    public function toResponse(Request $request, \Closure $present): JsonResponse
+    public function toResponse(Request $request, \Closure $present, array $extra = []): JsonResponse
     {
         $next = null;
         if (null !== $this->next) {
@@ -56,7 +57,7 @@ final readonly class Page
             $next = $request->getSchemeAndHttpHost().$request->getBaseUrl().$request->getPathInfo().'?'.http_build_query($query);
         }
 
-        $response = new JsonResponse(['items' => array_map($present, $this->items), 'next' => $next]);
+        $response = new JsonResponse(['items' => array_map($present, $this->items), 'next' => $next] + $extra);
         if (null !== $next) {
             $response->headers->set('Link', sprintf('<%s>; rel="next"', $next));
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Api\Problem\ApiPaths;
 use App\Controller\AppController;
 use App\Module\Bridge\Service\CliCompatibility;
@@ -20,7 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[OA\Get(operationId: 'listApiVersions', description: 'No sign-in is needed.', summary: 'List the API versions of this instance', security: [], tags: ['Meta'], responses: [
     new OA\Response(response: 200, description: 'The versions.', content: new OA\JsonContent(ref: '#/components/schemas/ApiVersions')),
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new RateLimitedResponse(),
 ])]
 #[Route(
     '/api/versions',
