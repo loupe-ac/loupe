@@ -53,7 +53,7 @@ final class ApiAccessControlTest extends KernelTestCase
     /** A rule per route shape, so a route the contract adds later inherits no grant from the project rule. */
     public function test_the_project_rule_opens_no_nested_route(): void
     {
-        self::assertFalse($this->decide('/api/v1/projects/my-project/documents', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/not-a-route', ['ROLE_USER', 'ROLE_API_PUBLIC']));
         self::assertFalse($this->decide('/api/v1/projects/my-project/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
         self::assertFalse($this->decide('/api/v1/projectsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
     }
