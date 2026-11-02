@@ -58,7 +58,7 @@ Submit a document that the user reads at their own pace to the Loupe app with `d
 
 ## Tracking open work
 
-The project board in the Loupe app holds open work that has an addressee. Invoke the `loupe-board` skill before you write a card. It says what earns a card, where an observation goes instead, and that the board is public text.
+The project board in the Loupe app holds open work that has an addressee. Invoke the `loupe-board` skill before you write a card. It says what earns a card, and that the board is public text. An observation gets no card. A lesson goes into the skill that covers its area. A fact about how the system behaves goes into `docs/`, or into the skill. A record of what happened goes into the commit message or the pull request body.
 
 Fix a problem in the code your branch touches in that branch, even when the fix adds new content after an approval. Never card it under an epic. Fix a failing check in the branch, wherever its cause lies.
 

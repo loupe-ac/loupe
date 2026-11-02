@@ -18,7 +18,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 ## Procedure
 
 1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions.
-2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask the owner about docs in P6.
+2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the documentation checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask no documentation check.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
 4. Read `references/session-flow.md`, `references/question-rules.md`, `references/claude-design.md` and `../loupe-stage-product-design/references/design-principles.md`. Follow them for the whole session.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the product design tag, or a title that starts `Product design`. Read the tag as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.

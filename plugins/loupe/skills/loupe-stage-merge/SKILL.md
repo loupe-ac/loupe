@@ -22,7 +22,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 ## Procedure
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
-2. Load `working-with-prs` when the profile `Instruction files` section names it.
+2. Load the instructions that the profile `Instruction files` section names for a merge.
 3. Read the prompt, and find the request line:
    - The line `Loupe asks for epic preview work.` asks for an epic preview refresh. The card of the request is the epic itself. When its `type` is not `epic`, stop with `STAGE RESULT: blocked: not an epic`. Then take "Refresh the epic preview", and skip steps 4 to 8.
    - The line `Pull request <url> is ready to merge at <sha>.` asks for a merge.
@@ -118,7 +118,7 @@ The `before` command of the `epic-preview` work entry creates or refreshes the e
 
 Read the epic with `card_get` on the card of the request. When its `status` is a terminal column, stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
 
-1. Check that the worker folder is the preview of the epic. `git rev-parse --show-toplevel` ends in `/.worktrees/epic-<n>`, and `git rev-parse HEAD` equals `git rev-parse origin/<epic branch>`. Never bind writes to the preview.
+1. Check that `git rev-parse HEAD` equals `git rev-parse origin/<epic branch>`. Never bind writes to the preview.
 2. When the epic `pullRequestUrls` has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`. The app can link the epic pull request after this run starts. The next refresh writes the lines that the body lacks.
 3. Read the body of the epic pull request with the forge adapter. List each child of the epic `children` that is in a terminal column, and whose lines in the preview section are missing or in an old shape.
    - A line in the current shape starts with `- [#<child number>:`, or starts with `- #<child number>:` and holds `, not minted,`.
@@ -126,7 +126,7 @@ Read the epic with `card_get` on the card of the request. When its `status` is a
 
    Read each listed child with `card_get`, and take its pull request that merged into the epic branch. Leave out a child with no such pull request.
 4. Read the body of each merged child pull request with the forge adapter. Find the preview section that the profile `Preview` section names. A profile with no `Preview` section names it in its `Pull request` section. In that section, take each link of the form that the profile `Epics` section carries, with its label and its marker. A child with no such link carries nothing. When no listed child carries a link, stop with `STAGE RESULT: preview refreshed <epic pull request url>`.
-5. For each link, mint a link on the epic preview and prove it, as the profile says. The mint or the proof can fail, because the child seeded its state into its own database. Write such a line as not minted or not proved, and go on.
+5. For each link, mint a link on the epic preview and prove it, as the profile says. The mint or the proof can fail, because the child seeded its state into its own environment. Write such a line as not minted or not proved, and go on.
 6. Read the body of the epic pull request with the forge adapter, just before you write it.
 7. In its preview section, replace the lines of each listed child, and keep every other line. A line of a child starts with `- [#<child number>:`, `- #<child number>:` or `#<child number>:`. When the body has no such section, add it at the top. Write one Markdown list item per link, in the shape of the profile `Preview` section `Line` item, with the child number at the start of the label:
    - `` - [#<child number>: <label>](<link>), marker `<marker>` ``, when the proof passed.

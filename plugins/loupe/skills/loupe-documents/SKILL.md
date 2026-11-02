@@ -156,15 +156,15 @@ Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` fo
 This is the shape of an entry, with the lead sentence first and the detail after:
 
 ```markdown
-1. **Token flush on every request.** Each widget API call writes
-   `last_used_at` synchronously. `ApiTokenAuthenticator.php:45` runs
-   `markUsed()` + `flush()` inside the auth path… (detail follows)
+1. **Token write on every request.** Each API call writes
+   `last_used_at` synchronously. `auth.go:45` runs
+   `markUsed()` + `save()` inside the auth path… (detail follows)
 ```
 
 Do not write this. It starts in jargon, joins fragments together and explains nothing:
 
 ```markdown
-1. `ApiTokenAuthenticator.php:45` — markUsed() + flush() on every Bearer
+1. `auth.go:45` — markUsed() + save() on every Bearer
    request · hot-row contention · fix: …
 ```
 

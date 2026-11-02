@@ -7,7 +7,7 @@ The design review stage applies this list to a draft tech design and to its depl
 1. Coverage: The design covers each `R` entry and each scenario of the approved product document. It adds no behaviour that the product document did not ask for. With no product document, the card body is the source. An `R` entry that nothing in the design builds is an `important` finding that names the entry.
 2. Claims about the code: Each claim about the code is true, or the design marks the thing as new. Read the file behind each claim. Search for the count that a sentence states. A wrong class, route, field or behaviour is an `important` finding with the file and line.
 3. Conventions and good practice: The design follows the conventions and the decision records that the instruction files of the profile name, and general good practice. Name the rule and its source in the finding.
-4. Libraries and services: Each claim about a library or a third-party service is true. Check the current documentation, with Context7 or a web search when the tools exist. A claim you cannot check is a `nit` that says so.
+4. Libraries and services: Each claim about a library or a third-party service is true. Check the current documentation, with a documentation tool or a web search when the tools exist. A claim you cannot check is a `nit` that says so.
 5. Writing and deploy notes: The design and the deploy notes follow the writing rules of the profile. The deploy notes list each step that the design implies, as the deploy items of the profile and `../../loupe-stage-tech-design/references/tech-document.md` "Deploy notes" define them. A deploy item of the design that the notes lack is a finding.
 
 ## How to look

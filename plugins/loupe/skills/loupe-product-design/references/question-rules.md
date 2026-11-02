@@ -31,8 +31,8 @@ P6 works through this checklist. Mark each area Clear, Partial or Missing for yo
 7. Permissions. Who may see, create, change and delete each thing.
 8. Data lifecycle. How data is created, changed, archived, deleted and exported.
 9. Non-functional expectations. Limits, volume, speed a user notices, and availability.
-10. Integrations. The MCP tools, the bridge, email, and any external service the change touches.
+10. Integrations. The APIs, jobs, email and external services that the change touches.
 11. Terminology. The names a user sees, and whether they match the names the product already uses.
 12. Completion signals. How a user knows that the action worked.
-13. Docs and landing page. The pages the change alters, when the profile is missing.
+13. Documentation checks. The checks that the profile names. With no profile, skip this area.
 14. Design system. This area applies to a change that touches the user interface, when the profile names a design system. It covers the components the change reuses, and the components it must change. Settle each component change with the owner.

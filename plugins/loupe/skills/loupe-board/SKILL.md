@@ -92,15 +92,9 @@ Every card names work with an addressee. It ends when somebody does that work an
 
 Before you write a card, say in one sentence what somebody must do. A card that cannot finish that sentence is an observation, and an observation asks nothing of anyone.
 
-| You have | Where it goes |
-|---|---|
-| Work somebody must do later | A card |
-| A lesson worth applying next time | The skill that covers that area |
-| A fact about how the system behaves | `docs/`, or the skill |
-| A record of what happened | The commit message or the pull request body |
-| A problem in the code your branch touches | A fix in that branch |
+Only work that somebody must do later earns a card. Anything else gets no card. A lesson, a fact about how the system behaves and a record of what happened have no addressee. The instructions of the project say where each of them goes. A problem in the code your branch touches is a fix in that branch.
 
-A lesson is the common mistake, because it feels valuable and it has no owner. Write it into the skill a future session already reads. A card that holds a lesson sits in Backlog forever, because nobody can finish it.
+A lesson is the common mistake, because it feels valuable and it has no owner. A card that holds a lesson sits in Backlog forever, because nobody can finish it.
 
 The test still holds for a card whose body is mostly evidence, with one line at the end that asks for a write-up of the evidence. That is a card, because the write-up is the work. Put the evidence in the body, so that whoever takes it needs no other source.
 
@@ -146,15 +140,14 @@ The workflow of the board checks a card after each move. When a rule of its temp
 
 ## Link a pull request to a card
 
-You make the link by hand, in three steps. Nothing automates any of them.
+You make the link by hand, in two steps. Nothing automates any of them.
 
-1. Name the branch after the card number, for example `feat/42-drag-ordering`.
-2. Put the card's URL in the pull request body. A card page is at `<instance>/projects/<projectId>/board/cards/<cardId>`. The last segment is the UUID, never the number. `project_current` returns the project id.
-3. Call `card_update` as soon as you open the pull request, draft included, with its URL in `pullRequestUrls`.
+1. Put the card's URL in the pull request body. A card page is at `<instance>/projects/<projectId>/board/cards/<cardId>`. The last segment is the UUID, never the number. `project_current` returns the project id.
+2. Call `card_update` as soon as you open the pull request, draft included, with its URL in `pullRequestUrls`.
 
 `pullRequestUrls` replaces the whole set. Read the card with `card_get` first, and send the URLs it already holds with the new one.
 
-Step 3 is a convention, and a session sometimes forgets a convention. With a branch named after the card and a card URL in the pull request body, a person can recover the link by hand.
+Step 2 is a convention, and a session sometimes forgets a convention. With the card URL in the pull request body, a person can recover the link by hand.
 
 ## Who moves a card after a merge
 
@@ -174,4 +167,4 @@ For any other link, an agent or a person moves the card.
 | Sending only the new value in `pullRequestUrls` or `relatedCards` | The field replaces the whole set. Send the whole list from `card_get`. Omit the field to keep it. |
 | Sending a short `body` to add a handover note | `body` replaces the whole body. Read the card with `card_get` first. |
 | Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |
-| Carding a lesson so it is not lost | Nobody can finish it. Write it into the skill. |
+| Carding a lesson so it is not lost | Nobody can finish it. Put it where the instructions of the project say. |
