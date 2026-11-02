@@ -13,7 +13,7 @@
         </twig:Ds:SectionHeading>
 
         {% if view.keys is empty %}
-        <twig:Ds:EmptyState :onCard="true" :title="'oauth.api_keys.empty.title'|trans" :body="'oauth.api_keys.empty.body'|trans" />
+        <twig:Ds:EmptyState class="mt-6" :onCard="true" :title="'oauth.api_keys.empty.title'|trans" :body="'oauth.api_keys.empty.body'|trans" />
         {% else %}
         <twig:Ds:DataTable modifier="api-keys" :label="'oauth.api_keys.table.label'|trans" :columns="[
             {label: 'oauth.api_keys.column.name'|trans},
