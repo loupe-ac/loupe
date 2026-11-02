@@ -29,6 +29,14 @@ class ApiKeyRepository extends ServiceEntityRepository
         return $this->findBy(['owner' => $owner], ['createdAt' => 'DESC']);
     }
 
+    public function deleteForOwner(Uuid $ownerId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'DELETE FROM api_keys WHERE owner_id = :ownerId',
+            ['ownerId' => $ownerId->toRfc4122()],
+        );
+    }
+
     /** @return list<ApiKey> keys that end after $now, no later than $until, and have no notice yet */
     public function findExpiringUnnotified(\DateTimeImmutable $now, \DateTimeImmutable $until): array
     {

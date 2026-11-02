@@ -9165,6 +9165,14 @@
             <trans-unit id="oauth.admin.connected_apps.title"><source>oauth.admin.connected_apps.title</source><target>Connected apps</target></trans-unit>
             <trans-unit id="oauth.admin.connected_apps.subtitle"><source>oauth.admin.connected_apps.subtitle</source><target>The apps this account has given access to, and what each one reaches.</target></trans-unit>
             <trans-unit id="oauth.admin.connected_apps.empty"><source>oauth.admin.connected_apps.empty</source><target>This account has connected no app.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.title"><source>oauth.admin.api_keys.title</source><target>API keys</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.subtitle"><source>oauth.admin.api_keys.subtitle</source><target>The keys of this account for the public API. A key reaches the whole account. Revoke a key that leaked.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.empty"><source>oauth.admin.api_keys.empty</source><target>This account has no API key.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.active"><source>oauth.admin.api_keys.status.active</source><target>Active</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.expired"><source>oauth.admin.api_keys.status.expired</source><target>Expired</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.revoked"><source>oauth.admin.api_keys.status.revoked</source><target>Revoked</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.expires"><source>oauth.admin.api_keys.expires</source><target>Ends %date%</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.last_used"><source>oauth.admin.api_keys.last_used</source><target>Last used %date%</target></trans-unit>
             <trans-unit id="oauth.connected_apps.all_projects">
                 <source>oauth.connected_apps.all_projects</source>
                 <target>every project you own</target>

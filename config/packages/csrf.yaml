@@ -53,6 +53,7 @@ framework:
             - admin-user-unsuspend
             - admin-user-delete
             - admin-user-resend-verification
+            - admin-revoke-api-key
             - billing-comp-grant
             - billing-comp-revoke
             - billing-beta-invite-revoke
