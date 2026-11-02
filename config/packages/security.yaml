@@ -110,6 +110,7 @@ security:
         - { path: '^/api/events/replay$', roles: ROLE_API_AGENT }
         - { path: '^/api/card-holds$', roles: ROLE_API_AGENT }
         - { path: '^/api/interactive-sessions/[^/]+/close$', roles: ROLE_API_AGENT }
+        - { path: '^/api/interactive-sessions/[^/]+/card-run$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }

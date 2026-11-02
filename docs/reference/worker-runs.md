@@ -768,6 +768,30 @@ push and a session that a person started needs no bridge. It shares the `agent_w
 The answer is 200 with `{"closed": <number>}`. The number is 0 when the owner holds no open run of the session.
 A session id that is not a UUID gets 422 with `{"error": "invalid_session_id"}`.
 
+## Reading the card run of a session
+
+`GET /api/interactive-sessions/{sessionId}/card-run` tells the session start hook of the Loupe plugin two
+facts about one project. The first is the workflow template of the project. The second is whether the
+session already holds an open interactive run on a card of that project.
+
+The request names the project in the `X-Loupe-Project` header. The value is a project id or slug. The
+endpoint does not fall back to the only project of the token owner. The firewall admits agent-scoped
+tokens alone. The endpoint needs no feature flag. It shares the `agent_worker_runs` rate limit.
+
+The answer is 200 with `{"template": "<key>", "openCardRun": <boolean>}`.
+
+- `template` is the key of the workflow template, such as `lifecycle`. It is `null` when the project has no
+  workflow template yet.
+- `openCardRun` is true when the session has a running interactive run on a card of the project. It is
+  false for a session with no run, for a closed run, and for a session id that belongs to another project
+  or another account.
+
+| Status | Body | When |
+|---|---|---|
+| 422 | `{"error": "project_header_required"}` | the `X-Loupe-Project` header is missing or blank |
+| 422 | `{"error": "invalid_session_id"}` | the session id is not a UUID |
+| 404 | `{"error": "unknown_project"}` | the token owner has no such project. A project of another account gets the same answer as a project that does not exist |
+
 An interactive run records why it closed, in `closeReason`:
 
 | Reason | Meaning |
