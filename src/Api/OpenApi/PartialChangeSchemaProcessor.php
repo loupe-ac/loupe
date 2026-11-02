@@ -14,7 +14,8 @@ use OpenApi\Generator;
  * explicit null fails the type. The generator marks those properties as required
  * and has no switch to stop it. A request class asks for this processor with
  * `#[OA\Schema(x: [PartialChangeSchemaProcessor::MARKER => true])]`, and the marker
- * stays out of the spec.
+ * stays out of the spec. A list in place of `true` names the fields that stay required,
+ * for a request that has optional fields beside required ones.
  */
 final class PartialChangeSchemaProcessor
 {
@@ -32,7 +33,12 @@ final class PartialChangeSchemaProcessor
                 continue;
             }
 
-            self::clear($schema, 'required');
+            $required = $schema->x[self::MARKER];
+            if (\is_array($required) && [] !== $required) {
+                $schema->required = array_values($required);
+            } else {
+                self::clear($schema, 'required');
+            }
             unset($schema->x[self::MARKER]);
         }
     }

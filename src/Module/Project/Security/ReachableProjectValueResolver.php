@@ -35,7 +35,14 @@ final readonly class ReachableProjectValueResolver implements ValueResolverInter
     #[\Override]
     public function resolve(Request $request, ArgumentMetadata $argument): array
     {
-        $handle = $request->attributes->get($argument->getName());
+        return [$this->reachable($request->attributes->get($argument->getName()))];
+    }
+
+    /**
+     * @throws ApiProblemException `project_not_found` for a handle that names no project the credential may view
+     */
+    public function reachable(mixed $handle): Project
+    {
         $user = $this->tokenStorage->getToken()?->getUser();
         $project = \is_string($handle) && $user instanceof User ? $this->projects->findOneByIdOrSlugForOwner($handle, $user) : null;
 
@@ -43,6 +50,6 @@ final readonly class ReachableProjectValueResolver implements ValueResolverInter
             throw ApiProblemException::projectNotFound();
         }
 
-        return [$project];
+        return $project;
     }
 }

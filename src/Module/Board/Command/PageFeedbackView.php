@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Board\Command;
+
+use App\Api\Pagination\Page;
+use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\SiteReview\Entity\SiteReviewComment;
+
+final readonly class PageFeedbackView
+{
+    /**
+     * @param Page<SiteReviewComment>                       $page
+     * @param array<string, CardSiteReviewComment>          $links the card link of each item, keyed by comment id
+     * @param array<string, array{width: int, height: int}> $sizes the screenshot size of each item that has one, keyed by comment id
+     */
+    public function __construct(
+        public Page $page,
+        public array $links,
+        public array $sizes,
+    ) {
+    }
+}

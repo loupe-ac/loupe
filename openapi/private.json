@@ -1561,6 +1561,487 @@
                 },
                 "type": "object"
             },
+            "FeedbackItem": {
+                "description": "A note that a reviewer left with the live-review widget.",
+                "required": [
+                    "id",
+                    "url",
+                    "surface",
+                    "native",
+                    "screenshot",
+                    "anchors",
+                    "body",
+                    "hasDrawing",
+                    "status",
+                    "context",
+                    "createdAt",
+                    "cardId",
+                    "number",
+                    "title"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The page of a web note, or null for a native note.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "surface": {
+                        "type": "string",
+                        "enum": [
+                            "web",
+                            "ios-simulator"
+                        ]
+                    },
+                    "native": {
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/NativeFacts"
+                            }
+                        ]
+                    },
+                    "screenshot": {
+                        "description": "The size of the marked image of the note, or null.",
+                        "required": [
+                            "width",
+                            "height"
+                        ],
+                        "properties": {
+                            "width": {
+                                "type": "integer"
+                            },
+                            "height": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "anchors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeedbackAnchor"
+                        }
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "hasDrawing": {
+                        "description": "True when the note has strokes. Ask the reviewer rather than guess.",
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "addressed",
+                            "resolved"
+                        ]
+                    },
+                    "context": {
+                        "description": "What a preview page said it served, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "number": {
+                        "description": "The number of its card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "title": {
+                        "description": "The title of its card.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeedbackItem"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackAnchor": {
+                "required": [
+                    "selector",
+                    "text",
+                    "quote",
+                    "quotePrefix",
+                    "quoteSuffix"
+                ],
+                "properties": {
+                    "selector": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "quote": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quotePrefix": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quoteSuffix": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackUpdate": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "description": "The only status a route writes. Resolved stays with a person.",
+                        "type": "string",
+                        "enum": [
+                            "addressed"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactSummary": {
+                "required": [
+                    "artifactId",
+                    "name",
+                    "latestVersion",
+                    "archived",
+                    "sourceLink",
+                    "createdAt",
+                    "path"
+                ],
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "latestVersion": {
+                        "type": "integer"
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "path": {
+                        "description": "The path of the artifact page in the app.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactSummary"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactVersion": {
+                "required": [
+                    "number",
+                    "storedAt",
+                    "storedInSession",
+                    "notes",
+                    "fileCount",
+                    "totalBytes"
+                ],
+                "properties": {
+                    "number": {
+                        "type": "integer"
+                    },
+                    "storedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "storedInSession": {
+                        "type": "boolean"
+                    },
+                    "notes": {
+                        "description": "What changed.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "fileCount": {
+                        "type": "integer"
+                    },
+                    "totalBytes": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactFile": {
+                "required": [
+                    "path",
+                    "contentType",
+                    "size"
+                ],
+                "properties": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "Artifact": {
+                "required": [
+                    "artifactId",
+                    "name",
+                    "archived",
+                    "archivedAt",
+                    "sourceLink",
+                    "createdAt",
+                    "path",
+                    "versions",
+                    "selectedVersion",
+                    "pageLink",
+                    "files"
+                ],
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archivedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "path": {
+                        "description": "The path of the artifact page in the app.",
+                        "type": "string"
+                    },
+                    "versions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactVersion"
+                        }
+                    },
+                    "selectedVersion": {
+                        "description": "The version whose files are listed.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "pageLink": {
+                        "description": "A full address of the entry page of that version, valid for one hour, or null when the version has none.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactFile"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactStored": {
+                "required": [
+                    "artifactId",
+                    "versionNumber",
+                    "path",
+                    "versionPath"
+                ],
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "path": {
+                        "description": "The path of the artifact page in the app.",
+                        "type": "string"
+                    },
+                    "versionPath": {
+                        "description": "The path of this version in the app.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactCreateUpload": {
+                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
+                "required": [
+                    "name",
+                    "paths",
+                    "files"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "maxLength": 2000
+                    },
+                    "paths": {
+                        "description": "The path of each file in `files`, in the same order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 1024
+                        },
+                        "default": []
+                    },
+                    "card": {
+                        "description": "A card of this project to link.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "notes": {
+                        "description": "What changed in this version.",
+                        "type": "string",
+                        "maxLength": 2000
+                    },
+                    "files": {
+                        "description": "The files. Each part gives its content type.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "default": []
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactVersionUpload": {
+                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
+                "required": [
+                    "paths",
+                    "files"
+                ],
+                "properties": {
+                    "paths": {
+                        "description": "The path of each file in `files`, in the same order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 1024
+                        },
+                        "default": []
+                    },
+                    "card": {
+                        "description": "A card of this project to link.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "notes": {
+                        "description": "What changed in this version.",
+                        "type": "string",
+                        "maxLength": 2000
+                    },
+                    "files": {
+                        "description": "The files. Each part gives its content type.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "default": []
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactUpdate": {
+                "required": [
+                    "archived"
+                ],
+                "properties": {
+                    "archived": {
+                        "description": "True archives the artifact, and false restores it. Nothing is deleted. A second write changes nothing.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [
@@ -1652,6 +2133,112 @@
                         "type": "object"
                     }
                 ]
+            },
+            "NativeFacts": {
+                "description": "What a native note says about the app, the device, the screen and the element.",
+                "required": [
+                    "app",
+                    "device",
+                    "screen",
+                    "element"
+                ],
+                "properties": {
+                    "app": {
+                        "required": [
+                            "name",
+                            "bundleId"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "bundleId": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "device": {
+                        "required": [
+                            "name",
+                            "udid",
+                            "osVersion"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "udid": {
+                                "type": "string"
+                            },
+                            "osVersion": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "screen": {
+                        "required": [
+                            "title"
+                        ],
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "element": {
+                        "required": [
+                            "role",
+                            "label",
+                            "identifier",
+                            "frame"
+                        ],
+                        "properties": {
+                            "role": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "identifier": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "frame": {
+                                "required": [
+                                    "x",
+                                    "y",
+                                    "width",
+                                    "height"
+                                ],
+                                "properties": {
+                                    "x": {
+                                        "type": "number"
+                                    },
+                                    "y": {
+                                        "type": "number"
+                                    },
+                                    "width": {
+                                        "type": "number"
+                                    },
+                                    "height": {
+                                        "type": "number"
+                                    }
+                                },
+                                "type": "object",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
             },
             "ApiVersions": {
                 "description": "The API versions of this instance.",

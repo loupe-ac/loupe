@@ -93,27 +93,29 @@ final class GeneratedSpecTest extends KernelTestCase
 
         foreach ($builtSpec['paths'] as $path => $methods) {
             foreach ($methods as $method => $operation) {
-                if (!isset($operation['requestBody'])) {
-                    continue;
-                }
+                foreach ($operation['requestBody']['content'] ?? [] as $mediaType => $content) {
+                    $built = self::resolved($builtSpec, $content['schema']);
+                    $expectedContent = $contract[$path][$method]['requestBody']['content'][$mediaType] ?? null;
+                    self::assertNotNull($expectedContent, strtoupper((string) $method).' '.$path.' takes a body type that the contract does not list.');
+                    $expected = self::resolved($contractSpec, $expectedContent['schema']);
+                    $key = strtoupper((string) $method).' '.$path.' '.$mediaType;
 
-                $built = self::resolved($builtSpec, $operation['requestBody']['content']['application/json']['schema']);
-                $expected = self::resolved($contractSpec, $contract[$path][$method]['requestBody']['content']['application/json']['schema']);
-                $key = strtoupper((string) $method).' '.$path;
-
-                self::assertEqualsCanonicalizing($expected['required'] ?? [], $built['required'] ?? [], $key);
-                self::assertEqualsCanonicalizing(array_keys($expected['properties']), array_keys($built['properties']), $key);
-                foreach ($built['properties'] as $name => $property) {
-                    $label = $key.' '.$name;
-                    self::assertSame($expected['properties'][$name]['nullable'] ?? false, $property['nullable'] ?? false, $label);
-                    self::assertSame($expected['properties'][$name]['maxLength'] ?? null, $property['maxLength'] ?? null, $label);
-                    self::assertSame($expected['properties'][$name]['minLength'] ?? null, $property['minLength'] ?? null, $label);
-                    self::assertArrayNotHasKey('oneOf', $property, $label);
-                    if (\array_key_exists('default', $property)) {
-                        self::assertNotNull($property['default'], $label);
+                    self::assertEqualsCanonicalizing($expected['required'] ?? [], $built['required'] ?? [], $key);
+                    self::assertEqualsCanonicalizing(array_keys($expected['properties']), array_keys($built['properties']), $key);
+                    self::assertEquals($expectedContent['encoding'] ?? null, $content['encoding'] ?? null, $key);
+                    foreach ($built['properties'] as $name => $property) {
+                        $label = $key.' '.$name;
+                        self::assertSame($expected['properties'][$name]['nullable'] ?? false, $property['nullable'] ?? false, $label);
+                        self::assertSame($expected['properties'][$name]['maxLength'] ?? null, $property['maxLength'] ?? null, $label);
+                        self::assertSame($expected['properties'][$name]['minLength'] ?? null, $property['minLength'] ?? null, $label);
+                        self::assertSame($expected['properties'][$name]['format'] ?? null, $property['format'] ?? null, $label);
+                        self::assertArrayNotHasKey('oneOf', $property, $label);
+                        if (\array_key_exists('default', $property)) {
+                            self::assertNotNull($property['default'], $label);
+                        }
                     }
+                    ++$checked;
                 }
-                ++$checked;
             }
         }
 

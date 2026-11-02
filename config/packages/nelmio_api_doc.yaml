@@ -95,6 +95,81 @@ when@dev: &generator
                                   slug:
                                       type: string
                                       description: The slug of the project that holds the name.
+                    NativeFacts:
+                      type: object
+                      description: What a native note says about the app, the device, the screen and the element.
+                      required:
+                      - app
+                      - device
+                      - screen
+                      - element
+                      properties:
+                        app:
+                          type: object
+                          required:
+                          - name
+                          - bundleId
+                          properties:
+                            name:
+                              type: string
+                              nullable: true
+                            bundleId:
+                              type: string
+                        device:
+                          type: object
+                          required:
+                          - name
+                          - udid
+                          - osVersion
+                          properties:
+                            name:
+                              type: string
+                            udid:
+                              type: string
+                            osVersion:
+                              type: string
+                        screen:
+                          type: object
+                          required:
+                          - title
+                          properties:
+                            title:
+                              type: string
+                              nullable: true
+                        element:
+                          type: object
+                          required:
+                          - role
+                          - label
+                          - identifier
+                          - frame
+                          properties:
+                            role:
+                              type: string
+                            label:
+                              type: string
+                              nullable: true
+                            identifier:
+                              type: string
+                              nullable: true
+                            frame:
+                              type: object
+                              required:
+                              - x
+                              - y
+                              - width
+                              - height
+                              properties:
+                                x:
+                                  type: number
+                                y:
+                                  type: number
+                                width:
+                                  type: number
+                                height:
+                                  type: number
+                              nullable: true
+                          nullable: true
                     ApiVersions:
                         type: object
                         description: The API versions of this instance.
@@ -134,6 +209,19 @@ when@dev: &generator
                 - { alias: ColumnCreate, type: App\Module\Board\Controller\Api\CreateBoardColumnRequest }
                 - { alias: ColumnUpdate, type: App\Module\Board\Controller\Api\UpdateBoardColumnRequest }
                 - { alias: ColumnOrder, type: App\Module\Board\Controller\Api\ReorderBoardColumnsRequest }
+                - { alias: FeedbackItem, type: App\Module\Board\Controller\Api\FeedbackResponse }
+                - { alias: FeedbackList, type: App\Module\Board\Controller\Api\FeedbackListResponse }
+                - { alias: FeedbackAnchor, type: App\Module\Board\Controller\Api\FeedbackAnchorResponse }
+                - { alias: FeedbackUpdate, type: App\Module\Board\Controller\Api\FeedbackUpdateRequest }
+                - { alias: ArtifactSummary, type: App\Module\Artifact\Controller\Api\ArtifactSummaryResponse }
+                - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
+                - { alias: ArtifactVersion, type: App\Module\Artifact\Controller\Api\ArtifactVersionResponse }
+                - { alias: ArtifactFile, type: App\Module\Artifact\Controller\Api\ArtifactFileResponse }
+                - { alias: Artifact, type: App\Module\Artifact\Controller\Api\ArtifactResponse }
+                - { alias: ArtifactStored, type: App\Module\Artifact\Controller\Api\ArtifactStoredResponse }
+                - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
+                - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
+                - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

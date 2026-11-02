@@ -9,7 +9,9 @@ use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -172,6 +174,46 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
             ->addOrderBy('a.position', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * One keyset page of the project's comments in creation order, ties broken on the id.
+     * The page starts after the last row ($after) when one is given.
+     *
+     * @param ?SiteReviewCommentStatus         $status null keeps every status
+     * @param ?list<Uuid>                      $ids    narrows the page to those comments. An empty list finds nothing.
+     * @param ?array{\DateTimeImmutable, Uuid} $after  the creation time and the id of the last row of the previous page
+     *
+     * @return list<SiteReviewComment>
+     */
+    public function findPageForProject(Project $project, ?SiteReviewCommentStatus $status, ?array $ids, int $limit, bool $newestFirst, ?array $after): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('c')
+            ->andWhere('c.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('c.createdAt', $newestFirst ? 'DESC' : 'ASC')
+            ->addOrderBy('c.id', $newestFirst ? 'DESC' : 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $status) {
+            $qb->andWhere('c.status = :status')->setParameter('status', $status);
+        }
+        if (null !== $ids) {
+            $qb->andWhere('c.id IN (:ids)')
+                ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids));
+        }
+        if (null !== $after) {
+            $operator = $newestFirst ? '<' : '>';
+            $qb->andWhere(\sprintf('(c.createdAt %1$s :afterAt OR (c.createdAt = :afterAt AND c.id %1$s :afterId))', $operator))
+                ->setParameter('afterAt', $after[0], Types::DATETIME_IMMUTABLE)
+                ->setParameter('afterId', $after[1], UuidType::NAME);
+        }
+
+        return array_values($qb->getQuery()->getResult());
     }
 
     /**
