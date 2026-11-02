@@ -7,6 +7,7 @@ namespace App\Tests\Module\Project\Api;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Security\CredentialRateLimitKey;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
@@ -149,6 +150,53 @@ final class ProjectWriteApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame($first, $this->json());
         self::assertSame(1, $this->countNamed('Shop'));
+    }
+
+    public function test_a_create_refused_by_its_route_limit_spends_no_idempotency_key(): void
+    {
+        $owner = $this->scenario->createUser('v1-create-limited@example.com');
+        $token = ApiKeyCredential::mint(static::getContainer(), $owner);
+        $this->client->disableReboot();
+        $this->send(Request::METHOD_GET, '/api/v1/projects', $token, '');
+        $key = static::getContainer()->get(CredentialRateLimitKey::class)->forRequest(Request::create('/api/v1/projects', Request::METHOD_POST));
+        self::assertStringStartsWith('token:', $key);
+        $limiter = static::getContainer()->get('limiter.agent_project_create')->create($key);
+        $limiter->consume(100000);
+
+        $this->send(Request::METHOD_POST, '/api/v1/projects', $token, '{"name":"Shop"}', ['HTTP_IDEMPOTENCY_KEY' => 'create-limited-1']);
+
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame('rate_limited', $this->json()['code']);
+        self::assertTrue($this->client->getResponse()->headers->has('Retry-After'));
+        self::assertSame(0, $this->countNamed('Shop'));
+
+        $limiter->reset();
+        $this->send(Request::METHOD_POST, '/api/v1/projects', $token, '{"name":"Shop"}', ['HTTP_IDEMPOTENCY_KEY' => 'create-limited-1']);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(1, $this->countNamed('Shop'));
+    }
+
+    public function test_an_explicit_null_is_refused_on_a_create_and_a_patch(): void
+    {
+        $owner = $this->scenario->createUser('v1-null@example.com');
+        $project = $this->project($owner, 'Shop');
+        $token = $this->publicToken($owner);
+
+        foreach (['name', 'domain', 'remote'] as $field) {
+            $this->send(Request::METHOD_POST, '/api/v1/projects', $token, '{"name":"Other","'.$field.'":null}');
+            self::assertResponseStatusCodeSame(422, $field);
+            self::assertSame('validation_failed', $this->json()['code'], $field);
+            self::assertSame($field, $this->json()['errors'][0]['field'], $field);
+        }
+        self::assertSame(0, $this->countNamed('Other'));
+
+        foreach (['name', 'description', 'domain', 'searchLanguage', 'origins'] as $field) {
+            $this->send(Request::METHOD_PATCH, '/api/v1/projects/'.$project->id, $token, '{"'.$field.'":null}');
+            self::assertResponseStatusCodeSame(422, $field);
+            self::assertSame('validation_failed', $this->json()['code'], $field);
+            self::assertSame($field, $this->json()['errors'][0]['field'], $field);
+        }
     }
 
     public function test_the_old_path_keeps_its_flat_errors_and_its_route_beside_the_new_one(): void

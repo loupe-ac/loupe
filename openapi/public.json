@@ -44,6 +44,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -278,6 +283,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -553,6 +561,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -732,6 +743,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -960,6 +974,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -1231,6 +1248,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -1496,6 +1516,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -1540,6 +1563,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1776,6 +1804,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -2041,6 +2072,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -2211,6 +2245,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -2474,6 +2511,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
                             }
                         },
                         "content": {
@@ -2605,22 +2645,19 @@
                     "name": {
                         "description": "The project name. With no name, the project takes the last path segment of `remote`.",
                         "type": "string",
-                        "nullable": true,
-                        "default": null,
+                        "default": "",
                         "maxLength": 100
                     },
                     "domain": {
                         "type": "string",
-                        "nullable": true,
-                        "default": null,
+                        "default": "",
                         "maxLength": 255
                     },
                     "remote": {
                         "description": "A git remote, as `https://`, `ssh://`, `git://` or `user@host:path`.",
                         "type": "string",
                         "pattern": ".*(^(?:(?:https?|ssh|git)://(?:[^@/\\s]+@)?[^/\\s:]+(?::\\d+)?/|[^@/\\s]+@[^/\\s:]+:)(?<path>[^\\s]+?)(?:\\.git)?/?$).*",
-                        "nullable": true,
-                        "default": null,
+                        "default": "",
                         "maxLength": 500
                     },
                     "origins": {
@@ -2630,59 +2667,6 @@
                             "type": "string"
                         },
                         "default": [],
-                        "maxItems": 20
-                    }
-                },
-                "type": "object"
-            },
-            "ProjectUpdate": {
-                "description": "A field you leave out keeps its value.",
-                "properties": {
-                    "name": {
-                        "description": "A new name. It also changes the slug.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 100,
-                        "minLength": 1
-                    },
-                    "description": {
-                        "description": "An empty string clears it.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 500
-                    },
-                    "domain": {
-                        "description": "An empty string clears it.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 255
-                    },
-                    "searchLanguage": {
-                        "oneOf": [
-                            {
-                                "$ref": "#/components/schemas/SearchLanguage"
-                            },
-                            {
-                                "type": "object",
-                                "nullable": true,
-                                "enum": [
-                                    null
-                                ]
-                            }
-                        ],
-                        "default": null
-                    },
-                    "origins": {
-                        "description": "Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "nullable": true,
-                        "default": null,
                         "maxItems": 20
                     }
                 },
@@ -2855,30 +2839,8 @@
                     "label": {
                         "description": "The slug comes from the label. The new column goes last, and it is not terminal.",
                         "type": "string",
-                        "nullable": true,
-                        "default": null,
                         "maxLength": 100,
                         "minLength": 1
-                    }
-                },
-                "type": "object"
-            },
-            "ColumnUpdate": {
-                "description": "A field you leave out keeps its value.",
-                "properties": {
-                    "label": {
-                        "description": "A new name. The slug changes with it, so a bridge rule or a script that uses the old slug stops working.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 100,
-                        "minLength": 1
-                    },
-                    "terminal": {
-                        "description": "Whether finished work goes in this column.",
-                        "type": "boolean",
-                        "nullable": true,
-                        "default": null
                     }
                 },
                 "type": "object"
@@ -2894,9 +2856,56 @@
                         "items": {
                             "type": "string"
                         },
-                        "nullable": true,
-                        "default": null,
                         "uniqueItems": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "description": "A new name. It also changes the slug.",
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "description": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "domain": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "searchLanguage": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "origins": {
+                        "description": "Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 20
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "label": {
+                        "description": "A new name. The slug changes with it, so a bridge rule or a script that uses the old slug stops working.",
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "terminal": {
+                        "description": "Whether finished work goes in this column.",
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -3032,9 +3041,60 @@
                     }
                 },
                 "type": "object"
+            },
+            "UpdateBoardColumnRequest": {
+                "required": [
+                    "label",
+                    "terminal"
+                ],
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "terminal": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateProjectRequest": {
+                "required": [
+                    "name",
+                    "description",
+                    "domain",
+                    "searchLanguage",
+                    "origins"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "searchLanguage": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "origins": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "type": "object"
             }
         },
         "headers": {
+            "Retry-After": {
+                "description": "The number of seconds to wait before the next request.",
+                "schema": {
+                    "type": "integer"
+                }
+            },
             "RateLimit-Limit": {
                 "description": "The number of requests the window allows.",
                 "schema": {

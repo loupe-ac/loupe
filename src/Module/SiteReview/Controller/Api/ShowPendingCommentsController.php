@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
@@ -46,7 +47,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
         new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 422, description: 'Refused: `surface_invalid`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new RateLimitedResponse(),
     ],
 )]
 #[Route(

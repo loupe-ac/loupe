@@ -19,7 +19,7 @@ final class ProblemResponse extends OA\Response
         parent::__construct(
             response: $response,
             description: 'Refused: '.implode(', ', array_map(static fn (string $code): string => '`'.$code.'`', $codes)).'.',
-            headers: PublicResponses::rateLimitHeaders(),
+            headers: 429 === $response ? [...PublicResponses::rateLimitHeaders(), ...PublicResponses::header('Retry-After')] : PublicResponses::rateLimitHeaders(),
             content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/'.$schema)),
         );
     }

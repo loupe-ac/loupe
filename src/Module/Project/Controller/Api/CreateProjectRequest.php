@@ -23,16 +23,16 @@ final class CreateProjectRequest
     public function __construct(
         #[Assert\Length(max: Project::MAX_NAME_LENGTH, normalizer: 'trim')]
         #[OA\Property(description: 'The project name. With no name, the project takes the last path segment of `remote`.', maxLength: Project::MAX_NAME_LENGTH)]
-        public ?string $name = null,
+        public string $name = '',
 
         #[Assert\Length(max: Project::MAX_DOMAIN_LENGTH, normalizer: 'trim')]
         #[OA\Property(maxLength: Project::MAX_DOMAIN_LENGTH)]
-        public ?string $domain = null,
+        public string $domain = '',
 
         #[Assert\Length(max: 500, normalizer: 'trim')]
         #[Assert\Regex(pattern: self::REMOTE_PATTERN, normalizer: 'trim')]
         #[OA\Property(description: 'A git remote, as `https://`, `ssh://`, `git://` or `user@host:path`.', maxLength: 500)]
-        public ?string $remote = null,
+        public string $remote = '',
 
         /** @var array<mixed> */
         #[OA\Property(description: 'The origins to allow. An entry is an origin with no path, or a wildcard of one label. Plain http works on localhost only.', type: 'array', items: new OA\Items(type: 'string'), default: [], maxItems: SiteOrigins::MAX)]
@@ -43,13 +43,12 @@ final class CreateProjectRequest
     // The name the project gets: the given one, else the last path segment of the remote.
     public function name(): string
     {
-        $name = trim($this->name ?? '');
+        $name = trim($this->name);
         if ('' !== $name) {
             return $name;
         }
 
-        $remote = trim($this->remote ?? '');
-        if (1 !== preg_match(self::REMOTE_PATTERN, $remote, $matches)) {
+        if (1 !== preg_match(self::REMOTE_PATTERN, trim($this->remote), $matches)) {
             return '';
         }
 
@@ -58,7 +57,7 @@ final class CreateProjectRequest
 
     public function domain(): ?string
     {
-        $domain = trim($this->domain ?? '');
+        $domain = trim($this->domain);
 
         return '' === $domain ? null : $domain;
     }

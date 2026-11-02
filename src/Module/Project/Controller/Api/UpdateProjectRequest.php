@@ -5,34 +5,25 @@ declare(strict_types=1);
 namespace App\Module\Project\Controller\Api;
 
 use App\Doctrine\SearchLanguage;
-use App\Module\Project\Entity\Project;
-use App\Module\Project\Service\SiteOrigins;
-use Nelmio\ApiDocBundle\Attribute\Model;
-use OpenApi\Attributes as OA;
 
 /**
- * A partial change of a project. A field left out, or sent as null, keeps its value.
- * The handler checks every value, so a refusal reaches the client as one list.
+ * A partial change of a project. A field left out stays uninitialized and keeps
+ * its value. An explicit null fails the property type, so it answers 422. The
+ * handler checks every value, so a refusal reaches the client as one list.
+ *
+ * The generator marks a typed property with no default as required, so the
+ * schema `ProjectUpdate` lives in config/packages/nelmio_api_doc.yaml.
  */
-#[OA\Schema(description: 'A field you leave out keeps its value.')]
-final readonly class UpdateProjectRequest
+final class UpdateProjectRequest
 {
-    public function __construct(
-        #[OA\Property(description: 'A new name. It also changes the slug.', maxLength: Project::MAX_NAME_LENGTH, minLength: 1)]
-        public ?string $name = null,
+    public string $name;
 
-        #[OA\Property(description: 'An empty string clears it.', maxLength: Project::MAX_DESCRIPTION_LENGTH)]
-        public ?string $description = null,
+    public string $description;
 
-        #[OA\Property(description: 'An empty string clears it.', maxLength: Project::MAX_DOMAIN_LENGTH)]
-        public ?string $domain = null,
+    public string $domain;
 
-        #[OA\Property(ref: new Model(type: SearchLanguage::class))]
-        public ?SearchLanguage $searchLanguage = null,
+    public SearchLanguage $searchLanguage;
 
-        /** @var list<mixed>|null */
-        #[OA\Property(description: 'Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.', type: 'array', items: new OA\Items(type: 'string'), maxItems: SiteOrigins::MAX)]
-        public ?array $origins = null,
-    ) {
-    }
+    /** @var list<mixed> */
+    public array $origins;
 }

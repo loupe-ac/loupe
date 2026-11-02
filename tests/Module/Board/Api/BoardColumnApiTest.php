@@ -147,6 +147,7 @@ final class BoardColumnApiTest extends WebTestCase
     public static function badLabels(): iterable
     {
         yield 'no label' => ['{}', 'label', 'label_blank'];
+        yield 'a null label' => ['{"label":null}', 'label', 'label_blank'];
         yield 'blank' => ['{"label":"   "}', 'label', 'label_blank'];
         yield 'too long' => ['{"label":"'.str_repeat('a', 101).'"}', 'label', 'label_length'];
         yield 'no letter or digit' => ['{"label":"!!!"}', 'label', 'label_invalid'];
@@ -174,6 +175,22 @@ final class BoardColumnApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame($first, $this->json());
         self::assertCount(5, $this->columns());
+    }
+
+    public function test_an_explicit_null_is_refused_on_a_column_patch_and_a_reorder(): void
+    {
+        foreach (['label', 'terminal'] as $field) {
+            $this->send(Request::METHOD_PATCH, $this->base().'/next', '{"'.$field.'":null}');
+            self::assertResponseStatusCodeSame(422, $field);
+            self::assertSame('validation_failed', $this->json()['code'], $field);
+            self::assertSame($field, $this->json()['errors'][0]['field'], $field);
+        }
+
+        $this->send(Request::METHOD_PUT, $this->base().'/order', '{"order":null}');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('validation_failed', $this->json()['code']);
+        self::assertSame('order', $this->json()['errors'][0]['field']);
     }
 
     public function test_a_rename_changes_the_slug_and_keeps_the_terminal_flag(): void

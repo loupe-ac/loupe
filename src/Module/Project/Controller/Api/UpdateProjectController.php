@@ -16,7 +16,6 @@ use App\Module\Project\ProjectEventType;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
 use App\Module\Project\Service\ProjectApiProblems;
-use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -30,7 +29,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     tags: ['Projects'],
     description: 'A new name changes the slug, so a reference to the old slug, such as a bridge rule file, stops matching.',
     parameters: [new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project')],
-    requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: new Model(type: UpdateProjectRequest::class))),
+    requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/ProjectUpdate')),
     responses: [
         new SuccessResponse(200, 'The project after the change.', ProjectResponse::class),
         new ProblemResponse(400, ['invalid_json']),
@@ -58,15 +57,15 @@ final class UpdateProjectController extends AppController
         try {
             $saved = ($this->updateProject)(new UpdateProjectCommand(
                 project: $project,
-                name: $payload->name,
-                domain: $payload->domain,
-                searchLanguage: $payload->searchLanguage,
+                name: $payload->name ?? null,
+                domain: $payload->domain ?? null,
+                searchLanguage: $payload->searchLanguage ?? null,
                 actor: ProjectEventType::ACTOR_HUMAN,
-                description: $payload->description,
-                origins: $payload->origins,
+                description: $payload->description ?? null,
+                origins: $payload->origins ?? null,
             ));
         } catch (DomainErrors $e) {
-            throw $this->problems->forUpdate($e, $project->owner, $payload->name);
+            throw $this->problems->forUpdate($e, $project->owner, $payload->name ?? null);
         }
 
         return new JsonResponse(ProjectResponse::fromProject($saved));

@@ -21,7 +21,6 @@ use App\Module\Board\Service\BoardColumnPresenter;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ReachableProject;
 use App\Module\Workflow\Contract\Actor;
-use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -43,7 +42,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'column', description: 'The slug of a column, from the column list.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
-    requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: new Model(type: UpdateBoardColumnRequest::class))),
+    requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/ColumnUpdate')),
     responses: [
         new SuccessResponse(200, 'The column after the change, and every column of the board.', ColumnWriteResponse::class),
         new ProblemResponse(400, ['invalid_json']),
