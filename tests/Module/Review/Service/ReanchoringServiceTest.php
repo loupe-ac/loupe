@@ -12,6 +12,7 @@ use App\Module\Review\Service\AnchorService;
 use App\Module\Review\Service\ReanchoringService;
 use App\Module\Review\ValueObject\Anchor;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class ReanchoringServiceTest extends TestCase
 {
@@ -45,6 +46,27 @@ final class ReanchoringServiceTest extends TestCase
         // The copied reply's parent must be the NEW copied parent (on v2), not the original v1 parent
         self::assertSame($copiedParent, $copiedReply->parent, 'Copied reply must point to the copied parent on v2');
         self::assertNotSame($parent, $copiedReply->parent, 'Copied reply must NOT point to the original v1 parent');
+    }
+
+    public function test_carries_the_key_a_comment_was_written_through_onto_every_kind_of_copy(): void
+    {
+        $user = new User(fullName: 'R3', email: 'r3@example.com');
+        $doc = new Document(owner: $user, project: new Project($user, 'p'), title: 'Doc');
+        $v1 = $doc->addVersion('alpha beta gamma', 'alpha beta gamma');
+        $keyId = Uuid::v7();
+        $found = new Comment($v1, $user, 'found', new Anchor('beta', 'alpha ', ' gamma', 6), apiKeyId: $keyId, apiKeyName: 'CI');
+        $lost = new Comment($v1, $user, 'lost', new Anchor('delta', 'x ', ' y', 3), apiKeyId: $keyId, apiKeyName: 'CI');
+        $general = new Comment($v1, $user, 'general', Anchor::unanchored(), apiKeyId: $keyId, apiKeyName: 'CI');
+
+        $v2 = $doc->addVersion('alpha beta gamma', 'alpha beta gamma');
+        new ReanchoringService(new AnchorService())->reanchor([$found, $lost, $general], $v2);
+
+        $copies = $v2->comments->toArray();
+        self::assertCount(3, $copies);
+        foreach ($copies as $copy) {
+            self::assertEquals($keyId, $copy->apiKeyId, $copy->body);
+            self::assertSame('CI', $copy->apiKeyName, $copy->body);
+        }
     }
 
     /**

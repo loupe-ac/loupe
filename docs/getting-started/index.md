@@ -155,5 +155,5 @@ A client that is not on your machine connects by URL over OAuth, with no CLI.
 Claude reaching your instance from Anthropic's servers is an example. See
 [Connecting by URL](../using/mcp.md#connecting-by-url).
 
-Loupe issues no static API token, so every connection starts with a sign-in in a
-browser.
+MCP and the CLI need a sign-in in a browser. A script or a CI job that calls the
+public API can use an [API key](../using/api-keys.md) instead.

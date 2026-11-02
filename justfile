@@ -281,6 +281,10 @@ migrate-diff: (exec "bin/console" "doctrine:migrations:diff")
 
 migrate-run: (exec "bin/console" "doctrine:migrations:migrate")
 
+# Rebuild the committed OpenAPI specs under openapi/ from the controllers. GeneratedSpecTest fails when they are stale.
+openapi-dump:
+    bin/worktrees/compose-exec.sh bash -c 'for area in public private; do bin/console nelmio:apidoc:dump --area=$area --format=json > openapi/$area.json; done'
+
 # Needed only for site-review push; the e2e suite passes without it. Leaving it
 # stopped loses nothing: submissions reach the outbox first and the scheduled
 # drain replays them once a hub is back.

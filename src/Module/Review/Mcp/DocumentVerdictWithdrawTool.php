@@ -14,9 +14,6 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\SecurityBundle\Security;
-use Ubermuda\AuditBundle\Auditor;
-use Ubermuda\AuditBundle\AuditOutcome;
-use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Withdraws the newest verdict on the newest version of a document for the owner.
@@ -30,7 +27,6 @@ final readonly class DocumentVerdictWithdrawTool
         private UndoVerdictHandler $handler,
         private DocumentToolErrors $errors,
         private Security $security,
-        private Auditor $auditor,
     ) {
     }
 
@@ -62,17 +58,6 @@ final readonly class DocumentVerdictWithdrawTool
                 expectedVersionNumber: $versionNumber,
                 throughAgent: true,
             ));
-
-            $this->auditor->record(
-                'review.document_verdict_undone',
-                AuditOutcome::Success,
-                [
-                    'documentId' => (string) $document->id,
-                    'status' => $document->status->value,
-                    'throughAgent' => true,
-                ],
-                new AuditSubject('document', (string) $document->id),
-            );
 
             return ['verdictId' => (string) $withdrawal->id, 'documentStatus' => $document->status->value];
         } catch (DomainErrors $e) {

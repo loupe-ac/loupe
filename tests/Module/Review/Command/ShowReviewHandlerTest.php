@@ -23,8 +23,10 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\ValueObject\Anchor;
+use App\Security\ApiKeyActor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class ShowReviewHandlerTest extends KernelTestCase
 {
@@ -406,6 +408,21 @@ final class ShowReviewHandlerTest extends KernelTestCase
         self::assertSame('in-review', $result['status']);
     }
 
+    public function test_the_newest_verdict_reports_the_key_it_was_recorded_through(): void
+    {
+        $doc = new Document(owner: $this->owner, project: $this->project, title: 'Verdict Key');
+        $version = $doc->addVersion('Some content.', '<p>Some content.</p>');
+        $this->em->persist($doc);
+        $this->em->persist(new Review($version, Verdict::Approved, $this->owner, sequence: 1));
+        $this->em->flush();
+        self::assertFalse(($this->getReview)(new ShowReviewCommand($doc))['verdictThroughApiKey']);
+
+        $this->em->persist(new Review($version, Verdict::ChangesRequested, $this->owner, sequence: 2, apiKeyId: Uuid::v7(), apiKeyName: 'CI'));
+        $this->em->flush();
+
+        self::assertTrue(($this->getReview)(new ShowReviewCommand($doc))['verdictThroughApiKey']);
+    }
+
     public function test_the_newest_verdict_of_the_log_is_reported_with_its_id_and_its_mark(): void
     {
         $doc = new Document(owner: $this->owner, project: $this->project, title: 'Verdict Id');
@@ -467,6 +484,22 @@ final class ShowReviewHandlerTest extends KernelTestCase
         $decisions = ($this->getReview)(new ShowReviewCommand($doc))['decisions'];
 
         self::assertSame([true, false, false], array_column($decisions, 'through_agent'));
+    }
+
+    public function test_a_decision_reports_whether_a_key_recorded_its_answer(): void
+    {
+        $markdown = "<!-- decision: by-key -->\n\n- ( ) A\n- ( ) B\n\n<!-- /decision -->\n\n<!-- decision: by-owner -->\n\n- ( ) A\n- ( ) B\n\n<!-- /decision -->\n";
+        $create = self::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $doc = $create(new CreateDocumentCommand($this->project, 'Key marks', $markdown));
+        $save = self::getContainer()->get(SaveDecisionAnswerHandler::class);
+        self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
+        $save(new SaveDecisionAnswerCommand($doc, 'by-key', 1, [0], null, false, $this->owner, apiKey: new ApiKeyActor(Uuid::v7(), 'CI')));
+        $save(new SaveDecisionAnswerCommand($doc, 'by-owner', 1, [0], null, false, $this->owner));
+
+        $decisions = ($this->getReview)(new ShowReviewCommand($doc))['decisions'];
+
+        self::assertSame([true, false], array_column($decisions, 'through_api_key'));
     }
 
     /**

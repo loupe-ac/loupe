@@ -25,6 +25,8 @@ use App\Module\Board\Service\CardMover;
 use App\Module\Board\Service\CardParentPolicy;
 use App\Module\Board\Service\CardParentResolver;
 use App\Module\Board\Service\CardValueWriter;
+use App\Module\Board\Service\ChildDesignChoices;
+use App\Module\Board\Service\ChildDesignDecision;
 use App\Module\Board\Service\DocumentLinkResolver;
 use App\Module\Board\Service\HumanReviewSwitch;
 use App\Module\Board\Service\PullRequestTracking;
@@ -50,6 +52,7 @@ final readonly class UpdateCardHandler
     public const string CONTENT_CHANGED = 'board.card.error.changed_since_opened';
     public const string COLUMN_CHANGED = 'board.card.error.column_changed';
     public const string HUMAN_REVIEW_RAISE_ONLY = 'board.card.error.human_review_raise_only';
+    public const string PARENT_CLEAR_CONFLICT = 'board.card.error.parent_clear_conflict';
     private const string NOT_WHERE_EXPECTED = 'not_where_expected';
 
     public function __construct(
@@ -74,10 +77,64 @@ final readonly class UpdateCardHandler
         private CardPause $cardPause,
         private HumanReviewSwitch $humanReviewSwitch,
         private CardValueWriter $cardValues,
+        private ChildDesignDecision $childDesign,
+        private ChildDesignChoices $childChoices,
     ) {
     }
 
+    /**
+     * @throws DomainErrors       when the command clears the parent and names one
+     * @throws ChildDesignRefused when the child design choice is wrong, or the workflow refuses it
+     */
     public function __invoke(UpdateCardCommand $command): UpdateCardView
+    {
+        $parentCardId = $command->parentCardId;
+        if ($command->clearParent) {
+            if (null !== $parentCardId && '' !== $parentCardId) {
+                throw new DomainErrors(['parentCardId' => self::PARENT_CLEAR_CONFLICT]);
+            }
+            $parentCardId = '';
+        }
+        if (null === $command->childDesign && !$command->requireChildDesign) {
+            return $this->update($command, $parentCardId);
+        }
+
+        $card = $command->card;
+        $choice = $this->childDesign->resolve(
+            $card->project,
+            $parentCardId,
+            $card,
+            $command->childDesign,
+            null === $command->documentIds ? $this->linkedDocumentIds($card) : array_values($command->documentIds),
+            null !== $command->column,
+        );
+        if (null === $choice) {
+            return $this->update($command, $parentCardId);
+        }
+
+        $view = null;
+        $this->childChoices->write(
+            $card->project,
+            function () use ($command, $parentCardId, &$view): Card {
+                $view = $this->update($command, $parentCardId);
+
+                return $view->card;
+            },
+            $choice,
+            $command->cause,
+            null === $parentCardId && null === $command->column ? $card : null,
+        );
+
+        return $view ?? throw new \LogicException('The write ran the update.');
+    }
+
+    /** @return list<string> */
+    private function linkedDocumentIds(Card $card): array
+    {
+        return array_values(array_map(static fn ($link): string => (string) $link->document->id, $card->documents->toArray()));
+    }
+
+    private function update(UpdateCardCommand $command, ?string $parentCardId): UpdateCardView
     {
         $card = $command->card;
 
@@ -108,14 +165,14 @@ final readonly class UpdateCardHandler
         $relatedCards = null === $command->relatedCards
             ? null
             : $this->cardLinks->resolve($card->project, $card, array_values($command->relatedCards));
-        $newParent = null === $command->parentCardId ? null : $this->parents->resolve($card->project, $command->parentCardId);
+        $newParent = null === $parentCardId ? null : $this->parents->resolve($card->project, $parentCardId);
 
         // One write for the whole update, and one lock. A column change is a
         // move, which renumbers a column and decides the completion timestamp,
         // so this handler owns the transaction the move runs in.
         // Flushing the fields first would commit half an update whose move
         // then failed.
-        $outcome = $this->em->wrapInTransaction(function () use ($command, $card, $title, $documents, $artifacts, $relatedCards, $newParent): UpdateCardOutcome|string|DomainErrors|EpicChildrenOpen|CardManaged {
+        $outcome = $this->em->wrapInTransaction(function () use ($command, $parentCardId, $card, $title, $documents, $artifacts, $relatedCards, $newParent): UpdateCardOutcome|string|DomainErrors|EpicChildrenOpen|CardManaged {
             $this->projects->lockForWrite($card->project);
             // The lock takes the project row, waits for no key share, and leaves the loaded card as the
             // request read it, which may be before the caller ahead of us in
@@ -169,10 +226,10 @@ final readonly class UpdateCardHandler
             // rule, so a plain move pays no extra read.
             $oldParent = $card->parent;
             $parentChanged = false;
-            if (null !== $command->parentCardId || null !== $command->type) {
+            if (null !== $parentCardId || null !== $command->type) {
                 $this->cards->refreshTypeAndParent($card);
                 $oldParent = $card->parent;
-                $parent = null === $command->parentCardId ? $oldParent : $newParent;
+                $parent = null === $parentCardId ? $oldParent : $newParent;
                 $parentChanged = $parent?->id?->toRfc4122() !== $oldParent?->id?->toRfc4122();
                 $refusal = $this->parentPolicy->refusal($card->project, $card, $command->type ?? $card->type, $parent, $parentChanged);
                 if (null !== $refusal) {
@@ -212,7 +269,7 @@ final readonly class UpdateCardHandler
                 $card->project,
                 $card->id ?? throw new \LogicException('A persisted card has an id.'),
                 $command->unmanageBy,
-                Actor::Agent === $command->actor ? 'agent' : 'human',
+                \in_array($command->actor, [Actor::Agent, Actor::ApiKey], true) ? 'agent' : 'human',
             );
 
             // A terminal column keeps no rank, so it reads no neighbour.

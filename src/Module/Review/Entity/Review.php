@@ -55,6 +55,14 @@ class Review
         // True when an agent in a chat wrote the row for the owner.
         #[ORM\Column(options: ['default' => false])]
         public readonly bool $throughAgent = false,
+
+        // The API key that wrote the row, with no foreign key: the row outlives a revoked or deleted key.
+        #[ORM\Column(type: UuidType::NAME, nullable: true)]
+        public readonly ?Uuid $apiKeyId = null,
+
+        // The key's name when the row was written, because a key can be renamed later.
+        #[ORM\Column(length: 100, nullable: true)]
+        public readonly ?string $apiKeyName = null,
     ) {
     }
 }

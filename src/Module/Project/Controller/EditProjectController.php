@@ -39,21 +39,14 @@ class EditProjectController extends AppController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // NotBlank guarantees a value, but "0" is a legal name that `?:` would wrongly
-            // reject — narrow with an explicit empty check instead.
-            $name = trim($data->name ?? '');
-            if ('' === $name) {
-                throw new \LogicException('name required after validation');
-            }
-
             try {
                 ($this->updateProjectHandler)(new UpdateProjectCommand(
                     project: $project,
-                    name: $name,
-                    domain: trim($data->domain ?? '') ?: null,
+                    name: $data->name ?? '',
+                    domain: $data->domain ?? '',
                     searchLanguage: $data->searchLanguage ?? throw new \LogicException('search language required after validation'),
                     actor: ProjectEventType::ACTOR_HUMAN,
-                    description: $data->description,
+                    description: $data->description ?? '',
                 ));
 
                 return $this->redirectToRoute('app_projects');

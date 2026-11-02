@@ -79,6 +79,19 @@ final class BoardSubjectResolverTest extends KernelTestCase
         $this->resolver->requireClaimedReporter('reviewer');
     }
 
+    /** An MCP caller is no API key, so it cannot claim that reporter either. */
+    public function test_a_write_refuses_the_api_key_reporter(): void
+    {
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('Unknown reporter "api-key". Use one of: human, agent.');
+        $this->resolver->requireClaimedReporter('api-key');
+    }
+
+    public function test_a_filter_reads_the_api_key_reporter(): void
+    {
+        self::assertSame(Actor::ApiKey, $this->resolver->requireReporter('api-key'));
+    }
+
     /** A filter matches a reporter rather than claiming one, so it reads the widget's cards too. */
     public function test_a_filter_reads_every_reporter_including_reviewer(): void
     {
@@ -90,7 +103,7 @@ final class BoardSubjectResolverTest extends KernelTestCase
     public function test_a_filter_refuses_a_reporter_that_is_not_a_value(): void
     {
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Unknown reporter "robot". Use one of: human, agent, reviewer, system.');
+        $this->expectExceptionMessage('Unknown reporter "robot". Use one of: human, agent, reviewer, system, api-key.');
         $this->resolver->requireReporter('robot');
     }
 

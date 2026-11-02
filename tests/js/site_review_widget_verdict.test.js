@@ -71,12 +71,12 @@ function boot({ verdict = verdictAnswer(), post, locked = true, mode } = {}) {
         mode,
         respond: (url, init = {}) => {
             const path = String(url).slice(BACKEND.length).split('?')[0];
-            if (path === `/api/board/cards/${CARD}/verdict`) {
+            if (path === `/api/v1/live-review-widget/cards/${CARD}/verdict`) {
                 const answer =
                     typeof verdict === 'function' ? verdict() : verdict;
                 return answer instanceof Error ? rejected(500, {}) : ok(answer);
             }
-            if (path === `/api/board/cards/${CARD}/verdicts`) {
+            if (path === `/api/v1/live-review-widget/cards/${CARD}/verdicts`) {
                 return post
                     ? post(init)
                     : ok({ verdictId: 'v1', kind: 'approve', noteCount: 0 });

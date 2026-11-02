@@ -127,6 +127,7 @@
             {% if entry.review.workflowRule and entry.review.verdict.value == 'approved' %}<p class="lp-history__review-note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
             {% elseif entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
             {% if entry.review.throughAgent %}<p class="lp-history__review-agent"><twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
+            {% if entry.review.apiKeyId %}<p class="lp-history__review-api-key"><twig:ux:icon name="lucide:key-round" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ entry.review.apiKeyName ? 'review.document.verdict.through_named_api_key'|trans({'%name%': entry.review.apiKeyName}) : 'review.document.verdict.through_api_key'|trans }}</p>{% endif %}
         </div>
         {% else %}
         <p class="lp-history__empty">{{ 'review.document.history.no_verdicts'|trans }}</p>

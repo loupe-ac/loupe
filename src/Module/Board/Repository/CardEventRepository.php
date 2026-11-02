@@ -11,6 +11,7 @@ use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Security\ApiKeyActor;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -34,9 +35,9 @@ class CardEventRepository extends ServiceEntityRepository
      *
      * @param array<string, mixed> $detail
      */
-    public function record(Card $card, CardEventKind $kind, Actor $actorKind, ?User $actorUser, array $detail, ?\DateTimeImmutable $at = null): CardEvent
+    public function record(Card $card, CardEventKind $kind, Actor $actorKind, ?User $actorUser, array $detail, ?\DateTimeImmutable $at = null, ?ApiKeyActor $apiKey = null): CardEvent
     {
-        $event = new CardEvent($card, $card->project, $kind, $actorKind, $actorUser, $detail, $at ?? new \DateTimeImmutable());
+        $event = new CardEvent($card, $card->project, $kind, $actorKind, $actorUser, $detail, $at ?? new \DateTimeImmutable(), apiKeyId: $apiKey?->keyId, apiKeyName: $apiKey?->keyName);
         $this->getEntityManager()->persist($event);
 
         return $event;

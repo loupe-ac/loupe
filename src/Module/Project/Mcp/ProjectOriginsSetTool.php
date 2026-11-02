@@ -9,7 +9,6 @@ use App\Mcp\ResolvesBoundProject;
 use App\Module\Project\Command\UpdateProjectAllowedOriginsCommand;
 use App\Module\Project\Command\UpdateProjectAllowedOriginsHandler;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
-use App\Module\Project\Service\SiteOrigins;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
@@ -45,20 +44,7 @@ final readonly class ProjectOriginsSetTool
                 throw new ToolCallException('This connection cannot change this project.');
             }
 
-            foreach ($origins as $origin) {
-                if (!\is_string($origin)) {
-                    throw new ToolCallException('origins: Each entry must be a string.');
-                }
-                if (1 === preg_match('/\R/', $origin)) {
-                    throw new ToolCallException('origins: An entry must not contain a line break. Pass each origin as its own entry.');
-                }
-            }
-            $text = implode("\n", $origins);
-            if (mb_strlen($text) > SiteOrigins::MAX_TEXT_LENGTH) {
-                throw new ToolCallException(\sprintf('origins: The origins must be at most %d characters together.', SiteOrigins::MAX_TEXT_LENGTH));
-            }
-
-            ($this->updateOrigins)(new UpdateProjectAllowedOriginsCommand($project, $text));
+            ($this->updateOrigins)(new UpdateProjectAllowedOriginsCommand($project, $origins));
 
             return ['origins' => $project->allowedOrigins];
         } catch (DomainErrors $e) {

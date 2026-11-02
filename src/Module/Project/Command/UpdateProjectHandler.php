@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Command;
 
+use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectRenamed;
@@ -30,9 +31,47 @@ final readonly class UpdateProjectHandler
     {
         $project = $command->project;
 
+        // A null input keeps the stored value, so only a given input is checked: a
+        // stored value over a limit must not block an unrelated change.
+        $errors = [];
+        $parameters = [];
+
+        $name = null === $command->name ? $project->name : trim($command->name);
+        if ('' === $name) {
+            $errors['name'] = 'project.error.name_blank';
+        } elseif (null !== $command->name && mb_strlen($name) > Project::MAX_NAME_LENGTH) {
+            $errors['name'] = 'project.error.name_too_long';
+        }
+
+        $domain = null === $command->domain ? $project->domain : self::cleared($command->domain);
+        if (null !== $command->domain && mb_strlen($domain ?? '') > Project::MAX_DOMAIN_LENGTH) {
+            $errors['domain'] = 'project.error.domain_too_long';
+        }
+
+        $description = null === $command->description ? $project->description : self::cleared($command->description);
+        if (null !== $command->description && mb_strlen($description ?? '') > Project::MAX_DESCRIPTION_LENGTH) {
+            $errors['description'] = 'project.error.description_too_long';
+        }
+
+        $searchLanguage = $project->searchLanguage;
+        if ($command->searchLanguage instanceof SearchLanguage) {
+            $searchLanguage = $command->searchLanguage;
+        } elseif (null !== $command->searchLanguage) {
+            $searchLanguage = SearchLanguage::tryFrom($command->searchLanguage);
+            if (null === $searchLanguage) {
+                $errors['searchLanguage'] = 'project.error.search_language_unknown';
+                $parameters['searchLanguage'] = ['%language%' => $command->searchLanguage, '%languages%' => implode(', ', SearchLanguage::values())];
+                $searchLanguage = $project->searchLanguage;
+            }
+        }
+
+        if ([] !== $errors) {
+            throw new DomainErrors($errors, $parameters);
+        }
+
         // The (owner, name) pair is unique. A rename may only collide with a *different*
         // project — renaming to the same name (or only editing the domain) is fine.
-        $existing = $this->projects->findOneByOwnerAndName($project->owner, $command->name);
+        $existing = $this->projects->findOneByOwnerAndName($project->owner, $name);
         if (null !== $existing && $existing !== $project) {
             throw new DomainErrors(['name' => 'project.error.name_taken']);
         }
@@ -40,11 +79,11 @@ final readonly class UpdateProjectHandler
         // Derived on every save, not only on a rename: an image older than the slug
         // column can leave a slug empty, or stale after its own rename. A suffixed
         // slug stays only while another project holds the plain one.
-        $slug = Slug::forName($command->name, $project->slug);
+        $slug = Slug::forName($name, $project->slug);
         if ('' === $slug) {
             throw new DomainErrors(['name' => 'project.error.slug_empty']);
         }
-        $plain = Slug::fromName($command->name);
+        $plain = Slug::fromName($name);
         if ($slug !== $plain && \in_array($this->projects->findOneByOwnerAndSlug($project->owner, $plain), [null, $project], true)) {
             $slug = $plain;
         }
@@ -55,14 +94,13 @@ final readonly class UpdateProjectHandler
 
         // Read before the name is assigned, because the name's set hook rewrites the slug.
         $fromSlug = $project->slug;
-        $project->name = $command->name;
+        $project->name = $name;
         $project->slug = $slug;
-        $project->domain = $command->domain;
-        $description = trim($command->description ?? '');
-        $project->description = '' === $description ? null : $description;
+        $project->domain = $domain;
+        $project->description = $description;
         // Documents keep the language they were written with, so this only
         // changes what a document created after it inherits.
-        $project->searchLanguage = $command->searchLanguage;
+        $project->searchLanguage = $searchLanguage;
         // Before the flush, so a listener's rows commit or roll back with the save.
         // A null slug is no rename: no rule file can name a project that had none.
         if (null !== $fromSlug && $fromSlug !== $slug) {
@@ -89,5 +127,12 @@ final readonly class UpdateProjectHandler
         );
 
         return $project;
+    }
+
+    private static function cleared(string $value): ?string
+    {
+        $value = trim($value);
+
+        return '' === $value ? null : $value;
     }
 }

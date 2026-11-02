@@ -37,12 +37,12 @@ final readonly class HumanReviewSwitch
             'value' => $value,
             'cause' => ($cause ?? match ($actor) {
                 Actor::Human => HumanReviewCause::Person,
-                Actor::Agent => HumanReviewCause::Agent,
+                Actor::Agent, Actor::ApiKey => HumanReviewCause::Agent,
                 Actor::System, Actor::Reviewer => HumanReviewCause::Rule,
             })->value,
             'ruleId' => '' === $ruleId ? null : $ruleId,
             'artifactIds' => $artifactIds,
-        ]);
+        ], null, $this->eventActor->apiKeyFor($actor));
 
         return true;
     }

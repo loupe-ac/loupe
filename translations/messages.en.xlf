@@ -1780,6 +1780,14 @@
                 <source>review.document.verdict.through_agent</source>
                 <target>An agent recorded this verdict for the owner.</target>
             </trans-unit>
+            <trans-unit id="review.document.verdict.through_api_key">
+                <source>review.document.verdict.through_api_key</source>
+                <target>Recorded through an API key</target>
+            </trans-unit>
+            <trans-unit id="review.document.verdict.through_named_api_key">
+                <source>review.document.verdict.through_named_api_key</source>
+                <target>Recorded through API key '%name%'</target>
+            </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
                 <target>Undo</target>
@@ -2106,6 +2114,14 @@
                 <source>review.document.comment.reply</source>
                 <target>Reply</target>
             </trans-unit>
+            <trans-unit id="review.document.comment.author_api_key">
+                <source>review.document.comment.author_api_key</source>
+                <target>API key '%name%' (%owner%)</target>
+            </trans-unit>
+            <trans-unit id="review.document.comment.author_unnamed_api_key">
+                <source>review.document.comment.author_unnamed_api_key</source>
+                <target>An API key (%owner%)</target>
+            </trans-unit>
             <trans-unit id="review.document.comment.reply_count">
                 <source>review.document.comment.reply_count</source>
                 <target>{0}No replies|{1}1 reply|]1,Inf[ %count% replies</target>
@@ -2149,6 +2165,10 @@
             <trans-unit id="review.decision.agent_mark">
                 <source>review.decision.agent_mark</source>
                 <target>An agent recorded this answer for the owner.</target>
+            </trans-unit>
+            <trans-unit id="review.decision.api_key_mark">
+                <source>review.decision.api_key_mark</source>
+                <target>Recorded through API key '%name%'.</target>
             </trans-unit>
             <trans-unit id="review.decision.error.unknown_version">
                 <source>review.decision.error.unknown_version</source>
@@ -2563,6 +2583,26 @@
                 <source>project.error.slug_taken</source>
                 <target>Another of your projects has a name that gives the same slug.</target>
             </trans-unit>
+            <trans-unit id="project.error.name_blank">
+                <source>project.error.name_blank</source>
+                <target>A project name must not be blank.</target>
+            </trans-unit>
+            <trans-unit id="project.error.name_too_long">
+                <source>project.error.name_too_long</source>
+                <target>A project name has at most 100 characters.</target>
+            </trans-unit>
+            <trans-unit id="project.error.domain_too_long">
+                <source>project.error.domain_too_long</source>
+                <target>A domain has at most 255 characters.</target>
+            </trans-unit>
+            <trans-unit id="project.error.description_too_long">
+                <source>project.error.description_too_long</source>
+                <target>A description has at most 500 characters.</target>
+            </trans-unit>
+            <trans-unit id="project.error.search_language_unknown">
+                <source>project.error.search_language_unknown</source>
+                <target>Unknown search language "%language%". Use one of: %languages%.</target>
+            </trans-unit>
             <trans-unit id="project.edit.slug.label">
                 <source>project.edit.slug.label</source>
                 <target>Slug</target>
@@ -2648,6 +2688,9 @@
             <trans-unit id="project.allowed_origins.save"><source>project.allowed_origins.save</source><target>Save sites</target></trans-unit>
             <trans-unit id="project.allowed_origins.flash.saved"><source>project.allowed_origins.flash.saved</source><target>The allowed sites are saved.</target></trans-unit>
             <trans-unit id="project.allowed_origins.error.invalid"><source>project.allowed_origins.error.invalid</source><target>Each line must be a site origin with no path, such as https://staging.example.com or https://*.example.com. A * stands for one label, and it cannot cover a whole registry such as *.com. Plain http works on localhost only.</target></trans-unit>
+            <trans-unit id="project.allowed_origins.error.not_a_string"><source>project.allowed_origins.error.not_a_string</source><target>Each entry must be a string.</target></trans-unit>
+            <trans-unit id="project.allowed_origins.error.line_break"><source>project.allowed_origins.error.line_break</source><target>An entry must not contain a line break. Pass each origin as its own entry.</target></trans-unit>
+            <trans-unit id="project.allowed_origins.error.too_long"><source>project.allowed_origins.error.too_long</source><target>The origins have at most 4000 characters together.</target></trans-unit>
             <trans-unit id="project.allowed_origins.error.too_many"><source>project.allowed_origins.error.too_many</source><target>You can allow 20 sites at most.</target></trans-unit>
             <trans-unit id="project.connect.forwarding.state.on">
                 <source>project.connect.forwarding.state.on</source>
@@ -6503,6 +6546,10 @@
                 <source>board.card.reporter.agent</source>
                 <target>Raised by an agent</target>
             </trans-unit>
+            <trans-unit id="board.card.reporter.api-key">
+                <source>board.card.reporter.api-key</source>
+                <target>Raised by an API key</target>
+            </trans-unit>
             <trans-unit id="board.card.forge.github">
                 <source>board.card.forge.github</source>
                 <target>GitHub</target>
@@ -7319,6 +7366,18 @@
                 <source>board.column.error.order_stale</source>
                 <target>The columns changed after the page loaded. The board shows them as they are now.</target>
             </trans-unit>
+            <trans-unit id="board.column.error.reorder_backlog_first">
+                <source>board.column.error.reorder_backlog_first</source>
+                <target>Backlog always comes first. Leave it out of the order.</target>
+            </trans-unit>
+            <trans-unit id="board.column.error.reorder_unknown_slug">
+                <source>board.column.error.reorder_unknown_slug</source>
+                <target>Unknown column "%slug%". Use one of: %slugs%.</target>
+            </trans-unit>
+            <trans-unit id="board.column.error.reorder_each_once">
+                <source>board.column.error.reorder_each_once</source>
+                <target>Name each of these columns exactly once: %slugs%.</target>
+            </trans-unit>
             <trans-unit id="board.column.error.target_required">
                 <source>board.column.error.target_required</source>
                 <target>Choose the column the cards move to.</target>
@@ -7843,6 +7902,8 @@
             <trans-unit id="board.card.history.actor.reviewer"><source>board.card.history.actor.reviewer</source><target>A reviewer</target></trans-unit>
             <trans-unit id="board.card.history.actor.deleted"><source>board.card.history.actor.deleted</source><target>A deleted user</target></trans-unit>
             <trans-unit id="board.card.history.actor.agent"><source>board.card.history.actor.agent</source><target>Agent for %name%</target></trans-unit>
+            <trans-unit id="board.card.history.actor.api_key"><source>board.card.history.actor.api_key</source><target>API key '%name%' (%owner%)</target></trans-unit>
+            <trans-unit id="board.card.history.actor.api_key_unnamed"><source>board.card.history.actor.api_key_unnamed</source><target>An API key (%owner%)</target></trans-unit>
             <trans-unit id="board.card.history.created"><source>board.card.history.created</source><target>%actor% created it in %column%.</target></trans-unit>
             <trans-unit id="board.card.history.moved"><source>board.card.history.moved</source><target>%actor% moved it from %from% to %to%.</target></trans-unit>
             <trans-unit id="board.card.history.fix_requested"><source>board.card.history.fix_requested</source><target>%actor% asked for a fix on #%pr%.</target></trans-unit>
@@ -9037,11 +9098,13 @@
             <trans-unit id="board.card.tab.details"><source>board.card.tab.details</source><target>Details</target></trans-unit>
             <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>oldest %time%</target></trans-unit>
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
+            <trans-unit id="account.settings.nav.api_keys"><source>account.settings.nav.api_keys</source><target>API keys</target></trans-unit>
             <trans-unit id="account.settings.nav.billing"><source>account.settings.nav.billing</source><target>Billing</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and live reviews of one project, through MCP.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post live-review comments on a project you own.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.agent"><source>oauth.consent.scope.agent</source><target>Act as your Loupe agent: read your projects and boards, and report bridge runs.</target></trans-unit>
+            <trans-unit id="oauth.consent.scope.public"><source>oauth.consent.scope.public</source><target>Use the public Loupe API on your behalf.</target></trans-unit>
             <trans-unit id="oauth.consent.client_host.label"><source>oauth.consent.client_host.label</source><target>App published by</target></trans-unit>
             <trans-unit id="oauth.consent.client_name.label"><source>oauth.consent.client_name.label</source><target>Name the app gives itself</target></trans-unit>
             <trans-unit id="oauth.consent.client_name.unverified"><source>oauth.consent.client_name.unverified</source><target>Loupe cannot check this name. Trust the address above.</target></trans-unit>
@@ -9054,9 +9117,64 @@
             <trans-unit id="oauth.consent.row.scope.mcp"><source>oauth.consent.row.scope.mcp</source><target>It can read and write the documents, live reviews and board of one project</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope.site_review"><source>oauth.consent.row.scope.site_review</source><target>It can read and post live-review comments, and add cards to the boards of projects you own</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope.agent"><source>oauth.consent.row.scope.agent</source><target>It can list your projects, read their boards, and report what your agents do</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope.public"><source>oauth.consent.row.scope.public</source><target>It can use the public Loupe API</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.mcp"><source>oauth.consent.row.scope_bounds.mcp</source><target>In one project only, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.site_review"><source>oauth.consent.row.scope_bounds.site_review</source><target>Only in projects you own, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.agent"><source>oauth.consent.row.scope_bounds.agent</source><target>Across your projects, acting as you. It cannot reach your account or your billing.</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope_bounds.public"><source>oauth.consent.row.scope_bounds.public</source><target>Acting as you. It cannot reach your account or your billing.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.name_length"><source>oauth.api_key.error.name_length</source><target>Enter a name of 1 to 100 characters.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.already_revoked"><source>oauth.api_key.error.already_revoked</source><target>This key is already revoked.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.remove_active"><source>oauth.api_key.error.remove_active</source><target>Revoke this key before you remove it.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.heading"><source>oauth.api_keys.heading</source><target>API keys</target></trans-unit>
+            <trans-unit id="oauth.api_keys.description"><source>oauth.api_keys.description</source><target>A key signs a script or a CI job in to the Loupe API as you. It reaches every project you own.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.table.label"><source>oauth.api_keys.table.label</source><target>Your API keys</target></trans-unit>
+            <trans-unit id="oauth.api_keys.column.name"><source>oauth.api_keys.column.name</source><target>Name</target></trans-unit>
+            <trans-unit id="oauth.api_keys.column.key"><source>oauth.api_keys.column.key</source><target>Key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.column.expires"><source>oauth.api_keys.column.expires</source><target>Expires</target></trans-unit>
+            <trans-unit id="oauth.api_keys.column.last_used"><source>oauth.api_keys.column.last_used</source><target>Last used</target></trans-unit>
+            <trans-unit id="oauth.api_keys.column.actions"><source>oauth.api_keys.column.actions</source><target>Actions</target></trans-unit>
+            <trans-unit id="oauth.api_keys.expires.never"><source>oauth.api_keys.expires.never</source><target>Never</target></trans-unit>
+            <trans-unit id="oauth.api_keys.expires.in"><source>oauth.api_keys.expires.in</source><target>{0}in less than a day|{1}in %count% day|]1,Inf[in %count% days</target></trans-unit>
+            <trans-unit id="oauth.api_keys.expired"><source>oauth.api_keys.expired</source><target>{0}Expired today|{1}Expired %count% day ago|]1,Inf[Expired %count% days ago</target></trans-unit>
+            <trans-unit id="oauth.api_keys.last_used.never"><source>oauth.api_keys.last_used.never</source><target>Never used</target></trans-unit>
+            <trans-unit id="oauth.api_keys.action.create"><source>oauth.api_keys.action.create</source><target>Create key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.action.revoke"><source>oauth.api_keys.action.revoke</source><target>Revoke</target></trans-unit>
+            <trans-unit id="oauth.api_keys.action.revoke_named"><source>oauth.api_keys.action.revoke_named</source><target>Revoke the key %name%</target></trans-unit>
+            <trans-unit id="oauth.api_keys.action.remove"><source>oauth.api_keys.action.remove</source><target>Remove</target></trans-unit>
+            <trans-unit id="oauth.api_keys.action.remove_named"><source>oauth.api_keys.action.remove_named</source><target>Remove the key %name%</target></trans-unit>
+            <trans-unit id="oauth.api_keys.empty.title"><source>oauth.api_keys.empty.title</source><target>No API keys yet</target></trans-unit>
+            <trans-unit id="oauth.api_keys.empty.body"><source>oauth.api_keys.empty.body</source><target>Create a key to call the Loupe API from a script or a CI job.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.create.title"><source>oauth.api_keys.create.title</source><target>Create an API key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.create.description"><source>oauth.api_keys.create.description</source><target>The key reaches every project you own, with all your rights. Revoke it here at any time.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.create.cancel"><source>oauth.api_keys.create.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="oauth.api_keys.create.submit"><source>oauth.api_keys.create.submit</source><target>Create key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.once.title"><source>oauth.api_keys.once.title</source><target>Copy your new key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.once.description"><source>oauth.api_keys.once.description</source><target>This is the only time Loupe shows this key. Loupe keeps no copy that it can show you again.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.once.copy"><source>oauth.api_keys.once.copy</source><target>Copy</target></trans-unit>
+            <trans-unit id="oauth.api_keys.once.copied"><source>oauth.api_keys.once.copied</source><target>Copied!</target></trans-unit>
+            <trans-unit id="oauth.api_keys.once.done"><source>oauth.api_keys.once.done</source><target>I copied the key</target></trans-unit>
+            <trans-unit id="oauth.api_keys.flash.revoked"><source>oauth.api_keys.flash.revoked</source><target>The key no longer works.</target></trans-unit>
+            <trans-unit id="oauth.api_keys.flash.removed"><source>oauth.api_keys.flash.removed</source><target>The key is removed.</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.subject"><source>oauth.email.api_key_created.subject</source><target>You created the API key %name%</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.heading"><source>oauth.email.api_key_created.heading</source><target>A new API key</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.body"><source>oauth.email.api_key_created.body</source><target>You created the API key %name%. The key starts with %start%.</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.ends_on"><source>oauth.email.api_key_created.ends_on</source><target>The key ends on %date%. Loupe emails you 7 days before.</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.never_ends"><source>oauth.email.api_key_created.never_ends</source><target>The key never ends. You can revoke it at any time.</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.button_label"><source>oauth.email.api_key_created.button_label</source><target>Manage your API keys</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_created.footer"><source>oauth.email.api_key_created.footer</source><target>If you did not create this key, revoke it now:</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_expiring.subject"><source>oauth.email.api_key_expiring.subject</source><target>Your API key %name% ends soon</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_expiring.heading"><source>oauth.email.api_key_expiring.heading</source><target>An API key ends soon</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_expiring.body"><source>oauth.email.api_key_expiring.body</source><target>The API key %name% (%start%) ends on %date%. After that date it stops working.</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_expiring.button_label"><source>oauth.email.api_key_expiring.button_label</source><target>Manage your API keys</target></trans-unit>
+            <trans-unit id="oauth.email.api_key_expiring.footer"><source>oauth.email.api_key_expiring.footer</source><target>Create a new key before then, so that your scripts keep working:</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.name.label"><source>oauth.form.create_api_key_form.name.label</source><target>Name</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.name.help"><source>oauth.form.create_api_key_form.name.help</source><target>Say what uses this key, so that you can recognize it later.</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.label"><source>oauth.form.create_api_key_form.expiry.label</source><target>Expires</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.help"><source>oauth.form.create_api_key_form.expiry.help</source><target>Loupe emails you 7 days before a key ends.</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.thirty_days"><source>oauth.form.create_api_key_form.expiry.thirty_days</source><target>In 30 days</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.ninety_days"><source>oauth.form.create_api_key_form.expiry.ninety_days</source><target>In 90 days</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.one_year"><source>oauth.form.create_api_key_form.expiry.one_year</source><target>In 1 year</target></trans-unit>
+            <trans-unit id="oauth.form.create_api_key_form.expiry.never"><source>oauth.form.create_api_key_form.expiry.never</source><target>Never</target></trans-unit>
             <trans-unit id="oauth.consent.row.return"><source>oauth.consent.row.return</source><target>You return to %origin%</target></trans-unit>
             <trans-unit id="oauth.consent.row.return_remote"><source>oauth.consent.row.return_remote</source><target>That is the address the app gave Loupe for your answer.</target></trans-unit>
             <trans-unit id="oauth.consent.footnote"><source>oauth.consent.footnote</source><target>You are signed in as %email%. You can remove this app later under</target></trans-unit>
@@ -9114,6 +9232,14 @@
             <trans-unit id="oauth.admin.connected_apps.title"><source>oauth.admin.connected_apps.title</source><target>Connected apps</target></trans-unit>
             <trans-unit id="oauth.admin.connected_apps.subtitle"><source>oauth.admin.connected_apps.subtitle</source><target>The apps this account has given access to, and what each one reaches.</target></trans-unit>
             <trans-unit id="oauth.admin.connected_apps.empty"><source>oauth.admin.connected_apps.empty</source><target>This account has connected no app.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.title"><source>oauth.admin.api_keys.title</source><target>API keys</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.subtitle"><source>oauth.admin.api_keys.subtitle</source><target>The keys of this account for the public API. A key reaches the whole account. Revoke a key that leaked.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.empty"><source>oauth.admin.api_keys.empty</source><target>This account has no API key.</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.active"><source>oauth.admin.api_keys.status.active</source><target>Active</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.expired"><source>oauth.admin.api_keys.status.expired</source><target>Expired</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.status.revoked"><source>oauth.admin.api_keys.status.revoked</source><target>Revoked</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.expires"><source>oauth.admin.api_keys.expires</source><target>Ends %date%</target></trans-unit>
+            <trans-unit id="oauth.admin.api_keys.last_used"><source>oauth.admin.api_keys.last_used</source><target>Last used %date%</target></trans-unit>
             <trans-unit id="oauth.connected_apps.all_projects">
                 <source>oauth.connected_apps.all_projects</source>
                 <target>every project you own</target>

@@ -38,6 +38,8 @@ final readonly class CommentExporter implements UserDataExporterInterface
                 'status' => $comment->threadStatus->value,
                 'deletedAt' => $comment->threadDeletedAt?->format(\DateTimeInterface::ATOM),
                 'orphaned' => $comment->orphaned,
+                'apiKeyId' => $comment->apiKeyId?->toRfc4122(),
+                'apiKeyName' => $comment->apiKeyName,
                 'anchor' => [
                     'quote' => $comment->anchor->quote,
                     'prefix' => $comment->anchor->prefix,

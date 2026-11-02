@@ -21,9 +21,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Ubermuda\AuditBundle\Auditor;
-use Ubermuda\AuditBundle\AuditOutcome;
-use Ubermuda\AuditBundle\AuditSubject;
 
 #[IsGranted(DocumentVoter::CONTRIBUTE, subject: 'document')]
 #[Route(
@@ -36,7 +33,6 @@ final class UndoVerdictController extends AppController
     public function __construct(
         private readonly UndoVerdictHandler $undoVerdict,
         private readonly TranslatorInterface $translator,
-        private readonly Auditor $auditor,
     ) {
     }
 
@@ -64,15 +60,6 @@ final class UndoVerdictController extends AppController
             try {
                 ($this->undoVerdict)(new UndoVerdictCommand(document: $document, actor: $user, reviewId: $data->reviewId));
                 $this->addFlash('success', $this->translator->trans('review.document.flash.verdict_undone'));
-                $this->auditor->record(
-                    'review.document_verdict_undone',
-                    AuditOutcome::Success,
-                    [
-                        'documentId' => (string) $document->id,
-                        'status' => $document->status->value,
-                    ],
-                    new AuditSubject('document', (string) $document->id),
-                );
 
                 return $this->redirectToRoute('app_document_review', $routeParameters);
             } catch (DomainErrors $e) {
