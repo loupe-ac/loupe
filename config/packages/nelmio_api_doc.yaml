@@ -134,6 +134,17 @@ when@dev: &generator
                 - { alias: ColumnCreate, type: App\Module\Board\Controller\Api\CreateBoardColumnRequest }
                 - { alias: ColumnUpdate, type: App\Module\Board\Controller\Api\UpdateBoardColumnRequest }
                 - { alias: ColumnOrder, type: App\Module\Board\Controller\Api\ReorderBoardColumnsRequest }
+                - { alias: CardSummary, type: App\Module\Board\Controller\Api\CardSummaryResponse }
+                - { alias: Card, type: App\Module\Board\Controller\Api\CardResponse }
+                - { alias: CardList, type: App\Module\Board\Controller\Api\CardListResponse }
+                - { alias: CardCreate, type: App\Module\Board\Controller\Api\CreateProjectCardRequest }
+                - { alias: CardUpdate, type: App\Module\Board\Controller\Api\UpdateProjectCardRequest }
+                - { alias: CardRelatedInput, type: App\Module\Board\Controller\Api\RelatedCardInput }
+                - { alias: CardEvent, type: App\Module\Board\Controller\Api\CardEventResponse }
+                - { alias: CardEventList, type: App\Module\Board\Controller\Api\CardEventListResponse }
+                - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }
+                - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
+                - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:
