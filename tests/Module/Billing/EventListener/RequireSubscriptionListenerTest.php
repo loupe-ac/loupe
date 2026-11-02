@@ -183,10 +183,10 @@ final class RequireSubscriptionListenerTest extends TestCase
         self::assertStringContainsString('subscription_required', (string) $response->getContent());
     }
 
-    public function test_a_current_api_path_gets_a_problem_with_the_subscribe_url(): void
+    public function test_a_public_api_path_is_gated_with_problem_json(): void
     {
         $user = $this->user();
-        $event = $this->event('api_projects_list', '/api/v1/projects');
+        $event = $this->event('api_project_list', '/api/v1/projects');
 
         $this->listener($user, $this->expiredProfile($user))($event);
 

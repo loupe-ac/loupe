@@ -7,9 +7,9 @@ Loupe is an OAuth 2.1 authorization server. An app can ask a user for access,
 and the user approves it on a consent page. The app then gets a short-lived
 access token and a refresh token. Nobody copies a token by hand.
 
-There is no other way in. Loupe issues no static API token, so a machine where
-nobody can open a browser cannot get a credential. CI and scripts therefore
-cannot reach `/mcp` or `/api`. See [MCP](mcp.md).
+MCP and the CLI use this sign-in only. Loupe issues no static token for them, so
+a machine where nobody can open a browser cannot reach `/mcp`. CI and scripts
+that call the public API can use an [API key](api-keys.md) instead.
 
 ## The consent page
 
@@ -45,6 +45,7 @@ An app asks for exactly one kind of access:
 | `mcp` | The documents and live reviews of one project, through MCP. | The user picks one project that they own. |
 | `site-review` | The live-review comments of one project. | The user picks one project that they own. |
 | `agent` | The agent surface that the bridge uses. | None. |
+| `public` | The public API, with all the rights of the user. | None. |
 
 The user can pick only a project that they own. An app cannot choose the
 project itself.
@@ -63,8 +64,8 @@ dashes do not matter. A code expires after ten minutes, and it takes one answer
 only. Each account can try 20 codes in 15 minutes.
 
 Every instance registers the CLI as the public client `loupe-cli`, with the
-`agent` scope only. A migration adds it, and it leaves an existing `loupe-cli`
-row as it is. The CLI appears on the *Connected apps* page as *Loupe CLI*.
+scopes that `loupe login` asks for, which include `agent` and `public`. A
+migration adds it, and it leaves an existing `loupe-cli` row as it is. The CLI appears on the *Connected apps* page as *Loupe CLI*.
 
 ## Connected apps in account settings
 
@@ -86,7 +87,9 @@ card has more than one live token, the panel shows the label of each token
 with its own **Revoke**.
 
 An administrator sees the connected apps and the live preview tokens of a user
-on the user page of the admin area. That view is read-only.
+on the user page of the admin area. That view is read-only. The same page also
+lists the [API keys](api-keys.md) of the user, and an administrator can revoke
+a key there.
 
 Loupe also removes access in these cases:
 
@@ -95,7 +98,8 @@ Loupe also removes access in these cases:
 - An administrator suspends the user. The tokens stop working, and a refresh
   fails.
 
-The data export includes `connected_apps.json`. It lists each connected app and
+The data export includes `connected_apps.json`. API keys have their own file,
+`api_keys.json`. It lists each connected app and
 its access, then each live preview token with its project, card, label and
 dates. A token entry carries the project name and the card title as well as
 their ids. It contains no token value.

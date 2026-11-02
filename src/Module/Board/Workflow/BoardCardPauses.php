@@ -14,6 +14,7 @@ use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\CardEventActor;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\CardSnapshot;
@@ -36,6 +37,7 @@ final readonly class BoardCardPauses implements CardPauses
         private PauseCardHandler $pauseCard,
         private ReleaseCardPauseHandler $releaseCardPause,
         private EntityManagerInterface $em,
+        private CardEventActor $eventActor,
     ) {
     }
 
@@ -100,6 +102,7 @@ final readonly class BoardCardPauses implements CardPauses
             null === $actorUserId ? null : $this->em->getReference(User::class, $actorUserId),
             ['kind' => $pause->kind->value, 'reason' => $pause->reason, 'ruleId' => $pause->ruleId, 'releaseReason' => $pause->releaseReason],
             $pause->releasedAt,
+            $this->eventActor->apiKeyFor($actor),
         );
     }
 

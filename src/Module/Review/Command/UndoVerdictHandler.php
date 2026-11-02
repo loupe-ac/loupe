@@ -31,6 +31,10 @@ final readonly class UndoVerdictHandler
 
     public function __invoke(UndoVerdictCommand $command): Review
     {
+        if ($command->throughAgent && null !== $command->apiKey) {
+            throw new \LogicException('A withdrawal is written through an agent or through an API key, never both.');
+        }
+
         $document = $command->document;
 
         $result = $this->em->wrapInTransaction(function () use ($command, $document): Review|DomainErrors {
@@ -66,6 +70,8 @@ final readonly class UndoVerdictHandler
                 reviewer: $command->actor,
                 sequence: $newest->sequence + 1,
                 throughAgent: $command->throughAgent,
+                apiKeyId: $command->apiKey?->keyId,
+                apiKeyName: $command->apiKey?->keyName,
             );
 
             $document->status = Verdict::Withdrawn->documentStatus();
@@ -93,6 +99,7 @@ final readonly class UndoVerdictHandler
                 'documentId' => (string) $document->id,
                 'status' => $document->status->value,
                 ...($command->throughAgent ? ['throughAgent' => true] : []),
+                ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
             ],
             new AuditSubject('document', (string) $document->id),
         );

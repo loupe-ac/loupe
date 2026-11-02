@@ -156,7 +156,7 @@ jobs:
 
   phpunit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -165,8 +165,10 @@ jobs:
 
       # The flag rides the invocation, not the `phpunit` recipe, so a
       # workstation run still writes nothing. ParaTest creates the directory.
+      # The slowest of 26 hosted runs took 603s, and identical runs differ by
+      # 1.8x. The job limit must stay above this one, so the upload still runs.
       - run: just phpunit --log-junit var/phpunit-timing/junit.xml
-        timeout-minutes: 10
+        timeout-minutes: 20
 
       - name: phpunit timing
         if: always() && hashFiles('var/phpunit-timing/junit.xml') != ''

@@ -16,6 +16,8 @@ use Symfony\Component\Security\Http\Authorization\AccessDeniedHandlerInterface;
  * site-review endpoint — would otherwise get the framework's default HTML error page;
  * API clients (the embeddable widget included) need a machine-readable error code to tell
  * "wrong token type" apart from other 403s such as an unbound token.
+ *
+ * A /api/v1 path answers Problem JSON, and any other path keeps the flat error body.
  */
 final class ApiAccessDeniedHandler implements AccessDeniedHandlerInterface
 {
@@ -26,7 +28,7 @@ final class ApiAccessDeniedHandler implements AccessDeniedHandlerInterface
             Response::HTTP_FORBIDDEN,
             'credential_not_allowed',
             'Credential not allowed',
-            'This credential may not use this route.',
+            'This credential cannot call this route.',
         )->toResponse($request->getPathInfo());
     }
 }

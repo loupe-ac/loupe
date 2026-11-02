@@ -44,6 +44,130 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertFalse($this->decide('/api/versions/x', self::ALL_ROLES));
     }
 
+    public function test_the_public_scope_reaches_the_project_routes_and_no_other_scope_does(): void
+    {
+        self::assertTrue($this->decide('/api/v1/projects', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertTrue($this->decide('/api/v1/projects/my-project', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects', ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project', ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']));
+    }
+
+    /** A rule per route shape, so a route the contract adds later inherits no grant from the project rule. */
+    public function test_the_project_rule_opens_no_nested_route(): void
+    {
+        self::assertFalse($this->decide('/api/v1/projects/my-project/not-a-route', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projectsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
+    public function test_the_public_scope_reaches_the_card_routes_and_no_other_scope_does(): void
+    {
+        foreach (['/api/v1/projects/my-project/cards', '/api/v1/projects/my-project/cards/12', '/api/v1/projects/my-project/cards/12/events', '/api/v1/projects/my-project/cards/12/hold', '/api/v1/projects/my-project/cards/12/pause'] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_card_rule_opens_no_other_card_route(): void
+    {
+        foreach (['/api/v1/projects/my-project/cards/', '/api/v1/projects/my-project/cards/0', '/api/v1/projects/my-project/cards/abc', '/api/v1/projects/my-project/cards/12/comments', '/api/v1/projects/my-project/cards/12/events/3', '/api/v1/projects/my-project/cards/1234567890', '/api/v1/projects/my-project/cardsx'] as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+        }
+    }
+
+    public function test_the_public_scope_reaches_the_column_routes_and_no_other_scope_does(): void
+    {
+        foreach (['/api/v1/projects/my-project/board/columns', '/api/v1/projects/my-project/board/columns/order', '/api/v1/projects/my-project/board/columns/next'] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_column_rule_opens_no_other_board_route(): void
+    {
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columns/next/cards', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columns/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/board/columnsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
+    public function test_the_public_scope_reaches_the_feedback_and_artifact_routes_and_no_other_scope_does(): void
+    {
+        $paths = [
+            '/api/v1/projects/my-project/feedback',
+            '/api/v1/projects/my-project/feedback/0198a3c4-0000-7000-8000-000000000001',
+            '/api/v1/projects/my-project/artifacts',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/versions',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/index.html',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/css%2Fapp.css',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/css/app.css',
+        ];
+        foreach ($paths as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_public_scope_reaches_the_document_routes_and_no_other_scope_does(): void
+    {
+        $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
+        foreach ([
+            '/api/v1/projects/my-project/documents',
+            '/api/v1/projects/my-project/documents/'.$document,
+            '/api/v1/projects/my-project/documents/'.$document.'/publish',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions/2',
+            '/api/v1/projects/my-project/documents/'.$document.'/review',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document,
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document.'/replies',
+            '/api/v1/projects/my-project/documents/'.$document.'/decisions/etag-scope',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts/'.$document,
+        ] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_feedback_and_artifact_rules_open_no_other_route(): void
+    {
+        $paths = [
+            '/api/v1/projects/my-project/feedback/',
+            '/api/v1/projects/my-project/feedback/abc/extra',
+            '/api/v1/projects/my-project/feedbackx',
+            '/api/v1/projects/my-project/artifacts/',
+            '/api/v1/projects/my-project/artifacts/abc/extra',
+            '/api/v1/projects/my-project/artifacts/abc/versions/1',
+            '/api/v1/projects/my-project/artifacts/abc/files',
+            '/api/v1/projects/my-project/artifacts/abc/files/',
+            '/api/v1/projects/my-project/artifactsx',
+        ];
+        foreach ($paths as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+        }
+    }
+
+    /** The document rule names its routes, so a later route under a document starts denied. */
+    public function test_the_document_rule_opens_no_other_route(): void
+    {
+        $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
+        foreach ([
+            '/api/v1/projects/my-project/documents/',
+            '/api/v1/projects/my-project/documents/'.$document.'/',
+            '/api/v1/projects/my-project/documents/'.$document.'/review/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document.'/replies/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/decisions',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts/'.$document.'/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions/2/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/publish/extra',
+            '/api/v1/projects/my-project/documentsx',
+        ] as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+        }
+    }
+
     public function test_the_deny_rule_does_not_shadow_the_site_review_scope(): void
     {
         self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));

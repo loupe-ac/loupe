@@ -56,6 +56,8 @@ deletes the entry.
 invite. It is empty for a user who redeemed none. The admin's note on the invite
 stays out of the export.
 
+`api_keys.json` holds one row for each [API key](api-keys.md) of the user. A row gives the name, the start of the key, the creation time, the end date, the last use and the revoke time. It never holds the key or its hash.
+
 `openrouter_keys.json` holds one row for each [OpenRouter key](openrouter.md) of the user: the account key, and the key of each project the user owns. A row gives the scope, the project id, the state and the dates. It never holds the key, and it does not hold the end of the key.
 
 `idempotency_records.json` holds the API requests of the user that sent an `Idempotency-Key` header and that Loupe still stores. Each row gives the credential, the key, the request hash, the state and the dates. It also gives the status, the headers and the body of the stored answer. A request that still runs has no status, no headers and no body. Loupe deletes each row 24 hours after the request.

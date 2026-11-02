@@ -39,26 +39,26 @@ final readonly class ChildDesignDecision
             return null;
         }
         if (null === $parent) {
-            return null === $childDesign ? null : throw new ChildDesignRefused('childDesign: The card has no parent card. Pass parentCardId, or leave childDesign out.');
+            return null === $childDesign ? null : throw new ChildDesignRefused('childDesign: The card has no parent card. Pass parentCardId, or leave childDesign out.', ChildDesignRefused::NO_PARENT);
         }
 
         $targets = $this->choices->forChild($parent, $documentIds);
         if (null === $childDesign) {
             $parentChanges = $parentSet && true !== $parent->id?->equals($current?->parent?->id);
             if ($parentChanges && true === $targets?->choiceRequired) {
-                throw new ChildDesignRefused('childDesign: This card joins a parent whose tech design is approved. Pass "inherit" if that design covers the card, or "own" if the card needs a design of its own.');
+                throw new ChildDesignRefused('childDesign: This card joins a parent whose tech design is approved. Pass "inherit" if that design covers the card, or "own" if the card needs a design of its own.', ChildDesignRefused::REQUIRED);
             }
 
             return null;
         }
         if (null === $targets || !\in_array($childDesign, $targets->declared, true)) {
-            throw new ChildDesignRefused('childDesign: The workflow of this project declares no such choice. Leave childDesign out.');
+            throw new ChildDesignRefused('childDesign: The workflow of this project declares no such choice. Leave childDesign out.', ChildDesignRefused::NOT_DECLARED);
         }
         if (ChildDesignChoices::OWN === $childDesign && $statusGiven) {
-            throw new ChildDesignRefused('childDesign: "own" sets the column of the card, so pass no status with it.');
+            throw new ChildDesignRefused('childDesign: "own" sets the column of the card, so pass no status with it.', ChildDesignRefused::WITH_STATUS);
         }
         if (ChildDesignChoices::INHERIT === $childDesign && !$targets->inheritAvailable) {
-            throw new ChildDesignRefused('childDesign: The parent card has no tech design to inherit. Pass "own" to give this card a design of its own.');
+            throw new ChildDesignRefused('childDesign: The parent card has no tech design to inherit. Pass "own" to give this card a design of its own.', ChildDesignRefused::NO_INHERIT);
         }
 
         return $childDesign;

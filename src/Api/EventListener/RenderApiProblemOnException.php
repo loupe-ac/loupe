@@ -38,6 +38,9 @@ use Symfony\Component\Validator\Exception\ValidationFailedException;
 #[AsEventListener(event: KernelEvents::EXCEPTION, priority: 0)]
 final readonly class RenderApiProblemOnException
 {
+    /** A route default that names the body type of a route that does not take JSON. */
+    public const string BODY_MEDIA_TYPE_ATTRIBUTE = '_api_body_media_type';
+
     public function __construct(
         private LoggerInterface $logger,
     ) {
@@ -78,7 +81,7 @@ final readonly class RenderApiProblemOnException
             return ApiProblemException::rateLimited((int) ($exception->getHeaders()['Retry-After'] ?? 60))->problem;
         }
         if ($exception instanceof UnsupportedMediaTypeHttpException) {
-            return new ApiProblem(415, 'unsupported_media_type', 'Unsupported media type', 'The body must be application/json.');
+            return new ApiProblem(415, 'unsupported_media_type', 'Unsupported media type', sprintf('The body must be %s.', $request->attributes->get(self::BODY_MEDIA_TYPE_ATTRIBUTE, 'application/json')));
         }
         if ($exception instanceof HttpExceptionInterface) {
             return $this->fromHttpException($exception);

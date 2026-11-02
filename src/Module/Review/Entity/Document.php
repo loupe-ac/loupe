@@ -26,6 +26,11 @@ class Document implements ProjectScopedSubject
     /** Mirrors the title column's length so callers can reject an over-long title before Postgres does. */
     public const int MAX_TITLE_LENGTH = 255;
 
+    /** The largest Markdown source, in bytes, that a create or a revision accepts. */
+    public const int MAX_MARKDOWN_BYTES = 1_048_575;
+
+    public const string MARKDOWN_TOO_LARGE = 'review.document.error.markdown_too_large';
+
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]

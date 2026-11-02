@@ -7,6 +7,7 @@ namespace App\Module\OAuth\Security;
 use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\OAuth\Scope\ApiScope;
 use App\Module\OAuth\Scope\GrantedScope;
@@ -44,7 +45,8 @@ use Ubermuda\AuditBundle\AuditOutcome;
  *
  * It supports every bearer credential rather than only a well-formed token, so
  * a malformed one is refused here, with the audit record and the JSON body,
- * instead of falling through to a framework answer.
+ * instead of falling through to a framework answer. An API key is the one
+ * exception: ApiKeyAuthenticator owns that prefix.
  */
 #[WithMonologChannel('app_security')]
 final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
@@ -82,7 +84,9 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
     #[\Override]
     public function supports(Request $request): bool
     {
-        return null !== BearerToken::of($request);
+        $token = BearerToken::of($request);
+
+        return null !== $token && !str_starts_with($token, ApiKey::PREFIX);
     }
 
     #[\Override]
@@ -184,13 +188,14 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         return $this->unauthorized($request);
     }
 
+    /** Problem JSON on a /api/v1 path, and the old flat body on any other. */
     private function unauthorized(Request $request): Response
     {
         return new ApiProblem(
             Response::HTTP_UNAUTHORIZED,
             'invalid_credentials',
             'Invalid credentials',
-            'The request carries no valid access token.',
+            'The credentials are missing, wrong or revoked.',
         )->toResponse($request->getPathInfo());
     }
 }

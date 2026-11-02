@@ -25,6 +25,12 @@ final readonly class DevAccountSeeder implements DevSeederInterface
     public const string KEY = 'accounts';
     public const string MEMBER_EMAIL = 'member@loupe.test';
     public const string SUSPENDED_EMAIL = 'suspended@loupe.test';
+    public const string KEYS_EMAIL = 'keys@loupe.test';
+    public const string KEYS_EMPTY_EMAIL = 'keys-empty@loupe.test';
+    public const string KEYS_EXPIRED_EMAIL = 'keys-expired@loupe.test';
+    public const string KEYS_USER = 'account/user/keys';
+    public const string KEYS_EMPTY_USER = 'account/user/keys-empty';
+    public const string KEYS_EXPIRED_USER = 'account/user/keys-expired';
     public const string PASSWORD = 'password';
 
     public function __construct(
@@ -57,6 +63,9 @@ final readonly class DevAccountSeeder implements DevSeederInterface
 
         $this->seedDemo($context, 'account/user/member', self::MEMBER_EMAIL, 'Member User', false, $context->at(2));
         $this->seedDemo($context, 'account/user/suspended', self::SUSPENDED_EMAIL, 'Suspended User', true, $context->at(1));
+        $this->seedDemo($context, self::KEYS_USER, self::KEYS_EMAIL, 'Keys User', false, $context->at(3));
+        $this->seedDemo($context, self::KEYS_EMPTY_USER, self::KEYS_EMPTY_EMAIL, 'Keys Empty User', false, $context->at(4));
+        $this->seedDemo($context, self::KEYS_EXPIRED_USER, self::KEYS_EXPIRED_EMAIL, 'Keys Expired User', false, $context->at(5));
     }
 
     /**

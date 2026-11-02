@@ -27,7 +27,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  * on a finished claim gets the stored answer, and a retry on a running one gets a
  * 409. Nothing frees a running claim early: the server cannot tell a slow request
  * from a dead one, and a dead one may have committed its create. The budget
- * listener runs first, so a 429 claims nothing and spends no key.
+ * listener runs first, so its 429 claims nothing. A route limit runs after this
+ * listener, and StoreIdempotentAnswerOnResponse frees the claim on its 429.
  */
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 3)]
 final readonly class ClaimIdempotencyKeyOnRequest

@@ -125,6 +125,15 @@ class IdempotencyRecordRepository extends ServiceEntityRepository
         );
     }
 
+    public function release(Uuid $id): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'DELETE FROM api_idempotency_records WHERE id = :id AND state = :state',
+            ['id' => $id, 'state' => IdempotencyState::Running->value],
+            ['id' => 'uuid'],
+        );
+    }
+
     public function deleteExpired(\DateTimeImmutable $now): int
     {
         return (int) $this->getEntityManager()->getConnection()->executeStatement(

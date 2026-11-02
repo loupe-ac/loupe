@@ -15,8 +15,6 @@ use Mcp\Exception\ToolCallException;
 /**
  * Submit a revised Markdown document. Unresolved comments are carried forward by fuzzy re-anchoring;
  * comments whose quoted text no longer appears are flagged orphaned. Returns the carried and orphaned counts.
- *
- * @phpstan-import-type RevisionSummary from ReviseDocumentHandler
  */
 #[McpTool(name: 'document_revise', description: 'Submit a new Markdown version of a document, described by what changed in it. Open comments are re-anchored onto the new version; those whose quoted text no longer appears are flagged orphaned. Pass title to correct the document title at the same time, and references to replace the documents this one points at. Pass series with seriesOrdinal to move the document to a place in an ordered set, or an empty series to take it out of one. In the Markdown, write a card as card:<number> and a pull request as pr:owner/repo#<number>; Loupe turns each into a link with a title tooltip. A token inside code, a link or square brackets stays as written.')]
 final readonly class DocumentReviseTool
@@ -38,7 +36,7 @@ final readonly class DocumentReviseTool
      * @param string|null        $series        Name of the ordered set this document belongs to, stored as you spell it and created if the project does not have it yet; omit to leave the placement alone, pass an empty string to take the document out of its series
      * @param int|null           $seriesOrdinal Position of this document in that series, counting from 1; required whenever series is given
      *
-     * @return RevisionSummary
+     * @return array{carried: int, orphaned: int}
      */
     public function __invoke(string $documentId, string $markdown, string $description, ?string $title = null, ?array $references = null, ?string $series = null, ?int $seriesOrdinal = null): array
     {
@@ -49,17 +47,9 @@ final readonly class DocumentReviseTool
                 throw $this->errorMessages->forArgument('session', 'This work was withdrawn.');
             }
 
-            // The size cap is a transport concern — it protects this endpoint
-            // from a payload it should never parse, which is not a rule about
-            // what a document may contain. Title and description are domain
-            // rules and are enforced by the handler.
-            if (\strlen($markdown) > DocumentCreateTool::MAX_MARKDOWN_BYTES) {
-                throw $this->errorMessages->forArgument('markdown', 'The markdown content exceeds the maximum allowed size.');
-            }
-
             // Named, not positional: the command now ends in four optional
             // parameters of mixed type, so a mis-ordered call would be silent.
-            return ($this->handler)(new ReviseDocumentCommand(
+            $revision = ($this->handler)(new ReviseDocumentCommand(
                 document: $document,
                 markdown: $markdown,
                 description: $description,
@@ -68,6 +58,8 @@ final readonly class DocumentReviseTool
                 seriesName: $series,
                 seriesOrdinal: $seriesOrdinal,
             ));
+
+            return ['carried' => $revision['carried'], 'orphaned' => $revision['orphaned']];
         } catch (DomainErrors $e) {
             throw $this->errorMessages->forAgent($e);
         } catch (ToolCallException $e) {

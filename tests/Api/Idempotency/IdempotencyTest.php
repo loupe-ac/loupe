@@ -201,6 +201,20 @@ final class IdempotencyTest extends KernelTestCase
         self::assertSame([ApplyApiBudgetOnRequest::class, ClaimIdempotencyKeyOnRequest::class], $order);
     }
 
+    public function test_a_429_after_the_claim_frees_the_key_so_a_later_retry_runs(): void
+    {
+        $this->send('key-limited', '{}', 429, ['Retry-After' => '30']);
+        self::assertSame(0, $this->rows('cred-a', 'key-limited'));
+
+        $retry = $this->send('key-limited', '{}', 201);
+
+        self::assertSame(201, $retry->getStatusCode());
+        self::assertSame(2, $this->created);
+        self::assertSame(1, $this->rows('cred-a', 'key-limited'));
+        self::assertSame((string) $retry->getContent(), (string) $this->send('key-limited', '{}', 201)->getContent());
+        self::assertSame(2, $this->created);
+    }
+
     public function test_account_deletion_removes_the_rows_of_the_owner_only(): void
     {
         $this->send('key-11', '{}', 201);

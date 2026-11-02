@@ -9,7 +9,9 @@ use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -175,6 +177,46 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
     }
 
     /**
+     * One keyset page of the project's comments in creation order, ties broken on the id.
+     * The page starts after the last row ($after) when one is given.
+     *
+     * @param ?SiteReviewCommentStatus         $status null keeps every status
+     * @param ?list<Uuid>                      $ids    narrows the page to those comments. An empty list finds nothing.
+     * @param ?array{\DateTimeImmutable, Uuid} $after  the creation time and the id of the last row of the previous page
+     *
+     * @return list<SiteReviewComment>
+     */
+    public function findPageForProject(Project $project, ?SiteReviewCommentStatus $status, ?array $ids, int $limit, bool $newestFirst, ?array $after): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('c')
+            ->andWhere('c.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('c.createdAt', $newestFirst ? 'DESC' : 'ASC')
+            ->addOrderBy('c.id', $newestFirst ? 'DESC' : 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $status) {
+            $qb->andWhere('c.status = :status')->setParameter('status', $status);
+        }
+        if (null !== $ids) {
+            $qb->andWhere('c.id IN (:ids)')
+                ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids));
+        }
+        if (null !== $after) {
+            $operator = $newestFirst ? '<' : '>';
+            $qb->andWhere(\sprintf('(c.createdAt %1$s :afterAt OR (c.createdAt = :afterAt AND c.id %1$s :afterId))', $operator))
+                ->setParameter('afterAt', $after[0], Types::DATETIME_IMMUTABLE)
+                ->setParameter('afterId', $after[1], UuidType::NAME);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
      * Next position for a new comment on this project. Not count(): after a
      * delete-then-add, count() would reuse an existing position and make
      * position-ordered ties nondeterministic.
@@ -195,7 +237,8 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
      * Pending → Addressed as a single conditional statement, so a human who
      * clicks Resolve between the caller's read and this write keeps their
      * resolution instead of having it silently replaced. Returns false when the
-     * row was no longer pending.
+     * row was no longer pending, and the copy then holds the status of the row.
+     * A copy whose row is gone keeps its status.
      */
     public function markAddressedIfPending(SiteReviewComment $comment): bool
     {
@@ -211,21 +254,27 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
             ->execute();
 
         if (0 === $updated) {
+            $stored = $this->currentStatus($comment);
+            if (null !== $stored) {
+                $this->moveCopyTo($comment, $stored);
+            }
+
             return false;
         }
 
-        // A DQL update bypasses the identity map. The snapshot must move with
-        // the copy, or the next flush reissues this as an unconditional UPDATE
-        // and the race reopens. refresh() cannot do it: Doctrine refuses to
-        // rehydrate the entity's readonly property.
-        $comment->status = SiteReviewCommentStatus::Addressed;
-        $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(
-            spl_object_id($comment),
-            'status',
-            SiteReviewCommentStatus::Addressed,
-        );
+        $this->moveCopyTo($comment, SiteReviewCommentStatus::Addressed);
 
         return true;
+    }
+
+    // A DQL update bypasses the identity map. The snapshot must move with the
+    // copy, or the next flush reissues this as an unconditional UPDATE and the
+    // race reopens. refresh() cannot do it: Doctrine refuses to rehydrate the
+    // entity's readonly property.
+    private function moveCopyTo(SiteReviewComment $comment, SiteReviewCommentStatus $status): void
+    {
+        $comment->status = $status;
+        $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($comment), 'status', $status);
     }
 
     /**

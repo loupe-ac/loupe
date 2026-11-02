@@ -3,6 +3,10 @@
 # committed files. `bin/console nelmio:apidoc:dump --area=<area> --format=json`
 # rebuilds one, and a test compares the committed file with a fresh build.
 when@dev: &generator
+    services:
+        App\Api\OpenApi\PartialChangeSchemaProcessor:
+            tags: ['nelmio_api_doc.swagger.processor']
+
     nelmio_api_doc:
         # Whitelisted explicitly: the bundle documents every route of an area by default.
         use_validation_groups: false
@@ -19,6 +23,25 @@ when@dev: &generator
                         type: http
                         scheme: bearer
                         description: 'An API key or an OAuth access token, in `Authorization: Bearer <token>`.'
+                headers:
+                    Retry-After:
+                        description: The number of seconds to wait before the next request.
+                        schema: { type: integer }
+                    RateLimit-Limit:
+                        description: The number of requests the window allows.
+                        schema: { type: integer }
+                    RateLimit-Remaining:
+                        description: The number of requests left in the window.
+                        schema: { type: integer }
+                    RateLimit-Reset:
+                        description: The seconds until the window resets.
+                        schema: { type: integer }
+                    Link:
+                        description: 'The next page, as `<url>; rel="next"`. It is absent on the last page.'
+                        schema: { type: string }
+                    Location:
+                        description: The URL of the new resource.
+                        schema: { type: string, format: uri }
                 schemas:
                     Problem:
                         type: object
@@ -41,6 +64,112 @@ when@dev: &generator
                             detail:
                                 type: string
                                 description: What happened in this request.
+                    ValidationProblem:
+                        description: A refusal of one or more fields.
+                        allOf:
+                            - $ref: '#/components/schemas/Problem'
+                            - type: object
+                              required: [errors]
+                              properties:
+                                  errors:
+                                      type: array
+                                      items:
+                                          type: object
+                                          required: [field, code, message]
+                                          properties:
+                                              field:
+                                                  type: string
+                                                  description: The field, as a request names it.
+                                              code:
+                                                  type: string
+                                                  description: The stable code of the refusal.
+                                              message:
+                                                  type: string
+                                                  description: A sentence that says why.
+                    NameTakenProblem:
+                        description: A refusal because a name is taken.
+                        allOf:
+                            - $ref: '#/components/schemas/Problem'
+                            - type: object
+                              properties:
+                                  slug:
+                                      type: string
+                                      description: The slug of the project that holds the name.
+                    NativeFacts:
+                      type: object
+                      description: What a native note says about the app, the device, the screen and the element.
+                      required:
+                      - app
+                      - device
+                      - screen
+                      - element
+                      properties:
+                        app:
+                          type: object
+                          required:
+                          - name
+                          - bundleId
+                          properties:
+                            name:
+                              type: string
+                              nullable: true
+                            bundleId:
+                              type: string
+                        device:
+                          type: object
+                          required:
+                          - name
+                          - udid
+                          - osVersion
+                          properties:
+                            name:
+                              type: string
+                            udid:
+                              type: string
+                            osVersion:
+                              type: string
+                        screen:
+                          type: object
+                          required:
+                          - title
+                          properties:
+                            title:
+                              type: string
+                              nullable: true
+                        element:
+                          type: object
+                          required:
+                          - role
+                          - label
+                          - identifier
+                          - frame
+                          properties:
+                            role:
+                              type: string
+                            label:
+                              type: string
+                              nullable: true
+                            identifier:
+                              type: string
+                              nullable: true
+                            frame:
+                              type: object
+                              required:
+                              - x
+                              - y
+                              - width
+                              - height
+                              properties:
+                                x:
+                                  type: number
+                                y:
+                                  type: number
+                                width:
+                                  type: number
+                                height:
+                                  type: number
+                              nullable: true
+                          nullable: true
                     ApiVersions:
                         type: object
                         description: The API versions of this instance.
@@ -64,6 +193,76 @@ when@dev: &generator
                                 type: string
                                 description: The CLI versions this server works with, as a caret range.
                                 example: ^2.0
+        # The component name of each response or request class of the public API. Without an entry
+        # the name is the class name, and a body shared by two operations may get two names.
+        models:
+            names:
+                - { alias: Project, type: App\Module\Project\Controller\Api\ProjectResponse }
+                - { alias: ProjectList, type: App\Module\Project\Controller\Api\ProjectListResponse }
+                - { alias: ProjectCreate, type: App\Module\Project\Controller\Api\CreateProjectRequest }
+                - { alias: ProjectUpdate, type: App\Module\Project\Controller\Api\UpdateProjectRequest }
+                - { alias: BoardColumn, type: App\Module\Board\Controller\Api\BoardColumnResponse }
+                - { alias: CardType, type: App\Module\Board\Controller\Api\CardTypeResponse }
+                - { alias: BoardColumnList, type: App\Module\Board\Controller\Api\BoardColumnListResponse }
+                - { alias: ColumnWriteResult, type: App\Module\Board\Controller\Api\ColumnWriteResponse }
+                - { alias: ColumnOrderResult, type: App\Module\Board\Controller\Api\ColumnOrderResponse }
+                - { alias: ColumnDeleteResult, type: App\Module\Board\Controller\Api\ColumnDeleteResponse }
+                - { alias: ColumnCreate, type: App\Module\Board\Controller\Api\CreateBoardColumnRequest }
+                - { alias: ColumnUpdate, type: App\Module\Board\Controller\Api\UpdateBoardColumnRequest }
+                - { alias: ColumnOrder, type: App\Module\Board\Controller\Api\ReorderBoardColumnsRequest }
+                - { alias: FeedbackItem, type: App\Module\Board\Controller\Api\FeedbackResponse }
+                - { alias: FeedbackList, type: App\Module\Board\Controller\Api\FeedbackListResponse }
+                - { alias: FeedbackAnchor, type: App\Module\Board\Controller\Api\FeedbackAnchorResponse }
+                - { alias: FeedbackUpdate, type: App\Module\Board\Controller\Api\FeedbackUpdateRequest }
+                - { alias: ArtifactSummary, type: App\Module\Artifact\Controller\Api\ArtifactSummaryResponse }
+                - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
+                - { alias: ArtifactVersion, type: App\Module\Artifact\Controller\Api\ArtifactVersionResponse }
+                - { alias: ArtifactFile, type: App\Module\Artifact\Controller\Api\ArtifactFileResponse }
+                - { alias: Artifact, type: App\Module\Artifact\Controller\Api\ArtifactResponse }
+                - { alias: ArtifactStored, type: App\Module\Artifact\Controller\Api\ArtifactStoredResponse }
+                - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
+                - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
+                - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }
+                - { alias: CardSummary, type: App\Module\Board\Controller\Api\CardSummaryResponse }
+                - { alias: Card, type: App\Module\Board\Controller\Api\CardResponse }
+                - { alias: CardList, type: App\Module\Board\Controller\Api\CardListResponse }
+                - { alias: CardCreate, type: App\Module\Board\Controller\Api\CreateProjectCardRequest }
+                - { alias: CardUpdate, type: App\Module\Board\Controller\Api\UpdateProjectCardRequest }
+                - { alias: CardRelatedInput, type: App\Module\Board\Controller\Api\RelatedCardInput }
+                - { alias: CardEvent, type: App\Module\Board\Controller\Api\CardEventResponse }
+                - { alias: CardEventList, type: App\Module\Board\Controller\Api\CardEventListResponse }
+                - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }
+                - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
+                - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
+                - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
+                - { alias: DocumentSummary, type: App\Module\Review\Controller\Api\DocumentSummaryResponse }
+                - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }
+                - { alias: Document, type: App\Module\Review\Controller\Api\DocumentResponse }
+                - { alias: DocumentCreated, type: App\Module\Review\Controller\Api\DocumentCreatedResponse }
+                - { alias: DocumentPublishResult, type: App\Module\Review\Controller\Api\DocumentPublishResponse }
+                - { alias: DocumentVersionSummary, type: App\Module\Review\Controller\Api\DocumentVersionSummaryResponse }
+                - { alias: DocumentVersionList, type: App\Module\Review\Controller\Api\DocumentVersionListResponse }
+                - { alias: DocumentVersion, type: App\Module\Review\Controller\Api\DocumentVersionResponse }
+                - { alias: DocumentRevision, type: App\Module\Review\Controller\Api\DocumentRevisionResponse }
+                - { alias: DocumentCreate, type: App\Module\Review\Controller\Api\CreateDocumentRequest }
+                - { alias: DocumentUpdate, type: App\Module\Review\Controller\Api\UpdateDocumentRequest }
+                - { alias: DocumentRevise, type: App\Module\Review\Controller\Api\CreateDocumentVersionRequest }
+                - { alias: ReviewReply, type: App\Module\Review\Controller\Api\ReviewReplyResponse }
+                - { alias: ReviewComment, type: App\Module\Review\Controller\Api\ReviewCommentResponse }
+                - { alias: DecisionSelection, type: App\Module\Review\Controller\Api\DecisionSelectionResponse }
+                - { alias: ReviewDecision, type: App\Module\Review\Controller\Api\ReviewDecisionResponse }
+                - { alias: DocumentAgentReviewFinding, type: App\Module\Review\Controller\Api\DocumentAgentReviewFindingResponse }
+                - { alias: DocumentAgentReview, type: App\Module\Review\Controller\Api\DocumentAgentReviewResponse }
+                - { alias: DocumentReview, type: App\Module\Review\Controller\Api\ReviewResponse }
+                - { alias: CommentUpdate, type: App\Module\Review\Controller\Api\MarkCommentAddressedRequest }
+                - { alias: CommentStatusResult, type: App\Module\Review\Controller\Api\CommentStatusResponse }
+                - { alias: CommentReply, type: App\Module\Review\Controller\Api\ReplyToCommentRequest }
+                - { alias: CommentReplyCreated, type: App\Module\Review\Controller\Api\CommentReplyResponse }
+                - { alias: DecisionAnswer, type: App\Module\Review\Controller\Api\AnswerDecisionRequest }
+                - { alias: DecisionResult, type: App\Module\Review\Controller\Api\DecisionResultResponse }
+                - { alias: VerdictSubmit, type: App\Module\Review\Controller\Api\SubmitVerdictRequest }
+                - { alias: VerdictResult, type: App\Module\Review\Controller\Api\VerdictResponse }
+                - { alias: VerdictWithdrawResult, type: App\Module\Review\Controller\Api\VerdictWithdrawResponse }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

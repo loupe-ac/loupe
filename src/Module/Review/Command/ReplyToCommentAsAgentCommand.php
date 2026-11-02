@@ -6,6 +6,7 @@ namespace App\Module\Review\Command;
 
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
+use App\Security\ApiKeyActor;
 
 /**
  * An agent's reply into a document-review thread.
@@ -24,6 +25,8 @@ final readonly class ReplyToCommentAsAgentCommand
         public Comment $parent,
         public string $body,
         public ?Document $document = null,
+        // The API key that writes the reply. The author stays the agent user.
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

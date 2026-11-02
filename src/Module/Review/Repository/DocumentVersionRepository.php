@@ -84,6 +84,43 @@ class DocumentVersionRepository extends ServiceEntityRepository
     }
 
     /**
+     * One keyset page of a document's versions, with the metadata only. Version numbers
+     * rise with creation time, so the number is the sort key. The page starts after
+     * $afterNumber when one is given.
+     *
+     * @return list<array{id: string, versionNumber: int, createdAt: \DateTimeImmutable, description: ?string}>
+     */
+    public function findMetaPageByDocument(Document $document, int $limit, bool $newestFirst, ?int $afterNumber): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.id AS id', 'v.versionNumber AS versionNumber', 'v.createdAt AS createdAt', 'v.description AS description')
+            ->where('v.document = :document')
+            ->setParameter('document', $document)
+            ->orderBy('v.versionNumber', $newestFirst ? 'DESC' : 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $afterNumber) {
+            $qb->andWhere(\sprintf('v.versionNumber %s :after', $newestFirst ? '<' : '>'))->setParameter('after', $afterNumber);
+        }
+
+        $meta = [];
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            $versionNumber = $row['versionNumber'];
+            $createdAt = $row['createdAt'];
+            $description = $row['description'];
+
+            $meta[] = [
+                'id' => (string) $row['id'],
+                'versionNumber' => is_int($versionNumber) ? $versionNumber : throw new \LogicException('versionNumber must be an int.'),
+                'createdAt' => $createdAt instanceof \DateTimeImmutable ? $createdAt : throw new \LogicException('createdAt must be a DateTimeImmutable.'),
+                'description' => null === $description || is_string($description) ? $description : throw new \LogicException('description must be a string or null.'),
+            ];
+        }
+
+        return $meta;
+    }
+
+    /**
      * How many of these version numbers the document has.
      *
      * A COUNT over the numbers asked for, rather than a read of the whole

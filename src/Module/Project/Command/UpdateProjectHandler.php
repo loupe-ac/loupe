@@ -9,6 +9,7 @@ use App\Exception\DomainErrors;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectRenamed;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\AllowedOriginsInput;
 use App\Utils\Slug;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,6 +66,15 @@ final readonly class UpdateProjectHandler
             }
         }
 
+        $origins = $project->allowedOrigins;
+        if (null !== $command->origins) {
+            try {
+                $origins = AllowedOriginsInput::normalise($command->origins);
+            } catch (DomainErrors $e) {
+                $errors += $e->errors;
+            }
+        }
+
         if ([] !== $errors) {
             throw new DomainErrors($errors, $parameters);
         }
@@ -101,6 +111,7 @@ final readonly class UpdateProjectHandler
         // Documents keep the language they were written with, so this only
         // changes what a document created after it inherits.
         $project->searchLanguage = $searchLanguage;
+        $project->allowedOrigins = $origins;
         // Before the flush, so a listener's rows commit or roll back with the save.
         // A null slug is no rename: no rule file can name a project that had none.
         if (null !== $fromSlug && $fromSlug !== $slug) {

@@ -1,0 +1,38 @@
+{# Admin view of the API keys of one user. An admin can revoke a live key. Only the owner can remove one. #}
+<div class="admin-card p-6 flex flex-col gap-4" data-testid="api-keys-panel">
+    <div>
+        <h2 class="admin-section-title">{{ 'oauth.admin.api_keys.title'|trans }}</h2>
+        <p class="admin-section-subtitle">{{ 'oauth.admin.api_keys.subtitle'|trans }}</p>
+    </div>
+
+    <div>
+        {% for key in keys %}
+            <div class="admin-action-item admin-action-row" data-api-key="{{ key.id }}">
+                <div class="grow">
+                    <div class="admin-action-title mb-1.5">
+                        {{ key.name }}
+                        {% if key.status == 'active' %}
+                            <span class="admin-badge admin-badge-on">{{ 'oauth.admin.api_keys.status.active'|trans }}</span>
+                        {% elseif key.status == 'expired' %}
+                            <span class="admin-badge admin-badge-neutral">{{ 'oauth.admin.api_keys.status.expired'|trans }}</span>
+                        {% else %}
+                            <span class="admin-badge admin-badge-neutral">{{ 'oauth.admin.api_keys.status.revoked'|trans }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="admin-action-help">
+                        {{ key.displayStart }}… · {{ key.expiresAt ? 'oauth.admin.api_keys.expires'|trans({'%date%': key.expiresAt|date('j M Y')}) : 'oauth.api_keys.expires.never'|trans }} · {{ key.lastUsedAt ? 'oauth.admin.api_keys.last_used'|trans({'%date%': key.lastUsedAt|date('j M Y')}) : 'oauth.api_keys.last_used.never'|trans }}
+                    </p>
+                </div>
+                {% if key.status == 'active' %}
+                    <form method="post" action="{{ path('app_admin_api_key_revoke', {id: key.id}) }}" class="shrink-0">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-revoke-api-key') }}">
+                        <input type="hidden" name="returnTo" value="{{ app.request.requestUri }}">
+                        <button type="submit" class="admin-button-secondary admin-button-small" data-testid="api-key-revoke" aria-label="{{ 'oauth.api_keys.action.revoke_named'|trans({'%name%': key.name}) }}">{{ 'oauth.api_keys.action.revoke'|trans }}</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="admin-action-help" data-testid="api-keys-panel-empty">{{ 'oauth.admin.api_keys.empty'|trans }}</p>
+        {% endfor %}
+    </div>
+</div>

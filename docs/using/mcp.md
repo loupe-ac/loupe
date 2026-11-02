@@ -202,16 +202,16 @@ For a self-hosted instance:
   that client. The fetch goes to public addresses only. An instance with no
   internet access cannot connect a new client, and every other feature works.
 
-## There is no static token
+## There is no static token for MCP
 
-Loupe issues no static API token. No page mints one, and the server accepts
-none. Every connection is an OAuth sign-in, and the client refreshes it by
-itself.
+`/mcp` accepts no static token. Every connection is an OAuth sign-in, and the
+client refreshes it by itself. An [API key](api-keys.md) exists for the public
+API, and `/mcp` refuses it with `401`.
 
 Each sign-in needs a person at a browser once. An MCP client opens the consent
 page. The Loupe CLI prints a device code for a page you open. A machine where
-nobody can open a browser cannot get a credential, so CI and scripts cannot
-reach `/mcp` or `/api`.
+nobody can open a browser cannot get a credential for `/mcp`. CI and scripts
+that call the public API use an [API key](api-keys.md).
 
 A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.

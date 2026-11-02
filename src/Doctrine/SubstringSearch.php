@@ -62,6 +62,22 @@ final readonly class SubstringSearch
      */
     public static function addTitleFirst(QueryBuilder $qb, string $alias, string $titleColumn, SearchQuery $query): void
     {
+        $hit = self::titleHit($alias, $titleColumn, $query);
+        if (null === $hit) {
+            return;
+        }
+
+        $qb->addSelect($hit.' AS HIDDEN titleHit')
+            ->addOrderBy('titleHit', 'DESC');
+    }
+
+    /**
+     * The DQL expression that is 1 for a row holding every wanted term in the title and
+     * 0 for any other row, or null when the query has no wanted term to rank by. A caller
+     * that pages by this rank repeats the expression in its WHERE clause.
+     */
+    public static function titleHit(string $alias, string $titleColumn, SearchQuery $query): ?string
+    {
         $tests = [];
         foreach ($query->clauses as $c => $clause) {
             if ([] === array_filter($clause, static fn (SearchTerm $term): bool => $term->excluded)) {
@@ -71,11 +87,7 @@ final readonly class SubstringSearch
                 )).')';
             }
         }
-        if ([] === $tests) {
-            return;
-        }
 
-        $qb->addSelect('CASE WHEN '.implode(' AND ', $tests).' THEN 1 ELSE 0 END AS HIDDEN titleHit')
-            ->addOrderBy('titleHit', 'DESC');
+        return [] === $tests ? null : 'CASE WHEN '.implode(' AND ', $tests).' THEN 1 ELSE 0 END';
     }
 }
