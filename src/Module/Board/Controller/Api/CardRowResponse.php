@@ -15,10 +15,10 @@ use OpenApi\Attributes as OA;
 final readonly class CardRowResponse
 {
     /**
-     * @param list<PullRequestRefResponse>         $pullRequests
+     * @param list<PullRequestRefResponse>      $pullRequests
      * @param list<array<string, mixed>>        $documents
      * @param list<array<string, mixed>>        $artifacts
-     * @param list<FeedbackRefResponse>            $siteReviewComments
+     * @param list<FeedbackRefResponse>         $siteReviewComments
      * @param list<array<string, mixed>>        $relatedCards
      * @param array<string, mixed>|null         $parent
      * @param list<array<string, mixed>>        $values

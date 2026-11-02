@@ -131,7 +131,7 @@ final class ArtifactFieldsApiTest extends WebTestCase
 
         $link = $this->json()['items'][0]['pageLink'];
         self::assertIsString($link);
-        self::assertStringContainsString((string) (new \DateTimeImmutable('2026-03-01 13:00:00'))->getTimestamp(), $link);
+        self::assertStringContainsString((string) new \DateTimeImmutable('2026-03-01 13:00:00')->getTimestamp(), $link);
         self::assertStringEndsWith('index.html', $link);
     }
 

@@ -172,7 +172,7 @@ final class FieldsSchemasTest extends TestCase
         foreach (['/api/v1/projects/{project}/documents' => 'listDocuments', '/api/v1/projects/{project}/documents/{document}/versions' => 'listDocumentVersions'] as $path => $id) {
             $operation = $spec['paths'][$path]['get'];
             self::assertSame($id, $operation['operationId']);
-            $parameter = array_values(array_filter($operation['parameters'], static fn (array $parameter): bool => 'fields' === ($parameter['name'] ?? null)))[0];
+            $parameter = array_first(array_filter($operation['parameters'], static fn (array $parameter): bool => 'fields' === ($parameter['name'] ?? null)));
             self::assertSame('form', $parameter['style']);
             self::assertFalse($parameter['explode']);
             self::assertNotContains('markdown', $parameter['schema']['items']['enum']);

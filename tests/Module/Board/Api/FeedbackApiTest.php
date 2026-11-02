@@ -279,7 +279,7 @@ final class FeedbackApiTest extends WebTestCase
     public function test_a_native_note_carries_its_facts_and_no_page(): void
     {
         $native = ['app' => ['name' => 'Notes', 'bundleId' => 'com.example.notes'], 'device' => ['name' => 'iPhone', 'udid' => 'U-1', 'osVersion' => '19.0'], 'screen' => ['title' => null], 'element' => ['role' => 'button', 'label' => 'Save', 'identifier' => null, 'frame' => null]];
-        $note = new SiteReviewComment($this->project, 0, 'Too small', null, surface: \App\Module\SiteReview\Entity\ReviewSurface::IosSimulator, native: $native);
+        $note = new SiteReviewComment($this->project, 0, 'Too small', null, surface: ReviewSurface::IosSimulator, native: $native);
         $this->em->persist($note);
         $this->em->flush();
 

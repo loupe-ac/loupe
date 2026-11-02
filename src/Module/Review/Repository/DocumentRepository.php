@@ -274,7 +274,7 @@ class DocumentRepository extends ServiceEntityRepository
      * of them: joining several collections at once multiplies their rows
      * together, so a document with 3 versions and 4 tags would hydrate from 12.
      *
-     * @param list<Document>                 $documents
+     * @param list<Document>                                $documents
      * @param 'referencedBy'|'references'|'tags'|'versions' $association
      */
     private function preloadCollection(array $documents, string $association): void
