@@ -27,7 +27,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
         new OA\Parameter(name: 'handle', description: 'A project id or a project slug.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The project and its columns.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'The project and its columns.', content: new OA\JsonContent(ref: '#/components/schemas/ProjectColumns')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

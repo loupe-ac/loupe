@@ -72,7 +72,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ArtifactStored"
                                 }
                             }
                         }
@@ -185,7 +185,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ProjectColumns"
                                 }
                             }
                         }
@@ -288,7 +288,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ProjectCard"
                                 }
                             }
                         }
@@ -414,7 +414,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/CommandAckAnswer"
                                 }
                             }
                         }
@@ -557,7 +557,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/RunOutputAnswer"
                                 }
                             }
                         }
@@ -713,7 +713,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/WorkClaim"
                                 }
                             }
                         }
@@ -825,7 +825,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/SessionClosed"
                                 }
                             }
                         }
@@ -916,7 +916,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/CardHolds"
                                 }
                             }
                         }
@@ -1020,7 +1020,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/HeartbeatAnswer"
                                 }
                             }
                         }
@@ -1290,7 +1290,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/RunId"
                                 }
                             }
                         }
@@ -1300,7 +1300,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/RunId"
                                 }
                             }
                         }
@@ -1443,7 +1443,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/SessionUsageAnswer"
                                 }
                             }
                         }
@@ -1596,7 +1596,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ToolCallsAnswer"
                                 }
                             }
                         }
@@ -1739,7 +1739,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/RunId"
                                 }
                             }
                         }
@@ -1749,7 +1749,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/RunId"
                                 }
                             }
                         }
@@ -1913,7 +1913,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ExperimentPinAnswer"
                                 }
                             }
                         }
@@ -2069,7 +2069,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/WorkResultAnswer"
                                 }
                             }
                         }
@@ -2212,7 +2212,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IssuedToken"
                                 }
                             }
                         }
@@ -2366,7 +2366,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/InboxAskCheck"
                                 }
                             }
                         }
@@ -2469,7 +2469,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IssuedToken"
                                 }
                             }
                         }
@@ -2612,7 +2612,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/PreviewTokenRevoked"
                                 }
                             }
                         }
@@ -2693,7 +2693,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/Sites"
                                 }
                             }
                         }
@@ -2794,7 +2794,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/EventReplay"
                                 }
                             }
                         }
@@ -2905,7 +2905,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/EventsAnswer"
                                 }
                             }
                         }
@@ -3042,6 +3042,7 @@
                                 "status": {
                                     "description": "The state of this version.",
                                     "type": "string",
+                                    "example": "beta",
                                     "enum": [
                                         "beta",
                                         "stable",
@@ -3059,6 +3060,1020 @@
                     }
                 },
                 "type": "object"
+            },
+            "CommandAckAnswer": {
+                "required": [
+                    "commandId",
+                    "state"
+                ],
+                "properties": {
+                    "commandId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "state": {
+                        "description": "The stored state.",
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "HeartbeatAnswer": {
+                "required": [
+                    "cliRange",
+                    "paused",
+                    "commands",
+                    "workRequests",
+                    "lostClaims",
+                    "watchSessions",
+                    "blockedAccounts"
+                ],
+                "properties": {
+                    "cliRange": {
+                        "type": "string",
+                        "example": "^2.0"
+                    },
+                    "paused": {
+                        "description": "True when the server asks the bridge to take no new work.",
+                        "type": "boolean"
+                    },
+                    "commands": {
+                        "description": "The pending commands, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeCommand"
+                        }
+                    },
+                    "workRequests": {
+                        "description": "The open work requests the bridge can claim, oldest first, at most 100.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkRequest"
+                        }
+                    },
+                    "lostClaims": {
+                        "description": "The ids from `workClaims` that the bridge no longer holds.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    "watchSessions": {
+                        "description": "The open interactive runs that this bridge launched.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    "blockedAccounts": {
+                        "description": "The accounts that hit a usage limit, with the time each one frees up.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "account",
+                                "until"
+                            ],
+                            "properties": {
+                                "account": {
+                                    "type": "string"
+                                },
+                                "until": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeCommand": {
+                "description": "One command to a bridge.",
+                "required": [
+                    "type",
+                    "projectId",
+                    "subject",
+                    "commandId",
+                    "kind",
+                    "bridgeId",
+                    "runId",
+                    "runKey",
+                    "sessionId",
+                    "subjectType",
+                    "subjectId",
+                    "cardNumber",
+                    "workRequestId",
+                    "workKind",
+                    "ruleId",
+                    "startedAt",
+                    "endedAt",
+                    "expiresAt",
+                    "cause",
+                    "context",
+                    "model",
+                    "effort",
+                    "harness",
+                    "account",
+                    "runModel",
+                    "inboxActionId",
+                    "inboxItemNumber",
+                    "inboxItemId"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "bridge.command"
+                        ]
+                    },
+                    "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "subject": {
+                        "$ref": "#/components/schemas/SubjectRef"
+                    },
+                    "commandId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "resume-run",
+                            "stop-run",
+                            "rerun-command",
+                            "collect-session-usage"
+                        ]
+                    },
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runKey": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "sessionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "subjectType": {
+                        "type": "string"
+                    },
+                    "subjectId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "workRequestId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "workKind": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "endedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cause": {
+                        "type": "string",
+                        "enum": [
+                            "person",
+                            "ask-closed",
+                            "inbox-action"
+                        ]
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/WorkContext"
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "effort": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harness": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "account": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "runModel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inboxActionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "inboxItemNumber": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "inboxItemId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SubjectRef": {
+                "required": [
+                    "type",
+                    "id"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkContext": {
+                "description": "What the card held when the request opened. Each key is null when the card held no such value.",
+                "required": [
+                    "pullRequestNumber",
+                    "pullRequestUrl",
+                    "headSha",
+                    "reason",
+                    "documentId",
+                    "epicBranch",
+                    "inboxActionId",
+                    "inboxItemNumber",
+                    "inboxItemId"
+                ],
+                "properties": {
+                    "pullRequestNumber": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "headSha": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "epicBranch": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inboxActionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "inboxItemNumber": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "inboxItemId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkRequest": {
+                "description": "One work request. It never carries the claim token.",
+                "required": [
+                    "type",
+                    "projectId",
+                    "subject",
+                    "workRequestId",
+                    "subjectType",
+                    "subjectId",
+                    "kind",
+                    "capability",
+                    "state",
+                    "cardNumber",
+                    "ruleId",
+                    "createdAt",
+                    "resumeSessionId",
+                    "context",
+                    "model",
+                    "effort",
+                    "prompt",
+                    "inboxActionId",
+                    "inboxItemNumber",
+                    "inboxItemId",
+                    "targetBridgeId",
+                    "branch",
+                    "params",
+                    "run"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "bridge.work_request"
+                        ]
+                    },
+                    "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "subject": {
+                        "$ref": "#/components/schemas/SubjectRef"
+                    },
+                    "workRequestId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "subjectType": {
+                        "type": "string"
+                    },
+                    "subjectId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "description": "The kind of work.",
+                        "type": "string"
+                    },
+                    "capability": {
+                        "description": "The capability a bridge must report to claim the request.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "open",
+                            "claimed",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    },
+                    "cardNumber": {
+                        "description": "A label a person reads, for a card subject alone.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "resumeSessionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/WorkContext"
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "effort": {
+                        "description": "`low`, `medium`, `high`, `xhigh` or `max`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inboxActionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "inboxItemNumber": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "inboxItemId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "targetBridgeId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "params": {
+                        "description": "Parameter name to value, or null when the request has none.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "run": {
+                        "description": "The `run` list of the command entry.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkClaim": {
+                "required": [
+                    "workRequestId",
+                    "claimToken",
+                    "leaseUntil",
+                    "workRequest"
+                ],
+                "properties": {
+                    "workRequestId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "claimToken": {
+                        "description": "The bridge sends it back with the result.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "leaseUntil": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "workRequest": {
+                        "$ref": "#/components/schemas/WorkRequest"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkResultAnswer": {
+                "required": [
+                    "workRequestId",
+                    "state"
+                ],
+                "properties": {
+                    "workRequestId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "state": {
+                        "description": "The stored state.",
+                        "type": "string",
+                        "enum": [
+                            "open",
+                            "claimed",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "CardHolds": {
+                "required": [
+                    "holds"
+                ],
+                "properties": {
+                    "holds": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "projectId",
+                                "cardId"
+                            ],
+                            "properties": {
+                                "projectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "EventsAnswer": {
+                "required": [
+                    "hubUrl",
+                    "jwt",
+                    "topic",
+                    "projects",
+                    "flags",
+                    "cliRange",
+                    "head"
+                ],
+                "properties": {
+                    "hubUrl": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "jwt": {
+                        "description": "A subscriber JWT for the topic of the caller.",
+                        "type": "string"
+                    },
+                    "topic": {
+                        "type": "string"
+                    },
+                    "projects": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "slug",
+                                "name"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "slug": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "flags": {
+                        "description": "The only flags an agent token reads, such as `inbox.enabled` and `bridge.heartbeat_interval_seconds`.",
+                        "type": "object",
+                        "additionalProperties": {
+                            "oneOf": [
+                                {
+                                    "type": "boolean"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        }
+                    },
+                    "cliRange": {
+                        "type": "string",
+                        "example": "^2.0"
+                    },
+                    "head": {
+                        "description": "The highest outbox sequence of the owner.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "EventReplay": {
+                "required": [
+                    "events",
+                    "hasMore"
+                ],
+                "properties": {
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "type",
+                                "data"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "description": "The outbox sequence.",
+                                    "type": "integer"
+                                },
+                                "type": {
+                                    "type": "string"
+                                },
+                                "data": {
+                                    "description": "The payload, in the shape the hub delivers.",
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "hasMore": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "SessionClosed": {
+                "required": [
+                    "closed"
+                ],
+                "properties": {
+                    "closed": {
+                        "description": "The runs this call closed.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "Sites": {
+                "required": [
+                    "sites"
+                ],
+                "properties": {
+                    "sites": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "slug",
+                                "name",
+                                "collectFullText",
+                                "subcommandPrograms"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "slug": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "collectFullText": {
+                                    "type": "boolean"
+                                },
+                                "subcommandPrograms": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactStored": {
+                "required": [
+                    "artifactId",
+                    "versionNumber",
+                    "path",
+                    "versionPath"
+                ],
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "versionPath": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectCard": {
+                "required": [
+                    "cardId",
+                    "number",
+                    "column",
+                    "held"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "type": "integer"
+                    },
+                    "column": {
+                        "description": "The slug of the column the card is in.",
+                        "type": "string"
+                    },
+                    "held": {
+                        "description": "Whether a person paused the agents on it.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectColumns": {
+                "required": [
+                    "project",
+                    "columns"
+                ],
+                "properties": {
+                    "project": {
+                        "required": [
+                            "id",
+                            "slug"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "slug",
+                                "label",
+                                "terminal",
+                                "default",
+                                "backlog"
+                            ],
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "terminal": {
+                                    "type": "boolean"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                },
+                                "backlog": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentPinAnswer": {
+                "required": [
+                    "variant",
+                    "switchedFrom"
+                ],
+                "properties": {
+                    "variant": {
+                        "type": "string"
+                    },
+                    "switchedFrom": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IssuedToken": {
+                "required": [
+                    "token",
+                    "expiresAt"
+                ],
+                "properties": {
+                    "token": {
+                        "description": "Shown once.",
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "InboxAskCheck": {
+                "required": [
+                    "askId",
+                    "closed",
+                    "allRead"
+                ],
+                "properties": {
+                    "askId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "closed": {
+                        "type": "boolean"
+                    },
+                    "allRead": {
+                        "description": "Whether that session already read every item.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "RunId": {
+                "required": [
+                    "id"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "PreviewTokenRevoked": {
+                "required": [
+                    "revoked"
+                ],
+                "properties": {
+                    "revoked": {
+                        "description": "The tokens this call revoked. A label with no live token is not an error.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "SessionUsageAnswer": {
+                "required": [
+                    "runs",
+                    "updated"
+                ],
+                "properties": {
+                    "runs": {
+                        "type": "integer"
+                    },
+                    "updated": {
+                        "description": "The runs whose usage changed.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "RunOutputAnswer": {
+                "required": [
+                    "length",
+                    "capped"
+                ],
+                "properties": {
+                    "length": {
+                        "type": "integer"
+                    },
+                    "capped": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ToolCallsAnswer": {
+                "required": [
+                    "stored"
+                ],
+                "properties": {
+                    "stored": {
+                        "description": "The calls the server stored for the first time.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentHeadline": {
+                "properties": {
+                    "goal": {
+                        "required": [
+                            "metric"
+                        ],
+                        "properties": {
+                            "metric": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_:-]{0,127}$"
+                            },
+                            "better": {
+                                "type": "string",
+                                "enum": [
+                                    "lower",
+                                    "higher"
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "guards": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_:-]{0,127}$"
+                        },
+                        "maxItems": 16
+                    },
+                    "controls": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "metric",
+                                "variant",
+                                "expect",
+                                "share"
+                            ],
+                            "properties": {
+                                "metric": {
+                                    "type": "string"
+                                },
+                                "variant": {
+                                    "type": "string"
+                                },
+                                "expect": {
+                                    "type": "string",
+                                    "pattern": "^(>=|<=|>|<|==) *-?[0-9]+(\\.[0-9]+)?$"
+                                },
+                                "share": {
+                                    "type": "number",
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "exclusiveMinimum": true
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "maxItems": 16
+                    }
+                },
+                "type": "object",
+                "nullable": true
             },
             "StoreArtifactVersionRequest": {
                 "properties": {
@@ -3104,19 +4119,26 @@
             },
             "AcknowledgeBridgeCommandRequest": {
                 "required": [
-                    "textReason"
+                    "state"
                 ],
                 "properties": {
                     "state": {
                         "title": "Null unless the state is done or refused.",
-                        "default": null
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "done",
+                            "refused"
+                        ]
                     },
                     "reason": {
                         "title": "Trimmed, and null when blank, so a blank reason keeps the one the person gave.",
-                        "default": null
-                    },
-                    "textReason": {
-                        "type": "boolean"
+                        "description": "Blank keeps the reason the person gave.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 1000
                     }
                 },
                 "type": "object"
@@ -3147,6 +4169,9 @@
                 "properties": {
                     "account": {
                         "title": "The account the bridge chose for the request, or null when the body names none that could be an account.",
+                        "description": "The account the bridge chose for the request.",
+                        "type": "string",
+                        "nullable": true,
                         "default": null
                     }
                 },
@@ -4490,31 +5515,86 @@
                 "type": "object"
             },
             "ResolveExperimentPinRequest": {
+                "required": [
+                    "candidate",
+                    "variants",
+                    "baseline"
+                ],
                 "properties": {
                     "candidate": {
+                        "description": "The variant drawn for the card. It must be one of `variants`.",
+                        "type": "string",
+                        "nullable": true,
                         "default": null
                     },
                     "variants": {
-                        "default": null
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 32,
+                        "minItems": 1,
+                        "uniqueItems": true
                     },
                     "weights": {
                         "title": "The weight of each variant, in the order of the variants. Null when the\nchoice is invalid, or the weights are not one int from 1 to MAX_WEIGHT for\neach variant. A bad list never refuses the pin, so an older bridge that\nsends none still runs. A list, because PHP turns a key such as \"0\" into an int.",
+                        "description": "One weight for each variant, in order. A bad list never refuses the pin.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "maximum": 1000000,
+                            "minimum": 1
+                        },
+                        "nullable": true,
                         "default": null
                     },
                     "metrics": {
                         "title": "The metric keys the experiment declares, in their order. Null when they\nare not a list of 1 to MAX_METRICS unique keys of the right shape. A key\nthe registry does not know stays, so the page can name it.",
-                        "default": null
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_:-]{0,127}$"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 16
                     },
                     "headline": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ExperimentHeadline"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
                         "title": "The goal, the guards and the controls of the experiment page. Null when\nthe headline is not an object, or one of its parts is malformed, or it\nholds no part. Keys it does not know drop out. An empty guards list\nstays, and means no guards. A goal with no better way stays, so the page\ncan say so. A control names a declared variant, a comparison with a\nnumber, and a share above 0 up to 1.",
                         "default": null
                     },
                     "covers": {
                         "title": "The work kinds the experiment covers, sorted. Null when they are not a\nlist of 1 to MAX_COVERS unique kinds of the right shape. A bad list never\nrefuses the pin, so an older bridge that sends none still runs.",
-                        "default": null
+                        "description": "The work kinds the experiment covers.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 32
                     },
                     "baseline": {
                         "title": "The variant the others are compared against. Null when it is not one of\nthe variants of the request, and the controller then refuses the pin.",
+                        "description": "The variant the others are compared against. It must be one of `variants`.",
+                        "type": "string",
+                        "nullable": true,
                         "default": null
                     }
                 },
@@ -4522,42 +5602,95 @@
             },
             "SettleWorkRequestRequest": {
                 "required": [
-                    "validReason",
-                    "validCause"
+                    "claimToken",
+                    "state"
                 ],
                 "properties": {
                     "claimToken": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
                         "default": null
                     },
                     "state": {
                         "title": "Null unless the state is done, refused or open.",
-                        "default": null
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "done",
+                            "refused",
+                            "open"
+                        ]
                     },
                     "reason": {
                         "title": "Trimmed, and null when blank.",
+                        "description": "A code that starts with a letter, at most 64 characters.",
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                        "nullable": true,
                         "default": null
                     },
                     "cause": {
-                        "default": null
+                        "description": "Why the bridge gives the request back.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "usage-limit",
+                            "network"
+                        ]
                     },
                     "account": {
+                        "description": "The account of a request that the bridge gives back.",
+                        "type": "string",
+                        "nullable": true,
                         "default": null
                     },
                     "reading": {
+                        "description": "The reading that showed the usage limit.",
+                        "required": [
+                            "window",
+                            "limited",
+                            "source",
+                            "resetsAt"
+                        ],
+                        "properties": {
+                            "window": {
+                                "type": "string"
+                            },
+                            "usedPercent": {
+                                "type": "number",
+                                "nullable": true,
+                                "maximum": 200,
+                                "minimum": 0
+                            },
+                            "resetsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "limited": {
+                                "type": "boolean"
+                            },
+                            "source": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true,
                         "default": null
                     },
                     "sessionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
                         "default": null
                     },
                     "hasAssistantTurn": {
+                        "description": "Whether the run did any work.",
+                        "type": "boolean",
+                        "nullable": true,
                         "default": null
-                    },
-                    "validReason": {
-                        "type": "boolean"
-                    },
-                    "validCause": {
-                        "title": "Whether the cause is one that a bridge gives.",
-                        "type": "boolean"
                     }
                 },
                 "type": "object"

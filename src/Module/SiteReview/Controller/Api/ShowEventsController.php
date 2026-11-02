@@ -43,7 +43,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new OA\Parameter(name: 'X-Loupe-Bridge', description: 'The id of the calling bridge. A missing or unknown value answers 426.', in: 'header', schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The hub, the topic, the projects and the flags.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'The hub, the topic, the projects and the flags.', content: new OA\JsonContent(ref: '#/components/schemas/EventsAnswer')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

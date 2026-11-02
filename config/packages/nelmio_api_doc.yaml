@@ -59,6 +59,7 @@ when@dev: &generator
                                             type: string
                                             enum: [beta, stable, deprecated]
                                             description: The state of this version.
+                                            example: beta
                             cliRange:
                                 type: string
                                 description: The CLI versions this server works with, as a caret range.
@@ -86,5 +87,757 @@ when@dev: &generator
                         title: Loupe API v1, private routes
                         version: 1.0.0
                         description: The bridge and widget routes. They carry no public promise.
+                    components:
+                        schemas:
+                            CommandAckAnswer:
+                                type: object
+                                required:
+                                - commandId
+                                - state
+                                properties:
+                                    commandId:
+                                        type: string
+                                        format: uuid
+                                    state:
+                                        type: string
+                                        description: The stored state.
+                                        enum:
+                                        - pending
+                                        - done
+                                        - refused
+                                        - expired
+                                        - cancelled
+                            HeartbeatAnswer:
+                                type: object
+                                required:
+                                - cliRange
+                                - paused
+                                - commands
+                                - workRequests
+                                - lostClaims
+                                - watchSessions
+                                - blockedAccounts
+                                properties:
+                                    cliRange:
+                                        type: string
+                                        example: ^2.0
+                                    paused:
+                                        type: boolean
+                                        description: True when the server asks the bridge to take no new work.
+                                    commands:
+                                        type: array
+                                        items:
+                                            $ref: '#/components/schemas/BridgeCommand'
+                                        description: The pending commands, oldest first.
+                                    workRequests:
+                                        type: array
+                                        items:
+                                            $ref: '#/components/schemas/WorkRequest'
+                                        description: The open work requests the bridge can claim, oldest first, at most 100.
+                                    lostClaims:
+                                        type: array
+                                        items:
+                                            type: string
+                                            format: uuid
+                                        description: The ids from `workClaims` that the bridge no longer holds.
+                                    watchSessions:
+                                        type: array
+                                        items:
+                                            type: string
+                                            format: uuid
+                                        description: The open interactive runs that this bridge launched.
+                                    blockedAccounts:
+                                        type: array
+                                        description: The accounts that hit a usage limit, with the time each one frees up.
+                                        items:
+                                            type: object
+                                            required:
+                                            - account
+                                            - until
+                                            properties:
+                                                account:
+                                                    type: string
+                                                until:
+                                                    type: string
+                                                    format: date-time
+                                                    nullable: true
+                            BridgeCommand:
+                                type: object
+                                description: One command to a bridge.
+                                required:
+                                - type
+                                - projectId
+                                - subject
+                                - commandId
+                                - kind
+                                - bridgeId
+                                - runId
+                                - runKey
+                                - sessionId
+                                - subjectType
+                                - subjectId
+                                - cardNumber
+                                - workRequestId
+                                - workKind
+                                - ruleId
+                                - startedAt
+                                - endedAt
+                                - expiresAt
+                                - cause
+                                - context
+                                - model
+                                - effort
+                                - harness
+                                - account
+                                - runModel
+                                - inboxActionId
+                                - inboxItemNumber
+                                - inboxItemId
+                                properties:
+                                    type:
+                                        type: string
+                                        enum:
+                                        - bridge.command
+                                    projectId:
+                                        type: string
+                                        format: uuid
+                                    subject:
+                                        $ref: '#/components/schemas/SubjectRef'
+                                    commandId:
+                                        type: string
+                                        format: uuid
+                                    kind:
+                                        type: string
+                                        enum:
+                                        - resume-run
+                                        - stop-run
+                                        - rerun-command
+                                        - collect-session-usage
+                                    bridgeId:
+                                        type: string
+                                        format: uuid
+                                    runId:
+                                        type: string
+                                        format: uuid
+                                    runKey:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    sessionId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    subjectType:
+                                        type: string
+                                    subjectId:
+                                        type: string
+                                        format: uuid
+                                    cardNumber:
+                                        type: integer
+                                        nullable: true
+                                    workRequestId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    workKind:
+                                        type: string
+                                        nullable: true
+                                    ruleId:
+                                        type: string
+                                        nullable: true
+                                    startedAt:
+                                        type: string
+                                        format: date-time
+                                        nullable: true
+                                    endedAt:
+                                        type: string
+                                        format: date-time
+                                        nullable: true
+                                    expiresAt:
+                                        type: string
+                                        format: date-time
+                                    cause:
+                                        type: string
+                                        enum:
+                                        - person
+                                        - ask-closed
+                                        - inbox-action
+                                    context:
+                                        $ref: '#/components/schemas/WorkContext'
+                                    model:
+                                        type: string
+                                        nullable: true
+                                    effort:
+                                        type: string
+                                        nullable: true
+                                    harness:
+                                        type: string
+                                        nullable: true
+                                    account:
+                                        type: string
+                                        nullable: true
+                                    runModel:
+                                        type: string
+                                        nullable: true
+                                    inboxActionId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    inboxItemNumber:
+                                        type: integer
+                                        nullable: true
+                                    inboxItemId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                            SubjectRef:
+                                type: object
+                                required:
+                                - type
+                                - id
+                                properties:
+                                    type:
+                                        type: string
+                                    id:
+                                        type: string
+                                        format: uuid
+                            WorkContext:
+                                type: object
+                                description: What the card held when the request opened. Each key is null when the card held no such value.
+                                required:
+                                - pullRequestNumber
+                                - pullRequestUrl
+                                - headSha
+                                - reason
+                                - documentId
+                                - epicBranch
+                                - inboxActionId
+                                - inboxItemNumber
+                                - inboxItemId
+                                properties:
+                                    pullRequestNumber:
+                                        type: integer
+                                        nullable: true
+                                    pullRequestUrl:
+                                        type: string
+                                        nullable: true
+                                    headSha:
+                                        type: string
+                                        nullable: true
+                                    reason:
+                                        type: string
+                                        nullable: true
+                                    documentId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    epicBranch:
+                                        type: string
+                                        nullable: true
+                                    inboxActionId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    inboxItemNumber:
+                                        type: integer
+                                        nullable: true
+                                    inboxItemId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                            WorkRequest:
+                                type: object
+                                description: One work request. It never carries the claim token.
+                                required:
+                                - type
+                                - projectId
+                                - subject
+                                - workRequestId
+                                - subjectType
+                                - subjectId
+                                - kind
+                                - capability
+                                - state
+                                - cardNumber
+                                - ruleId
+                                - createdAt
+                                - resumeSessionId
+                                - context
+                                - model
+                                - effort
+                                - prompt
+                                - inboxActionId
+                                - inboxItemNumber
+                                - inboxItemId
+                                - targetBridgeId
+                                - branch
+                                - params
+                                - run
+                                properties:
+                                    type:
+                                        type: string
+                                        enum:
+                                        - bridge.work_request
+                                    projectId:
+                                        type: string
+                                        format: uuid
+                                    subject:
+                                        $ref: '#/components/schemas/SubjectRef'
+                                    workRequestId:
+                                        type: string
+                                        format: uuid
+                                    subjectType:
+                                        type: string
+                                    subjectId:
+                                        type: string
+                                        format: uuid
+                                    kind:
+                                        type: string
+                                        description: The kind of work.
+                                    capability:
+                                        type: string
+                                        description: The capability a bridge must report to claim the request.
+                                        nullable: true
+                                    state:
+                                        type: string
+                                        enum:
+                                        - open
+                                        - claimed
+                                        - done
+                                        - refused
+                                        - expired
+                                        - cancelled
+                                    cardNumber:
+                                        type: integer
+                                        description: A label a person reads, for a card subject alone.
+                                        nullable: true
+                                    ruleId:
+                                        type: string
+                                        nullable: true
+                                    createdAt:
+                                        type: string
+                                        format: date-time
+                                    resumeSessionId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    context:
+                                        $ref: '#/components/schemas/WorkContext'
+                                    model:
+                                        type: string
+                                        nullable: true
+                                    effort:
+                                        type: string
+                                        description: '`low`, `medium`, `high`, `xhigh` or `max`.'
+                                        nullable: true
+                                    prompt:
+                                        type: string
+                                        nullable: true
+                                    inboxActionId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    inboxItemNumber:
+                                        type: integer
+                                        nullable: true
+                                    inboxItemId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    targetBridgeId:
+                                        type: string
+                                        format: uuid
+                                        nullable: true
+                                    branch:
+                                        type: string
+                                        nullable: true
+                                    params:
+                                        type: object
+                                        additionalProperties: true
+                                        description: Parameter name to value, or null when the request has none.
+                                        nullable: true
+                                    run:
+                                        type: array
+                                        items:
+                                            type: string
+                                        description: The `run` list of the command entry.
+                                        nullable: true
+                            WorkClaim:
+                                type: object
+                                required:
+                                - workRequestId
+                                - claimToken
+                                - leaseUntil
+                                - workRequest
+                                properties:
+                                    workRequestId:
+                                        type: string
+                                        format: uuid
+                                    claimToken:
+                                        type: string
+                                        description: The bridge sends it back with the result.
+                                        format: uuid
+                                    leaseUntil:
+                                        type: string
+                                        format: date-time
+                                        nullable: true
+                                    workRequest:
+                                        $ref: '#/components/schemas/WorkRequest'
+                            WorkResultAnswer:
+                                type: object
+                                required:
+                                - workRequestId
+                                - state
+                                properties:
+                                    workRequestId:
+                                        type: string
+                                        format: uuid
+                                    state:
+                                        type: string
+                                        description: The stored state.
+                                        enum:
+                                        - open
+                                        - claimed
+                                        - done
+                                        - refused
+                                        - expired
+                                        - cancelled
+                            CardHolds:
+                                type: object
+                                required:
+                                - holds
+                                properties:
+                                    holds:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - projectId
+                                            - cardId
+                                            properties:
+                                                projectId:
+                                                    type: string
+                                                    format: uuid
+                                                cardId:
+                                                    type: string
+                                                    format: uuid
+                            EventsAnswer:
+                                type: object
+                                required:
+                                - hubUrl
+                                - jwt
+                                - topic
+                                - projects
+                                - flags
+                                - cliRange
+                                - head
+                                properties:
+                                    hubUrl:
+                                        type: string
+                                        format: uri
+                                    jwt:
+                                        type: string
+                                        description: A subscriber JWT for the topic of the caller.
+                                    topic:
+                                        type: string
+                                    projects:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - slug
+                                            - name
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                slug:
+                                                    type: string
+                                                    nullable: true
+                                                name:
+                                                    type: string
+                                    flags:
+                                        type: object
+                                        description: The only flags an agent token reads, such as `inbox.enabled` and `bridge.heartbeat_interval_seconds`.
+                                        properties: {}
+                                        additionalProperties:
+                                            oneOf:
+                                            -   type: boolean
+                                            -   type: integer
+                                    cliRange:
+                                        type: string
+                                        example: ^2.0
+                                    head:
+                                        type: integer
+                                        description: The highest outbox sequence of the owner.
+                            EventReplay:
+                                type: object
+                                required:
+                                - events
+                                - hasMore
+                                properties:
+                                    events:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - type
+                                            - data
+                                            properties:
+                                                id:
+                                                    type: integer
+                                                    description: The outbox sequence.
+                                                type:
+                                                    type: string
+                                                data:
+                                                    type: object
+                                                    additionalProperties: true
+                                                    description: The payload, in the shape the hub delivers.
+                                    hasMore:
+                                        type: boolean
+                            SessionClosed:
+                                type: object
+                                required:
+                                - closed
+                                properties:
+                                    closed:
+                                        type: integer
+                                        description: The runs this call closed.
+                            Sites:
+                                type: object
+                                required:
+                                - sites
+                                properties:
+                                    sites:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - slug
+                                            - name
+                                            - collectFullText
+                                            - subcommandPrograms
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                slug:
+                                                    type: string
+                                                    nullable: true
+                                                name:
+                                                    type: string
+                                                collectFullText:
+                                                    type: boolean
+                                                subcommandPrograms:
+                                                    type: array
+                                                    items:
+                                                        type: string
+                            ArtifactStored:
+                                type: object
+                                required:
+                                - artifactId
+                                - versionNumber
+                                - path
+                                - versionPath
+                                properties:
+                                    artifactId:
+                                        type: string
+                                        format: uuid
+                                    versionNumber:
+                                        type: integer
+                                    path:
+                                        type: string
+                                    versionPath:
+                                        type: string
+                            ProjectCard:
+                                type: object
+                                required:
+                                - cardId
+                                - number
+                                - column
+                                - held
+                                properties:
+                                    cardId:
+                                        type: string
+                                        format: uuid
+                                    number:
+                                        type: integer
+                                    column:
+                                        type: string
+                                        description: The slug of the column the card is in.
+                                    held:
+                                        type: boolean
+                                        description: Whether a person paused the agents on it.
+                            ProjectColumns:
+                                type: object
+                                required:
+                                - project
+                                - columns
+                                properties:
+                                    project:
+                                        type: object
+                                        required:
+                                        - id
+                                        - slug
+                                        properties:
+                                            id:
+                                                type: string
+                                                format: uuid
+                                            slug:
+                                                type: string
+                                                nullable: true
+                                    columns:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - slug
+                                            - label
+                                            - terminal
+                                            - default
+                                            - backlog
+                                            properties:
+                                                slug:
+                                                    type: string
+                                                label:
+                                                    type: string
+                                                terminal:
+                                                    type: boolean
+                                                default:
+                                                    type: boolean
+                                                backlog:
+                                                    type: boolean
+                            ExperimentPinAnswer:
+                                type: object
+                                required:
+                                - variant
+                                - switchedFrom
+                                properties:
+                                    variant:
+                                        type: string
+                                    switchedFrom:
+                                        type: string
+                                        nullable: true
+                            IssuedToken:
+                                type: object
+                                required:
+                                - token
+                                - expiresAt
+                                properties:
+                                    token:
+                                        type: string
+                                        description: Shown once.
+                                    expiresAt:
+                                        type: string
+                                        format: date-time
+                            InboxAskCheck:
+                                type: object
+                                required:
+                                - askId
+                                - closed
+                                - allRead
+                                properties:
+                                    askId:
+                                        type: string
+                                        format: uuid
+                                    closed:
+                                        type: boolean
+                                    allRead:
+                                        type: boolean
+                                        description: Whether that session already read every item.
+                            RunId:
+                                type: object
+                                required:
+                                - id
+                                properties:
+                                    id:
+                                        type: string
+                                        format: uuid
+                            PreviewTokenRevoked:
+                                type: object
+                                required:
+                                - revoked
+                                properties:
+                                    revoked:
+                                        type: integer
+                                        description: The tokens this call revoked. A label with no live token is not an error.
+                            SessionUsageAnswer:
+                                type: object
+                                required:
+                                - runs
+                                - updated
+                                properties:
+                                    runs:
+                                        type: integer
+                                    updated:
+                                        type: integer
+                                        description: The runs whose usage changed.
+                            RunOutputAnswer:
+                                type: object
+                                required:
+                                - length
+                                - capped
+                                properties:
+                                    length:
+                                        type: integer
+                                    capped:
+                                        type: boolean
+                            ToolCallsAnswer:
+                                type: object
+                                required:
+                                - stored
+                                properties:
+                                    stored:
+                                        type: integer
+                                        description: The calls the server stored for the first time.
+                            ExperimentHeadline:
+                                type: object
+                                properties:
+                                    goal:
+                                        type: object
+                                        required:
+                                        - metric
+                                        properties:
+                                            metric:
+                                                type: string
+                                                pattern: ^[a-z][a-z0-9_:-]{0,127}$
+                                            better:
+                                                type: string
+                                                enum:
+                                                - lower
+                                                - higher
+                                    guards:
+                                        type: array
+                                        items:
+                                            type: string
+                                            pattern: ^[a-z][a-z0-9_:-]{0,127}$
+                                        maxItems: 16
+                                    controls:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - metric
+                                            - variant
+                                            - expect
+                                            - share
+                                            properties:
+                                                metric:
+                                                    type: string
+                                                variant:
+                                                    type: string
+                                                expect:
+                                                    type: string
+                                                    pattern: ^(>=|<=|>|<|==) *-?[0-9]+(\.[0-9]+)?$
+                                                share:
+                                                    type: number
+                                                    exclusiveMinimum: true
+                                                    minimum: 0
+                                                    maximum: 1
+                                        maxItems: 16
+                                nullable: true
 
 when@test: *generator

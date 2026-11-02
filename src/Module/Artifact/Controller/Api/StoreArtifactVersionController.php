@@ -39,7 +39,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
         new OA\Parameter(name: 'X-Loupe-Session', description: 'The session that stores the version. A session of a worker run is refused.', in: 'header', schema: new OA\Schema(type: 'string', maxLength: 255)),
     ],
     responses: [
-        new OA\Response(response: 201, description: 'The stored version.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 201, description: 'The stored version.', content: new OA\JsonContent(ref: '#/components/schemas/ArtifactStored')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

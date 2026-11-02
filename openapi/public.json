@@ -158,6 +158,7 @@
                                 "status": {
                                     "description": "The state of this version.",
                                     "type": "string",
+                                    "example": "beta",
                                     "enum": [
                                         "beta",
                                         "stable",

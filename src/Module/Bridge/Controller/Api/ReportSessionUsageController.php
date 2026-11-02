@@ -34,7 +34,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new OA\Parameter(name: 'sessionId', description: 'The session id. A value that is not a uuid answers 422 `invalid_session_id`.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The counts match.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'The counts match.', content: new OA\JsonContent(ref: '#/components/schemas/SessionUsageAnswer')),
         new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

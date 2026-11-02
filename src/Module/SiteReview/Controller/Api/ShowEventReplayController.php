@@ -43,7 +43,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new OA\Parameter(name: 'after', description: 'The sequence to read after.', in: 'query', required: true, schema: new OA\Schema(type: 'integer', minimum: 0)),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'At most 200 new events, with an overlap.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'At most 200 new events, with an overlap.', content: new OA\JsonContent(ref: '#/components/schemas/EventReplay')),
         new OA\Response(response: 400, description: 'Refused: `invalid_query`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

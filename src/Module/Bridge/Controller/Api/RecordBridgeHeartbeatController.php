@@ -41,7 +41,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new OA\Parameter(name: 'bridgeId', description: 'The uuid the bridge generates on its first start. Any other value answers 404.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The heartbeat is accepted.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'The heartbeat is accepted.', content: new OA\JsonContent(ref: '#/components/schemas/HeartbeatAnswer')),
         new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

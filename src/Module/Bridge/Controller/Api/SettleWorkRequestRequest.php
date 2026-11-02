@@ -8,6 +8,8 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use OpenApi\Attributes as OA;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -19,6 +21,7 @@ use Symfony\Component\Uid\Uuid;
  * session and whether the run did any work. The cause usage-limit adds the
  * reading that showed the limit. The cause network sends no reading.
  */
+#[OA\Schema(required: ['claimToken', 'state'])]
 final class SettleWorkRequestRequest
 {
     public const string CAUSE_USAGE_LIMIT = 'usage-limit';
@@ -29,13 +32,40 @@ final class SettleWorkRequestRequest
     private const array CAUSES = [self::CAUSE_USAGE_LIMIT, self::CAUSE_NETWORK];
 
     public function __construct(
+        #[OA\Property(type: 'string', format: 'uuid')]
         public mixed $claimToken = null,
+
+        #[OA\Property(type: 'string', enum: ['done', 'refused', 'open'])]
         public mixed $state = null,
+
+        #[OA\Property(description: 'A code that starts with a letter, at most 64 characters.', type: 'string', pattern: '^[a-z][a-z0-9-]{0,63}$', nullable: true)]
         public mixed $reason = null,
+
+        #[OA\Property(description: 'Why the bridge gives the request back.', type: 'string', nullable: true, enum: ['usage-limit', 'network'])]
         public mixed $cause = null,
+
+        #[OA\Property(description: 'The account of a request that the bridge gives back.', type: 'string', nullable: true)]
         public mixed $account = null,
+
+        #[OA\Property(
+            description: 'The reading that showed the usage limit.',
+            required: ['window', 'limited', 'source', 'resetsAt'],
+            properties: [
+                new OA\Property(property: 'window', type: 'string'),
+                new OA\Property(property: 'usedPercent', type: 'number', nullable: true, maximum: 200, minimum: 0),
+                new OA\Property(property: 'resetsAt', type: 'string', format: 'date-time'),
+                new OA\Property(property: 'limited', type: 'boolean'),
+                new OA\Property(property: 'source', type: 'string'),
+            ],
+            type: 'object',
+            nullable: true,
+        )]
         public mixed $reading = null,
+
+        #[OA\Property(type: 'string', format: 'uuid', nullable: true)]
         public mixed $sessionId = null,
+
+        #[OA\Property(description: 'Whether the run did any work.', type: 'boolean', nullable: true)]
         public mixed $hasAssistantTurn = null,
     ) {
     }
@@ -53,6 +83,7 @@ final class SettleWorkRequestRequest
         return \is_string($this->claimToken) && Uuid::isValid($this->claimToken) ? Uuid::fromString($this->claimToken) : null;
     }
 
+    #[Ignore]
     public function hasValidReason(): bool
     {
         $reason = $this->reason();
@@ -70,6 +101,7 @@ final class SettleWorkRequestRequest
     }
 
     /** Whether the cause is one that a bridge gives. */
+    #[Ignore]
     public function hasValidCause(): bool
     {
         return \is_string($this->cause) && \in_array($this->cause, self::CAUSES, true);

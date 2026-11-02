@@ -30,7 +30,7 @@ use Symfony\Component\Routing\Attribute\Route;
     summary: 'List the projects of the caller for the CLI',
     tags: ['Bridge'],
     responses: [
-        new OA\Response(response: 200, description: 'The projects, with what the bridge collects from their tool calls.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 200, description: 'The projects, with what the bridge collects from their tool calls.', content: new OA\JsonContent(ref: '#/components/schemas/Sites')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
