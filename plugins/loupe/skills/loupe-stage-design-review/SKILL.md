@@ -22,7 +22,7 @@ Review one draft design document of one card, and send the result to Loupe with 
 ## Procedure
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them.
-2. Load the `loupe-documents` and `loupe-recommendations` instructions and the instructions the profile `Instruction files` section names. They hold the project rules that the checklists point at.
+2. Load the `loupe-documents` instructions and the instructions the profile `Instruction files` section names. They hold the project rules that the checklists point at.
 3. Find the draft. The prompt can name a document id. Otherwise take the draft among the documents that `card_get` lists.
    1. The product design has the product design tag, or a title that starts `Product design`. The tech design has the tech design tags, or a title that starts `Tech design`. The contract "Document tags" says where the tags come from.
    2. Skip the tech design of the parent card of an epic child.

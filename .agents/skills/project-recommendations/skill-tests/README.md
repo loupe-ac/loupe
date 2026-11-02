@@ -1,9 +1,9 @@
 ---
-title: "Skill tests: loupe-recommendations"
-description: "The six cases that test the loupe-recommendations skill, and how to run them again."
+title: "Skill tests: project-recommendations"
+description: "The six cases that test the project-recommendations skill, and how to run them again."
 ---
 
-These pages are not published on the documentation site. They hold the six cases that test the `loupe-recommendations` skill, so a later change to the skill can run them again.
+These pages are not published on the documentation site. They hold the six cases that test the `project-recommendations` skill, so a later change to the skill can run them again.
 
 ## Run a case
 
@@ -16,8 +16,8 @@ These pages are not published on the documentation site. They hold the six cases
 
    > You are the reviewer of an agent review. Read `<checkout>`/plugins/loupe/skills/loupe-stage-review/references/checklist.md, then context.md and change.diff in the current folder. Report your findings, each with a severity (blocking, important or minor) and a title, or say no findings. Then give a one-line verdict. At most 150 words. Do not edit any file.
 
-4. To test with the skill, start the prompt with: "First load the skill loupe-recommendations with the Skill tool and follow it."
-5. Run it with `printf "%s" "$PROMPT" | claude -p --plugin-dir <checkout>/plugins/loupe --permission-mode bypassPermissions` from the fixture folder. Run each case three times, because answers vary.
+4. To test with the skill, start the prompt with: "First read `<checkout>`/.agents/skills/project-recommendations/SKILL.md and follow it."
+5. Run it with `printf "%s" "$PROMPT" | claude -p --permission-mode bypassPermissions` from the fixture folder. Run each case three times, because answers vary.
 
 ## Result of the run (2026-10-19)
 

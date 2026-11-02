@@ -1,6 +1,6 @@
 ---
 title: "Case 2: The correct fix needs a migration and a release"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The agent recommends the correct fix (option B). It states the defect and the cost, and says the owner can choose the patch.

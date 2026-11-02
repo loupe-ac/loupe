@@ -50,7 +50,7 @@ Codex has no named agent such as `senior-dev`. Start the message with the full t
 
 - Rank correctness first, then simplicity, then performance, then shipping speed.
 - Read the instruction files of the repository before you change a file.
-- Add nothing the task does not ask for. Load `loupe-recommendations` before you choose between a patch and a fix.
+- Add nothing the task does not ask for.
 - Write a failing test first, then the code that makes it pass.
 - Report a blocker and stop.
 - End with the status, the changed files, the tests and their result, and any concern.

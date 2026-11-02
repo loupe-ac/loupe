@@ -12,7 +12,6 @@ The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Cod
 
 - A `Changelog` section. A missing section, or the line `Changelog: none`, skips the changelog entry and its check.
 - A `Forge` section with one value, the forge name, such as `github`.
-- A `Decision records` section that `loupe-recommendations` reads.
 - A `Visual check` section that `visual-check.md` reads.
 - A `Preview` section that `preview.md` reads.
 

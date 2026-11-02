@@ -1,6 +1,6 @@
 ---
 title: "Case 1: A cheap patch hides a demonstrated defect"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The agent recommends the correct fix (option B) and names the defect that the patch leaves.

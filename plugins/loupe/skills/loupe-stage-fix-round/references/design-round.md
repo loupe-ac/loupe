@@ -7,7 +7,7 @@ The design round answers feedback on the product document or the tech design of 
 3. When its `status` is `approved`, stop with `STAGE RESULT: <document> already approved`.
 3a. The prompt line `Fix reason: <reason>.` names the prompt reason. Take "Answer an agent review" below instead of steps 4 to 7 when the prompt reason is `agent-review`. Without that line, take it when the document is a draft and `document_get_review` lists an unanswered agent review of this card.
 4. When the `verdict` is `changes-requested`, check the triggers of `../../loupe-stage-product-design/references/review-round.md` first. The triggers are an open comment, an answered decision without a matching `**Decided:**` line, and an uncovered requirement. Stop with `STAGE RESULT: blocked: changes requested with no comment` only when none holds.
-5. Load `loupe-documents` and `loupe-recommendations`. For a product document, read `../../loupe-stage-product-design/references/product-document.md`. For a tech design, load the instructions and read the design inputs that the profile `Instruction files` section names.
+5. Load `loupe-documents`. For a product document, read `../../loupe-stage-product-design/references/product-document.md`. For a tech design, load the instructions and read the design inputs that the profile `Instruction files` section names.
 6. Follow `../../loupe-stage-product-design/references/review-round.md`. The requirement source is the card body for the product document. For the tech design, it is the approved product document, or the card body when the card has no product document.
 7. When the review round ends `<document> unchanged`, stop with `STAGE RESULT: nothing to fix`.
 

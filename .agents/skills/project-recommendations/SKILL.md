@@ -1,5 +1,5 @@
 ---
-name: loupe-recommendations
+name: project-recommendations
 description: "Use when you recommend, choose or review a solution: a design decision, a fix, a plan, a review finding, or a patch against a fix."
 ---
 
@@ -52,6 +52,5 @@ Added code can add real defects. A measured or demonstrated risk of the larger f
 
 ## Decision records
 
-1. Read the `Decision records` section of the repository profile at `.loupe/lifecycle.md`. It names where the project keeps its decision records and its priorities.
-2. Read the records that touch the code of the choice. An accepted record is part of the definition of correct.
-3. When the profile has no such section, skip the record check and say so in one line.
+1. Read `docs/adr/index.md` and the records that touch the code of the choice. An accepted record is part of the definition of correct.
+2. Read `docs/contributing/architectural-priorities.md`. It ranks the priorities and says which one yields in each collision.

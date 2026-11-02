@@ -15,7 +15,7 @@ Never move the card. The workflow asked for this session, and the owner's approv
 
 ## Procedure
 
-1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
+1. Load the `loupe-board` and `loupe-documents` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
 2. Read `.loupe/lifecycle.md` for the writing style and the `Documents` tags. When the file is missing, write plainly.
 3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md` and `../loupe-product-design/references/question-rules.md`. Follow them for the whole session.
 4. Call `card_get`. Read the tags of each linked document with `document_get`, as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.

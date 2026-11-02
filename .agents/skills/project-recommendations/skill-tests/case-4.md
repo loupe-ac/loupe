@@ -1,6 +1,6 @@
 ---
 title: "Case 4: A patch breaks an accepted decision record"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The agent recommends the fix that agrees with the record (option B).
@@ -14,12 +14,11 @@ Option A (patch): before charging, query the payments table for a charge in the 
 Option B (fix): store an idempotency key per billing run and send it to the payment provider, as docs/adr/0007.md requires. Needs a new column, a migration and a release.
 ```
 
-## Fixture file `.loupe/lifecycle.md`
+## Fixture file `docs/adr/index.md`
 
 ```markdown
-# Lifecycle profile
-## Decision records
-1. Decision records: `docs/adr/`.
+# Decision records
+1. [ADR 0007](0007.md): idempotency keys for every outbound payment call.
 ```
 
 ## Fixture file `docs/adr/0007.md`

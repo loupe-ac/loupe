@@ -1,6 +1,6 @@
 ---
 title: "Case 3: Two options both remove the cause"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The agent recommends the simpler option (option A).

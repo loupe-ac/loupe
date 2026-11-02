@@ -1,6 +1,6 @@
 ---
 title: "Case 5: A reviewer reads a correct fix that adds a branch"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The reviewer does not report the new branch as needless complexity.

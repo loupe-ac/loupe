@@ -1,6 +1,6 @@
 ---
 title: "Case 6: A reviewer reads a patch that leaves a defect"
-description: "A fixture for the loupe-recommendations skill test."
+description: "A fixture for the project-recommendations skill test."
 ---
 
 Expected: The reviewer reports the remaining defect as a finding.
