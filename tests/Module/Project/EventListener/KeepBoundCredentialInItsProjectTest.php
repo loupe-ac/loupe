@@ -51,7 +51,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
 
         $swept = 0;
         foreach ($router->getRouteCollection() as $name => $route) {
-            if (!str_starts_with($route->getPath(), '/api/projects/{handle}')) {
+            if (!str_starts_with($route->getPath(), '/api/projects/{handle}') && !str_starts_with($route->getPath(), '/api/v1/bridge/projects/{handle}')) {
                 continue;
             }
 
@@ -72,7 +72,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
             self::assertSame('{"error":"project_not_found"}', $this->client->getResponse()->getContent(), $name);
         }
 
-        self::assertGreaterThanOrEqual(13, $swept);
+        self::assertGreaterThanOrEqual(26, $swept);
     }
 
     public function test_a_refusal_leaves_a_security_audit_row(): void

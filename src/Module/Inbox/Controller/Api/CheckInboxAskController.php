@@ -29,8 +29,14 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 #[RateLimit('agent_inbox_ask_checks', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(InboxInstallFlags::FLAG_INBOX_ENABLED)]
 #[Route(
-    '/api/projects/{handle}/inbox/asks/{askId}',
+    '/api/v1/bridge/projects/{handle}/inbox/asks/{askId}',
     name: 'api_project_inbox_ask_check',
+    requirements: ['handle' => '[^/]+', 'askId' => Requirement::UUID],
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/projects/{handle}/inbox/asks/{askId}',
+    name: 'api_legacy_project_inbox_ask_check',
     requirements: ['handle' => '[^/]+', 'askId' => Requirement::UUID],
     methods: ['GET'],
 )]

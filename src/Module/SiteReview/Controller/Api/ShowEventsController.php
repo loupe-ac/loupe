@@ -34,8 +34,13 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 // subscribe to, so there is nothing here to be authorized for.
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/events',
+    '/api/v1/bridge/events',
     name: 'api_events',
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/events',
+    name: 'api_legacy_events',
     methods: ['GET'],
 )]
 final class ShowEventsController extends AppController

@@ -25,8 +25,14 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  */
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/bridges/{bridgeId}/commands/{commandId}',
+    '/api/v1/bridge/bridges/{bridgeId}/commands/{commandId}',
     name: 'api_bridge_command_ack',
+    requirements: ['bridgeId' => Requirement::UUID, 'commandId' => Requirement::UUID],
+    methods: ['PUT'],
+)]
+#[Route(
+    '/api/bridges/{bridgeId}/commands/{commandId}',
+    name: 'api_legacy_bridge_command_ack',
     requirements: ['bridgeId' => Requirement::UUID, 'commandId' => Requirement::UUID],
     methods: ['PUT'],
 )]

@@ -28,8 +28,14 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 #[RateLimit('agent_git_token', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[Route(
-    '/api/projects/{handle}/git-token',
+    '/api/v1/bridge/projects/{handle}/git-token',
     name: 'api_project_git_token_issue',
+    requirements: ['handle' => '[^/]+'],
+    methods: ['POST'],
+)]
+#[Route(
+    '/api/projects/{handle}/git-token',
+    name: 'api_legacy_project_git_token_issue',
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]

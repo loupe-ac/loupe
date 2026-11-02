@@ -20,8 +20,13 @@ use Symfony\Component\Uid\Uuid;
  * needs no bridge.
  */
 #[Route(
-    '/api/interactive-sessions/{sessionId}/close',
+    '/api/v1/bridge/interactive-sessions/{sessionId}/close',
     name: 'api_interactive_session_close',
+    methods: ['POST'],
+)]
+#[Route(
+    '/api/interactive-sessions/{sessionId}/close',
+    name: 'api_legacy_interactive_session_close',
     methods: ['POST'],
 )]
 final class CloseInteractiveSessionController extends AppController

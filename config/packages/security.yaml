@@ -126,6 +126,31 @@ security:
         - { path: '^/api/bridges/[^/]+/runs$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/work-requests/[^/]+/claim$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/work-requests/[^/]+/result$', roles: ROLE_API_AGENT }
+        # The same surface under the versioned bridge prefix. Both paths stay until
+        # the old one is retired.
+        - { path: '^/api/v1/bridge/projects$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/columns$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/cards/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/events$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/events/replay$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/card-holds$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/close$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/output$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/interactive-runs/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/experiments/[^/]+/pins/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/inbox/asks/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/artifacts$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/preview-tokens$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/preview-tokens/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/git-token$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/heartbeat$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/commands/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/runs$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/work-requests/[^/]+/claim$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/work-requests/[^/]+/result$', roles: ROLE_API_AGENT }
         # The version list and the public spec need no sign-in. Both spend from the
         # budget of the client address, as ApplyApiBudgetOnRequest says.
         - { path: '^/api/versions$', roles: PUBLIC_ACCESS }

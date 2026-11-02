@@ -34,8 +34,13 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 #[RateLimit('agent_event_replay', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/events/replay',
+    '/api/v1/bridge/events/replay',
     name: 'api_event_replay',
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/events/replay',
+    name: 'api_legacy_event_replay',
     methods: ['GET'],
 )]
 final class ShowEventReplayController extends AppController

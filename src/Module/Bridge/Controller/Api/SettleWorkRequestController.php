@@ -31,8 +31,14 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 #[RateLimit('agent_work_request_results', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/bridges/{bridgeId}/work-requests/{workRequestId}/result',
+    '/api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result',
     name: 'api_bridge_work_request_result',
+    requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
+    methods: ['PUT'],
+)]
+#[Route(
+    '/api/bridges/{bridgeId}/work-requests/{workRequestId}/result',
+    name: 'api_legacy_bridge_work_request_result',
     requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
     methods: ['PUT'],
 )]

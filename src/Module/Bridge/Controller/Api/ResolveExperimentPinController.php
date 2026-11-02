@@ -25,8 +25,14 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  */
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/projects/{handle}/experiments/{experiment}/pins/{cardId}',
+    '/api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}',
     name: 'api_project_experiment_pin_resolve',
+    requirements: ['handle' => '[^/]+', 'experiment' => '[^/]+', 'cardId' => '[^/]+'],
+    methods: ['PUT'],
+)]
+#[Route(
+    '/api/projects/{handle}/experiments/{experiment}/pins/{cardId}',
+    name: 'api_legacy_project_experiment_pin_resolve',
     requirements: ['handle' => '[^/]+', 'experiment' => '[^/]+', 'cardId' => '[^/]+'],
     methods: ['PUT'],
 )]

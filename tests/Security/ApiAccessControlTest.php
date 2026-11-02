@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Security;
 
 use App\Module\Account\Entity\User;
+use App\Tests\Api\Bridge\BridgeRoutesTwoPathsTest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
@@ -50,6 +52,24 @@ final class ApiAccessControlTest extends KernelTestCase
     public function test_a_site_review_token_stays_denied_outside_its_own_prefix(): void
     {
         self::assertFalse($this->decide('/api/other', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+    }
+
+    #[DataProvider('bridgeRoutes')]
+    public function test_a_bridge_path_admits_the_agent_scope_and_no_other_on_both_prefixes(string $controller, string $method, string $oldPath, string $newPath): void
+    {
+        $sample = ['{bridgeId}' => 'b1', '{commandId}' => 'c1', '{workRequestId}' => 'w1', '{sessionId}' => 's1', '{handle}' => 'loupe', '{runId}' => 'r1', '{cardId}' => 'k1', '{askId}' => 'a1', '{experiment}' => 'e1', '{label}' => 'l1'];
+        foreach ([$oldPath, $newPath] as $template) {
+            $path = strtr($template, $sample);
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']), $path);
+            self::assertFalse($this->decide($path.'/x/y', self::ALL_ROLES), $path);
+        }
+    }
+
+    /** @return array<string, array{class-string, string, string, string}> */
+    public static function bridgeRoutes(): array
+    {
+        return BridgeRoutesTwoPathsTest::routes();
     }
 
     public function test_the_deny_rule_does_not_shadow_the_agent_scope(): void

@@ -25,8 +25,13 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 #[RateLimit('agent_card_holds', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[Route(
-    '/api/card-holds',
+    '/api/v1/bridge/card-holds',
     name: 'api_card_holds',
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/card-holds',
+    name: 'api_legacy_card_holds',
     methods: ['GET'],
 )]
 final class ListCardHoldsController extends AppController

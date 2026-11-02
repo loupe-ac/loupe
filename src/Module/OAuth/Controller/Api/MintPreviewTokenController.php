@@ -26,8 +26,14 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 #[RateLimit('agent_preview_tokens', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[Route(
-    '/api/projects/{handle}/preview-tokens',
+    '/api/v1/bridge/projects/{handle}/preview-tokens',
     name: 'api_project_preview_token_mint',
+    requirements: ['handle' => '[^/]+'],
+    methods: ['POST'],
+)]
+#[Route(
+    '/api/projects/{handle}/preview-tokens',
+    name: 'api_legacy_project_preview_token_mint',
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]

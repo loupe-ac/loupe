@@ -30,8 +30,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 #[RateLimit('agent_artifact_store', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[Route(
-    '/api/projects/{handle}/artifacts',
+    '/api/v1/bridge/projects/{handle}/artifacts',
     name: 'api_project_artifact_store',
+    requirements: ['handle' => '[^/]+'],
+    methods: ['POST'],
+)]
+#[Route(
+    '/api/projects/{handle}/artifacts',
+    name: 'api_legacy_project_artifact_store',
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]

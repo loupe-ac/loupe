@@ -17,8 +17,14 @@ use Symfony\Component\Routing\Attribute\Route;
  * card left that column. The firewall admits agent-scoped tokens alone.
  */
 #[Route(
-    '/api/projects/{handle}/board/cards/{cardId}',
+    '/api/v1/bridge/projects/{handle}/cards/{cardId}',
     name: 'api_project_board_card_show',
+    requirements: ['handle' => '[^/]+', 'cardId' => '[^/]+'],
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/projects/{handle}/board/cards/{cardId}',
+    name: 'api_legacy_project_board_card_show',
     requirements: ['handle' => '[^/]+', 'cardId' => '[^/]+'],
     methods: ['GET'],
 )]

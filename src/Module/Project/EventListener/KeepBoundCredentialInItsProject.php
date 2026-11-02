@@ -47,7 +47,8 @@ final readonly class KeepBoundCredentialInItsProject
 
         $request = $event->getRequest();
         $handle = $request->attributes->get('handle');
-        if (!\is_string($handle) || !str_starts_with($request->getPathInfo(), '/api/projects/')) {
+        $path = $request->getPathInfo();
+        if (!\is_string($handle) || !(str_starts_with($path, '/api/projects/') || str_starts_with($path, '/api/v1/bridge/projects/'))) {
             return;
         }
 

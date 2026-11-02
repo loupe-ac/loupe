@@ -25,8 +25,13 @@ use Symfony\Component\Routing\Attribute\Route;
  * visitor. Project ownership is enforced by the handler's owner-scoped lookup.
  */
 #[Route(
-    '/api/projects',
+    '/api/v1/bridge/projects',
     name: 'api_projects',
+    methods: ['GET'],
+)]
+#[Route(
+    '/api/projects',
+    name: 'api_legacy_projects',
     methods: ['GET'],
 )]
 final class ListSitesController extends AppController

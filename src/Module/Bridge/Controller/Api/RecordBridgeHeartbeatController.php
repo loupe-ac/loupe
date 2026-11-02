@@ -35,8 +35,14 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 #[RateLimit('agent_bridge_heartbeats', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
-    '/api/bridges/{bridgeId}/heartbeat',
+    '/api/v1/bridge/bridges/{bridgeId}/heartbeat',
     name: 'api_bridge_heartbeat',
+    requirements: ['bridgeId' => Requirement::UUID],
+    methods: ['PUT'],
+)]
+#[Route(
+    '/api/bridges/{bridgeId}/heartbeat',
+    name: 'api_legacy_bridge_heartbeat',
     requirements: ['bridgeId' => Requirement::UUID],
     methods: ['PUT'],
 )]
