@@ -20,6 +20,12 @@ use Symfony\Component\Routing\Attribute\Route;
     name: 'app_account_api_keys',
     methods: ['GET'],
 )]
+#[Route(
+    '/account/api-keys/create',
+    name: 'app_account_api_keys_create_dialog',
+    defaults: ['openCreateDialog' => true],
+    methods: ['GET'],
+)]
 final class ListApiKeysController extends AppController
 {
     public const string CREATE_FORM = 'createForm';
@@ -32,7 +38,7 @@ final class ListApiKeysController extends AppController
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, bool $openCreateDialog = false): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -53,6 +59,7 @@ final class ListApiKeysController extends AppController
             'createForm' => $this->getInjectedFormView($request, self::CREATE_FORM)
                 ?? $this->createForm(CreateApiKeyFormType::class, new CreateApiKeyRequest(), ['action' => $this->generateUrl('app_account_api_key_create')])->createView(),
             'created' => $created,
+            'openCreateDialog' => $openCreateDialog,
         ]);
         if (null !== $created) {
             $response->headers->addCacheControlDirective('no-store');

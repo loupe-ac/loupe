@@ -38,7 +38,8 @@ so it cannot show the key again. Create a new key if you lose one.
 A key starts with `loupe_key_`.
 
 Loupe sends you one email when you create a key. The email names the key and
-shows when it ends. It contains no key.
+shows when it ends. It contains no key. When Loupe cannot queue the email, the
+key still works and the page still shows it.
 
 ## Use a key
 

@@ -7,11 +7,13 @@ namespace App\Tests\Module\OAuth\Controller;
 use App\Module\Account\Entity\User;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
+use App\Module\OAuth\Service\ApiKeyEmailSender;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mailer\Exception\TransportException;
 
 final class ApiKeysPageTest extends WebTestCase
 {
@@ -80,6 +82,41 @@ final class ApiKeysPageTest extends WebTestCase
         $this->client->request(Request::METHOD_GET, self::PAGE);
 
         self::assertSelectorNotExists('[data-api-key="'.$theirs->id.'"]');
+    }
+
+    public function test_the_create_route_opens_the_dialog_and_the_list_route_leaves_it_closed(): void
+    {
+        $this->client->loginUser($this->owner);
+
+        $this->client->request(Request::METHOD_GET, self::PAGE.'/create');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-controller="modal"][data-modal-reopen-value="true"] #create-api-key-title');
+
+        $this->client->request(Request::METHOD_GET, self::PAGE);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#create-api-key-title');
+        self::assertSelectorNotExists('[data-modal-reopen-value="true"]');
+    }
+
+    public function test_a_failed_mail_still_shows_the_new_key_once(): void
+    {
+        $emails = $this->createStub(ApiKeyEmailSender::class);
+        $emails->method('sendCreated')->willThrowException(new TransportException('queue down'));
+        static::getContainer()->set(ApiKeyEmailSender::class, $emails);
+        $this->client->disableReboot();
+
+        $this->client->loginUser($this->owner);
+        $crawler = $this->client->request(Request::METHOD_GET, self::PAGE);
+        $this->client->submit($crawler->filter('form[name="create_api_key_form"]')->form([
+            'create_api_key_form[name]' => 'CI deploy',
+            'create_api_key_form[expiry]' => 'thirty-days',
+        ]));
+
+        self::assertResponseRedirects(self::PAGE);
+        $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        $secret = $this->client->getCrawler()->filter('[data-testid="api-key-secret"]')->text();
+        self::assertNotNull($this->apiKeys->findOneBy(['keyHash' => ApiKey::hashOf($secret)]));
     }
 
     public function test_a_created_key_is_shown_once_and_a_reload_shows_only_its_start(): void

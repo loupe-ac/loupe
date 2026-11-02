@@ -3,7 +3,7 @@
 {% block settings_section 'api-keys' %}
 
 {% block settings_content %}
-<div data-controller="modal"{% if createForm.vars.submitted %} data-modal-reopen-value="true"{% endif %}>
+<div data-controller="modal"{% if createForm.vars.submitted or openCreateDialog %} data-modal-reopen-value="true"{% endif %}>
     <twig:Ds:Panel as="section" data-testid="api-keys-section">
         <twig:Ds:SectionHeading :description="'oauth.api_keys.description'|trans">
             {{ 'oauth.api_keys.heading'|trans }}
