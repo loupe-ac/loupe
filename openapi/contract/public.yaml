@@ -2096,7 +2096,7 @@ components:
     SortCards:
       name: sort
       in: query
-      description: The sort order. A leading `-` is descending. With `q`, an absent `sort` gives search rank.
+      description: The walk order. A leading `-` is descending. `createdAt` is the same order as `number`. `q` does not change the order.
       schema:
         type: string
         enum:

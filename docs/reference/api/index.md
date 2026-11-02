@@ -78,11 +78,26 @@ A list answers an object with `items` and `next`:
    `Link` header carries the same URL with `rel="next"`.
 2. `limit` is 1 to 200, and it defaults to 50.
 3. A list has no total and no page numbers.
-4. The order is creation order, oldest first. Cards use their number.
-   `sort=updatedAt` exists on the card list only.
-5. A cursor is opaque. It works only with the filters and the sort of the request
+4. A cursor is opaque. It works only with the filters and the sort of the request
    that made it. A broken cursor, or a changed filter, gets `400` with the code
    `invalid_cursor`.
+
+Each list has its own default order and its own `sort` values. A leading `-` sorts
+newest first or highest first.
+
+| List | Default order | `sort` values |
+|---|---|---|
+| Projects, artifacts, feedback | Creation order, oldest first | `createdAt`, `-createdAt` |
+| Document versions | Version number, lowest first | `createdAt`, `-createdAt` |
+| Documents | Creation order, oldest first | `createdAt`, `-createdAt` |
+| Cards | Card number, lowest first, which is creation order | `number`, `-number`, `createdAt`, `-createdAt`, `updatedAt`, `-updatedAt` |
+| Board columns | Board position | None |
+| Card history | Newest first | None |
+
+Two document filters change the default order, and a `sort` overrides both. `series`
+reads the documents by their position in the series. `q` puts the documents with
+every word in the title first, and each group reads oldest first. `q` does not
+change the order of cards.
 
 ## Retry a create safely
 
