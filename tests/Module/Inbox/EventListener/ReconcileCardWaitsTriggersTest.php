@@ -9,6 +9,7 @@ use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Event\BoardColumnDeleted;
 use App\Module\Board\Event\BoardColumnTerminalChanged;
 use App\Module\Board\Event\CardChanged;
+use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Inbox\Command\AskInboxCommand;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\AskInboxItem;
@@ -93,6 +94,13 @@ final class ReconcileCardWaitsTriggersTest extends KernelTestCase
 
             self::assertSame([[(string) $this->projectId(), [(string) $this->card->id]]], $this->sent(), $change);
         }
+    }
+
+    public function test_a_run_event_asks_for_all_its_cards_in_one_reconcile(): void
+    {
+        $this->dispatch(new WorkerRunChanged($this->projectId(), [(string) $this->card->id, (string) $this->other->id], [Uuid::v7()->toRfc4122()]));
+
+        self::assertSame([[(string) $this->projectId(), [(string) $this->card->id, (string) $this->other->id]]], $this->sent());
     }
 
     public function test_a_terminal_change_asks_for_the_cards_of_the_column(): void

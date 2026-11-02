@@ -14,13 +14,16 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Event\PullRequestStateChanged;
 use App\Module\Forge\PullRequestSnapshot;
+use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class RecordSyncOnPullRequestStateChangedTest extends KernelTestCase
 {
@@ -64,6 +67,52 @@ final class RecordSyncOnPullRequestStateChangedTest extends KernelTestCase
         self::assertContains([(string) $card->id, CardChanged::UPDATED], $changes->getArrayCopy());
 
         self::assertSame([], $this->cardEvents($doneCard));
+    }
+
+    public function test_a_sync_asks_for_one_wait_reconcile_however_many_cards_link_the_pull_request(): void
+    {
+        $cards = [$this->linkedCard()];
+        $small = $this->syncAndMeasure();
+
+        array_push($cards, $this->linkedCard(), $this->linkedCard(), $this->linkedCard());
+        $big = $this->syncAndMeasure();
+
+        self::assertSame(1, $small['reconciles']);
+        self::assertSame($small['reconciles'], $big['reconciles']);
+        self::assertEqualsCanonicalizing(array_map(static fn (Card $card): string => (string) $card->id, $cards), $big['cardIds']);
+    }
+
+    /** @return array{flushes: int, reconciles: int, cardIds: list<string>} */
+    private function syncAndMeasure(): array
+    {
+        $jobs = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $jobs);
+        $jobs->reset();
+        $counter = new class {
+            public int $flushes = 0;
+
+            public function postFlush(): void
+            {
+                ++$this->flushes;
+            }
+        };
+        $this->em->getEventManager()->addEventListener(Events::postFlush, $counter);
+
+        $this->read(from: 'approved1', to: 'synced1', syncedSha: 'synced1');
+
+        $this->em->getEventManager()->removeEventListener(Events::postFlush, $counter);
+        $reconciles = array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $jobs->getSent()),
+            static fn (object $message): bool => $message instanceof ReconcileCardWaits,
+        ));
+        // Guard: the sync must have run, or the counts prove nothing.
+        self::assertGreaterThan(0, $counter->flushes);
+
+        return [
+            'flushes' => $counter->flushes,
+            'reconciles' => \count($reconciles),
+            'cardIds' => array_values(array_merge(...array_map(static fn (ReconcileCardWaits $message): array => $message->cardIds ?? [], $reconciles))),
+        ];
     }
 
     public function test_a_force_push_back_to_a_synced_head_records_nothing(): void

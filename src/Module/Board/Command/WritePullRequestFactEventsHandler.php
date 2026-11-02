@@ -6,8 +6,8 @@ namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
-use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardPullRequestRepository;
+use App\Module\Board\Service\CardChangeAnnouncer;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
@@ -18,7 +18,7 @@ use App\Module\Forge\Service\FailedCheckNames;
 use App\Module\Workflow\Contract\Actor;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Turns a change in the state of a pull request into one outbox row per fact
@@ -42,7 +42,7 @@ final readonly class WritePullRequestFactEventsHandler
         private CardPullRequestRepository $cardPullRequests,
         private OutboxWriter $outbox,
         private EntityManagerInterface $em,
-        private EventDispatcherInterface $events,
+        private CardChangeAnnouncer $cardChanges,
     ) {
     }
 
@@ -74,14 +74,10 @@ final readonly class WritePullRequestFactEventsHandler
             return;
         }
         // Inside the transaction of Forge, so `updated` alone: a rollback costs a page one needless refetch.
-        foreach ($links as $link) {
-            $this->events->dispatch(new CardChanged(
-                $projectId,
-                $link->card->id ?? throw new \LogicException('A linked card has an id.'),
-                CardChanged::UPDATED,
-                false,
-            ));
-        }
+        $this->cardChanges->updated($projectId, array_values(array_map(
+            static fn (CardPullRequest $link): Uuid => $link->card->id ?? throw new \LogicException('A linked card has an id.'),
+            $links,
+        )));
     }
 
     /** Whether the card page or the tile shows something new. A new head or base alone shows nothing, unless it makes the approval outdated. */

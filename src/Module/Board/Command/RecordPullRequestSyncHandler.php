@@ -7,14 +7,14 @@ namespace App\Module\Board\Command;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\Forge;
-use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
+use App\Module\Board\Service\CardChangeAnnouncer;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Marks each unfinished card that links the pull request as synced. Forge calls
@@ -26,7 +26,7 @@ final readonly class RecordPullRequestSyncHandler
         private CardPullRequestRepository $cardPullRequests,
         private CardEventRepository $cardEvents,
         private EntityManagerInterface $em,
-        private EventDispatcherInterface $events,
+        private CardChangeAnnouncer $cardChanges,
         private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
@@ -69,13 +69,9 @@ final readonly class RecordPullRequestSyncHandler
         });
 
         // Inside the transaction of Forge, so `updated` alone: a rollback costs a page one needless refetch.
-        foreach ($cards as $card) {
-            $this->events->dispatch(new CardChanged(
-                $projectId,
-                $card->id ?? throw new \LogicException('A linked card has an id.'),
-                CardChanged::UPDATED,
-                false,
-            ));
-        }
+        $this->cardChanges->updated($projectId, array_values(array_map(
+            static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A linked card has an id.'),
+            $cards,
+        )));
     }
 }

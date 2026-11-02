@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\EventListener;
 
-use App\Module\Board\Event\CardChanged;
+use App\Module\Board\Service\CardChangeAnnouncer;
 use App\Module\Bridge\Event\WorkerRunChanged;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Uid\Uuid;
 
@@ -15,14 +14,12 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DispatchCardChangedOnWorkerRunChanged
 {
     public function __construct(
-        private EventDispatcherInterface $events,
+        private CardChangeAnnouncer $cardChanges,
     ) {
     }
 
     public function __invoke(WorkerRunChanged $event): void
     {
-        foreach ($event->cardIds as $cardId) {
-            $this->events->dispatch(new CardChanged($event->projectId, Uuid::fromString($cardId), CardChanged::UPDATED, false));
-        }
+        $this->cardChanges->updated($event->projectId, array_map(Uuid::fromString(...), $event->cardIds));
     }
 }
