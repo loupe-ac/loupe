@@ -35,7 +35,7 @@ Policy comes first. `docs/using/live-review.md` and the Connect page document th
 
 - Only the owner of the project signs in, and the page's origin must be on the project's allowed sites.
 - `Addressed` and `Resolved` comments are immune.
-- `/api/projects` and `/api/events` need `ROLE_API_AGENT`, which the `site-review` scope does not carry. There is thus no project enumeration and no Mercure JWT.
+- `/api/v1/bridge/projects` and `/api/v1/bridge/events`, and their old paths for one server release, need `ROLE_API_AGENT`, which the `site-review` scope does not carry. There is thus no project enumeration and no Mercure JWT.
 - `RateLimitSiteReviewWrites` slows churn, but it does not slow a targeted delete.
 - The app's own instance ships `SITE_REVIEW_WIDGET_PROJECT` empty in `.env`. `templates/_site_review_widget.html.twig` gates the widget behind `site_review_widget_public or is_granted('ROLE_ADMIN')`.
 

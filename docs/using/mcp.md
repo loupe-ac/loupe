@@ -220,8 +220,10 @@ The `agent` scope reaches the CLI endpoints. A connection bound to one project s
 live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.
 
-`403 insufficient_scope` means the sign-in is valid and carries the wrong scope
-for that endpoint. Connect the client again with the scope the endpoint needs.
+`403 credential_not_allowed` on a `/api/v1` path means the sign-in is valid and
+carries the wrong scope for that endpoint. `/mcp` and an old `/api` path answer
+`403 insufficient_scope` for the same case. Connect the client again with the
+scope the endpoint needs.
 
 A project's Connect page leads with `loupe init --project <project id>` and
 lists the machines of the owner. It keeps the commands for the other ways on
