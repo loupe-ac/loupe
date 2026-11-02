@@ -82,6 +82,19 @@ final class RecordSyncOnPullRequestStateChangedTest extends KernelTestCase
         self::assertEqualsCanonicalizing(array_map(static fn (Card $card): string => (string) $card->id, $cards), $big['cardIds']);
     }
 
+    public function test_a_sync_flushes_the_same_number_of_times_however_many_cards_link_the_pull_request(): void
+    {
+        $this->linkedCard();
+        $small = $this->syncAndMeasure();
+
+        $this->linkedCard();
+        $this->linkedCard();
+        $this->linkedCard();
+        $big = $this->syncAndMeasure();
+
+        self::assertSame($small['flushes'], $big['flushes']);
+    }
+
     /** @return array{flushes: int, reconciles: int, cardIds: list<string>} */
     private function syncAndMeasure(): array
     {

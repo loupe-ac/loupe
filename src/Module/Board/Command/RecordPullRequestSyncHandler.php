@@ -64,8 +64,8 @@ final readonly class RecordPullRequestSyncHandler
         $this->em->wrapInTransaction(function () use ($cards, $pullRequest, $now): void {
             foreach ($cards as $card) {
                 $this->cardEvents->record($card, CardEventKind::Synced, Actor::System, null, ['pullRequest' => $pullRequest->number], $now);
-                $this->em->flush();
             }
+            $this->em->flush();
         });
 
         // Inside the transaction of Forge, so `updated` alone: a rollback costs a page one needless refetch.
