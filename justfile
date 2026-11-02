@@ -184,7 +184,12 @@ skill-eval *args:
     printf '{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.invalid/mcp"}}}\n' > "$plugin/.mcp.json"
     cp -R tests/skill-evals/evals "$plugin/evals"
     out="tests/skill-evals/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)${ref:+-${ref//\//-}}"
+    # --scaffold runs the scaffold_script of the foreign-* cases, which build a small repository
+    # that is not this one. Those cases name Bash, Write and Edit in allowed_tools, and these
+    # grants give them to those cases alone, with Bash cut down to read-only tools and git.
     claude plugin eval "$plugin" --ablation none --model claude-opus-5-5 --no-publish --trust-plugin \
+        --scaffold --allow-tools 'Bash(./.bin/git:*)' 'Bash(git:*)' 'Bash(python3:*)' 'Bash(ls:*)' 'Bash(cat:*)' 'Bash(grep:*)' \
+        'Bash(test:*)' 'Bash(mkdir:*)' 'Bash(sleep:*)' 'Write' 'Edit' \
         --max-cost-usd 15 --output-dir "$out" "$@"
 
 # Save the real loupe tool descriptions for the skill-eval mocks. Usage: just skill-eval-tools [loupe mcp flags]
