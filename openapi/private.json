@@ -9479,7 +9479,8 @@
                             "rolled-back",
                             "blocked",
                             "off",
-                            "dev"
+                            "dev",
+                            "draining"
                         ]
                     },
                     "version": {

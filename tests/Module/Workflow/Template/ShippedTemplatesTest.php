@@ -71,6 +71,20 @@ final class ShippedTemplatesTest extends KernelTestCase
         yield 'path' => ['../workflows/lifecycle'];
     }
 
+    public function test_each_conflict_check_of_lifecycle_has_its_entry_in_the_discovery_skill(): void
+    {
+        $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
+        $source = (string) file_get_contents(\dirname(__DIR__, 4).'/config/workflows/lifecycle.yaml');
+        preg_match_all('/"(Conflict check: [^.]+)\./', $source, $matches);
+        $names = array_values(array_unique($matches[1]));
+
+        self::assertCount(9, $names);
+        foreach ($names as $name) {
+            self::assertStringContainsString('`'.$name.'`', $skill);
+        }
+        self::assertSame(\count($names), preg_match_all('/^\d+\. `Conflict check: /m', $skill));
+    }
+
     public function test_both_templates_pass_the_parser(): void
     {
         foreach ($this->shipped()->keys() as $key) {
@@ -1073,7 +1087,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $moves = $this->template('lifecycle')->manualMoves;
 
-        self::assertCount(9, $moves);
+        self::assertCount(11, $moves);
         self::assertSame([], array_filter($moves, static fn ($move): bool => ManualMoveActor::ParentRun === $move->by));
     }
 
@@ -1460,7 +1474,10 @@ final class ShippedTemplatesTest extends KernelTestCase
             }
         }
 
-        return $actions;
+        // The checks of a merge write only inform a discovery run, and each merge rule names its own.
+        return array_map(static fn (ActionCall $call): ActionCall => 'forge-write' === $call->key
+            ? new ActionCall($call->key, $call->params, $call->until, [], $call->refill, $call->options, $call->traits, $call->from, $call->cancelWhen, $call->lists)
+            : $call, $actions);
     }
 
     /** @param list<DocumentFacts> $documents */

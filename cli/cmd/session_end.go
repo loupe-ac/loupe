@@ -24,7 +24,7 @@ func newSessionCmd() *cobra.Command {
 		Use:   "session",
 		Short: "Tell Loupe about an interactive session",
 	}
-	cmd.AddCommand(newSessionEndCmd())
+	cmd.AddCommand(newSessionEndCmd(), newSessionRemindCmd())
 
 	return cmd
 }

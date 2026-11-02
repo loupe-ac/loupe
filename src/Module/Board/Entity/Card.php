@@ -86,6 +86,10 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
+    /** Whether a session run brought the card into its column. Any other move to another column clears it. */
+    #[ORM\Column(name: 'arrived_in_session', options: ['default' => false])]
+    public bool $arrivedInSession = false;
+
     /** Whether a person must review this card's pull request before it merges. */
     #[ORM\Column(name: 'requires_human_review', options: ['default' => false])]
     public bool $requiresHumanReview = false;
@@ -294,6 +298,7 @@ class Card implements ProjectScopedSubject
             $this->parent?->id,
             $this->parent?->number,
             $this->parent?->column->ref(),
+            $this->arrivedInSession,
         );
     }
 

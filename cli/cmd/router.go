@@ -240,9 +240,12 @@ type router struct {
 	// heartbeat reply wrote the cache. handled maps each command the bridge
 	// took to its expiry, and commanding counts the handlers in flight.
 	personPaused bool
-	pauseSynced  bool
-	handled      map[string]time.Time
-	commanding   int
+	// draining holds back new work while the CLI version is outside the range
+	// of the server. The runs that started go on, and the heartbeat goes on.
+	draining    bool
+	pauseSynced bool
+	handled     map[string]time.Time
+	commanding  int
 	// stops holds each run a person stopped until its stopped report goes out.
 	// cardHolds holds the cards the server states as held, because a person
 	// paused their agents. A held card starts no worker until the hold ends.
@@ -786,7 +789,7 @@ func (r *router) enqueue(p pending) {
 	if p.action == rules.ActionInteractive {
 		// A session opens at once, and a person's pause holds back new work, so
 		// a paused bridge leaves the offer to another bridge.
-		if p.isWork() && (r.personPaused || r.paused) {
+		if p.isWork() && (r.personPaused || r.paused || r.draining) {
 			r.log.Debug("work_request_skipped", append(about(p.event, p.rule), "reason", "paused")...)
 		} else if p.isWork() {
 			r.launching++
@@ -844,7 +847,7 @@ func (r *router) dispatchLocked() []pending {
 
 		return dropped
 	}
-	if r.paused || r.personPaused {
+	if r.paused || r.personPaused || r.draining {
 		return nil
 	}
 

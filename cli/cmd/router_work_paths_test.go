@@ -92,6 +92,60 @@ func TestACancelWhileTheClaimRunsStartsNothing(t *testing.T) {
 	}
 }
 
+// A drain that begins while a claim call runs starts no worker, and leaves no
+// claim for the heartbeat to renew, so the lease runs out and the server offers
+// the request again. The offer that follows the drain runs.
+func TestADrainWhileTheClaimRunsStartsNothing(t *testing.T) {
+	h := newHarnessWith(t, workRules, rules.Defaults{})
+	rec := h.states()
+	f := h.withWork()
+	f.gate = make(chan struct{})
+	w := workRequest(1, 87, "implement", api.WorkRequestOpen)
+
+	h.startClaim(t, f, w)
+	h.router.setDraining(true)
+	close(f.gate)
+	h.router.wg.Wait()
+
+	if h.runs() != 0 || len(rec.states()) != 0 || len(f.settled()) != 0 || len(h.heldClaims()) != 0 {
+		t.Fatalf("runs = %d, states = %v, results = %v, claims = %v", h.runs(), rec.names(), f.settled(), h.heldClaims())
+	}
+	if h.used() != 0 || h.cardHeld(87) {
+		t.Fatalf("used = %d, card held = %v", h.used(), h.cardHeld(87))
+	}
+	if line := h.only(t, "work_request_not_claimed"); line["reason"] != "draining" {
+		t.Fatalf("line = %v", line)
+	}
+
+	h.router.setDraining(false)
+	h.offer(f, w)
+
+	eventually(t, "the worker to start after the drain", func() bool { return h.runs() == 1 })
+}
+
+// A drain that begins while the claim call of an interactive entry runs opens
+// no session.
+func TestADrainWhileTheClaimRunsOpensNoSession(t *testing.T) {
+	h, rec := launchHarnessWith(t, interactiveWorkRules, `[sh, -c, 'exit 0', sh, '{script}']`)
+	f := h.withWork()
+	f.gate = make(chan struct{})
+
+	h.startClaim(t, f, workRequest(1, 87, "design", api.WorkRequestOpen))
+	h.router.setDraining(true)
+	close(f.gate)
+	h.router.wg.Wait()
+
+	if got := rec.launches(); len(got) != 0 {
+		t.Fatalf("launches = %+v", got)
+	}
+	if len(f.settled()) != 0 || len(h.heldClaims()) != 0 {
+		t.Fatalf("results = %v, claims = %v", f.settled(), h.heldClaims())
+	}
+	if h.router.launching != 0 {
+		t.Fatalf("launching = %d", h.router.launching)
+	}
+}
+
 // An offer that arrives again while its claim call runs neither queues nor
 // claims a second time.
 func TestAnOfferDuringItsClaimCallWaitsForNothing(t *testing.T) {

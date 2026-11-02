@@ -94,6 +94,8 @@ test('verification resend text has contrast', async ({ page }) => {
     await page
         .getByLabel('Email')
         .fill(`e2e-auth-contrast-${crypto.randomUUID()}@example.com`);
+    // The suggestion controller can connect after the email fill on a slow page.
+    await page.getByLabel('Display name').fill('Contrast Reader');
     await page.getByLabel('Password').fill('SecurePassword1!');
     await page.getByLabel('I agree to').check();
     await submitRedirectingForm(

@@ -198,6 +198,13 @@
     .lp-chart__figure .lp-chart__sign-detail {
         @apply max-md:fixed max-md:inset-x-4 max-md:top-auto max-md:bottom-4 max-md:w-auto;
     }
+    /* A touch screen of any width pins the detail, because a tap opens it. */
+    @media (hover: none) {
+        .lp-chart__sign-detail,
+        .lp-chart__figure .lp-chart__sign-detail {
+            @apply fixed inset-x-4 top-auto bottom-4 w-auto;
+        }
+    }
     .lp-chart__sign-anchor:hover .lp-chart__sign-detail,
     .lp-chart__sign-anchor:focus-visible .lp-chart__sign-detail {
         @apply visible opacity-100;

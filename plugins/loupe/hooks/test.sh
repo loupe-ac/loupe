@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs session-end.sh against a fake loupe. It needs no Loupe install.
+# Runs session-end.sh and session-remind.sh against a fake loupe. It needs no Loupe install.
 set -u
 
 pkg=$(cd "$(dirname "$0")" && pwd)
@@ -52,5 +52,40 @@ check "exit status without loupe" "$?" "0"
 
 grep -q '"command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-end.sh"' "$pkg/hooks.json"
 check "hooks.json names the script" "$?" "0"
+
+mkdir -p "$work/remind"
+cat >"$work/remind/loupe" <<'FAKE'
+#!/bin/sh
+echo "$*" >"$OUT/remind-args"
+cat >"$OUT/remind-stdin"
+echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"hi"}}'
+FAKE
+chmod +x "$work/remind/loupe"
+for tool in cat; do ln -sf "$(command -v "$tool")" "$work/remind/$tool"; done
+remind_input='{"session_id":"abc-123","tool_name":"Edit"}'
+want_out='{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"hi"}}'
+
+out=$(printf '%s' "$remind_input" | env -u LOUPE_SESSION_ID PATH="$work/remind" /bin/sh "$pkg/session-remind.sh")
+check "remind exit status" "$?" "0"
+check "remind passes the output out" "$out" "$want_out"
+check "remind passes the hook input in" "$(cat "$work/remind-stdin")" "$remind_input"
+check "remind runs session remind" "$(cat "$work/remind-args")" "session remind"
+
+rm -f "$work/remind-args"
+out=$(printf '%s' "$remind_input" | LOUPE_SESSION_ID=run-1 PATH="$work/remind" /bin/sh "$pkg/session-remind.sh")
+check "remind exit status in a bridge worker" "$?" "0"
+check "remind is silent in a bridge worker" "$out" ""
+check "remind does not run loupe in a bridge worker" "$([ -f "$work/remind-args" ] && echo ran || echo idle)" "idle"
+
+out=$(printf '%s' "$remind_input" | env -u LOUPE_SESSION_ID PATH="$work/bare" /bin/sh "$pkg/session-remind.sh")
+check "remind exit status without loupe" "$?" "0"
+check "remind is silent without loupe" "$out" ""
+
+grep -q '"command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-remind.sh"' "$pkg/hooks.json"
+check "hooks.json names the remind script" "$?" "0"
+check "hooks.json has the Edit and Write matcher" "$(grep -c '"matcher": "Edit|Write"' "$pkg/hooks.json")" "1"
+check "hooks.json has the Bash matcher" "$(grep -c '"matcher": "Bash"' "$pkg/hooks.json")" "1"
+check "hooks.json limits the Bash entry" "$(grep -c '"if": "Bash(gh pr create\*)"' "$pkg/hooks.json")" "1"
+check "hooks.json sets the remind timeout" "$(grep -c '"timeout": 3' "$pkg/hooks.json")" "2"
 
 exit "$fail"

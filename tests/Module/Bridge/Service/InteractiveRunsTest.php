@@ -12,6 +12,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Messenger\CollectSessionUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -422,7 +423,6 @@ final class InteractiveRunsTest extends KernelTestCase
         $project = $this->scenario('interactive-has-open');
         $cardId = Uuid::v7();
         $sessionId = Uuid::v4();
-        $this->seedRun($this->em(), $project, cardId: $cardId, state: WorkerRunState::Running, runKey: Uuid::v7());
 
         self::assertFalse($this->runs()->hasOpenRun($project, $cardId));
 
@@ -430,6 +430,8 @@ final class InteractiveRunsTest extends KernelTestCase
         self::assertTrue($this->runs()->hasOpenRun($project, $cardId));
         self::assertFalse($this->runs()->hasOpenRun($project, Uuid::v7()));
 
+        // After the open, which refuses a card where a worker runs.
+        $this->seedRun($this->em(), $project, cardId: $cardId, state: WorkerRunState::Running, runKey: Uuid::v7());
         $this->runs()->close($project, $cardId, $sessionId);
         self::assertFalse($this->runs()->hasOpenRun($project, $cardId));
     }
@@ -576,7 +578,10 @@ final class InteractiveRunsTest extends KernelTestCase
         self::assertInstanceOf(EventDispatcherInterface::class, $events);
         self::assertInstanceOf(MessageBusInterface::class, $bus);
 
-        return new InteractiveRuns($workerRuns, $this->searchIndexer(), $this->em(), $clock, $publisher, $events, $bus);
+        $workRequests = $container->get(WorkRequestRepository::class);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
+
+        return new InteractiveRuns($workerRuns, $workRequests, $this->searchIndexer(), $this->em(), $clock, $publisher, $events, $bus);
     }
 
     private function asyncTransport(): InMemoryTransport

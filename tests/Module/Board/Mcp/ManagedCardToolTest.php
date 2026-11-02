@@ -59,6 +59,6 @@ final class ManagedCardToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage(CardManaged::AGENT_MESSAGE);
-        $tool((string) Uuid::v7(), 'pair', number: $this->cardNumber, status: 'in-progress');
+        $tool((string) Uuid::v7(), 'pair', number: $this->cardNumber, status: 'in-review');
     }
 }

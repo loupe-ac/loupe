@@ -10,8 +10,10 @@ use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\CardMoveGuard;
 use App\Module\Workflow\Contract\CardMoveLock;
 use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\WorkLedger;
+use App\Module\Workflow\Template\ManualMoveActor;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -29,6 +31,7 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
         private TemplateSource $templates,
         private FactsBuilder $facts,
         private ProjectRepository $projects,
+        private CardTypeCatalog $cardTypes,
 
         /** @var iterable<CardMoveLock> */
         #[AutowireIterator('app.workflow_card_move_lock')]
@@ -37,7 +40,7 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
     }
 
     #[\Override]
-    public function allows(CardSnapshot $card, ColumnRef $to, Actor $actor, ?CardEventCause $cause): bool
+    public function allows(CardSnapshot $card, ColumnRef $to, Actor $actor, ?CardEventCause $cause, bool $opensSession = false): bool
     {
         if (Actor::System === $actor || $to->id->equals($card->column->id)) {
             return true;
@@ -76,6 +79,13 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
             if (null === $move->by) {
                 return true;
             }
+            if (ManualMoveActor::Session === $move->by) {
+                if ($opensSession && $this->sessionMayMove($card)) {
+                    return true;
+                }
+
+                continue;
+            }
             $isParentRun ??= $this->isParentRun($card, $cause);
             if ($isParentRun) {
                 return true;
@@ -83,6 +93,12 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
         }
 
         return false;
+    }
+
+    /** A child needs the branch of its epic, and an epic needs its breakdown, so neither takes the session move. */
+    private function sessionMayMove(CardSnapshot $card): bool
+    {
+        return null === $card->parentId && !$this->cardTypes->forProject($card->projectId)->get($card->type)->children;
     }
 
     /** An interactive run takes any name, so only an open stored worker run counts. */

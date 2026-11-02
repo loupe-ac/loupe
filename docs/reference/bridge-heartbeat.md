@@ -298,13 +298,15 @@ the owner recorded. The server compares the two logins without regard to case.
 | `blocked` | The bridge cannot write the directory of its binary, so it cannot install `version` |
 | `off` | `autoUpdate` is not `true`, and `version` waits |
 | `dev` | A development build, which never updates |
+| `draining` | The running version is outside the range, and no handover is running. The bridge starts no new work and keeps its heartbeat |
 
 The bridge sends no `update` until its first check has a state. Each heartbeat
 replaces the stored state, and a heartbeat with no `update` clears it. The
 agents page shows a chip from the stored state: "Up to date", "Updating",
-"Rolled back from" and the version, or "Update blocked". It shows "Needs ^1.0"
+"Rolled back from" and the version, or "Update blocked". It shows "Needs ^2.0"
 in place of all of them when `cliVersion` is outside the range, and a
-development build always is. `off` with a `version` shows "Update available"
+development build always is. The state `draining` shows "Draining: needs ^2.0"
+whatever the version. `off` with a `version` shows "Update available"
 and the version, with the command that installs it: `brew upgrade loupe` when
 `update.install` is `homebrew`, and
 `curl -fsSL https://<your Loupe>/install.sh | sh` in all other cases. `off`
@@ -720,6 +722,7 @@ record holds no claim token.
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
 | 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
+| 409 | `{"error":"session_open"}` | an interactive session is open on the card of the request, and the request does not open a session. The request stays open, and the bridge claims it after the session closes |
 | 409 | `{"error":"waiting"}` | the request waits for a time that has not passed yet |
 | 409 | `{"error":"account_blocked"}` | the named account is at its hard limit, or at or above its stop value |
 | 422 | `{"error":"account_unknown"}` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |

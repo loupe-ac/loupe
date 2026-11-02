@@ -848,6 +848,22 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** Whether the session holds a running interactive run on any card of the project. */
+    public function hasOpenInteractiveOfSession(Project $project, Uuid $sessionId): bool
+    {
+        return null !== $this->interactive($project)
+            ->select('1')
+            ->andWhere('r.subjectType = :cardSubject')
+            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.state = :running')
+            ->setParameter('cardSubject', WorkSubject::CARD)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->setParameter('running', WorkerRunState::Running->value)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** The newest open worker run of $role that the session runs on the card, or null. */
     public function findOpenOfSessionForCard(Project $project, Uuid $sessionId, Uuid $cardId, string $role): ?WorkerRun
     {

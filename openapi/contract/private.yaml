@@ -1971,6 +1971,7 @@ components:
               - blocked
               - 'off'
               - dev
+              - draining
             version:
               type: string
               maxLength: 100

@@ -18,6 +18,7 @@ final readonly class CardSnapshot
         public ?Uuid $parentId,
         public ?int $parentNumber,
         public ?ColumnRef $parentColumn,
+        public bool $arrivedInSession = false,
     ) {
     }
 }

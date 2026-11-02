@@ -562,6 +562,15 @@ func (r *router) takeClaimLocked(p pending, claim api.Claim, err error, register
 
 		return p, claimSkip
 	}
+	if r.draining {
+		// A drain began while the claim call ran. The claim leaves the set, so
+		// no heartbeat renews it, the lease runs out, and the server offers the
+		// request again.
+		delete(r.claims, id)
+		r.log.Info("work_request_not_claimed", append(attrs, "reason", "draining")...)
+
+		return p, claimSkip
+	}
 	c.token, c.running = claim.ClaimToken, p.action != rules.ActionInteractive
 	p.claimToken = claim.ClaimToken
 	r.noteClaimsLocked()

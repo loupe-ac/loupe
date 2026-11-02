@@ -119,7 +119,9 @@ A setup other than the default never replaces a binary.
   panel copy of the running version into the setup. It prints that the binary
   updates from the default setup. It asks no running bridge, and it runs for a
   Homebrew binary too. The bridge runs no update check and reports that updates
-  are off.
+  are off. A release of the shared binary outside the server range
+  [drains](../extending/cli-bridge.md#draining). To replace that binary, run
+  `LOUPE_CONFIG= loupe update`, then start the bridge again.
 
 ## `loupe init`
 
@@ -279,6 +281,24 @@ session in every project of your account, with the reason `session-ended`. The
 command prints nothing on success. On failure it exits with 1 and prints the
 reason on stderr, and the hook ignores that. A run that the hook did not close
 closes later, as [stale sessions](../using/worker-runs.md#stale-sessions) says.
+
+The hook does nothing on a machine where `loupe` is not on the `PATH`.
+
+## `loupe session remind`
+
+Reminds a Claude Code session to open a card run before it edits files. The `PreToolUse` hook of the Loupe plugin runs it before an `Edit` or `Write` call, and before a `gh pr create` command. The hook writes its JSON to stdin, and the command reads the `session_id`, the tool name and the command from it.
+
+The command prints a reminder when all of these are true:
+
+- `.loupe.yaml` in the working directory names a project, or the project link of the setup does. The link of a setup other than the default wins. A project that only the server picks as your single project does not count.
+- The project uses the Lifecycle workflow template.
+- The session has no open card run in that project.
+
+The reminder tells the session to find or create the card and call `card_run_open` with the Implementation status. It tells the session to ignore the reminder when the work is not card work.
+
+The command never blocks a tool call. It prints nothing and exits with 0 on every failure, such as no login, no network, an answer that takes more than 2 seconds, or an unknown answer. It prints nothing for a bridge worker, because a worker has a run already.
+
+The command keeps a small state file for each session in the `session-remind` folder of the config folder, with mode 0600. A project with another template silences the session for good. A found open run, or a reminder just given, silences the session for 10 minutes. A `gh pr create` command always checks again.
 
 The hook does nothing on a machine where `loupe` is not on the `PATH`.
 

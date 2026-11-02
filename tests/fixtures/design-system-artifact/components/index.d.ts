@@ -583,7 +583,7 @@ export declare function Textarea(props: TextareaProps): JSX.Element;
 
 // Tooltip
 /**
- * A short label that shows over an element on hover or focus. The interactive variant stays open for a link.
+ * A short label that shows over an element on hover or focus. A touch screen hides it. The interactive variant stays open for a link.
  *
  * @startingPoint section="Core" subtitle="A Tooltip, plain and interactive" viewport="700x150"
  */
