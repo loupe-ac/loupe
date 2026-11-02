@@ -223,10 +223,25 @@ final class ApiKeyHandlersTest extends KernelTestCase
 
         $apiKeys = static::getContainer()->get(ApiKeyRepository::class);
         self::assertInstanceOf(ApiKeyRepository::class, $apiKeys);
-        $handler = new ListApiKeysHandler($apiKeys);
+        $handler = new ListApiKeysHandler($apiKeys, $this->clock);
         $view = $handler(new ListApiKeysCommand($this->owner));
 
         self::assertSame([$newer->id?->toRfc4122(), $older->id?->toRfc4122()], array_map(static fn (ApiKey $key): ?string => $key->id?->toRfc4122(), $view->keys));
+        self::assertEquals($this->clock->now(), $view->now);
+    }
+
+    public function test_list_leaves_out_a_revoked_key(): void
+    {
+        $revoked = $this->createFor($this->owner, 'revoked', ApiKeyExpiry::Never)->key;
+        $this->revoke($revoked, $this->owner);
+        $short = $this->createFor($this->owner, 'short', ApiKeyExpiry::ThirtyDays)->key;
+        $this->clock->modify('+31 days');
+
+        $apiKeys = static::getContainer()->get(ApiKeyRepository::class);
+        self::assertInstanceOf(ApiKeyRepository::class, $apiKeys);
+        $view = new ListApiKeysHandler($apiKeys, $this->clock)(new ListApiKeysCommand($this->owner));
+
+        self::assertSame([$short], $view->keys);
     }
 
     private function createFor(User $owner, string $name, ApiKeyExpiry $expiry): CreateApiKeyView

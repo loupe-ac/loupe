@@ -29,6 +29,42 @@ class ApiKeyRepository extends ServiceEntityRepository
         return $this->findBy(['owner' => $owner], ['createdAt' => 'DESC']);
     }
 
+    /** @return list<ApiKey> keys that end after $now, no later than $until, and have no notice yet */
+    public function findExpiringUnnotified(\DateTimeImmutable $now, \DateTimeImmutable $until): array
+    {
+        /** @var list<ApiKey> $keys */
+        $keys = $this->createQueryBuilder('k')
+            ->where('k.expiresAt > :now')
+            ->andWhere('k.expiresAt <= :until')
+            ->andWhere('k.revokedAt IS NULL')
+            ->andWhere('k.expiryNoticeSentAt IS NULL')
+            ->orderBy('k.expiresAt', 'ASC')
+            ->setParameter('now', $now)
+            ->setParameter('until', $until)
+            ->getQuery()
+            ->getResult();
+
+        return $keys;
+    }
+
+    /**
+     * Marks the expiry notice as sent. One conditional UPDATE, so two workers
+     * never both win: only the caller that gets true sends the mail.
+     */
+    public function claimExpiryNotice(Uuid $keyId, \DateTimeImmutable $now): bool
+    {
+        return 1 === $this->createQueryBuilder('k')
+            ->update()
+            ->set('k.expiryNoticeSentAt', ':now')
+            ->where('k.id = :id')
+            ->andWhere('k.expiryNoticeSentAt IS NULL')
+            ->andWhere('k.revokedAt IS NULL')
+            ->setParameter('now', $now)
+            ->setParameter('id', $keyId, 'uuid')
+            ->getQuery()
+            ->execute();
+    }
+
     /**
      * Stamps the use time unless the stored one is newer than $threshold. One
      * conditional UPDATE, so a burst of requests writes once and the write

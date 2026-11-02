@@ -1,0 +1,89 @@
+{% extends '@Account/_settings_layout.html.twig' %}
+
+{% block settings_section 'api-keys' %}
+
+{% block settings_content %}
+<div data-controller="modal"{% if createForm.vars.submitted %} data-modal-reopen-value="true"{% endif %}>
+    <twig:Ds:Panel as="section" data-testid="api-keys-section">
+        <twig:Ds:SectionHeading :description="'oauth.api_keys.description'|trans">
+            {{ 'oauth.api_keys.heading'|trans }}
+            <twig:block name="actions">
+                <twig:Ds:Button variant="primary" size="sm" type="button" data-action="click->modal#open">{{ 'oauth.api_keys.action.create'|trans }}</twig:Ds:Button>
+            </twig:block>
+        </twig:Ds:SectionHeading>
+
+        {% if view.keys is empty %}
+        <twig:Ds:EmptyState :onCard="true" :title="'oauth.api_keys.empty.title'|trans" :body="'oauth.api_keys.empty.body'|trans" />
+        {% else %}
+        <twig:Ds:DataTable modifier="api-keys" :label="'oauth.api_keys.table.label'|trans" :columns="[
+            {label: 'oauth.api_keys.column.name'|trans},
+            {label: 'oauth.api_keys.column.key'|trans},
+            {label: 'oauth.api_keys.column.expires'|trans},
+            {label: 'oauth.api_keys.column.last_used'|trans},
+            {label: 'oauth.api_keys.column.actions'|trans, srOnly: true, align: 'end'},
+        ]">
+            {% for key in view.keys %}
+            {% set expired = null is not same as key.expiresAt and key.expiresAt <= view.now %}
+            <div class="lp-data-table__row" role="row" data-api-key="{{ key.id }}">
+                <div class="lp-data-table__cell" role="cell"><span class="lp-data-table__title">{{ key.name }}</span></div>
+                <div class="lp-data-table__cell lp-data-table__cell--code" role="cell">{{ key.displayStart }}…</div>
+                <div class="lp-data-table__cell" role="cell">
+                    {%- if null is same as key.expiresAt -%}
+                        {{ 'oauth.api_keys.expires.never'|trans }}
+                    {%- elseif expired -%}
+                        <twig:Ds:StatusChip modifier="failed" :label="'oauth.api_keys.expired'|trans({'%count%': key.expiresAt|api_key_days_ago(view.now)})" />
+                    {%- else -%}
+                        {{ 'oauth.api_keys.expires.in'|trans({'%count%': key.expiresAt|api_key_days_left(view.now)}) }}
+                    {%- endif -%}
+                </div>
+                <div class="lp-data-table__cell" role="cell">
+                    {%- if null is same as key.lastUsedAt -%}
+                        {{ 'oauth.api_keys.last_used.never'|trans }}
+                    {%- else -%}
+                        <twig:Ds:RelativeTime :datetime="key.lastUsedAt" :now="view.now" />
+                    {%- endif -%}
+                </div>
+                <div class="lp-data-table__cell lp-data-table__cell--end" role="cell">
+                    {% if expired %}
+                    <twig:Ds:ActionForm :action="path('app_account_api_key_remove', {id: key.id})" token="remove-api-key" frame="_top">
+                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" :aria-label="'oauth.api_keys.action.remove_named'|trans({'%name%': key.name})">{{ 'oauth.api_keys.action.remove'|trans }}</twig:Ds:Button>
+                    </twig:Ds:ActionForm>
+                    {% else %}
+                    <twig:Ds:ActionForm :action="path('app_account_api_key_revoke', {id: key.id})" token="revoke-api-key" frame="_top">
+                        <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" :aria-label="'oauth.api_keys.action.revoke_named'|trans({'%name%': key.name})">{{ 'oauth.api_keys.action.revoke'|trans }}</twig:Ds:Button>
+                    </twig:Ds:ActionForm>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </twig:Ds:DataTable>
+        {% endif %}
+    </twig:Ds:Panel>
+
+    <twig:Ds:Dialog aria-labelledby="create-api-key-title" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="create-api-key-title">{{ 'oauth.api_keys.create.title'|trans }}</h2>
+        <p class="lp-dialog-desc">{{ 'oauth.api_keys.create.description'|trans }}</p>
+        {{ form_start(createForm, {attr: {class: 'lp-form'}}) }}
+            <twig:Ds:FormField :fieldView="createForm.name" :hintText="createForm.name.vars.help|trans" />
+            <twig:Ds:FormField :fieldView="createForm.expiry" widgetKind="select" :hintText="createForm.expiry.vars.help|trans" />
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.api_keys.create.cancel'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" type="submit">{{ 'oauth.api_keys.create.submit'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        {{ form_end(createForm) }}
+    </twig:Ds:Dialog>
+</div>
+
+{% if created is not null %}
+<div data-controller="modal" data-modal-reopen-value="true" data-turbo-temporary data-api-key-once>
+    <twig:Ds:Dialog aria-labelledby="api-key-once-title" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="api-key-once-title">{{ 'oauth.api_keys.once.title'|trans }}</h2>
+        <p class="lp-dialog-desc">{{ 'oauth.api_keys.once.description'|trans }}</p>
+        <twig:Ds:CodeBlock :label="created.name" :text="created.secret" :copyLabel="'oauth.api_keys.once.copy'|trans" :copiedLabel="'oauth.api_keys.once.copied'|trans" testid="api-key-secret" />
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="primary" type="button" data-action="click->modal#close">{{ 'oauth.api_keys.once.done'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </twig:Ds:Dialog>
+</div>
+{% endif %}
+{% endblock %}

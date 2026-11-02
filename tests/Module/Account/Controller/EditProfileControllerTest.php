@@ -69,7 +69,8 @@ final class EditProfileControllerTest extends WebTestCase
         self::assertSelectorExists('[data-testid="profile-section"]');
         self::assertSelectorNotExists('[data-testid="export-section"]');
         self::assertSelectorNotExists('[data-testid="delete-account-section"]');
-        self::assertCount(5, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
+        self::assertCount(6, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
+        self::assertSelectorExists('.lp-settings-nav__item[href="/account/api-keys"]');
         self::assertSelectorExists('.lp-settings-nav__item--active[aria-current="page"][href="/account/profile"]');
         self::assertSelectorExists('.lp-settings-nav__item[href="/account/notifications"]');
         self::assertSelectorExists('.lp-settings-nav__item[href="/account/connected-apps"]');
