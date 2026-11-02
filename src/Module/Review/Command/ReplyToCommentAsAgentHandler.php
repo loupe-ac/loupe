@@ -43,6 +43,7 @@ final readonly class ReplyToCommentAsAgentHandler
             actor: $this->users->agent(),
             parent: $parent,
             body: $command->body,
+            apiKey: $command->apiKey,
         ));
     }
 }

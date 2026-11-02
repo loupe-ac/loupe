@@ -726,3 +726,32 @@ another document holds answers `409` with the code `series_ordinal_taken`.
 A `POST` that creates takes an `Idempotency-Key` header. A retry with the same key
 and body repeats the first answer and creates nothing.
 The Markdown of a document or a version is at most 1,048,575 bytes.
+
+### Review through the API
+
+The same API reads the review of a document and records what the owner decided.
+Each call below acts for the owner of the document. History, the review page
+and the audit log name the API key that made the call. A bridge worker session
+gets `403` with the code `credential_not_allowed` on a verdict or a decision.
+
+| Method | Path | What it does |
+|---|---|---|
+| `GET` | `/documents/{document}/review` | Read the verdict, comments, decisions and agent reviews of the current version. |
+| `PATCH` | `/documents/{document}/comments/{comment}` | Mark a comment thread addressed. |
+| `POST` | `/documents/{document}/comments/{comment}/replies` | Reply to a comment thread. |
+| `PUT` | `/documents/{document}/decisions/{decision}` | Record the answer of the owner to a decision. |
+| `DELETE` | `/documents/{document}/decisions/{decision}?versionNumber=N` | Clear the chosen options. The note stays. |
+| `POST` | `/documents/{document}/verdicts` | Record a verdict, `approved` or `changes-requested`. |
+| `DELETE` | `/documents/{document}/verdicts/{verdict}?versionNumber=N` | Withdraw the newest verdict. |
+
+Read the review first. Every write names the version you showed the owner in
+`versionNumber`. A newer version answers `409` with `decision_stale` or
+`verdict_stale`. A verdict also carries `expectedVerdictId`, the `verdictId` of
+the review, or `null` when it is `null`. A newer verdict answers `409` with
+`verdict_changed`. An approval needs an answer to every decision, or it answers
+`409` with `decisions_unanswered`. Call these routes only after the owner gave
+the answer. A reply is attributed to the agent, and a thread is only marked
+addressed. A person resolves it.
+
+A comment id comes from the review. A revision makes new comment rows, so a
+comment of an older version answers `409` with `comment_version_stale`.

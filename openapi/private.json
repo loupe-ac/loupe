@@ -2065,6 +2065,572 @@
                 },
                 "type": "object"
             },
+            "ReviewReply": {
+                "required": [
+                    "id",
+                    "quote",
+                    "body",
+                    "author",
+                    "orphaned"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "quote": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "author": {
+                        "description": "The class of writer, not an identity.",
+                        "type": "string",
+                        "enum": [
+                            "agent",
+                            "human"
+                        ]
+                    },
+                    "orphaned": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ReviewComment": {
+                "required": [
+                    "id",
+                    "quote",
+                    "body",
+                    "replacement",
+                    "author",
+                    "status",
+                    "orphaned",
+                    "thread"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "quote": {
+                        "description": "Widened to whole words, except on a comment with a replacement, where it is the verbatim span.",
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "replacement": {
+                        "description": "What the reviewer wants the quote to become. Null means no edit, and an empty string means delete the passage.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "author": {
+                        "type": "string",
+                        "enum": [
+                            "agent",
+                            "human"
+                        ]
+                    },
+                    "status": {
+                        "description": "The status of the thread.",
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "addressed",
+                            "resolved"
+                        ]
+                    },
+                    "orphaned": {
+                        "description": "The quote no longer appears in the document.",
+                        "type": "boolean"
+                    },
+                    "thread": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReviewReply"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "DecisionSelection": {
+                "required": [
+                    "option",
+                    "index",
+                    "answeredAt",
+                    "answeredAtVersion"
+                ],
+                "properties": {
+                    "option": {
+                        "description": "The option as it read when it was chosen.",
+                        "type": "string"
+                    },
+                    "index": {
+                        "description": "The index in `options`, or null when it is no longer offered.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "answeredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "answeredAtVersion": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "ReviewDecision": {
+                "required": [
+                    "id",
+                    "type",
+                    "options",
+                    "selected",
+                    "selectedIndex",
+                    "answeredAt",
+                    "answeredAtVersion",
+                    "note",
+                    "updatedAt",
+                    "throughAgent",
+                    "selections",
+                    "throughApiKey"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "single",
+                            "multiple"
+                        ]
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "selected": {
+                        "description": "For a single-choice block. Null on a multiple-choice block.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "selectedIndex": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "answeredAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "answeredAtVersion": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "throughAgent": {
+                        "description": "An agent recorded the answer for the owner.",
+                        "type": "boolean"
+                    },
+                    "selections": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DecisionSelection"
+                        }
+                    },
+                    "throughApiKey": {
+                        "description": "An API key recorded the answer for the owner.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentAgentReviewFinding": {
+                "required": [
+                    "index",
+                    "severity",
+                    "title",
+                    "body",
+                    "needsPerson",
+                    "answer"
+                ],
+                "properties": {
+                    "index": {
+                        "type": "integer"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": [
+                            "important",
+                            "nit",
+                            "pre-existing"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "needsPerson": {
+                        "type": "boolean"
+                    },
+                    "answer": {
+                        "required": [
+                            "answer",
+                            "reason"
+                        ],
+                        "properties": {
+                            "answer": {
+                                "type": "string"
+                            },
+                            "reason": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentAgentReview": {
+                "required": [
+                    "reviewId",
+                    "cardId",
+                    "versionNumber",
+                    "conclusion",
+                    "summary",
+                    "findings",
+                    "answered",
+                    "answeredAt",
+                    "createdAt"
+                ],
+                "properties": {
+                    "reviewId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "conclusion": {
+                        "type": "string",
+                        "enum": [
+                            "success",
+                            "failure"
+                        ]
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "findings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentAgentReviewFinding"
+                        }
+                    },
+                    "answered": {
+                        "type": "boolean"
+                    },
+                    "answeredAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentReview": {
+                "required": [
+                    "status",
+                    "verdict",
+                    "verdictId",
+                    "verdictThroughAgent",
+                    "note",
+                    "version",
+                    "comments",
+                    "decisions",
+                    "agentReviews",
+                    "verdictThroughApiKey"
+                ],
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "in-review",
+                            "approved",
+                            "changes-requested",
+                            "draft"
+                        ]
+                    },
+                    "verdict": {
+                        "description": "The verdict standing on the current version. Null also after a withdrawal.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "approved",
+                            "changes-requested",
+                            null
+                        ]
+                    },
+                    "verdictId": {
+                        "description": "The newest entry of the verdict log, a withdrawal included.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "verdictThroughAgent": {
+                        "type": "boolean"
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "version": {
+                        "type": "integer"
+                    },
+                    "comments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReviewComment"
+                        }
+                    },
+                    "decisions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReviewDecision"
+                        }
+                    },
+                    "agentReviews": {
+                        "description": "Newest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentAgentReview"
+                        }
+                    },
+                    "verdictThroughApiKey": {
+                        "description": "An API key recorded the verdict for the owner.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "CommentUpdate": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "description": "The only status a route writes. Resolved stays with a person.",
+                        "type": "string",
+                        "enum": [
+                            "addressed"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "CommentStatusResult": {
+                "required": [
+                    "id",
+                    "status"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "addressed"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "CommentReply": {
+                "required": [
+                    "body"
+                ],
+                "properties": {
+                    "body": {
+                        "description": "The reply text. At most 65536 bytes. The reply is attributed to the agent.",
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "CommentReplyCreated": {
+                "required": [
+                    "id"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "DecisionAnswer": {
+                "required": [
+                    "versionNumber",
+                    "optionIndexes"
+                ],
+                "properties": {
+                    "versionNumber": {
+                        "description": "The version you showed the owner.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "exclusiveMinimum": true
+                    },
+                    "optionIndexes": {
+                        "description": "The indexes of the options the owner chose, from 0.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "minItems": 1
+                    },
+                    "note": {
+                        "description": "The note of the owner. Leave it out to keep the stored note, and pass an empty string to remove it.",
+                        "type": "string",
+                        "maxLength": 2000
+                    }
+                },
+                "type": "object"
+            },
+            "DecisionResult": {
+                "required": [
+                    "decisionId",
+                    "changed",
+                    "cleared"
+                ],
+                "properties": {
+                    "decisionId": {
+                        "type": "string"
+                    },
+                    "changed": {
+                        "type": "boolean"
+                    },
+                    "cleared": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "VerdictSubmit": {
+                "required": [
+                    "versionNumber",
+                    "verdict",
+                    "expectedVerdictId"
+                ],
+                "properties": {
+                    "versionNumber": {
+                        "description": "The version you showed the owner.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "exclusiveMinimum": true
+                    },
+                    "verdict": {
+                        "type": "string",
+                        "enum": [
+                            "approved",
+                            "changes-requested"
+                        ]
+                    },
+                    "expectedVerdictId": {
+                        "description": "The `verdictId` from the review. Pass null when that is null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "note": {
+                        "description": "The note of the owner.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "VerdictResult": {
+                "required": [
+                    "verdictId",
+                    "verdict",
+                    "documentStatus"
+                ],
+                "properties": {
+                    "verdictId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "verdict": {
+                        "type": "string",
+                        "enum": [
+                            "approved",
+                            "changes-requested"
+                        ]
+                    },
+                    "documentStatus": {
+                        "type": "string",
+                        "enum": [
+                            "in-review",
+                            "approved",
+                            "changes-requested",
+                            "draft"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "VerdictWithdrawResult": {
+                "required": [
+                    "verdictId",
+                    "documentStatus"
+                ],
+                "properties": {
+                    "verdictId": {
+                        "description": "The id of the withdrawal entry.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "documentStatus": {
+                        "type": "string",
+                        "enum": [
+                            "in-review",
+                            "approved",
+                            "changes-requested",
+                            "draft"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [
