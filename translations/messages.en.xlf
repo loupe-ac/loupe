@@ -9036,6 +9036,7 @@
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and live reviews of one project, through MCP.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post live-review comments on a project you own.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.agent"><source>oauth.consent.scope.agent</source><target>Act as your Loupe agent: read your projects and boards, and report bridge runs.</target></trans-unit>
+            <trans-unit id="oauth.consent.scope.public"><source>oauth.consent.scope.public</source><target>Use the public Loupe API on your behalf.</target></trans-unit>
             <trans-unit id="oauth.consent.client_host.label"><source>oauth.consent.client_host.label</source><target>App published by</target></trans-unit>
             <trans-unit id="oauth.consent.client_name.label"><source>oauth.consent.client_name.label</source><target>Name the app gives itself</target></trans-unit>
             <trans-unit id="oauth.consent.client_name.unverified"><source>oauth.consent.client_name.unverified</source><target>Loupe cannot check this name. Trust the address above.</target></trans-unit>
@@ -9048,9 +9049,14 @@
             <trans-unit id="oauth.consent.row.scope.mcp"><source>oauth.consent.row.scope.mcp</source><target>It can read and write the documents, live reviews and board of one project</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope.site_review"><source>oauth.consent.row.scope.site_review</source><target>It can read and post live-review comments, and add cards to the boards of projects you own</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope.agent"><source>oauth.consent.row.scope.agent</source><target>It can list your projects, read their boards, and report what your agents do</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope.public"><source>oauth.consent.row.scope.public</source><target>It can use the public Loupe API</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.mcp"><source>oauth.consent.row.scope_bounds.mcp</source><target>In one project only, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.site_review"><source>oauth.consent.row.scope_bounds.site_review</source><target>Only in projects you own, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.agent"><source>oauth.consent.row.scope_bounds.agent</source><target>Across your projects, acting as you. It cannot reach your account or your billing.</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope_bounds.public"><source>oauth.consent.row.scope_bounds.public</source><target>Acting as you. It cannot reach your account or your billing.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.name_length"><source>oauth.api_key.error.name_length</source><target>Enter a name of 1 to 100 characters.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.already_revoked"><source>oauth.api_key.error.already_revoked</source><target>This key is already revoked.</target></trans-unit>
+            <trans-unit id="oauth.api_key.error.remove_active"><source>oauth.api_key.error.remove_active</source><target>Revoke this key before you remove it.</target></trans-unit>
             <trans-unit id="oauth.consent.row.return"><source>oauth.consent.row.return</source><target>You return to %origin%</target></trans-unit>
             <trans-unit id="oauth.consent.row.return_remote"><source>oauth.consent.row.return_remote</source><target>That is the address the app gave Loupe for your answer.</target></trans-unit>
             <trans-unit id="oauth.consent.footnote"><source>oauth.consent.footnote</source><target>You are signed in as %email%. You can remove this app later under</target></trans-unit>

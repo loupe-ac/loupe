@@ -58,6 +58,7 @@ security:
             user_checker: App\Module\Account\Security\AccountStatusChecker
             custom_authenticators:
                 - App\Module\OAuth\Security\OAuthAccessTokenAuthenticator
+                - App\Module\OAuth\Security\ApiKeyAuthenticator
             access_denied_handler: App\Module\Account\Security\ApiAccessDeniedHandler
         # The OAuth token and device authorization endpoints and the discovery
         # documents serve machine clients. No session, remember-me or HTML

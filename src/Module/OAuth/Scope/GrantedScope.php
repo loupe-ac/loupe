@@ -20,7 +20,8 @@ use Symfony\Component\Uid\Uuid;
  * project created after the grant is included and a deleted one disappears. A
  * grant carries one binding or the other, never both.
  *
- * The mcp and site-review scopes need a binding, and agent takes none.
+ * The mcp and site-review scopes need a binding. The agent and public scopes
+ * take none.
  */
 final readonly class GrantedScope
 {
@@ -50,7 +51,7 @@ final readonly class GrantedScope
 
     public static function needsProject(ApiScope $scope): bool
     {
-        return ApiScope::Agent !== $scope;
+        return ApiScope::Agent !== $scope && ApiScope::Public !== $scope;
     }
 
     /**

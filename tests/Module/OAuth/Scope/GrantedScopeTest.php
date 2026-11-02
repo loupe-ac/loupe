@@ -31,6 +31,31 @@ final class GrantedScopeTest extends TestCase
         self::assertNull($granted->projectId);
     }
 
+    public function test_the_public_scope_stands_alone_and_maps_to_its_role(): void
+    {
+        $granted = GrantedScope::fromScopes(['public']);
+
+        self::assertNotNull($granted);
+        self::assertSame([ApiScope::Public], $granted->scopes);
+        self::assertNull($granted->projectId);
+        self::assertSame(['ROLE_API_PUBLIC'], $granted->roles());
+    }
+
+    public function test_the_public_scope_takes_no_project_binding(): void
+    {
+        self::assertNull(GrantedScope::fromScopes(['public', 'project:'.self::PROJECT]));
+        self::assertNull(GrantedScope::fromScopes(['public', 'projects']));
+    }
+
+    public function test_the_public_scope_rides_along_with_a_bound_scope(): void
+    {
+        $granted = GrantedScope::fromScopes(['agent', 'mcp', 'public', 'site-review', 'projects']);
+
+        self::assertNotNull($granted);
+        self::assertTrue($granted->allows(ApiScope::Public));
+        self::assertTrue($granted->allProjects);
+    }
+
     public function test_the_projects_binding_covers_every_project_of_the_owner(): void
     {
         $granted = GrantedScope::fromScopes(['mcp', 'projects']);
