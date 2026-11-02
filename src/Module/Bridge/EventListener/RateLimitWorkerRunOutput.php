@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\EventListener;
 
+use App\Api\Problem\ApiPaths;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -36,7 +37,7 @@ final readonly class RateLimitWorkerRunOutput
         }
 
         $request = $event->getRequest();
-        if (self::ROUTE !== $request->attributes->get('_route')) {
+        if (self::ROUTE !== ApiPaths::canonicalRoute($request->attributes->get('_route'))) {
             return;
         }
 

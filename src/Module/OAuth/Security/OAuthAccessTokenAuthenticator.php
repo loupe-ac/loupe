@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Security;
 
-use App\Api\Problem\ApiPaths;
 use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
@@ -25,7 +24,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\AutowireServiceClosure;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -193,12 +191,11 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
     /** Problem JSON on a /api/v1 path, and the old flat body on any other. */
     private function unauthorized(Request $request): Response
     {
-        if (!ApiPaths::usesProblemJson($request->getPathInfo())) {
-            return new Response('{"error":"unauthorized"}', Response::HTTP_UNAUTHORIZED, ['Content-Type' => 'application/json']);
-        }
-
-        $problem = new ApiProblem(Response::HTTP_UNAUTHORIZED, 'invalid_credentials', 'Invalid credentials', 'The credentials are missing, wrong or revoked.');
-
-        return new JsonResponse($problem->toProblemBody(), $problem->status, ['Content-Type' => 'application/problem+json']);
+        return new ApiProblem(
+            Response::HTTP_UNAUTHORIZED,
+            'invalid_credentials',
+            'Invalid credentials',
+            'The credentials are missing, wrong or revoked.',
+        )->toResponse($request->getPathInfo());
     }
 }

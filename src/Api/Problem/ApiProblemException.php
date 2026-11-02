@@ -14,6 +14,16 @@ final class ApiProblemException extends \RuntimeException
         parent::__construct($problem->detail, $problem->status, $previous);
     }
 
+    /**
+     * A refusal whose title reads off its code, as the contract names them.
+     *
+     * @param array<string, mixed> $extras
+     */
+    public static function refused(int $status, string $code, string $detail, array $extras = []): self
+    {
+        return new self(new ApiProblem($status, $code, ucfirst(str_replace('_', ' ', $code)), $detail, $extras));
+    }
+
     public static function invalidCursor(string $detail): self
     {
         return new self(new ApiProblem(400, 'invalid_cursor', 'Invalid cursor', $detail));

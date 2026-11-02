@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use OpenApi\Attributes as OA;
+
 /**
  * The claim of a bridge for one work request. The field carries no constraint
  * and accepts any JSON value, because a validation failure answers without the
@@ -13,6 +15,7 @@ namespace App\Module\Bridge\Controller\Api;
 final class ClaimWorkRequestRequest
 {
     public function __construct(
+        #[OA\Property(description: 'The account the bridge chose for the request.', type: 'string', nullable: true)]
         public mixed $account = null,
     ) {
     }

@@ -39,6 +39,16 @@ final readonly class ApiPaths
         return array_all(self::PRIVATE_PREFIXES, fn ($prefix) => !($path === $prefix || str_starts_with($path, $prefix.'/')));
     }
 
+    /** The name a route had before its path moved under /api/v1/bridge, so a check keyed on a route name covers both paths. */
+    public static function canonicalRoute(mixed $route): ?string
+    {
+        if (!\is_string($route)) {
+            return null;
+        }
+
+        return str_starts_with($route, 'api_legacy_') ? 'api_'.substr($route, \strlen('api_legacy_')) : $route;
+    }
+
     /** The requested version of a /api/v<N> path, such as `v2`, or null on any other path. */
     public static function requestedVersion(string $path): ?string
     {
