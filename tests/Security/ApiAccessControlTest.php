@@ -49,6 +49,15 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
     }
 
+    public function test_the_site_review_scope_reaches_the_private_widget_prefix_and_no_other_scope_does(): void
+    {
+        self::assertTrue($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertTrue($this->decide('/api/v1/live-review-widget/cards/abc/verdicts', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/live-review-widgets', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+    }
+
     public function test_a_site_review_token_stays_denied_outside_its_own_prefix(): void
     {
         self::assertFalse($this->decide('/api/other', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));

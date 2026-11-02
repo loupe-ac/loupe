@@ -279,7 +279,7 @@ If you change the content after the server accepts it, the retry reports a confl
 Copy the draft before you reload, then review the saved note.
 A reload or a cancel starts a new submission. It does not undo a note that already reached the server.
 
-The widget saves through `POST /api/board/feedback`. The request takes an optional UUID in `deliveryId`.
+The widget saves through `POST /api/v1/live-review-widget/feedback`. The request takes an optional UUID in `deliveryId`.
 A client must reuse it with unchanged content when it retries.
 Its scope is one project, and it lives as long as the stored note.
 Reusing it with different content returns HTTP 409 with `delivery_conflict`.
@@ -293,8 +293,11 @@ A larger image gets HTTP 422 with `screenshot_too_large`.
 Any other file gets HTTP 422 with `screenshot_invalid`.
 A retry that changes the surface, a native fact or the image returns `delivery_conflict`.
 
-`GET /api/live-review/review` lists the notes of the web surface.
+`GET /api/v1/live-review-widget/review` lists the notes of the web surface.
 Pass `surface=ios-simulator` to list the notes of the native surface.
+
+All widget routes live under `/api/v1/live-review-widget`.
+The old paths `/api/live-review/...` and `/api/board/cards...` and `/api/board/feedback...` still answer for one server release, so an old copy of the script keeps working.
 
 An old copy of the widget script saves through `POST /api/site-review/comments`.
 That path is gone and answers HTTP 404, so the old copy cannot save a note.

@@ -90,6 +90,9 @@ security:
                 always_remember_me: false
 
     access_control:
+        # The widget routes under their private prefix. Every widget route moved here;
+        # the old paths below stay for one release.
+        - { path: ^/api/v1/live-review-widget/, roles: ROLE_API_SITE_REVIEW }
         - { path: ^/api/live-review, roles: ROLE_API_SITE_REVIEW }
         # The site-review widget creates and lists board cards, so its token
         # reaches a Board path too. Stated here rather than folded under the

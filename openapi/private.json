@@ -160,6 +160,501 @@
                 }
             }
         },
+        "/api/v1/live-review-widget/feedback": {
+            "post": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Save a widget note on its card",
+                "operationId": "addWidgetFeedback",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The note is saved.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `delivery_conflict`, `delivery_invalid`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/cards": {
+            "get": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "List the open cards for the widget picker",
+                "operationId": "listWidgetCards",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Words to search for.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "A type key. An unknown key means every type.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "parent",
+                        "in": "query",
+                        "description": "True lists cards of types that can have children.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "At most 20 cards.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Create a card from the widget",
+                "operationId": "createWidgetCard",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new card.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `unknown_type`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/feedback/{id}": {
+            "delete": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Delete a pending widget note",
+                "operationId": "deleteWidgetFeedback",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The note id. A value that is not a uuid answers 404 `not_found`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The note went.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/bridge/projects/{handle}/columns": {
             "get": {
                 "tags": [
@@ -222,6 +717,263 @@
                     },
                     "404": {
                         "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/cards/{cardId}/verdicts": {
+            "post": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Record a verdict from the widget",
+                "operationId": "sendCardVerdict",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The verdict is recorded.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `card_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `card_closed`, `submission_reused`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `message_required`, `pull_request_not_on_card`, `verdict_refused`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/cards/{cardId}/verdict": {
+            "get": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Read the verdict panel of a card",
+                "operationId": "showCardVerdict",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "What the widget shows in its verdict panel.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `card_not_found`, `route_not_found`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2761,6 +3513,100 @@
                 }
             }
         },
+        "/api/v1/live-review-widget/comments/{id}/resolve": {
+            "post": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Resolve a widget note",
+                "operationId": "resolveWidgetComment",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The note id. A value that is not a uuid answers 404 `not_found`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The note is resolved."
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/bridge/events/replay": {
             "get": {
                 "tags": [
@@ -2962,6 +3808,281 @@
                     },
                     "426": {
                         "description": "Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/review": {
+            "get": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Read the pending notes the widget shows",
+                "operationId": "showPendingComments",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "scope",
+                        "in": "query",
+                        "description": "A destination such as `card:<id>`. An absent scope lists the whole project. A scope nothing resolves lists nothing.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "surface",
+                        "in": "query",
+                        "description": "It defaults to web.",
+                        "schema": {
+                            "type": "string",
+                            "default": "web",
+                            "enum": [
+                                "web",
+                                "ios-simulator"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "context",
+                        "in": "query",
+                        "description": "The marker of the preview card, or the target the widget stored.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The notes and the widget settings.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `surface_invalid`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/comments/{id}": {
+            "patch": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Change the text of a widget note",
+                "operationId": "updateWidgetComment",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The note id. A value that is not a uuid answers 404 `not_found`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The note after the change.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4113,6 +5234,418 @@
                         "nullable": true,
                         "default": null,
                         "maxLength": 2000
+                    }
+                },
+                "type": "object"
+            },
+            "NewCardInput": {
+                "properties": {
+                    "parentCardId": {
+                        "title": "An epic of the project, which the new card goes under.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackTargetInput": {
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "newCard": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/NewCardInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "SiteReviewAnchorInput": {
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "text": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 2000
+                    },
+                    "quote": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "quotePrefix": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "quoteSuffix": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    }
+                },
+                "type": "object"
+            },
+            "SiteReviewStrokeInput": {
+                "properties": {
+                    "space": {
+                        "type": "string",
+                        "default": "page",
+                        "enum": [
+                            "anchor",
+                            "page"
+                        ]
+                    },
+                    "points": {
+                        "type": "array",
+                        "items": {},
+                        "default": [],
+                        "maxItems": 500,
+                        "minItems": 2
+                    }
+                },
+                "type": "object"
+            },
+            "ReviewSurface": {
+                "type": "string",
+                "enum": [
+                    "web",
+                    "ios-simulator"
+                ]
+            },
+            "NativeFrameInput": {
+                "properties": {
+                    "x": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100000,
+                        "minimum": -100000
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100000,
+                        "minimum": -100000
+                    },
+                    "width": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100000,
+                        "minimum": 0
+                    },
+                    "height": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100000,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "NativeElementInput": {
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 200
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "identifier": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "frame": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/NativeFrameInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "NativeInput": {
+                "properties": {
+                    "appName": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "bundleId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "deviceName": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "udid": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "osVersion": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "screenTitle": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "element": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/NativeElementInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "ScreenshotInput": {
+                "properties": {
+                    "contentType": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "data": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AddFeedbackRequest": {
+                "required": [
+                    "target"
+                ],
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/FeedbackTargetInput"
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 10000
+                    },
+                    "url": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "anchors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SiteReviewAnchorInput"
+                        },
+                        "default": [],
+                        "maxItems": 10
+                    },
+                    "strokes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SiteReviewStrokeInput"
+                        },
+                        "default": [],
+                        "maxItems": 50
+                    },
+                    "selector": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 2000
+                    },
+                    "text": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 2000
+                    },
+                    "context": {
+                        "title": "Whatever the embed's `data-context` carried. Nothing here reads it:\nit is stored as given and interpreted by whichever module recognises\nthe value it wrote.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "deliveryId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "surface": {
+                        "$ref": "#/components/schemas/ReviewSurface"
+                    },
+                    "native": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/NativeInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "screenshot": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ScreenshotInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "CreateCardRequest": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "body": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 10000
+                    },
+                    "type": {
+                        "title": "A type key of the project's template. Null means the default type.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 20
+                    },
+                    "parent": {
+                        "title": "Asks for a type that can have children: the given one, or the first of the template.",
+                        "type": "boolean",
+                        "default": false
+                    }
+                },
+                "type": "object"
+            },
+            "CardVerdictKind": {
+                "type": "string",
+                "enum": [
+                    "approve",
+                    "request-changes",
+                    "comment"
+                ]
+            },
+            "SendCardVerdictRequest": {
+                "properties": {
+                    "kind": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/CardVerdictKind"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "pullRequestIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [],
+                        "maxItems": 20
+                    },
+                    "message": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 10000
+                    },
+                    "submissionId": {
+                        "title": "One id for each Send, kept by the widget across a retry of the same content. A cached older script sends none.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
                     }
                 },
                 "type": "object"
@@ -5723,6 +7256,17 @@
                     }
                 },
                 "type": "object"
+            },
+            "UpdateCommentRequest": {
+                "properties": {
+                    "body": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 10000
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -5742,6 +7286,10 @@
         {
             "name": "Artifacts",
             "description": "Artifacts"
+        },
+        {
+            "name": "Widget",
+            "description": "Widget"
         },
         {
             "name": "Bridge",
