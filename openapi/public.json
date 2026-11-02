@@ -7503,7 +7503,7 @@
                 "type": "object"
             },
             "ArtifactCreateUpload": {
-                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
+                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `upload_failed`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
                 "required": [
                     "name",
                     "paths",
@@ -7551,7 +7551,7 @@
                 "type": "object"
             },
             "ArtifactVersionUpload": {
-                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
+                "description": "`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `upload_failed`, `card_not_found` and the name codes `name_blank`, `name_too_long`.",
                 "required": [
                     "paths",
                     "files"

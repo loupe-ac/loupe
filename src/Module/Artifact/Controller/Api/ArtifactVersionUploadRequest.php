@@ -14,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * their refusals carry the codes of the store.
  */
 #[OA\Schema(
-    description: '`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.',
+    description: '`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `upload_failed`, `card_not_found` and the name codes `name_blank`, `name_too_long`.',
     x: [PartialChangeSchemaProcessor::MARKER => ['paths', 'files']],
 )]
 class ArtifactVersionUploadRequest
@@ -23,7 +23,7 @@ class ArtifactVersionUploadRequest
     public const int MAX_SOURCE_LINK_LENGTH = 2000;
     public const int MAX_PATH_LENGTH = 1024;
 
-    /** @var list<string> */
+    /** @var array<array-key, string> */
     #[Assert\All([new Assert\Type('string')])]
     #[OA\Property(description: 'The path of each file in `files`, in the same order.', type: 'array', items: new OA\Items(type: 'string', maxLength: self::MAX_PATH_LENGTH))]
     public array $paths = [];

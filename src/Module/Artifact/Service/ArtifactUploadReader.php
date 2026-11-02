@@ -18,18 +18,21 @@ final readonly class ArtifactUploadReader
     }
 
     /**
-     * @param list<string> $paths
-     * @param array<mixed> $files
+     * @param array<array-key, string> $paths
+     * @param array<mixed>             $files
      *
      * @return list<ArtifactFileInput>
      *
-     * @throws ApiProblemException `validation_failed` when the paths and the files do not pair one to one, or the card is no uuid
+     * @throws ApiProblemException `validation_failed` when the paths and the files do not pair one to one, an upload failed, or the card is no uuid
      */
     public function read(array $paths, array $files, ?string $card): array
     {
         $errors = [];
-        if (!array_is_list($files) || \count($files) !== \count($paths) || array_any($files, static fn (mixed $file): bool => !$file instanceof UploadedFile)) {
+        $failedUpload = array_find($files, static fn (mixed $file): bool => $file instanceof UploadedFile && !$file->isValid());
+        if (!array_is_list($paths) || !array_is_list($files) || \count($files) !== \count($paths) || array_any($files, static fn (mixed $file): bool => !$file instanceof UploadedFile)) {
             $errors = $this->problems->pathsMismatch();
+        } elseif ($failedUpload instanceof UploadedFile) {
+            $errors = $this->problems->uploadFailed($failedUpload->getError());
         }
         $cardId = trim($card ?? '');
         if ('' !== $cardId && !Uuid::isValid($cardId)) {

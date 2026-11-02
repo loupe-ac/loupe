@@ -11,7 +11,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 /** The fields of the multipart request that creates an artifact. The handler checks the name. */
 #[OA\Schema(
-    description: '`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `card_not_found` and the name codes `name_blank`, `name_too_long`.',
+    description: '`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`, `duplicate_path`, `bad_content_type`, `too_large`, `upload_failed`, `card_not_found` and the name codes `name_blank`, `name_too_long`.',
     x: [PartialChangeSchemaProcessor::MARKER => ['name', 'paths', 'files']],
 )]
 final class ArtifactUploadRequest extends ArtifactVersionUploadRequest

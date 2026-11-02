@@ -46,6 +46,20 @@ final readonly class ArtifactApiProblems
         return [['field' => 'paths', 'code' => 'paths_mismatch', 'message' => $this->sentence('artifact.error.paths_mismatch')]];
     }
 
+    /**
+     * A part that PHP could not store. A part over a size limit reads as the size refusal of the store.
+     *
+     * @return list<array{field: string, code: string, message: string}>
+     */
+    public function uploadFailed(int $uploadError): array
+    {
+        if (\UPLOAD_ERR_INI_SIZE === $uploadError || \UPLOAD_ERR_FORM_SIZE === $uploadError) {
+            return [['field' => 'files', 'code' => 'too_large', 'message' => $this->sentence('artifact.error.too_large')]];
+        }
+
+        return [['field' => 'files', 'code' => 'upload_failed', 'message' => $this->sentence('artifact.error.upload_failed')]];
+    }
+
     /** @return list<array{field: string, code: string, message: string}> */
     public function cardNotFound(): array
     {

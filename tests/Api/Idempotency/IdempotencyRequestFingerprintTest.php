@@ -38,6 +38,20 @@ final class IdempotencyRequestFingerprintTest extends TestCase
         self::assertNotSame($same, $fingerprint->of($this->multipart(['name' => 'Y'], 'one')));
     }
 
+    public function test_a_failed_upload_has_a_hash_that_its_error_decides(): void
+    {
+        $fingerprint = new IdempotencyRequestFingerprint();
+
+        $same = $fingerprint->of($this->failedUpload(\UPLOAD_ERR_INI_SIZE));
+        self::assertSame($same, $fingerprint->of($this->failedUpload(\UPLOAD_ERR_INI_SIZE)));
+        self::assertNotSame($same, $fingerprint->of($this->failedUpload(\UPLOAD_ERR_PARTIAL)));
+    }
+
+    private function failedUpload(int $error): Request
+    {
+        return Request::create('/api/v1/projects/x/artifacts', Request::METHOD_POST, ['name' => 'X'], files: ['files' => [new UploadedFile('', 'a.html', 'text/html', $error, true)]]);
+    }
+
     private function json(string $body): Request
     {
         return Request::create('/api/v1/projects', Request::METHOD_POST, content: $body);

@@ -20,7 +20,7 @@ final readonly class IdempotencyRequestFingerprint
         ]));
     }
 
-    /** PHP parses a multipart body away, so its fields and the digest of each file stand for it. */
+    /** PHP parses a multipart body away, so its fields and the digest of each file stand for it. A failed upload has no file, so its error stands for the digest. */
     private function bodyOf(Request $request): string
     {
         $body = $request->getContent();
@@ -40,7 +40,7 @@ final readonly class IdempotencyRequestFingerprint
     {
         return array_map(
             static fn (mixed $file): mixed => match (true) {
-                $file instanceof UploadedFile => [$file->getClientOriginalName(), $file->getClientMimeType(), hash_file('sha256', $file->getPathname())],
+                $file instanceof UploadedFile => [$file->getClientOriginalName(), $file->getClientMimeType(), $file->isValid() ? hash_file('sha256', $file->getPathname()) : $file->getError()],
                 \is_array($file) => self::digestOf($file),
                 default => null,
             },

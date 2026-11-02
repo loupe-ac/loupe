@@ -342,6 +342,63 @@ final class ArtifactApiTest extends WebTestCase
         self::assertSame(0, $this->artifacts()->count([]));
     }
 
+    /** @param array<array-key, string> $paths */
+    #[DataProvider('keyedPathsOnEachUploadRoute')]
+    public function test_paths_that_are_no_list_are_paths_mismatch(bool $version, array $paths): void
+    {
+        $artifact = $this->storedArtifact($this->project, 'Tokens', [['index.html' => 'v1']]);
+
+        $this->upload($this->uploadUrl($version, $artifact), $version ? [] : ['name' => 'X'], ['a.html' => 'a'], paths: $paths);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('paths_mismatch', $this->json()['errors'][0]['code']);
+        self::assertSame(1, $this->artifacts()->count([]));
+        self::assertCount(1, $this->stored($artifact)->versions);
+    }
+
+    /** @return iterable<string, array{bool, array<array-key, string>}> */
+    public static function keyedPathsOnEachUploadRoute(): iterable
+    {
+        foreach (['create' => false, 'version' => true] as $route => $version) {
+            yield $route.', a text key' => [$version, ['foo' => 'a.html']];
+            yield $route.', a number key that does not start at 0' => [$version, [5 => 'a.html']];
+        }
+    }
+
+    #[DataProvider('failedUploadOnEachUploadRoute')]
+    public function test_a_failed_upload_is_refused_with_its_code_and_stores_nothing(bool $version, int $error, string $code, bool $idempotent): void
+    {
+        $artifact = $this->storedArtifact($this->project, 'Tokens', [['index.html' => 'v1']]);
+
+        $this->client->request(
+            Request::METHOD_POST,
+            $this->uploadUrl($version, $artifact),
+            ($version ? [] : ['name' => 'X']) + ['paths' => ['a.html']],
+            ['files' => [new UploadedFile('', 'a.html', 'text/html', $error, true)]],
+            ['HTTP_AUTHORIZATION' => 'Bearer '.$this->token] + ($idempotent ? ['HTTP_IDEMPOTENCY_KEY' => 'failed-upload'] : []),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('files', $this->json()['errors'][0]['field']);
+        self::assertSame($code, $this->json()['errors'][0]['code']);
+        self::assertNotSame('', $this->json()['errors'][0]['message']);
+        self::assertSame(1, $this->artifacts()->count([]));
+        self::assertCount(1, $this->stored($artifact)->versions);
+    }
+
+    /** @return iterable<string, array{bool, int, string, bool}> */
+    public static function failedUploadOnEachUploadRoute(): iterable
+    {
+        foreach (['create' => false, 'version' => true] as $route => $version) {
+            foreach (['no key' => false, 'with a key' => true] as $label => $idempotent) {
+                yield $route.', over the size limit, '.$label => [$version, \UPLOAD_ERR_INI_SIZE, 'too_large', $idempotent];
+                yield $route.', over the form limit, '.$label => [$version, \UPLOAD_ERR_FORM_SIZE, 'too_large', $idempotent];
+                yield $route.', a partial part, '.$label => [$version, \UPLOAD_ERR_PARTIAL, 'upload_failed', $idempotent];
+                yield $route.', no temporary folder, '.$label => [$version, \UPLOAD_ERR_NO_TMP_DIR, 'upload_failed', $idempotent];
+            }
+        }
+    }
+
     public function test_a_create_with_over_long_notes_or_source_link_is_refused(): void
     {
         $this->upload($this->base(), ['name' => 'X', 'notes' => str_repeat('a', 2001)], ['a.html' => 'a']);
@@ -570,11 +627,16 @@ final class ArtifactApiTest extends WebTestCase
         $this->em()->clear();
     }
 
+    private function uploadUrl(bool $version, \App\Module\Artifact\Entity\Artifact $artifact): string
+    {
+        return $version ? $this->base().'/'.$artifact->id.'/versions' : $this->base();
+    }
+
     /**
-     * @param array<string, string> $fields
-     * @param array<string, string> $contentsByPath
-     * @param ?list<string>         $paths          the paths to send, when they are not the keys of $contentsByPath
-     * @param array<string, string> $server
+     * @param array<string, string>     $fields
+     * @param array<string, string>     $contentsByPath
+     * @param ?array<array-key, string> $paths          the paths to send, when they are not the keys of $contentsByPath
+     * @param array<string, string>     $server
      */
     private function upload(string $url, array $fields, array $contentsByPath, ?array $paths = null, array $server = []): void
     {
