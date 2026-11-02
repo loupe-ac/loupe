@@ -20,6 +20,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
@@ -363,6 +364,50 @@ final class WriteCardEventOnRunFinishedTest extends KernelTestCase
         $rows = $this->rows();
         self::assertCount(1, $rows);
         self::assertSame((string) $finished->id, $rows[0]->detail['runId']);
+    }
+
+    public function test_the_cards_of_finished_runs_are_read_in_one_statement_however_many_runs_there_are(): void
+    {
+        $small = $this->cardReadsFor(1);
+        $big = $this->cardReadsFor(6);
+
+        self::assertGreaterThan(0, $small);
+        self::assertSame($small, $big);
+    }
+
+    /** @return int the statements that read board_cards while the listener ran on $count runs of $count cards */
+    private function cardReadsFor(int $count): int
+    {
+        $runs = [];
+        $cardIds = [];
+        for ($i = 0; $i < $count; ++$i) {
+            $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Count '.uniqid(), '', 100 + $i + $count * 10);
+            $this->em->persist($card);
+            $this->em->flush();
+            $runs[] = $this->workerRun($card->id, WorkerRunState::Succeeded);
+            $cardIds[] = (string) $card->id;
+        }
+        $event = new WorkerRunChanged(
+            $this->project->id ?? throw new \LogicException('A persisted project has an id.'),
+            $cardIds,
+            array_map(static fn (WorkerRun $run): string => (string) $run->id, $runs),
+        );
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+
+        $queries->reset();
+        $this->listener()($event);
+
+        $statements = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $statements[] = (string) $query['sql'];
+            }
+        }
+        // Guard: the listener must have run, or the count proves nothing.
+        self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'board_card_events')));
+
+        return \count(array_filter($statements, static fn (string $sql): bool => str_starts_with($sql, 'SELECT') && str_contains($sql, 'FROM board_cards')));
     }
 
     private function workerRun(?Uuid $cardId, WorkerRunState $state): WorkerRun
