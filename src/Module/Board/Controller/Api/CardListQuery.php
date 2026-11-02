@@ -8,12 +8,11 @@ use App\Api\Problem\ApiProblemException;
 use App\Module\Board\View\CardSort;
 use Symfony\Component\HttpFoundation\Request;
 
-/** The filters, the sort and the `full` switch of a card list request, read from its query string. */
+/** The filters and the sort of a card list request, read from its query string. */
 final readonly class CardListQuery
 {
     private function __construct(
         public CardSort $sort,
-        public bool $full,
         public ?string $query,
         public ?string $status,
         public ?string $type,
@@ -75,7 +74,6 @@ final readonly class CardListQuery
 
         $query = new self(
             $sort,
-            $flag('full') ?? false,
             $text('q'),
             $text('status'),
             $text('type'),
@@ -92,8 +90,8 @@ final readonly class CardListQuery
     }
 
     /**
-     * What a cursor remembers, so a walk that changes a filter is refused. `full` shapes the rows
-     * and not the walk, so a client may switch it between pages.
+     * What a cursor remembers, so a walk that changes a filter is refused. `fields` shapes the rows
+     * and not the walk, so a client may change it between pages.
      *
      * @return array<string, scalar|null>
      */

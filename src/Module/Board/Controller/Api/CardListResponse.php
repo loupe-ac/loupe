@@ -8,7 +8,7 @@ use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 
 /** One page of cards, as the spec shows it. Page::toResponse() builds the real body. */
-#[OA\Schema(description: 'The rows are summaries, or whole cards with `full=true`.', required: ['items', 'next'])]
+#[OA\Schema(description: 'The rows are light cards, whole cards with `fields=all`, or the named `fields` alone.', required: ['items', 'next'])]
 final readonly class CardListResponse
 {
     /** @param list<CardSummaryResponse|CardResponse> $items */

@@ -13,6 +13,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['cardId', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'])]
 final readonly class CardResponse
 {
+    /** The top-level names of the card, in the order of its row. */
+    public const array FIELDS = ['cardId', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
+
     /**
      * @param list<array<string, mixed>>        $pullRequests
      * @param list<array<string, mixed>>        $documents

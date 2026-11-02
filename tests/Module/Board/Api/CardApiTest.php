@@ -7,10 +7,14 @@ namespace App\Tests\Module\Board\Api;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
@@ -25,6 +29,9 @@ use Symfony\Component\HttpFoundation\Request;
 final class CardApiTest extends WebTestCase
 {
     use BoardColumnFixtures;
+
+    private const array WHOLE_KEYS = ['cardId', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
+    private const array LIGHT_KEYS = ['cardId', 'number', 'title', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -184,9 +191,9 @@ final class CardApiTest extends WebTestCase
         self::assertSame('project_not_found', $this->json()['code']);
     }
 
-    public function test_the_list_reads_oldest_first_with_the_summary_shape(): void
+    public function test_the_list_reads_oldest_first_with_the_light_row(): void
     {
-        $this->createCard('First');
+        $this->createCard('First', ['body' => 'Long text']);
         $this->createCard('Second');
 
         $this->send(Request::METHOD_GET, $this->base());
@@ -194,19 +201,105 @@ final class CardApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame(['First', 'Second'], array_column($body['items'], 'title'));
-        self::assertSame(['cardId', 'number', 'title', 'type', 'status', 'reporter', 'parentCardId', 'updatedAt', 'state'], array_keys($body['items'][0]));
+        self::assertSame(self::LIGHT_KEYS, array_keys($body['items'][0]));
+        self::assertSame(1, $body['items'][0]['number']);
+        self::assertSame(0, $body['items'][0]['position']);
         self::assertNull($body['next']);
     }
 
-    public function test_full_makes_each_item_a_whole_card(): void
+    public function test_the_light_row_holds_refs_for_pull_requests_and_feedback(): void
     {
-        $this->createCard('Whole');
+        $this->createCard('Linked');
+        $this->linkPullRequestAndFeedback();
+
+        $this->send(Request::METHOD_GET, $this->base());
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->json()['items'][0];
+        self::assertSame(['pullRequestId', 'url', 'forge', 'repository', 'number'], array_keys($row['pullRequests'][0]));
+        self::assertSame('https://github.com/loupe-ac/loupe/pull/7', $row['pullRequests'][0]['url']);
+        self::assertSame(7, $row['pullRequests'][0]['number']);
+        self::assertSame(['id', 'status', 'url'], array_keys($row['siteReviewComments'][0]));
+        self::assertSame('pending', $row['siteReviewComments'][0]['status']);
+    }
+
+    public function test_fields_all_makes_each_item_a_whole_card(): void
+    {
+        $this->createCard('Whole', ['body' => 'Everything']);
+        $this->linkPullRequestAndFeedback();
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=all');
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->json()['items'][0];
+        self::assertSame(self::WHOLE_KEYS, array_keys($row));
+        self::assertSame('Everything', $row['body']);
+        self::assertSame(['pullRequestId', 'url', 'forge', 'repository', 'number', 'state', 'agentReview'], array_keys($row['pullRequests'][0]));
+        self::assertSame('The logo is blurry', $row['siteReviewComments'][0]['body']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1');
+        self::assertSame($this->json(), $row);
+    }
+
+    public function test_the_old_full_switch_is_ignored(): void
+    {
+        $this->createCard('Plain', ['body' => 'Long text']);
 
         $this->send(Request::METHOD_GET, $this->base().'?full=true');
 
         self::assertResponseStatusCodeSame(200);
-        self::assertArrayHasKey('body', $this->json()['items'][0]);
-        self::assertArrayHasKey('pullRequests', $this->json()['items'][0]);
+        self::assertSame(self::LIGHT_KEYS, array_keys($this->json()['items'][0]));
+    }
+
+    public function test_named_fields_come_back_alone_in_the_order_of_the_card(): void
+    {
+        $this->createCard('Named', ['body' => 'Text']);
+        $this->linkPullRequestAndFeedback();
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=title,number');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['number' => 1, 'title' => 'Named']], $this->json()['items']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1');
+        $whole = $this->json();
+        $this->send(Request::METHOD_GET, $this->base().'?fields=body,pullRequests,siteReviewComments');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([[
+            'body' => $whole['body'],
+            'pullRequests' => $whole['pullRequests'],
+            'siteReviewComments' => $whole['siteReviewComments'],
+        ]], $this->json()['items']);
+        self::assertSame(['pullRequestId', 'url', 'forge', 'repository', 'number', 'state', 'agentReview'], array_keys($whole['pullRequests'][0]));
+    }
+
+    public function test_a_bad_fields_value_answers_the_error_list(): void
+    {
+        $this->createCard('Any');
+
+        foreach (['fields=nope', 'fields=', 'fields=all,title', 'fields=state.kind', 'fields[]=title'] as $query) {
+            $this->send(Request::METHOD_GET, $this->base().'?'.$query);
+
+            self::assertResponseStatusCodeSame(422, $query);
+            self::assertSame('validation_failed', $this->json()['code']);
+            self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
+            self::assertSame('fields', $this->json()['errors'][0]['field']);
+        }
+    }
+
+    public function test_the_next_link_keeps_fields_and_a_walk_may_change_them(): void
+    {
+        foreach (range(1, 3) as $i) {
+            $this->createCard('Card '.$i);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'?limit=2&fields=number');
+        $first = $this->json();
+        self::assertSame([['number' => 1], ['number' => 2]], $first['items']);
+        self::assertStringContainsString('fields=number', (string) $first['next']);
+
+        $this->send(Request::METHOD_GET, str_replace('fields=number', 'fields=title', (string) $first['next']));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['title' => 'Card 3']], $this->json()['items']);
     }
 
     public function test_a_cursor_walk_visits_every_card_once_in_each_order(): void
@@ -552,6 +645,20 @@ final class CardApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
 
         return $this->json();
+    }
+
+    private function linkPullRequestAndFeedback(): void
+    {
+        $card = $this->findCard(1);
+        $project = $this->em->find(Project::class, $this->project->id);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertInstanceOf(Project::class, $project);
+        $comment = new SiteReviewComment($project, 0, 'The logo is blurry', 'https://app.example/page');
+        $this->em->persist($comment);
+        $this->em->persist(new CardSiteReviewComment($card, $comment));
+        $this->em->persist(new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/7', Forge::GitHub, 'loupe-ac/loupe', 7));
+        $this->em->flush();
+        $this->em->clear();
     }
 
     private function findCard(int $number): ?Card
