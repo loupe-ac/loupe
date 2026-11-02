@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -37,6 +39,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'sort', description: 'The sort order. The default is creation order, oldest first. A leading `-` sorts newest first.', in: 'query', schema: new OA\Schema(type: 'string', default: 'createdAt', enum: ['createdAt', '-createdAt'])),
         new OA\Parameter(name: 'status', description: 'Which feedback to return.', in: 'query', schema: new OA\Schema(type: 'string', default: FeedbackFilter::DEFAULT_STATUS, enum: ['pending', 'addressed', 'resolved', 'all'])),
         new OA\Parameter(name: 'cardId', description: 'Only the feedback of this card.', in: 'query', schema: new OA\Schema(type: 'string', format: 'uuid')),
+        new FieldsParameter(FeedbackResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of feedback.', FeedbackListResponse::class, page: true),
@@ -61,6 +64,7 @@ final class ListFeedbackController extends AppController
     public function __invoke(Request $request, #[ReachableProject] Project $project): JsonResponse
     {
         $filter = FeedbackFilter::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, FeedbackResponse::FIELDS);
         $sort = CreatedSort::fromRequest($request);
 
         try {
@@ -76,9 +80,15 @@ final class ListFeedbackController extends AppController
             throw $this->problems->from($e);
         }
 
+        $whole = array_any(FeedbackResponse::LEFT_OUT_OF_ROW, $fields->has(...));
+
         return $view->page->toResponse(
             $request,
-            fn (SiteReviewComment $comment): FeedbackResponse => FeedbackResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null),
+            fn (SiteReviewComment $comment): array => $fields->keepObject(
+                $whole
+                    ? FeedbackResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null)
+                    : FeedbackRowResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null),
+            ),
         );
     }
 }

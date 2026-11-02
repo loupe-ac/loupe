@@ -15,6 +15,7 @@ final readonly class PageArtifactsCommand
         public bool $includeArchived,
         public PageRequest $page,
         public CreatedSort $sort,
+        public ArtifactRowReads $reads = new ArtifactRowReads(),
     ) {
     }
 }

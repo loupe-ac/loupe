@@ -91,6 +91,35 @@ class ArtifactVersionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every version of each artifact, oldest first, in one query.
+     *
+     * @param list<Artifact> $artifacts
+     *
+     * @return array<string, list<ArtifactVersion>> keyed by artifact id
+     */
+    public function findAllForArtifacts(array $artifacts): array
+    {
+        if ([] === $artifacts) {
+            return [];
+        }
+
+        /** @var list<ArtifactVersion> $versions */
+        $versions = $this->createQueryBuilder('version')
+            ->where('version.artifact IN (:artifacts)')
+            ->setParameter('artifacts', $artifacts)
+            ->orderBy('version.number', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $byArtifact = [];
+        foreach ($versions as $version) {
+            $byArtifact[(string) $version->artifact->id][] = $version;
+        }
+
+        return $byArtifact;
+    }
+
+    /**
      * Every version of the artifact with its file count and total size, oldest first.
      *
      * @return list<array{version: ArtifactVersion, fileCount: int, totalBytes: int}>

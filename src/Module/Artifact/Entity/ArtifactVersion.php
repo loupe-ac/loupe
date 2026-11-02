@@ -68,18 +68,34 @@ class ArtifactVersion
     /** The file a viewer opens: index.html, else the first HTML file, else the first file. */
     public function entryFile(): ?ArtifactFile
     {
-        $first = null;
-        $firstHtml = null;
+        $entryPath = self::entryPath($this->files->map(static fn (ArtifactFile $file): string => $file->path)->getValues());
         foreach ($this->files as $file) {
-            if ('index.html' === $file->path) {
+            if ($file->path === $entryPath) {
                 return $file;
-            }
-            $first ??= $file;
-            if (null === $firstHtml && 1 === preg_match('/\.html?$/i', $file->path)) {
-                $firstHtml = $file;
             }
         }
 
-        return $firstHtml ?? $first;
+        return null;
+    }
+
+    /**
+     * The path a viewer opens among the paths of a version, in file order: index.html,
+     * else the first HTML path, else the first path.
+     *
+     * @param list<string> $paths
+     */
+    public static function entryPath(array $paths): ?string
+    {
+        $firstHtml = null;
+        foreach ($paths as $path) {
+            if ('index.html' === $path) {
+                return $path;
+            }
+            if (null === $firstHtml && 1 === preg_match('/\.html?$/i', $path)) {
+                $firstHtml = $path;
+            }
+        }
+
+        return $firstHtml ?? $paths[0] ?? null;
     }
 }

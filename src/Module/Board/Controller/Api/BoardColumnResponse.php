@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Module\Board\Entity\BoardColumn;
 use OpenApi\Attributes as OA;
 
 /** A column of a board, as the public API shows it. */
-#[OA\Schema(required: ['slug', 'label', 'terminal', 'default', 'backlog'])]
+#[OA\Schema(required: ['slug', 'label', 'terminal', 'default', 'backlog'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class BoardColumnResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialBoardColumn';
+
+    /** The top-level names of a column, in the order of its row. */
+    public const array FIELDS = ['slug', 'label', 'terminal', 'default', 'backlog'];
+
     public function __construct(
         #[OA\Property(description: 'The value you pass as `status`.')]
         public string $slug,

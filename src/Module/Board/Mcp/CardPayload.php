@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Mcp;
 
+use App\Api\Fields\FieldSelection;
 use App\Module\Board\Command\CardView;
 use App\Module\Board\Command\RelatedCard;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardArtifact;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardPause;
@@ -83,15 +83,35 @@ final readonly class CardPayload
     public function forCard(CardView $view): array
     {
         $card = $view->card;
+        $links = $view->siteReviewLinks;
+        $sources = new CardSources(
+            comments: static fn (): array => $links,
+            related: static fn (): array => $view->relatedCards,
+            children: static fn (): array => $view->children,
+            states: static fn (): PullRequestStates => $view->pullRequestStates,
+            reviews: fn (): array => $this->agentReviews->forCards([$card]),
+            pause: fn (): ?CardPause => null === $card->id ? null : $this->cardPauses->findActiveForCard($card),
+            markers: static fn (): StoredCardMarkers => $view->markers,
+            artifacts: fn (): array => $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? [],
+            sizes: fn (): array => $this->siteReviewScreenshots->findSizesByComments(self::commentsOf($links)),
+            values: fn (): array => $this->cardValues->forCard($card),
+            loadPullRequests: static function (): void {},
+            loadDocuments: static function (): void {},
+            loadParents: static function (): void {},
+        );
 
-        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? [], $this->siteReviewScreenshots->findSizesByComments(self::commentsOf($view->siteReviewLinks)), $this->cardValues->forCard($card));
+        /** @var CardSummary $row */
+        $row = $this->row($card, $sources, null, false);
+
+        return $row;
     }
 
     /**
      * Many cards in one read, so a board-sized list costs one comment query,
      * one card link query, one children query, one parent query, one pause
-     * query, one document link query, one value query and one query for each
-     * map of the pull request states rather than one of each per card.
+     * query, one document link query, one pull request link query, one value
+     * query and one query for each map of the pull request states rather than
+     * one of each per card.
      *
      * @param list<Card> $cards
      *
@@ -99,38 +119,106 @@ final readonly class CardPayload
      */
     public function forCards(array $cards): array
     {
-        $commentsByCard = $this->cardSiteReviewComments->findForCards($cards);
-        $linksByCard = $this->cardLinks->findForCards($cards);
-        $epics = array_values(array_filter($cards, fn (Card $card): bool => $this->catalog->forProject($card->project->requireId())->get($card->type)->children));
-        $childrenByCard = [] === $epics ? [] : $this->cards->findChildrenOfCards($epics);
-        $this->cards->loadParentsOf($cards);
-        $this->cards->loadDocumentsOf($cards);
-        $valuesByCard = $this->cardValues->forCards($cards);
-        $states = $this->pullRequestStates->forCards($cards);
-        $reviews = $this->agentReviews->forCards($cards);
-        $pausesByCard = $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards))));
-        $artifactsByCard = $this->cardArtifacts->findWithLatestVersionForCards($cards);
-        $sizes = $this->siteReviewScreenshots->findSizesByComments(self::commentsOf(array_merge(...array_values($commentsByCard))));
+        $sources = $this->batchSources($cards);
 
-        return array_map(
-            fn (Card $card): array => $this->render(
-                $card,
-                $commentsByCard[(string) $card->id] ?? [],
-                array_map(
-                    static fn (CardLink $link): RelatedCard => new RelatedCard($link->otherThan($card), $link->kindFor($card)),
-                    $linksByCard[(string) $card->id] ?? [],
-                ),
-                $childrenByCard[(string) $card->id] ?? [],
-                $states,
-                $reviews,
-                $pausesByCard[(string) $card->id] ?? null,
-                StoredCardMarkers::of($card),
-                $artifactsByCard[(string) $card->id] ?? [],
-                $sizes,
-                $valuesByCard[(string) $card->id] ?? [],
+        /** @var list<CardSummary> $rows */
+        $rows = array_map(fn (Card $card): array => $this->row($card, $sources, null, false), $cards);
+
+        return $rows;
+    }
+
+    /**
+     * The rows of a public list, shaped by the `fields` of the request.
+     *
+     * No `fields` gives the light row: every plain field, no body, and a ref for each
+     * pull request and each feedback item. `all` gives the whole card. Named fields
+     * give those keys alone, each one whole. A field reads its data on first use,
+     * so a row that never names the pull requests runs no pull request query.
+     *
+     * @param list<Card> $cards
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function forFields(array $cards, FieldSelection $fields): array
+    {
+        $sources = $this->batchSources($cards);
+        $only = $fields->isDefault() ? null : $fields;
+
+        return array_map(fn (Card $card): array => $this->row($card, $sources, $only, $fields->isDefault()), $cards);
+    }
+
+    /** @param list<Card> $cards */
+    private function batchSources(array $cards): CardSources
+    {
+        $comments = self::once(fn (): array => $this->cardSiteReviewComments->findForCards($cards));
+        $links = self::once(fn (): array => $this->cardLinks->findForCards($cards));
+        $children = self::once(function () use ($cards): array {
+            $epics = array_values(array_filter($cards, fn (Card $card): bool => $this->catalog->forProject($card->project->requireId())->get($card->type)->children));
+
+            return [] === $epics ? [] : $this->cards->findChildrenOfCards($epics);
+        });
+        $pauses = self::once(fn (): array => $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards)))));
+        $artifacts = self::once(fn (): array => $this->cardArtifacts->findWithLatestVersionForCards($cards));
+        $values = self::once(fn (): array => $this->cardValues->forCards($cards));
+        $loadPullRequests = self::once(function () use ($cards): void {
+            $this->cards->loadPullRequestsOf($cards);
+        });
+        // Both read the pull requests of every card, so the links load first.
+        $states = self::once(function () use ($cards, $loadPullRequests): PullRequestStates {
+            $loadPullRequests();
+
+            return $this->pullRequestStates->forCards($cards);
+        });
+        $reviews = self::once(function () use ($cards, $loadPullRequests): array {
+            $loadPullRequests();
+
+            return $this->agentReviews->forCards($cards);
+        });
+
+        return new CardSources(
+            comments: static fn (Card $card): array => $comments()[(string) $card->id] ?? [],
+            related: static fn (Card $card): array => array_map(
+                static fn (CardLink $link): RelatedCard => new RelatedCard($link->otherThan($card), $link->kindFor($card)),
+                $links()[(string) $card->id] ?? [],
             ),
-            $cards,
+            children: static fn (Card $card): array => $children()[(string) $card->id] ?? [],
+            states: $states,
+            reviews: $reviews,
+            pause: static fn (Card $card): ?CardPause => $pauses()[(string) $card->id] ?? null,
+            markers: static fn (Card $card): StoredCardMarkers => StoredCardMarkers::of($card),
+            artifacts: static fn (Card $card): array => $artifacts()[(string) $card->id] ?? [],
+            sizes: self::once(fn (): array => $this->siteReviewScreenshots->findSizesByComments(self::commentsOf(array_merge(...array_values($comments()))))),
+            values: static fn (Card $card): array => $values()[(string) $card->id] ?? [],
+            loadPullRequests: $loadPullRequests,
+            loadDocuments: self::once(function () use ($cards): void {
+                $this->cards->loadDocumentsOf($cards);
+            }),
+            loadParents: self::once(function () use ($cards): void {
+                $this->cards->loadParentsOf($cards);
+            }),
         );
+    }
+
+    /**
+     * @template T
+     *
+     * @param \Closure(): T $load
+     *
+     * @return \Closure(): T
+     */
+    private static function once(\Closure $load): \Closure
+    {
+        $loaded = false;
+        $value = null;
+
+        return static function () use ($load, &$loaded, &$value) {
+            if (!$loaded) {
+                $value = $load();
+                $loaded = true;
+            }
+
+            return $value;
+        };
     }
 
     /**
@@ -174,60 +262,90 @@ final readonly class CardPayload
     }
 
     /**
-     * @param list<CardSiteReviewComment>                         $links
-     * @param list<RelatedCard>                                   $relatedCards
-     * @param list<Card>                                          $children     empty for a card whose type may not have children
-     * @param array<string, AgentReviewSummary>                   $reviews      keyed by pull request link id
-     * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts
-     * @param array<string, ScreenshotSize>                       $sizes        the screenshot size of each comment that has one, keyed by comment id
-     * @param list<CardValueView>                                 $values       one for each key the template declares
+     * @param ?FieldSelection $only  the fields to read, or null for every field
+     * @param bool            $light true for the row of a list, which leaves out the body and holds a ref for each pull request and each feedback item
      *
-     * @return CardSummary
+     * @return array<string, mixed>
      */
-    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts, array $sizes, array $values): array
+    private function row(Card $card, CardSources $sources, ?FieldSelection $only, bool $light): array
     {
-        $progress = $this->catalog->forProject($card->project->requireId())->get($card->type)->children
-            ? ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)]
-            : null;
+        $row = [];
+        foreach ($this->fields($card, $sources, $light) as $name => $read) {
+            if (null === $only || $only->has($name)) {
+                $row[$name] = $read();
+            }
+        }
 
-        return [
-            'cardId' => (string) $card->id,
+        return $row;
+    }
+
+    /**
+     * One reader for each field, in the order of the card. A reader reads its data when it runs.
+     *
+     * @return array<string, \Closure(): mixed>
+     */
+    private function fields(Card $card, CardSources $sources, bool $light): array
+    {
+        $fields = [
+            'cardId' => static fn (): string => (string) $card->id,
             // The short per-project label a person says out loud. Not the id.
-            'number' => $card->number,
-            'title' => $card->title,
-            'body' => $card->body,
-            'type' => $card->type,
-            'status' => $card->column->slug,
-            'reporter' => $card->reporter->value,
-            'position' => $card->position,
-            'completedAt' => $card->completedAt?->format(\DATE_ATOM),
-            'createdAt' => $card->createdAt->format(\DATE_ATOM),
-            'updatedAt' => $card->updatedAt->format(\DATE_ATOM),
-            'pullRequests' => array_map(
-                static fn (CardPullRequest $link): array => [
-                    'pullRequestId' => (string) $link->id,
-                    'url' => $link->url,
-                    'forge' => $link->forge->value,
-                    'repository' => $link->repository,
-                    'number' => $link->number,
-                    'state' => self::pullRequestState($states->of($link)),
-                    'agentReview' => $reviews[(string) $link->id] ?? null,
-                ],
-                array_values($card->pullRequests->toArray()),
-            ),
+            'number' => static fn (): int => $card->number,
+            'title' => static fn (): string => $card->title,
+            'body' => static fn (): string => $card->body,
+            'type' => static fn (): string => $card->type,
+            'status' => static fn (): string => $card->column->slug,
+            'reporter' => static fn (): string => $card->reporter->value,
+            'position' => static fn (): int => $card->position,
+            'completedAt' => static fn (): ?string => $card->completedAt?->format(\DATE_ATOM),
+            'createdAt' => static fn (): string => $card->createdAt->format(\DATE_ATOM),
+            'updatedAt' => static fn (): string => $card->updatedAt->format(\DATE_ATOM),
+            'pullRequests' => function () use ($card, $sources, $light): array {
+                ($sources->loadPullRequests)();
+                if ($light) {
+                    return array_map(
+                        static fn (CardPullRequest $link): array => [
+                            'pullRequestId' => (string) $link->id,
+                            'url' => $link->url,
+                            'forge' => $link->forge->value,
+                            'repository' => $link->repository,
+                            'number' => $link->number,
+                        ],
+                        array_values($card->pullRequests->toArray()),
+                    );
+                }
+                $states = ($sources->states)();
+                $reviews = ($sources->reviews)();
+
+                return array_map(
+                    static fn (CardPullRequest $link): array => [
+                        'pullRequestId' => (string) $link->id,
+                        'url' => $link->url,
+                        'forge' => $link->forge->value,
+                        'repository' => $link->repository,
+                        'number' => $link->number,
+                        'state' => self::pullRequestState($states->of($link)),
+                        'agentReview' => $reviews[(string) $link->id] ?? null,
+                    ],
+                    array_values($card->pullRequests->toArray()),
+                );
+            },
             // The documents this card's work is written up in. Read only here:
             // a document is written and revised through its own tools.
-            'documents' => array_map(
-                static fn (CardDocument $link): array => [
-                    'documentId' => (string) $link->document->id,
-                    'title' => $link->document->title,
-                    'status' => $link->document->status->value,
-                ],
-                array_values($card->documents->toArray()),
-            ),
+            'documents' => function () use ($card, $sources): array {
+                ($sources->loadDocuments)();
+
+                return array_map(
+                    static fn (CardDocument $link): array => [
+                        'documentId' => (string) $link->document->id,
+                        'title' => $link->document->title,
+                        'status' => $link->document->status->value,
+                    ],
+                    array_values($card->documents->toArray()),
+                );
+            },
             // The prototypes stored for this card. Read only: an agent stores one
             // through the CLI, and links it with artifactIds.
-            'artifacts' => array_map(
+            'artifacts' => static fn (): array => array_map(
                 static fn (array $row): array => [
                     'artifactId' => (string) $row['link']->artifact->id,
                     'name' => $row['link']->artifact->name,
@@ -235,17 +353,32 @@ final readonly class CardPayload
                     'archived' => null !== $row['link']->artifact->archivedAt,
                     'path' => \sprintf('/projects/%s/artifacts/%s', $row['link']->artifact->project->id, $row['link']->artifact->id),
                 ],
-                $artifacts,
+                ($sources->artifacts)($card),
             ),
             // Feedback a reviewer left on this card. Read only: an agent marks
             // one addressed through feedback_mark_addressed.
-            'siteReviewComments' => array_map(
-                static fn (CardSiteReviewComment $link): array => self::feedback($link->comment, $sizes[(string) $link->comment->id] ?? null),
-                $links,
-            ),
+            'siteReviewComments' => static function () use ($card, $sources, $light): array {
+                $links = ($sources->comments)($card);
+                if ($light) {
+                    return array_map(
+                        static fn (CardSiteReviewComment $link): array => [
+                            'id' => (string) $link->comment->id,
+                            'status' => $link->comment->status->value,
+                            'url' => $link->comment->url,
+                        ],
+                        $links,
+                    );
+                }
+                $sizes = ($sources->sizes)();
+
+                return array_map(
+                    static fn (CardSiteReviewComment $link): array => self::feedback($link->comment, $sizes[(string) $link->comment->id] ?? null),
+                    $links,
+                );
+            },
             // The kind reads from this card's side: the target of a blocks
             // link reads blocked-by, and the target of a has-follow-up link reads follow-up-of.
-            'relatedCards' => array_map(
+            'relatedCards' => static fn (): array => array_map(
                 static fn (RelatedCard $related): array => [
                     'cardId' => (string) $related->card->id,
                     'number' => $related->card->number,
@@ -253,12 +386,16 @@ final readonly class CardPayload
                     'status' => $related->card->column->slug,
                     'kind' => $related->kind->value,
                 ],
-                $relatedCards,
+                ($sources->related)($card),
             ),
-            'parent' => null === $card->parent ? null : self::reference($card->parent),
-            'laneEnabled' => $card->laneEnabled,
-            'requiresHumanReview' => $card->requiresHumanReview,
-            'values' => array_map(
+            'parent' => static function () use ($card, $sources): ?array {
+                ($sources->loadParents)();
+
+                return null === $card->parent ? null : self::reference($card->parent);
+            },
+            'laneEnabled' => static fn (): bool => $card->laneEnabled,
+            'requiresHumanReview' => static fn (): bool => $card->requiresHumanReview,
+            'values' => static fn (): array => array_map(
                 static fn (CardValueView $value): array => [
                     'key' => $value->key,
                     'type' => $value->type->value,
@@ -266,33 +403,56 @@ final readonly class CardPayload
                     'writer' => null === $value->writerKind ? null : ['kind' => $value->writerKind->value, 'name' => $value->writerUser?->fullName],
                     'updatedAt' => $value->updatedAt?->format(\DATE_ATOM),
                 ],
-                $values,
+                ($sources->values)($card),
             ),
-            'children' => array_map(self::reference(...), $children),
-            'progress' => $progress,
-            'pause' => null === $pause ? null : [
-                'pauseId' => (string) $pause->id,
-                'kind' => $pause->kind->value,
-                'reason' => $pause->reason,
-                'ruleId' => $pause->ruleId,
-                'since' => $pause->createdAt->format(\DATE_ATOM),
-            ],
-            'state' => null === ($state = $card->column->terminal ? null : $markers->state()) ? null : [
-                'kind' => $state->kind->value,
-                'code' => $state->key,
-                'since' => $state->since->format(\DATE_ATOM),
-                'reason' => $this->markerText->label($state),
-                'others' => array_map(
-                    fn (StoredMarker $other): array => [
-                        'kind' => $other->kind->value,
-                        'code' => $other->key,
-                        'reason' => $this->markerText->label($other),
-                        'since' => $other->since->format(\DATE_ATOM),
-                    ],
-                    array_values(array_filter($markers->others(), static fn (StoredMarker $other): bool => MarkerKind::Chip !== $other->kind)),
-                ),
-            ],
+            'children' => static fn (): array => array_map(self::reference(...), ($sources->children)($card)),
+            'progress' => function () use ($card, $sources): ?array {
+                if (!$this->catalog->forProject($card->project->requireId())->get($card->type)->children) {
+                    return null;
+                }
+                $children = ($sources->children)($card);
+
+                return ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)];
+            },
+            'pause' => static function () use ($card, $sources): ?array {
+                $pause = ($sources->pause)($card);
+
+                return null === $pause ? null : [
+                    'pauseId' => (string) $pause->id,
+                    'kind' => $pause->kind->value,
+                    'reason' => $pause->reason,
+                    'ruleId' => $pause->ruleId,
+                    'since' => $pause->createdAt->format(\DATE_ATOM),
+                ];
+            },
+            'state' => function () use ($card, $sources): ?array {
+                $state = $card->column->terminal ? null : ($sources->markers)($card)->state();
+                if (null === $state) {
+                    return null;
+                }
+
+                return [
+                    'kind' => $state->kind->value,
+                    'code' => $state->key,
+                    'since' => $state->since->format(\DATE_ATOM),
+                    'reason' => $this->markerText->label($state),
+                    'others' => array_map(
+                        fn (StoredMarker $other): array => [
+                            'kind' => $other->kind->value,
+                            'code' => $other->key,
+                            'reason' => $this->markerText->label($other),
+                            'since' => $other->since->format(\DATE_ATOM),
+                        ],
+                        array_values(array_filter(($sources->markers)($card)->others(), static fn (StoredMarker $other): bool => MarkerKind::Chip !== $other->kind)),
+                    ),
+                ];
+            },
         ];
+        if ($light) {
+            unset($fields['body']);
+        }
+
+        return $fields;
     }
 
     /**

@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use OpenApi\Attributes as OA;
 
 /** One history row, as the spec shows it. CardEventPayload builds the real body. */
-#[OA\Schema(description: 'A missing or malformed key of the stored detail reads null.', required: ['kind', 'occurredAt', 'actor', 'from', 'to', 'cause', 'run', 'reason', 'pullRequest', 'pause', 'override', 'document', 'humanReview', 'valueChange'])]
+#[OA\Schema(description: 'A missing or malformed key of the stored detail reads null.', required: ['kind', 'occurredAt', 'actor', 'from', 'to', 'cause', 'run', 'reason', 'pullRequest', 'pause', 'override', 'document', 'humanReview', 'valueChange'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class CardEventResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialCardEvent';
+
+    /** The top-level names of a history row, in the order of its row. */
+    public const array FIELDS = ['kind', 'occurredAt', 'actor', 'from', 'to', 'cause', 'run', 'reason', 'pullRequest', 'pause', 'override', 'document', 'humanReview', 'valueChange'];
+
     /**
      * @param array{kind: string, name: ?string, apiKey: ?array{id: string, name: string}} $actor
      * @param array<string, mixed>|null                                                    $from
