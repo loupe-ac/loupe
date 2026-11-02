@@ -199,7 +199,7 @@ Judge that by what the diff touches, and not by the branch name. A change to `Re
 
 `worktree-bootstrap.sh` copies `.env.local` from the main checkout, and leaves both `SITE_REVIEW_WIDGET_BACKEND` and `SITE_REVIEW_WIDGET_PROJECT` as it found them. A worktree therefore talks to production with the project that production knows, and the site-review comments of a worktree page land in the real project. You annotate the branch you work on, and read the comments back over MCP like any other site.
 
-Bootstrap captures no local project id. It runs `app:dev:seed`, which creates a project in the own database of the worktree and prints the id. Bootstrap sends that output to `/dev/null`.
+Bootstrap captures no local project id. It runs `app:dev:seed`, which seeds the full demo dataset in the own database of the worktree, switches on the flags `inbox.enabled`, `artifacts.enabled` and `billing.enabled` with the tag `dev-seed`, and prints the id of "Dev Project". Bootstrap sends that output to `/dev/null`. `--keep-flag-defaults` skips only the flag rows, and only the e2e stack passes it.
 
 ### The card marker
 

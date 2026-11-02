@@ -2,7 +2,7 @@
 
 Read this file when you work on an epic child, an `epic/<n>` branch or an epic
 pull request. `SKILL.md` "A child of an epic targets the epic branch" keeps the
-base branch rule and the `State:` rule of a Preview line.
+base branch rule and the seed rule of a Preview line.
 
 ## No ruleset covers `epic/*`
 
