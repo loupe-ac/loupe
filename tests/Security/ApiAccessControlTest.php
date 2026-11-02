@@ -89,6 +89,24 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertFalse($this->decide('/api/v1/projects/my-project/board/columnsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
     }
 
+    public function test_the_public_scope_reaches_the_feedback_and_artifact_routes_and_no_other_scope_does(): void
+    {
+        $paths = [
+            '/api/v1/projects/my-project/feedback',
+            '/api/v1/projects/my-project/feedback/0198a3c4-0000-7000-8000-000000000001',
+            '/api/v1/projects/my-project/artifacts',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/versions',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/index.html',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/css%2Fapp.css',
+            '/api/v1/projects/my-project/artifacts/0198a3c4-0000-7000-8000-000000000001/files/css/app.css',
+        ];
+        foreach ($paths as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
     public function test_the_public_scope_reaches_the_document_routes_and_no_other_scope_does(): void
     {
         $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
@@ -107,6 +125,24 @@ final class ApiAccessControlTest extends KernelTestCase
         ] as $path) {
             self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
             self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_feedback_and_artifact_rules_open_no_other_route(): void
+    {
+        $paths = [
+            '/api/v1/projects/my-project/feedback/',
+            '/api/v1/projects/my-project/feedback/abc/extra',
+            '/api/v1/projects/my-project/feedbackx',
+            '/api/v1/projects/my-project/artifacts/',
+            '/api/v1/projects/my-project/artifacts/abc/extra',
+            '/api/v1/projects/my-project/artifacts/abc/versions/1',
+            '/api/v1/projects/my-project/artifacts/abc/files',
+            '/api/v1/projects/my-project/artifacts/abc/files/',
+            '/api/v1/projects/my-project/artifactsx',
+        ];
+        foreach ($paths as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
         }
     }
 
