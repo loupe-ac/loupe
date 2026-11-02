@@ -108,7 +108,7 @@ final class GeneratedSpecTest extends KernelTestCase
     {
         $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
         $checked = 0;
-        foreach (['Project', 'Card', 'CardSummary', 'Document', 'DocumentSummary', 'DocumentCreated', 'Artifact', 'ArtifactSummary', 'ArtifactStored'] as $name) {
+        foreach (['Project', 'Card', 'CardRow', 'Document', 'DocumentRow', 'DocumentCreated', 'Artifact', 'ArtifactRow', 'ArtifactStored'] as $name) {
             self::assertArrayHasKey($name, $schemas);
             self::assertContains('url', $schemas[$name]['required'], $name);
             self::assertSame('uri', $schemas[$name]['properties']['url']['format'] ?? null, $name);

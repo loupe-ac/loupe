@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Doctrine\SearchLanguage;
 use App\Module\Project\Entity\Project;
 use OpenApi\Attributes as OA;
 
 /** A project, as the public API shows it. */
-#[OA\Schema(required: ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'])]
+#[OA\Schema(required: ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class ProjectResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialProject';
+
+    /** The top-level names of a project, in the order of its row. */
+    public const array FIELDS = ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'];
+
     /** @param list<string> $allowedOrigins */
     public function __construct(
         #[OA\Property(format: 'uuid')]

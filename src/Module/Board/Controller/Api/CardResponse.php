@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use OpenApi\Attributes as OA;
 
 /**
  * One whole card, as the spec shows it. CardPayload::forCard() builds the real body.
  * A nested object of a few fields is described in line.
  */
-#[OA\Schema(required: ['cardId', 'url', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'])]
+#[OA\Schema(required: ['cardId', 'url', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class CardResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialCard';
+
+    /** The top-level names of the card, in the order of its row. */
+    public const array FIELDS = ['cardId', 'url', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
+
     /**
      * @param list<array<string, mixed>>        $pullRequests
      * @param list<array<string, mixed>>        $documents

@@ -11,9 +11,13 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['items', 'next'])]
 final readonly class FeedbackListResponse
 {
-    /** @param list<FeedbackResponse> $items */
+    /** @param list<FeedbackRowResponse|FeedbackResponse|array<string, mixed>> $items */
     public function __construct(
-        #[OA\Property(type: 'array', items: new OA\Items(ref: new Model(type: FeedbackResponse::class)))]
+        #[OA\Property(type: 'array', items: new OA\Items(anyOf: [
+            new OA\Schema(ref: new Model(type: FeedbackRowResponse::class)),
+            new OA\Schema(ref: new Model(type: FeedbackResponse::class)),
+            new OA\Schema(ref: '#/components/schemas/'.FeedbackResponse::PARTIAL),
+        ]))]
         public array $items,
 
         #[OA\Property(description: 'The URL of the next page, or null on the last page.', format: 'uri', nullable: true)]

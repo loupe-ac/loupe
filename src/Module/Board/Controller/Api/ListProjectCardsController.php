@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -12,6 +14,7 @@ use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Board\Command\PageCardsCommand;
 use App\Module\Board\Command\PageCardsHandler;
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Mcp\CardPayload;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
@@ -40,7 +43,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'parentCardId', description: 'Only the children of the card with this id.', in: 'query', schema: new OA\Schema(type: 'string', format: 'uuid')),
         new OA\Parameter(name: 'parent', description: 'Only the children of the card with this number. Do not pass it with `parentCardId`.', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1)),
         new OA\Parameter(name: 'paused', description: 'True for only the cards with an active pause, and false for only those with none.', in: 'query', schema: new OA\Schema(type: 'boolean')),
-        new OA\Parameter(name: 'full', description: 'Return the whole card rather than the summary, which is far larger.', in: 'query', schema: new OA\Schema(type: 'boolean', default: false)),
+        new FieldsParameter(CardResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of cards.', CardListResponse::class, page: true),
@@ -66,6 +69,7 @@ final class ListProjectCardsController extends AppController
     public function __invoke(Request $request, #[ReachableProject] Project $project): JsonResponse
     {
         $query = CardListQuery::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, CardResponse::FIELDS);
         $filters = $query->filters();
 
         $view = ($this->pageCards)(new PageCardsCommand(
@@ -82,13 +86,15 @@ final class ListProjectCardsController extends AppController
             paused: $query->paused,
         ));
 
-        // CardPayload reads the links of the whole page in a few queries, so it runs before the page is cut into rows.
+        // CardPayload reads each linked set of the whole page in one query, and reads only the sets the fields name.
         $cards = $view->page->items;
         $projectId = (string) $project->id;
         $rows = new Page(
-            $query->full
-                ? array_map(fn (array $card): array => $this->answer->card($card, $projectId), $this->payload->forCards($cards))
-                : array_map(fn (array $row): array => $this->answer->row($row, $projectId), $this->payload->forCardList($cards)),
+            array_map(
+                fn (Card $card, array $row): array => $fields->keep($this->answer->row($row, $projectId, (string) $card->id)),
+                $cards,
+                $this->payload->forFields($cards, $fields),
+            ),
             $view->page->next,
         );
 

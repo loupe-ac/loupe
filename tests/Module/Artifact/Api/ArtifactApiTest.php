@@ -69,9 +69,9 @@ final class ArtifactApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame(['First', 'Second'], array_column($body['items'], 'name'));
-        self::assertSame(['artifactId', 'name', 'latestVersion', 'archived', 'sourceLink', 'createdAt', 'url'], array_keys($body['items'][0]));
-        self::assertSame(2, $body['items'][0]['latestVersion']);
-        self::assertSame(1, $body['items'][1]['latestVersion']);
+        self::assertSame(['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'files'], array_keys($body['items'][0]));
+        self::assertSame(2, $body['items'][0]['selectedVersion']);
+        self::assertSame(1, $body['items'][1]['selectedVersion']);
         $this->assertArtifactLink($first->id, $body['items'][0]['url']);
         self::assertNull($body['next']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));

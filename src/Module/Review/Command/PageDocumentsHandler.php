@@ -42,12 +42,23 @@ final readonly class PageDocumentsHandler
         $documents = array_map(static fn (DocumentPageRow $row): Document => $row->document, $page->items);
         $this->documents->preloadTags($documents);
         $latest = $this->documentVersions->findLatestMetaByDocuments($documents);
+        if ($command->links) {
+            $this->documents->preloadReferences($documents);
+            $this->documents->preloadReferencedBy($documents);
+        }
+        $link = static fn (Document $linked): array => ['documentId' => (string) $linked->id, 'title' => $linked->title, 'archived' => null !== $linked->archivedAt];
 
         return new Page(
-            array_map(static function (Document $document) use ($latest): DocumentPageItem {
+            array_map(static function (Document $document) use ($latest, $command, $link): DocumentPageItem {
                 $meta = $latest[(string) $document->id] ?? throw new \LogicException('Document has no versions.');
 
-                return new DocumentPageItem($document, $meta['versionNumber'], $meta['description']);
+                return new DocumentPageItem(
+                    $document,
+                    $meta['versionNumber'],
+                    $meta['description'],
+                    $command->links ? $document->references->map($link)->getValues() : [],
+                    $command->links ? $document->referencedBy->map($link)->getValues() : [],
+                );
             }, $documents),
             $page->next,
         );

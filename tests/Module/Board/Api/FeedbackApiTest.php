@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Module\SiteReview\Entity\SiteReviewScreenshot;
@@ -17,6 +18,7 @@ use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
 use App\Tests\Support\PageLink;
+use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -66,7 +68,7 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame([(string) $first->id, (string) $second->id], array_column($body['items'], 'id'));
         self::assertNull($body['next']);
         self::assertSame(
-            ['id', 'url', 'pageUrl', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'],
+            ['id', 'url', 'pageUrl', 'surface', 'screenshot', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'],
             array_keys($body['items'][0]),
         );
         self::assertSame((string) $card->id, $body['items'][0]['cardId']);
@@ -74,7 +76,6 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame(1, $body['items'][0]['number']);
         self::assertSame('pending', $body['items'][0]['status']);
         self::assertSame('web', $body['items'][0]['surface']);
-        self::assertSame(['selector' => '.hero', 'text' => 'Hero', 'quote' => null, 'quotePrefix' => null, 'quoteSuffix' => null], $body['items'][0]['anchors'][0]);
         self::assertNull($body['items'][1]['cardId']);
         self::assertNull($body['items'][1]['title']);
         self::assertSame('https://app.example/page', $body['items'][0]['pageUrl']);
@@ -82,6 +83,88 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame('https://app.example/page', $body['items'][1]['pageUrl']);
         $this->assertFeedbackLink($card, $first, $body['items'][0]['url']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
+    }
+
+    public function test_naming_the_note_text_returns_each_value_as_the_single_read_holds_it(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $note = $this->note($card, 'Make it bigger', native: ['device' => 'iPhone 16']);
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id);
+        $single = $this->json();
+        self::assertSame(['selector' => '.hero', 'text' => 'Hero', 'quote' => null, 'quotePrefix' => null, 'quoteSuffix' => null], $single['anchors'][0]);
+
+        foreach (['body', 'anchors', 'native'] as $field) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$field);
+            self::assertResponseStatusCodeSame(200, $field);
+            self::assertSame([[$field => $single[$field]]], $this->json()['items'], $field);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=all');
+        self::assertSame([$single], $this->json()['items']);
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=status,body');
+        self::assertSame([['body' => 'Make it bigger', 'status' => 'pending']], $this->json()['items']);
+    }
+
+    public function test_each_field_of_the_row_alone_equals_the_field_of_the_single_read(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $note = $this->note($card, 'Make it bigger');
+        $this->em->flush();
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id);
+        $single = $this->json();
+
+        foreach (['id', 'url', 'surface', 'screenshot', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'] as $field) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$field);
+            self::assertSame([[$field => $single[$field]]], $this->json()['items'], $field);
+        }
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $native = ['app' => ['name' => 'Notes', 'bundleId' => 'com.example.notes'], 'device' => ['name' => 'iPhone', 'udid' => 'U-1', 'osVersion' => '19.0'], 'screen' => ['title' => null], 'element' => ['role' => 'button', 'label' => 'Save', 'identifier' => null, 'frame' => null]];
+        $note = $this->note($card, 'Make it bigger', native: $native);
+        $this->note(null, 'No card here');
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, $this->base());
+        PublicSpec::assertMatches('FeedbackList', $this->json());
+        PublicSpec::assertMatches('FeedbackRow', $this->json()['items'][0]);
+        PublicSpec::assertDoesNotMatch('FeedbackItem', $this->json()['items'][0]);
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id);
+        PublicSpec::assertMatches('FeedbackItem', $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=all');
+        PublicSpec::assertMatches('FeedbackList', $this->json());
+        PublicSpec::assertMatches('FeedbackItem', $this->json()['items'][0]);
+
+        foreach (['id,title', 'body', 'anchors', 'native,screenshot'] as $fields) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$fields);
+            PublicSpec::assertMatches('FeedbackList', $this->json(), $fields);
+            PublicSpec::assertMatches('PartialFeedbackItem', $this->json()['items'][0], $fields);
+
+            $this->send(Request::METHOD_GET, $this->base().'/'.$note->id.'?fields='.$fields);
+            PublicSpec::assertMatches('PartialFeedbackItem', $this->json(), $fields);
+        }
+    }
+
+    public function test_an_unknown_name_is_refused_on_the_list_and_on_the_single_read_and_the_single_read_can_be_narrowed(): void
+    {
+        $note = $this->note(null, 'Plain');
+        $this->em->flush();
+
+        foreach ([$this->base(), $this->base().'/'.$note->id] as $url) {
+            $this->send(Request::METHOD_GET, $url.'?fields=nope');
+            self::assertResponseStatusCodeSame(422, $url);
+            self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id.'?fields=id,body');
+        self::assertSame(['id', 'body'], array_keys($this->json()));
     }
 
     public function test_the_status_filter_and_the_all_value(): void
@@ -201,7 +284,7 @@ final class FeedbackApiTest extends WebTestCase
     public function test_a_native_note_carries_its_facts_and_no_page(): void
     {
         $native = ['app' => ['name' => 'Notes', 'bundleId' => 'com.example.notes'], 'device' => ['name' => 'iPhone', 'udid' => 'U-1', 'osVersion' => '19.0'], 'screen' => ['title' => null], 'element' => ['role' => 'button', 'label' => 'Save', 'identifier' => null, 'frame' => null]];
-        $note = new SiteReviewComment($this->project, 0, 'Too small', null, surface: \App\Module\SiteReview\Entity\ReviewSurface::IosSimulator, native: $native);
+        $note = new SiteReviewComment($this->project, 0, 'Too small', null, surface: ReviewSurface::IosSimulator, native: $native);
         $this->em->persist($note);
         $this->em->flush();
 
@@ -470,9 +553,18 @@ final class FeedbackApiTest extends WebTestCase
         return $card;
     }
 
-    private function note(?Card $card, string $body, SiteReviewCommentStatus $status = SiteReviewCommentStatus::Pending, string $createdAt = '2026-01-01 09:00:00'): SiteReviewComment
+    /** @param array<string, mixed>|null $native */
+    private function note(?Card $card, string $body, SiteReviewCommentStatus $status = SiteReviewCommentStatus::Pending, string $createdAt = '2026-01-01 09:00:00', ?array $native = null): SiteReviewComment
     {
-        $comment = new SiteReviewComment($this->project, 0, $body, 'https://app.example/page', createdAt: new \DateTimeImmutable($createdAt));
+        $comment = new SiteReviewComment(
+            $this->project,
+            0,
+            $body,
+            null === $native ? 'https://app.example/page' : null,
+            createdAt: new \DateTimeImmutable($createdAt),
+            surface: null === $native ? ReviewSurface::Web : ReviewSurface::IosSimulator,
+            native: $native,
+        );
         $comment->addAnchor('.hero', 'Hero');
         $comment->status = $status;
         $this->em->persist($comment);

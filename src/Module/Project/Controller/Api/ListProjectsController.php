@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -34,6 +36,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
         new OA\Parameter(name: 'limit', description: 'The most rows to return.', in: 'query', schema: new OA\Schema(type: 'integer', default: PageRequest::DEFAULT_LIMIT, maximum: PageRequest::MAX_LIMIT, minimum: 1)),
         new OA\Parameter(name: 'cursor', description: 'The opaque position from the `next` URL of the last page.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'sort', description: 'The sort order. The default is creation order, oldest first. A leading `-` sorts newest first.', in: 'query', schema: new OA\Schema(type: 'string', default: 'createdAt', enum: ['createdAt', '-createdAt'])),
+        new FieldsParameter(ProjectResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of projects.', ProjectListResponse::class, page: true),
@@ -63,6 +66,7 @@ final class ListProjectsController extends AppController
         }
 
         $sort = CreatedSort::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, ProjectResponse::FIELDS);
         $page = ($this->pageProjects)(new PageProjectsCommand(
             owner: $user,
             only: AuthenticatedCredential::of($this->tokenStorage->getToken())?->projectId,
@@ -70,6 +74,6 @@ final class ListProjectsController extends AppController
             sort: $sort,
         ));
 
-        return $page->toResponse($request, fn (Project $project): ProjectResponse => ProjectResponse::fromProject($project, $this->links->project((string) $project->id)));
+        return $page->toResponse($request, fn (Project $project): array => $fields->keepObject(ProjectResponse::fromProject($project, $this->links->project((string) $project->id))));
     }
 }

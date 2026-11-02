@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -12,6 +14,7 @@ use App\Api\Pagination\CreatedSort;
 use App\Api\Pagination\PageRequest;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
+use App\Module\Artifact\Command\ArtifactRowReads;
 use App\Module\Artifact\Command\PageArtifactsCommand;
 use App\Module\Artifact\Command\PageArtifactsHandler;
 use App\Module\Artifact\Command\PagedArtifact;
@@ -35,6 +38,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'cursor', description: 'The opaque position from the `next` URL of the last page.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'sort', description: 'The sort order. The default is creation order, oldest first. A leading `-` sorts newest first.', in: 'query', schema: new OA\Schema(type: 'string', default: 'createdAt', enum: ['createdAt', '-createdAt'])),
         new OA\Parameter(name: 'includeArchived', description: 'Include archived rows, which are left out by default.', in: 'query', schema: new OA\Schema(type: 'boolean', default: false)),
+        new FieldsParameter(ArtifactResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of artifacts.', ArtifactListResponse::class, page: true),
@@ -65,13 +69,26 @@ final class ListProjectArtifactsController extends AppController
         }
 
         $sort = CreatedSort::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, ArtifactResponse::FIELDS);
         $page = ($this->pageArtifacts)(new PageArtifactsCommand(
             project: $project,
             includeArchived: $parsed,
             page: PageRequest::fromRequest($request, $sort->value, ['includeArchived' => $parsed]),
             sort: $sort,
+            reads: new ArtifactRowReads(
+                selectedVersion: $fields->isDefault() || $fields->has('selectedVersion'),
+                versions: $fields->isDefault() || $fields->has('versions'),
+                wholeVersions: !$fields->isDefault() && $fields->has('versions'),
+                files: $fields->isDefault() || $fields->has('files'),
+                wholeFiles: !$fields->isDefault() && $fields->has('files'),
+                pageLink: !$fields->isDefault() && $fields->has('pageLink'),
+            ),
         ));
 
-        return $page->toResponse($request, fn (PagedArtifact $paged): ArtifactSummaryResponse => ArtifactSummaryResponse::fromPaged($paged, $this->links->artifact((string) $project->id, (string) $paged->artifact->id)));
+        return $page->toResponse($request, function (PagedArtifact $paged) use ($fields, $project): array {
+            $row = ArtifactRowResponse::fromPaged($paged, $this->links->artifact((string) $project->id, (string) $paged->artifact->id));
+
+            return $fields->keep(!$fields->isDefault() && $fields->has('pageLink') ? $row->withPageLink($paged->pageLink) : get_object_vars($row));
+        });
     }
 }

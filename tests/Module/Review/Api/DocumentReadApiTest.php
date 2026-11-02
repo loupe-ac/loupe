@@ -38,13 +38,17 @@ final class DocumentReadApiTest extends WebTestCase
             'documentId' => (string) $first->id,
             'url' => $body['items'][0]['url'],
             'title' => 'First',
+            'language' => 'english',
             'status' => 'in-review',
-            'currentVersion' => 1,
-            'versionDescription' => 'The first draft',
             'archived' => false,
+            'archiveReason' => null,
+            'version' => 1,
+            'versionDescription' => 'The first draft',
             'tags' => ['api', 'plan'],
             'series' => 'Release notes',
             'seriesOrdinal' => 3,
+            'references' => [],
+            'referencedBy' => [],
             'createdAt' => '2026-01-01T10:00:00+00:00',
         ], $body['items'][0]);
         self::assertNull($body['items'][1]['series']);
@@ -328,7 +332,7 @@ final class DocumentReadApiTest extends WebTestCase
 
         $this->send(Request::METHOD_GET, $this->base().'/'.$document->id.'/versions/1');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['versionNumber' => 1, 'createdAt' => $this->json()['createdAt'], 'description' => 'First', 'markdown' => 'first text'], $this->json());
+        self::assertSame(['versionNumber' => 1, 'createdAt' => $this->json()['createdAt'], 'description' => 'First', 'threadCount' => 0, 'markdown' => 'first text'], $this->json());
 
         $this->send(Request::METHOD_GET, $this->base().'/'.$document->id.'/versions/2');
         self::assertSame('second text', $this->json()['markdown']);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -15,6 +17,7 @@ use App\Module\Review\Command\PageDocumentVersionsHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Security\DocumentVoter;
 use App\Module\Review\Security\ProjectDocument;
+use App\Module\Review\View\DocumentVersionPageItem;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -32,12 +35,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'limit', description: 'The most rows to return.', in: 'query', schema: new OA\Schema(type: 'integer', default: PageRequest::DEFAULT_LIMIT, maximum: PageRequest::MAX_LIMIT, minimum: 1)),
         new OA\Parameter(name: 'cursor', description: 'The opaque position from the `next` URL of the last page.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'sort', description: 'The sort order. The default is creation order, oldest first. A leading `-` sorts newest first.', in: 'query', schema: new OA\Schema(type: 'string', default: 'createdAt', enum: ['createdAt', '-createdAt'])),
+        new FieldsParameter(DocumentVersionResponse::FIELDS, DocumentVersionResponse::REFUSED_IN_LIST),
     ],
     responses: [
         new SuccessResponse(200, 'One page of versions.', DocumentVersionListResponse::class, page: true),
         new ProblemResponse(400, ['invalid_cursor']),
         new ProblemResponse(404, ['project_not_found', 'document_not_found', 'route_not_found']),
-        new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
+        new ProblemResponse(422, ['validation_failed', 'fields_refused'], 'ValidationProblem'),
     ],
 )]
 #[Route(
@@ -55,12 +59,13 @@ final class ListDocumentVersionsController extends AppController
     public function __invoke(#[ProjectDocument] Document $document, Request $request): JsonResponse
     {
         $sort = CreatedSort::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, DocumentVersionResponse::FIELDS, DocumentVersionResponse::REFUSED_IN_LIST);
         $page = ($this->pageVersions)(new PageDocumentVersionsCommand(
             document: $document,
             page: PageRequest::fromRequest($request, $sort->value),
             sort: $sort,
         ));
 
-        return $page->toResponse($request, DocumentVersionSummaryResponse::fromItem(...));
+        return $page->toResponse($request, static fn (DocumentVersionPageItem $item): array => $fields->keepObject(DocumentVersionRowResponse::fromItem($item)));
     }
 }

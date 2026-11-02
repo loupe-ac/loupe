@@ -73,6 +73,7 @@ paths:
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/SortCreated'
+      - $ref: '#/components/parameters/FieldsProject'
       responses:
         '200':
           description: One page of projects.
@@ -164,6 +165,7 @@ paths:
       - Projects
       parameters:
       - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/FieldsProject'
       responses:
         '200':
           description: The project.
@@ -177,7 +179,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Project'
+                anyOf:
+                - $ref: '#/components/schemas/Project'
+                - $ref: '#/components/schemas/PartialProject'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -188,6 +192,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     patch:
@@ -250,6 +256,7 @@ paths:
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/SortCreated'
       - $ref: '#/components/parameters/IncludeArchived'
+      - $ref: '#/components/parameters/FieldsArtifact'
       responses:
         '200':
           description: One page of artifacts.
@@ -346,6 +353,7 @@ paths:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Artifact'
       - $ref: '#/components/parameters/VersionNumberOptional'
+      - $ref: '#/components/parameters/FieldsArtifact'
       responses:
         '200':
           description: The artifact, its versions, and the files of one version.
@@ -359,7 +367,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Artifact'
+                anyOf:
+                - $ref: '#/components/schemas/Artifact'
+                - $ref: '#/components/schemas/PartialArtifact'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -529,6 +539,7 @@ paths:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/FieldsBoardColumn'
       responses:
         '200':
           description: One page of columns, with the card types.
@@ -803,7 +814,7 @@ paths:
       - $ref: '#/components/parameters/CardReporter'
       - $ref: '#/components/parameters/CardParent'
       - $ref: '#/components/parameters/CardPaused'
-      - $ref: '#/components/parameters/CardFull'
+      - $ref: '#/components/parameters/FieldsCard'
       responses:
         '200':
           description: One page of cards.
@@ -896,6 +907,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/CardNumber'
+      - $ref: '#/components/parameters/FieldsCard'
       responses:
         '200':
           description: The card.
@@ -909,7 +921,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Card'
+                anyOf:
+                - $ref: '#/components/schemas/Card'
+                - $ref: '#/components/schemas/PartialCard'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -920,6 +934,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundCardNotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     patch:
@@ -985,6 +1001,7 @@ paths:
       - $ref: '#/components/parameters/CardNumber'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/FieldsCardEvent'
       responses:
         '200':
           description: One page of events.
@@ -1152,6 +1169,7 @@ paths:
       - $ref: '#/components/parameters/DocumentTag'
       - $ref: '#/components/parameters/DocumentSeries'
       - $ref: '#/components/parameters/IncludeArchived'
+      - $ref: '#/components/parameters/FieldsDocumentList'
       responses:
         '200':
           description: One page of documents.
@@ -1181,7 +1199,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '422':
-          $ref: '#/components/responses/E422ValidationFailed'
+          $ref: '#/components/responses/E422ValidationFailedFieldsRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     post:
@@ -1243,6 +1261,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Document'
+      - $ref: '#/components/parameters/FieldsDocument'
       responses:
         '200':
           description: The document, with its current Markdown.
@@ -1256,7 +1275,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Document'
+                anyOf:
+                - $ref: '#/components/schemas/Document'
+                - $ref: '#/components/schemas/PartialDocument'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -1267,6 +1288,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     patch:
@@ -1562,6 +1585,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Document'
+      - $ref: '#/components/parameters/FieldsReview'
       responses:
         '200':
           description: The review state.
@@ -1575,7 +1599,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentReview'
+                anyOf:
+                - $ref: '#/components/schemas/DocumentReview'
+                - $ref: '#/components/schemas/PartialDocumentReview'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -1586,6 +1612,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/projects/{project}/documents/{document}/verdicts:
@@ -1695,6 +1723,7 @@ paths:
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/SortCreated'
+      - $ref: '#/components/parameters/FieldsDocumentVersionList'
       responses:
         '200':
           description: One page of versions.
@@ -1724,7 +1753,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '422':
-          $ref: '#/components/responses/E422ValidationFailed'
+          $ref: '#/components/responses/E422ValidationFailedFieldsRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     post:
@@ -1790,6 +1819,7 @@ paths:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Document'
       - $ref: '#/components/parameters/DocumentVersionNumber'
+      - $ref: '#/components/parameters/FieldsDocumentVersion'
       responses:
         '200':
           description: The version, with its Markdown.
@@ -1803,7 +1833,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentVersion'
+                anyOf:
+                - $ref: '#/components/schemas/DocumentVersion'
+                - $ref: '#/components/schemas/PartialDocumentVersion'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -1814,6 +1846,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundDocumentVersionNotFoundAnd1More'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/projects/{project}/feedback:
@@ -1830,6 +1864,7 @@ paths:
       - $ref: '#/components/parameters/SortCreated'
       - $ref: '#/components/parameters/FeedbackStatus'
       - $ref: '#/components/parameters/FeedbackCard'
+      - $ref: '#/components/parameters/FieldsFeedback'
       responses:
         '200':
           description: One page of feedback.
@@ -1871,6 +1906,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Feedback'
+      - $ref: '#/components/parameters/FieldsFeedback'
       responses:
         '200':
           description: The item.
@@ -1884,7 +1920,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeedbackItem'
+                anyOf:
+                - $ref: '#/components/schemas/FeedbackItem'
+                - $ref: '#/components/schemas/PartialFeedbackItem'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -1895,6 +1933,8 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundFeedbackNotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
     patch:
@@ -2172,13 +2212,289 @@ components:
       description: True for only the cards with an active pause, and false for only those with none.
       schema:
         type: boolean
-    CardFull:
-      name: full
+    FieldsArtifact:
+      name: fields
       in: query
-      description: Return the whole card rather than the summary, which is far larger.
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
       schema:
-        type: boolean
-        default: false
+        type: array
+        items:
+          type: string
+          enum:
+          - artifactId
+          - name
+          - archived
+          - archivedAt
+          - sourceLink
+          - createdAt
+          - url
+          - versions
+          - selectedVersion
+          - pageLink
+          - files
+          - all
+    FieldsBoardColumn:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - slug
+          - label
+          - terminal
+          - default
+          - backlog
+          - all
+    FieldsCard:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - cardId
+          - url
+          - number
+          - title
+          - body
+          - type
+          - status
+          - reporter
+          - position
+          - completedAt
+          - createdAt
+          - updatedAt
+          - pullRequests
+          - documents
+          - artifacts
+          - siteReviewComments
+          - relatedCards
+          - parent
+          - laneEnabled
+          - requiresHumanReview
+          - values
+          - children
+          - progress
+          - pause
+          - state
+          - all
+    FieldsCardEvent:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - kind
+          - occurredAt
+          - actor
+          - from
+          - to
+          - cause
+          - run
+          - reason
+          - pullRequest
+          - pause
+          - override
+          - document
+          - humanReview
+          - valueChange
+          - all
+    FieldsFeedback:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - id
+          - url
+          - pageUrl
+          - surface
+          - native
+          - screenshot
+          - anchors
+          - body
+          - hasDrawing
+          - status
+          - context
+          - createdAt
+          - cardId
+          - number
+          - title
+          - all
+    FieldsProject:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - id
+          - url
+          - slug
+          - name
+          - description
+          - domain
+          - searchLanguage
+          - allowedOrigins
+          - createdAt
+          - all
+    FieldsDocumentList:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. This list refuses `markdown` and `all` with `fields_refused`, because a list never reads document text.
+        Read one resource for the text.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - documentId
+          - url
+          - title
+          - language
+          - status
+          - archived
+          - archiveReason
+          - version
+          - versionDescription
+          - tags
+          - series
+          - seriesOrdinal
+          - references
+          - referencedBy
+          - createdAt
+    FieldsDocumentVersionList:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. This list refuses `markdown` and `all` with `fields_refused`, because a list never reads document text.
+        Read one resource for the text.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - versionNumber
+          - createdAt
+          - description
+          - threadCount
+    FieldsDocument:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - documentId
+          - url
+          - title
+          - language
+          - status
+          - archived
+          - archiveReason
+          - version
+          - versionDescription
+          - markdown
+          - tags
+          - series
+          - seriesOrdinal
+          - references
+          - referencedBy
+          - createdAt
+          - all
+    FieldsDocumentVersion:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - versionNumber
+          - createdAt
+          - description
+          - threadCount
+          - markdown
+          - all
+    FieldsReview:
+      name: fields
+      in: query
+      description: The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing
+        else does. `all` returns the whole resource and stands alone.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+          - status
+          - verdict
+          - verdictId
+          - verdictThroughAgent
+          - note
+          - version
+          - comments
+          - decisions
+          - agentReviews
+          - verdictThroughApiKey
+          - all
     PauseId:
       name: pauseId
       in: query
@@ -2463,7 +2779,9 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Project'
+            anyOf:
+            - $ref: '#/components/schemas/Project'
+            - $ref: '#/components/schemas/PartialProject'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -2602,7 +2920,9 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/BoardColumn'
+            anyOf:
+            - $ref: '#/components/schemas/BoardColumn'
+            - $ref: '#/components/schemas/PartialBoardColumn'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -2889,22 +3209,22 @@ components:
       - state
       - agentReview
       properties:
-        pullRequestId:
+        pullRequestId: &id001
           type: string
           format: uuid
-        url:
+        url: &id002
           type: string
-        forge:
+        forge: &id003
           type: string
           enum:
           - github
           - gitlab
           - bitbucket
           - other
-        repository:
+        repository: &id004
           type: string
           nullable: true
-        number:
+        number: &id005
           type: integer
           nullable: true
         state:
@@ -3077,10 +3397,10 @@ components:
       - context
       - createdAt
       properties:
-        id:
+        id: &id006
           type: string
           format: uuid
-        url:
+        url: &id008
           type: string
           description: The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.
           format: uri
@@ -3120,7 +3440,7 @@ components:
         hasDrawing:
           type: boolean
           description: True when the note has strokes. Ask the reviewer rather than guess.
-        status:
+        status: &id007
           type: string
           enum:
           - pending
@@ -3297,25 +3617,6 @@ components:
           items:
             $ref: '#/components/schemas/CardStateReason'
           description: The other reasons that apply.
-    CardListState:
-      type: object
-      required:
-      - kind
-      - code
-      - since
-      properties:
-        kind:
-          type: string
-          enum:
-          - stuck
-          - needs-you
-          - working
-          - waiting
-        code:
-          type: string
-        since:
-          type: string
-          format: date-time
     Card:
       type: object
       required:
@@ -3449,55 +3750,6 @@ components:
           allOf:
           - $ref: '#/components/schemas/CardState'
           description: Null for a card in a terminal column and a card with no mark.
-    CardSummary:
-      type: object
-      description: The lean row of the card list.
-      required:
-      - cardId
-      - url
-      - number
-      - title
-      - type
-      - status
-      - reporter
-      - parentCardId
-      - updatedAt
-      - state
-      properties:
-        cardId:
-          type: string
-          format: uuid
-        url:
-          type: string
-          description: The card page in the app.
-          format: uri
-        number:
-          type: integer
-        title:
-          type: string
-        type:
-          type: string
-        status:
-          type: string
-        reporter:
-          type: string
-          enum:
-          - human
-          - agent
-          - reviewer
-          - api-key
-        parentCardId:
-          type: string
-          format: uuid
-          nullable: true
-        updatedAt:
-          type: string
-          format: date-time
-        state:
-          type: object
-          nullable: true
-          allOf:
-          - $ref: '#/components/schemas/CardListState'
     CardList:
       type: object
       required:
@@ -3507,15 +3759,16 @@ components:
         items:
           type: array
           items:
-            oneOf:
-            - $ref: '#/components/schemas/CardSummary'
+            anyOf:
+            - $ref: '#/components/schemas/CardRow'
             - $ref: '#/components/schemas/Card'
+            - $ref: '#/components/schemas/PartialCard'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
           nullable: true
           format: uri
-      description: The rows are `CardSummary`, or `Card` with `full=true`.
+      description: The rows are `CardRow`, `Card` with `fields=all`, or the named fields alone as `PartialCard`.
     CardRelatedInput:
       type: object
       required:
@@ -3861,7 +4114,9 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/CardEvent'
+            anyOf:
+            - $ref: '#/components/schemas/CardEvent'
+            - $ref: '#/components/schemas/PartialCardEvent'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -3950,58 +4205,6 @@ components:
           type: string
         archived:
           type: boolean
-    DocumentSummary:
-      type: object
-      required:
-      - documentId
-      - url
-      - title
-      - status
-      - currentVersion
-      - versionDescription
-      - archived
-      - tags
-      - series
-      - seriesOrdinal
-      - createdAt
-      properties:
-        documentId:
-          type: string
-          format: uuid
-        url:
-          type: string
-          description: The review page of the document in the app, at the latest version.
-          format: uri
-        title:
-          type: string
-        status:
-          type: string
-          enum:
-          - in-review
-          - approved
-          - changes-requested
-          - draft
-        currentVersion:
-          type: integer
-        versionDescription:
-          type: string
-          description: What that version is.
-          nullable: true
-        archived:
-          type: boolean
-        tags:
-          type: array
-          items:
-            type: string
-        series:
-          type: string
-          nullable: true
-        seriesOrdinal:
-          type: integer
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
     DocumentList:
       type: object
       required:
@@ -4011,7 +4214,9 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/DocumentSummary'
+            anyOf:
+            - $ref: '#/components/schemas/DocumentRow'
+            - $ref: '#/components/schemas/PartialDocument'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -4328,26 +4533,6 @@ components:
         published:
           type: boolean
           description: False when the document was not a draft.
-    DocumentVersionSummary:
-      type: object
-      required:
-      - versionNumber
-      - createdAt
-      - description
-      - threadCount
-      properties:
-        versionNumber:
-          type: integer
-        createdAt:
-          type: string
-          format: date-time
-        description:
-          type: string
-          description: What changed in this version.
-          nullable: true
-        threadCount:
-          type: integer
-          description: The number of comment threads on this version.
     DocumentVersionList:
       type: object
       required:
@@ -4357,7 +4542,9 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/DocumentVersionSummary'
+            anyOf:
+            - $ref: '#/components/schemas/DocumentVersionRow'
+            - $ref: '#/components/schemas/PartialDocumentVersion'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -4369,6 +4556,7 @@ components:
       - versionNumber
       - createdAt
       - description
+      - threadCount
       - markdown
       properties:
         versionNumber:
@@ -4379,6 +4567,9 @@ components:
         description:
           type: string
           nullable: true
+        threadCount:
+          type: integer
+          description: The number of comment threads on this version.
         markdown:
           type: string
           description: The Markdown source of this version.
@@ -4980,7 +5171,10 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/FeedbackItem'
+            anyOf:
+            - $ref: '#/components/schemas/FeedbackRow'
+            - $ref: '#/components/schemas/FeedbackItem'
+            - $ref: '#/components/schemas/PartialFeedbackItem'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -4996,37 +5190,6 @@ components:
           description: The only status a route writes. Resolved stays with a person.
           enum:
           - addressed
-    ArtifactSummary:
-      type: object
-      required:
-      - artifactId
-      - name
-      - latestVersion
-      - archived
-      - sourceLink
-      - createdAt
-      - url
-      properties:
-        artifactId:
-          type: string
-          format: uuid
-        name:
-          type: string
-          maxLength: 255
-        latestVersion:
-          type: integer
-        archived:
-          type: boolean
-        sourceLink:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        url:
-          type: string
-          description: The artifact page in the app, at the newest version.
-          format: uri
     ArtifactList:
       type: object
       required:
@@ -5036,7 +5199,10 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/ArtifactSummary'
+            anyOf:
+            - $ref: '#/components/schemas/ArtifactRow'
+            - $ref: '#/components/schemas/Artifact'
+            - $ref: '#/components/schemas/PartialArtifact'
         next:
           type: string
           description: The URL of the next page, or null on the last page.
@@ -5052,9 +5218,9 @@ components:
       - fileCount
       - totalBytes
       properties:
-        number:
+        number: &id009
           type: integer
-        storedAt:
+        storedAt: &id010
           type: string
           format: date-time
         storedInSession:
@@ -5074,7 +5240,7 @@ components:
       - contentType
       - size
       properties:
-        path:
+        path: &id011
           type: string
         contentType:
           type: string
@@ -5227,6 +5393,1059 @@ components:
         archived:
           type: boolean
           description: True archives the artifact, and false restores it. Nothing is deleted. A second write changes nothing.
+    PullRequestRef:
+      type: object
+      description: 'A pull request link in the row of a card list: the link, without the forge state and the agent review.'
+      required:
+      - pullRequestId
+      - url
+      - forge
+      - repository
+      - number
+      properties:
+        pullRequestId: *id001
+        url: *id002
+        forge: *id003
+        repository: *id004
+        number: *id005
+    FeedbackRef:
+      type: object
+      description: 'A feedback item in the row of a card list: its id, its status and its page, without its text and its marks.'
+      required:
+      - id
+      - url
+      - pageUrl
+      - status
+      properties:
+        id: *id006
+        url:
+          type: string
+          description: The Feedback tab of the card in the app, scrolled to the note.
+          format: uri
+        pageUrl:
+          type: string
+          description: The page of the reviewed site where a web note was left, or null for a native note.
+          nullable: true
+        status: *id007
+    ArtifactVersionRef:
+      type: object
+      description: 'A version in the row of an artifact list: its number and the time it was stored, without the notes, the
+        counts and the sizes.'
+      required:
+      - number
+      - storedAt
+      properties:
+        number: *id009
+        storedAt: *id010
+    ArtifactFileRef:
+      type: object
+      description: 'A file in the row of an artifact list: its path, without the content type and the size.'
+      required:
+      - path
+      properties:
+        path: *id011
+    CardRow:
+      type: object
+      description: 'A card of a list with no `fields`: the whole card without its body, and with a short form of its pull
+        requests and its feedback.'
+      required:
+      - cardId
+      - url
+      - number
+      - title
+      - type
+      - status
+      - reporter
+      - position
+      - completedAt
+      - createdAt
+      - updatedAt
+      - pullRequests
+      - documents
+      - artifacts
+      - siteReviewComments
+      - relatedCards
+      - parent
+      - laneEnabled
+      - requiresHumanReview
+      - values
+      - children
+      - progress
+      - pause
+      - state
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
+        number:
+          type: integer
+          description: The short label that counts from 1 inside this project.
+        title:
+          type: string
+          maxLength: 255
+        type:
+          type: string
+          description: A type key of the project.
+        status:
+          type: string
+          description: The slug of the column.
+        reporter:
+          type: string
+          description: Who first raised the card.
+          enum:
+          - human
+          - agent
+          - reviewer
+          - api-key
+        position:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        pullRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/PullRequestRef'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardDocument'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardArtifact'
+        siteReviewComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedbackRef'
+          description: The feedback items of the card.
+        relatedCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelatedCard'
+        parent:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardRef'
+        laneEnabled:
+          type: boolean
+        requiresHumanReview:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardValue'
+          description: One row for each key the template declares.
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardRef'
+        progress:
+          type: object
+          description: Null for a type without the children capability.
+          required:
+          - done
+          - total
+          properties:
+            done:
+              type: integer
+            total:
+              type: integer
+          nullable: true
+        pause:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardPause'
+        state:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardState'
+          description: Null for a card in a terminal column and a card with no mark.
+    FeedbackRow:
+      type: object
+      description: A note of a list, without its body, its anchors and its device facts.
+      required:
+      - id
+      - url
+      - pageUrl
+      - surface
+      - screenshot
+      - hasDrawing
+      - status
+      - context
+      - createdAt
+      - cardId
+      - number
+      - title
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.
+          format: uri
+          nullable: true
+        pageUrl:
+          type: string
+          description: The page of the reviewed site where a web note was left, or null for a native note.
+          nullable: true
+        surface:
+          type: string
+          enum:
+          - web
+          - ios-simulator
+        screenshot:
+          type: object
+          description: The size of the marked image of the note, or null.
+          required:
+          - width
+          - height
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+          nullable: true
+        hasDrawing:
+          type: boolean
+          description: True when the note has strokes. Ask the reviewer rather than guess.
+        status:
+          type: string
+          enum:
+          - pending
+          - addressed
+          - resolved
+        context:
+          type: string
+          description: What a preview page said it served, or null.
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+        number:
+          type: integer
+          description: The number of its card.
+          nullable: true
+        title:
+          type: string
+          description: The title of its card.
+          nullable: true
+    ArtifactRow:
+      type: object
+      description: 'An artifact in a list, as the public API shows it with no `fields`: the artifact with a short form of
+        its versions and of the files of the latest version, and without the signed page link.'
+      required:
+      - artifactId
+      - name
+      - archived
+      - archivedAt
+      - sourceLink
+      - createdAt
+      - url
+      - versions
+      - selectedVersion
+      - files
+      properties:
+        artifactId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        archived:
+          type: boolean
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sourceLink:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: The artifact page in the app, at the newest version.
+          format: uri
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactVersionRef'
+        selectedVersion:
+          type: integer
+          description: The version whose files are listed.
+          nullable: true
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactFileRef'
+    DocumentRow:
+      type: object
+      description: 'One document of a list: the whole document without its Markdown, which a list never reads.'
+      required:
+      - documentId
+      - url
+      - title
+      - language
+      - status
+      - archived
+      - archiveReason
+      - version
+      - versionDescription
+      - tags
+      - series
+      - seriesOrdinal
+      - references
+      - referencedBy
+      - createdAt
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app, at the latest version.
+          format: uri
+        title:
+          type: string
+          maxLength: 255
+        language:
+          type: string
+          enum:
+          - arabic
+          - armenian
+          - basque
+          - catalan
+          - danish
+          - dutch
+          - english
+          - finnish
+          - french
+          - german
+          - greek
+          - hindi
+          - hungarian
+          - indonesian
+          - irish
+          - italian
+          - lithuanian
+          - nepali
+          - norwegian
+          - portuguese
+          - romanian
+          - russian
+          - serbian
+          - simple
+          - spanish
+          - swedish
+          - tamil
+          - turkish
+          - yiddish
+        status:
+          type: string
+          enum:
+          - in-review
+          - approved
+          - changes-requested
+          - draft
+        archived:
+          type: boolean
+        archiveReason:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          description: The current version number.
+        versionDescription:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        series:
+          type: string
+          nullable: true
+        seriesOrdinal:
+          type: integer
+          nullable: true
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentLink'
+          description: The documents this one points at. Only this direction is writable.
+        referencedBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentLink'
+          description: The documents that point at this one.
+        createdAt:
+          type: string
+          format: date-time
+    DocumentVersionRow:
+      type: object
+      description: 'One version of a list: the whole version without its Markdown, which a list never reads.'
+      required:
+      - versionNumber
+      - createdAt
+      - description
+      - threadCount
+      properties:
+        versionNumber:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        description:
+          type: string
+          nullable: true
+        threadCount:
+          type: integer
+          description: The number of comment threads on this version.
+    PartialProject:
+      type: object
+      description: Some of the fields of `Project`, each one whole. A field that the request does not name is absent.
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The home page of the project in the app.
+          format: uri
+        slug:
+          type: string
+          description: Null on a project created before the slug existed, so quote the id.
+          nullable: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          description: What the project is for.
+          nullable: true
+          maxLength: 500
+        domain:
+          type: string
+          description: The domain of the site the project reviews.
+          nullable: true
+          maxLength: 255
+        searchLanguage:
+          type: string
+          description: The language a new document or inbox item of the project takes.
+          enum:
+          - arabic
+          - armenian
+          - basque
+          - catalan
+          - danish
+          - dutch
+          - english
+          - finnish
+          - french
+          - german
+          - greek
+          - hindi
+          - hungarian
+          - indonesian
+          - irish
+          - italian
+          - lithuanian
+          - nepali
+          - norwegian
+          - portuguese
+          - romanian
+          - russian
+          - serbian
+          - simple
+          - spanish
+          - swedish
+          - tamil
+          - turkish
+          - yiddish
+        allowedOrigins:
+          type: array
+          items:
+            type: string
+          description: The site origins the sign-in widget may run on.
+        createdAt:
+          type: string
+          format: date-time
+    PartialBoardColumn:
+      type: object
+      description: Some of the fields of `BoardColumn`, each one whole. A field that the request does not name is absent.
+      properties:
+        slug:
+          type: string
+          description: The value you pass as `status`.
+        label:
+          type: string
+          description: The name a person sees on the board.
+          maxLength: 100
+        terminal:
+          type: boolean
+          description: A terminal column is where finished work goes.
+        default:
+          type: boolean
+          description: True for the column where a new card lands when you pass no status.
+        backlog:
+          type: boolean
+          description: True for Backlog, which the board does not draw as a column.
+    PartialCard:
+      type: object
+      description: Some of the fields of `Card`, each one whole. A field that the request does not name is absent.
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
+        number:
+          type: integer
+          description: The short label that counts from 1 inside this project.
+        title:
+          type: string
+          maxLength: 255
+        body:
+          type: string
+          description: Markdown.
+        type:
+          type: string
+          description: A type key of the project.
+        status:
+          type: string
+          description: The slug of the column.
+        reporter:
+          type: string
+          description: Who first raised the card.
+          enum:
+          - human
+          - agent
+          - reviewer
+          - api-key
+        position:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        pullRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardPullRequest'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardDocument'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardArtifact'
+        siteReviewComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardFeedback'
+          description: The feedback items of the card.
+        relatedCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelatedCard'
+        parent:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardRef'
+        laneEnabled:
+          type: boolean
+        requiresHumanReview:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardValue'
+          description: One row for each key the template declares.
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardRef'
+        progress:
+          type: object
+          description: Null for a type without the children capability.
+          required:
+          - done
+          - total
+          properties:
+            done:
+              type: integer
+            total:
+              type: integer
+          nullable: true
+        pause:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardPause'
+        state:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardState'
+          description: Null for a card in a terminal column and a card with no mark.
+    PartialCardEvent:
+      type: object
+      description: Some of the fields of `CardEvent`, each one whole. A field that the request does not name is absent.
+      properties:
+        kind:
+          type: string
+          enum:
+          - created
+          - moved
+          - fix-requested
+          - stopped
+          - ready-to-merge
+          - synced
+          - run-finished
+          - paused
+          - pause-released
+          - verdict
+          - review-overridden
+          - override-ended
+          - resume-skipped
+          - document-verdict
+          - verdict-failed
+          - auto-approved
+          - approval-dismissed
+          - human-review-changed
+          - value-changed
+        occurredAt:
+          type: string
+          format: date-time
+        actor:
+          $ref: '#/components/schemas/Actor'
+        from:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/EventColumn'
+          description: Set on a move.
+        to:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/EventColumn'
+          description: Set on a move and a creation.
+        cause:
+          type: object
+          additionalProperties: true
+          description: Why the app moved the card on its own, or null.
+          nullable: true
+        run:
+          type: object
+          additionalProperties: true
+          description: The whole record of a finished run, on a `run-finished` event.
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        pullRequest:
+          type: integer
+          nullable: true
+        pause:
+          type: object
+          description: On a `paused` or `pause-released` event.
+          required:
+          - kind
+          - ruleId
+          - releaseReason
+          properties:
+            kind:
+              type: string
+              nullable: true
+            ruleId:
+              type: string
+              nullable: true
+            releaseReason:
+              type: string
+              nullable: true
+          nullable: true
+        override:
+          type: object
+          description: On a `review-overridden` or `override-ended` event.
+          required:
+          - approver
+          - headSha
+          properties:
+            approver:
+              type: string
+              nullable: true
+            headSha:
+              type: string
+              nullable: true
+          nullable: true
+        document:
+          type: object
+          description: On a `document-verdict` or `verdict-failed` event.
+          required:
+          - documentId
+          - title
+          - rule
+          - verdict
+          - withdrawn
+          - refusal
+          properties:
+            documentId:
+              type: string
+              format: uuid
+              nullable: true
+            title:
+              type: string
+              nullable: true
+            rule:
+              type: string
+              nullable: true
+            verdict:
+              type: string
+              nullable: true
+            withdrawn:
+              type: string
+              nullable: true
+            refusal:
+              type: string
+              nullable: true
+          nullable: true
+        humanReview:
+          type: object
+          description: On a `human-review-changed` event.
+          required:
+          - value
+          - cause
+          - ruleId
+          properties:
+            value:
+              type: boolean
+              nullable: true
+            cause:
+              type: string
+              nullable: true
+            ruleId:
+              type: string
+              nullable: true
+          nullable: true
+        valueChange:
+          type: object
+          description: On a `value-changed` event.
+          required:
+          - key
+          - value
+          - previous
+          properties:
+            key:
+              type: string
+              nullable: true
+            value:
+              type: boolean
+              nullable: true
+            previous:
+              type: boolean
+              nullable: true
+          nullable: true
+    PartialFeedbackItem:
+      type: object
+      description: Some of the fields of `FeedbackItem`, each one whole. A field that the request does not name is absent.
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.
+          format: uri
+          nullable: true
+        pageUrl:
+          type: string
+          description: The page of the reviewed site where a web note was left, or null for a native note.
+          nullable: true
+        surface:
+          type: string
+          enum:
+          - web
+          - ios-simulator
+        native:
+          type: object
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/NativeFacts'
+        screenshot:
+          type: object
+          description: The size of the marked image of the note, or null.
+          required:
+          - width
+          - height
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+          nullable: true
+        anchors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedbackAnchor'
+        body:
+          type: string
+        hasDrawing:
+          type: boolean
+          description: True when the note has strokes. Ask the reviewer rather than guess.
+        status:
+          type: string
+          enum:
+          - pending
+          - addressed
+          - resolved
+        context:
+          type: string
+          description: What a preview page said it served, or null.
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+        number:
+          type: integer
+          description: The number of its card.
+          nullable: true
+        title:
+          type: string
+          description: The title of its card.
+          nullable: true
+    PartialDocument:
+      type: object
+      description: Some of the fields of `Document`, each one whole. A field that the request does not name is absent.
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app, at the latest version.
+          format: uri
+        title:
+          type: string
+          maxLength: 255
+        language:
+          type: string
+          enum:
+          - arabic
+          - armenian
+          - basque
+          - catalan
+          - danish
+          - dutch
+          - english
+          - finnish
+          - french
+          - german
+          - greek
+          - hindi
+          - hungarian
+          - indonesian
+          - irish
+          - italian
+          - lithuanian
+          - nepali
+          - norwegian
+          - portuguese
+          - romanian
+          - russian
+          - serbian
+          - simple
+          - spanish
+          - swedish
+          - tamil
+          - turkish
+          - yiddish
+        status:
+          type: string
+          enum:
+          - in-review
+          - approved
+          - changes-requested
+          - draft
+        archived:
+          type: boolean
+        archiveReason:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          description: The current version number.
+        versionDescription:
+          type: string
+          nullable: true
+        markdown:
+          type: string
+          description: The Markdown source of the current version.
+        tags:
+          type: array
+          items:
+            type: string
+        series:
+          type: string
+          nullable: true
+        seriesOrdinal:
+          type: integer
+          nullable: true
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentLink'
+          description: The documents this one points at. Only this direction is writable.
+        referencedBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentLink'
+          description: The documents that point at this one.
+        createdAt:
+          type: string
+          format: date-time
+    PartialDocumentVersion:
+      type: object
+      description: Some of the fields of `DocumentVersion`, each one whole. A field that the request does not name is absent.
+      properties:
+        versionNumber:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        description:
+          type: string
+          nullable: true
+        threadCount:
+          type: integer
+          description: The number of comment threads on this version.
+        markdown:
+          type: string
+          description: The Markdown source of this version.
+    PartialDocumentReview:
+      type: object
+      description: Some of the fields of `DocumentReview`, each one whole. A field that the request does not name is absent.
+      properties:
+        status:
+          type: string
+          enum:
+          - in-review
+          - approved
+          - changes-requested
+          - draft
+        verdict:
+          type: string
+          description: The verdict standing on the current version. Null also after a withdrawal.
+          enum:
+          - approved
+          - changes-requested
+          - null
+          nullable: true
+        verdictId:
+          type: string
+          description: The newest entry of the verdict log, a withdrawal included.
+          format: uuid
+          nullable: true
+        verdictThroughAgent:
+          type: boolean
+        note:
+          type: string
+          nullable: true
+        version:
+          type: integer
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewComment'
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewDecision'
+        agentReviews:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentAgentReview'
+          description: Newest first.
+        verdictThroughApiKey:
+          type: boolean
+          description: An API key recorded the verdict for the owner.
+    PartialArtifact:
+      type: object
+      description: Some of the fields of `Artifact`, each one whole. A field that the request does not name is absent.
+      properties:
+        artifactId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        archived:
+          type: boolean
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sourceLink:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: The artifact page in the app, at the newest version.
+          format: uri
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactVersion'
+        selectedVersion:
+          type: integer
+          description: The version whose files are listed.
+          nullable: true
+        pageLink:
+          type: string
+          description: A full address of the entry page of that version, valid for one hour, or null when the version has
+            none.
+          nullable: true
+          format: uri
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactFile'
   examples:
     MethodNotAllowed:
       summary: method_not_allowed
@@ -5683,6 +6902,18 @@ components:
         status: 404
         code: artifact_file_not_found
         detail: This version of the artifact has no file at this path.
+    FieldsRefused:
+      summary: fields_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#validation_failed
+        title: Validation failed
+        status: 422
+        code: validation_failed
+        detail: One or more fields were refused.
+        errors:
+        - field: fields
+          code: fields_refused
+          message: The field "markdown" is not returned in a list. Read one resource to get it.
   responses:
     E405MethodNotAllowedAnon:
       description: 'Refused: `method_not_allowed`.'
@@ -6626,3 +7857,21 @@ components:
               $ref: '#/components/examples/ArtifactFileNotFound'
             route_not_found:
               $ref: '#/components/examples/RouteNotFound'
+    E422ValidationFailedFieldsRefused:
+      description: 'Refused: `validation_failed`, `fields_refused`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            fields_refused:
+              $ref: '#/components/examples/FieldsRefused'

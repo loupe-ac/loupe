@@ -4478,7 +4478,14 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/Project"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Project"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialProject"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -4626,7 +4633,14 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/BoardColumn"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/BoardColumn"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialBoardColumn"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -4877,6 +4891,101 @@
                 },
                 "type": "object"
             },
+            "FeedbackRow": {
+                "description": "A note of a list, without its body, its anchors and its device facts.",
+                "required": [
+                    "id",
+                    "url",
+                    "pageUrl",
+                    "surface",
+                    "screenshot",
+                    "hasDrawing",
+                    "status",
+                    "context",
+                    "createdAt",
+                    "cardId",
+                    "number",
+                    "title"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "surface": {
+                        "type": "string",
+                        "enum": [
+                            "web",
+                            "ios-simulator"
+                        ]
+                    },
+                    "screenshot": {
+                        "description": "The size of the marked image of the note, or null.",
+                        "required": [
+                            "width",
+                            "height"
+                        ],
+                        "properties": {
+                            "width": {
+                                "type": "integer"
+                            },
+                            "height": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "hasDrawing": {
+                        "description": "True when the note has strokes. Ask the reviewer rather than guess.",
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "addressed",
+                            "resolved"
+                        ]
+                    },
+                    "context": {
+                        "description": "What a preview page said it served, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "number": {
+                        "description": "The number of its card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "title": {
+                        "description": "The title of its card.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "FeedbackList": {
                 "required": [
                     "items",
@@ -4886,7 +4995,17 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/FeedbackItem"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/FeedbackRow"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/FeedbackItem"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialFeedbackItem"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -4943,64 +5062,29 @@
                 },
                 "type": "object"
             },
-            "ArtifactSummary": {
+            "ArtifactVersionRef": {
                 "required": [
-                    "artifactId",
-                    "name",
-                    "latestVersion",
-                    "archived",
-                    "sourceLink",
-                    "createdAt",
-                    "url"
+                    "number",
+                    "storedAt"
                 ],
                 "properties": {
-                    "artifactId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "name": {
-                        "type": "string",
-                        "maxLength": 255
-                    },
-                    "latestVersion": {
+                    "number": {
                         "type": "integer"
                     },
-                    "archived": {
-                        "type": "boolean"
-                    },
-                    "sourceLink": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
+                    "storedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "url": {
-                        "description": "The artifact page in the app, at the newest version.",
-                        "type": "string",
-                        "format": "uri"
                     }
                 },
                 "type": "object"
             },
-            "ArtifactList": {
+            "ArtifactFileRef": {
                 "required": [
-                    "items",
-                    "next"
+                    "path"
                 ],
                 "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/ArtifactSummary"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
+                    "path": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -5078,7 +5162,8 @@
                         "format": "uuid"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 255
                     },
                     "archived": {
                         "type": "boolean"
@@ -5123,6 +5208,102 @@
                         "items": {
                             "$ref": "#/components/schemas/ArtifactFile"
                         }
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactRow": {
+                "required": [
+                    "artifactId",
+                    "name",
+                    "archived",
+                    "archivedAt",
+                    "sourceLink",
+                    "createdAt",
+                    "url",
+                    "versions",
+                    "selectedVersion",
+                    "files"
+                ],
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archivedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "versions": {
+                        "description": "Each version as its number and the time it was stored. Name `versions` in `fields` for the notes, the counts and the sizes.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactVersionRef"
+                        }
+                    },
+                    "selectedVersion": {
+                        "description": "The latest version, whose files are listed.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "files": {
+                        "description": "The paths of the files of that version. Name `files` in `fields` for the content types and the sizes.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactFileRef"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ArtifactList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/ArtifactRow"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Artifact"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialArtifact"
+                                }
+                            ]
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -5225,91 +5406,60 @@
                 },
                 "type": "object"
             },
-            "CardSummary": {
+            "PullRequestRef": {
                 "required": [
-                    "cardId",
+                    "pullRequestId",
                     "url",
-                    "number",
-                    "title",
-                    "type",
-                    "status",
-                    "reporter",
-                    "parentCardId",
-                    "updatedAt",
-                    "state"
+                    "forge",
+                    "repository",
+                    "number"
                 ],
                 "properties": {
-                    "cardId": {
+                    "pullRequestId": {
                         "type": "string",
                         "format": "uuid"
                     },
                     "url": {
-                        "description": "The card page in the app.",
+                        "type": "string"
+                    },
+                    "forge": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "number": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackRef": {
+                "required": [
+                    "id",
+                    "url",
+                    "pageUrl",
+                    "status"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The Feedback tab of the card in the app, scrolled to the note.",
                         "type": "string",
                         "format": "uri"
                     },
-                    "number": {
-                        "description": "The short label that counts from 1 inside this project.",
-                        "type": "integer"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "description": "A type key of the project.",
-                        "type": "string"
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
+                        "type": "string",
+                        "nullable": true
                     },
                     "status": {
-                        "description": "The slug of the column.",
                         "type": "string"
-                    },
-                    "reporter": {
-                        "type": "string",
-                        "enum": [
-                            "human",
-                            "agent",
-                            "reviewer",
-                            "api-key",
-                            "system"
-                        ]
-                    },
-                    "parentCardId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "state": {
-                        "description": "What the card needs now on the board, or null for a card in a terminal column and a card with no mark.",
-                        "required": [
-                            "kind",
-                            "code",
-                            "since"
-                        ],
-                        "properties": {
-                            "kind": {
-                                "type": "string",
-                                "enum": [
-                                    "stuck",
-                                    "needs-you",
-                                    "working",
-                                    "waiting"
-                                ]
-                            },
-                            "code": {
-                                "description": "Why.",
-                                "type": "string"
-                            },
-                            "since": {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -5775,8 +5925,423 @@
                 },
                 "type": "object"
             },
+            "CardRow": {
+                "required": [
+                    "cardId",
+                    "url",
+                    "number",
+                    "title",
+                    "type",
+                    "status",
+                    "reporter",
+                    "position",
+                    "completedAt",
+                    "createdAt",
+                    "updatedAt",
+                    "pullRequests",
+                    "documents",
+                    "artifacts",
+                    "siteReviewComments",
+                    "relatedCards",
+                    "parent",
+                    "laneEnabled",
+                    "requiresHumanReview",
+                    "values",
+                    "children",
+                    "progress",
+                    "pause",
+                    "state"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "number": {
+                        "description": "The short label that counts from 1 inside this project.",
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "A type key of the project.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "The slug of the column.",
+                        "type": "string"
+                    },
+                    "reporter": {
+                        "description": "Who first raised the card.",
+                        "type": "string",
+                        "enum": [
+                            "human",
+                            "agent",
+                            "reviewer",
+                            "api-key",
+                            "system"
+                        ]
+                    },
+                    "position": {
+                        "description": "The rank inside the column, counting from 0.",
+                        "type": "integer"
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "pullRequests": {
+                        "description": "Each pull request as a short form. Name `pullRequests` in `fields` for the state and the agent review.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PullRequestRef"
+                        }
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "documentId",
+                                "url",
+                                "title",
+                                "status"
+                            ],
+                            "properties": {
+                                "documentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The review page of the document in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "artifacts": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "artifactId",
+                                "url",
+                                "name",
+                                "versionNumber",
+                                "archived"
+                            ],
+                            "properties": {
+                                "artifactId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The artifact page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "versionNumber": {
+                                    "type": "integer"
+                                },
+                                "archived": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "siteReviewComments": {
+                        "description": "Each feedback item as a short form. Name `siteReviewComments` in `fields` for the whole items.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeedbackRef"
+                        }
+                    },
+                    "relatedCards": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "url",
+                                "number",
+                                "title",
+                                "status",
+                                "kind"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                },
+                                "kind": {
+                                    "description": "How this card reads the other card.",
+                                    "type": "string",
+                                    "enum": [
+                                        "relates-to",
+                                        "blocks",
+                                        "blocked-by",
+                                        "has-follow-up",
+                                        "follow-up-of"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "parent": {
+                        "required": [
+                            "cardId",
+                            "url",
+                            "number",
+                            "title",
+                            "status"
+                        ],
+                        "properties": {
+                            "cardId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "url": {
+                                "description": "The card page in the app.",
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "number": {
+                                "type": "integer"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "laneEnabled": {
+                        "type": "boolean"
+                    },
+                    "requiresHumanReview": {
+                        "description": "True when a person must review the pull request.",
+                        "type": "boolean"
+                    },
+                    "values": {
+                        "description": "One row for each key the workflow template declares.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "key",
+                                "type",
+                                "value",
+                                "writer",
+                                "updatedAt"
+                            ],
+                            "properties": {
+                                "key": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "bool"
+                                    ]
+                                },
+                                "value": {
+                                    "description": "The value of the key, or null when it is unset.",
+                                    "type": "boolean",
+                                    "nullable": true
+                                },
+                                "writer": {
+                                    "description": "Who last wrote the value: kind and name.",
+                                    "type": "object",
+                                    "nullable": true,
+                                    "additionalProperties": true
+                                },
+                                "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "children": {
+                        "description": "Empty for a type without the children capability.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "url",
+                                "number",
+                                "title",
+                                "status"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "progress": {
+                        "description": "Null for a type without the children capability.",
+                        "required": [
+                            "done",
+                            "total"
+                        ],
+                        "properties": {
+                            "done": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "pause": {
+                        "description": "The active workflow pause, or null.",
+                        "required": [
+                            "pauseId",
+                            "kind",
+                            "reason",
+                            "ruleId",
+                            "since"
+                        ],
+                        "properties": {
+                            "pauseId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "rule",
+                                    "retries",
+                                    "work-limit",
+                                    "work-timeout",
+                                    "work-stopped"
+                                ]
+                            },
+                            "reason": {
+                                "type": "string"
+                            },
+                            "ruleId": {
+                                "type": "string"
+                            },
+                            "since": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "state": {
+                        "description": "What the card needs now on the board. Null for a card in a terminal column and a card with no mark.",
+                        "required": [
+                            "kind",
+                            "code",
+                            "since",
+                            "reason",
+                            "others"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "stuck",
+                                    "needs-you",
+                                    "working",
+                                    "waiting"
+                                ]
+                            },
+                            "code": {
+                                "description": "Why.",
+                                "type": "string"
+                            },
+                            "since": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "reason": {
+                                "description": "One sentence that says why.",
+                                "type": "string"
+                            },
+                            "others": {
+                                "description": "The other reasons that apply, each with kind, code, reason and since.",
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "CardList": {
-                "description": "The rows are summaries, or whole cards with `full=true`.",
+                "description": "The rows are light cards, whole cards with `fields=all`, or the named `fields` alone.",
                 "required": [
                     "items",
                     "next"
@@ -5785,12 +6350,15 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "oneOf": [
+                            "anyOf": [
                                 {
-                                    "$ref": "#/components/schemas/CardSummary"
+                                    "$ref": "#/components/schemas/CardRow"
                                 },
                                 {
                                     "$ref": "#/components/schemas/Card"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialCard"
                                 }
                             ]
                         }
@@ -6161,7 +6729,14 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/CardEvent"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/CardEvent"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialCardEvent"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -6299,18 +6874,22 @@
                     "draft"
                 ]
             },
-            "DocumentSummary": {
+            "DocumentRow": {
                 "required": [
                     "documentId",
                     "url",
                     "title",
+                    "language",
                     "status",
-                    "currentVersion",
-                    "versionDescription",
                     "archived",
+                    "archiveReason",
+                    "version",
+                    "versionDescription",
                     "tags",
                     "series",
                     "seriesOrdinal",
+                    "references",
+                    "referencedBy",
                     "createdAt"
                 ],
                 "properties": {
@@ -6324,21 +6903,30 @@
                         "format": "uri"
                     },
                     "title": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/SearchLanguage"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DocumentStatus"
                     },
-                    "currentVersion": {
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archiveReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "version": {
+                        "description": "The current version number.",
                         "type": "integer"
                     },
                     "versionDescription": {
                         "description": "What that version is.",
                         "type": "string",
                         "nullable": true
-                    },
-                    "archived": {
-                        "type": "boolean"
                     },
                     "tags": {
                         "type": "array",
@@ -6353,6 +6941,20 @@
                     "seriesOrdinal": {
                         "type": "integer",
                         "nullable": true
+                    },
+                    "references": {
+                        "description": "The documents this one points at.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
+                    },
+                    "referencedBy": {
+                        "description": "The documents that point at this one.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
                     },
                     "createdAt": {
                         "type": "string",
@@ -6370,7 +6972,14 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/DocumentSummary"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/DocumentRow"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialDocument"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -6433,6 +7042,7 @@
                         "type": "integer"
                     },
                     "versionDescription": {
+                        "description": "What that version is.",
                         "type": "string",
                         "nullable": true
                     },
@@ -6545,7 +7155,7 @@
                 },
                 "type": "object"
             },
-            "DocumentVersionSummary": {
+            "DocumentVersionRow": {
                 "required": [
                     "versionNumber",
                     "createdAt",
@@ -6581,7 +7191,14 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/DocumentVersionSummary"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/DocumentVersionRow"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/PartialDocumentVersion"
+                                }
+                            ]
                         }
                     },
                     "next": {
@@ -6598,6 +7215,7 @@
                     "versionNumber",
                     "createdAt",
                     "description",
+                    "threadCount",
                     "markdown"
                 ],
                 "properties": {
@@ -6609,8 +7227,13 @@
                         "format": "date-time"
                     },
                     "description": {
+                        "description": "What changed in this version.",
                         "type": "string",
                         "nullable": true
+                    },
+                    "threadCount": {
+                        "description": "The number of comment threads on this version.",
+                        "type": "integer"
                     },
                     "markdown": {
                         "description": "The Markdown source of this version.",
@@ -11278,6 +11901,983 @@
                         "nullable": true,
                         "default": null,
                         "maxLength": 10000
+                    }
+                },
+                "type": "object"
+            },
+            "PartialProject": {
+                "description": "Some of the fields of `Project`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The home page of the project in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "slug": {
+                        "description": "Null on a project created before the slug existed, so quote the id.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "description": {
+                        "description": "What the project is for.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 500
+                    },
+                    "domain": {
+                        "description": "The domain of the site the project reviews.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "searchLanguage": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "allowedOrigins": {
+                        "description": "The site origins the sign-in widget may run on.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "PartialBoardColumn": {
+                "description": "Some of the fields of `BoardColumn`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "slug": {
+                        "description": "The value you pass as `status`.",
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The name a person sees on the board.",
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "terminal": {
+                        "description": "A terminal column is where finished work goes.",
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "description": "True for the column where a new card lands when you pass no status.",
+                        "type": "boolean"
+                    },
+                    "backlog": {
+                        "description": "True for Backlog, which the board does not draw as a column.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "PartialFeedbackItem": {
+                "description": "Some of the fields of `FeedbackItem`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "surface": {
+                        "type": "string",
+                        "enum": [
+                            "web",
+                            "ios-simulator"
+                        ]
+                    },
+                    "native": {
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/NativeFacts"
+                            }
+                        ]
+                    },
+                    "screenshot": {
+                        "description": "The size of the marked image of the note, or null.",
+                        "required": [
+                            "width",
+                            "height"
+                        ],
+                        "properties": {
+                            "width": {
+                                "type": "integer"
+                            },
+                            "height": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "anchors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FeedbackAnchor"
+                        }
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "hasDrawing": {
+                        "description": "True when the note has strokes. Ask the reviewer rather than guess.",
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "addressed",
+                            "resolved"
+                        ]
+                    },
+                    "context": {
+                        "description": "What a preview page said it served, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "number": {
+                        "description": "The number of its card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "title": {
+                        "description": "The title of its card.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PartialArtifact": {
+                "description": "Some of the fields of `Artifact`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archivedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version. It needs a sign-in. `pageLink` needs none.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "versions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactVersion"
+                        }
+                    },
+                    "selectedVersion": {
+                        "description": "The version whose files are listed.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "pageLink": {
+                        "description": "A full address of the entry page of that version, valid for one hour, or null when the version has none.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ArtifactFile"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PartialCard": {
+                "description": "Some of the fields of `Card`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "number": {
+                        "description": "The short label that counts from 1 inside this project.",
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "description": "Markdown.",
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "A type key of the project.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "The slug of the column.",
+                        "type": "string"
+                    },
+                    "reporter": {
+                        "description": "Who first raised the card.",
+                        "type": "string",
+                        "enum": [
+                            "human",
+                            "agent",
+                            "reviewer",
+                            "api-key",
+                            "system"
+                        ]
+                    },
+                    "position": {
+                        "description": "The rank inside the column, counting from 0.",
+                        "type": "integer"
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "pullRequests": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "pullRequestId",
+                                "url",
+                                "forge",
+                                "repository",
+                                "number",
+                                "state",
+                                "agentReview"
+                            ],
+                            "properties": {
+                                "pullRequestId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "type": "string"
+                                },
+                                "forge": {
+                                    "type": "string"
+                                },
+                                "repository": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "number": {
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "state": {
+                                    "description": "The last state Loupe read from the forge: state, draft, checks, failedChecks, mergeability, review, readyToMerge and refreshedAt. Null when Loupe holds no reading.",
+                                    "type": "object",
+                                    "nullable": true,
+                                    "additionalProperties": true
+                                },
+                                "agentReview": {
+                                    "description": "The agent review of the pull request, or null.",
+                                    "type": "object",
+                                    "nullable": true,
+                                    "additionalProperties": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "documentId",
+                                "url",
+                                "title",
+                                "status"
+                            ],
+                            "properties": {
+                                "documentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The review page of the document in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "artifacts": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "artifactId",
+                                "url",
+                                "name",
+                                "versionNumber",
+                                "archived"
+                            ],
+                            "properties": {
+                                "artifactId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The artifact page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "versionNumber": {
+                                    "type": "integer"
+                                },
+                                "archived": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "siteReviewComments": {
+                        "description": "The feedback items of the card: id, url (the Feedback tab at the note), pageUrl (the reviewed site page), surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "relatedCards": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "url",
+                                "number",
+                                "title",
+                                "status",
+                                "kind"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                },
+                                "kind": {
+                                    "description": "How this card reads the other card.",
+                                    "type": "string",
+                                    "enum": [
+                                        "relates-to",
+                                        "blocks",
+                                        "blocked-by",
+                                        "has-follow-up",
+                                        "follow-up-of"
+                                    ]
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "parent": {
+                        "required": [
+                            "cardId",
+                            "url",
+                            "number",
+                            "title",
+                            "status"
+                        ],
+                        "properties": {
+                            "cardId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "url": {
+                                "description": "The card page in the app.",
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "number": {
+                                "type": "integer"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "laneEnabled": {
+                        "type": "boolean"
+                    },
+                    "requiresHumanReview": {
+                        "description": "True when a person must review the pull request.",
+                        "type": "boolean"
+                    },
+                    "values": {
+                        "description": "One row for each key the workflow template declares.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "key",
+                                "type",
+                                "value",
+                                "writer",
+                                "updatedAt"
+                            ],
+                            "properties": {
+                                "key": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "bool"
+                                    ]
+                                },
+                                "value": {
+                                    "description": "The value of the key, or null when it is unset.",
+                                    "type": "boolean",
+                                    "nullable": true
+                                },
+                                "writer": {
+                                    "description": "Who last wrote the value: kind and name.",
+                                    "type": "object",
+                                    "nullable": true,
+                                    "additionalProperties": true
+                                },
+                                "updatedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "children": {
+                        "description": "Empty for a type without the children capability.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "url",
+                                "number",
+                                "title",
+                                "status"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "progress": {
+                        "description": "Null for a type without the children capability.",
+                        "required": [
+                            "done",
+                            "total"
+                        ],
+                        "properties": {
+                            "done": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "pause": {
+                        "description": "The active workflow pause, or null.",
+                        "required": [
+                            "pauseId",
+                            "kind",
+                            "reason",
+                            "ruleId",
+                            "since"
+                        ],
+                        "properties": {
+                            "pauseId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "rule",
+                                    "retries",
+                                    "work-limit",
+                                    "work-timeout",
+                                    "work-stopped"
+                                ]
+                            },
+                            "reason": {
+                                "type": "string"
+                            },
+                            "ruleId": {
+                                "type": "string"
+                            },
+                            "since": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "state": {
+                        "description": "What the card needs now on the board. Null for a card in a terminal column and a card with no mark.",
+                        "required": [
+                            "kind",
+                            "code",
+                            "since",
+                            "reason",
+                            "others"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "stuck",
+                                    "needs-you",
+                                    "working",
+                                    "waiting"
+                                ]
+                            },
+                            "code": {
+                                "description": "Why.",
+                                "type": "string"
+                            },
+                            "since": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "reason": {
+                                "description": "One sentence that says why.",
+                                "type": "string"
+                            },
+                            "others": {
+                                "description": "The other reasons that apply, each with kind, code, reason and since.",
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                }
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PartialCardEvent": {
+                "description": "Some of the fields of `CardEvent`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "created",
+                            "moved",
+                            "fix-requested",
+                            "stopped",
+                            "ready-to-merge",
+                            "synced",
+                            "run-finished",
+                            "paused",
+                            "pause-released",
+                            "verdict",
+                            "review-overridden",
+                            "override-ended",
+                            "resume-skipped",
+                            "document-verdict",
+                            "verdict-failed",
+                            "auto-approved",
+                            "approval-dismissed",
+                            "human-review-changed",
+                            "value-changed"
+                        ]
+                    },
+                    "occurredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "actor": {
+                        "description": "Who made the change.",
+                        "required": [
+                            "kind",
+                            "name",
+                            "apiKey"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "description": "The class of writer.",
+                                "type": "string",
+                                "enum": [
+                                    "human",
+                                    "agent",
+                                    "reviewer",
+                                    "system",
+                                    "api-key"
+                                ]
+                            },
+                            "name": {
+                                "description": "The name of the person behind it, or null.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "apiKey": {
+                                "description": "The key that acted when `kind` is `api-key`, otherwise null.",
+                                "required": [
+                                    "id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "from": {
+                        "description": "The column a move left, with id, slug and label.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "to": {
+                        "description": "The column a move or a creation set, with id, slug and label.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "cause": {
+                        "description": "Why the app moved the card on its own, or null.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "run": {
+                        "description": "The whole record of a finished run, on a `run-finished` event.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pullRequest": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "pause": {
+                        "description": "On a `paused` or `pause-released` event: kind, ruleId and releaseReason.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "override": {
+                        "description": "On a `review-overridden` or `override-ended` event: approver and headSha.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "document": {
+                        "description": "On a `document-verdict` or `verdict-failed` event: documentId, title, rule, verdict, withdrawn and refusal.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "humanReview": {
+                        "description": "On a `human-review-changed` event: value, cause and ruleId.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "valueChange": {
+                        "description": "On a `value-changed` event: key, value and previous.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    }
+                },
+                "type": "object"
+            },
+            "PartialDocument": {
+                "description": "Some of the fields of `Document`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app, at the latest version.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DocumentStatus"
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archiveReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "version": {
+                        "description": "The current version number.",
+                        "type": "integer"
+                    },
+                    "versionDescription": {
+                        "description": "What that version is.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "markdown": {
+                        "description": "The Markdown source of the current version.",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "series": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "seriesOrdinal": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "references": {
+                        "description": "The documents this one points at. Only this direction is writable.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
+                    },
+                    "referencedBy": {
+                        "description": "The documents that point at this one.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "PartialDocumentVersion": {
+                "description": "Some of the fields of `DocumentVersion`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "description": "What changed in this version.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadCount": {
+                        "description": "The number of comment threads on this version.",
+                        "type": "integer"
+                    },
+                    "markdown": {
+                        "description": "The Markdown source of this version.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "PartialDocumentReview": {
+                "description": "Some of the fields of `DocumentReview`, each one whole. A field that the request does not name is absent.",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "in-review",
+                            "approved",
+                            "changes-requested",
+                            "draft"
+                        ]
+                    },
+                    "verdict": {
+                        "description": "The verdict standing on the current version. Null also after a withdrawal.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "approved",
+                            "changes-requested",
+                            null
+                        ]
+                    },
+                    "verdictId": {
+                        "description": "The newest entry of the verdict log, a withdrawal included.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "verdictThroughAgent": {
+                        "type": "boolean"
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "version": {
+                        "type": "integer"
+                    },
+                    "comments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReviewComment"
+                        }
+                    },
+                    "decisions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReviewDecision"
+                        }
+                    },
+                    "agentReviews": {
+                        "description": "Newest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentAgentReview"
+                        }
+                    },
+                    "verdictThroughApiKey": {
+                        "description": "An API key recorded the verdict for the owner.",
+                        "type": "boolean"
                     }
                 },
                 "type": "object"

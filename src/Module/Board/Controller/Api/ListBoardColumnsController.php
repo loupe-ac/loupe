@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -11,6 +13,7 @@ use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Board\Command\PageBoardColumnsCommand;
 use App\Module\Board\Command\PageBoardColumnsHandler;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Service\BoardColumnPresenter;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
@@ -32,6 +35,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'limit', description: 'The most rows to return.', in: 'query', schema: new OA\Schema(type: 'integer', default: PageRequest::DEFAULT_LIMIT, maximum: PageRequest::MAX_LIMIT, minimum: 1)),
         new OA\Parameter(name: 'cursor', description: 'The opaque position from the `next` URL of the last page.', in: 'query', schema: new OA\Schema(type: 'string')),
+        new FieldsParameter(BoardColumnResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of columns, with the card types.', BoardColumnListResponse::class, page: true),
@@ -55,6 +59,7 @@ final class ListBoardColumnsController extends AppController
 
     public function __invoke(Request $request, #[ReachableProject] Project $project): JsonResponse
     {
+        $fields = FieldSelection::fromRequest($request, BoardColumnResponse::FIELDS);
         $view = ($this->pageColumns)(new PageBoardColumnsCommand(
             project: $project,
             page: PageRequest::fromRequest($request, PageBoardColumnsHandler::BOARD_ORDER),
@@ -62,7 +67,7 @@ final class ListBoardColumnsController extends AppController
 
         return $view->page->toResponse(
             $request,
-            $this->presenter->column(...),
+            fn (BoardColumn $column): array => $fields->keepObject($this->presenter->column($column)),
             ['types' => $this->presenter->types($view->types), 'defaultType' => $view->types->defaultKey],
         );
     }

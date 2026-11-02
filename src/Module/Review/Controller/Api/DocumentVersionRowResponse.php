@@ -7,8 +7,9 @@ namespace App\Module\Review\Controller\Api;
 use App\Module\Review\View\DocumentVersionPageItem;
 use OpenApi\Attributes as OA;
 
+/** One version of a list: the whole version without its Markdown, which a list never reads. */
 #[OA\Schema(required: ['versionNumber', 'createdAt', 'description', 'threadCount'])]
-final readonly class DocumentVersionSummaryResponse
+final readonly class DocumentVersionRowResponse
 {
     public function __construct(
         #[OA\Property]

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Doctrine\SearchLanguage;
 use App\Module\Review\Command\ShowDocumentDataHandler;
 use App\Module\Review\Entity\Document;
@@ -16,9 +17,18 @@ use OpenApi\Attributes as OA;
  *
  * @phpstan-import-type DocumentPayload from ShowDocumentDataHandler
  */
-#[OA\Schema(required: ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
+#[OA\Schema(required: ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class DocumentResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialDocument';
+
+    /** The top-level names of a document, in the order of its row. */
+    public const array FIELDS = ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'];
+
+    /** The names a document list refuses: its Markdown can hold a megabyte, so a list never reads it. */
+    public const array REFUSED_IN_LIST = ['markdown', 'all'];
+
     /**
      * @param list<string>               $tags
      * @param list<DocumentLinkResponse> $references
@@ -49,7 +59,7 @@ final readonly class DocumentResponse
         #[OA\Property(description: 'The current version number.')]
         public int $version,
 
-        #[OA\Property(nullable: true)]
+        #[OA\Property(description: 'What that version is.', nullable: true)]
         public ?string $versionDescription,
 
         #[OA\Property(description: 'The Markdown source of the current version.')]

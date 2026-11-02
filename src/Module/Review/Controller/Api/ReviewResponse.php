@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Module\Review\Command\ShowReviewHandler;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
@@ -13,9 +14,15 @@ use OpenApi\Attributes as OA;
  *
  * @phpstan-import-type ReviewPayload from ShowReviewHandler
  */
-#[OA\Schema(required: ['status', 'verdict', 'verdictId', 'verdictThroughAgent', 'note', 'version', 'comments', 'decisions', 'agentReviews', 'verdictThroughApiKey'])]
+#[OA\Schema(required: ['status', 'verdict', 'verdictId', 'verdictThroughAgent', 'note', 'version', 'comments', 'decisions', 'agentReviews', 'verdictThroughApiKey'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class ReviewResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialDocumentReview';
+
+    /** The top-level names of a review, in the order of its row. */
+    public const array FIELDS = ['status', 'verdict', 'verdictId', 'verdictThroughAgent', 'note', 'version', 'comments', 'decisions', 'agentReviews', 'verdictThroughApiKey'];
+
     /**
      * @param list<ReviewCommentResponse>       $comments
      * @param list<ReviewDecisionResponse>      $decisions
