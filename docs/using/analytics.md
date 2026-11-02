@@ -320,7 +320,7 @@ seed, so a page shows the same sign on every load. A per-run graph resamples
 whole cards with all their runs, because the runs of one card are not
 independent. A rate uses the formula of a rate. Hover on the sign, or move to
 it with the Tab key, to read the likely range and the card count of each
-period.
+period. On a touch screen, tap the sign.
 
 A steady metric rarely reads **Clear**, however many cards it has, because the
 sign answers whether the change is real. The sign is evidence, not a guarantee:

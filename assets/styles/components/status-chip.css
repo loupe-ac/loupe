@@ -67,3 +67,9 @@
         @apply w-3 h-3 shrink-0;
     }
 }
+/* The help icon promises tooltip text, which a touch screen never shows. */
+@media (hover: none) {
+    .lp-status-chip__help {
+        display: none;
+    }
+}
