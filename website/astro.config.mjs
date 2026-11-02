@@ -178,6 +178,7 @@ export default defineConfig({
             { label: 'Overview', slug: 'contributing' },
             { slug: 'contributing/development' },
             { slug: 'contributing/architectural-priorities' },
+            { slug: 'contributing/ui-principles' },
             { slug: 'contributing/design-system' },
             { slug: 'contributing/worktrees' },
             { slug: 'contributing/lifecycle' },
