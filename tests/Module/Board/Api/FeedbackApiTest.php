@@ -499,6 +499,7 @@ final class FeedbackApiTest extends WebTestCase
         return $card;
     }
 
+    /** @param array<string, mixed>|null $native */
     private function note(?Card $card, string $body, SiteReviewCommentStatus $status = SiteReviewCommentStatus::Pending, string $createdAt = '2026-01-01 09:00:00', ?array $native = null): SiteReviewComment
     {
         $comment = new SiteReviewComment(

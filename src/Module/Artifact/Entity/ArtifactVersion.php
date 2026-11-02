@@ -68,7 +68,7 @@ class ArtifactVersion
     /** The file a viewer opens: index.html, else the first HTML file, else the first file. */
     public function entryFile(): ?ArtifactFile
     {
-        $entryPath = self::entryPath(array_map(static fn (ArtifactFile $file): string => $file->path, $this->files->toArray()));
+        $entryPath = self::entryPath($this->files->map(static fn (ArtifactFile $file): string => $file->path)->getValues());
         foreach ($this->files as $file) {
             if ($file->path === $entryPath) {
                 return $file;

@@ -56,6 +56,7 @@ final class DocumentFieldsApiTest extends WebTestCase
         self::assertNotNull($target->id);
     }
 
+    /** @param list<string> $refused */
     #[DataProvider('refusedValues')]
     public function test_the_lists_refuse_the_markdown_and_all_with_their_own_code(string $query, array $refused): void
     {

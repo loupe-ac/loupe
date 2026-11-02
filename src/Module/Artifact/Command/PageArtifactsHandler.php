@@ -79,7 +79,7 @@ final readonly class PageArtifactsHandler
     /**
      * @param array{fileCount: int, totalBytes: int}|null $total
      *
-     * @return array<string, mixed>
+     * @return array{number: int, storedAt: string}|array{number: int, storedAt: string, storedInSession: bool, notes: ?string, fileCount: int, totalBytes: int}
      */
     private static function version(ArtifactVersion $version, ?array $total): array
     {
@@ -96,7 +96,7 @@ final readonly class PageArtifactsHandler
     /**
      * @param list<array{path: string, contentType: string, size: int}> $files
      *
-     * @return list<array<string, mixed>>
+     * @return list<array{path: string}|array{path: string, contentType: string, size: int}>
      */
     private static function files(array $files, bool $whole): array
     {

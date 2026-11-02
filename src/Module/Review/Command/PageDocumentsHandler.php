@@ -56,8 +56,8 @@ final readonly class PageDocumentsHandler
                     $document,
                     $meta['versionNumber'],
                     $meta['description'],
-                    $command->links ? array_map($link, $document->references->toArray()) : [],
-                    $command->links ? array_map($link, $document->referencedBy->toArray()) : [],
+                    $command->links ? $document->references->map($link)->getValues() : [],
+                    $command->links ? $document->referencedBy->map($link)->getValues() : [],
                 );
             }, $documents),
             $page->next,
