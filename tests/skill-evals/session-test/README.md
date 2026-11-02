@@ -30,9 +30,9 @@ Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per t
 5. The repository has no new commit.
 6. No `writing-plans` skill load or read.
 7. `document_create` was called, each call asked for a draft, and `document_publish` was not called.
-8. The document names the skill and its plugin.
+8. One entry of the last written document version names the skill and its plugin. A product session writes that entry in `## Decisions log`, and a tech session writes it in `## Decided`. A title or another section does not count.
 
-`tests/js/session_test_run.test.js` runs the script with a fake `claude`, and covers checks 1, 2 and the draft part of check 7.
+`tests/js/session_test_run.test.js` runs the script with a fake `claude`, and covers checks 1, 2 and 8 and the draft part of check 7.
 
 ## Output
 

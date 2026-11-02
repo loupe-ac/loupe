@@ -35,6 +35,29 @@ const opt = (name, fallback) => {
     return i >= 0 ? args[i + 1] : fallback;
 };
 
+// One entry is a top-level list item, a table row or a paragraph.
+function sectionEntries(markdown, heading) {
+    const entries = [];
+    let inSection = false;
+    let inFence = false;
+    let afterBlank = false;
+    for (const line of markdown.split(/\r?\n/)) {
+        if (/^\s*(```|~~~)/.test(line)) {
+            inFence = !inFence;
+        } else if (!inFence && /^#{1,2}\s/.test(line)) {
+            inSection = line.trim().toLowerCase() === `## ${heading}`.toLowerCase();
+            entries.push('');
+            continue;
+        }
+        if (!inSection) continue;
+        if (!inFence && (/^(?:[-*+]\s|\d+[.)]\s|\|)/.test(line) || (afterBlank && /^\S/.test(line))))
+            entries.push('');
+        if (entries.length) entries[entries.length - 1] += `${line}\n`;
+        afterBlank = line.trim() === '';
+    }
+    return entries;
+}
+
 function findSkillPlugin() {
     const base = join(
         homedir(),
@@ -69,7 +92,7 @@ const model = opt(
 const maxCost = opt('--max-cost', '5');
 const maxTurns = Number(opt('--max-turns', '8'));
 const out = resolve(
-    opt('--out', mkdtempSync(join(tmpdir(), `session-test-${kind}-`))),
+    opt('--out') ?? mkdtempSync(join(tmpdir(), `session-test-${kind}-`)),
 );
 mkdirSync(out, { recursive: true });
 
@@ -250,9 +273,13 @@ const brainstormingLoaded =
     reads.some((p) => /skills\/brainstorming\//.test(p));
 const creates = calls.filter((c) => c.tool === 'document_create');
 const publishes = calls.filter((c) => c.tool === 'document_publish');
-const logText = creates.map((c) => JSON.stringify(c.args)).join('\n');
-const logNamesSkill =
-    /brainstorming/i.test(logText) && /superpowers/i.test(logText);
+const lastWrite = calls
+    .filter((c) => ['document_create', 'document_revise'].includes(c.tool))
+    .at(-1);
+const logNamesSkill = sectionEntries(
+    lastWrite?.args?.markdown ?? lastWrite?.args?.content ?? '',
+    kind === 'product' ? 'Decisions log' : 'Decided',
+).some((entry) => /brainstorming/i.test(entry) && /superpowers/i.test(entry));
 
 const checks = [
     ['every claude turn succeeded', turnFailure === null],
@@ -276,7 +303,7 @@ const checks = [
         creates.every((c) => c.args?.draft === true || c.args?.draft === 'true'),
     ],
     ['document_publish not called', publishes.length === 0],
-    ['decisions log names the skill and its source', logNamesSkill],
+    ['decision entry names the skill and its source', logNamesSkill],
 ];
 const failed = checks.filter(([, ok]) => !ok);
 const report = {
