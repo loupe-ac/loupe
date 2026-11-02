@@ -87,7 +87,7 @@ final class WorkLimitPauseTest extends KernelTestCase
         self::assertStringContainsString('[Open pull request #1302](https://github.com/loupe-ac/loupe/pull/1302)', $body);
         self::assertStringContainsString('[Open the agent review](https://github.com/loupe-ac/loupe/runs/4242)', $body);
         self::assertMatchesRegularExpression('~\[Open the last run\]\(https?://[^)]+search=[0-9a-f-]{36}\)~', $body);
-        self::assertStringNotContainsString('1125', $body, 'A done child is not waited for.');
+        self::assertStringNotContainsString('1125', (string) preg_replace('~[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}~', '', $body), 'A done child is not waited for.');
     }
 
     public function test_the_body_quotes_the_whole_summary_of_the_last_stopped_run(): void

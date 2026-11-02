@@ -41,13 +41,13 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         $client = $this->client();
         $owner = $this->makeUser(static::getContainer(), 'authz-owner');
         $project = $this->makeProject(static::getContainer(), $owner);
-        $this->makeKey(static::getContainer(), $project, 'sk-or-v1-project-secret-7c21');
+        $this->makeKey(static::getContainer(), $project, 'sk-or-v1-project-secret-wxyz');
         $client->loginUser($this->makeUser(static::getContainer(), 'authz-member'));
 
         foreach ([['GET', ''], ['GET', '/status'], ['GET', '?replace=1']] as [$method, $suffix]) {
             $client->request($method, $this->page($project).$suffix);
             self::assertResponseStatusCodeSame(403, $method.' '.$suffix);
-            self::assertStringNotContainsString('7c21', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString('wxyz', (string) $client->getResponse()->getContent());
         }
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, $this->page($project), ['open_router_key_form' => ['secret' => self::SECRET]]);
         self::assertResponseStatusCodeSame(403);
@@ -59,7 +59,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         $this->em()->clear();
         $stored = $this->keys()->findOneBy(['project' => $project]);
         self::assertNotNull($stored);
-        self::assertSame('sk-or-v1-project-secret-7c21', $stored->secret);
+        self::assertSame('sk-or-v1-project-secret-wxyz', $stored->secret);
     }
 
     public function test_the_owner_sees_the_section_in_the_settings_navigation(): void

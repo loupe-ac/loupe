@@ -632,6 +632,25 @@ test('a recommended marker shows a badge on its option', async ({ page }) => {
     await expect(block).not.toContainText('recommended:');
 });
 
+test('a recommended marker leaves a phone page with no sideways scroll', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signedInReviewer(page, 'badge-phone');
+    const { reviewUrl } = await seedDocument(
+        page,
+        'Decision — recommended on a phone',
+        RECOMMENDED_MARKDOWN,
+    );
+    await page.goto(reviewUrl);
+
+    await expect(page.locator('.lp-decision__badge')).toHaveCount(1);
+    const main = page.locator('main');
+    const scrollWidth = await main.evaluate((element) => element.scrollWidth);
+    const clientWidth = await main.evaluate((element) => element.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+});
+
 const SHIP_ONE = 'The importer';
 const SHIP_TWO = 'The exporter';
 

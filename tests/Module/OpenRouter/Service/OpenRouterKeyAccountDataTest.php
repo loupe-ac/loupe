@@ -53,7 +53,7 @@ final class OpenRouterKeyAccountDataTest extends KernelTestCase
         self::bootKernel();
         $user = $this->makeUser(self::getContainer(), 'export');
         $project = $this->makeProject(self::getContainer(), $user);
-        $account = $this->makeKey(self::getContainer(), $user, 'sk-or-v1-the-account-secret-a3f9');
+        $account = $this->makeKey(self::getContainer(), $user, 'sk-or-v1-the-account-secret-wxyz');
         $account->state = OpenRouterKeyState::Refused;
         $account->refusedSince = new \DateTimeImmutable('2026-10-29 08:00:00 UTC');
         $account->lastReadAt = new \DateTimeImmutable('2026-10-28 08:00:00 UTC');
@@ -78,7 +78,7 @@ final class OpenRouterKeyAccountDataTest extends KernelTestCase
         self::assertSame((string) $project->id, $rows[1]['projectId']);
         $json = json_encode($rows, \JSON_THROW_ON_ERROR);
         self::assertStringNotContainsString('secret', $json);
-        self::assertStringNotContainsString('a3f9', $json);
+        self::assertStringNotContainsString('wxyz', $json);
     }
 
     public function test_the_export_of_a_user_without_a_key_is_empty_and_leaves_out_other_users(): void
