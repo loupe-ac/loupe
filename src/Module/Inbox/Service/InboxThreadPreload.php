@@ -29,7 +29,7 @@ final class InboxThreadPreload implements ResetInterface
         private readonly InboxWatchLookup $watches,
         private readonly ItemActions $itemActions,
         private readonly InboxActionStatuses $actionStatuses,
-        private readonly CardWaitText $cardWaitText,
+        private readonly InboxWaitSubjects $waitSubjects,
     ) {
     }
 
@@ -42,7 +42,7 @@ final class InboxThreadPreload implements ResetInterface
 
         $this->inboxItems->loadDocuments($items);
         $this->watches->preload($items);
-        $this->cardWaitText->preloadSubjects(array_merge(...array_map(
+        $this->waitSubjects->preload(array_merge(...array_map(
             static fn (InboxCardWatch $watch): array => array_values($watch->waits->toArray()),
             $this->watches->forItems($items),
         )));

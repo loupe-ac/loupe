@@ -9,13 +9,11 @@ use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\View\CardWaitLine;
 use App\Module\Inbox\View\WorkLimitStory;
-use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseReasonText;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -35,8 +33,7 @@ final readonly class CardWaitText
     private const string WORK_LIMIT_LABEL = 'marker.paused.work_limit';
 
     public function __construct(
-        private DocumentRepository $documents,
-        private ForgePullRequestRepository $forgePullRequests,
+        private InboxWaitSubjects $subjects,
         private WorkerRunRepository $workerRuns,
         private CardPauseRepository $cardPauses,
         private UrlGeneratorInterface $urls,
@@ -81,44 +78,11 @@ final readonly class CardWaitText
         return null === $run ? null : RunSuggestions::title($run);
     }
 
-    /** A find() answers from the identity map, so a run that preloadSubjects() loaded costs no statement. */
     private function runOf(InboxCardWait $wait): ?WorkerRun
     {
-        $run = null === $wait->runId ? null : $this->workerRuns->find($wait->runId);
+        $run = null === $wait->runId ? null : $this->subjects->run($wait->runId);
 
         return null !== $run && (string) $run->project->id === (string) $wait->watch->project->id ? $run : null;
-    }
-
-    /**
-     * Loads the run, the document and the pull request of each wait in one query per type, so that the later
-     * find() of each line reads no row. A page that shows many waits calls this first.
-     *
-     * @param list<InboxCardWait> $waits
-     */
-    public function preloadSubjects(array $waits): void
-    {
-        $runs = [];
-        $documents = [];
-        $pullRequests = [];
-        foreach ($waits as $wait) {
-            if (null !== $wait->runId) {
-                $runs[$wait->runId->toRfc4122()] = $wait->runId->toRfc4122();
-            }
-            if (null !== $wait->documentId) {
-                $documents[$wait->documentId->toRfc4122()] = $wait->documentId->toRfc4122();
-            }
-            if (null !== $wait->pullRequestId) {
-                $pullRequests[$wait->pullRequestId->toRfc4122()] = $wait->pullRequestId->toRfc4122();
-            }
-        }
-
-        $this->workerRuns->findByIds(array_values($runs));
-        if ([] !== $documents) {
-            $this->documents->findBy(['id' => array_values($documents)]);
-        }
-        if ([] !== $pullRequests) {
-            $this->forgePullRequests->findBy(['id' => array_values($pullRequests)]);
-        }
     }
 
     /**
@@ -253,7 +217,7 @@ final readonly class CardWaitText
 
         switch ($wait->type) {
             case InboxCardWaitType::Document:
-                $document = null === $wait->documentId ? null : $this->documents->find($wait->documentId);
+                $document = null === $wait->documentId ? null : $this->subjects->document($wait->documentId);
                 $params['%title%'] = $document->title ?? '';
                 $params['%version%'] = $wait->versionNumber ?? 0;
                 if (null !== $wait->documentId && null === $document) {
@@ -270,7 +234,7 @@ final readonly class CardWaitText
                 }
                 break;
             case InboxCardWaitType::PullRequest:
-                $pullRequest = null === $wait->pullRequestId ? null : $this->forgePullRequests->find($wait->pullRequestId);
+                $pullRequest = null === $wait->pullRequestId ? null : $this->subjects->pullRequest($wait->pullRequestId);
                 $params['%number%'] = $pullRequest->number ?? 0;
                 $params['%pr_title%'] = $pullRequest->title ?? '';
                 $href = null === $pullRequest ? null : \sprintf('https://github.com/%s/pull/%d', $pullRequest->repository, $pullRequest->number);

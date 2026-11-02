@@ -108,7 +108,8 @@ final class InboxThreadQueryCountTest extends WebTestCase
     }
 
     /**
-     * A wait item with its watch and an open wait on a stored run, document and pull request.
+     * A wait item with its watch and two open waits for each of a run, a document and a pull request:
+     * one on a stored subject and one on a subject that is gone.
      * A card takes one open watch, so each item watches its own card, in a column that the stage work reads.
      */
     private function waitItem(int $seed): InboxItem
@@ -146,6 +147,9 @@ final class InboxThreadQueryCountTest extends WebTestCase
         $watch->waits->add(new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id));
         $watch->waits->add(new InboxCardWait($watch, 'document-in-review', InboxCardWaitType::Document, 'marker.document_in_review', documentId: $document->id, versionNumber: 1));
         $watch->waits->add(new InboxCardWait($watch, 'pull-request-idle', InboxCardWaitType::PullRequest, 'marker.pull_request_idle', pullRequestId: $pullRequest->id, headSha: 'abc'));
+        $watch->waits->add(new InboxCardWait($watch, 'run-gone', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: Uuid::v7()));
+        $watch->waits->add(new InboxCardWait($watch, 'document-gone', InboxCardWaitType::Document, 'marker.document_in_review', documentId: Uuid::v7(), versionNumber: 1));
+        $watch->waits->add(new InboxCardWait($watch, 'pull-request-gone', InboxCardWaitType::PullRequest, 'marker.pull_request_idle', pullRequestId: Uuid::v7(), headSha: 'abc'));
         $this->em->flush();
 
         return $item;
