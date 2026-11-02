@@ -30,9 +30,10 @@ skills, writes the rule file and starts the bridge. The agent asks you when a
 step needs you, such as the browser approval of the sign-in. It never writes a
 token or a password.
 
-The home page shows the same prompt with a Copy button, without a project id.
-An agent that reads the public site also finds these steps, because the prompt
-holds the full `/setup.md` address, and `/llms.txt` on the site host links it.
+The Connect step of the first-run wizard shows the same prompt.
+
+An agent that reads the public site also finds these steps. The head of the home
+page links `/setup.md`, and `/llms.txt` on the site host links it.
 
 The `project` parameter fills the project id into the `loupe init` command. The
 page accepts only a UUID and ignores any other value. With no valid id, `loupe init`
@@ -227,8 +228,8 @@ A project's Connect page leads with `loupe init --project <project id>` and
 lists the machines of the owner. It keeps the commands for the other ways on
 this page in the "Other ways to connect" block, and links to the tools below.
 The machine step of the first-run wizard at `/welcome/connect` shows the
-install command and `loupe init --project <project id>`, and it lists what
-Loupe sees of the machine, live.
+install command, `loupe init --project <project id>` and the setup prompt, and
+it lists what Loupe sees of the machine, live.
 
 ## The Claude Code plugin
 
