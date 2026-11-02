@@ -51,6 +51,10 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'From ideas to features.');
         self::assertSelectorExists('a[href="/waitlist"]');
         self::assertSelectorNotExists('a[href="/register"]');
+        self::assertSelectorExists('[data-landing-requirements]');
+        self::assertSelectorNotExists('[data-agent-setup]');
+        self::assertSelectorNotExists('[data-testid="landing-setup-prompt"]');
+        self::assertStringNotContainsString('Set up Loupe for this repository', $client->getCrawler()->filter('body')->text());
     }
 
     public function test_home_page_head_links_the_agent_setup_instructions(): void
