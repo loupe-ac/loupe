@@ -15,10 +15,10 @@ The design stage skills send you here before their own steps. Follow every rule 
 8. Never depend on `board_columns` or `card_search`, which can be missing. When `tag_list` exists, reuse its spellings.
 9. Never end your turn while a command, a monitor or a sub-agent runs in the background. Wait for it in the foreground. The run ends with your turn, and a background command dies with it.
 
-## Adapters and profile
+## Run notes and profile
 
-1. Load the adapter for your harness from the `../../loupe-stage-implementation/references/harnesses/` folder. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
-2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing. The `Forge` and `Decision records` sections are optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
+1. Load the unattended run notes for your harness from the `../../loupe-stage-implementation/references/unattended/` folder. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
+2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing. The `Forge` section is optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
 
 ## Document tags
 
@@ -28,7 +28,7 @@ A document matches by its tags, or by a title that starts `Product design` or `T
 
 ## First steps
 
-1. Connect to the Loupe tools as the harness adapter says. When that fails, the run changed nothing. Stop with `STAGE RESULT: loupe MCP unreachable`, which the structured result reports as `unfinished`. The workflow then retries the run.
+1. Connect to the Loupe tools as the unattended run notes say. When that fails, the run changed nothing. Stop with `STAGE RESULT: loupe MCP unreachable`, which the structured result reports as `unfinished`. The workflow then retries the run.
 2. Call `card_get`.
 3. When the prompt names a column, turn it into a slug: lowercase, with hyphens for spaces. When that slug differs from the card `status`, stop with `STAGE RESULT: card left <column>`.
 
@@ -75,7 +75,7 @@ The owner can answer a decision after a worker writes the text of a design. `doc
 
 A design links a prototype as a stored artifact, a claude.ai artifact, a Design canvas, a Loupe document or a repository file. The product design skill stores each validated prototype in the artifact library of the project.
 
-1. Read a stored artifact first. `card_get` lists the artifacts of the card. Call `artifact_get` for the files, and `artifact_read` for each file you need. The harness adapter says which tool reads each other kind of link.
+1. Read a stored artifact first. `card_get` lists the artifacts of the card. Call `artifact_get` for the files, and `artifact_read` for each file you need. The unattended run notes say which tool reads each other kind of link.
 2. When the stage needs the prototype and no tool reads any link, stop with `STAGE RESULT: blocked: prototype unreadable: <tool> missing`. Name the missing tool, such as `Artifact`.
 3. The first sentence after it is "Store the prototype in the artifact library with `loupe artifact push`, then resume this run."
 4. Never name sharing as the cause, unless a tool for that link answered that access is denied.

@@ -37,7 +37,7 @@ The owner reads a design to make its decisions. The owner knows what the product
 Before, the decision is written in the terms of the code:
 
 ```markdown
-**Decision needed:** what `TagDeleteHandler` does with `Card::$tags` when it removes a `Tag` row (checked, TagDeleteHandler.php). I recommend option 1, because `CardRepository::findByTag()` already returns them (checked, CardRepository.php).
+**Decision needed:** what `deleteTag()` does with `card.tags` when it removes a tag row (checked, tags.go). I recommend option 1, because `findCardsByTag()` already returns them (checked, cards.go).
 ```
 
 After, the same decision is written in product terms:
@@ -47,7 +47,7 @@ After, the same decision is written in product terms:
 
 (The table, the example, the How list and the fence follow here.)
 
-Checked in the code: `TagDeleteHandler.php`, `CardRepository.php`.
+Checked in the code: `tags.go`, `cards.go`.
 ```
 
 ## Decisions
@@ -95,8 +95,8 @@ The example below is a tech design decision. In a product document, leave out it
 
 **How each option works:**
 
-1. Any project member: `TagVoter` grants the `tag.delete` attribute to each member of the project.
-2. The project owner only: `TagVoter` grants `tag.delete` to the project owner alone. The delete button checks the same attribute.
+1. Any project member: `canDeleteTag()` returns true for each member of the project.
+2. The project owner only: `canDeleteTag()` returns true for the project owner alone. The delete button calls the same function.
 
 <!-- decision: tag-delete-role -->
 
@@ -107,7 +107,7 @@ Who may delete a tag?
 
 <!-- /decision -->
 
-Checked in the code: `TagVoter.php`.
+Checked in the code: `permissions.go`.
 ```
 
 ## Diagrams

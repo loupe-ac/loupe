@@ -92,7 +92,7 @@ A headless worker cannot read a claude.ai artifact, so link each prototype in a 
 2. A fact with no mark is checked. Mark each estimate, and each estimated cost, "(estimated)". Name the files behind the checked facts in one "Checked in the code" line per section. `../../loupe-documents/references/design-structure.md` "Write for a reader who knows the product" gives the format. Say what you could not verify.
 3. Give each recommendation a confidence: high, moderate or low. Give the strongest argument against it. Say what the recommended option does, in plain words. Never write only its number (`loupe-documents` rule 18).
 4. Check each assumption before the design builds on it. Read the code to the end of the path. A file or a field name that looks right is not a check.
-5. Prove a claim that rests on the behaviour of a library, an API, a database or a forge, or on speed or volume. Read the current docs, with Context7 or a web search when the tools exist. Run a proof of concept when the docs do not settle it.
+5. Prove a claim that rests on the behaviour of a library, an API, a database or a forge, or on speed or volume. Read the current docs, with a documentation tool or a web search when the tools exist. Run a proof of concept when the docs do not settle it.
 6. Run a proof of concept in a new temporary folder outside the checkout. Commit nothing, and delete the folder when you finish. This keeps rule 1 of the contract, which forbids a change to the repository.
 7. Write each proof in the design as a checked fact: the command or the source, and the result.
 8. Never inflate the cost of the option you reject. An overstated argument hides how close the call was.

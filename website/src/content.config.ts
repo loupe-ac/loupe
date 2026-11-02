@@ -11,7 +11,7 @@ export const collections = {
   docs: defineCollection({
     loader: glob({
       base: '../docs',
-      pattern: ['**/[^_]*.md', '!MANUAL_TEST_PLAN.md', '!AUTOMATIONS.md', '!superpowers/**', '!contributing/skill-tests/**'],
+      pattern: ['**/[^_]*.md', '!MANUAL_TEST_PLAN.md', '!AUTOMATIONS.md', '!superpowers/**'],
     }),
     schema: docsSchema(),
   }),

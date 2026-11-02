@@ -210,6 +210,7 @@ func TestEveryPolicyOfTheMergeIsAnOpenQuestion(t *testing.T) {
 		"The merge method: " + OpenQuestion,
 		"The merge method of an epic child: " + OpenQuestion,
 		"Required checks: " + OpenQuestion,
+		"Epic preview: none (" + OpenQuestion + ")",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %q:\n%s", want, text)
