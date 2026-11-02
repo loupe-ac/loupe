@@ -17,12 +17,12 @@ Never move the card. The workflow asked for this session, and the owner's approv
 
 1. Load the `loupe-board`, `loupe-documents` and `loupe-interviewing` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
 2. Read `.loupe/lifecycle.md` for the writing style and the `Documents` tags. When the file is missing, write plainly.
-3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md` and `../loupe-interviewing/SKILL.md`. Follow them for the whole session.
+3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md`, `../loupe-interviewing/SKILL.md` and `../loupe-interviewing/references/delegation.md`. Follow them for the whole session.
 4. Call `card_get`. Read the tags of each linked document with `document_get`, as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
    - With an approved tech design, stop and tell the owner.
    - An unapproved tech design is the existing document that T6 revises.
    - With no linked tech design, search `document_list` for the title `Tech design: <card title>`. Keep only a row whose title is exactly that title. Show each such row to the owner, and ask whether it belongs to this card. When the owner says yes, link it with `card_update` (the field replaces the whole set), and apply the two rules above.
-5. Run T0 to open the run. Then run the phases in order.
+5. Run T0 to open the run. Then pick the interview method as `delegation.md` says. With an installed skill, T2 and T3 do not run. Otherwise, run the phases in order.
 
 ## Where session output goes
 
