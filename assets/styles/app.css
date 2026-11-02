@@ -6453,13 +6453,6 @@
         @apply text-base leading-relaxed text-fg-mute;
     }
 
-    /* The prompt for a coding agent, across the requirements grid. A long line scrolls inside the code block. */
-    .lp-home-setup-prompt {
-        @apply mt-2 flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-app p-5 sm:px-8 sm:py-6 lg:col-span-2;
-    }
-    .lp-home-setup-prompt__lead {
-        @apply m-0 leading-relaxed text-fg-mute;
-    }
     .lp-home-ask {
         @apply mt-2 rounded-2xl border border-line bg-app transition-colors lg:col-span-2;
     }

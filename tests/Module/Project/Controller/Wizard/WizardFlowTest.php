@@ -69,6 +69,10 @@ final class WizardFlowTest extends WebTestCase
         self::assertCount(3, $crawler->filter('ol[data-wizard-step] > li.lp-stepper__step'));
         self::assertSame('curl -fsSL http://localhost/install.sh | sh', trim($crawler->filter('[data-testid="wizard-install-command"]')->text()));
         self::assertSame('loupe init --project '.$project->id, trim($crawler->filter('[data-testid="wizard-init-command"]')->text()));
+        $prompt = "Set up Loupe for this repository. Run\ncurl -fsSL \"http://localhost/setup.md?project=".$project->id."\"\nand follow the steps it prints, in order. Use curl, not a web fetch tool.";
+        $promptCode = $crawler->filter('[data-testid="wizard-setup-prompt"]');
+        self::assertSame($prompt, $promptCode->text(normalizeWhitespace: false));
+        self::assertSame($prompt, $promptCode->closest('.lp-code-dark')?->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
         self::assertSelectorExists('form[action$="/welcome/skip"]');
         self::assertStringNotContainsString('YOUR_TOKEN', $crawler->text());
         self::assertStringNotContainsString('Authorization: Bearer', $crawler->text());

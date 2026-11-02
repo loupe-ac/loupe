@@ -3253,6 +3253,14 @@
                 <source>project.wizard.connect.init.label</source>
                 <target>Terminal, in your repository</target>
             </trans-unit>
+            <trans-unit id="project.wizard.connect.prompt.heading">
+                <source>project.wizard.connect.prompt.heading</source>
+                <target>Or let your coding agent do it</target>
+            </trans-unit>
+            <trans-unit id="project.wizard.connect.prompt.hint">
+                <source>project.wizard.connect.prompt.hint</source>
+                <target>Paste this prompt into Claude Code or Codex, in the repository of this project. The agent runs both steps and asks you when it needs you.</target>
+            </trans-unit>
             <trans-unit id="project.wizard.connect.init.hint">
                 <source>project.wizard.connect.init.hint</source>
                 <target>Safe to run again. It skips what is already done.</target>
@@ -5366,22 +5374,6 @@
             <trans-unit id="landing.requirements.need.lead">
                 <source>landing.requirements.need.lead</source>
                 <target>Loupe brings the workflow. You bring the agents.</target>
-            </trans-unit>
-            <trans-unit id="landing.requirements.need.agent_setup">
-                <source>landing.requirements.need.agent_setup</source>
-                <target>Using a coding agent? Paste this prompt into it, in your repository.</target>
-            </trans-unit>
-            <trans-unit id="landing.requirements.need.agent_setup_label">
-                <source>landing.requirements.need.agent_setup_label</source>
-                <target>prompt · coding agent</target>
-            </trans-unit>
-            <trans-unit id="landing.requirements.need.agent_setup_copy">
-                <source>landing.requirements.need.agent_setup_copy</source>
-                <target>Copy</target>
-            </trans-unit>
-            <trans-unit id="landing.requirements.need.agent_setup_copied">
-                <source>landing.requirements.need.agent_setup_copied</source>
-                <target>Copied ✓</target>
             </trans-unit>
             <trans-unit id="landing.llms.setup_label">
                 <source>landing.llms.setup_label</source>
