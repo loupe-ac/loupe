@@ -12,10 +12,16 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Entity\Tag;
+use App\Module\Review\View\DocumentPageOrder;
+use App\Module\Review\View\DocumentPageQuery;
+use App\Module\Review\View\DocumentPageRow;
+use App\Module\Review\View\DocumentPosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -136,6 +142,87 @@ class DocumentRepository extends ServiceEntityRepository
         $qb->addOrderBy('d.id', 'DESC');
 
         return new Paginator($qb->getQuery());
+    }
+
+    /**
+     * One keyset page of a project's documents. Every order ends in the id, so rows that share
+     * a creation second (the column holds whole seconds) walk in a fixed order. The page starts
+     * after $after when one is given.
+     *
+     * @return list<DocumentPageRow>
+     */
+    public function findPageByProject(Project $project, DocumentPageQuery $query, int $limit, ?DocumentPosition $after): array
+    {
+        $order = $query->order;
+        $descending = DocumentPageOrder::Newest === $order;
+        $direction = $descending ? 'DESC' : 'ASC';
+        $operator = $descending ? '<' : '>';
+
+        $qb = $this->createQueryBuilder('d')
+            ->leftJoin('d.series', 'documentSeries')
+            ->addSelect('documentSeries')
+            ->andWhere('d.project = :project')
+            ->setParameter('project', $project)
+            ->setMaxResults($limit);
+
+        if (!$query->includeArchived) {
+            $qb->andWhere('d.archivedAt IS NULL');
+        }
+        if (null !== $query->status) {
+            $qb->andWhere('d.status = :status')->setParameter('status', $query->status);
+        }
+        if (null !== $query->tagName) {
+            $qb->innerJoin('d.tags', 'filterTag')
+                ->andWhere('filterTag.name = :tagName')
+                ->setParameter('tagName', $query->tagName);
+        }
+        if (null !== $query->seriesName) {
+            $qb->innerJoin('d.series', 'filterSeries')
+                ->andWhere('filterSeries.normalizedName = :seriesName')
+                ->setParameter('seriesName', $query->seriesName);
+        }
+
+        $searchQuery = null === $query->search ? null : SearchQuery::parse($query->search);
+        if (null !== $searchQuery) {
+            SubstringSearch::andMatches($qb, 'd', ['title', 'searchText'], $searchQuery);
+        }
+        $hit = DocumentPageOrder::Relevance === $order && null !== $searchQuery ? SubstringSearch::titleHit('d', 'title', $searchQuery) : null;
+
+        if (DocumentPageOrder::Series === $order) {
+            $qb->orderBy('d.seriesOrdinal', 'ASC')->addOrderBy('d.id', 'ASC');
+            if (null !== $after) {
+                $qb->andWhere('(d.seriesOrdinal > :afterOrdinal OR (d.seriesOrdinal = :afterOrdinal AND d.id > :afterId))')
+                    ->setParameter('afterOrdinal', $after->ordinal)
+                    ->setParameter('afterId', $after->id, UuidType::NAME);
+            }
+        } elseif (null !== $hit) {
+            $qb->addSelect('('.$hit.') AS titleHit')
+                ->orderBy('titleHit', 'DESC')
+                ->addOrderBy('d.createdAt', 'ASC')
+                ->addOrderBy('d.id', 'ASC');
+            if (null !== $after) {
+                $qb->andWhere(\sprintf('(%1$s < :afterHit OR (%1$s = :afterHit AND (d.createdAt > :afterAt OR (d.createdAt = :afterAt AND d.id > :afterId))))', $hit))
+                    ->setParameter('afterHit', $after->titleHit)
+                    ->setParameter('afterAt', $after->createdAt, Types::DATETIME_IMMUTABLE)
+                    ->setParameter('afterId', $after->id, UuidType::NAME);
+            }
+        } else {
+            $qb->orderBy('d.createdAt', $direction)->addOrderBy('d.id', $direction);
+            if (null !== $after) {
+                $qb->andWhere(\sprintf('(d.createdAt %1$s :afterAt OR (d.createdAt = :afterAt AND d.id %1$s :afterId))', $operator))
+                    ->setParameter('afterAt', $after->createdAt, Types::DATETIME_IMMUTABLE)
+                    ->setParameter('afterId', $after->id, UuidType::NAME);
+            }
+        }
+
+        $rows = [];
+        foreach ($qb->getQuery()->getResult() as $row) {
+            $rows[] = $row instanceof Document
+                ? new DocumentPageRow($row)
+                : new DocumentPageRow($row[0], (int) $row['titleHit']);
+        }
+
+        return $rows;
     }
 
     /**
