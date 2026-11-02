@@ -1,10 +1,10 @@
 # Implementation stage detail
 
-`SKILL.md` names each step. This file holds the detail. The repository profile and the two adapters hold every value that belongs to one repository, one harness or one forge.
+`SKILL.md` names each step. This file holds the detail. The repository profile, the unattended run notes and the forge adapter hold every value that belongs to one repository, one harness or one forge.
 
-## Load the adapters and the profile
+## Load the run notes and the profile
 
-1. Load the adapter for your harness from the `harnesses/` folder in this directory. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
+1. Load the unattended run notes for your harness from the `unattended/` folder in this directory. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing.
 3. Pick the forge adapter as the next section says.
 
@@ -15,14 +15,12 @@ The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Cod
 - A `Visual check` section that `visual-check.md` reads.
 - A `Preview` section that `preview.md` reads.
 
-A missing optional section blocks nothing. The harness adapter covers these steps:
+A missing optional section blocks nothing. The unattended run notes cover these steps:
 
 - Connect to the Loupe tools.
-- Load an instruction.
 - Run a long command.
-- Dispatch a sub-agent.
-- Write the build notes.
-- Run the build notes task by task.
+- Read a linked prototype.
+- Keep the final reply short.
 
 ## Pick the forge adapter
 
@@ -180,7 +178,7 @@ When the merge conflicts, resolve it only when the conflict is mechanical and th
 
 When the merge brings commits, refresh the environment as "Refresh the environment" says. A fix round that resolved a conflict with the base refreshed after that resolution, so its gate merge brings no commits and needs no refresh.
 
-Then run the commands of the profile `Gate` section in order. Run each long command as the harness adapter says. Poll it in the foreground until it exits, and never end the turn while it runs. Run the check of the profile `Changelog` section, when it names one. Then run the review of the profile `Code review` section, and follow its pass rule.
+Then run the commands of the profile `Gate` section in order. Run each long command as the unattended run notes say. Poll it in the foreground until it exits, and never end the turn while it runs. Run the check of the profile `Changelog` section, when it names one. Then run the review of the profile `Code review` section, and follow its pass rule.
 
 ## Open the pull request
 

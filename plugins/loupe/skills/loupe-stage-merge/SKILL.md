@@ -21,7 +21,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 
 ## Procedure
 
-1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
+1. Read `../loupe-stage-product-design/references/stage-contract.md` "Run notes and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
 2. Load the instructions that the profile `Instruction files` section names for a merge.
 3. Read the prompt, and find the request line:
    - The line `Loupe asks for epic preview work.` asks for an epic preview refresh. The card of the request is the epic itself. When its `type` is not `epic`, stop with `STAGE RESULT: blocked: not an epic`. Then take "Refresh the epic preview", and skip steps 4 to 8.

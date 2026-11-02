@@ -1,22 +1,10 @@
-# Claude Code adapter
+# Claude Code unattended run notes
 
-The stage skills read this file when they run in Claude Code, including an unattended `claude -p` worker. It maps each harness step to the tools of Claude Code.
+The stage skills read this file when they run in Claude Code, including an unattended `claude -p` worker. It holds only what differs in an unattended run.
 
 ## Connect to the Loupe tools
 
 Search for the Loupe tools with ToolSearch. In `claude -p` the Loupe MCP server can still be connecting at the first search, so search again, up to six times. When every search fails, the connection failed.
-
-## Load an instruction
-
-Load a named instruction, such as `loupe-documents`, with the Skill tool. Read a file of instructions with the Read tool.
-
-## Ask nothing
-
-Never call `AskUserQuestion`. Nobody answers it in an unattended run.
-
-## Change a file
-
-Change a file with the Edit and Write tools. Use no editor tool that writes outside the worker folder.
 
 ## Run a long command
 
@@ -49,27 +37,6 @@ Pick the tool by the kind of link:
 | A file of the repository | Read. |
 
 A Claude Docs `read` denial says nothing about an artifact. Claude Docs is a different store, and it denies an id that names no doc as it denies a doc that is not shared. Never read it as "not shared".
-
-## Dispatch a sub-agent
-
-Dispatch a sub-agent with the Agent tool. When the repository defines a `senior-dev` agent in `.claude/agents/senior-dev.md`, set `subagent_type` to `senior-dev`. Otherwise set it to `general-purpose`, and start the prompt with these essentials:
-
-- Rank correctness first, then simplicity, then performance, then shipping speed.
-- Read the instruction files of the repository before you change a file.
-- Add nothing the task does not ask for.
-- Write a failing test first, then the code that makes it pass.
-- Report a blocker and stop.
-- End with the status, the changed files, the tests and their result, and any concern.
-
-Put the rules the stage skill names into its prompt, because it inherits no loaded instruction. The sub-agent has every tool, so it reads a prototype page with `artifact_read` itself.
-
-## Write the build notes
-
-Write the build notes in plain Markdown, and follow the `loupe-documents` instruction. Submit them to Loupe. Save no build notes file. Nobody approves the build notes, so start the work as soon as it is linked.
-
-## Run the build notes task by task
-
-For each task, dispatch one implementer sub-agent, then one reviewer sub-agent. Run the tasks in order. Fix the findings of the review before the next task starts. Never merge locally into the base branch, and never remove the worker folder.
 
 ## Final reply
 

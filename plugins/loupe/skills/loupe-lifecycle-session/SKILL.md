@@ -7,7 +7,7 @@ description: "Use when you do work on a Loupe card yourself, in a session the ow
 
 Do the work of a card yourself and keep the board true while you work. When the template allows the move, the card moves to Implementation before your first edit, and no worker starts on it.
 
-This skill is not a stage skill. A workflow request starts no part of it. It loads no stage skill and no harness adapter. It shares `.loupe/lifecycle.md` with the stages.
+This skill is not a stage skill. A workflow request starts no part of it. It loads no stage skill and no unattended run notes. It shares `.loupe/lifecycle.md` with the stages.
 
 ## When it applies
 

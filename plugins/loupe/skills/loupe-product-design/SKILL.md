@@ -7,7 +7,7 @@ description: "Use when the owner runs an interactive product design session for 
 
 Run a product design session with the owner. Write the product document, link it to the card, and stop. The owner's approval of the document moves the card to Tech design.
 
-This skill is not a stage skill. It loads no `stage-contract.md` and no harness adapter, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1).
+This skill is not a stage skill. It loads no `stage-contract.md` and no unattended run notes, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1).
 
 Move the card only in P0. Never move it when you stop, and never move it after P0. This rule overrides the move table of `loupe-board`.
 

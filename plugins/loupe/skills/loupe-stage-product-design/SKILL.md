@@ -12,7 +12,7 @@ Change nothing but Loupe documents, and never move the card. `references/stage-c
 ## Procedure
 
 1. Read `references/stage-contract.md`. Follow its rules for the whole run.
-2. Load the harness adapter, as the contract says.
+2. Load the unattended run notes, as the contract says.
 3. Read the repository profile, as the contract says.
 4. Connect to the Loupe tools, as the contract's first steps say.
 5. Call `card_get`, and run the contract's column check.
