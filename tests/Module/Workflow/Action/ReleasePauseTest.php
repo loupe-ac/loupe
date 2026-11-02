@@ -13,6 +13,7 @@ use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\CardEventActor;
 use App\Module\Board\Workflow\BoardCardPauses;
 use App\Module\Workflow\Action\ReleasePause;
 use App\Module\Workflow\Contract\ActionOutcome;
@@ -98,6 +99,7 @@ final class ReleasePauseTest extends KernelTestCase
             new PauseCardHandler($cardPauses, $this->em(), $clock, $auditor, $events, $this->service(CardEventRepository::class)),
             $this->releaseHandler(),
             $this->em(),
+            $this->service(CardEventActor::class),
         );
     }
 
