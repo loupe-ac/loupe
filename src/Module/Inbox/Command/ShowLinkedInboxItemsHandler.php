@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Command;
 
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxThreadPreload;
 use App\Module\Inbox\View\LinkedInboxItemsView;
 
 final readonly class ShowLinkedInboxItemsHandler
@@ -13,6 +14,7 @@ final readonly class ShowLinkedInboxItemsHandler
     public function __construct(
         private InboxItemRepository $inboxItems,
         private InboxReviewLookup $inboxReviews,
+        private InboxThreadPreload $threadPreload,
     ) {
     }
 
@@ -26,6 +28,7 @@ final readonly class ShowLinkedInboxItemsHandler
         }
 
         $this->inboxReviews->preload($linked['items']);
+        $this->threadPreload->preload($linked['items']);
 
         return new LinkedInboxItemsView(
             project: $command->project,

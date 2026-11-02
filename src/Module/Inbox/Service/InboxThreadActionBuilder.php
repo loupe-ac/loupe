@@ -9,7 +9,6 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemDocument;
-use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\InboxThreadActions;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\ThreadAction;
@@ -24,7 +23,8 @@ final readonly class InboxThreadActionBuilder
 {
     public function __construct(
         private ItemActions $itemActions,
-        private InboxCardWatchRepository $inboxCardWatches,
+        private InboxWatchLookup $watches,
+        private InboxThreadPreload $preload,
         private CardWaitText $cardWaitText,
         private UrlGeneratorInterface $urls,
     ) {
@@ -33,7 +33,7 @@ final readonly class InboxThreadActionBuilder
     /** @param ?string $hostCardId the card whose page shows the item, so the thread offers no link back to it */
     public function build(InboxItem $item, ?string $hostCardId = null): InboxThreadActions
     {
-        return $this->fromActions($item, $this->itemActions->forItem($item), $hostCardId);
+        return $this->fromActions($item, $this->preload->actionsOf($item) ?? $this->itemActions->forItem($item), $hostCardId);
     }
 
     /**
@@ -108,7 +108,7 @@ final readonly class InboxThreadActionBuilder
 
     private function reviewRow(InboxItem $item, ItemAction $action): ?ThreadAction
     {
-        $watch = $this->inboxCardWatches->findOneForItem($item);
+        $watch = $this->watches->forItem($item);
         if (null === $watch) {
             return null;
         }
