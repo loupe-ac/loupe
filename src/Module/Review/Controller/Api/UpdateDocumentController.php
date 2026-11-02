@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPatch;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\ShowDocumentDataCommand;
@@ -57,6 +58,7 @@ final class UpdateDocumentController extends AppController
         private readonly ShowDocumentDataHandler $showDocumentData,
         private readonly DocumentReferenceResolver $references,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -78,6 +80,6 @@ final class UpdateDocumentController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse(DocumentResponse::fromPayload(($this->showDocumentData)(new ShowDocumentDataCommand($document)), $document));
+        return new JsonResponse(DocumentResponse::fromPayload(($this->showDocumentData)(new ShowDocumentDataCommand($document)), $document, $this->links->document((string) $document->project->id, (string) $document->id)));
     }
 }

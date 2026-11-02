@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Project\Entity\Project;
@@ -14,6 +15,7 @@ use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
 use App\Module\Review\Command\PageDocumentsCommand;
 use App\Module\Review\Command\PageDocumentsHandler;
+use App\Module\Review\View\DocumentPageItem;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -52,6 +54,7 @@ final class ListDocumentsController extends AppController
 {
     public function __construct(
         private readonly PageDocumentsHandler $pageDocuments,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -64,6 +67,6 @@ final class ListDocumentsController extends AppController
             page: PageRequest::fromRequest($request, $query->order->value, $query->filters()),
         ));
 
-        return $page->toResponse($request, DocumentSummaryResponse::fromItem(...));
+        return $page->toResponse($request, fn (DocumentPageItem $item): DocumentSummaryResponse => DocumentSummaryResponse::fromItem($item, $this->links->document((string) $project->id, (string) $item->document->id)));
     }
 }

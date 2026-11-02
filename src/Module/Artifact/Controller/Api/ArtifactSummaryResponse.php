@@ -9,7 +9,7 @@ use App\Module\Artifact\Entity\Artifact;
 use OpenApi\Attributes as OA;
 
 /** An artifact in a list, as the public API shows it. */
-#[OA\Schema(required: ['artifactId', 'name', 'latestVersion', 'archived', 'sourceLink', 'createdAt', 'path'])]
+#[OA\Schema(required: ['artifactId', 'name', 'latestVersion', 'archived', 'sourceLink', 'createdAt', 'url'])]
 final readonly class ArtifactSummaryResponse
 {
     public function __construct(
@@ -27,12 +27,12 @@ final readonly class ArtifactSummaryResponse
         #[OA\Property(format: 'date-time')]
         public string $createdAt,
 
-        #[OA\Property(description: 'The path of the artifact page in the app.')]
-        public string $path,
+        #[OA\Property(description: 'The artifact page in the app, at the newest version.', format: 'uri')]
+        public string $url,
     ) {
     }
 
-    public static function fromPaged(PagedArtifact $paged): self
+    public static function fromPaged(PagedArtifact $paged, string $url): self
     {
         $artifact = $paged->artifact;
 
@@ -43,7 +43,7 @@ final readonly class ArtifactSummaryResponse
             archived: null !== $artifact->archivedAt,
             sourceLink: $artifact->sourceLink,
             createdAt: $artifact->createdAt->format(\DATE_ATOM),
-            path: \sprintf('/projects/%s/artifacts/%s', $artifact->project->id, $artifact->id),
+            url: $url,
         );
     }
 }

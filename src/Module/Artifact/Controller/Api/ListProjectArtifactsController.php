@@ -7,12 +7,14 @@ namespace App\Module\Artifact\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\CreatedSort;
 use App\Api\Pagination\PageRequest;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Artifact\Command\PageArtifactsCommand;
 use App\Module\Artifact\Command\PageArtifactsHandler;
+use App\Module\Artifact\Command\PagedArtifact;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
@@ -50,6 +52,7 @@ final class ListProjectArtifactsController extends AppController
 {
     public function __construct(
         private readonly PageArtifactsHandler $pageArtifacts,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -69,6 +72,6 @@ final class ListProjectArtifactsController extends AppController
             sort: $sort,
         ));
 
-        return $page->toResponse($request, ArtifactSummaryResponse::fromPaged(...));
+        return $page->toResponse($request, fn (PagedArtifact $paged): ArtifactSummaryResponse => ArtifactSummaryResponse::fromPaged($paged, $this->links->artifact((string) $project->id, (string) $paged->artifact->id)));
     }
 }

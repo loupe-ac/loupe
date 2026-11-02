@@ -8,6 +8,7 @@ use App\Api\EventListener\RenderApiProblemOnException;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPost;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -61,6 +62,7 @@ final class CreateProjectArtifactController extends AppController
         private readonly StoreArtifactVersionHandler $storeVersion,
         private readonly ArtifactUploadReader $uploads,
         private readonly ArtifactApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -92,7 +94,11 @@ final class CreateProjectArtifactController extends AppController
         }
 
         return new JsonResponse(
-            ArtifactStoredResponse::fromVersion($version),
+            ArtifactStoredResponse::fromVersion(
+                $version,
+                $this->links->artifact((string) $project->id, (string) $version->artifact->id),
+                $this->links->artifactVersion((string) $project->id, (string) $version->artifact->id, $version->number),
+            ),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_artifact_show', ['project' => (string) $project->id, 'artifact' => (string) $version->artifact->id], UrlGeneratorInterface::ABSOLUTE_URL)],
         );

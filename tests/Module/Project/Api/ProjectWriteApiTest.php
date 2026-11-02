@@ -11,6 +11,7 @@ use App\Security\CredentialRateLimitKey;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -43,6 +44,8 @@ final class ProjectWriteApiTest extends WebTestCase
         $body = $this->json();
         self::assertSame('Shop', $body['name']);
         self::assertSame('shop', $body['slug']);
+        self::assertSame('app_project_workshop', PageLink::match(static::getContainer(), $body['url'])['_route']);
+        self::assertStringEndsWith('/projects/'.$body['id'], $body['url']);
         self::assertSame('shop.example.com', $body['domain']);
         self::assertSame(['https://shop.example.com'], $body['allowedOrigins']);
         self::assertSame('english', $body['searchLanguage']);
@@ -231,6 +234,7 @@ final class ProjectWriteApiTest extends WebTestCase
         self::assertSame((string) $project->id, $body['id']);
         self::assertSame('Storefront', $body['name']);
         self::assertSame('storefront', $body['slug']);
+        self::assertStringEndsWith('/projects/'.$project->id, $body['url']);
         self::assertSame('shop.example.com', $body['domain']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
         $this->em->clear();

@@ -7,6 +7,7 @@ namespace App\Tests\Module\Review\Api;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Tests\Support\AgentCredential;
+use App\Tests\Support\PageLink;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -29,13 +30,14 @@ final class DocumentWriteApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $body = $this->json();
-        self::assertSame(['documentId', 'reviewUrl', 'tags', 'series', 'seriesOrdinal', 'language', 'status'], array_keys($body));
+        self::assertSame(['documentId', 'url', 'tags', 'series', 'seriesOrdinal', 'language', 'status'], array_keys($body));
         self::assertSame(['api', 'plan'], $body['tags']);
         self::assertSame('Release notes', $body['series']);
         self::assertSame(2, $body['seriesOrdinal']);
         self::assertSame('french', $body['language']);
         self::assertSame('in-review', $body['status']);
-        self::assertStringEndsWith('/projects/'.$this->project->id.'/documents/'.$body['documentId'].'/review', $body['reviewUrl']);
+        self::assertStringEndsWith('/projects/'.$this->project->id.'/documents/'.$body['documentId'].'/review', $body['url']);
+        self::assertSame('app_document_review', PageLink::match(static::getContainer(), $body['url'])['_route']);
         self::assertStringEndsWith('/api/v1/projects/'.$this->project->id.'/documents/'.$body['documentId'], (string) $this->client->getResponse()->headers->get('Location'));
 
         $documents = $this->stored();
@@ -206,6 +208,7 @@ final class DocumentWriteApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame('New title', $body['title']);
+        $this->assertReviewLink($document, $body['url']);
         self::assertSame(['api', 'fresh'], $body['tags']);
         self::assertSame('Blog', $body['series']);
         self::assertSame(4, $body['seriesOrdinal']);
@@ -336,11 +339,13 @@ final class DocumentWriteApiTest extends WebTestCase
 
         $this->send(Request::METHOD_POST, $this->base().'/'.$draft->id.'/publish');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['documentId' => (string) $draft->id, 'status' => 'in-review', 'published' => true], $this->json());
+        self::assertSame(['documentId' => (string) $draft->id, 'url' => $this->json()['url'], 'status' => 'in-review', 'published' => true], $this->json());
+        $this->assertReviewLink($draft, $this->json()['url']);
 
         $this->send(Request::METHOD_POST, $this->base().'/'.$draft->id.'/publish');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['documentId' => (string) $draft->id, 'status' => 'in-review', 'published' => false], $this->json());
+        self::assertSame(['documentId' => (string) $draft->id, 'url' => $this->json()['url'], 'status' => 'in-review', 'published' => false], $this->json());
+        $this->assertReviewLink($draft, $this->json()['url']);
     }
 
     public function test_an_archived_draft_cannot_be_published(): void
@@ -368,7 +373,8 @@ final class DocumentWriteApiTest extends WebTestCase
         ], \JSON_THROW_ON_ERROR));
 
         self::assertResponseStatusCodeSame(201);
-        self::assertSame(['versionNumber' => 2, 'carried' => 0, 'orphaned' => 0], $this->json());
+        self::assertSame(['url' => $this->json()['url'], 'versionNumber' => 2, 'carried' => 0, 'orphaned' => 0], $this->json());
+        $this->assertReviewLink($document, $this->json()['url']);
         self::assertStringEndsWith('/documents/'.$document->id.'/versions/2', (string) $this->client->getResponse()->headers->get('Location'));
 
         $this->send(Request::METHOD_GET, $this->base().'/'.$document->id);

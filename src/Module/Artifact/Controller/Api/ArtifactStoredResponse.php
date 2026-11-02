@@ -8,7 +8,7 @@ use App\Module\Artifact\Entity\ArtifactVersion;
 use OpenApi\Attributes as OA;
 
 /** The version that a store created. */
-#[OA\Schema(required: ['artifactId', 'versionNumber', 'path', 'versionPath'])]
+#[OA\Schema(required: ['artifactId', 'versionNumber', 'url', 'versionUrl'])]
 final readonly class ArtifactStoredResponse
 {
     public function __construct(
@@ -16,18 +16,16 @@ final readonly class ArtifactStoredResponse
         public string $artifactId,
         public int $versionNumber,
 
-        #[OA\Property(description: 'The path of the artifact page in the app.')]
-        public string $path,
+        #[OA\Property(description: 'The artifact page in the app, at the newest version.', format: 'uri')]
+        public string $url,
 
-        #[OA\Property(description: 'The path of this version in the app.')]
-        public string $versionPath,
+        #[OA\Property(description: 'The page of this version in the app.', format: 'uri')]
+        public string $versionUrl,
     ) {
     }
 
-    public static function fromVersion(ArtifactVersion $version): self
+    public static function fromVersion(ArtifactVersion $version, string $url, string $versionUrl): self
     {
-        $stable = \sprintf('/projects/%s/artifacts/%s', $version->artifact->project->id, $version->artifact->id);
-
-        return new self((string) $version->artifact->id, $version->number, $stable, \sprintf('%s/versions/%d', $stable, $version->number));
+        return new self((string) $version->artifact->id, $version->number, $url, $versionUrl);
     }
 }

@@ -2380,6 +2380,7 @@ components:
       type: object
       required:
       - id
+      - url
       - slug
       - name
       - description
@@ -2391,6 +2392,10 @@ components:
         id:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The home page of the project in the app.
+          format: uri
         slug:
           type: string
           description: Null on a project created before the slug existed, so quote the id.
@@ -2917,12 +2922,17 @@ components:
       type: object
       required:
       - documentId
+      - url
       - title
       - status
       properties:
         documentId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         title:
           type: string
         status:
@@ -2936,23 +2946,24 @@ components:
       type: object
       required:
       - artifactId
+      - url
       - name
       - versionNumber
       - archived
-      - path
       properties:
         artifactId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The artifact page in the app.
+          format: uri
         name:
           type: string
         versionNumber:
           type: integer
         archived:
           type: boolean
-        path:
-          type: string
-          description: The path of the artifact page in the app.
     FeedbackAnchor:
       type: object
       required:
@@ -3055,6 +3066,7 @@ components:
       required:
       - id
       - url
+      - pageUrl
       - surface
       - native
       - screenshot
@@ -3070,7 +3082,12 @@ components:
           format: uuid
         url:
           type: string
-          description: The page of a web note, or null for a native note.
+          description: The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.
+          format: uri
+          nullable: true
+        pageUrl:
+          type: string
+          description: The page of the reviewed site where a web note was left, or null for a native note.
           nullable: true
         surface:
           type: string
@@ -3120,6 +3137,7 @@ components:
       type: object
       required:
       - cardId
+      - url
       - number
       - title
       - status
@@ -3128,6 +3146,10 @@ components:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         number:
           type: integer
         title:
@@ -3147,6 +3169,7 @@ components:
       type: object
       required:
       - cardId
+      - url
       - number
       - title
       - status
@@ -3154,6 +3177,10 @@ components:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         number:
           type: integer
         title:
@@ -3293,6 +3320,7 @@ components:
       type: object
       required:
       - cardId
+      - url
       - number
       - title
       - body
@@ -3320,6 +3348,10 @@ components:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         number:
           type: integer
           description: The short label that counts from 1 inside this project.
@@ -3422,6 +3454,7 @@ components:
       description: The lean row of the card list.
       required:
       - cardId
+      - url
       - number
       - title
       - type
@@ -3434,6 +3467,10 @@ components:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         number:
           type: integer
         title:
@@ -3834,11 +3871,16 @@ components:
       type: object
       required:
       - cardId
+      - url
       - outcome
       properties:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         outcome:
           type: string
           enum:
@@ -3847,11 +3889,16 @@ components:
       type: object
       required:
       - cardId
+      - url
       - outcome
       properties:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         outcome:
           type: string
           enum:
@@ -3860,6 +3907,7 @@ components:
       type: object
       required:
       - cardId
+      - url
       - outcome
       - kind
       - reason
@@ -3868,6 +3916,10 @@ components:
         cardId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The card page in the app.
+          format: uri
         outcome:
           type: string
           enum:
@@ -3902,6 +3954,7 @@ components:
       type: object
       required:
       - documentId
+      - url
       - title
       - status
       - currentVersion
@@ -3915,6 +3968,10 @@ components:
         documentId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app, at the latest version.
+          format: uri
         title:
           type: string
         status:
@@ -3964,6 +4021,7 @@ components:
       type: object
       required:
       - documentId
+      - url
       - title
       - language
       - status
@@ -3982,6 +4040,10 @@ components:
         documentId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app, at the latest version.
+          format: uri
         title:
           type: string
           maxLength: 255
@@ -4139,7 +4201,7 @@ components:
       type: object
       required:
       - documentId
-      - reviewUrl
+      - url
       - tags
       - series
       - seriesOrdinal
@@ -4149,9 +4211,9 @@ components:
         documentId:
           type: string
           format: uuid
-        reviewUrl:
+        url:
           type: string
-          description: The review page in the app.
+          description: The review page of the document in the app, at the latest version.
           format: uri
         tags:
           type: array
@@ -4245,12 +4307,17 @@ components:
       type: object
       required:
       - documentId
+      - url
       - status
       - published
       properties:
         documentId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         status:
           type: string
           enum:
@@ -4351,10 +4418,15 @@ components:
     DocumentRevision:
       type: object
       required:
+      - url
       - versionNumber
       - carried
       - orphaned
       properties:
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         versionNumber:
           type: integer
           description: The number of the new version.
@@ -4675,12 +4747,17 @@ components:
       type: object
       required:
       - verdictId
+      - url
       - verdict
       - documentStatus
       properties:
         verdictId:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         verdict:
           type: string
           enum:
@@ -4697,12 +4774,17 @@ components:
       type: object
       required:
       - verdictId
+      - url
       - documentStatus
       properties:
         verdictId:
           type: string
           description: The id of the withdrawal entry.
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         documentStatus:
           type: string
           enum:
@@ -4736,11 +4818,16 @@ components:
       type: object
       required:
       - decisionId
+      - url
       - changed
       - cleared
       properties:
         decisionId:
           type: string
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         changed:
           type: boolean
         cleared:
@@ -4759,10 +4846,15 @@ components:
       type: object
       required:
       - id
+      - url
       properties:
         id:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
     CommentUpdate:
       type: object
       required:
@@ -4777,11 +4869,16 @@ components:
       type: object
       required:
       - id
+      - url
       - status
       properties:
         id:
           type: string
           format: uuid
+        url:
+          type: string
+          description: The review page of the document in the app.
+          format: uri
         status:
           type: string
           enum:
@@ -4792,6 +4889,7 @@ components:
       required:
       - id
       - url
+      - pageUrl
       - surface
       - native
       - screenshot
@@ -4810,7 +4908,12 @@ components:
           format: uuid
         url:
           type: string
-          description: The page of a web note, or null for a native note.
+          description: The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.
+          format: uri
+          nullable: true
+        pageUrl:
+          type: string
+          description: The page of the reviewed site where a web note was left, or null for a native note.
           nullable: true
         surface:
           type: string
@@ -4902,7 +5005,7 @@ components:
       - archived
       - sourceLink
       - createdAt
-      - path
+      - url
       properties:
         artifactId:
           type: string
@@ -4920,9 +5023,10 @@ components:
         createdAt:
           type: string
           format: date-time
-        path:
+        url:
           type: string
-          description: The path of the artifact page in the app.
+          description: The artifact page in the app, at the newest version.
+          format: uri
     ArtifactList:
       type: object
       required:
@@ -4985,7 +5089,7 @@ components:
       - archivedAt
       - sourceLink
       - createdAt
-      - path
+      - url
       - versions
       - selectedVersion
       - pageLink
@@ -5008,9 +5112,10 @@ components:
         createdAt:
           type: string
           format: date-time
-        path:
+        url:
           type: string
-          description: The path of the artifact page in the app.
+          description: The artifact page in the app, at the newest version. It needs a sign-in. `pageLink` needs none.
+          format: uri
         versions:
           type: array
           items:
@@ -5034,20 +5139,22 @@ components:
       required:
       - artifactId
       - versionNumber
-      - path
-      - versionPath
+      - url
+      - versionUrl
       properties:
         artifactId:
           type: string
           format: uuid
         versionNumber:
           type: integer
-        path:
+        url:
           type: string
-          description: The path of the artifact page in the app.
-        versionPath:
+          description: The artifact page in the app, at the newest version.
+          format: uri
+        versionUrl:
           type: string
-          description: The path of this version in the app.
+          description: The page of this version in the app.
+          format: uri
     ArtifactCreateUpload:
       type: object
       description: '`errors[].code` covers `paths_mismatch`, `no_files`, `too_many_files`, `unsafe_path`, `claude_design_canvas`,

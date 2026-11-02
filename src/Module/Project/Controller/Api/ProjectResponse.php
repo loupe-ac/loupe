@@ -9,13 +9,16 @@ use App\Module\Project\Entity\Project;
 use OpenApi\Attributes as OA;
 
 /** A project, as the public API shows it. */
-#[OA\Schema(required: ['id', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'])]
+#[OA\Schema(required: ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'])]
 final readonly class ProjectResponse
 {
     /** @param list<string> $allowedOrigins */
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $id,
+
+        #[OA\Property(description: 'The home page of the project in the app.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(description: 'Null on a project created before the slug existed, so quote the id.', nullable: true)]
         public ?string $slug,
@@ -40,10 +43,11 @@ final readonly class ProjectResponse
     ) {
     }
 
-    public static function fromProject(Project $project): self
+    public static function fromProject(Project $project, string $url): self
     {
         return new self(
             id: (string) $project->id,
+            url: $url,
             slug: $project->slug,
             name: $project->name,
             description: $project->description,

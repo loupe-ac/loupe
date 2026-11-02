@@ -7,6 +7,7 @@ namespace App\Module\Project\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\CreatedSort;
 use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
@@ -50,6 +51,7 @@ final class ListProjectsController extends AppController
     public function __construct(
         private readonly PageProjectsHandler $pageProjects,
         private readonly TokenStorageInterface $tokenStorage,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -68,6 +70,6 @@ final class ListProjectsController extends AppController
             sort: $sort,
         ));
 
-        return $page->toResponse($request, ProjectResponse::fromProject(...));
+        return $page->toResponse($request, fn (Project $project): ProjectResponse => ProjectResponse::fromProject($project, $this->links->project((string) $project->id)));
     }
 }

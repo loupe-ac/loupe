@@ -6,10 +6,13 @@ namespace App\Module\Review\Controller\Api;
 
 use OpenApi\Attributes as OA;
 
-#[OA\Schema(required: ['versionNumber', 'carried', 'orphaned'])]
+#[OA\Schema(required: ['url', 'versionNumber', 'carried', 'orphaned'])]
 final readonly class DocumentRevisionResponse
 {
     public function __construct(
+        #[OA\Property(description: 'The review page of the document in the app.', format: 'uri')]
+        public string $url,
+
         #[OA\Property(description: 'The number of the new version.')]
         public int $versionNumber,
 

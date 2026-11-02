@@ -10,13 +10,16 @@ use App\Module\Review\View\DocumentPageItem;
 use OpenApi\Attributes as OA;
 
 /** One document of a list: the current version by number and description, never its Markdown. */
-#[OA\Schema(required: ['documentId', 'title', 'status', 'currentVersion', 'versionDescription', 'archived', 'tags', 'series', 'seriesOrdinal', 'createdAt'])]
+#[OA\Schema(required: ['documentId', 'url', 'title', 'status', 'currentVersion', 'versionDescription', 'archived', 'tags', 'series', 'seriesOrdinal', 'createdAt'])]
 final readonly class DocumentSummaryResponse
 {
     /** @param list<string> $tags */
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $documentId,
+
+        #[OA\Property(description: 'The review page of the document in the app, at the latest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property]
         public string $title,
@@ -47,12 +50,13 @@ final readonly class DocumentSummaryResponse
     ) {
     }
 
-    public static function fromItem(DocumentPageItem $item): self
+    public static function fromItem(DocumentPageItem $item, string $url): self
     {
         $document = $item->document;
 
         return new self(
             documentId: (string) $document->id,
+            url: $url,
             title: $document->title,
             status: $document->status,
             currentVersion: $item->versionNumber,

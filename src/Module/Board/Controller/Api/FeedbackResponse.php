@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\PageLinks;
 use App\Module\Board\Command\ShowFeedbackView;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewComment;
@@ -11,7 +12,7 @@ use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use OpenApi\Attributes as OA;
 
 /** A note that a reviewer left with the live-review widget, as the public API shows it. The marked image is never in it. */
-#[OA\Schema(description: 'A note that a reviewer left with the live-review widget.', required: ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
+#[OA\Schema(description: 'A note that a reviewer left with the live-review widget.', required: ['id', 'url', 'pageUrl', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
 final readonly class FeedbackResponse
 {
     /**
@@ -23,8 +24,11 @@ final readonly class FeedbackResponse
         #[OA\Property(format: 'uuid')]
         public string $id,
 
-        #[OA\Property(description: 'The page of a web note, or null for a native note.', nullable: true)]
+        #[OA\Property(description: 'The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.', format: 'uri', nullable: true)]
         public ?string $url,
+
+        #[OA\Property(description: 'The page of the reviewed site where a web note was left, or null for a native note.', nullable: true)]
+        public ?string $pageUrl,
 
         #[OA\Property(enum: ['web', 'ios-simulator'])]
         public string $surface,
@@ -62,17 +66,18 @@ final readonly class FeedbackResponse
     ) {
     }
 
-    public static function fromView(ShowFeedbackView $view): self
+    public static function fromView(ShowFeedbackView $view, PageLinks $links): self
     {
-        return self::of($view->feedback, $view->link, $view->screenshot);
+        return self::of($view->feedback, $view->link, $view->screenshot, $links);
     }
 
     /** @param ?array{width: int, height: int} $screenshot */
-    public static function of(SiteReviewComment $comment, ?CardSiteReviewComment $link, ?array $screenshot): self
+    public static function of(SiteReviewComment $comment, ?CardSiteReviewComment $link, ?array $screenshot, PageLinks $links): self
     {
         return new self(
             id: (string) $comment->id,
-            url: $comment->url,
+            url: null === $link ? null : $links->feedback((string) $link->card->project->id, (string) $link->card->id, (string) $comment->id),
+            pageUrl: $comment->url,
             surface: $comment->surface->value,
             native: $comment->native,
             screenshot: $screenshot,

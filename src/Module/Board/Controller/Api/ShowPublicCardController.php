@@ -49,6 +49,7 @@ final class ShowPublicCardController extends AppController
         private readonly ShowCardHandler $showCard,
         private readonly CardPayload $payload,
         private readonly CardApiProblems $problems,
+        private readonly PublicCardAnswer $answer,
     ) {
     }
 
@@ -56,6 +57,6 @@ final class ShowPublicCardController extends AppController
     {
         $card = ($this->findCard)(new FindCardByNumberCommand($project, $number)) ?? throw $this->problems->cardNotFound();
 
-        return new JsonResponse($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))));
+        return new JsonResponse($this->answer->card($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))), (string) $project->id));
     }
 }

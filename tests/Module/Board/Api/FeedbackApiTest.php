@@ -16,6 +16,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -65,7 +66,7 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame([(string) $first->id, (string) $second->id], array_column($body['items'], 'id'));
         self::assertNull($body['next']);
         self::assertSame(
-            ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'],
+            ['id', 'url', 'pageUrl', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'],
             array_keys($body['items'][0]),
         );
         self::assertSame((string) $card->id, $body['items'][0]['cardId']);
@@ -76,6 +77,10 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame(['selector' => '.hero', 'text' => 'Hero', 'quote' => null, 'quotePrefix' => null, 'quoteSuffix' => null], $body['items'][0]['anchors'][0]);
         self::assertNull($body['items'][1]['cardId']);
         self::assertNull($body['items'][1]['title']);
+        self::assertSame('https://app.example/page', $body['items'][0]['pageUrl']);
+        self::assertNull($body['items'][1]['url']);
+        self::assertSame('https://app.example/page', $body['items'][1]['pageUrl']);
+        $this->assertFeedbackLink($card, $first, $body['items'][0]['url']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
     }
 
@@ -205,8 +210,57 @@ final class FeedbackApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertNull($body['url']);
+        self::assertNull($body['pageUrl']);
         self::assertSame('ios-simulator', $body['surface']);
         self::assertSame($native, $body['native']);
+    }
+
+    public function test_one_item_links_to_the_feedback_tab_of_its_card(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $note = $this->note($card, 'Make it bigger');
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id);
+
+        self::assertResponseStatusCodeSame(200);
+        $this->assertFeedbackLink($card, $note, $this->json()['url']);
+    }
+
+    public function test_marking_addressed_answers_the_same_link(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $note = $this->note($card, 'Make it bigger');
+        $this->em->flush();
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$note->id, '{"status":"addressed"}');
+
+        self::assertResponseStatusCodeSame(200);
+        $this->assertFeedbackLink($card, $note, $this->json()['url']);
+    }
+
+    public function test_the_notes_of_a_card_hold_both_links_in_the_card_answer(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $note = $this->note($card, 'Make it bigger');
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, '/api/v1/projects/'.$this->project->id.'/cards/'.$card->number);
+
+        self::assertResponseStatusCodeSame(200);
+        $item = $this->json()['siteReviewComments'][0];
+        $this->assertFeedbackLink($card, $note, $item['url']);
+        self::assertSame('https://app.example/page', $item['pageUrl']);
+    }
+
+    private function assertFeedbackLink(Card $card, SiteReviewComment $note, ?string $url): void
+    {
+        self::assertNotNull($url);
+        $matched = PageLink::match(static::getContainer(), $url);
+        self::assertSame('app_board_card', $matched['_route']);
+        self::assertSame((string) $card->id, $matched['cardId']);
+        self::assertSame('tab=feedback', parse_url($url, \PHP_URL_QUERY));
+        self::assertSame('feedback-'.$note->id, parse_url($url, \PHP_URL_FRAGMENT));
     }
 
     public function test_one_item_is_read_and_a_missing_or_foreign_or_malformed_id_is_feedback_not_found(): void

@@ -59,6 +59,7 @@ final class ListProjectCardsController extends AppController
     public function __construct(
         private readonly PageCardsHandler $pageCards,
         private readonly CardPayload $payload,
+        private readonly PublicCardAnswer $answer,
     ) {
     }
 
@@ -83,7 +84,13 @@ final class ListProjectCardsController extends AppController
 
         // CardPayload reads the links of the whole page in a few queries, so it runs before the page is cut into rows.
         $cards = $view->page->items;
-        $rows = new Page($query->full ? $this->payload->forCards($cards) : $this->payload->forCardList($cards), $view->page->next);
+        $projectId = (string) $project->id;
+        $rows = new Page(
+            $query->full
+                ? array_map(fn (array $card): array => $this->answer->card($card, $projectId), $this->payload->forCards($cards))
+                : array_map(fn (array $row): array => $this->answer->row($row, $projectId), $this->payload->forCardList($cards)),
+            $view->page->next,
+        );
 
         return $rows->toResponse($request, static fn (array $row): array => $row);
     }

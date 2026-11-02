@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -47,8 +48,12 @@ final class ProjectReadApiTest extends WebTestCase
         $body = $this->json();
         self::assertSame(['First', 'Second'], array_column($body['items'], 'name'));
         self::assertNull($body['next']);
+        $matched = PageLink::match(static::getContainer(), $body['items'][0]['url']);
+        self::assertSame('app_project_workshop', $matched['_route']);
+        self::assertSame((string) $first->id, $matched['id']);
         self::assertSame([
             'id' => (string) $first->id,
+            'url' => $body['items'][0]['url'],
             'slug' => 'first',
             'name' => 'First',
             'description' => 'Shop site',
@@ -222,6 +227,8 @@ final class ProjectReadApiTest extends WebTestCase
         self::assertSame($byId, $this->json());
         self::assertSame((string) $project->id, $byId['id']);
         self::assertSame('shop-front', $byId['slug']);
+        self::assertSame('app_project_workshop', PageLink::match(static::getContainer(), $byId['url'])['_route']);
+        self::assertStringEndsWith('/projects/'.$project->id, $byId['url']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
     }
 

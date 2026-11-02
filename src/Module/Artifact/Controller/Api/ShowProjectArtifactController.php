@@ -47,15 +47,18 @@ final class ShowProjectArtifactController extends AppController
     public function __construct(
         private readonly DescribeArtifactHandler $describeArtifact,
         private readonly ArtifactApiProblems $problems,
+        private readonly PublicArtifactAnswer $answer,
     ) {
     }
 
     public function __invoke(Request $request, #[ReachableArtifact] Artifact $artifact): JsonResponse
     {
         try {
-            return new JsonResponse(($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request))));
+            $payload = ($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request)));
         } catch (DomainErrors) {
             throw $this->problems->versionNotFound();
         }
+
+        return new JsonResponse($this->answer->of($payload, (string) $artifact->project->id));
     }
 }

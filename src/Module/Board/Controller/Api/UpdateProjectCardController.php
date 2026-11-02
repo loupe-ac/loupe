@@ -66,6 +66,7 @@ final class UpdateProjectCardController extends AppController
         private readonly UpdateCardHandler $updateCard,
         private readonly ShowCardHandler $showCard,
         private readonly CardPayload $payload,
+        private readonly PublicCardAnswer $answer,
         private readonly CardApiFields $fields,
         private readonly CardApiProblems $problems,
         private readonly CurrentApiKeyActor $currentKey,
@@ -101,6 +102,6 @@ final class UpdateProjectCardController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))));
+        return new JsonResponse($this->answer->card($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))), (string) $project->id));
     }
 }

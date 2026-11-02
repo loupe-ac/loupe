@@ -16,7 +16,7 @@ use OpenApi\Attributes as OA;
  *
  * @phpstan-import-type DocumentPayload from ShowDocumentDataHandler
  */
-#[OA\Schema(required: ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
+#[OA\Schema(required: ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
 final readonly class DocumentResponse
 {
     /**
@@ -27,6 +27,9 @@ final readonly class DocumentResponse
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $documentId,
+
+        #[OA\Property(description: 'The review page of the document in the app, at the latest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(maxLength: Document::MAX_TITLE_LENGTH)]
         public string $title,
@@ -73,12 +76,13 @@ final readonly class DocumentResponse
     }
 
     /** @param DocumentPayload $payload */
-    public static function fromPayload(array $payload, Document $document): self
+    public static function fromPayload(array $payload, Document $document, string $url): self
     {
         $link = static fn (array $row): DocumentLinkResponse => new DocumentLinkResponse($row['documentId'], $row['title'], $row['archived']);
 
         return new self(
             documentId: $payload['documentId'],
+            url: $url,
             title: $payload['title'],
             language: $document->searchLanguage,
             status: $document->status,

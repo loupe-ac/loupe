@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicDelete;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -51,6 +52,7 @@ final class WithdrawVerdictController extends AppController
         private readonly ReviewWriteGuard $guard,
         private readonly CurrentApiKeyActor $apiKeys,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -74,6 +76,6 @@ final class WithdrawVerdictController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse(new VerdictWithdrawResponse((string) $withdrawal->id, $document->status->value));
+        return new JsonResponse(new VerdictWithdrawResponse((string) $withdrawal->id, $this->links->document((string) $document->project->id, (string) $document->id), $document->status->value));
     }
 }

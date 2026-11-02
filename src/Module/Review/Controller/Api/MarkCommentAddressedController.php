@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPatch;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Module\Review\Command\MarkCommentIdsAddressedCommand;
 use App\Module\Review\Command\MarkCommentIdsAddressedHandler;
@@ -51,6 +52,7 @@ final class MarkCommentAddressedController extends AppController
     public function __construct(
         private readonly MarkCommentIdsAddressedHandler $markAddressed,
         private readonly CurrentApiKeyActor $apiKeys,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -63,6 +65,6 @@ final class MarkCommentAddressedController extends AppController
             }
         }
 
-        return new JsonResponse(new CommentStatusResponse((string) $comment->id, 'addressed'));
+        return new JsonResponse(new CommentStatusResponse((string) $comment->id, $this->links->document((string) $document->project->id, (string) $document->id), 'addressed'));
     }
 }

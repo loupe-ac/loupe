@@ -7,13 +7,16 @@ namespace App\Module\Board\Controller\Api;
 use OpenApi\Attributes as OA;
 
 /** The lean row of the card list. CardPayload::forCardList() builds the real body. */
-#[OA\Schema(required: ['cardId', 'number', 'title', 'type', 'status', 'reporter', 'parentCardId', 'updatedAt', 'state'])]
+#[OA\Schema(required: ['cardId', 'url', 'number', 'title', 'type', 'status', 'reporter', 'parentCardId', 'updatedAt', 'state'])]
 final readonly class CardSummaryResponse
 {
     /** @param array{kind: string, code: string, since: string}|null $state */
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $cardId,
+
+        #[OA\Property(description: 'The card page in the app.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(description: 'The short label that counts from 1 inside this project.')]
         public int $number,

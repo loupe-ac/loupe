@@ -7,6 +7,7 @@ namespace App\Module\Project\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPost;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Problem\ApiProblem;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
@@ -73,6 +74,7 @@ final class CreateProjectController extends AppController
         private readonly ProjectApiProblems $problems,
         private readonly TokenStorageInterface $tokenStorage,
         public readonly CredentialRateLimitKey $rateLimitKey,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -106,7 +108,7 @@ final class CreateProjectController extends AppController
         }
 
         return new JsonResponse(
-            ProjectResponse::fromProject($project),
+            ProjectResponse::fromProject($project, $this->links->project((string) $project->id)),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_project_show', ['project' => (string) $project->id], UrlGeneratorInterface::ABSOLUTE_URL)],
         );

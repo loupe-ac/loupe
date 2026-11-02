@@ -10,7 +10,7 @@ use OpenApi\Attributes as OA;
  * One whole card, as the spec shows it. CardPayload::forCard() builds the real body.
  * A nested object of a few fields is described in line.
  */
-#[OA\Schema(required: ['cardId', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'])]
+#[OA\Schema(required: ['cardId', 'url', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'])]
 final readonly class CardResponse
 {
     /**
@@ -29,6 +29,9 @@ final readonly class CardResponse
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $cardId,
+
+        #[OA\Property(description: 'The card page in the app.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(description: 'The short label that counts from 1 inside this project.')]
         public int $number,
@@ -74,9 +77,10 @@ final readonly class CardResponse
         public array $pullRequests,
 
         #[OA\Property(type: 'array', items: new OA\Items(
-            required: ['documentId', 'title', 'status'],
+            required: ['documentId', 'url', 'title', 'status'],
             properties: [
                 new OA\Property(property: 'documentId', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'url', description: 'The review page of the document in the app.', type: 'string', format: 'uri'),
                 new OA\Property(property: 'title', type: 'string'),
                 new OA\Property(property: 'status', type: 'string'),
             ],
@@ -85,25 +89,26 @@ final readonly class CardResponse
         public array $documents,
 
         #[OA\Property(type: 'array', items: new OA\Items(
-            required: ['artifactId', 'name', 'versionNumber', 'archived', 'path'],
+            required: ['artifactId', 'url', 'name', 'versionNumber', 'archived'],
             properties: [
                 new OA\Property(property: 'artifactId', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'url', description: 'The artifact page in the app.', type: 'string', format: 'uri'),
                 new OA\Property(property: 'name', type: 'string'),
                 new OA\Property(property: 'versionNumber', type: 'integer'),
                 new OA\Property(property: 'archived', type: 'boolean'),
-                new OA\Property(property: 'path', description: 'The path of the artifact page in the app.', type: 'string'),
             ],
             type: 'object',
         ))]
         public array $artifacts,
 
-        #[OA\Property(description: 'The feedback items of the card: id, url, surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.', type: 'array', items: new OA\Items(type: 'object', additionalProperties: true))]
+        #[OA\Property(description: 'The feedback items of the card: id, url (the Feedback tab at the note), pageUrl (the reviewed site page), surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.', type: 'array', items: new OA\Items(type: 'object', additionalProperties: true))]
         public array $siteReviewComments,
 
         #[OA\Property(type: 'array', items: new OA\Items(
-            required: ['cardId', 'number', 'title', 'status', 'kind'],
+            required: ['cardId', 'url', 'number', 'title', 'status', 'kind'],
             properties: [
                 new OA\Property(property: 'cardId', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'url', description: 'The card page in the app.', type: 'string', format: 'uri'),
                 new OA\Property(property: 'number', type: 'integer'),
                 new OA\Property(property: 'title', type: 'string'),
                 new OA\Property(property: 'status', type: 'string'),
@@ -113,8 +118,9 @@ final readonly class CardResponse
         ))]
         public array $relatedCards,
 
-        #[OA\Property(required: ['cardId', 'number', 'title', 'status'], properties: [
+        #[OA\Property(required: ['cardId', 'url', 'number', 'title', 'status'], properties: [
             new OA\Property(property: 'cardId', type: 'string', format: 'uuid'),
+            new OA\Property(property: 'url', description: 'The card page in the app.', type: 'string', format: 'uri'),
             new OA\Property(property: 'number', type: 'integer'),
             new OA\Property(property: 'title', type: 'string'),
             new OA\Property(property: 'status', type: 'string'),
@@ -139,9 +145,10 @@ final readonly class CardResponse
         public array $values,
 
         #[OA\Property(description: 'Empty for a type without the children capability.', type: 'array', items: new OA\Items(
-            required: ['cardId', 'number', 'title', 'status'],
+            required: ['cardId', 'url', 'number', 'title', 'status'],
             properties: [
                 new OA\Property(property: 'cardId', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'url', description: 'The card page in the app.', type: 'string', format: 'uri'),
                 new OA\Property(property: 'number', type: 'integer'),
                 new OA\Property(property: 'title', type: 'string'),
                 new OA\Property(property: 'status', type: 'string'),

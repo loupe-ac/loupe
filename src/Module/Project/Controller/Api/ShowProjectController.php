@@ -8,6 +8,8 @@ use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
 use App\Controller\AppController;
+use App\Module\Project\Command\ShowProjectLinkCommand;
+use App\Module\Project\Command\ShowProjectLinkHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
@@ -34,8 +36,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 final class ShowProjectController extends AppController
 {
+    public function __construct(
+        private readonly ShowProjectLinkHandler $showLink,
+    ) {
+    }
+
     public function __invoke(#[ReachableProject] Project $project): JsonResponse
     {
-        return new JsonResponse(ProjectResponse::fromProject($project));
+        return new JsonResponse(ProjectResponse::fromProject($project, ($this->showLink)(new ShowProjectLinkCommand($project))));
     }
 }

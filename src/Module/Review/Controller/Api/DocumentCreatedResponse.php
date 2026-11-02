@@ -10,8 +10,8 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
 use OpenApi\Attributes as OA;
 
-/** A new document. Unlike a read, it also names the review page in the app. */
-#[OA\Schema(required: ['documentId', 'reviewUrl', 'tags', 'series', 'seriesOrdinal', 'language', 'status'])]
+/** A new document. */
+#[OA\Schema(required: ['documentId', 'url', 'tags', 'series', 'seriesOrdinal', 'language', 'status'])]
 final readonly class DocumentCreatedResponse
 {
     /** @param list<string> $tags */
@@ -19,8 +19,8 @@ final readonly class DocumentCreatedResponse
         #[OA\Property(format: 'uuid')]
         public string $documentId,
 
-        #[OA\Property(description: 'The review page in the app.', format: 'uri')]
-        public string $reviewUrl,
+        #[OA\Property(description: 'The review page of the document in the app, at the latest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(type: 'array', items: new OA\Items(type: 'string'))]
         public array $tags,
@@ -39,11 +39,11 @@ final readonly class DocumentCreatedResponse
     ) {
     }
 
-    public static function fromDocument(Document $document, string $reviewUrl): self
+    public static function fromDocument(Document $document, string $url): self
     {
         return new self(
             documentId: (string) $document->id,
-            reviewUrl: $reviewUrl,
+            url: $url,
             tags: array_values(array_map(static fn (Tag $tag): string => $tag->name, $document->tags->toArray())),
             series: $document->series?->name,
             seriesOrdinal: $document->seriesOrdinal,
