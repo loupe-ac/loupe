@@ -66,20 +66,20 @@ final class LandingControllerTest extends WebTestCase
         self::assertStringEndsWith('/setup.md', (string) $link->attr('href'));
     }
 
-    public function test_home_page_body_shows_the_full_setup_address_as_link_text(): void
+    public function test_home_page_body_shows_a_setup_prompt_to_copy(): void
     {
         $client = static::createClient();
         $setupUrl = static::getContainer()->get(PinnedUrlGenerator::class)->generate('app_setup_instructions');
+        $prompt = "Set up Loupe for this repository. Run\ncurl -fsSL \"".$setupUrl."\"\nand follow the steps it prints, in order.\nUse curl, not a web fetch tool.";
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        $line = $client->getCrawler()->filter('body [data-agent-setup]');
-        self::assertCount(1, $line);
-        self::assertStringContainsString('Using a coding agent? Ask it to read '.$setupUrl, $line->text());
-        $link = $line->filter('a');
-        self::assertSame($setupUrl, $link->attr('href'));
-        self::assertSame($setupUrl, $link->text());
+        $block = $client->getCrawler()->filter('body [data-agent-setup]');
+        self::assertCount(1, $block);
+        self::assertSame($prompt, $block->filter('[data-testid="landing-setup-prompt"]')->text(normalizeWhitespace: false));
+        self::assertSame($prompt, $block->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
+        self::assertSame('Copy', $block->filter('[data-controller="clipboard"] button')->text());
     }
 
     public function test_each_waitlist_button_names_its_click_event_and_still_opens_the_dialog(): void

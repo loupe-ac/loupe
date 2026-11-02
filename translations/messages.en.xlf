@@ -5369,7 +5369,19 @@
             </trans-unit>
             <trans-unit id="landing.requirements.need.agent_setup">
                 <source>landing.requirements.need.agent_setup</source>
-                <target>Using a coding agent? Ask it to read</target>
+                <target>Using a coding agent? Paste this prompt into it, in your repository.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.agent_setup_label">
+                <source>landing.requirements.need.agent_setup_label</source>
+                <target>prompt · coding agent</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.agent_setup_copy">
+                <source>landing.requirements.need.agent_setup_copy</source>
+                <target>Copy</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.agent_setup_copied">
+                <source>landing.requirements.need.agent_setup_copied</source>
+                <target>Copied ✓</target>
             </trans-unit>
             <trans-unit id="landing.llms.setup_label">
                 <source>landing.llms.setup_label</source>
