@@ -8,6 +8,8 @@ use App\Module\Artifact\Controller\Api\ArtifactResponse;
 use App\Module\Artifact\Controller\Api\ArtifactRowResponse;
 use App\Module\Board\Controller\Api\BoardColumnResponse;
 use App\Module\Board\Controller\Api\CardEventResponse;
+use App\Module\Board\Controller\Api\CardResponse;
+use App\Module\Board\Controller\Api\CardRowResponse;
 use App\Module\Board\Controller\Api\FeedbackResponse;
 use App\Module\Board\Controller\Api\FeedbackRowResponse;
 use App\Module\Project\Controller\Api\ProjectResponse;
@@ -27,6 +29,7 @@ final class ResponseFieldsTest extends TestCase
     {
         yield 'project' => [ProjectResponse::class, ProjectResponse::FIELDS];
         yield 'column' => [BoardColumnResponse::class, BoardColumnResponse::FIELDS];
+        yield 'card' => [CardResponse::class, CardResponse::FIELDS];
         yield 'card event' => [CardEventResponse::class, CardEventResponse::FIELDS];
         yield 'feedback' => [FeedbackResponse::class, FeedbackResponse::FIELDS];
         yield 'document' => [DocumentResponse::class, DocumentResponse::FIELDS];
@@ -48,6 +51,7 @@ final class ResponseFieldsTest extends TestCase
     /** @return iterable<string, array{class-string, list<string>}> */
     public static function rowClasses(): iterable
     {
+        yield 'card' => [CardRowResponse::class, array_values(array_diff(CardResponse::FIELDS, ['body']))];
         yield 'document' => [DocumentRowResponse::class, array_values(array_diff(DocumentResponse::FIELDS, ['markdown']))];
         yield 'document version' => [DocumentVersionRowResponse::class, array_values(array_diff(DocumentVersionResponse::FIELDS, ['markdown']))];
         yield 'feedback' => [FeedbackRowResponse::class, array_values(array_diff(FeedbackResponse::FIELDS, FeedbackResponse::LEFT_OUT_OF_ROW))];

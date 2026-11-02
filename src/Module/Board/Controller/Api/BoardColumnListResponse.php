@@ -12,11 +12,14 @@ use OpenApi\Attributes as OA;
 final readonly class BoardColumnListResponse
 {
     /**
-     * @param list<BoardColumnResponse> $items
-     * @param list<CardTypeResponse>    $types
+     * @param list<BoardColumnResponse|array<string, mixed>> $items
+     * @param list<CardTypeResponse>                         $types
      */
     public function __construct(
-        #[OA\Property(type: 'array', items: new OA\Items(ref: new Model(type: BoardColumnResponse::class)))]
+        #[OA\Property(type: 'array', items: new OA\Items(anyOf: [
+            new OA\Schema(ref: new Model(type: BoardColumnResponse::class)),
+            new OA\Schema(ref: '#/components/schemas/'.BoardColumnResponse::PARTIAL),
+        ]))]
         public array $items,
 
         #[OA\Property(description: 'The URL of the next page, or null on the last page.', format: 'uri', nullable: true)]

@@ -11,6 +11,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PublicSpec;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -78,6 +79,32 @@ final class ArtifactFieldsApiTest extends WebTestCase
 
             $this->get($this->base().'?fields=all');
             self::assertSame($single, $this->json()['items'][$index]);
+        }
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $artifact = $this->twoVersions('Tokens');
+
+        $this->get($this->base());
+        PublicSpec::assertMatches('ArtifactList', $this->json());
+        PublicSpec::assertMatches('ArtifactRow', $this->json()['items'][0]);
+        PublicSpec::assertDoesNotMatch('Artifact', $this->json()['items'][0]);
+
+        $this->get($this->base().'/'.$artifact->id);
+        PublicSpec::assertMatches('Artifact', $this->json());
+
+        $this->get($this->base().'?fields=all');
+        PublicSpec::assertMatches('ArtifactList', $this->json());
+        PublicSpec::assertMatches('Artifact', $this->json()['items'][0]);
+
+        foreach (['name,path', 'versions', 'files', 'pageLink'] as $fields) {
+            $this->get($this->base().'?fields='.$fields);
+            PublicSpec::assertMatches('ArtifactList', $this->json(), $fields);
+            PublicSpec::assertMatches('PartialArtifact', $this->json()['items'][0], $fields);
+
+            $this->get($this->base().'/'.$artifact->id.'?fields='.$fields);
+            PublicSpec::assertMatches('PartialArtifact', $this->json(), $fields);
         }
     }
 

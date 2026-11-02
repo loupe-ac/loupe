@@ -21,6 +21,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -240,6 +241,41 @@ final class CardApiTest extends WebTestCase
 
         $this->send(Request::METHOD_GET, $this->base().'/1');
         self::assertSame($this->json(), $row);
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $this->createCard('Linked', ['body' => 'Text']);
+        $this->linkPullRequestAndFeedback();
+
+        $this->send(Request::METHOD_GET, $this->base());
+        PublicSpec::assertMatches('CardList', $this->json());
+        PublicSpec::assertMatches('CardRow', $this->json()['items'][0]);
+        PublicSpec::assertDoesNotMatch('Card', $this->json()['items'][0]);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1');
+        PublicSpec::assertMatches('Card', $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=all');
+        PublicSpec::assertMatches('CardList', $this->json());
+        PublicSpec::assertMatches('Card', $this->json()['items'][0]);
+
+        foreach (['number,title', 'pullRequests', 'siteReviewComments,body', 'state,parent'] as $fields) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$fields);
+            PublicSpec::assertMatches('CardList', $this->json(), $fields);
+            PublicSpec::assertMatches('PartialCard', $this->json()['items'][0], $fields);
+
+            $this->send(Request::METHOD_GET, $this->base().'/1?fields='.$fields);
+            PublicSpec::assertMatches('PartialCard', $this->json(), $fields);
+        }
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/1', '{"title":"Changed"}');
+        $this->send(Request::METHOD_GET, $this->base().'/1/events');
+        PublicSpec::assertMatches('CardEventList', $this->json());
+        PublicSpec::assertMatches('CardEvent', $this->json()['items'][0]);
+        $this->send(Request::METHOD_GET, $this->base().'/1/events?fields=kind,actor');
+        PublicSpec::assertMatches('CardEventList', $this->json());
+        PublicSpec::assertMatches('PartialCardEvent', $this->json()['items'][0]);
     }
 
     public function test_the_old_full_switch_is_ignored(): void

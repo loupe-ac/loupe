@@ -99,6 +99,55 @@ reads the documents by their position in the series. `q` puts the documents with
 every word in the title first, and each group reads oldest first. `q` does not
 change the order of cards.
 
+## Choose the fields of a read
+
+A read takes the `fields` query parameter. It names the fields of the answer, as a
+comma list of top-level names. The 15 `GET` routes that return a project resource
+take it. A write does not take it, and it answers the whole resource.
+
+```text
+GET /api/v1/projects/loupe/cards?fields=number,title,body
+```
+
+1. A request with no `fields` gets a light row on a list, and the whole resource on
+   a single read.
+2. A light row holds each plain field of the resource. It leaves out long text, such
+   as the body of a card. It holds a short form for each linked item, such as a pull
+   request with its URL and no check state.
+3. A request with `fields` gets the named fields and no other field. Each named field
+   comes back whole. A named `pullRequests` holds the check state and the review of
+   each pull request.
+4. `fields=all` returns the whole resource. It stands alone, so `fields=all,title`
+   is refused.
+5. The answer keeps the order of the resource. The order of the names in the request
+   has no effect, and a name that appears twice counts once.
+6. A name is a top-level field. A dotted name, such as `state.kind`, is refused.
+7. A single read only removes fields. The route checks access before it reads
+   `fields`.
+8. The `next` URL of a list keeps `fields`. You can change `fields` between pages.
+
+The document lists and the document version lists never read document text. They
+refuse `fields=markdown` and `fields=all`. Read one document, or one version, to get
+its `markdown`.
+
+A bad `fields` value gets `422` with the code `validation_failed`. The `errors` list
+has one entry for each bad name, with the field `fields`. The code is one of these:
+
+| Code | Cause |
+|---|---|
+| `fields_invalid` | The value is empty, a name is empty or unknown, the value is a list such as `fields[]=a` and not one comma list, or `all` comes with another name. The message lists the allowed names. |
+| `fields_refused` | The name is a field, but this list does not return it. A document list refuses `markdown` and `all`. |
+
+The `full` parameter of the card list is gone. A request with `full=true` gets the
+light row, as any other unknown query value does. Send `fields=all` to get whole
+cards.
+
+The OpenAPI document shows each shape that a read can answer. A list item is the
+light row, the whole resource, or the named fields. The component of the named
+fields has the prefix `Partial`, and it requires no field. A client that sends no
+`fields` can rely on the light row on a list and on the whole resource on a single
+read.
+
 ## Retry a create safely
 
 A `POST` that creates takes an optional `Idempotency-Key` header of up to 255

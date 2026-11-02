@@ -17,12 +17,25 @@ final class FieldsParameter extends OA\Parameter
     {
         parent::__construct(
             name: 'fields',
-            description: 'The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing else does. `all` returns the whole resource and stands alone.',
+            description: self::description($refused),
             in: 'query',
             required: false,
             schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'string', enum: array_values(array_diff([...$fields, 'all'], $refused)))),
             style: 'form',
             explode: false,
         );
+    }
+
+    /** @param list<string> $refused */
+    private static function description(array $refused): string
+    {
+        $text = 'The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing else does.';
+        if ([] === $refused) {
+            return $text.' `all` returns the whole resource and stands alone.';
+        }
+
+        $names = implode(' and ', array_map(static fn (string $name): string => '`'.$name.'`', $refused));
+
+        return $text.' This list refuses '.$names.' with `fields_refused`, because a list never reads document text. Read one resource for the text.';
     }
 }

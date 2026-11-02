@@ -10,6 +10,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -88,6 +89,25 @@ final class ProjectReadApiTest extends WebTestCase
             self::assertResponseStatusCodeSame(422, $url);
             self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
         }
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $owner = $this->scenario->createUser('schema-project@example.com');
+        $project = $this->project($owner, 'Shop', '2026-01-01 10:00:00');
+        $token = $this->publicToken($owner);
+
+        $this->get('/api/v1/projects', $token);
+        PublicSpec::assertMatches('ProjectList', $this->json());
+        PublicSpec::assertMatches('Project', $this->json()['items'][0]);
+        $this->get('/api/v1/projects/'.$project->id, $token);
+        PublicSpec::assertMatches('Project', $this->json());
+
+        $this->get('/api/v1/projects?fields=name,description', $token);
+        PublicSpec::assertMatches('ProjectList', $this->json());
+        PublicSpec::assertMatches('PartialProject', $this->json()['items'][0]);
+        $this->get('/api/v1/projects/'.$project->id.'?fields=name,allowedOrigins', $token);
+        PublicSpec::assertMatches('PartialProject', $this->json());
     }
 
     public function test_a_list_can_run_newest_first(): void

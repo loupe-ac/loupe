@@ -6,6 +6,7 @@ namespace App\Module\Artifact\Controller\Api;
 
 use App\Module\Artifact\Command\PagedArtifact;
 use App\Module\Artifact\Entity\Artifact;
+use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 
 /**
@@ -39,24 +40,13 @@ final readonly class ArtifactRowResponse
         #[OA\Property(description: 'The path of the artifact page in the app.')]
         public string $path,
 
-        #[OA\Property(description: 'Each version as its number and the time it was stored. Name `versions` in `fields` for the notes, the counts and the sizes.', type: 'array', items: new OA\Items(
-            required: ['number', 'storedAt'],
-            properties: [
-                new OA\Property(property: 'number', type: 'integer'),
-                new OA\Property(property: 'storedAt', type: 'string', format: 'date-time'),
-            ],
-            type: 'object',
-        ))]
+        #[OA\Property(description: 'Each version as its number and the time it was stored. Name `versions` in `fields` for the notes, the counts and the sizes.', type: 'array', items: new OA\Items(ref: new Model(type: ArtifactVersionRefResponse::class)))]
         public array $versions,
 
         #[OA\Property(description: 'The latest version, whose files are listed.', nullable: true)]
         public ?int $selectedVersion,
 
-        #[OA\Property(description: 'The paths of the files of that version. Name `files` in `fields` for the content types and the sizes.', type: 'array', items: new OA\Items(
-            required: ['path'],
-            properties: [new OA\Property(property: 'path', type: 'string')],
-            type: 'object',
-        ))]
+        #[OA\Property(description: 'The paths of the files of that version. Name `files` in `fields` for the content types and the sizes.', type: 'array', items: new OA\Items(ref: new Model(type: ArtifactFileRefResponse::class)))]
         public array $files,
     ) {
     }

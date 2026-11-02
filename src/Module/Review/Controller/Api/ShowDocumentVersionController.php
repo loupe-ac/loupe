@@ -34,7 +34,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new FieldsParameter(DocumentVersionResponse::FIELDS),
     ],
     responses: [
-        new SuccessResponse(200, 'The version, with its Markdown.', DocumentVersionResponse::class),
+        new SuccessResponse(200, 'The version, with its Markdown.', DocumentVersionResponse::class, narrowable: true),
         new ProblemResponse(404, ['project_not_found', 'document_not_found', 'document_version_not_found', 'route_not_found']),
         new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
     ],

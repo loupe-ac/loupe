@@ -15,6 +15,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -64,6 +65,17 @@ final class BoardColumnApiTest extends WebTestCase
         self::assertSame(['key', 'label', 'children', 'lane'], array_keys($body['types'][0]));
         self::assertContains($body['defaultType'], array_column($body['types'], 'key'));
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $this->send(Request::METHOD_GET, $this->base());
+        PublicSpec::assertMatches('BoardColumnList', $this->json());
+        PublicSpec::assertMatches('BoardColumn', $this->json()['items'][0]);
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=slug,terminal');
+        PublicSpec::assertMatches('BoardColumnList', $this->json());
+        PublicSpec::assertMatches('PartialBoardColumn', $this->json()['items'][0]);
     }
 
     public function test_fields_narrow_each_column_and_leave_the_card_types_alone(): void

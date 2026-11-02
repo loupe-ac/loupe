@@ -14,6 +14,7 @@ use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\ValueObject\Anchor;
+use App\Tests\Support\PublicSpec;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -200,6 +201,37 @@ final class DocumentFieldsApiTest extends WebTestCase
                 self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
             }
         }
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        [, $source] = $this->linkedDocuments();
+        $this->comment($source);
+        $base = $this->base();
+
+        $this->send(Request::METHOD_GET, $base.'?includeArchived=true');
+        PublicSpec::assertMatches('DocumentList', $this->json());
+        PublicSpec::assertMatches('DocumentRow', $this->json()['items'][1]);
+        $this->send(Request::METHOD_GET, $base.'/'.$source->id.'/versions');
+        PublicSpec::assertMatches('DocumentVersionList', $this->json());
+        PublicSpec::assertMatches('DocumentVersionRow', $this->json()['items'][0]);
+
+        foreach (['document' => ['', 'Document', 'PartialDocument', 'title,references'], 'versions/1' => ['', 'DocumentVersion', 'PartialDocumentVersion', 'description,threadCount'], 'review' => ['', 'DocumentReview', 'PartialDocumentReview', 'status,comments']] as $path => [, $whole, $partial, $fields]) {
+            $url = $base.'/'.$source->id.('document' === $path ? '' : '/'.$path);
+            $this->send(Request::METHOD_GET, $url);
+            PublicSpec::assertMatches($whole, $this->json(), $path);
+            $this->send(Request::METHOD_GET, $url.'?fields=all');
+            PublicSpec::assertMatches($whole, $this->json(), $path.' all');
+            $this->send(Request::METHOD_GET, $url.'?fields='.$fields);
+            PublicSpec::assertMatches($partial, $this->json(), $path.' narrowed');
+        }
+
+        $this->send(Request::METHOD_GET, $base.'?includeArchived=true&fields=title,references');
+        PublicSpec::assertMatches('DocumentList', $this->json());
+        PublicSpec::assertMatches('PartialDocument', $this->json()['items'][0]);
+        $this->send(Request::METHOD_GET, $base.'/'.$source->id.'/versions?fields=description,threadCount');
+        PublicSpec::assertMatches('DocumentVersionList', $this->json());
+        PublicSpec::assertMatches('PartialDocumentVersion', $this->json()['items'][0]);
     }
 
     /** @return array{Document, Document} the target, then the source that points at it, archived with a reason, tagged and in a series */

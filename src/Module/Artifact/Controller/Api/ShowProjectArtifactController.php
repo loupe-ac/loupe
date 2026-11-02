@@ -35,7 +35,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new FieldsParameter(ArtifactResponse::FIELDS),
     ],
     responses: [
-        new SuccessResponse(200, 'The artifact, its versions, and the files of one version.', ArtifactResponse::class),
+        new SuccessResponse(200, 'The artifact, its versions, and the files of one version.', ArtifactResponse::class, narrowable: true),
         new ProblemResponse(404, ['project_not_found', 'artifact_not_found', 'artifact_version_not_found', 'route_not_found']),
         new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
     ],

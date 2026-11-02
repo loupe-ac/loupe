@@ -17,6 +17,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -113,6 +114,36 @@ final class FeedbackApiTest extends WebTestCase
         foreach (['id', 'url', 'surface', 'screenshot', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'] as $field) {
             $this->send(Request::METHOD_GET, $this->base().'?fields='.$field);
             self::assertSame([[$field => $single[$field]]], $this->json()['items'], $field);
+        }
+    }
+
+    public function test_each_answer_matches_the_schema_the_spec_publishes_for_it(): void
+    {
+        $card = $this->card($this->project, 'Hero copy');
+        $native = ['app' => ['name' => 'Notes', 'bundleId' => 'com.example.notes'], 'device' => ['name' => 'iPhone', 'udid' => 'U-1', 'osVersion' => '19.0'], 'screen' => ['title' => null], 'element' => ['role' => 'button', 'label' => 'Save', 'identifier' => null, 'frame' => null]];
+        $note = $this->note($card, 'Make it bigger', native: $native);
+        $this->note(null, 'No card here');
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, $this->base());
+        PublicSpec::assertMatches('FeedbackList', $this->json());
+        PublicSpec::assertMatches('FeedbackRow', $this->json()['items'][0]);
+        PublicSpec::assertDoesNotMatch('FeedbackItem', $this->json()['items'][0]);
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$note->id);
+        PublicSpec::assertMatches('FeedbackItem', $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=all');
+        PublicSpec::assertMatches('FeedbackList', $this->json());
+        PublicSpec::assertMatches('FeedbackItem', $this->json()['items'][0]);
+
+        foreach (['id,title', 'body', 'anchors', 'native,screenshot'] as $fields) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$fields);
+            PublicSpec::assertMatches('FeedbackList', $this->json(), $fields);
+            PublicSpec::assertMatches('PartialFeedbackItem', $this->json()['items'][0], $fields);
+
+            $this->send(Request::METHOD_GET, $this->base().'/'.$note->id.'?fields='.$fields);
+            PublicSpec::assertMatches('PartialFeedbackItem', $this->json(), $fields);
         }
     }
 

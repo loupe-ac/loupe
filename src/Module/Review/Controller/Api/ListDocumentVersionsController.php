@@ -41,7 +41,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new SuccessResponse(200, 'One page of versions.', DocumentVersionListResponse::class, page: true),
         new ProblemResponse(400, ['invalid_cursor']),
         new ProblemResponse(404, ['project_not_found', 'document_not_found', 'route_not_found']),
-        new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
+        new ProblemResponse(422, ['validation_failed', 'fields_refused'], 'ValidationProblem'),
     ],
 )]
 #[Route(

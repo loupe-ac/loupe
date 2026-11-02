@@ -6,6 +6,8 @@ when@dev: &generator
     services:
         App\Api\OpenApi\PartialChangeSchemaProcessor:
             tags: ['nelmio_api_doc.swagger.processor']
+        App\Api\OpenApi\FieldsSchemaProcessor:
+            tags: ['nelmio_api_doc.swagger.processor']
 
     nelmio_api_doc:
         # Whitelisted explicitly: the bundle documents every route of an area by default.
@@ -196,6 +198,7 @@ when@dev: &generator
         # The component name of each response or request class of the public API. Without an entry
         # the name is the class name, and a body shared by two operations may get two names.
         models:
+            # List a model before each model that refers to it. A model reached first through a parent gets the name of its class.
             names:
                 - { alias: Project, type: App\Module\Project\Controller\Api\ProjectResponse }
                 - { alias: ProjectList, type: App\Module\Project\Controller\Api\ProjectListResponse }
@@ -215,17 +218,21 @@ when@dev: &generator
                 - { alias: FeedbackList, type: App\Module\Board\Controller\Api\FeedbackListResponse }
                 - { alias: FeedbackAnchor, type: App\Module\Board\Controller\Api\FeedbackAnchorResponse }
                 - { alias: FeedbackUpdate, type: App\Module\Board\Controller\Api\FeedbackUpdateRequest }
-                - { alias: ArtifactRow, type: App\Module\Artifact\Controller\Api\ArtifactRowResponse }
-                - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
+                - { alias: ArtifactVersionRef, type: App\Module\Artifact\Controller\Api\ArtifactVersionRefResponse }
+                - { alias: ArtifactFileRef, type: App\Module\Artifact\Controller\Api\ArtifactFileRefResponse }
                 - { alias: ArtifactVersion, type: App\Module\Artifact\Controller\Api\ArtifactVersionResponse }
                 - { alias: ArtifactFile, type: App\Module\Artifact\Controller\Api\ArtifactFileResponse }
                 - { alias: Artifact, type: App\Module\Artifact\Controller\Api\ArtifactResponse }
+                - { alias: ArtifactRow, type: App\Module\Artifact\Controller\Api\ArtifactRowResponse }
+                - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
                 - { alias: ArtifactStored, type: App\Module\Artifact\Controller\Api\ArtifactStoredResponse }
                 - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
                 - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
                 - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }
-                - { alias: CardSummary, type: App\Module\Board\Controller\Api\CardSummaryResponse }
+                - { alias: PullRequestRef, type: App\Module\Board\Controller\Api\PullRequestRefResponse }
+                - { alias: FeedbackRef, type: App\Module\Board\Controller\Api\FeedbackRefResponse }
                 - { alias: Card, type: App\Module\Board\Controller\Api\CardResponse }
+                - { alias: CardRow, type: App\Module\Board\Controller\Api\CardRowResponse }
                 - { alias: CardList, type: App\Module\Board\Controller\Api\CardListResponse }
                 - { alias: CardCreate, type: App\Module\Board\Controller\Api\CreateProjectCardRequest }
                 - { alias: CardUpdate, type: App\Module\Board\Controller\Api\UpdateProjectCardRequest }

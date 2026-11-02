@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Module\Review\Entity\DocumentVersion;
 use OpenApi\Attributes as OA;
 
-#[OA\Schema(required: ['versionNumber', 'createdAt', 'description', 'threadCount', 'markdown'])]
+#[OA\Schema(required: ['versionNumber', 'createdAt', 'description', 'threadCount', 'markdown'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class DocumentVersionResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialDocumentVersion';
+
     /** The top-level names of a version, in the order of its row. */
     public const array FIELDS = ['versionNumber', 'createdAt', 'description', 'threadCount', 'markdown'];
 
@@ -23,7 +27,7 @@ final readonly class DocumentVersionResponse
         #[OA\Property(format: 'date-time')]
         public string $createdAt,
 
-        #[OA\Property(nullable: true)]
+        #[OA\Property(description: 'What changed in this version.', nullable: true)]
         public ?string $description,
 
         #[OA\Property(description: 'The number of comment threads on this version.')]

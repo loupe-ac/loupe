@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
+use App\Module\Artifact\Entity\Artifact;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 
 /** One artifact with its versions and the files of one version. DescribeArtifactHandler builds the real body. */
-#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'])]
+#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class ArtifactResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialArtifact';
+
     /** The top-level names of an artifact, in the order of its row. */
     public const array FIELDS = ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'];
 
@@ -21,6 +26,8 @@ final readonly class ArtifactResponse
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $artifactId,
+
+        #[OA\Property(maxLength: Artifact::MAX_NAME_LENGTH)]
         public string $name,
         public bool $archived,
 

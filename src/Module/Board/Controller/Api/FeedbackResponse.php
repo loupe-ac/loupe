@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\FieldsSchemaProcessor;
 use App\Module\Board\Command\ShowFeedbackView;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewComment;
@@ -11,9 +12,12 @@ use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use OpenApi\Attributes as OA;
 
 /** A note that a reviewer left with the live-review widget, as the public API shows it. The marked image is never in it. */
-#[OA\Schema(description: 'A note that a reviewer left with the live-review widget.', required: ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
+#[OA\Schema(description: 'A note that a reviewer left with the live-review widget.', required: ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class FeedbackResponse
 {
+    /** The name of the partial component of this resource. */
+    public const string PARTIAL = 'PartialFeedbackItem';
+
     /** The top-level names of a note, in the order of its row. */
     public const array FIELDS = ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'];
 
