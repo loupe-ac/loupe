@@ -71,9 +71,12 @@ const block = (
     checked = [],
     kind = 'checkbox',
     agent = false,
+    apiKey = null,
 ) => `<fieldset data-decision-id="${id}"${
     note === undefined ? '' : ` data-decision-note="${note}"`
-}${agent ? ' data-decision-through-agent' : ''}>
+}${agent ? ' data-decision-through-agent' : ''}${
+    apiKey === null ? '' : ` data-decision-api-key="${apiKey}"`
+}>
     <legend>Question ${id}</legend>
     <div>${option(id, 0, checked, kind)}<label>A</label></div>
     <div>${option(id, 1, checked, kind)}<label>B</label></div>
@@ -95,6 +98,7 @@ async function mount({
     checked = [],
     kind = 'checkbox',
     agent = [],
+    apiKeys = {},
 } = {}) {
     document.body.innerHTML = `<div id="decision-status"></div>
 ${['info', 'error'].map((severity) => `<template data-decision-status-flash="${severity}"><div class="lp-flash lp-flash--${severity}"><span class="lp-flash__dot"></span><span class="lp-flash__message"></span></div></template>`).join('')}
@@ -107,8 +111,9 @@ ${['info', 'error'].map((severity) => `<template data-decision-status-flash="${s
         data-decision-clear-label-value="Clear choice"
         data-decision-clear-class-value="lp-decision__clear"
         data-decision-error-message-value="Could not save."
-        data-decision-agent-mark-value="An agent recorded this answer for the owner.">
-    <div class="prose">${block('a', notes.a, checked, kind, agent.includes('a'))}${block('b', notes.b, checked, kind, agent.includes('b'))}</div>
+        data-decision-agent-mark-value="An agent recorded this answer for the owner."
+        data-decision-api-key-mark-value="Recorded through API key '%name%'.">
+    <div class="prose">${block('a', notes.a, checked, kind, agent.includes('a'), apiKeys.a ?? null)}${block('b', notes.b, checked, kind, agent.includes('b'), apiKeys.b ?? null)}</div>
     ${editable ? form : ''}
 </div>`;
     const formElement = document.querySelector('form');
@@ -1332,6 +1337,41 @@ it('draws the agent mark again after a page morph', async () => {
     expect(
         document.querySelectorAll('[data-decision-agent-mark]'),
     ).toHaveLength(1);
+});
+
+it('draws the key mark with the key name under a block a key answered', async () => {
+    await mount({ apiKeys: { a: 'CI' } });
+
+    expect(mark('a').dataset.label).toBe("Recorded through API key 'CI'.");
+    expect(mark('a').textContent).toBe('');
+    expect(mark('b')).toBeNull();
+});
+
+it('adds and removes the key mark as the stored answer changes', async () => {
+    await mount();
+    stored = {
+        a: { indexes: [1], note: null, throughAgent: false, apiKeyName: 'CI' },
+    };
+    receive(change({ apiKeyName: 'CI' }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mark('a').dataset.label).toBe("Recorded through API key 'CI'.");
+
+    stored = {
+        a: { indexes: [1], note: null, throughAgent: false, apiKeyName: null },
+    };
+    receive(change({ apiKeyName: null }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mark('a')).toBeNull();
+});
+
+it('removes the key mark when this page saves the block', async () => {
+    await mount({ apiKeys: { a: 'CI' } });
+    check('a', 0);
+    finish();
+
+    expect(mark('a')).toBeNull();
 });
 
 it('keeps the controls it builds through a page morph', async () => {

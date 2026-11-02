@@ -41,9 +41,14 @@ final readonly class DecisionSummaryReader
         $selectedIndexesByDecisionId = [];
         $notesByDecisionId = [];
         $throughAgentDecisionIds = [];
+        $apiKeyNamesByDecisionId = [];
         foreach ($decisions as $decision) {
             if ($answers[$decision->id]->answeredThroughAgent ?? false) {
                 $throughAgentDecisionIds[] = $decision->id;
+            }
+            $apiKeyName = ($answers[$decision->id] ?? null)?->answeredApiKeyName;
+            if (null !== $apiKeyName) {
+                $apiKeyNamesByDecisionId[$decision->id] = $apiKeyName;
             }
             $note = ($answers[$decision->id] ?? null)?->note;
             if (null !== $note) {
@@ -69,6 +74,7 @@ final readonly class DecisionSummaryReader
             $notesByDecisionId,
             $this->decisionBlocks->headingsAbove($version->renderedHtml),
             $throughAgentDecisionIds,
+            $apiKeyNamesByDecisionId,
         );
     }
 }

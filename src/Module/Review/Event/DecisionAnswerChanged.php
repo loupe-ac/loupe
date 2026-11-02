@@ -23,6 +23,7 @@ final readonly class DecisionAnswerChanged
         public ?string $answeredByName,
         public \DateTimeImmutable $answeredAt,
         public bool $throughAgent,
+        public ?string $apiKeyName = null,
     ) {
     }
 }

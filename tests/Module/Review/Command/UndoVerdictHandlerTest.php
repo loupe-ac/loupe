@@ -22,6 +22,7 @@ use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Event\VerdictWithdrawn;
 use App\Module\Review\Repository\ReviewRepository;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -252,6 +253,42 @@ final class UndoVerdictHandlerTest extends KernelTestCase
 
         self::assertTrue($withdrawal->throughAgent);
         self::assertFalse($approval->throughAgent);
+    }
+
+    public function test_an_undo_through_an_api_key_names_the_key_in_the_withdrawal_and_the_record(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, '-through-key');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+        $audit->forget();
+
+        $withdrawal = $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id, expectedVersionNumber: 1, apiKey: $key));
+
+        self::assertEquals($key->keyId, $withdrawal->apiKeyId);
+        self::assertSame('CI', $withdrawal->apiKeyName);
+        self::assertFalse($withdrawal->throughAgent);
+        self::assertNull($approval->apiKeyId);
+        $record = $audit->record('review.document_verdict_undone');
+        self::assertSame((string) $key->keyId, $record->context['apiKeyId']);
+        self::assertSame('CI', $record->context['apiKeyName']);
+    }
+
+    public function test_an_undo_cannot_be_through_a_key_and_an_agent_at_once(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$reviewer, $doc] = $this->createUserAndDocument($em, '-key-and-agent');
+        $submit = self::getContainer()->get(SubmitReviewHandler::class);
+        $approval = $submit(new SubmitReviewCommand($reviewer, $doc, Verdict::Approved->value, 1));
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+
+        $this->expectException(\LogicException::class);
+        $undo(new UndoVerdictCommand(document: $doc, actor: $reviewer, reviewId: (string) $approval->id, throughAgent: true, apiKey: new ApiKeyActor(Uuid::v7(), 'CI')));
     }
 
     public function test_an_already_withdrawn_verdict_cannot_be_withdrawn_again(): void

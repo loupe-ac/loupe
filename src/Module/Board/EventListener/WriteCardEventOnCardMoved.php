@@ -41,7 +41,7 @@ final readonly class WriteCardEventOnCardMoved
                 'from' => CardEvent::columnDetail($event->move->fromColumn),
                 'to' => CardEvent::columnDetail($card->column),
                 'cause' => $event->cause?->detail(),
-            ]);
+            ], null, $this->actor->apiKeyFor($event->actor));
         } catch (\Throwable $e) {
             $this->logger->warning('board.card_event_write_failed', [
                 'cardId' => (string) $card->id,

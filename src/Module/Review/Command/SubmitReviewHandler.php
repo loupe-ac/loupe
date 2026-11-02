@@ -37,6 +37,10 @@ final readonly class SubmitReviewHandler
 
     public function __invoke(SubmitReviewCommand $command): Review
     {
+        if ($command->throughAgent && null !== $command->apiKey) {
+            throw new \LogicException('A verdict is written through an agent or through an API key, never both.');
+        }
+
         $verdict = Verdict::tryFrom($command->verdict)
             ?? throw new DomainErrors(['verdict' => 'review.document.flash.verdict_invalid']);
 
@@ -95,6 +99,8 @@ final readonly class SubmitReviewHandler
                 note: '' === $note ? null : $note,
                 workflowRule: $command->workflowRule,
                 throughAgent: $command->throughAgent,
+                apiKeyId: $command->apiKey?->keyId,
+                apiKeyName: $command->apiKey?->keyName,
             );
 
             $document->status = $verdict->documentStatus();
@@ -125,6 +131,7 @@ final readonly class SubmitReviewHandler
                 'verdict' => $result->verdict->value,
                 'reviewerId' => (string) $command->reviewer->id,
                 ...($command->throughAgent ? ['throughAgent' => true] : []),
+                ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
             ],
             new AuditSubject('document', (string) $document->id),
         );

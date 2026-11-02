@@ -19,9 +19,11 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\ReviewEventType;
 use App\Outbox\Repository\OutboxEventRepository;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class WriteOutboxEventOnReviewSubmittedTest extends KernelTestCase
 {
@@ -86,6 +88,18 @@ final class WriteOutboxEventOnReviewSubmittedTest extends KernelTestCase
             'cardIds' => [(string) $card->id],
             'actor' => 'system',
         ], $this->onlyPayload());
+    }
+
+    public function test_a_verdict_through_an_api_key_names_the_key_kind_as_the_actor(): void
+    {
+        $document = $this->document(['design']);
+        $this->card('tech-design', $document);
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
+        $handler(new SubmitReviewCommand($this->reviewer, $document, Verdict::Approved->value, 1, apiKey: new ApiKeyActor(Uuid::v7(), 'CI')));
+
+        self::assertSame('api-key', $this->onlyPayload()['actor']);
     }
 
     /** @param list<string> $tags */

@@ -64,6 +64,7 @@ final readonly class ShowDocumentHandler
                     badgeLabels: DecisionBlockService::badgeLabels($this->translator),
                     notesByDecisionId: $decisions->notesByDecisionId,
                     throughAgentDecisionIds: $decisions->throughAgentDecisionIds,
+                    apiKeyNamesByDecisionId: $decisions->apiKeyNamesByDecisionId,
                 ),
                 $referenceDefinitions,
             ),

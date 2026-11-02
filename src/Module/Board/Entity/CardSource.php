@@ -21,7 +21,7 @@ final readonly class CardSource
     {
         return new self(match ($reporter) {
             Actor::Human => CardSourceKind::Person,
-            Actor::Agent => CardSourceKind::Agent,
+            Actor::Agent, Actor::ApiKey => CardSourceKind::Agent,
             Actor::Reviewer => CardSourceKind::Widget,
             Actor::System => CardSourceKind::Loupe,
         });

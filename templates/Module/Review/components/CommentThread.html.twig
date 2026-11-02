@@ -18,11 +18,11 @@
 #}
 {% set status = comment.threadStatus.value %}
 {% set commentAge = comment.createdAt ? comment.createdAt|relative_time : '' %} {# @design-system-ignore #}
-{% set replyCards = replies|map(reply => {author: reply.author.fullName, body: reply.body, age: reply.createdAt ? reply.createdAt|relative_time : ''}) %} {# @design-system-ignore #}
+{% set replyCards = replies|map(reply => {author: comment_author_label(reply), body: reply.body, age: reply.createdAt ? reply.createdAt|relative_time : ''}) %} {# @design-system-ignore #}
 {% set kind = comment.isStrike ? 'strike' : (comment.isSuggestion ? 'suggestion' : 'comment') %}
 <twig:CommentCard
     domId="{{ comment.id }}"
-    author="{{ comment.author.fullName }}"
+    author="{{ comment_author_label(comment) }}"
     age="{{ commentAge }}"
     status="{{ status }}"
     kind="{{ kind }}"
