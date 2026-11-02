@@ -544,6 +544,7 @@ template lists `squash`, `merge` and `rebase`. Loupe reads the merge switches of
 methods that the rules of the base branch allow. It merges with the first method of the list that both allow. When
 the repository and its rules allow none of them, the write refuses with the cause `no_merge_method`, and a person
 changes the repository settings or the ruleset. A project that wants a different order edits the list in the template.
+A write can also take `checks`, which name what its fallback work needs. `workflow_get` returns them for a discovery run, as it does for a `request`.
 
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each

@@ -21,6 +21,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         'The worktree of the card is still available, or the agent can make it again',
         'The gate commands of .loupe/lifecycle.md',
         'Read access to the CI check logs',
+        'Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires',
     ];
 
     private const string DISCOVERY_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-discovery skill';
@@ -54,11 +55,13 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame('template', $kinds['implement']['origin']);
         self::assertSame(['implement'], $kinds['implement']['rules']);
         self::assertNotContains('The agent pushes as its own GitHub account', $kinds['implement']['checks']);
-        self::assertCount(5, $kinds['implement']['checks']);
+        self::assertCount(9, $kinds['implement']['checks']);
         self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-agent-review', 'fix-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
-        self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The Loupe plugin skills are installed for the agent']], $kinds['review']);
+        self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The Loupe plugin skills are installed for the agent', 'Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules']], $kinds['review']);
         self::assertSame(['kind' => 'sync', 'origin' => 'template', 'rules' => ['update-behind'], 'checks' => []], $kinds['sync']);
-        self::assertSame(['kind' => 'merge', 'origin' => 'template', 'rules' => ['merge-ready', 'merge-ready-epic-child'], 'checks' => []], $kinds['merge']);
+        self::assertSame(['merge-ready', 'merge-ready-epic-child'], $kinds['merge']['rules']);
+        self::assertCount(3, $kinds['merge']['checks']);
+        self::assertStringStartsWith('Conflict check: branch rules.', $kinds['merge']['checks'][0]);
         self::assertSame('app', $kinds['discovery']['origin']);
         self::assertContains(self::DISCOVERY_CHECK, $kinds['discovery']['checks']);
     }

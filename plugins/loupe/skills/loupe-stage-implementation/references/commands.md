@@ -5,7 +5,7 @@
 ## Load the adapters and the profile
 
 1. Load the adapter for your harness from the `harnesses/` folder in this directory. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
-2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`.
+2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing.
 3. Pick the forge adapter as the next section says.
 
 The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold these optional sections:
@@ -46,6 +46,10 @@ The merge stage adds these operations:
 - Merge.
 - Change the base.
 - Merge a branch into the epic branch.
+
+The discovery run adds one operation, which only reads:
+
+- Read the rules of the base branch.
 
 1. When the profile has a `Forge` section, its value is the forge. Take no other source.
 2. Otherwise read the forge from `pullRequests[].forge` in `card_get`: `github`, `gitlab`, `bitbucket` or `other`. The app stores `other` for every link it cannot parse, so `other` names no forge. Go on to item 3.
