@@ -23,6 +23,7 @@ use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Outbox\Entity\OutboxEvent;
 use App\Outbox\Repository\OutboxEventRepository;
 use App\Tests\Module\Workflow\WorkflowProjects;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -97,6 +98,28 @@ final class ManagedCardMoveTest extends KernelTestCase
         self::assertSame('in-progress', $card->column->slug);
         self::assertTrue($this->holds()->isHeld($this->project, $this->idOf($card)));
         self::assertCount(1, $this->heldEvents());
+    }
+
+    /** @return iterable<string, array{Actor, string}> */
+    public static function holdActors(): iterable
+    {
+        yield 'an agent' => [Actor::Agent, 'agent'];
+        yield 'an API key' => [Actor::ApiKey, 'api-key'];
+    }
+
+    #[DataProvider('holdActors')]
+    public function test_a_move_that_holds_the_card_names_its_actor_in_the_event(Actor $actor, string $expected): void
+    {
+        $card = $this->card('next');
+
+        $this->updateCard()(new UpdateCardCommand(card: $card, actor: $actor, column: $this->column($this->project, 'in-progress'), unmanageBy: $this->project->owner));
+
+        self::assertSame([$expected], array_map(static function (OutboxEvent $event): mixed {
+            $payload = json_decode($event->payload, true, flags: \JSON_THROW_ON_ERROR);
+            self::assertIsArray($payload);
+
+            return $payload['actor'] ?? null;
+        }, $this->heldEvents()));
     }
 
     public function test_the_lifecycle_template_refuses_a_run_of_the_epic_that_moves_its_child_from_the_backlog(): void

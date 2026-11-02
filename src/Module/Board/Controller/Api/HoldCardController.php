@@ -18,6 +18,8 @@ use App\Module\Bridge\Command\PauseCardAgentsHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
+use App\Module\Workflow\Contract\Actor;
+use App\Security\CurrentApiKeyActor;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -51,6 +53,7 @@ final class HoldCardController extends AppController
         private readonly FindCardByNumberHandler $findCard,
         private readonly PauseCardAgentsHandler $pause,
         private readonly CardApiProblems $problems,
+        private readonly CurrentApiKeyActor $currentKey,
     ) {
     }
 
@@ -60,7 +63,7 @@ final class HoldCardController extends AppController
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
 
         try {
-            ($this->pause)(new PauseCardAgentsCommand($project, $cardId, $this->getUser() instanceof User ? $this->getUser() : throw new \LogicException('The route needs a signed-in account.'), 'agent'));
+            ($this->pause)(new PauseCardAgentsCommand($project, $cardId, $this->getUser() instanceof User ? $this->getUser() : throw new \LogicException('The route needs a signed-in account.'), Actor::ApiKey === $this->currentKey->actorKind(Actor::Agent) ? 'api-key' : 'agent'));
         } catch (DomainErrors $e) {
             throw $this->problems->fromHold($e);
         }

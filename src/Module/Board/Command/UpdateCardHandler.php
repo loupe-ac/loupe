@@ -269,7 +269,11 @@ final readonly class UpdateCardHandler
                 $card->project,
                 $card->id ?? throw new \LogicException('A persisted card has an id.'),
                 $command->unmanageBy,
-                \in_array($command->actor, [Actor::Agent, Actor::ApiKey], true) ? 'agent' : 'human',
+                match ($command->actor) {
+                    Actor::Agent => 'agent',
+                    Actor::ApiKey => 'api-key',
+                    default => 'human',
+                },
             );
 
             // A terminal column keeps no rank, so it reads no neighbour.

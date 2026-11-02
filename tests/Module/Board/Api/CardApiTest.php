@@ -8,9 +8,12 @@ use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\OAuth\Entity\ApiKey;
+use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Board\BoardColumnFixtures;
+use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -428,6 +431,48 @@ final class CardApiTest extends WebTestCase
         self::assertSame('not_paused', $this->json()['code']);
     }
 
+    public function test_a_hold_and_its_release_with_an_api_key_name_the_key_in_their_events(): void
+    {
+        $card = $this->createCard('Hold me');
+        $key = static::getContainer()->get(ApiKeyRepository::class)->findOneBy(['owner' => $this->owner]);
+        self::assertInstanceOf(ApiKey::class, $key);
+
+        $this->send(Request::METHOD_PUT, $this->base().'/1/hold');
+        self::assertResponseStatusCodeSame(200);
+        $this->send(Request::METHOD_DELETE, $this->base().'/1/hold');
+        self::assertResponseStatusCodeSame(200);
+
+        foreach (['board.card_held', 'board.card_released'] as $type) {
+            self::assertSame([[
+                'type' => $type,
+                'subject' => ['type' => 'card', 'id' => $card['cardId']],
+                'projectId' => (string) $this->project->id,
+                'actor' => 'api-key',
+                'apiKey' => ['id' => (string) $key->id, 'name' => $key->name],
+            ]], $this->outboxPayloads($type), $type);
+        }
+    }
+
+    public function test_a_hold_and_its_release_with_a_cli_sign_in_name_the_agent_and_no_key(): void
+    {
+        $card = $this->createCard('Hold me');
+        $token = AgentCredential::tokenFor(static::getContainer(), $this->owner, 'public');
+
+        $this->send(Request::METHOD_PUT, $this->base().'/1/hold', token: $token);
+        self::assertResponseStatusCodeSame(200);
+        $this->send(Request::METHOD_DELETE, $this->base().'/1/hold', token: $token);
+        self::assertResponseStatusCodeSame(200);
+
+        foreach (['board.card_held', 'board.card_released'] as $type) {
+            self::assertSame([[
+                'type' => $type,
+                'subject' => ['type' => 'card', 'id' => $card['cardId']],
+                'projectId' => (string) $this->project->id,
+                'actor' => 'agent',
+            ]], $this->outboxPayloads($type), $type);
+        }
+    }
+
     public function test_a_hold_on_a_missing_card_is_not_found(): void
     {
         foreach ([Request::METHOD_PUT, Request::METHOD_DELETE] as $method) {
@@ -536,6 +581,18 @@ final class CardApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200, $url);
 
         return array_column($this->json()['items'], 'title');
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function outboxPayloads(string $type): array
+    {
+        /** @var list<string> $payloads */
+        $payloads = $this->em->getConnection()->fetchFirstColumn(
+            'SELECT payload FROM outbox_events WHERE type = ? ORDER BY sequence',
+            [$type],
+        );
+
+        return array_map(static fn (string $payload): array => json_decode($payload, true, flags: \JSON_THROW_ON_ERROR), $payloads);
     }
 
     /** @param array<string, string> $server */
