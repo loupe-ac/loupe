@@ -86,8 +86,9 @@ final readonly class DevApiKeySeeder implements DevSeederInterface
             $context->at(2592000),
         );
         $key->lastUsedAt = $lastUsedAt;
-        // The expiry sweep would otherwise queue a mail on every seeded database.
+        // The mail sweeps would otherwise queue a mail on every seeded database.
         $key->expiryNoticeSentAt = $context->now;
+        $key->createdNoticeSentAt = $context->now;
         $context->ids->assign($key, $id);
         $this->em->persist($key);
     }

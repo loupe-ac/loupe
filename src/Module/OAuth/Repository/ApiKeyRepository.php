@@ -73,6 +73,33 @@ class ApiKeyRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    /** @return list<ApiKey> keys created no later than $createdBy whose created mail never reached the queue */
+    public function findCreatedNoticePending(\DateTimeImmutable $createdBy): array
+    {
+        /** @var list<ApiKey> $keys */
+        $keys = $this->createQueryBuilder('k')
+            ->where('k.createdNoticeSentAt IS NULL')
+            ->andWhere('k.createdAt <= :createdBy')
+            ->orderBy('k.createdAt', 'ASC')
+            ->setParameter('createdBy', $createdBy)
+            ->getQuery()
+            ->getResult();
+
+        return $keys;
+    }
+
+    public function markCreatedNoticeSent(Uuid $keyId, \DateTimeImmutable $now): void
+    {
+        $this->createQueryBuilder('k')
+            ->update()
+            ->set('k.createdNoticeSentAt', ':now')
+            ->where('k.id = :id')
+            ->setParameter('now', $now)
+            ->setParameter('id', $keyId, 'uuid')
+            ->getQuery()
+            ->execute();
+    }
+
     /**
      * Stamps the use time unless the stored one is newer than $threshold. One
      * conditional UPDATE, so a burst of requests writes once and the write

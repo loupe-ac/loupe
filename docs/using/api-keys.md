@@ -39,7 +39,8 @@ A key starts with `loupe_key_`.
 
 Loupe sends you one email when you create a key. The email names the key and
 shows when it ends. It contains no key. When Loupe cannot queue the email, the
-key still works and the page still shows it.
+key still works and the page still shows it. Loupe then tries to send the email
+again each hour until the queue accepts it.
 
 ## Use a key
 

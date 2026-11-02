@@ -40,5 +40,7 @@ final class DevApiKeySeederTest extends KernelTestCase
         $live = $keys->find(DevApiKeySeeder::keyId('old-script'));
         self::assertInstanceOf(ApiKey::class, $live);
         self::assertFalse($live->isExpiredAt($context->now));
+
+        self::assertSame([], $keys->findCreatedNoticePending($context->now->modify('+1 day')));
     }
 }

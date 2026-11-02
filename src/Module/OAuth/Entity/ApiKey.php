@@ -41,6 +41,10 @@ class ApiKey
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $expiryNoticeSentAt = null;
 
+    /** Null until the created mail reaches the queue, so a later sweep can send a mail that failed. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $createdNoticeSentAt = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         #[ORM\ManyToOne(targetEntity: User::class)]
