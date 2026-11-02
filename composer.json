@@ -173,6 +173,7 @@
         "dama/doctrine-test-bundle": "^8.6",
         "friendsofphp/php-cs-fixer": "^3.95.15",
         "infection/infection": "^0.35.4",
+        "nelmio/api-doc-bundle": "^5.13",
         "php-parallel-lint/php-parallel-lint": "^1.4",
         "phparkitect/phparkitect": "^1.2",
         "phpstan/phpstan": "^2.2.5",
@@ -187,6 +188,7 @@
         "symfony/stopwatch": "8.1.*",
         "symfony/web-profiler-bundle": "8.1.*",
         "ubermuda/gamache": "dev-main#fa6f068933454c8e9e44df37a0e9fb180d68e515",
-        "vincentlanglet/twig-cs-fixer": ">=4.0.2"
+        "vincentlanglet/twig-cs-fixer": ">=4.0.2",
+        "zircote/swagger-php": "^7.0"
     }
 }

@@ -1,0 +1,90 @@
+# The generator of the committed API specs under openapi/. The bundle loads in dev and
+# test alone, so production needs neither it nor swagger-php. The routes read the
+# committed files. `bin/console nelmio:apidoc:dump --area=<area> --format=json`
+# rebuilds one, and a test compares the committed file with a fresh build.
+when@dev: &generator
+    nelmio_api_doc:
+        # Whitelisted explicitly: the bundle documents every route of an area by default.
+        use_validation_groups: false
+        documentation:
+            openapi: 3.0.3
+            servers:
+                - url: https://app.loupe.ac
+                  description: Hosted instance
+            security:
+                - bearerAuth: []
+            components:
+                securitySchemes:
+                    bearerAuth:
+                        type: http
+                        scheme: bearer
+                        description: 'An API key or an OAuth access token, in `Authorization: Bearer <token>`.'
+                schemas:
+                    Problem:
+                        type: object
+                        description: An error, as RFC 9457 `application/problem+json`.
+                        required: [type, title, status, code, detail]
+                        properties:
+                            type:
+                                type: string
+                                format: uri
+                                description: A URI that names the error.
+                            title:
+                                type: string
+                                description: A short summary of the error.
+                            status:
+                                type: integer
+                                description: The HTTP status.
+                            code:
+                                type: string
+                                description: The stable machine-readable code.
+                            detail:
+                                type: string
+                                description: What happened in this request.
+                    ApiVersions:
+                        type: object
+                        description: The API versions of this instance.
+                        required: [versions, cliRange]
+                        properties:
+                            versions:
+                                type: array
+                                items:
+                                    type: object
+                                    required: [version, status]
+                                    properties:
+                                        version:
+                                            type: string
+                                            example: v1
+                                        status:
+                                            type: string
+                                            enum: [beta, stable, deprecated]
+                                            description: The state of this version.
+                            cliRange:
+                                type: string
+                                description: The CLI versions this server works with, as a caret range.
+                                example: ^2.0
+        areas:
+            # The bundle requires an area of this name. It documents the public routes, as `public` does.
+            default:
+                path_patterns:
+                    - '^/api/versions$'
+                    - '^/api/v1(?!/(bridge|live-review-widget)(/|$))'
+            public:
+                path_patterns:
+                    - '^/api/versions$'
+                    - '^/api/v1(?!/(bridge|live-review-widget)(/|$))'
+                documentation:
+                    info:
+                        title: Loupe API v1
+                        version: 1.0.0
+                        description: The public HTTP API of Loupe.
+            private:
+                path_patterns:
+                    - '^/api/v1/(bridge|live-review-widget)(/|$)'
+                documentation:
+                    info:
+                        title: Loupe API v1, private routes
+                        version: 1.0.0
+                        description: The bridge and widget routes. They carry no public promise.
+
+when@test: *generator

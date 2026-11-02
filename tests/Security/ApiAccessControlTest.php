@@ -33,6 +33,15 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertFalse($this->decide('/api/some-future-endpoint', self::ALL_ROLES));
     }
 
+    public function test_the_version_list_and_the_public_spec_need_no_role_and_nothing_else_under_v1_is_open(): void
+    {
+        self::assertTrue($this->decide('/api/versions', []));
+        self::assertTrue($this->decide('/api/v1/openapi.json', []));
+        self::assertFalse($this->decide('/api/v1/projects', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/openapi.json.bak', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/versions/x', self::ALL_ROLES));
+    }
+
     public function test_the_deny_rule_does_not_shadow_the_site_review_scope(): void
     {
         self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
