@@ -12,6 +12,7 @@ use App\Module\Bridge\Command\SettleWorkRequestHandler;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Outbox\AgentPush;
 use App\Security\CredentialRateLimitKey;
+use OpenApi\Attributes as OA;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -29,6 +30,28 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  * The bridge reads a 404 with no error code as a server with no such endpoint,
  * so every refusal the controller makes carries a code.
  */
+#[OA\Put(
+    operationId: 'settleWorkRequest',
+    summary: 'Send the result of a claimed work request',
+    tags: ['Bridge'],
+    parameters: [
+        new OA\Parameter(name: 'bridgeId', description: 'The uuid the bridge generates on its first start. Any other value answers 404.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+        new OA\Parameter(name: 'workRequestId', description: 'The work request id.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'The result is accepted.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `work_request_not_found`, `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 409, description: 'Refused: `claim_lost`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 422, description: 'Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    ],
+)]
 #[RateLimit('agent_work_request_results', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(

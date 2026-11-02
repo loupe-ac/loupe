@@ -10,6 +10,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\AcknowledgeBridgeCommandCommand;
 use App\Module\Bridge\Command\AcknowledgeBridgeCommandHandler;
 use App\Outbox\AgentPush;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,6 +25,27 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  * The bridge reads a 404 with no error code as a server with no such endpoint,
  * so every refusal the controller makes carries a code.
  */
+#[OA\Put(
+    operationId: 'acknowledgeBridgeCommand',
+    summary: 'Record the answer of a bridge to a command',
+    tags: ['Bridge'],
+    parameters: [
+        new OA\Parameter(name: 'bridgeId', description: 'The uuid the bridge generates on its first start. Any other value answers 404.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+        new OA\Parameter(name: 'commandId', description: 'The command id.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'The answer is accepted.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `command_not_found`, `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 422, description: 'Refused: `invalid_state`, `invalid_reason`, `reason_too_long`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    ],
+)]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
     '/api/v1/bridge/bridges/{bridgeId}/commands/{commandId}',

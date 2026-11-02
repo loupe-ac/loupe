@@ -9,6 +9,7 @@ use App\Module\Account\Entity\User;
 use App\Module\SiteReview\Command\ListedSite;
 use App\Module\SiteReview\Command\ListSitesCommand;
 use App\Module\SiteReview\Command\ListSitesHandler;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -24,6 +25,20 @@ use Symfony\Component\Routing\Attribute\Route;
  * else; enumerating the owner's projects would leak the inventory to any page
  * visitor. Project ownership is enforced by the handler's owner-scoped lookup.
  */
+#[OA\Get(
+    operationId: 'listBridgeProjects',
+    summary: 'List the projects of the caller for the CLI',
+    tags: ['Bridge'],
+    responses: [
+        new OA\Response(response: 200, description: 'The projects, with what the bridge collects from their tool calls.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    ],
+)]
 #[Route(
     '/api/v1/bridge/projects',
     name: 'api_projects',

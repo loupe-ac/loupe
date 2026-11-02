@@ -15,6 +15,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Command\ShowEventsCommand;
 use App\Module\SiteReview\Command\ShowEventsHandler;
 use App\Outbox\AgentPush;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +35,24 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  */
 // 404 rather than a disabled-looking 403: with push off there is no hub to
 // subscribe to, so there is nothing here to be authorized for.
+#[OA\Get(
+    operationId: 'getBridgeEvents',
+    summary: 'Read what the bridge needs to follow events',
+    tags: ['Bridge'],
+    parameters: [
+        new OA\Parameter(name: 'X-Loupe-Bridge', description: 'The id of the calling bridge. A missing or unknown value answers 426.', in: 'header', schema: new OA\Schema(type: 'string')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'The hub, the topic, the projects and the flags.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 426, description: 'Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    ],
+)]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
     '/api/v1/bridge/events',

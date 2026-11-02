@@ -11,7 +11,2979 @@
             "description": "Hosted instance"
         }
     ],
-    "paths": {},
+    "paths": {
+        "/api/v1/bridge/projects/{handle}/artifacts": {
+            "post": {
+                "tags": [
+                    "Artifacts"
+                ],
+                "summary": "Store the files of a prototype as a new version",
+                "operationId": "storeBridgeArtifactVersion",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "X-Loupe-Session",
+                        "in": "header",
+                        "description": "The session that stores the version. A session of a worker run is refused.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/StoreArtifactVersionRequest"
+                                    },
+                                    {
+                                        "properties": {
+                                            "files": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "format": "binary"
+                                                }
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The stored version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `artifact_refused`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/columns": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "List the columns the CLI checks its rule file against",
+                "operationId": "listBridgeProjectColumns",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The project and its columns.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/cards/{cardId}": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Read the column of a card before a resume",
+                "operationId": "getBridgeProjectCard",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The card.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `card_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/bridges/{bridgeId}/commands/{commandId}": {
+            "put": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Record the answer of a bridge to a command",
+                "operationId": "acknowledgeBridgeCommand",
+                "parameters": [
+                    {
+                        "name": "bridgeId",
+                        "in": "path",
+                        "description": "The uuid the bridge generates on its first start. Any other value answers 404.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    },
+                    {
+                        "name": "commandId",
+                        "in": "path",
+                        "description": "The command id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AcknowledgeBridgeCommandRequest"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "enum": [
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The answer is accepted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `command_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_state`, `invalid_reason`, `reason_too_long`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/worker-runs/{runId}/output": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Append text to the output log of a run",
+                "operationId": "appendWorkerRunOutput",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "runId",
+                        "in": "path",
+                        "description": "The key the bridge gave the run. A value that is not a uuid answers 422 `invalid_run_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AppendWorkerRunOutputRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The log after the append.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim": {
+            "post": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Claim a work request",
+                "operationId": "claimWorkRequest",
+                "parameters": [
+                    {
+                        "name": "bridgeId",
+                        "in": "path",
+                        "description": "The uuid the bridge generates on its first start. Any other value answers 404.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    },
+                    {
+                        "name": "workRequestId",
+                        "in": "path",
+                        "description": "The work request id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ClaimWorkRequestRequest"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "enum": [
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The bridge holds the claim.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `work_request_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `already_claimed`, `card_held`, `project_held`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `unknown_bridge`, `capability_missing`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/interactive-sessions/{sessionId}/close": {
+            "post": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Close the open interactive runs of a session",
+                "operationId": "closeInteractiveSession",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "How many runs closed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_session_id`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/card-holds": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "List the held cards of the projects of the caller",
+                "operationId": "listBridgeCardHolds",
+                "responses": {
+                    "200": {
+                        "description": "The held cards.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/bridges/{bridgeId}/heartbeat": {
+            "put": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Record that a bridge is alive",
+                "operationId": "recordBridgeHeartbeat",
+                "parameters": [
+                    {
+                        "name": "bridgeId",
+                        "in": "path",
+                        "description": "The uuid the bridge generates on its first start. Any other value answers 404.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordBridgeHeartbeatRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The heartbeat is accepted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/bridges/{bridgeId}/runs": {
+            "put": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Report the runs a bridge still holds",
+                "operationId": "reportBridgeRuns",
+                "parameters": [
+                    {
+                        "name": "bridgeId",
+                        "in": "path",
+                        "description": "The uuid the bridge generates on its first start. Any other value answers 404.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportBridgeRunsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "The report is taken."
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Report how the launch of an interactive session went",
+                "operationId": "reportInteractiveLaunch",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportInteractiveLaunchRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The run already existed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "The server created the run.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_session_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Record the usage of a session",
+                "operationId": "reportWorkerSessionUsage",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportSessionUsageRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The counts match.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `process_count_mismatch`, `ambiguous_start_order`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Record one batch of tool calls of a run",
+                "operationId": "reportWorkerRunToolCalls",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "runId",
+                        "in": "path",
+                        "description": "The key the bridge gave the run. A value that is not a uuid answers 422 `invalid_run_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportToolCallsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The batch is taken.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/worker-runs/{runId}": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Report one state of a worker run",
+                "operationId": "reportWorkerRunState",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "runId",
+                        "in": "path",
+                        "description": "The key the bridge gave the run. A value that is not a uuid answers 422 `invalid_run_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportWorkerRunStateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The run already held this state.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "The state is new, and the server wrote a history row.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Answer the variant a card runs with",
+                "operationId": "resolveExperimentPin",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "description": "The experiment name. A bad name answers 422 `invalid_experiment`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ResolveExperimentPinRequest"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "enum": [
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The server resolved the variant of the card.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_card_id`, `invalid_experiment`, `invalid_variants`, `invalid_baseline`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result": {
+            "put": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Send the result of a claimed work request",
+                "operationId": "settleWorkRequest",
+                "parameters": [
+                    {
+                        "name": "bridgeId",
+                        "in": "path",
+                        "description": "The uuid the bridge generates on its first start. Any other value answers 404.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    },
+                    {
+                        "name": "workRequestId",
+                        "in": "path",
+                        "description": "The work request id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SettleWorkRequestRequest"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "enum": [
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The result is accepted.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `work_request_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `claim_lost`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/git-token": {
+            "post": {
+                "tags": [
+                    "Tokens"
+                ],
+                "summary": "Issue a push token for one repository",
+                "operationId": "issueGitToken",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IssueGitTokenRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `git_identity_not_managed`, `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Refused: `github_unavailable`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/inbox/asks/{askId}": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Check an ask before a resume",
+                "operationId": "checkInboxAsk",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "askId",
+                        "in": "path",
+                        "description": "The ask id.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The state of the ask.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `ask_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/preview-tokens": {
+            "post": {
+                "tags": [
+                    "Tokens"
+                ],
+                "summary": "Mint a preview token",
+                "operationId": "mintPreviewToken",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MintPreviewTokenRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `card_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `card_finished`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_label`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/preview-tokens/{label}": {
+            "delete": {
+                "tags": [
+                    "Tokens"
+                ],
+                "summary": "Revoke the live preview tokens of a label",
+                "operationId": "revokePreviewTokens",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "label",
+                        "in": "path",
+                        "description": "The label.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "How many tokens went.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "List the projects of the caller for the CLI",
+                "operationId": "listBridgeProjects",
+                "responses": {
+                    "200": {
+                        "description": "The projects, with what the bridge collects from their tool calls.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/events/replay": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Read the outbox events after a cursor",
+                "operationId": "replayBridgeEvents",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Bridge",
+                        "in": "header",
+                        "description": "The id of the calling bridge. A missing or unknown value answers 426.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "description": "The sequence to read after.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "At most 200 new events, with an overlap.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_query`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "426": {
+                        "description": "Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/events": {
+            "get": {
+                "tags": [
+                    "Bridge"
+                ],
+                "summary": "Read what the bridge needs to follow events",
+                "operationId": "getBridgeEvents",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Bridge",
+                        "in": "header",
+                        "description": "The id of the calling bridge. A missing or unknown value answers 426.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The hub, the topic, the projects and the flags.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "426": {
+                        "description": "Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
     "components": {
         "schemas": {
             "Problem": {
@@ -87,6 +3059,1537 @@
                     }
                 },
                 "type": "object"
+            },
+            "StoreArtifactVersionRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "artifactId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 36
+                    },
+                    "sourceLink": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    },
+                    "paths": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": []
+                    },
+                    "card": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 36
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2000
+                    }
+                },
+                "type": "object"
+            },
+            "AcknowledgeBridgeCommandRequest": {
+                "required": [
+                    "textReason"
+                ],
+                "properties": {
+                    "state": {
+                        "title": "Null unless the state is done or refused.",
+                        "default": null
+                    },
+                    "reason": {
+                        "title": "Trimmed, and null when blank, so a blank reason keeps the one the person gave.",
+                        "default": null
+                    },
+                    "textReason": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "AppendWorkerRunOutputRequest": {
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "text": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 262144
+                    }
+                },
+                "type": "object"
+            },
+            "ClaimWorkRequestRequest": {
+                "properties": {
+                    "account": {
+                        "title": "The account the bridge chose for the request, or null when the body names none that could be an account.",
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "CliUpdateInput": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "current",
+                            "updating",
+                            "rolled-back",
+                            "blocked",
+                            "off",
+                            "dev"
+                        ]
+                    },
+                    "version": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "install": {
+                        "title": "No constraint: a method this server does not know must not refuse the whole heartbeat.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeHookInput": {
+                "required": [
+                    "lastRunAtADate"
+                ],
+                "properties": {
+                    "package": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 300
+                    },
+                    "ref": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "event": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "start",
+                            "stop",
+                            "busy",
+                            "idle"
+                        ]
+                    },
+                    "lastRunAt": {
+                        "title": "RFC 3339. Null for a hook that has not run since the bridge started.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "outcome": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "ok",
+                            "failed",
+                            "timeout",
+                            "never"
+                        ]
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    },
+                    "lastRunAtADate": {
+                        "title": "The shape check passes February 31, which the date parser would roll into March.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeWorkerPoolInput": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "size": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 1000,
+                        "minimum": 0
+                    },
+                    "inUse": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 1000,
+                        "minimum": 0
+                    },
+                    "queued": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 1000,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeWorkClaimInput": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "claimToken": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeHostSampleInput": {
+                "properties": {
+                    "sampledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "cpuPct": {
+                        "type": "array",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "type": "number",
+                                    "format": "float"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 1024
+                    },
+                    "memUsed": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "memTotal": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "swapUsed": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "batteryPct": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100,
+                        "minimum": 0
+                    },
+                    "onAc": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeAccountReadingInput": {
+                "properties": {
+                    "window": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "usedPercent": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 200,
+                        "minimum": 0
+                    },
+                    "resetsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "limited": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "source": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "readAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeAccountInput": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "harness": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "ready",
+                            "failing"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 200
+                    },
+                    "used": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "kinds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50
+                    },
+                    "stopAt": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    "readings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeAccountReadingInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 8
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeCommandParamInput": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeCommandEntryInput": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    },
+                    "params": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeCommandParamInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
+                    },
+                    "run": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50,
+                        "minItems": 1
+                    },
+                    "timeout": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 20
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeWorktreeInput": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "branch": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "path": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 4096
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeRepositoryInput": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "path": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 4096
+                    },
+                    "remoteUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 2048
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeGitIdentityInput": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "mode": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "agent_account",
+                            "app_token",
+                            "machine"
+                        ]
+                    },
+                    "commitName": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "pushLogin": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 39
+                    },
+                    "githubUserId": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0,
+                        "exclusiveMinimum": true
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeSessionReadingInput": {
+                "properties": {
+                    "sessionId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "alive": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "transcriptAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeSkippedWorkInput": {
+                "properties": {
+                    "workRequestId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "account": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "RecordBridgeHeartbeatRequest": {
+                "properties": {
+                    "projects": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "cliVersion": {
+                        "title": "Trimmed, because the length constraint measured the trimmed value.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "update": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/CliUpdateInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "hooks": {
+                        "title": "The hook rows as the bridge row stores them, with every time in one\nformat. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeHookInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 100
+                    },
+                    "workerPools": {
+                        "title": "The worker pool rows as the bridge row stores them. Null when the bridge\nsent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeWorkerPoolInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50
+                    },
+                    "paused": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "capabilities": {
+                        "title": "The capability names once each. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
+                    },
+                    "workClaims": {
+                        "title": "The pairs of a request id and its claim token, once each. Null when the\nbridge sent no list.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeWorkClaimInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 200
+                    },
+                    "name": {
+                        "title": "Null when the bridge sent no name. Trimmed, because the constraints read the trimmed value.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "hostSamples": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeHostSampleInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 720
+                    },
+                    "pushLogin": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "accounts": {
+                        "title": "The account rows as the bridge row stores them. A reason is kept for a\nfailing account alone. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeAccountInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50
+                    },
+                    "commandEntries": {
+                        "title": "The command entry rows as the bridge row stores them. A blank\ndescription is stored as none. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeCommandEntryInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50
+                    },
+                    "worktrees": {
+                        "title": "The worktree rows as the bridge row stores them, with the project id in\ncanonical form. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeWorktreeInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 200
+                    },
+                    "repositories": {
+                        "title": "The repository rows as the bridge row stores them, with the project id in\ncanonical form. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeRepositoryInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "workKinds": {
+                        "title": "The work kinds once each. Empty when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 50
+                    },
+                    "gitIdentities": {
+                        "title": "The git identity rows as the bridge row stores them, with the project id\nin canonical form. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeGitIdentityInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "gitIdentitiesAge": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 86400,
+                        "minimum": 0
+                    },
+                    "interactiveSessions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeSessionReadingInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 100
+                    },
+                    "skipped": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeSkippedWorkInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 200
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeRunInput": {
+                "properties": {
+                    "runId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "queued",
+                            "resumed",
+                            "preparing",
+                            "running",
+                            "stopping"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "ReportBridgeRunsRequest": {
+                "properties": {
+                    "runs": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeRunInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 1000
+                    }
+                },
+                "type": "object"
+            },
+            "ReportInteractiveLaunchRequest": {
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "subjectType": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "subjectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "cardNumber": {
+                        "title": "Required for a card and absent for any other subject.",
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "workKind": {
+                        "title": "The kind of the work request, or the name of the session when it runs no work request.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "workRequestId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "running",
+                            "not-started"
+                        ]
+                    },
+                    "at": {
+                        "title": "The columns carry no time zone, so the moment converts to UTC here.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "failureReason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 1000
+                    },
+                    "harness": {
+                        "title": "The four harness fields are null from a bridge that predates harnesses. A null keeps the stored value.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "account": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 64
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "harnessSessionId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunModelUsageInput": {
+                "properties": {
+                    "inputTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "outputTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheReadTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheWriteTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "costUsd": {
+                        "title": "Null when the bridge estimated a model it knows no price for.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunUsageInput": {
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "reported",
+                            "estimated"
+                        ]
+                    },
+                    "models": {
+                        "type": "object",
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20,
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/WorkerRunModelUsageInput"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ReportSessionUsageRequest": {
+                "properties": {
+                    "processes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunUsageInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 100,
+                        "minItems": 1
+                    },
+                    "runId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCallInput": {
+                "properties": {
+                    "seq": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "tool": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 64
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "durationMs": {
+                        "title": "Null when the stream holds no result of the call.",
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "isError": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "inSubagent": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "backgroundId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 64
+                    },
+                    "waitsOn": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 64
+                    },
+                    "signatures": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
+                    },
+                    "fullText": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 20000
+                    },
+                    "kind": {
+                        "title": "Null from an older bridge, which sends no kind.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "shell",
+                            "subagent",
+                            "tool"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunTimingInput": {
+                "properties": {
+                    "toolTimeMs": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "idleGapMs": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "ReportToolCallsRequest": {
+                "properties": {
+                    "calls": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunToolCallInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "timing": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunTimingInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "ReportWorkerRunStateRequest": {
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "queued",
+                            "replaced",
+                            "resumed",
+                            "skipped",
+                            "preparing",
+                            "running",
+                            "stopping",
+                            "stopped",
+                            "waiting-for-person",
+                            "dropped",
+                            "usage-limit",
+                            "network",
+                            "succeeded",
+                            "failed",
+                            "not-started",
+                            "no-result",
+                            "unfinished",
+                            "blocked",
+                            "waiting-on-forge",
+                            "gave-up"
+                        ]
+                    },
+                    "at": {
+                        "title": "The columns carry no time zone, so every moment converts to UTC here.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "subjectType": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "subjectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "cardNumber": {
+                        "title": "The label of a card subject. Any other subject has none.",
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "workRequestId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "workKind": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "sessionId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "endedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "exitCode": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "maximum": 255,
+                        "minimum": -255
+                    },
+                    "hasResult": {
+                        "title": "A command prints no result line, so the flag a bridge sends for it says nothing.",
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "failureReason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 1000
+                    },
+                    "output": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 4000
+                    },
+                    "askId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "replacedBy": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "maxChain": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0,
+                        "exclusiveMinimum": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "shutdown",
+                            "rule_dead",
+                            "reload"
+                        ]
+                    },
+                    "resultStatus": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "finished",
+                            "blocked",
+                            "unfinished",
+                            "waiting"
+                        ]
+                    },
+                    "resultReason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "resultFields": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {}
+                            },
+                            {
+                                "type": "object",
+                                "additionalProperties": {}
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "continues": {
+                        "title": "The id the bridge gave the run that this run resumes.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "resumeSkipped": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 50
+                    },
+                    "usage": {
+                        "title": "Checked on every state, and stored from an outcome or a stop alone.",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunUsageInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "peakContextTokens": {
+                        "title": "The largest main-session context of the run, stored from an outcome or a stop alone.",
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "workerPool": {
+                        "title": "Null from a bridge that predates worker pools.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "experiment": {
+                        "title": "The four experiment fields are null from a bridge that predates experiments.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "variant": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "requestedModel": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "switchedFrom": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "kind": {
+                        "title": "Null from a bridge that predates command rules, which runs workers alone.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "worker",
+                            "command"
+                        ]
+                    },
+                    "harness": {
+                        "title": "The four harness fields are null from a bridge that predates harnesses. A null keeps the stored value.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "account": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 64
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "harnessSessionId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "harnessVersion": {
+                        "title": "The three version fields are null from a bridge that predates them. A null keeps the stored value.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "cliVersion": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "skillVersion": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "harnessEvents": {
+                        "title": "Kind to count, from an outcome or a stop. A null keeps the stored map, and an empty object replaces it.",
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {}
+                            },
+                            {
+                                "type": "object",
+                                "additionalProperties": {}
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "costSource": {
+                        "title": "\"openrouter\" when the run went through OpenRouter, which then bills its cost. A source from a newer bridge reads as none.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 40
+                    },
+                    "result": {
+                        "title": "A command prints no result line, so the flag a bridge sends for it says nothing.",
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ResolveExperimentPinRequest": {
+                "properties": {
+                    "candidate": {
+                        "default": null
+                    },
+                    "variants": {
+                        "default": null
+                    },
+                    "weights": {
+                        "title": "The weight of each variant, in the order of the variants. Null when the\nchoice is invalid, or the weights are not one int from 1 to MAX_WEIGHT for\neach variant. A bad list never refuses the pin, so an older bridge that\nsends none still runs. A list, because PHP turns a key such as \"0\" into an int.",
+                        "default": null
+                    },
+                    "metrics": {
+                        "title": "The metric keys the experiment declares, in their order. Null when they\nare not a list of 1 to MAX_METRICS unique keys of the right shape. A key\nthe registry does not know stays, so the page can name it.",
+                        "default": null
+                    },
+                    "headline": {
+                        "title": "The goal, the guards and the controls of the experiment page. Null when\nthe headline is not an object, or one of its parts is malformed, or it\nholds no part. Keys it does not know drop out. An empty guards list\nstays, and means no guards. A goal with no better way stays, so the page\ncan say so. A control names a declared variant, a comparison with a\nnumber, and a share above 0 up to 1.",
+                        "default": null
+                    },
+                    "covers": {
+                        "title": "The work kinds the experiment covers, sorted. Null when they are not a\nlist of 1 to MAX_COVERS unique kinds of the right shape. A bad list never\nrefuses the pin, so an older bridge that sends none still runs.",
+                        "default": null
+                    },
+                    "baseline": {
+                        "title": "The variant the others are compared against. Null when it is not one of\nthe variants of the request, and the controller then refuses the pin.",
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "SettleWorkRequestRequest": {
+                "required": [
+                    "validReason",
+                    "validCause"
+                ],
+                "properties": {
+                    "claimToken": {
+                        "default": null
+                    },
+                    "state": {
+                        "title": "Null unless the state is done, refused or open.",
+                        "default": null
+                    },
+                    "reason": {
+                        "title": "Trimmed, and null when blank.",
+                        "default": null
+                    },
+                    "cause": {
+                        "default": null
+                    },
+                    "account": {
+                        "default": null
+                    },
+                    "reading": {
+                        "default": null
+                    },
+                    "sessionId": {
+                        "default": null
+                    },
+                    "hasAssistantTurn": {
+                        "default": null
+                    },
+                    "validReason": {
+                        "type": "boolean"
+                    },
+                    "validCause": {
+                        "title": "Whether the cause is one that a bridge gives.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "IssueGitTokenRequest": {
+                "properties": {
+                    "repository": {
+                        "title": "The `owner/name` of the repository, as the worker's git remote names it.",
+                        "type": "string",
+                        "pattern": "[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    }
+                },
+                "type": "object"
+            },
+            "MintPreviewTokenRequest": {
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "card": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -100,6 +4603,24 @@
     "security": [
         {
             "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Artifacts",
+            "description": "Artifacts"
+        },
+        {
+            "name": "Bridge",
+            "description": "Bridge"
+        },
+        {
+            "name": "Worker runs",
+            "description": "Worker runs"
+        },
+        {
+            "name": "Tokens",
+            "description": "Tokens"
         }
     ]
 }

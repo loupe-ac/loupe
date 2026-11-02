@@ -15,6 +15,7 @@ use App\Module\SiteReview\Command\ShowEventReplayHandler;
 use App\Outbox\AgentPush;
 use App\Outbox\Entity\OutboxEvent;
 use App\Security\CredentialRateLimitKey;
+use OpenApi\Attributes as OA;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,6 +34,26 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
  * The rate limit key expression sees only the request, the arguments and this
  * controller, so the key service rides on a public property.
  */
+#[OA\Get(
+    operationId: 'replayBridgeEvents',
+    summary: 'Read the outbox events after a cursor',
+    tags: ['Bridge'],
+    parameters: [
+        new OA\Parameter(name: 'X-Loupe-Bridge', description: 'The id of the calling bridge. A missing or unknown value answers 426.', in: 'header', schema: new OA\Schema(type: 'string')),
+        new OA\Parameter(name: 'after', description: 'The sequence to read after.', in: 'query', required: true, schema: new OA\Schema(type: 'integer', minimum: 0)),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'At most 200 new events, with an overlap.', content: new OA\JsonContent(type: 'object')),
+        new OA\Response(response: 400, description: 'Refused: `invalid_query`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 426, description: 'Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    ],
+)]
 #[RateLimit('agent_event_replay', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[RequireFeatureFlag(AgentPush::FLAG)]
 #[Route(
