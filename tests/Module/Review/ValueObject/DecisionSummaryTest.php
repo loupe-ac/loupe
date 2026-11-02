@@ -97,6 +97,23 @@ final class DecisionSummaryTest extends TestCase
         );
     }
 
+    public function test_rows_and_answers_carry_the_key_name_of_each_block(): void
+    {
+        $summary = new DecisionSummary(
+            [new Decision('by-key', ['A', 'B']), new Decision('by-owner', ['A', 'B'])],
+            ['by-key' => [0], 'by-owner' => [1]],
+            [],
+            [],
+            apiKeyNamesByDecisionId: ['by-key' => 'CI'],
+        );
+
+        self::assertSame(['CI', null], array_column($summary->rows(), 'apiKeyName'));
+        self::assertSame(
+            ['by-key' => 'CI', 'by-owner' => null],
+            array_map(static fn (array $answer): ?string => $answer['apiKeyName'], $summary->answers()),
+        );
+    }
+
     public function test_a_summary_built_without_marks_reports_none(): void
     {
         $summary = new DecisionSummary([new Decision('open', ['A'])], [], [], []);

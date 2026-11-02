@@ -32,6 +32,8 @@ final readonly class ReviewExporter implements UserDataExporterInterface
                 'note' => $review->note,
                 'submittedAt' => $review->submittedAt->format(\DateTimeInterface::ATOM),
                 'throughAgent' => $review->throughAgent,
+                'apiKeyId' => $review->apiKeyId?->toRfc4122(),
+                'apiKeyName' => $review->apiKeyName,
             ];
         }
     }

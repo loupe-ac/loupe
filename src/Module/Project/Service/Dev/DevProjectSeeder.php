@@ -8,6 +8,7 @@ use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectCreating;
@@ -23,9 +24,11 @@ final readonly class DevProjectSeeder implements DevSeederInterface
 {
     public const string KEY = 'projects';
     public const string DEV_PROJECT_NAME = 'Dev Project';
+    public const string KEYS_PROJECT_NAME = 'API key records';
 
     public function __construct(
         private ProjectRepository $projects,
+        private UserRepository $users,
         private EntityManagerInterface $em,
         private EventDispatcherInterface $events,
     ) {
@@ -34,6 +37,12 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public static function devProjectId(): Uuid
     {
         return DevSeedId::of('project/project/dev-project');
+    }
+
+    /** The project of the keys account, which holds the records that API keys wrote. */
+    public static function keysProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/keys-project');
     }
 
     #[\Override]
@@ -51,16 +60,23 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
-        $owner = $context->devUser();
-        $id = self::devProjectId();
+        // The newest project comes first in the project picker.
+        $this->project($context, $context->devUser(), self::devProjectId(), self::DEV_PROJECT_NAME);
+
+        $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
+            ?? throw new \LogicException('The keys account does not exist.');
+        $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
+    }
+
+    private function project(SeedContext $context, User $owner, Uuid $id, string $name): void
+    {
         if ($this->projects->find($id) instanceof Project) {
             return;
         }
 
-        // The newest project comes first in the project picker.
-        $project = new Project($owner, self::DEV_PROJECT_NAME, createdAt: $context->at(0));
+        $project = new Project($owner, $name, createdAt: $context->at(0));
 
-        $this->renameOldProject($owner, self::DEV_PROJECT_NAME);
+        $this->renameOldProject($owner, $name);
 
         $context->ids->assign($project, $id);
         $this->em->persist($project);

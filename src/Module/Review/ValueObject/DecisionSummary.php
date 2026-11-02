@@ -21,6 +21,7 @@ final readonly class DecisionSummary
      * @param array<string, string>    $notesByDecisionId           keyed by decision id, absent when no note is saved
      * @param array<string, string>    $headingsByDecisionId        the nearest heading above each block, absent when none
      * @param list<string>             $throughAgentDecisionIds     the blocks whose answer an agent recorded for the owner
+     * @param array<string, string>    $apiKeyNamesByDecisionId     the name of the API key that recorded a block's answer for the owner, absent when none did
      */
     public function __construct(
         public array $decisions,
@@ -28,6 +29,7 @@ final readonly class DecisionSummary
         public array $notesByDecisionId,
         public array $headingsByDecisionId,
         public array $throughAgentDecisionIds = [],
+        public array $apiKeyNamesByDecisionId = [],
     ) {
     }
 
@@ -80,7 +82,7 @@ final readonly class DecisionSummary
      * out in the template, because it is the same id the rendered fieldset
      * carries and a second spelling of the prefix is a link that breaks silently.
      *
-     * @return list<array{tag: string, label: string, title: string, elementId: string, answered: bool, selected: list<string>, note: string|null, throughAgent: bool}>
+     * @return list<array{tag: string, label: string, title: string, elementId: string, answered: bool, selected: list<string>, note: string|null, throughAgent: bool, apiKeyName: string|null}>
      */
     public function rows(): array
     {
@@ -93,6 +95,7 @@ final readonly class DecisionSummary
             'selected' => $this->selectedOptions($decision),
             'note' => $this->notesByDecisionId[$decision->id] ?? null,
             'throughAgent' => $this->isThroughAgent($decision),
+            'apiKeyName' => $this->apiKeyNamesByDecisionId[$decision->id] ?? null,
         ], $this->decisions, array_keys($this->decisions));
     }
 
@@ -119,7 +122,7 @@ final readonly class DecisionSummary
     /**
      * The stored answer of every block, as the page's inputs hold it.
      *
-     * @return array<string, array{indexes: list<int>, note: string|null, throughAgent: bool}>
+     * @return array<string, array{indexes: list<int>, note: string|null, throughAgent: bool, apiKeyName: string|null}>
      */
     public function answers(): array
     {
@@ -129,6 +132,7 @@ final readonly class DecisionSummary
                 'indexes' => $this->selectedIndexesByDecisionId[$decision->id] ?? [],
                 'note' => $this->notesByDecisionId[$decision->id] ?? null,
                 'throughAgent' => $this->isThroughAgent($decision),
+                'apiKeyName' => $this->apiKeyNamesByDecisionId[$decision->id] ?? null,
             ];
         }
 
