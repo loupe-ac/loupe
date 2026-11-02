@@ -22,9 +22,11 @@ use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\CommentStatus;
 use App\Module\Review\Entity\Document;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\AuditEvent;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -111,6 +113,17 @@ final class MarkCommentsAddressedHandlerTest extends KernelTestCase
 
         self::assertSame(['review.comment_addressed'], $this->audit->domainLogLines());
         self::assertSame([], $this->audit->securityLogLines());
+    }
+
+    public function test_a_key_names_itself_on_the_audit_record(): void
+    {
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+
+        ($this->handler)(new MarkCommentsAddressedCommand([$this->comment()], $key));
+
+        $context = $this->audit->record('review.comment_addressed')->context;
+        self::assertSame((string) $key->keyId, $context['apiKeyId']);
+        self::assertSame('CI', $context['apiKeyName']);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Command;
 
 use App\Module\Review\Entity\Comment;
+use App\Security\ApiKeyActor;
 
 final readonly class MarkCommentsAddressedCommand
 {
@@ -13,6 +14,7 @@ final readonly class MarkCommentsAddressedCommand
      */
     public function __construct(
         public array $comments,
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

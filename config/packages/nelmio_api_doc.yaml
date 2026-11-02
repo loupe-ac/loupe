@@ -246,6 +246,22 @@ when@dev: &generator
                 - { alias: DocumentCreate, type: App\Module\Review\Controller\Api\CreateDocumentRequest }
                 - { alias: DocumentUpdate, type: App\Module\Review\Controller\Api\UpdateDocumentRequest }
                 - { alias: DocumentRevise, type: App\Module\Review\Controller\Api\CreateDocumentVersionRequest }
+                - { alias: ReviewReply, type: App\Module\Review\Controller\Api\ReviewReplyResponse }
+                - { alias: ReviewComment, type: App\Module\Review\Controller\Api\ReviewCommentResponse }
+                - { alias: DecisionSelection, type: App\Module\Review\Controller\Api\DecisionSelectionResponse }
+                - { alias: ReviewDecision, type: App\Module\Review\Controller\Api\ReviewDecisionResponse }
+                - { alias: DocumentAgentReviewFinding, type: App\Module\Review\Controller\Api\DocumentAgentReviewFindingResponse }
+                - { alias: DocumentAgentReview, type: App\Module\Review\Controller\Api\DocumentAgentReviewResponse }
+                - { alias: DocumentReview, type: App\Module\Review\Controller\Api\ReviewResponse }
+                - { alias: CommentUpdate, type: App\Module\Review\Controller\Api\MarkCommentAddressedRequest }
+                - { alias: CommentStatusResult, type: App\Module\Review\Controller\Api\CommentStatusResponse }
+                - { alias: CommentReply, type: App\Module\Review\Controller\Api\ReplyToCommentRequest }
+                - { alias: CommentReplyCreated, type: App\Module\Review\Controller\Api\CommentReplyResponse }
+                - { alias: DecisionAnswer, type: App\Module\Review\Controller\Api\AnswerDecisionRequest }
+                - { alias: DecisionResult, type: App\Module\Review\Controller\Api\DecisionResultResponse }
+                - { alias: VerdictSubmit, type: App\Module\Review\Controller\Api\SubmitVerdictRequest }
+                - { alias: VerdictResult, type: App\Module\Review\Controller\Api\VerdictResponse }
+                - { alias: VerdictWithdrawResult, type: App\Module\Review\Controller\Api\VerdictWithdrawResponse }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

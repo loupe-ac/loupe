@@ -116,6 +116,12 @@ final class ApiAccessControlTest extends KernelTestCase
             '/api/v1/projects/my-project/documents/'.$document.'/publish',
             '/api/v1/projects/my-project/documents/'.$document.'/versions',
             '/api/v1/projects/my-project/documents/'.$document.'/versions/2',
+            '/api/v1/projects/my-project/documents/'.$document.'/review',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document,
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document.'/replies',
+            '/api/v1/projects/my-project/documents/'.$document.'/decisions/etag-scope',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts/'.$document,
         ] as $path) {
             self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
             self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
@@ -140,16 +146,18 @@ final class ApiAccessControlTest extends KernelTestCase
         }
     }
 
-    /** The document rule names its routes, so a later route under a document (reviews, comments) starts denied. */
+    /** The document rule names its routes, so a later route under a document starts denied. */
     public function test_the_document_rule_opens_no_other_route(): void
     {
         $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
         foreach ([
             '/api/v1/projects/my-project/documents/',
             '/api/v1/projects/my-project/documents/'.$document.'/',
-            '/api/v1/projects/my-project/documents/'.$document.'/review',
-            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document,
-            '/api/v1/projects/my-project/documents/'.$document.'/verdicts',
+            '/api/v1/projects/my-project/documents/'.$document.'/review/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document.'/replies/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/decisions',
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts/'.$document.'/extra',
             '/api/v1/projects/my-project/documents/'.$document.'/versions/2/extra',
             '/api/v1/projects/my-project/documents/'.$document.'/publish/extra',
             '/api/v1/projects/my-project/documentsx',
