@@ -70,15 +70,43 @@ class IdempotencyRecordRepository extends ServiceEntityRepository
             return null;
         }
 
-        $headers = null === $row['headers'] ? [] : json_decode((string) $row['headers'], true, flags: \JSON_THROW_ON_ERROR);
-
         return [
             'requestHash' => (string) $row['request_hash'],
             'state' => IdempotencyState::from((string) $row['state']),
             'status' => null === $row['status'] ? null : (int) $row['status'],
-            'headers' => \is_array($headers) ? $headers : [],
+            'headers' => self::decodeHeaders($row['headers']),
             'body' => null === $row['body'] ? null : (string) $row['body'],
         ];
+    }
+
+    /**
+     * Every row of the owner, one at a time, because a stored body can be large.
+     *
+     * @return iterable<array{id: string, credential: string, idempotencyKey: string, requestHash: string, state: IdempotencyState, status: ?int, headers: array<string, string>, body: ?string, createdAt: \DateTimeImmutable, expiresAt: \DateTimeImmutable}>
+     */
+    public function iterateByOwner(Uuid $ownerId): iterable
+    {
+        $rows = $this->getEntityManager()->getConnection()->iterateAssociative(
+            'SELECT id, credential, idempotency_key, request_hash, state, status, headers, body, created_at, expires_at
+             FROM api_idempotency_records WHERE owner_id = :owner ORDER BY created_at, id',
+            ['owner' => $ownerId],
+            ['owner' => 'uuid'],
+        );
+
+        foreach ($rows as $row) {
+            yield [
+                'id' => (string) $row['id'],
+                'credential' => (string) $row['credential'],
+                'idempotencyKey' => (string) $row['idempotency_key'],
+                'requestHash' => (string) $row['request_hash'],
+                'state' => IdempotencyState::from((string) $row['state']),
+                'status' => null === $row['status'] ? null : (int) $row['status'],
+                'headers' => self::decodeHeaders($row['headers']),
+                'body' => null === $row['body'] ? null : (string) $row['body'],
+                'createdAt' => new \DateTimeImmutable((string) $row['created_at']),
+                'expiresAt' => new \DateTimeImmutable((string) $row['expires_at']),
+            ];
+        }
     }
 
     /** @param array<string, string> $headers */
@@ -113,5 +141,13 @@ class IdempotencyRecordRepository extends ServiceEntityRepository
             ['owner' => $ownerId],
             ['owner' => 'uuid'],
         );
+    }
+
+    /** @return array<string, string> */
+    private static function decodeHeaders(mixed $headers): array
+    {
+        $decoded = null === $headers ? [] : json_decode((string) $headers, true, flags: \JSON_THROW_ON_ERROR);
+
+        return \is_array($decoded) ? $decoded : [];
     }
 }

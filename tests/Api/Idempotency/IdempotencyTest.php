@@ -11,6 +11,7 @@ use App\Api\Idempotency\Command\PurgeExpiredIdempotencyRecordsCommand;
 use App\Api\Idempotency\Command\PurgeExpiredIdempotencyRecordsHandler;
 use App\Api\Idempotency\Repository\IdempotencyRecordRepository;
 use App\Api\Idempotency\Service\IdempotencyAccountPurger;
+use App\Api\Idempotency\Service\IdempotencyRecordExporter;
 use App\Api\Idempotency\Service\IdempotencyRequestFingerprint;
 use App\Api\Problem\ApiProblemException;
 use App\Module\Account\Deletion\AccountDeletionCleanup;
@@ -211,6 +212,36 @@ final class IdempotencyTest extends KernelTestCase
 
         self::assertSame(0, $this->rows('cred-a', 'key-11'));
         self::assertSame(1, $this->rows('cred-o', 'key-11'));
+    }
+
+    public function test_the_export_holds_the_finished_and_running_rows_of_the_owner_only(): void
+    {
+        $this->send('key-12', '{"title":"A"}', 201, ['Location' => 'https://loupe.test/api/v1/projects/x/cards/7']);
+        $createdAt = $this->clock->now();
+        $this->clock->modify('+1 minute');
+        $this->claimOnly('key-13', '{"title":"B"}');
+        $other = $this->user('other-'.bin2hex(random_bytes(4)).'@example.com');
+        $this->signIn($other, 'cred-o');
+        $this->send('key-14', '{}', 201);
+
+        $exporter = new IdempotencyRecordExporter($this->repository());
+        $rows = [...$exporter->export($this->owner)];
+
+        self::assertSame('idempotency_records.json', $exporter->filename());
+        self::assertSame(['key-12', 'key-13'], array_column($rows, 'idempotencyKey'));
+
+        self::assertSame('cred-a', $rows[0]['credential']);
+        self::assertSame('finished', $rows[0]['state']);
+        self::assertSame(201, $rows[0]['status']);
+        self::assertSame(['Content-Type' => 'application/json', 'Location' => 'https://loupe.test/api/v1/projects/x/cards/7'], $rows[0]['headers']);
+        self::assertSame('{"n":1}', $rows[0]['body']);
+        self::assertSame($createdAt->format(\DateTimeInterface::ATOM), $rows[0]['createdAt']);
+        self::assertSame($createdAt->modify('+24 hours')->format(\DateTimeInterface::ATOM), $rows[0]['expiresAt']);
+
+        self::assertSame('running', $rows[1]['state']);
+        self::assertNull($rows[1]['status']);
+        self::assertSame([], $rows[1]['headers']);
+        self::assertNull($rows[1]['body']);
     }
 
     /** Runs a whole request: claim, the handler once when the claim is new, then the stored answer. */
