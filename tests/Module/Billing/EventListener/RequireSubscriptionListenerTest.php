@@ -183,6 +183,24 @@ final class RequireSubscriptionListenerTest extends TestCase
         self::assertStringContainsString('subscription_required', (string) $response->getContent());
     }
 
+    public function test_a_public_api_path_is_gated_with_problem_json(): void
+    {
+        $user = $this->user();
+        $event = $this->event('api_project_list', '/api/v1/projects');
+
+        $this->listener($user, $this->expiredProfile($user))($event);
+
+        $response = $event->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame(Response::HTTP_PAYMENT_REQUIRED, $response->getStatusCode());
+        self::assertSame('application/problem+json', $response->headers->get('Content-Type'));
+        $body = json_decode((string) $response->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame('subscription_required', $body['code']);
+        self::assertSame(self::SUBSCRIBE_URL, $body['subscribeUrl']);
+        self::assertSame(402, $body['status']);
+    }
+
     #[DataProvider('machinePaths')]
     public function test_machine_endpoints_pass_while_the_trial_runs(string $path): void
     {

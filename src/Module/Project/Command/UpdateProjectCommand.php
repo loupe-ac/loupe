@@ -10,7 +10,8 @@ use App\Module\Project\ProjectEventType;
 
 /**
  * Raw input, checked by the handler. A null value keeps what the project holds.
- * An empty domain or description clears it.
+ * An empty domain or description clears it. Origins use the form of
+ * UpdateProjectAllowedOriginsCommand.
  */
 final readonly class UpdateProjectCommand
 {
@@ -22,6 +23,8 @@ final readonly class UpdateProjectCommand
         /** @phpstan-var ProjectEventType::ACTOR_* */
         public string $actor,
         public ?string $description = null,
+        /** @var string|array<mixed>|null null keeps the stored origins, and an empty list clears them */
+        public string|array|null $origins = null,
     ) {
     }
 }

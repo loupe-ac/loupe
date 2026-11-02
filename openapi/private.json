@@ -1136,6 +1136,417 @@
     },
     "components": {
         "schemas": {
+            "SearchLanguage": {
+                "type": "string",
+                "enum": [
+                    "arabic",
+                    "armenian",
+                    "basque",
+                    "catalan",
+                    "danish",
+                    "dutch",
+                    "english",
+                    "finnish",
+                    "french",
+                    "german",
+                    "greek",
+                    "hindi",
+                    "hungarian",
+                    "indonesian",
+                    "irish",
+                    "italian",
+                    "lithuanian",
+                    "nepali",
+                    "norwegian",
+                    "portuguese",
+                    "romanian",
+                    "russian",
+                    "serbian",
+                    "simple",
+                    "spanish",
+                    "swedish",
+                    "tamil",
+                    "turkish",
+                    "yiddish"
+                ]
+            },
+            "Project": {
+                "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "description",
+                    "domain",
+                    "searchLanguage",
+                    "allowedOrigins",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "slug": {
+                        "description": "Null on a project created before the slug existed, so quote the id.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "description": {
+                        "description": "What the project is for.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 500
+                    },
+                    "domain": {
+                        "description": "The domain of the site the project reviews.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "searchLanguage": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "allowedOrigins": {
+                        "description": "The site origins the sign-in widget may run on.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Project"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectCreate": {
+                "description": "Give a name, a remote, or both.",
+                "properties": {
+                    "name": {
+                        "description": "The project name. With no name, the project takes the last path segment of `remote`.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "domain": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "remote": {
+                        "description": "A git remote, as `https://`, `ssh://`, `git://` or `user@host:path`.",
+                        "type": "string",
+                        "pattern": ".*(^(?:(?:https?|ssh|git)://(?:[^@/\\s]+@)?[^/\\s:]+(?::\\d+)?/|[^@/\\s]+@[^/\\s:]+:)(?<path>[^\\s]+?)(?:\\.git)?/?$).*",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    },
+                    "origins": {
+                        "description": "The origins to allow. An entry is an origin with no path, or a wildcard of one label. Plain http works on localhost only.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [],
+                        "maxItems": 20
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "description": "A new name. It also changes the slug.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "description": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    },
+                    "domain": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "searchLanguage": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/SearchLanguage"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "origins": {
+                        "description": "Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
+                    }
+                },
+                "type": "object"
+            },
+            "BoardColumn": {
+                "required": [
+                    "slug",
+                    "label",
+                    "terminal",
+                    "default",
+                    "backlog"
+                ],
+                "properties": {
+                    "slug": {
+                        "description": "The value you pass as `status`.",
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The name a person sees on the board.",
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "terminal": {
+                        "description": "A terminal column is where finished work goes.",
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "description": "True for the column where a new card lands when you pass no status.",
+                        "type": "boolean"
+                    },
+                    "backlog": {
+                        "description": "True for Backlog, which the board does not draw as a column.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "CardType": {
+                "required": [
+                    "key",
+                    "label",
+                    "children",
+                    "lane"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "The value you pass as `type`.",
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "children": {
+                        "description": "A card of this type may be the parent of other cards.",
+                        "type": "boolean"
+                    },
+                    "lane": {
+                        "description": "A card of this type gets a lane on the board.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "BoardColumnList": {
+                "required": [
+                    "items",
+                    "next",
+                    "types",
+                    "defaultType"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BoardColumn"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "types": {
+                        "description": "The card types of the project.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CardType"
+                        }
+                    },
+                    "defaultType": {
+                        "description": "The type a new card gets.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnWriteResult": {
+                "required": [
+                    "column",
+                    "columns"
+                ],
+                "properties": {
+                    "column": {
+                        "description": "The slug of the column after the change.",
+                        "type": "string"
+                    },
+                    "columns": {
+                        "description": "Every column of the board, in board order.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BoardColumn"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnOrderResult": {
+                "required": [
+                    "columns"
+                ],
+                "properties": {
+                    "columns": {
+                        "description": "Every column of the board, in the new order.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BoardColumn"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnDeleteResult": {
+                "required": [
+                    "deleted",
+                    "movedCards",
+                    "targetColumn",
+                    "columns"
+                ],
+                "properties": {
+                    "deleted": {
+                        "description": "The deleted slug.",
+                        "type": "string"
+                    },
+                    "movedCards": {
+                        "description": "The number of moved cards.",
+                        "type": "integer"
+                    },
+                    "targetColumn": {
+                        "description": "Where the cards went.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "columns": {
+                        "description": "Every column that remains.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BoardColumn"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnCreate": {
+                "required": [
+                    "label"
+                ],
+                "properties": {
+                    "label": {
+                        "description": "The slug comes from the label. The new column goes last, and it is not terminal.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "label": {
+                        "description": "A new name. The slug changes with it, so a bridge rule or a script that uses the old slug stops working.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "terminal": {
+                        "description": "Whether finished work goes in this column.",
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnOrder": {
+                "required": [
+                    "order"
+                ],
+                "properties": {
+                    "order": {
+                        "description": "The slug of every column except backlog, each once, from left to right.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "uniqueItems": true
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [
@@ -1169,6 +1580,64 @@
                     }
                 },
                 "type": "object"
+            },
+            "ValidationProblem": {
+                "description": "A refusal of one or more fields.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Problem"
+                    },
+                    {
+                        "required": [
+                            "errors"
+                        ],
+                        "properties": {
+                            "errors": {
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "field",
+                                        "code",
+                                        "message"
+                                    ],
+                                    "properties": {
+                                        "field": {
+                                            "description": "The field, as a request names it.",
+                                            "type": "string"
+                                        },
+                                        "code": {
+                                            "description": "The stable code of the refusal.",
+                                            "type": "string"
+                                        },
+                                        "message": {
+                                            "description": "A sentence that says why.",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "NameTakenProblem": {
+                "description": "A refusal because a name is taken.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Problem"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "description": "The slug of the project that holds the name.",
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ApiVersions": {
                 "description": "The API versions of this instance.",
@@ -1632,6 +2101,39 @@
                     }
                 },
                 "type": "object"
+            }
+        },
+        "headers": {
+            "RateLimit-Limit": {
+                "description": "The number of requests the window allows.",
+                "schema": {
+                    "type": "integer"
+                }
+            },
+            "RateLimit-Remaining": {
+                "description": "The number of requests left in the window.",
+                "schema": {
+                    "type": "integer"
+                }
+            },
+            "RateLimit-Reset": {
+                "description": "The seconds until the window resets.",
+                "schema": {
+                    "type": "integer"
+                }
+            },
+            "Link": {
+                "description": "The next page, as `<url>; rel=\"next\"`. It is absent on the last page.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "Location": {
+                "description": "The URL of the new resource.",
+                "schema": {
+                    "type": "string",
+                    "format": "uri"
+                }
             }
         },
         "securitySchemes": {
