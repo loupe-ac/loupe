@@ -25,9 +25,10 @@ const remindSilence = 10 * time.Minute
 const lifecycleTemplate = "lifecycle"
 
 const remindText = "This session edits files or opens a pull request, and no card run is open on this " +
-	"Lifecycle project. If this is work on a card, find or create the card, then call card_run_open " +
-	"with the Implementation status before you go on (see the loupe-lifecycle-session skill). " +
-	"If this is not card work, ignore this reminder."
+	"Lifecycle project. If you build the work of a card yourself and your pull request will close it, find " +
+	"or create the card, then call card_run_open with the Implementation status before you go on (see the " +
+	"loupe-lifecycle-session skill). A product design or tech design session ignores this reminder and " +
+	"never moves its card to Implementation. If this is not card work, ignore this reminder too."
 
 var pullRequestCreate = regexp.MustCompile(`\bgh\s+pr\s+create\b`)
 

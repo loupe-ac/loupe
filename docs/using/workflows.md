@@ -380,7 +380,7 @@ to a person. The run may be of any work kind, such as a breakdown or a fix.
 An interactive run does not count. A move with `by: session` is open only to
 an update that opens an interactive session run in the same call, such as
 `card_run_open` with a `status`. It refuses a card with a parent and a card of
-a type that can have children. Lifecycle names no such move yet. A move with
+a type that can have children. Lifecycle allows this move from Backlog and from Next to Implementation. A move with
 no `by` is open to anyone. The **Who** column of the manual moves on the Workflow settings page shows who may
 make each move.
 
@@ -704,10 +704,9 @@ When you withdraw the approval of a design, the card goes back to that design. S
 
 A session that does the work of a card itself follows one flow on a Lifecycle
 board. The Loupe plugin ships it as the `loupe-lifecycle-session` skill. A project
-with no plugin can copy these steps into its own instructions. The current
-Lifecycle template has no `by: session` move, so `card_run_open` refuses the move
-of step 3 from Backlog or Next, and the card takes step 5. A later release of the
-template adds the move:
+with no plugin can copy these steps into its own instructions. The
+Lifecycle template allows the move of step 3 from Backlog or Next. An instance
+with an older template refuses it, and the card takes step 5:
 
 1. Call `workflow_get`. Go on only when the template key is `lifecycle`.
 2. Call `card_search`, then `card_create` with no `status`. The card lands in

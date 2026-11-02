@@ -61,7 +61,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(38, $template->version);
+        self::assertSame(39, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -76,7 +76,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             $rules[$rule->id] = $rule;
         }
         self::assertEquals(new WorkflowRuleView('product-design-approved', 'workflow.slot.product_design', [new WorkflowRuleActionView('workflow.settings.action.move', 'workflow.slot.tech_design', null)], [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.document.approved', false, 'tag: product-design'), new WorkflowConditionView('card.document.changes_requested', true, 'tag: product-design')])], [], [], []), $rules['product-design-approved']);
-        self::assertEquals(new WorkflowRuleView('implement', 'workflow.slot.implementation', [new WorkflowRuleActionView('workflow.settings.action.request', null, 'implement')], [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.type', true, 'types: ["epic"]')]), new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('card.pr.linked', true, '')])], [], [], []), $rules['implement']);
+        self::assertEquals(new WorkflowRuleView('implement', 'workflow.slot.implementation', [new WorkflowRuleActionView('workflow.settings.action.request', null, 'implement')], [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.type', true, 'types: ["epic"]'), new WorkflowConditionView('card.arrived_in_session', true, '')]), new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('card.pr.linked', true, '')]), new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.session_open', true, '')])], [], [], [], null, [new WorkflowConditionGroupView('workflow.source.bridge', [new WorkflowConditionView('card.run.session_open', false, '')])]), $rules['implement']);
         self::assertEquals(new WorkflowRuleView('rebase-stacked', 'workflow.slot.in_review', [new WorkflowRuleActionView('workflow.settings.action.forge_write', null, 'change-base')], [new WorkflowConditionGroupView('workflow.source.forge', [new WorkflowConditionView('pr.open', false, ''), new WorkflowConditionView('pr.stacked', false, ''), new WorkflowConditionView('pr.parent_merged', false, '')])], [], [], []), $rules['rebase-stacked']);
         self::assertSame(['product-design-undo', 'tech-design-undo', 'product-design-session'], array_map(static fn (WorkflowRuleView $rule): string => $rule->id, \array_slice($template->rules, 0, 3)));
         self::assertEquals([
@@ -116,7 +116,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             new WorkflowRuleView('comment-agent-review', 'workflow.settings.where.any', [new WorkflowRuleActionView('workflow.settings.action.forge_write', null, 'comment agent-review')], [new WorkflowConditionGroupView('workflow.source.agent_review', [new WorkflowConditionView('agent_review.uncommented', false, '')])], [], [], []),
         ], $template->appRules);
         self::assertEquals(new WorkflowManualMoveView('workflow.settings.where.backlog', 'workflow.slot.next', 'workflow.settings.moves.by.anyone'), $template->manualMoves[0]);
-        self::assertCount(9, $template->manualMoves);
+        self::assertCount(11, $template->manualMoves);
         self::assertSame([10, 60, 360], $template->backoffMinutes);
         self::assertSame([2, 3, 5], $template->workFailedBackoffMinutes);
         self::assertEquals([
