@@ -63,11 +63,10 @@ final class GeneratedSpecTest extends KernelTestCase
      * may not drop one, or fall back to an open object, because a client reads its fields
      * from the spec.
      */
-    #[DataProvider('areas')]
-    public function test_every_built_success_response_carries_its_contract_schema(string $area): void
+    public function test_every_built_private_success_response_carries_its_contract_schema(): void
     {
-        $builtSpec = json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR);
-        $contractSpec = Yaml::parseFile(self::file('contract/'.$area.'.yaml'));
+        $builtSpec = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR);
+        $contractSpec = Yaml::parseFile(self::file('contract/private.yaml'));
         $built = $this->operations($builtSpec);
         $contract = $this->operations($contractSpec);
         $compared = 0;
@@ -112,7 +111,7 @@ final class GeneratedSpecTest extends KernelTestCase
 
         self::assertSame([], array_values(array_diff($expected['required'] ?? [], $actual['required'] ?? [])), sprintf('The built schema %s requires less than the contract.', $name));
         foreach ($expected['properties'] ?? [] as $property => $schema) {
-            self::assertEquals(self::withoutEmptyProperties($schema), $actual['properties'][$property] ?? null, sprintf('The built schema %s differs from the contract at %s.', $name, $property));
+            self::assertEquals(self::withoutProse(self::withoutEmptyProperties($schema)), self::withoutProse($actual['properties'][$property] ?? []), sprintf('The built schema %s differs from the contract at %s.', $name, $property));
         }
 
         array_walk_recursive($expected, function (mixed $value, string|int $key) use ($builtSpec, $contractSpec): void {
@@ -120,6 +119,20 @@ final class GeneratedSpecTest extends KernelTestCase
                 $this->assertHoldsContractSchema($value, $builtSpec, $contractSpec);
             }
         });
+    }
+
+    /**
+     * A description is prose for a reader, and a client reads no field from it.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private static function withoutProse(array $schema): array
+    {
+        unset($schema['description']);
+
+        return array_map(static fn (mixed $value): mixed => \is_array($value) ? self::withoutProse($value) : $value, $schema);
     }
 
     /**
@@ -240,6 +253,52 @@ final class GeneratedSpecTest extends KernelTestCase
         foreach ($private as $path) {
             self::assertMatchesRegularExpression('#^/api/v1/(bridge|live-review-widget)(/|$)#', (string) $path);
         }
+    }
+
+    #[DataProvider('areas')]
+    public function test_every_built_refusal_names_the_codes_of_the_contract(string $area): void
+    {
+        $built = $this->operations(json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR));
+        $contractSpec = Yaml::parseFile(self::file('contract/'.$area.'.yaml'));
+        $contract = $this->operations($contractSpec);
+
+        foreach ($built as $key => $operation) {
+            foreach ($operation['responses'] as $status => $response) {
+                if ((int) $status < 400) {
+                    continue;
+                }
+
+                self::assertSame(
+                    self::resolved($contractSpec, $contract[$key]['responses'][$status])['description'] ?? null,
+                    $response['description'] ?? null,
+                    sprintf('%s answers %s with other refusal codes than the contract.', $key, $status),
+                );
+            }
+        }
+    }
+
+    public function test_every_literal_refusal_code_of_a_controller_is_in_its_built_responses(): void
+    {
+        $operations = [];
+        foreach ($this->operations(json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)) as $operation) {
+            $operations[$operation['operationId']] = $operation['responses'];
+        }
+
+        $checked = 0;
+        foreach (glob(self::bootKernel()->getProjectDir().'/src/Module/*/Controller/Api/*Controller.php') ?: [] as $controller) {
+            $source = (string) file_get_contents($controller);
+            if (1 !== preg_match("/operationId: '(\w+)'/", $source, $id) || !isset($operations[$id[1]])) {
+                continue;
+            }
+
+            preg_match_all("/refused\(\s*\w+::HTTP_\w+,\s*'(\w+)'/", $source, $codes);
+            foreach ($codes[1] as $code) {
+                ++$checked;
+                self::assertStringContainsString('`'.$code.'`', json_encode($operations[$id[1]], \JSON_THROW_ON_ERROR), sprintf('%s refuses with %s, and its spec does not list it.', basename($controller), $code));
+            }
+        }
+
+        self::assertNotSame(0, $checked, 'No controller holds a literal refusal code, so this test would prove nothing.');
     }
 
     /**

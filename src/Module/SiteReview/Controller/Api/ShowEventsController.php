@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Api\Problem\ApiProblem;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
@@ -50,7 +51,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 426, description: 'Refused: `no_bridge_id`, `unknown_bridge`, `no_work_requests`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new RateLimitedResponse(),
     ],
 )]
 #[RequireFeatureFlag(AgentPush::FLAG)]

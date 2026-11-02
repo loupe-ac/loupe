@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
@@ -47,7 +48,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
         new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 422, description: 'Refused: `artifact_refused`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-        new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new RateLimitedResponse(),
     ],
 )]
 #[RateLimit('agent_artifact_store', key: new Expression('this.rateLimitKey.forRequest(request)'))]

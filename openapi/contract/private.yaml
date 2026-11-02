@@ -219,7 +219,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidStateInvalidClaimTokenInvalidReason'
+          $ref: '#/components/responses/E422InvalidStateInvalidClaimTokenInvalidReasonAnd2More'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/card-holds:
@@ -3946,6 +3946,20 @@ components:
         title: Invalid reason
         status: 422
         code: invalid_reason
+    InvalidCause:
+      summary: invalid_cause
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_cause
+        title: Invalid cause
+        status: 422
+        code: invalid_cause
+    InvalidHandBack:
+      summary: invalid_hand_back
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_hand_back
+        title: Invalid hand back
+        status: 422
+        code: invalid_hand_back
     ReasonTooLong:
       summary: reason_too_long
       value:
@@ -4494,8 +4508,8 @@ components:
           examples:
             claim_lost:
               $ref: '#/components/examples/ClaimLost'
-    E422InvalidStateInvalidClaimTokenInvalidReason:
-      description: 'Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`.'
+    E422InvalidStateInvalidClaimTokenInvalidReasonAnd2More:
+      description: 'Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`, `invalid_cause`, `invalid_hand_back`.'
       content:
         application/problem+json:
           schema:
@@ -4507,6 +4521,10 @@ components:
               $ref: '#/components/examples/InvalidClaimToken'
             invalid_reason:
               $ref: '#/components/examples/InvalidReason'
+            invalid_cause:
+              $ref: '#/components/examples/InvalidCause'
+            invalid_hand_back:
+              $ref: '#/components/examples/InvalidHandBack'
     E422InvalidRunIdValidationFailed:
       description: 'Refused: `invalid_run_id`, `validation_failed`.'
       content:

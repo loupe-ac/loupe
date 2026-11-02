@@ -796,7 +796,7 @@ writes a `bridge.work_request_settled` record to the audit log.
 | 404 | `{"error":"work_request_not_found"}` | the request does not exist, or belongs to another account |
 | 404 | | an id is not a uuid, or agent push is switched off on the instance |
 | 409 | `{"error":"claim_lost"}` | this bridge does not hold the claim with this token, or the request already settled with another state |
-| 422 | `{"error":"invalid_state"}`, `{"error":"invalid_claim_token"}` or `{"error":"invalid_reason"}` | the body is invalid |
+| 422 | `{"error":"invalid_state"}`, `{"error":"invalid_claim_token"}`, `{"error":"invalid_reason"}`, `{"error":"invalid_cause"}` or `{"error":"invalid_hand_back"}` | the body is invalid |
 | 429 | | more than 60 results in one minute from one token |
 
 ### Giving a request back at a usage limit

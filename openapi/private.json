@@ -149,6 +149,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -753,6 +758,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1121,6 +1131,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1277,6 +1292,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1420,6 +1440,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1566,6 +1591,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1668,6 +1698,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1749,6 +1784,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1883,6 +1923,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2010,6 +2055,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2163,6 +2213,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2316,6 +2371,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2459,6 +2519,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2612,6 +2677,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2776,6 +2846,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2931,7 +3006,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`.",
+                        "description": "Refused: `invalid_state`, `invalid_claim_token`, `invalid_reason`, `invalid_cause`, `invalid_hand_back`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2942,6 +3017,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3085,6 +3165,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3199,6 +3284,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3342,6 +3432,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3445,6 +3540,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3526,6 +3626,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3746,6 +3851,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3847,6 +3957,11 @@
                     },
                     "429": {
                         "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -8028,30 +8143,6 @@
                 },
                 "type": "object"
             },
-            "ArtifactStored": {
-                "required": [
-                    "artifactId",
-                    "versionNumber",
-                    "path",
-                    "versionPath"
-                ],
-                "properties": {
-                    "artifactId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "versionNumber": {
-                        "type": "integer"
-                    },
-                    "path": {
-                        "type": "string"
-                    },
-                    "versionPath": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
             "ProjectCard": {
                 "required": [
                     "cardId",
@@ -8732,111 +8823,6 @@
                             },
                             "type": "object"
                         }
-                    }
-                },
-                "type": "object"
-            },
-            "NativeFacts": {
-                "required": [
-                    "app",
-                    "device",
-                    "screen",
-                    "element"
-                ],
-                "properties": {
-                    "app": {
-                        "required": [
-                            "name",
-                            "bundleId"
-                        ],
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "bundleId": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "device": {
-                        "required": [
-                            "name",
-                            "udid",
-                            "osVersion"
-                        ],
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "udid": {
-                                "type": "string"
-                            },
-                            "osVersion": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "screen": {
-                        "required": [
-                            "title"
-                        ],
-                        "properties": {
-                            "title": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "element": {
-                        "required": [
-                            "role",
-                            "label",
-                            "identifier",
-                            "frame"
-                        ],
-                        "properties": {
-                            "role": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "identifier": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "frame": {
-                                "required": [
-                                    "x",
-                                    "y",
-                                    "width",
-                                    "height"
-                                ],
-                                "properties": {
-                                    "x": {
-                                        "type": "number"
-                                    },
-                                    "y": {
-                                        "type": "number"
-                                    },
-                                    "width": {
-                                        "type": "number"
-                                    },
-                                    "height": {
-                                        "type": "number"
-                                    }
-                                },
-                                "type": "object",
-                                "nullable": true
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
                     }
                 },
                 "type": "object"
