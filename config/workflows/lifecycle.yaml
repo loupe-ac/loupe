@@ -1,5 +1,5 @@
 key: lifecycle
-version: 39
+version: 40
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:

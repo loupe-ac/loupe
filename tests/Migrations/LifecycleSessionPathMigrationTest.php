@@ -26,12 +26,12 @@ final class LifecycleSessionPathMigrationTest extends KernelTestCase
         $connection = $this->em()->getConnection();
         $old = json_decode((string) $connection->fetchOne('SELECT definition FROM workflow_bindings WHERE project_id = ?', [$projectId]), true, 512, \JSON_THROW_ON_ERROR);
         self::assertIsArray($old);
-        $old['version'] = 38;
+        $old['version'] = 39;
         $old['epicBranch'] = 'feature/epic-{number}';
         $old['approvalCoversConflictResolution'] = false;
         unset($old['manualMoves']);
         $connection->executeStatement(
-            'UPDATE workflow_bindings SET definition = CAST(? AS JSONB), template_version = 38 WHERE project_id = ?',
+            'UPDATE workflow_bindings SET definition = CAST(? AS JSONB), template_version = 39 WHERE project_id = ?',
             [json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION), $projectId],
         );
 
