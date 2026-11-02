@@ -230,8 +230,9 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return err
 	}
-	if err := apiClient(cfg).CheckServer(cmd.Context()); err != nil {
-		return fmt.Errorf("rule file %s: %w", path, err)
+	gate := newStartupGate(set.AutoUpdate(), func(msg string) { fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+msg) }, cmd.ErrOrStderr())
+	if err := checkStartup(cmd.Context(), apiClient(cfg), gate); err != nil {
+		return err
 	}
 	if err := set.Check(cmd.Context(), apiClient(cfg)); err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
@@ -611,6 +612,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 				}
 			}
 			updates.install = installMethod(updates.executable)
+			updates.onDrain = r.setDraining
 			hb.onRange, hb.update = updates.setRange, updates.state
 		}
 		if r.update != nil {

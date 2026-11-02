@@ -37,6 +37,7 @@ const (
 	updateOff        = "off"
 	updateDev        = "dev"
 	updateRolledBack = "rolled-back"
+	updateDraining   = "draining"
 )
 
 // The outcomes of a forced check that the heartbeat states do not name.
@@ -108,6 +109,9 @@ type updater struct {
 	log        *slog.Logger
 	autoUpdate func() bool
 	onStaged   stagedHook
+	// onDrain holds back new work while the running version is outside the
+	// range, and releases it when the version is back inside.
+	onDrain    func(draining bool)
 	executable func() (string, error)
 	after      func(time.Duration) <-chan time.Time
 	jitter     func() time.Duration
@@ -125,6 +129,7 @@ type updater struct {
 	// rolledBack names the version this run rolled back from. The state keeps
 	// saying so, where it would otherwise say current.
 	rolledBack string
+	draining   bool
 	kick       chan struct{}
 	// nudged is the time of the last check a refused claim asked for.
 	nudged time.Time
@@ -359,9 +364,59 @@ func (u *updater) check(ctx context.Context) {
 	u.run(ctx, false)
 }
 
-// run runs one update check. A forced one ignores the skip list and the
-// autoUpdate key.
+// run runs one update check and then settles the drain. A forced one ignores
+// the skip list and the autoUpdate key.
 func (u *updater) run(ctx context.Context, force bool) updateResult {
+	res := u.runCheck(ctx, force)
+	u.settle()
+
+	return res
+}
+
+// settle drains the bridge while its release version is outside the range, and
+// ends the drain when the version is back inside. A development build, a
+// prerelease and a version that does not parse never drain.
+func (u *updater) settle() {
+	u.mu.Lock()
+	cliRange := u.cliRange
+	u.mu.Unlock()
+	v, ok := update.ParseVersion(u.version)
+	if !ok || v.Pre != "" || cliRange == "" {
+		return
+	}
+	if update.Satisfies(u.version, cliRange) {
+		u.mu.Lock()
+		was := u.draining
+		u.draining = false
+		if was && u.current.State == updateDraining {
+			u.current = api.HeartbeatUpdate{State: updateCurrent}
+		}
+		u.mu.Unlock()
+		if was {
+			u.log.Info("bridge_resumed", "version", u.version, "range", cliRange)
+			if u.onDrain != nil {
+				u.onDrain(false)
+			}
+		}
+
+		return
+	}
+	u.mu.Lock()
+	first := !u.draining
+	u.draining = true
+	u.current = api.HeartbeatUpdate{State: updateDraining}
+	u.mu.Unlock()
+	if first {
+		u.log.Warn("bridge_draining", "version", u.version, "range", cliRange,
+			"message", "This CLI version is outside the range of the server. The bridge starts no new work, keeps its heartbeat and checks again every hour. Run: loupe update")
+	}
+	if u.onDrain != nil {
+		u.onDrain(true)
+	}
+}
+
+// runCheck runs one update check.
+func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 	u.mu.Lock()
 	cliRange := u.cliRange
 	u.mu.Unlock()
@@ -372,6 +427,11 @@ func (u *updater) run(ctx context.Context, force bool) updateResult {
 		return u.result(outcomeFailed, "", "the server has not sent the CLI range yet")
 	}
 	u.log.Info("update_check", "from", u.version, "range", cliRange)
+	if update.Above(u.version, cliRange) {
+		// A release above the range is for a newer server. A downgrade would
+		// not fix it, so the bridge drains until the server catches up.
+		return u.result(outcomeFailed, "", "The running version is above the range this Loupe supports. Upgrade the server.")
+	}
 
 	st, err := update.LoadState(u.dir)
 	if err != nil {

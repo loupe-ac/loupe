@@ -86,3 +86,23 @@ func TestSatisfies(t *testing.T) {
 		}
 	}
 }
+
+func TestAbove(t *testing.T) {
+	cases := []struct {
+		version, rangeStr string
+		want              bool
+	}{
+		{"3.0.0", "^2.0", true},
+		{"2.9.9", "^2.0", false},
+		{"1.9.0", "^2.0", false},
+		{"0.3.0", "^0.2", true},
+		{"3.0.0-rc.1", "^2.0", false},
+		{"abc1234", "^2.0", false},
+		{"3.0.0", "2.0", false},
+	}
+	for _, tc := range cases {
+		if got := Above(tc.version, tc.rangeStr); got != tc.want {
+			t.Errorf("Above(%q, %q) = %v, want %v", tc.version, tc.rangeStr, got, tc.want)
+		}
+	}
+}

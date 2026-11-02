@@ -225,7 +225,7 @@ const (
 func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/versions":
-		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
+		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^1.0"}`)
 	case "/api/v1/bridge/projects/loupe/columns":
 		fmt.Fprint(w, `{"project":{"id":"`+testProject+`","slug":"loupe"},"columns":[{"slug":"next"}]}`)
 	case "/api/v1/bridge/projects/other/columns":

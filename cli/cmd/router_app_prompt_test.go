@@ -159,3 +159,22 @@ func TestAWorkOfferFromAnInboxActionNamesTheItemInItsPrompt(t *testing.T) {
 		}
 	}
 }
+
+// A draining bridge queues an offer and starts no worker until the drain ends.
+func TestADrainingRouterStartsNoWorkUntilTheDrainEnds(t *testing.T) {
+	h := newHarnessWith(t, appPromptRules, rules.Defaults{})
+	h.states()
+	f := h.withWork()
+	h.worker.result = workerResult{hasResult: true, status: "finished"}
+	h.router.setDraining(true)
+
+	h.offer(f, appPromptOffer(1))
+
+	if calls := h.worker.recorded(); len(calls) != 0 {
+		t.Fatalf("workers while draining = %+v", calls)
+	}
+
+	h.router.setDraining(false)
+
+	eventually(t, "the worker to start after the drain", func() bool { return len(h.worker.recorded()) == 1 })
+}

@@ -71,18 +71,18 @@ func (c *Client) Versions(ctx context.Context) (Versions, error) {
 }
 
 // CheckServer reads the versions and refuses a server that is too old or does
-// not serve ServedVersion. Any other failure passes, because the first
-// authenticated call then reports the unreachable server.
-func (c *Client) CheckServer(ctx context.Context) error {
+// not serve ServedVersion. Any other failure passes with empty versions, because
+// the first authenticated call then reports the unreachable server.
+func (c *Client) CheckServer(ctx context.Context) (Versions, error) {
 	versions, err := c.Versions(ctx)
 	switch {
 	case errors.Is(err, ErrServerTooOld):
-		return err
+		return versions, err
 	case err != nil:
-		return nil
+		return Versions{}, nil
 	case !versions.Serves(ServedVersion):
-		return ErrVersionUnserved
+		return versions, ErrVersionUnserved
 	}
 
-	return nil
+	return versions, nil
 }

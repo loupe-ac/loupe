@@ -13,4 +13,5 @@ enum CliUpdateState: string
     case Blocked = 'blocked';
     case Off = 'off';
     case Dev = 'dev';
+    case Draining = 'draining';
 }

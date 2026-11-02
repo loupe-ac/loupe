@@ -97,6 +97,20 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertNull($bridge->installMethod);
     }
 
+    public function test_a_draining_report_is_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-draining@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => '1.2.0', 'update' => ['state' => 'draining']]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(CliUpdateState::Draining, $this->bridge($owner, $bridgeId)->updateState);
+    }
+
     public function test_the_install_method_is_stored(): void
     {
         $client = static::createClient();

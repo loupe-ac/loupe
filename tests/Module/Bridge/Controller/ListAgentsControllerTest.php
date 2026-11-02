@@ -118,6 +118,8 @@ final class ListAgentsControllerTest extends WebTestCase
     #[TestWith(['2.2.0', 'off', null, null])]
     #[TestWith(['2.2.0', 'off', '2.3.0', 'Update available: 2.3.0'])]
     #[TestWith(['2.2.0', 'dev', null, null])]
+    #[TestWith(['1.2.0', 'draining', null, 'Draining: needs ^2.0'])]
+    #[TestWith(['2.2.0', 'draining', null, 'Draining: needs ^2.0'])]
     #[TestWith(['2.2.0', null, null, null])]
     #[TestWith(['3.0.0', 'current', null, 'Needs ^2.0'])]
     #[TestWith(['1.2.0', 'current', null, 'Needs ^2.0'])]

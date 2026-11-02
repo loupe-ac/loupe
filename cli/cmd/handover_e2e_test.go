@@ -157,7 +157,7 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case path == "/api/versions":
-		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
+		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^1.0"}`)
 	case path == "/api/v1/bridge/projects/loupe/columns":
 		fmt.Fprintf(w, `{"project":{"id":%q,"slug":"loupe"},"columns":[{"slug":"next"}]}`, testProject)
 	case path == "/api/v1/bridge/events":

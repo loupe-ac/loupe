@@ -1549,10 +1549,10 @@ conditions:
 - The release has the archive for this OS and CPU, and `checksums.txt`.
 
 The bridge installs that release when the running version is lower, or when the
-running version is outside the range. A bridge above the range therefore
-installs a lower version. When the running version is outside the range and no
-release fits, the bridge logs `update_unavailable` once and keeps running. The
-agents page then shows the chip "Needs ^2.0".
+running version is below the range. A bridge above the range installs nothing,
+because a lower version does not fit a newer server. When the running version is
+outside the range and no release fits, the bridge logs `update_unavailable`
+once and [drains](#draining).
 
 The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
@@ -1585,6 +1585,33 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 `auto_update_migration_failed` with the line to add by hand. It then adds the
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
+
+### At start
+
+A bridge reads `GET /api/versions` before it starts. This route needs no
+sign-in, and it names the API versions and the CLI range of the server. A server
+without the route is too old for this CLI, and the bridge exits with a sentence
+that says to upgrade Loupe. A version outside the range gets one of these
+results:
+
+- A development build or a build of a checkout warns once on stderr and runs.
+- A release binary updates itself when `autoUpdate` is `true`, and then exits
+  with "start the bridge again". When it cannot, it exits with the reason. A
+  directory that takes no new file is named in that reason.
+- A release binary with `autoUpdate` off exits with "Run: loupe update".
+- A Homebrew binary exits with "Run: brew upgrade loupe".
+- A binary above the range exits with "Upgrade the server".
+
+### Draining
+
+A running bridge that falls outside the range tries the same update. When the
+update cannot run, the bridge drains. It starts no new work, and the runs that
+already started go on. It keeps sending [heartbeats](../reference/bridge-heartbeat.md)
+with the update state `draining`, logs `bridge_draining` once, and checks again
+every hour. The agents page shows the chip "Draining: needs ^2.0". When the
+version is back inside the range, because the bridge updated or the server
+changed its range, the bridge logs `bridge_resumed` and takes work again. A
+development build and a prerelease never drain.
 
 ### Blocked
 

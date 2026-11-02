@@ -26,8 +26,12 @@ func versionsServer(t *testing.T, status int, body string) (*Client, *string) {
 
 func TestCheckServerSendsNoTokenAndAcceptsV1(t *testing.T) {
 	client, auth := versionsServer(t, http.StatusOK, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
-	if err := client.CheckServer(context.Background()); err != nil {
+	versions, err := client.CheckServer(context.Background())
+	if err != nil {
 		t.Fatalf("err = %v", err)
+	}
+	if versions.CLIRange != "^2.0" {
+		t.Fatalf("CLIRange = %q, want ^2.0", versions.CLIRange)
 	}
 	if *auth != "" {
 		t.Fatalf("Authorization = %q, want none", *auth)
@@ -49,7 +53,7 @@ func TestCheckServerRefusesWhatItCannotUse(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			client, _ := versionsServer(t, tc.status, tc.body)
-			err := client.CheckServer(context.Background())
+			_, err := client.CheckServer(context.Background())
 			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
 				t.Fatalf("err = %v, want %v", err, tc.want)
 			}

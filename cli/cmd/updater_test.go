@@ -413,7 +413,7 @@ func TestTheUpdaterWarnsOnceWhenNoReleaseFitsTheRange(t *testing.T) {
 	if h.events("update_unavailable") != 1 {
 		t.Fatalf("update_unavailable logged %d times: %s", h.events("update_unavailable"), h.log.String())
 	}
-	if got := h.u.state(); got != (api.HeartbeatUpdate{}) {
+	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "draining"}) {
 		t.Fatalf("state = %+v", got)
 	}
 }
@@ -555,5 +555,83 @@ func TestANudgeStartsOneCheckInTenMinutes(t *testing.T) {
 	u.nudge(now.Add(10 * time.Minute))
 	if len(u.kick) != 1 {
 		t.Fatal("a nudge after the window asks for no check")
+	}
+}
+
+func TestTheUpdaterDrainsWhileTheVersionIsOutsideTheRangeAndResumesInside(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "draining"}) {
+		t.Fatalf("state = %+v", got)
+	}
+	if h.events("bridge_draining") != 1 {
+		t.Fatalf("bridge_draining logged %d times: %s", h.events("bridge_draining"), h.log.String())
+	}
+
+	h.u.setRange("^1.0")
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State == "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(drains) == 0 || drains[0] != true || drains[len(drains)-1] != false {
+		t.Fatalf("drains = %v", drains)
+	}
+	if h.events("bridge_resumed") != 1 {
+		t.Fatalf("bridge_resumed logged %d times: %s", h.events("bridge_resumed"), h.log.String())
+	}
+}
+
+func TestTheUpdaterDrainsWhenAutoUpdateIsOffOrTheBinaryIsBlocked(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.auto = false
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if _, downloads := gh.counts(); downloads != 0 {
+		t.Fatalf("downloads = %d", downloads)
+	}
+}
+
+func TestTheUpdaterNeverDrainsADevelopmentBuildOrAPrerelease(t *testing.T) {
+	for _, running := range []string{"", "abc1234", "1.0.0-rc.1"} {
+		gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+		h := newTestUpdater(t, gh, running)
+		called := false
+		h.u.onDrain = func(bool) { called = true }
+		h.u.setRange("^2.0")
+
+		h.u.check(context.Background())
+
+		if called || h.u.state().State == "draining" {
+			t.Fatalf("running %q drained: %+v", running, h.u.state())
+		}
+	}
+}
+
+func TestTheUpdaterDrainsAVersionAboveTheRangeWithoutDowngrading(t *testing.T) {
+	gh := newFakeGitHub(t, "old binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "3.0.0")
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(h.staged) != 0 {
+		t.Fatalf("hook calls = %v", h.staged)
 	}
 }

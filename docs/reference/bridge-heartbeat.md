@@ -298,13 +298,15 @@ the owner recorded. The server compares the two logins without regard to case.
 | `blocked` | The bridge cannot write the directory of its binary, so it cannot install `version` |
 | `off` | `autoUpdate` is not `true`, and `version` waits |
 | `dev` | A development build, which never updates |
+| `draining` | The running version is outside the range and cannot update. The bridge starts no new work and keeps its heartbeat |
 
 The bridge sends no `update` until its first check has a state. Each heartbeat
 replaces the stored state, and a heartbeat with no `update` clears it. The
 agents page shows a chip from the stored state: "Up to date", "Updating",
-"Rolled back from" and the version, or "Update blocked". It shows "Needs ^1.0"
+"Rolled back from" and the version, or "Update blocked". It shows "Needs ^2.0"
 in place of all of them when `cliVersion` is outside the range, and a
-development build always is. `off` with a `version` shows "Update available"
+development build always is. The state `draining` shows "Draining: needs ^2.0"
+whatever the version. `off` with a `version` shows "Update available"
 and the version, with the command that installs it: `brew upgrade loupe` when
 `update.install` is `homebrew`, and
 `curl -fsSL https://<your Loupe>/install.sh | sh` in all other cases. `off`
