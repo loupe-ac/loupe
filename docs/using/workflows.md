@@ -658,6 +658,13 @@ or more starts, and the duration begins at the earliest one that happened. It
 cannot be used with `last`. A card with a start and no end after it has no
 value.
 
+The event `ready-to-merge` happens when Loupe reads that a pull request is ready
+to merge. A pull request that merges with no such read has its ready time at the
+merge, because a merge can come before the next read. A pass of the check
+`Loupe / Approval` is not a ready time, because the branch can still be behind
+its base. The event `{ arrived: <slot> }` happens when a card moves into the
+column of the slot, and also when a card is created in it.
+
 The Workflow page lists the metrics of the template in a **Metrics** section, after
 the card markers. Each row shows the label and the description, the key, the type
 and a sentence that says what the metric reads. A template that declares no
