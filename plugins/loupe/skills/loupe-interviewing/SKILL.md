@@ -55,4 +55,4 @@ Let the owner check every decision before you write the document. Skip the recap
 
 Stop asking when no open decision is left. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the question rules above. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
 
-Then run the recap. After the recap, the document is the full readback. Ask for no other confirmation in the terminal. A correction after that comes back as a review comment, and the fix round answers it.
+The session then runs the phases that its flow names. It runs the recap once, after its final required decision. After the recap, the document is the full readback. Ask for no other confirmation in the terminal. A correction after that comes back as a review comment, and the fix round answers it.
