@@ -73,7 +73,7 @@ final readonly class DocumentPosition
         }
 
         $at = \DateTimeImmutable::createFromFormat(self::TIME_FORMAT, $time);
-        if (false === $at) {
+        if (false === $at || $at->format(self::TIME_FORMAT) !== $time) {
             throw self::broken();
         }
 

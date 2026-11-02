@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Api;
 
+use App\Api\Pagination\Cursor;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Tests\Support\AgentCredential;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Uid\Uuid;
 
 /** The read routes of the public document API: the list, one document, its versions and one version. */
 final class DocumentReadApiTest extends WebTestCase
@@ -182,6 +185,28 @@ final class DocumentReadApiTest extends WebTestCase
         $this->send(Request::METHOD_GET, $this->base().'?cursor=nonsense');
         self::assertResponseStatusCodeSame(400);
         self::assertSame('invalid_cursor', $this->json()['code']);
+    }
+
+    /** @param array<string, scalar|null> $filters */
+    #[DataProvider('brokenPositions')]
+    public function test_a_cursor_whose_date_does_not_exist_is_refused(string $query, string $sort, string $position, array $filters): void
+    {
+        $this->document('One', createdAt: '2026-01-01 10:00:00');
+
+        $cursor = new Cursor($sort, $position, (string) Uuid::v7(), $filters);
+        $this->send(Request::METHOD_GET, $this->base().'?'.$query.'cursor='.$cursor->encode());
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame('invalid_cursor', $this->json()['code']);
+    }
+
+    /** @return iterable<string, array{string, string, string, array<string, scalar|null>}> */
+    public static function brokenPositions(): iterable
+    {
+        yield 'a month and a day out of range' => ['', 'oldest', '2026-99-99 00:00:00.000000', []];
+        yield 'a day the month does not have' => ['', 'oldest', '2026-02-30 00:00:00.000000', []];
+        yield 'a time out of range' => ['', 'oldest', '2026-01-01 25:00:00.000000', []];
+        yield 'a date out of range under a search' => ['q=needle&', 'relevance', '1|2026-99-99 00:00:00.000000', ['q' => 'needle']];
     }
 
     public function test_the_limit_goes_to_200(): void
