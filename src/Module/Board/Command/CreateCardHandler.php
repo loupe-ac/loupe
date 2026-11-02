@@ -169,7 +169,7 @@ final readonly class CreateCardHandler
             $this->cardEvents->record($card, CardEventKind::Created, $actor, $this->eventActor->userFor($actor), [
                 'column' => CardEvent::columnDetail($column),
                 'type' => $card->type,
-            ], $card->createdAt);
+            ], $card->createdAt, $this->eventActor->apiKeyFor($actor));
             if (null !== $command->requiresHumanReview) {
                 $this->humanReviewSwitch->set($card, $command->requiresHumanReview, $actor);
             }

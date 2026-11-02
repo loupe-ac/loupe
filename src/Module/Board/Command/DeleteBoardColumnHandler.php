@@ -113,9 +113,10 @@ final readonly class DeleteBoardColumnHandler
                 $to = CardEvent::columnDetail($target);
                 $cause = CardEventCause::columnDeleted($column->label)->detail();
                 $user = $this->eventActor->userFor($command->actor);
+                $apiKey = $this->eventActor->apiKeyFor($command->actor);
                 foreach ($rows as $row) {
                     $card = $this->em->getReference(Card::class, Uuid::fromString($row['id'])) ?? throw new \LogicException('A moved card exists.');
-                    $this->cardEvents->record($card, CardEventKind::Moved, $command->actor, $user, ['from' => $from, 'to' => $to, 'cause' => $cause], $now);
+                    $this->cardEvents->record($card, CardEventKind::Moved, $command->actor, $user, ['from' => $from, 'to' => $to, 'cause' => $cause], $now, $apiKey);
                     // The shape CardMove::auditContext() gives a single move.
                     $moves[] = [
                         'cardId' => $row['id'],

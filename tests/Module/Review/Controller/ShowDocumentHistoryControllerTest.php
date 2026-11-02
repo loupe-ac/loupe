@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Uid\Uuid;
 
 final class ShowDocumentHistoryControllerTest extends WebTestCase
 {
@@ -219,6 +220,33 @@ final class ShowDocumentHistoryControllerTest extends WebTestCase
         );
         self::assertSelectorExists('.lp-history-log .lp-history__review-agent > svg.lp-icon');
         self::assertSelectorExists('.lp-review[data-controller~="review-draft-live"][data-review-draft-live-url-value$="/review/draft-state"]');
+    }
+
+    public function test_the_history_says_which_verdicts_a_key_recorded(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'history-key', 'history-key@example.com');
+        $project = $this->project($em, $owner);
+        $document = new Document(owner: $owner, project: $project, title: 'Key history');
+        $version = $document->addVersion('# First', '<h1>First</h1>');
+        $em->persist($document);
+        $em->persist(new Review($version, Verdict::Approved, $owner, 1, apiKeyId: Uuid::v7(), apiKeyName: 'CI'));
+        $em->persist(new Review($version, Verdict::Withdrawn, $owner, 2, apiKeyId: Uuid::v7()));
+        $em->persist(new Review($version, Verdict::Approved, $owner, 3));
+        $em->flush();
+        $path = '/projects/'.$project->id.'/documents/'.$document->id.'/review/history';
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            ["Recorded through API key 'CI'", 'Recorded through an API key'],
+            $crawler->filter('.lp-history-log .lp-history__review-api-key')->each(static fn (Crawler $node): string => trim($node->text())),
+        );
+        self::assertSelectorNotExists('.lp-history-log .lp-history__review-agent');
     }
 
     /**

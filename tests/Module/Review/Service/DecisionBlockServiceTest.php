@@ -1093,4 +1093,18 @@ final class DecisionBlockServiceTest extends TestCase
         self::assertSame(1, substr_count($marked, 'data-decision-through-agent'));
         self::assertSame(strip_tags($html), strip_tags($marked));
     }
+
+    public function test_showing_a_block_names_the_key_that_answered_it_in_an_escaped_attribute(): void
+    {
+        $html = $this->renderer->render(
+            "<!-- decision: a -->\n\n- ( ) One\n- ( ) Two\n\n<!-- /decision -->\n\n"
+            ."<!-- decision: b -->\n\n- ( ) Three\n- ( ) Four\n\n<!-- /decision -->\n",
+        );
+
+        $marked = $this->decisions->withSelections($html, [], readOnly: false, apiKeyNamesByDecisionId: ['a' => 'CI "main"']);
+
+        self::assertStringContainsString('data-decision-api-key="CI &quot;main&quot;"', $marked);
+        self::assertSame(1, substr_count($marked, 'data-decision-api-key='));
+        self::assertSame(strip_tags($html), strip_tags($marked));
+    }
 }

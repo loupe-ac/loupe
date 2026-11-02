@@ -14,6 +14,7 @@ use App\Module\Review\Service\CommentExporter;
 use App\Module\Review\ValueObject\Anchor;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class CommentExporterTest extends TestCase
 {
@@ -88,5 +89,26 @@ final class CommentExporterTest extends TestCase
         self::assertNull($rows[0]['replacement']);
         self::assertSame('', $rows[1]['replacement']);
         self::assertSame('better wording', $rows[2]['replacement']);
+    }
+
+    public function test_exports_the_key_a_comment_was_written_through(): void
+    {
+        $author = new User('Alice A', 'alice@example.com', 'x');
+        $document = new Document($author, new Project($author, 'My project'), 'My doc');
+        $version = $document->addVersion('# v1', '<h1>v1</h1>');
+        $keyId = Uuid::v7();
+        $keyed = new Comment($version, $author, 'from a script', Anchor::unanchored(), apiKeyId: $keyId, apiKeyName: 'CI');
+        $plain = new Comment($version, $author, 'by hand', Anchor::unanchored());
+
+        /** @var CommentRepository&Stub $repo */
+        $repo = $this->createStub(CommentRepository::class);
+        $repo->method('findByAuthor')->willReturn([$keyed, $plain]);
+
+        $rows = iterator_to_array(new CommentExporter($repo)->export($author));
+
+        self::assertSame((string) $keyId, $rows[0]['apiKeyId']);
+        self::assertSame('CI', $rows[0]['apiKeyName']);
+        self::assertNull($rows[1]['apiKeyId']);
+        self::assertNull($rows[1]['apiKeyName']);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Module\Board\EventListener;
 use App\Module\Board\Service\DocumentVerdictEvents;
 use App\Module\Review\Event\VerdictWithdrawn;
 use App\Module\Workflow\Contract\Actor;
+use App\Security\ApiKeyActor;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 #[AsEventListener]
@@ -21,14 +22,16 @@ final readonly class WriteCardEventOnVerdictWithdrawn
     {
         $withdrawal = $event->withdrawal;
         $byRule = null !== $withdrawal->workflowRule;
+        $byKey = null !== $withdrawal->apiKeyId;
 
         $this->events->record(
             $withdrawal->version->document,
             $withdrawal->workflowRule,
-            $byRule ? Actor::System : Actor::Human,
+            $byRule ? Actor::System : ($byKey ? Actor::ApiKey : Actor::Human),
             $byRule ? null : $withdrawal->reviewer,
             ['verdict' => $withdrawal->verdict->value, 'withdrawn' => $event->withdrawn->verdict->value],
             $withdrawal->submittedAt,
+            null !== $withdrawal->apiKeyId ? new ApiKeyActor($withdrawal->apiKeyId, $withdrawal->apiKeyName ?? '') : null,
         );
     }
 }

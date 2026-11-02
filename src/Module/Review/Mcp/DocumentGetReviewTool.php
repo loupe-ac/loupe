@@ -15,7 +15,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type ReviewPayload from ShowReviewHandler
  */
-#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, answered decision blocks, and the agent reviews with their answers) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections. verdictId is the id of the newest entry of the verdict log, a withdrawal included, and verdictThroughAgent says that an agent recorded it for the owner. The verdict tools take that verdictId. Each decision reports through_agent when an agent recorded its answer for the owner.')]
+#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, answered decision blocks, and the agent reviews with their answers) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections. verdictId is the id of the newest entry of the verdict log, a withdrawal included, and verdictThroughAgent says that an agent recorded it for the owner, and verdictThroughApiKey says that an API key did. The verdict tools take that verdictId. Each decision reports through_agent when an agent recorded its answer for the owner, and through_api_key when an API key did.')]
 final readonly class DocumentGetReviewTool
 {
     public function __construct(
@@ -74,7 +74,7 @@ final readonly class DocumentGetReviewTool
      * `verdictId` is the id of the newest entry of the verdict log on the current version, a
      * withdrawal included, or null while the log is empty. The verdict tools take it, so read
      * it again before you call one. `verdictThroughAgent` is true when an agent recorded that
-     * entry for the owner, and false when the log is empty
+     * entry for the owner, and false when the log is empty. `verdictThroughApiKey` says the same of an API key
      *
      * `agentReviews` lists each agent review of the document, newest first. Each carries the
      * `cardId` of the card it reviewed, the `versionNumber` that the reviewer read, its

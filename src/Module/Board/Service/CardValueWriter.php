@@ -89,7 +89,7 @@ final readonly class CardValueWriter
             'key' => $key,
             'value' => $value,
             'previous' => $previous,
-        ]);
+        ], null, $this->eventActor->apiKeyFor($actor));
 
         return true;
     }

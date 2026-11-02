@@ -4157,7 +4157,8 @@
     .lp-history__review-note {
         @apply m-0 basis-full max-w-prose whitespace-pre-wrap break-words;
     }
-    .lp-history__review-agent {
+    .lp-history__review-agent,
+    .lp-history__review-api-key {
         @apply m-0 flex basis-full items-center gap-1.5 text-xs text-fg-dim;
     }
     .lp-history__actions {
@@ -5066,7 +5067,8 @@
     .lp-verdict-chip__note {
         @apply m-0 whitespace-pre-wrap text-ink;
     }
-    .lp-verdict-chip__agent {
+    .lp-verdict-chip__agent,
+    .lp-verdict-chip__api-key {
         @apply m-0 flex items-center gap-1.5 text-xs text-fg-dim;
     }
     .lp-verdict-chip__actions {

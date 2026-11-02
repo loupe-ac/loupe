@@ -16,6 +16,7 @@ use App\Module\Workflow\Contract\Actor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Translation\TranslatableMessage;
+use Symfony\Component\Uid\Uuid;
 
 final class CardHistoryEntryTest extends TestCase
 {
@@ -623,13 +624,38 @@ final class CardHistoryEntryTest extends TestCase
         ];
     }
 
+    public function test_an_api_key_row_names_the_key_and_its_owner(): void
+    {
+        $event = $this->event(CardEventKind::Created, Actor::ApiKey, $this->user, ['column' => self::BACKLOG], 'CI');
+
+        $entry = CardHistoryEntry::of($event);
+
+        self::assertEquals(new TranslatableMessage('board.card.history.actor.api_key', ['%name%' => 'CI', '%owner%' => 'Riley Chen']), $entry->actor);
+    }
+
+    public function test_an_api_key_row_without_a_name_snapshot_names_the_owner_only(): void
+    {
+        self::assertEquals(
+            new TranslatableMessage('board.card.history.actor.api_key_unnamed', ['%owner%' => 'Riley Chen']),
+            CardHistoryEntry::actorLabel(Actor::ApiKey, $this->user, null),
+        );
+    }
+
+    public function test_an_api_key_row_of_a_deleted_owner_says_so(): void
+    {
+        self::assertEquals(
+            new TranslatableMessage('board.card.history.actor.api_key', ['%name%' => 'CI', '%owner%' => new TranslatableMessage('board.card.history.actor.deleted')]),
+            CardHistoryEntry::actorLabel(Actor::ApiKey, null, 'CI'),
+        );
+    }
+
     /** @param array<string, mixed> $detail */
-    private function event(CardEventKind $kind, Actor $actorKind, ?User $actor, array $detail): CardEvent
+    private function event(CardEventKind $kind, Actor $actorKind, ?User $actor, array $detail, ?string $apiKeyName = null): CardEvent
     {
         $project = new Project($this->user, 'history');
         $column = new BoardColumn($project, 'board.column.backlog', 'backlog', 0);
         $card = new Card(project: $project, column: $column, title: 'A card', body: '', number: 1);
 
-        return new CardEvent($card, $project, $kind, $actorKind, $actor, $detail, new \DateTimeImmutable('2026-09-30 10:00'));
+        return new CardEvent($card, $project, $kind, $actorKind, $actor, $detail, new \DateTimeImmutable('2026-09-30 10:00'), apiKeyId: null === $apiKeyName ? null : Uuid::v7(), apiKeyName: $apiKeyName);
     }
 }

@@ -16,6 +16,7 @@ use App\Module\Review\Command\SaveDecisionAnswerCommand;
 use App\Module\Review\Command\SaveDecisionAnswerHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DecisionAnswerRepository;
+use App\Security\ApiKeyActor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Drives the save path and reads what reaches the hub, so the page of another
@@ -88,6 +90,20 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
         self::assertFalse($messages[0]['throughAgent']);
     }
 
+    public function test_an_answer_recorded_through_an_api_key_publishes_the_key_name(): void
+    {
+        $this->save([1], null, apiKey: new ApiKeyActor(Uuid::v7(), 'CI'));
+        $messages = $this->drain();
+        self::assertCount(1, $messages);
+        self::assertSame('CI', $messages[0]['apiKeyName']);
+        self::assertFalse($messages[0]['throughAgent']);
+
+        $this->save([1], null);
+        $messages = $this->drain();
+        self::assertCount(1, $messages);
+        self::assertNull($messages[0]['apiKeyName']);
+    }
+
     public function test_a_save_that_changes_nothing_publishes_nothing(): void
     {
         $this->save([1], null);
@@ -129,6 +145,7 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
             'note' => null,
             'answeredBy' => null,
             'throughAgent' => false,
+            'apiKeyName' => null,
             'origin' => null,
         ], $messages[0]);
     }
@@ -159,9 +176,9 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
     }
 
     /** @param list<int> $indexes */
-    private function save(array $indexes, ?string $note, bool $clear = false, int $version = 1, bool $throughAgent = false): void
+    private function save(array $indexes, ?string $note, bool $clear = false, int $version = 1, bool $throughAgent = false, ?ApiKeyActor $apiKey = null): void
     {
-        $this->service(SaveDecisionAnswerHandler::class)(new SaveDecisionAnswerCommand($this->document, 'features', $version, $indexes, $note, $clear, $this->owner, $throughAgent));
+        $this->service(SaveDecisionAnswerHandler::class)(new SaveDecisionAnswerCommand($this->document, 'features', $version, $indexes, $note, $clear, $this->owner, $throughAgent, apiKey: $apiKey));
     }
 
     /**
@@ -183,6 +200,7 @@ final class PublishDecisionChangedOnDecisionAnswerChangedTest extends KernelTest
             'answeredBy' => $answeredBy,
             'answeredAt' => $answer->updatedAt->format(\DATE_ATOM),
             'throughAgent' => false,
+            'apiKeyName' => null,
             'origin' => null,
         ];
     }

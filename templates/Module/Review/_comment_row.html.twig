@@ -32,7 +32,7 @@
     {% endif %}
     {% if sheet %}
     <span class="lp-comment-row__meta">
-        <span class="lp-comment-row__author">{{ comment.author.fullName }}</span>
+        <span class="lp-comment-row__author">{{ comment_author_label(comment) }}</span>
         {% if comment.createdAt is not null %}
         <span class="lp-comment-row__age"><twig:Ds:RelativeTime :datetime="comment.createdAt" /></span>
         {% endif %}

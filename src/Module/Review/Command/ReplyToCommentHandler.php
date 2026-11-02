@@ -62,6 +62,8 @@ final readonly class ReplyToCommentHandler
                 body: $command->body,
                 anchor: $parent->anchor,
                 parent: $parent,
+                apiKeyId: $command->apiKey?->keyId,
+                apiKeyName: $command->apiKey?->keyName,
             );
             $this->em->persist($reply);
 
@@ -78,6 +80,7 @@ final readonly class ReplyToCommentHandler
                 'commentId' => (string) $reply->id,
                 'parentCommentId' => (string) $parent->id,
                 'documentId' => (string) $parent->version->document->id,
+                ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
             ],
             new AuditSubject('comment', (string) $reply->id),
         );

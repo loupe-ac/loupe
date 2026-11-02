@@ -21,9 +21,11 @@ use App\Module\Review\Repository\DecisionAnswerRepository;
 use App\Module\Review\Repository\DecisionSelectionRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Service\DecisionBlockService;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class SaveDecisionAnswerHandlerTest extends KernelTestCase
@@ -380,6 +382,47 @@ final class SaveDecisionAnswerHandlerTest extends KernelTestCase
         self::assertNull($this->answerRow('target')->note);
     }
 
+    public function test_an_answer_recorded_through_an_api_key_names_the_key(): void
+    {
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+
+        $this->answer('target', [1], apiKey: $key);
+
+        $row = $this->answerRow('target');
+        self::assertEquals($key->keyId, $row->answeredApiKeyId);
+        self::assertSame('CI', $row->answeredApiKeyName);
+        self::assertFalse($row->answeredThroughAgent);
+        self::assertSame('CI', $this->audit->record('review.decision_saved')->context['apiKeyName']);
+    }
+
+    public function test_the_owner_confirming_the_same_option_on_the_page_removes_the_key(): void
+    {
+        $this->answer('target', [1], apiKey: new ApiKeyActor(Uuid::v7(), 'CI'));
+
+        $result = $this->answer('target', [1]);
+
+        self::assertTrue($result->changed);
+        self::assertNull($this->answerRow('target')->answeredApiKeyId);
+        self::assertNull($this->answerRow('target')->answeredApiKeyName);
+    }
+
+    public function test_a_repeat_through_the_same_key_writes_nothing_and_another_key_does(): void
+    {
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+        $this->answer('target', [1], apiKey: $key);
+
+        self::assertFalse($this->answer('target', [1], apiKey: $key)->changed);
+        self::assertTrue($this->answer('target', [1], apiKey: new ApiKeyActor(Uuid::v7(), 'Other'))->changed);
+        self::assertSame('Other', $this->answerRow('target')->answeredApiKeyName);
+    }
+
+    public function test_an_answer_cannot_be_through_a_key_and_an_agent_at_once(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        $this->answer('target', [1], throughAgent: true, apiKey: new ApiKeyActor(Uuid::v7(), 'CI'));
+    }
+
     public function test_the_audit_records_carry_the_agent_mark(): void
     {
         $this->answer('target', [1], throughAgent: true);
@@ -400,9 +443,9 @@ final class SaveDecisionAnswerHandlerTest extends KernelTestCase
     /**
      * @param list<int> $indexes
      */
-    private function answer(string $decisionId, array $indexes, ?string $note = null, bool $clear = false, int $version = 1, bool $throughAgent = false): SaveDecisionAnswerResult
+    private function answer(string $decisionId, array $indexes, ?string $note = null, bool $clear = false, int $version = 1, bool $throughAgent = false, ?ApiKeyActor $apiKey = null): SaveDecisionAnswerResult
     {
-        return ($this->save)(new SaveDecisionAnswerCommand($this->document, $decisionId, $version, $indexes, $note, $clear, $this->owner, $throughAgent));
+        return ($this->save)(new SaveDecisionAnswerCommand($this->document, $decisionId, $version, $indexes, $note, $clear, $this->owner, $throughAgent, apiKey: $apiKey));
     }
 
     /**

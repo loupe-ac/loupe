@@ -15,9 +15,11 @@ use App\Module\Review\Command\ReplyToCommentCommand;
 use App\Module\Review\Command\ReplyToCommentHandler;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 
@@ -92,6 +94,29 @@ final class ReplyToCommentHandlerTest extends KernelTestCase
         } catch (DomainErrors $e) {
             self::assertSame(['body' => 'comment.error.reply_to_reply'], $e->errors);
         }
+    }
+
+    public function test_a_reply_through_an_api_key_keeps_the_owner_as_author_and_names_the_key(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        [$owner, , $parent] = $this->seedForAudit('reply-key@example.com');
+        $handler = self::getContainer()->get(ReplyToCommentHandler::class);
+        self::assertInstanceOf(ReplyToCommentHandler::class, $handler);
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+        $audit->forget();
+
+        $keyed = $handler(new ReplyToCommentCommand(actor: $owner, parent: $parent, body: 'From a script', apiKey: $key));
+        $plain = $handler(new ReplyToCommentCommand(actor: $owner, parent: $parent, body: 'By hand'));
+
+        self::assertSame($owner, $keyed->author);
+        self::assertEquals($key->keyId, $keyed->apiKeyId);
+        self::assertSame('CI', $keyed->apiKeyName);
+        self::assertNull($plain->apiKeyId);
+        self::assertNull($plain->apiKeyName);
+        $record = $audit->records('review.comment_replied')[0];
+        self::assertSame((string) $key->keyId, $record->context['apiKeyId']);
+        self::assertSame('CI', $record->context['apiKeyName']);
     }
 
     public function test_a_reply_is_recorded_on_the_domain_channel(): void
