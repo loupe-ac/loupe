@@ -23,12 +23,16 @@ Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per t
 
 ## Checks
 
-1. The `brainstorming` skill was loaded. Without it, the other checks prove nothing.
-2. No file exists under `docs/superpowers/`.
-3. The repository has no new commit.
-4. No `writing-plans` skill load or read.
-5. `document_create` was called, and `document_publish` was not.
-6. The document names the skill and its plugin.
+1. Each `claude` turn exited 0 and ended with a result event that is not an error.
+2. The session called `card_run_close`. A run that uses every turn without that call fails.
+3. The `brainstorming` skill was loaded. Without it, the other checks prove nothing.
+4. No file exists under `docs/superpowers/`.
+5. The repository has no new commit.
+6. No `writing-plans` skill load or read.
+7. `document_create` was called, and `document_publish` was not.
+8. The document names the skill and its plugin.
+
+`tests/js/session_test_run.test.js` runs the script with a fake `claude`, and covers checks 1 and 2.
 
 ## Output
 

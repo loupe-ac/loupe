@@ -140,6 +140,7 @@ const transcriptPath = join(out, 'transcript.jsonl');
 writeFileSync(transcriptPath, '');
 const sessionId = randomUUID();
 let cost = 0;
+let turnFailure = null;
 const called = () =>
     readFileSync(callLog, 'utf8')
         .split('\n')
@@ -189,15 +190,19 @@ for (let turn = 0; turn < maxTurns; turn++) {
             join(out, 'stderr.log'),
             `--- turn ${turn}\n${r.stderr}`,
         );
+    let result = null;
     for (const line of (r.stdout || '').split('\n')) {
         try {
             const e = JSON.parse(line);
-            if (e.type === 'result' && e.total_cost_usd)
-                cost += e.total_cost_usd;
+            if (e.type === 'result') {
+                result = e;
+                if (e.total_cost_usd) cost += e.total_cost_usd;
+            }
         } catch {}
     }
-    if (r.status !== 0) {
-        console.error(`claude exited ${r.status} on turn ${turn}; see ${out}`);
+    if (r.status !== 0 || !result || result.is_error) {
+        turnFailure = { turn, status: r.status, result: result?.subtype };
+        console.error(`claude failed on turn ${turn}; see ${out}`);
         break;
     }
     if (called().some((c) => c.tool === 'card_run_close')) break;
@@ -250,6 +255,11 @@ const logNamesSkill =
     /brainstorming/i.test(logText) && /superpowers/i.test(logText);
 
 const checks = [
+    ['every claude turn succeeded', turnFailure === null],
+    [
+        'session finished with card_run_close',
+        calls.some((c) => c.tool === 'card_run_close'),
+    ],
     [
         'brainstorming skill was loaded (else the test proves nothing)',
         brainstormingLoaded,
@@ -271,6 +281,7 @@ const report = {
     sessionId,
     out,
     cost,
+    turnFailure,
     skillCalls,
     specFiles,
     commitCount,
