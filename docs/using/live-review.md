@@ -299,8 +299,8 @@ Pass `surface=ios-simulator` to list the notes of the native surface.
 All widget routes live under `/api/v1/live-review-widget`.
 The old paths `/api/live-review/...` and `/api/board/cards...` and `/api/board/feedback...` still answer for one server release, so an old copy of the script keeps working.
 
-An old copy of the widget script saves through `POST /api/site-review/comments`.
-That path is gone and answers HTTP 404, so the old copy cannot save a note.
+An old copy of the widget script saves through `POST /api/live-review/comments`.
+That path answers HTTP 410 with the code `widget_outdated`, so the old copy tells its reviewer to reload and cannot save a note.
 Load the script from `/live-review/widget.js` to get the current widget.
 
 ## Resolving a note

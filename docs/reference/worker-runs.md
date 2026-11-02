@@ -73,7 +73,7 @@ runs of one card that follow each other this way form a series.
 
 ## Reporting a run state
 
-`PUT /api/projects/{handle}/worker-runs/{runId}`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}`
 
 The handle is a project id or a project slug. A project name does not resolve.
 `runId` is a uuid the bridge generates for each event it accepts. The server
@@ -321,7 +321,7 @@ the attempt ID. It is not the `runId`.
 
 ## Reporting the runs a bridge holds
 
-`PUT /api/bridges/{bridgeId}/runs`
+`PUT /api/v1/bridge/bridges/{bridgeId}/runs`
 
 The bridge sends this report each time it connects to the hub. It lists every
 open run the bridge holds, across all its projects.
@@ -367,7 +367,7 @@ Each change writes a history row, stamped with the server clock.
 
 ## Reporting the usage of a session
 
-`PUT /api/projects/{handle}/worker-runs/sessions/{sessionId}/usage`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage`
 
 A session can run more than one worker process, because each resume runs a new
 one. The bridge sends this report when it knows the usage of those processes
@@ -428,7 +428,7 @@ unknown id count as no run, so the server writes nothing and answers 409 with
 
 ## Reporting the tool calls of a run
 
-`PUT /api/projects/{handle}/worker-runs/{runId}/tool-calls`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls`
 
 The bridge sends this report when a worker ends, after the final state of the
 run. `runId` is the uuid the bridge generated for the run. One request holds at
@@ -550,7 +550,7 @@ again from the stored times.
 
 ## Appending the output of a run
 
-`PUT /api/projects/{handle}/worker-runs/{runId}/output`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output`
 
 The bridge sends the live output of a command run in pieces. `runId` is the
 uuid the bridge generated for the run, and the run must belong to the bridge
@@ -590,7 +590,7 @@ the run.
 
 ## Resolving an experiment pin
 
-`PUT /api/projects/{handle}/experiments/{experiment}/pins/{cardId}`
+`PUT /api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}`
 
 A rule can split its runs between the variants of an experiment. The bridge
 draws a candidate variant for the card, and calls this endpoint before it starts
@@ -757,7 +757,7 @@ in the web UI. The run keeps the state `queued`.
 
 ## Closing an interactive session
 
-`POST /api/interactive-sessions/{sessionId}/close` closes every open
+`POST /api/v1/bridge/interactive-sessions/{sessionId}/close` closes every open
 interactive run of one session. The exit hook of the Loupe plugin calls it, through `loupe session end`.
 The route names no project, because one session can work in several. It closes the runs in every project
 that the token owner owns, and it leaves the runs of another account as they are.
@@ -807,7 +807,7 @@ A run that closed before the reason existed shows none.
 ## Feature flag and rate limit
 
 The endpoints on this page, except the session close endpoint, need the
-`agent.push.enabled` feature flag, as `GET /api/events` does. A bridge reaches a worker only through the event
+`agent.push.enabled` feature flag, as `GET /api/v1/bridge/events` does. A bridge reaches a worker only through the event
 stream, so an instance with push off can produce no run to report, and each
 of those endpoints answers 404 there.
 

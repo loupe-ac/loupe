@@ -149,7 +149,7 @@ The discovery document is at `/.well-known/oauth-authorization-server`
 - The `iss` parameter on every redirect back to the app (RFC 9207).
 
 Access tokens are JWTs that live for one hour. Send them in an
-`Authorization: Bearer` header to `/mcp` or `/api`.
+`Authorization: Bearer` header to `/mcp` or to a route under `/api/v1`.
 
 An operator registers each app with `league:oauth2-server:create-client`. See
 [Commands](../reference/commands.md). Loupe has no dynamic client

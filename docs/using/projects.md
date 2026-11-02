@@ -46,7 +46,7 @@ Agent configuration and rules remain read-only in Loupe. Configure them through 
 
 ## Create a project from the CLI
 
-A signed-in `loupe` CLI creates a project with `POST /api/projects`. Send a JSON body with a `name`, an optional `domain`, an optional `origins` list and an optional `remote`, the git URL of the repository.
+A signed-in `loupe` CLI creates a project with `POST /api/v1/projects`. Send a JSON body with a `name`, an optional `domain`, an optional `origins` list and an optional `remote`, the git URL of the repository.
 The old `website` field is gone. A request that sends it creates a project with no domain.
 The `origins` list sets the allowed origins of the site-review widget. The call accepts what the allowed-origins setting accepts, and at most 20 origins after duplicates go. A bad origin gets `422` with a `violations` list, and Loupe creates no project.
 A request with a `remote` and no `name` names the project after the repository. The new project gets the same board and workflow as a project made in the app.

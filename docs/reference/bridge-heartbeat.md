@@ -15,7 +15,7 @@ nothing to do.
 
 ## Posting a heartbeat
 
-`PUT /api/bridges/{bridgeId}/heartbeat`
+`PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat`
 
 The bridge authenticates with an OAuth token that carries the agent scope, as
 it does for [worker runs](worker-runs.md). The firewall refuses a token that
@@ -379,7 +379,7 @@ A value below 10 reads as the default, because a shorter interval lets one
 bridge spend most of its token's limit. The bridge applies the same floor to the
 value it receives.
 
-`GET /api/events` shares the value with each bridge in its `flags` map. A bridge
+`GET /api/v1/bridge/events` shares the value with each bridge in its `flags` map. A bridge
 reads the map at start, at each reconnect and at each `loupe bridge reload`, so
 a change reaches a running bridge at its next reconnect or reload. A lower
 interval makes the bridges of one token reach the limit sooner.
@@ -423,7 +423,7 @@ end. A task runs each minute and marks each open run of a quiet bridge
 intervals, and a lowered flag never shortens that wait. A later report from the
 bridge replaces the timeout.
 
-The bridge also sends the runs it holds to `PUT /api/bridges/{bridgeId}/runs`
+The bridge also sends the runs it holds to `PUT /api/v1/bridge/bridges/{bridgeId}/runs`
 each time it connects to the hub. The server marks `lost` each open or timed-out
 run of that bridge that the list does not name. See
 [Timed out and lost](worker-runs.md#timed-out-and-lost).
@@ -571,13 +571,13 @@ and you change them at **`/admin/feature-flags`**:
 
 The defaults come from `app.bridge.default_stop_sigterm_after_ms` and
 `app.bridge.default_stop_sigkill_after_ms` in `config/services.yaml`. A value
-below 100 reads as the default. `GET /api/events` shares both values with each
+below 100 reads as the default. `GET /api/v1/bridge/events` shares both values with each
 bridge in its `flags` map. A change reaches a running bridge at its next
 reconnect or `loupe bridge reload`.
 
 ### Acknowledging a command
 
-`PUT /api/bridges/{bridgeId}/commands/{commandId}`
+`PUT /api/v1/bridge/bridges/{bridgeId}/commands/{commandId}`
 
 The bridge sends its answer after it acts on a command. It uses the same token
 as the heartbeat.
@@ -691,7 +691,7 @@ The event and the reply never carry the claim token.
 
 ### Claiming a request
 
-`POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
+`POST /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
 
 The bridge claims an open request before it starts the work. It uses the same
 token as the heartbeat. The body names the account that the bridge chose for the
@@ -768,7 +768,7 @@ it in `lostClaims`, or when the result answers `claim_lost`.
 
 ### Sending the result
 
-`PUT /api/bridges/{bridgeId}/work-requests/{workRequestId}/result`
+`PUT /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result`
 
 The bridge sends the result after it ends the work. It uses the same token as
 the heartbeat.
