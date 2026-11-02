@@ -270,10 +270,10 @@ final class InboxReadRecordingTest extends KernelTestCase
 
         ($this->list)(readerSessionId: (string) $ask->sessionId);
         ($this->get)((string) $item->id, readerSessionId: (string) $ask->sessionId);
-        $connection->executeStatement("UPDATE inbox_items SET answer_text = 'Use JSON' WHERE id = ?", [(string) $item->id]);
+        $connection->executeStatement("UPDATE inbox_items SET note = 'Use JSON' WHERE id = ?", [(string) $item->id]);
         $this->em->flush();
 
-        self::assertSame('Use JSON', $connection->fetchOne('SELECT answer_text FROM inbox_items WHERE id = ?', [(string) $item->id]));
+        self::assertSame('Use JSON', $connection->fetchOne('SELECT note FROM inbox_items WHERE id = ?', [(string) $item->id]));
     }
 
     /** @return array{Project, InboxItem, InboxAsk} */
