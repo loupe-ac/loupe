@@ -728,6 +728,10 @@ with an older template refuses it, and the card takes step 5:
 A project that does nothing of this still works. The card reaches Implementation
 when the pull request is linked.
 
+### Interactive design sessions and installed skills
+
+The product design and tech design sessions read the skill list of your harness. When one installed skill explores an idea, requirements or a design through questions, the session offers it as the interview method. With several matches, the session asks you once, and "the Loupe method" is one option. The skill leads the questions. Loupe keeps every output: the document, its tags, the decisions log and the draft state. The session writes no spec file, makes no commit, and stops at the document where the skill would hand off to a planning skill.
+
 ### Interactive tech design
 
 The card value `tech-design-interactive` is the switch "Interactive session" under Tech design. It starts off.
