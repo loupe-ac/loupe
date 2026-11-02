@@ -19,6 +19,10 @@ final readonly class ReconcileCardWaitsOnCardChanged
 
     public function __invoke(CardChanged $event): void
     {
+        if ($event->batched) {
+            return;
+        }
+
         $this->trigger->forCards($event->projectId, [(string) $event->cardId]);
     }
 }

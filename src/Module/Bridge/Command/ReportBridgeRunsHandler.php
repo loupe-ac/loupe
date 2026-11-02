@@ -63,8 +63,12 @@ final readonly class ReportBridgeRunsHandler
             return $changed;
         });
 
+        $projects = [];
         foreach ($changed as $run) {
-            $this->publisher->runsChanged($run->project);
+            $projects[(string) $run->project->id] = $run->project;
+        }
+        foreach ($projects as $project) {
+            $this->publisher->runsChanged($project);
         }
         foreach (WorkerRunChanged::ofRuns($changed) as $event) {
             $this->events->dispatch($event);

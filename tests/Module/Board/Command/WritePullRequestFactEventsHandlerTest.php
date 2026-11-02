@@ -17,6 +17,7 @@ use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Event\PullRequestStateChanged;
 use App\Module\Forge\PullRequestSnapshot;
+use App\Module\Inbox\Messenger\ReconcileCardWaits;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class WritePullRequestFactEventsHandlerTest extends KernelTestCase
 {
@@ -236,6 +238,38 @@ final class WritePullRequestFactEventsHandlerTest extends KernelTestCase
         $this->handle(new PullRequestSnapshot(), $this->failed(self::SHA));
         $expected = [[(string) $first->id, CardChanged::UPDATED, false], [(string) $second->id, CardChanged::UPDATED, false]];
         self::assertEqualsCanonicalizing($expected, $changes->getArrayCopy());
+    }
+
+    public function test_a_displayed_change_asks_for_one_wait_reconcile_however_many_cards_link_the_pull_request(): void
+    {
+        $cards = [$this->linkedCard()];
+        $small = $this->reconcilesAfterDisplayedChange();
+
+        array_push($cards, $this->linkedCard(), $this->linkedCard(), $this->linkedCard());
+        $big = $this->reconcilesAfterDisplayedChange();
+
+        self::assertCount(1, $small);
+        self::assertCount(\count($small), $big);
+        self::assertEqualsCanonicalizing(array_map(static fn (Card $card): string => (string) $card->id, $cards), $big[0]->cardIds ?? []);
+    }
+
+    /** @return list<ReconcileCardWaits> */
+    private function reconcilesAfterDisplayedChange(): array
+    {
+        $jobs = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $jobs);
+        $jobs->reset();
+        $changes = $this->cardChanges();
+
+        $this->handle(new PullRequestSnapshot(), $this->failed(self::SHA));
+
+        // Guard: the handler must have told the cards, or an empty list proves nothing.
+        self::assertNotEmpty($changes->getArrayCopy());
+
+        return array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $jobs->getSent()),
+            static fn (object $message): bool => $message instanceof ReconcileCardWaits,
+        ));
     }
 
     public function test_a_push_that_makes_the_approval_outdated_tells_the_card(): void

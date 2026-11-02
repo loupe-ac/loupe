@@ -16,6 +16,9 @@ use Symfony\Component\Uid\Uuid;
  *
  * `markersOnly` marks the update that the marker pass of the workflow sends,
  * so the listener that queues a card check does not answer its own write.
+ *
+ * `batched` marks a card of a `CardsChanged` event that follows. A listener
+ * that works on the whole list skips the single events.
  */
 final readonly class CardChanged
 {
@@ -30,6 +33,7 @@ final readonly class CardChanged
         public string $change,
         public bool $contentChanged,
         public bool $markersOnly = false,
+        public bool $batched = false,
     ) {
     }
 }

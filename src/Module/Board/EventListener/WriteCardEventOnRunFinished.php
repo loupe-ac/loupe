@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\EventListener;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
@@ -41,6 +42,7 @@ final readonly class WriteCardEventOnRunFinished
         try {
             $runs = $this->workerRuns->findByIds($event->runIds);
             $changes = $this->workerRunStateChanges->findForRuns($runs);
+            $cards = $this->cardsOf($runs);
         } catch (\Throwable $e) {
             $this->logger->warning('board.card_event_write_failed', ['projectId' => (string) $event->projectId, 'exception' => $e]);
 
@@ -54,7 +56,7 @@ final readonly class WriteCardEventOnRunFinished
                 continue;
             }
             try {
-                $card = $this->cards->findOneByIdAndProjectId($cardId->toRfc4122(), (string) $run->project->id);
+                $card = $cards[$cardId->toRfc4122()] ?? null;
                 $runId = $run->id ?? throw new \LogicException('A stored run has an id.');
                 if (null !== $card && $run->state->isOpen()) {
                     // A timed-out run can reopen, and its row must not show it finished meanwhile.
@@ -77,6 +79,34 @@ final readonly class WriteCardEventOnRunFinished
                 ]);
             }
         }
+    }
+
+    /**
+     * The cards of the runs in one read. The runs of one event belong to one project.
+     *
+     * @param list<WorkerRun> $runs
+     *
+     * @return array<string, Card> card id (RFC 4122) => card
+     */
+    private function cardsOf(array $runs): array
+    {
+        $ids = [];
+        foreach ($runs as $run) {
+            $cardId = $run->cardId();
+            if (null !== $cardId) {
+                $ids[$cardId->toRfc4122()] = $cardId;
+            }
+        }
+        if ([] === $ids) {
+            return [];
+        }
+
+        $cards = [];
+        foreach ($this->cards->findByIdsInProject($runs[0]->project, array_values($ids)) as $card) {
+            $cards[($card->id ?? throw new \LogicException('A stored card has an id.'))->toRfc4122()] = $card;
+        }
+
+        return $cards;
     }
 
     /**
