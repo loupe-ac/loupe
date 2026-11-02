@@ -22,17 +22,19 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Tests\Module\Inbox\InboxFixtures;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
-use DoctrineMigrations\Version20261030141507;
+use DoctrineMigrations\Version20261101222810;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
-require_once __DIR__.'/../../migrations/Version20261030141507.php';
+require_once __DIR__.'/../../migrations/Version20261101222810.php';
 
-final class InboxCloseRecordMigrationTest extends KernelTestCase
+/** Runs down() and up() inside the test's own transaction, which Postgres rolls back with the DDL. */
+final class InboxTriggerDropMigrationTest extends KernelTestCase
 {
     use InboxFixtures;
 
@@ -54,12 +56,41 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
         $this->connection = $em->getConnection();
-        $this->project = $this->project($em, $this->owner($em, 'close-record'), 'close-record');
+        $this->project = $this->project($em, $this->owner($em, 'trigger-drop'), 'trigger-drop');
         $this->card = $this->card($em, $this->project);
         $em->flush();
     }
 
-    public function test_every_stored_row_gets_its_best_known_closer_cause_and_note(): void
+    public function test_the_schema_has_none_of_the_triggers_the_functions_or_the_old_columns(): void
+    {
+        self::assertSame(0, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM pg_trigger WHERE tgname IN ('inbox_items_map_old_writes', 'inbox_reviews_map_old_writes')"));
+        self::assertSame(0, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM pg_proc WHERE proname IN ('inbox_items_map_old_writes', 'inbox_reviews_map_old_writes', 'inbox_items_close_record')"));
+        self::assertSame(0, $this->columns('inbox_items', ['answer_text', 'close_note', 'responded_through_agent']));
+        self::assertSame(0, $this->columns('inbox_reviews', ['note']));
+    }
+
+    public function test_down_brings_the_old_columns_back_filled_from_the_close_record_and_up_drops_them_again(): void
+    {
+        $question = $this->item(InboxItemKind::Question);
+        $this->em->flush();
+        $this->connection->executeStatement("UPDATE inbox_items SET state = 'resolved', closed_by = 'owner-through-agent', note = 'CSV' WHERE id = ?", [(string) $question->id]);
+
+        $this->migrate(down: true);
+
+        self::assertSame(3, $this->columns('inbox_items', ['answer_text', 'close_note', 'responded_through_agent']));
+        self::assertSame(1, $this->columns('inbox_reviews', ['note']));
+        self::assertSame(
+            ['CSV', null, true],
+            array_values($this->connection->fetchAssociative('SELECT answer_text, close_note, responded_through_agent FROM inbox_items WHERE id = ?', [(string) $question->id]) ?: []),
+        );
+
+        $this->migrate();
+
+        self::assertSame(0, $this->columns('inbox_items', ['answer_text', 'close_note', 'responded_through_agent']));
+        self::assertSame(0, $this->columns('inbox_reviews', ['note']));
+    }
+
+    public function test_up_keeps_the_closer_the_cause_and_the_note_of_each_row_left_in_an_old_state(): void
     {
         $answered = $this->item(InboxItemKind::Question);
         $answeredByAgent = $this->item(InboxItemKind::Question);
@@ -68,25 +99,22 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         $doneByCommand = $this->item(InboxItemKind::Todo);
         $withdrawn = $this->item(InboxItemKind::Question);
         $workflowWithdrawn = $this->item(InboxItemKind::Workflow, InboxAskOrigin::Loupe);
-        $workflowAnswered = $this->item(InboxItemKind::Workflow, InboxAskOrigin::Loupe);
         $obsolete = $this->item(InboxItemKind::Todo);
         $waitDone = $this->item(InboxItemKind::Wait, InboxAskOrigin::Loupe);
         $noticeKey = $this->item(InboxItemKind::Notice, InboxAskOrigin::Loupe);
         $noticeSentence = $this->item(InboxItemKind::Notice, InboxAskOrigin::Loupe);
-        $noticeObsolete = $this->item(InboxItemKind::Notice, InboxAskOrigin::Loupe);
         $reviewByPerson = $this->item(InboxItemKind::Review);
         $reviewByRule = $this->item(InboxItemKind::Review);
         $automaticReviewEnded = $this->item(InboxItemKind::Review, InboxAskOrigin::Loupe);
         $open = $this->item(InboxItemKind::Question);
 
         $reviewRowByPerson = $this->review($reviewByPerson, null);
-        $reviewRowByRule = $this->review($reviewByRule, 'tech-design-auto-approve');
+        $this->review($reviewByRule, 'tech-design-auto-approve');
         $this->review($automaticReviewEnded, null, withVerdict: false);
         $this->commandAction($doneByCommand);
         $this->em->flush();
-        $reviewRowIds = [(string) $reviewRowByPerson->id, (string) $reviewRowByRule->id];
 
-        $this->migrate('down');
+        $this->migrate(down: true);
         $this->storeOld($answered, 'answered', answerText: 'Both');
         $this->storeOld($answeredByAgent, 'answered', answerText: 'Yes', throughAgent: true);
         $this->storeOld($declined, 'declined', closeNote: 'Not now');
@@ -94,18 +122,16 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         $this->storeOld($doneByCommand, 'done');
         $this->storeOld($withdrawn, 'withdrawn', closeNote: 'No longer needed');
         $this->storeOld($workflowWithdrawn, 'withdrawn', closeNote: 'The rule stopped holding.');
-        $this->storeOld($workflowAnswered, 'answered');
         $this->storeOld($obsolete, 'obsolete');
         $this->storeOld($waitDone, 'done');
         $this->storeOld($noticeKey, 'done', closeNote: 'inbox.bridge_outage.closed');
         $this->storeOld($noticeSentence, 'done', closeNote: 'A check found no blocking gap.');
-        $this->storeOld($noticeObsolete, 'obsolete');
         $this->storeOld($reviewByPerson, 'done');
         $this->storeOld($reviewByRule, 'done');
         $this->storeOld($automaticReviewEnded, 'done');
-        $this->connection->executeStatement('UPDATE inbox_reviews SET note = ? WHERE id = ?', ['Add a retry limit.', $reviewRowIds[0]]);
+        $this->connection->executeStatement('UPDATE inbox_reviews SET note = ? WHERE id = ?', ['Add a retry limit.', (string) $reviewRowByPerson->id]);
 
-        $this->migrate('up');
+        $this->migrate();
 
         self::assertSame(['resolved', 'owner', null, 'Both'], $this->record($answered));
         self::assertSame(['resolved', 'owner-through-agent', null, 'Yes'], $this->record($answeredByAgent));
@@ -114,133 +140,66 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         self::assertSame(['resolved', 'loupe', 'command-succeeded', null], $this->record($doneByCommand));
         self::assertSame(['cancelled', 'agent', 'withdrawn', 'No longer needed'], $this->record($withdrawn));
         self::assertSame(['cancelled', 'rule', 'rule-withdrew', 'The rule stopped holding.'], $this->record($workflowWithdrawn));
-        self::assertSame(['resolved', 'owner', null, null], $this->record($workflowAnswered));
         self::assertSame(['cancelled', 'loupe', 'card-finished', null], $this->record($obsolete));
         self::assertSame(['resolved', 'loupe', 'cause-ended', null], $this->record($waitDone));
         self::assertSame(['resolved', 'loupe', 'fact-ended', null], $this->record($noticeKey));
         self::assertSame(['resolved', 'loupe', 'fact-ended', 'A check found no blocking gap.'], $this->record($noticeSentence));
-        self::assertSame(['cancelled', 'loupe', 'card-finished', null], $this->record($noticeObsolete));
         self::assertSame(['resolved', 'owner', null, 'Add a retry limit.'], $this->record($reviewByPerson));
         self::assertSame(['resolved', 'rule', null, null], $this->record($reviewByRule));
         self::assertSame(['resolved', 'loupe', 'cause-ended', null], $this->record($automaticReviewEnded));
         self::assertSame(['open', null, null, null], $this->record($open));
     }
 
-    public function test_dismissible_is_true_on_every_stored_row_except_notices_and_workflow_questions(): void
+    public function test_up_copies_a_review_note_onto_a_closed_item_and_keeps_an_existing_note(): void
     {
-        $question = $this->item(InboxItemKind::Question);
-        $todo = $this->item(InboxItemKind::Todo);
-        $wait = $this->item(InboxItemKind::Wait, InboxAskOrigin::Loupe);
-        $notice = $this->item(InboxItemKind::Notice, InboxAskOrigin::Loupe);
-        $workflow = $this->item(InboxItemKind::Workflow, InboxAskOrigin::Loupe);
+        $noteOnReview = $this->item(InboxItemKind::Review);
+        $noteOnBoth = $this->item(InboxItemKind::Review);
+        $rowNoteOnReview = $this->review($noteOnReview, null);
+        $rowNoteOnBoth = $this->review($noteOnBoth, null);
         $this->em->flush();
+        $this->connection->executeStatement("UPDATE inbox_items SET state = 'resolved', closed_by = 'owner' WHERE id = ?", [(string) $noteOnReview->id]);
+        $this->connection->executeStatement("UPDATE inbox_items SET state = 'resolved', closed_by = 'owner', note = 'Stored' WHERE id = ?", [(string) $noteOnBoth->id]);
 
-        $this->migrate('down');
-        $this->migrate('up');
+        $this->migrate(down: true);
+        $this->connection->executeStatement('UPDATE inbox_reviews SET note = ? WHERE id = ?', ['Written late', (string) $rowNoteOnReview->id]);
+        $this->connection->executeStatement('UPDATE inbox_reviews SET note = ? WHERE id = ?', ['Written late', (string) $rowNoteOnBoth->id]);
 
-        self::assertSame(
-            [true, true, true, false, false],
-            array_map($this->dismissible(...), [$question, $todo, $wait, $notice, $workflow]),
-        );
+        $this->migrate();
+
+        self::assertSame(['resolved', 'owner', null, 'Written late'], $this->record($noteOnReview));
+        self::assertSame(['resolved', 'owner', null, 'Stored'], $this->record($noteOnBoth));
     }
 
-    public function test_a_notice_or_a_workflow_question_the_old_app_inserts_gets_dismissible_false(): void
-    {
-        $inserted = [];
-        foreach (['notice', 'workflow', 'question', 'wait'] as $kind) {
-            $id = (string) Uuid::v7();
-            // The old app names no dismissible column, so the database default applies.
-            $this->connection->executeStatement(
-                "INSERT INTO inbox_items (id, state, selected_options, updated_at, number, kind, title, blocking, options, multiple, free_text, created_at, project_id, origin)
-                 VALUES (?, 'open', '[]', NOW(), ?, ?, 'Inserted by the old app', false, '[]', false, false, NOW(), ?, 'loupe')",
-                [$id, ++$this->number + 100, $kind, (string) $this->project->id],
-            );
-            $inserted[$kind] = $this->connection->fetchOne('SELECT dismissible FROM inbox_items WHERE id = ?', [$id]);
-        }
-
-        self::assertSame(['notice' => false, 'workflow' => false, 'question' => true, 'wait' => true], $inserted);
-    }
-
-    public function test_the_trigger_maps_what_the_old_app_writes_to_the_close_record(): void
-    {
-        $answered = $this->item(InboxItemKind::Question);
-        $declined = $this->item(InboxItemKind::Todo);
-        $workflow = $this->item(InboxItemKind::Workflow, InboxAskOrigin::Loupe);
-        $obsolete = $this->item(InboxItemKind::Todo);
-        $wait = $this->item(InboxItemKind::Wait, InboxAskOrigin::Loupe);
-        $this->em->flush();
-
-        $this->storeOld($answered, 'answered', answerText: 'CSV', throughAgent: true);
-        $this->storeOld($declined, 'declined', closeNote: 'Not now');
-        $this->storeOld($workflow, 'withdrawn', closeNote: 'The rule stopped holding.');
-        $this->storeOld($obsolete, 'obsolete');
-        $this->storeOld($wait, 'done');
-
-        self::assertSame(['resolved', 'owner-through-agent', null, 'CSV'], $this->record($answered));
-        self::assertSame(['declined', 'owner', null, 'Not now'], $this->record($declined));
-        self::assertSame(['cancelled', 'rule', 'rule-withdrew', 'The rule stopped holding.'], $this->record($workflow));
-        self::assertSame(['cancelled', 'loupe', 'card-finished', null], $this->record($obsolete));
-        self::assertSame(['resolved', 'loupe', 'cause-ended', null], $this->record($wait));
-    }
-
-    public function test_the_trigger_leaves_what_the_new_app_writes_alone(): void
+    public function test_up_leaves_a_row_in_a_new_state_alone(): void
     {
         $declined = $this->item(InboxItemKind::Question);
         $cancelled = $this->item(InboxItemKind::Todo);
         $this->em->flush();
-
         $this->connection->executeStatement("UPDATE inbox_items SET state = 'declined', closed_by = 'owner-through-agent', note = 'No' WHERE id = ?", [(string) $declined->id]);
         $this->connection->executeStatement("UPDATE inbox_items SET state = 'cancelled', closed_by = 'loupe', close_cause = 'card-deleted' WHERE id = ?", [(string) $cancelled->id]);
+
+        $this->migrate(down: true);
+        $this->migrate();
 
         self::assertSame(['declined', 'owner-through-agent', null, 'No'], $this->record($declined));
         self::assertSame(['cancelled', 'loupe', 'card-deleted', null], $this->record($cancelled));
     }
 
-    public function test_the_trigger_maps_a_declined_note_the_old_app_edits_after_the_migration(): void
+    public function test_up_sets_dismissible_false_on_a_notice_and_a_workflow_question_only(): void
     {
-        $declined = $this->item(InboxItemKind::Todo);
+        $notice = $this->item(InboxItemKind::Notice, InboxAskOrigin::Loupe);
+        $workflow = $this->item(InboxItemKind::Workflow, InboxAskOrigin::Loupe);
+        $question = $this->item(InboxItemKind::Question);
         $this->em->flush();
-        $this->migrate('down');
-        $this->storeOld($declined, 'declined', closeNote: 'Not now');
-        $this->migrate('up');
+        $this->migrate(down: true);
+        $this->connection->executeStatement('UPDATE inbox_items SET dismissible = true WHERE id IN (?, ?)', [(string) $notice->id, (string) $workflow->id]);
 
-        $this->storeOld($declined, 'declined', closeNote: 'Later', throughAgent: true);
+        $this->migrate();
 
-        self::assertSame(['declined', 'owner-through-agent', null, 'Later'], $this->record($declined));
-    }
-
-    public function test_the_trigger_maps_a_review_row_the_old_app_stores_after_the_item(): void
-    {
-        $byPerson = $this->item(InboxItemKind::Review);
-        $byRule = $this->item(InboxItemKind::Review, InboxAskOrigin::Loupe);
-        $automaticByPerson = $this->item(InboxItemKind::Review, InboxAskOrigin::Loupe);
-        $rows = [$this->review($byPerson, null, withVerdict: false), $this->review($byRule, null, withVerdict: false), $this->review($automaticByPerson, null, withVerdict: false)];
-        $ruleReview = $this->documentReview($rows[1], 'tech-design-auto-approve');
-        $personReview = $this->documentReview($rows[2], null);
-        $this->em->flush();
-
-        $this->storeOld($byPerson, 'done');
-        $this->storeOld($byRule, 'done');
-        $this->storeOld($automaticByPerson, 'done');
-        $this->storeOldReview($rows[0], 'Add a retry limit.', null);
-        $this->storeOldReview($rows[1], null, $ruleReview);
-        $this->storeOldReview($rows[2], 'Looks right.', $personReview);
-
-        self::assertSame(['resolved', 'owner', null, 'Add a retry limit.'], $this->record($byPerson));
-        self::assertSame(['resolved', 'rule', null, null], $this->record($byRule));
-        self::assertSame(['resolved', 'owner', null, 'Looks right.'], $this->record($automaticByPerson));
-    }
-
-    public function test_the_review_trigger_leaves_what_the_new_app_writes_alone(): void
-    {
-        $review = $this->item(InboxItemKind::Review);
-        $row = $this->review($review, null, withVerdict: false);
-        $this->em->flush();
-
-        $this->connection->executeStatement("UPDATE inbox_items SET state = 'resolved', closed_by = 'owner-through-agent', note = 'Ship it' WHERE id = ?", [(string) $review->id]);
-        $this->connection->executeStatement("UPDATE inbox_reviews SET verdict = 'approved' WHERE id = ?", [(string) $row->id]);
-
-        self::assertSame(['resolved', 'owner-through-agent', null, 'Ship it'], $this->record($review));
+        self::assertSame(
+            [false, false, true],
+            array_map($this->dismissible(...), [$notice, $workflow, $question]),
+        );
     }
 
     private function item(InboxItemKind $kind, InboxAskOrigin $origin = InboxAskOrigin::Agent): InboxItem
@@ -299,24 +258,6 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         );
     }
 
-    private function documentReview(InboxReview $row, ?string $workflowRule): Review
-    {
-        $document = $row->document ?? throw new \LogicException('A document review row.');
-        $review = new Review($document->currentVersion(), Verdict::Approved, $this->project->owner, workflowRule: $workflowRule);
-        $this->em->persist($review);
-
-        return $review;
-    }
-
-    /** Writes the review row the way the old app did, after the item and in the same transaction. */
-    private function storeOldReview(InboxReview $row, ?string $note, ?Review $documentReview): void
-    {
-        $this->connection->executeStatement(
-            "UPDATE inbox_reviews SET verdict = 'approved', note = ?, document_review_id = ? WHERE id = ?",
-            [$note, null === $documentReview ? null : (string) $documentReview->id, (string) $row->id],
-        );
-    }
-
     /** @return array{string, ?string, ?string, ?string} state, closer, cause and note */
     private function record(InboxItem $item): array
     {
@@ -331,11 +272,20 @@ final class InboxCloseRecordMigrationTest extends KernelTestCase
         return (bool) $this->connection->fetchOne('SELECT dismissible FROM inbox_items WHERE id = ?', [(string) $item->id]);
     }
 
-    /** @param 'up'|'down' $direction */
-    private function migrate(string $direction): void
+    /** @param list<string> $names */
+    private function columns(string $table, array $names): int
     {
-        $migration = new Version20261030141507($this->connection, new NullLogger());
-        'up' === $direction ? $migration->up(new Schema()) : $migration->down(new Schema());
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.columns WHERE table_name = :table AND column_name IN (:names)',
+            ['table' => $table, 'names' => $names],
+            ['names' => ArrayParameterType::STRING],
+        );
+    }
+
+    private function migrate(bool $down = false): void
+    {
+        $migration = new Version20261101222810($this->connection, new NullLogger());
+        $down ? $migration->down(new Schema()) : $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
         }

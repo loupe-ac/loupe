@@ -62,7 +62,7 @@ func TestAFailedHeartbeatKeepsTheReadings(t *testing.T) {
 	client.mu.Unlock()
 	hh.h.setBody(api.Heartbeat{Accounts: []api.AccountReport{{Name: "claude", State: api.AccountReady}}})
 	eventually(t, "the failed heartbeat", func() bool { return client.count() >= 2 })
-	hh.h.send()
+	hh.tick(t, time.Minute)
 	eventually(t, "the next heartbeat", func() bool { return client.count() >= 3 })
 
 	client.mu.Lock()

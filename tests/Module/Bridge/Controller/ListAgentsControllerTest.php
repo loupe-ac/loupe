@@ -8,6 +8,7 @@ use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountTryNow;
+use App\Module\Bridge\Entity\BridgeClaimRefusal;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Project\Entity\Project;
@@ -47,6 +48,29 @@ final class ListAgentsControllerTest extends WebTestCase
         $statuses = $crawler->filter('[data-agent-connection-id] [data-agent-health]')->each(static fn ($chip): string => trim($chip->text()));
         sort($statuses);
         self::assertSame($expected, $statuses);
+    }
+
+    public function test_a_connection_the_server_refused_shows_the_chip_with_its_cause(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-refused@example.com');
+        $project = $this->project($em, $owner, 'Refused');
+        $refused = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.32.0');
+        $healthy = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
+        $em->persist(new BridgeClaimRefusal(Uuid::v7(), $refused, $this->seedWorkRequest($em, $project), null));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $chip = $crawler->filter('[data-agent-connection-id="'.$refused->id.'"] [data-agent-refused]');
+        self::assertCount(1, $chip);
+        self::assertStringContainsString('Cannot take work', $chip->text());
+        self::assertStringContainsString('Run `loupe update`.', $chip->text());
+        self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$healthy->id.'"] [data-agent-refused]'));
     }
 
     public function test_it_lists_only_connections_that_follow_the_project(): void

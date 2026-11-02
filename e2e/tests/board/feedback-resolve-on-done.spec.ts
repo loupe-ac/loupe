@@ -36,19 +36,22 @@ test('moving a card to Done resolves the feedback on it', async ({ page }) => {
     expect(projectId).toBeTruthy();
 
     const body = `Resolve on done ${RUN}`;
-    const saved = await page.request.post('/api/board/feedback', {
-        headers: {
-            Authorization:
-                'Bearer ' +
-                (await accessToken(page, 'site-review', projectId!)),
+    const saved = await page.request.post(
+        '/api/v1/live-review-widget/feedback',
+        {
+            headers: {
+                Authorization:
+                    'Bearer ' +
+                    (await accessToken(page, 'site-review', projectId!)),
+            },
+            data: {
+                body,
+                url: 'https://example.com/checkout',
+                anchors: [{ selector: '.hero', text: 'Heading' }],
+                target: { newCard: {} },
+            },
         },
-        data: {
-            body,
-            url: 'https://example.com/checkout',
-            anchors: [{ selector: '.hero', text: 'Heading' }],
-            target: { newCard: {} },
-        },
-    });
+    );
     expect(saved.status()).toBe(201);
     const { cardId, commentId } = await saved.json();
     const cardUrl = `/projects/${projectId}/board/cards/${cardId}`;

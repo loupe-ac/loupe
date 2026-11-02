@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service\Dev;
 
+use App\DevSeed\DevSeederInterface;
+use App\DevSeed\DevSeedId;
+use App\DevSeed\SeedContext;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
@@ -12,14 +15,17 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
-use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
+use App\Module\Bridge\Service\Dev\DevRunCardLinks;
+use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
@@ -30,8 +36,11 @@ use Symfony\Component\Uid\Uuid;
  * every kind, so the Metrics page shows a codex series next to claude-code.
  */
 #[When('dev')]
-final readonly class DevCodexRunSeeder
+#[When('test')]
+final readonly class DevCodexRunSeeder implements DevSeederInterface
 {
+    public const string KEY = 'codex-runs';
+
     public const string HARNESS = 'codex';
 
     private const string MODEL = 'gpt-6-sol';
@@ -50,42 +59,76 @@ final readonly class DevCodexRunSeeder
 
     public function __construct(
         private EntityManagerInterface $em,
+        private ProjectRepository $projects,
         private BoardColumnRepository $boardColumns,
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
         private WorkerRunRepository $workerRuns,
         private BucketTimeComputer $bucketTimes,
+        private DevRunCardLinks $runCardLinks,
+        private DevRunUsage $runUsage,
     ) {
     }
 
-    /** False when the project already holds a Codex run, so a second run adds nothing. */
-    public function seed(Project $project): bool
+    #[\Override]
+    public function key(): string
     {
-        if ($this->workerRuns->findOneBy(['project' => $project, 'harness' => self::HARNESS]) instanceof WorkerRun) {
-            return false;
-        }
+        return self::KEY;
+    }
 
+    #[\Override]
+    public function dependsOn(): array
+    {
+        return [DevProjectSeeder::KEY, DevExperimentSeeder::KEY];
+    }
+
+    #[\Override]
+    public function seed(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::devProjectId())
+            ?? throw new \LogicException('The dev project does not exist.');
+        $card = $this->cards->find(DevSeedId::of('board/card/codex-run')) ?? $this->createCard($context, $project);
+        $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+
+        $runs = [];
+        foreach (self::RUNS as $index => [$daysAgo, $costUsd]) {
+            $run = $this->workerRuns->find(self::runId($index));
+            if (!$run instanceof WorkerRun) {
+                $run = $this->run($context, $project, $card, $index, $context->now->modify(\sprintf('-%d days', $daysAgo)));
+                $runs[] = $run;
+            }
+            $tokens = (int) round((float) $costUsd * 60_000);
+            $this->runUsage->record($context, $run, self::MODEL, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd);
+        }
+        $this->em->flush();
+        $this->runCardLinks->relink($project, $cardId, $card->number);
+        if ([] !== $runs) {
+            $this->bucketTimes->recompute($project, array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('A stored run has an id.'), $runs));
+        }
+    }
+
+    private function createCard(SeedContext $context, Project $project): Card
+    {
         $column = array_find($this->boardColumns->findForProject($project), static fn (BoardColumn $column): bool => 'done' === $column->slug)
             ?? throw new \LogicException('The project has a done column.');
-        $createdAt = new \DateTimeImmutable(\sprintf('-%d days', self::RUNS[0][0] + 1));
+        $createdAt = $context->now->modify(\sprintf('-%d days', self::RUNS[0][0] + 1));
         $card = new Card(project: $project, column: $column, title: 'Run a worker on Codex', body: '', number: $this->cards->nextNumber($project), type: 'feature', createdAt: $createdAt);
+        $context->ids->assign($card, DevSeedId::of('board/card/codex-run'));
+        $card->completedAt = $context->now->modify(\sprintf('-%d days +2 hours', self::RUNS[1][0]));
         $this->em->persist($card);
         $this->em->flush();
         $this->cardEvents->record($card, CardEventKind::Created, Actor::Agent, null, [], $createdAt);
 
-        $runs = [];
-        foreach (self::RUNS as [$daysAgo, $costUsd]) {
-            $runs[] = $this->run($project, $card, new \DateTimeImmutable(\sprintf('-%d days', $daysAgo)), $costUsd);
-        }
-        $card->completedAt = new \DateTimeImmutable(\sprintf('-%d days +2 hours', self::RUNS[1][0]));
-        $this->em->flush();
-        $this->bucketTimes->recompute($project, array_map(static fn (WorkerRun $run): Uuid => $run->id ?? throw new \LogicException('A stored run has an id.'), $runs));
+        return $card;
+    }
 
-        return true;
+    private static function runId(int $index): Uuid
+    {
+        return DevSeedId::of('bridge/run/codex/'.$index);
     }
 
     /** WorkerRunFactListener writes the fact row on flush, after the tool calls of the same flush. */
-    private function run(Project $project, Card $card, \DateTimeImmutable $endedAt, string $costUsd): WorkerRun
+    private function run(SeedContext $context, Project $project, Card $card, int $index, \DateTimeImmutable $endedAt): WorkerRun
     {
         $run = new WorkerRun(
             project: $project,
@@ -108,9 +151,8 @@ final readonly class DevCodexRunSeeder
         $run->toolTimeMs = 391_600;
         $run->idleGapMs = 60_000;
         $run->peakContextTokens = 148_000;
+        $context->ids->assign($run, self::runId($index));
         $this->em->persist($run);
-        $tokens = (int) round((float) $costUsd * 60_000);
-        $this->em->persist(new WorkerRunUsage($run, $project, $run->subjectType, $run->subjectId, $run->workKind, self::MODEL, WorkerRunUsageSource::Reported, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd));
 
         $startedAt = $run->startedAt ?? throw new \LogicException('A seeded run has a start.');
         foreach (self::CALLS as $index => [$tool, $kind, $offset, $durationMs, $inSubagent, $signatures]) {

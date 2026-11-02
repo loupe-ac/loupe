@@ -94,7 +94,7 @@ jobs:
         run: |
           docker compose exec -T php-fpm bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
           docker compose exec -T php-fpm bin/console league:oauth2-server:generate-keypair --skip-if-exists
-          docker compose exec -T php-fpm bin/console app:dev:seed
+          docker compose exec -T php-fpm bin/console app:dev:seed --keep-flag-defaults
 
       # CoverageSubscriber writes .cov files into var/ as www-data, and the
       # runner owns var/. Without this the first write fails mid-suite.

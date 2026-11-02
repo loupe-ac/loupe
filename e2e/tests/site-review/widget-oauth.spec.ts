@@ -83,7 +83,7 @@ test('a reviewer signs in through the popup and saves a comment', async ({
     await siteReviewPanelSettled(page);
     const saved = page.waitForResponse(
         (response) =>
-            response.url().includes('/api/board/feedback') &&
+            response.url().includes('/api/v1/live-review-widget/feedback') &&
             response.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Save note' }).click();

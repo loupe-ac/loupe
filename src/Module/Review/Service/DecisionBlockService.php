@@ -637,7 +637,7 @@ final readonly class DecisionBlockService
                 // The words stay in an attribute, so the tooltip adds no text to
                 // the anchor basis. A badge with no stars must stay :empty.
                 $tooltip = isset($matches[2])
-                    ? '<span class="lp-tooltip lp-decision__tooltip" role="tooltip" data-label="'.$label.'"></span>'
+                    ? '<span class="lp-tooltip lp-decision__tooltip" role="tooltip" data-tooltip-align="end" data-label="'.$label.'"></span>'
                     : '';
 
                 return substr($matches[0], 0, -1).' role="note" aria-label="'.$label.'">'.$tooltip;
