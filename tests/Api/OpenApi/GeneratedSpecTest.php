@@ -120,6 +120,20 @@ final class GeneratedSpecTest extends KernelTestCase
         self::assertGreaterThanOrEqual(5, $checked, 'The public spec holds too few request bodies, so this test would prove little.');
     }
 
+    public function test_a_partial_change_has_no_required_field_no_marker_and_no_second_schema(): void
+    {
+        $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
+
+        foreach (['ProjectUpdate', 'ColumnUpdate'] as $name) {
+            self::assertArrayNotHasKey('required', $schemas[$name], $name);
+            self::assertNotEmpty($schemas[$name]['properties'], $name);
+            self::assertArrayNotHasKey('x-partial-change', $schemas[$name], $name);
+        }
+        foreach (array_keys($schemas) as $name) {
+            self::assertStringEndsNotWith('Request', (string) $name);
+        }
+    }
+
     #[DataProvider('areas')]
     public function test_the_problem_schema_requires_every_standard_member(string $area): void
     {

@@ -2672,6 +2672,39 @@
                 },
                 "type": "object"
             },
+            "ProjectUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "description": "A new name. It also changes the slug.",
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                    },
+                    "description": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "domain": {
+                        "description": "An empty string clears it.",
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "searchLanguage": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "origins": {
+                        "description": "Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 20
+                    }
+                },
+                "type": "object"
+            },
             "BoardColumn": {
                 "required": [
                     "slug",
@@ -2845,55 +2878,6 @@
                 },
                 "type": "object"
             },
-            "ColumnOrder": {
-                "required": [
-                    "order"
-                ],
-                "properties": {
-                    "order": {
-                        "description": "The slug of every column except backlog, each once, from left to right.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "uniqueItems": true
-                    }
-                },
-                "type": "object"
-            },
-            "ProjectUpdate": {
-                "description": "A field you leave out keeps its value.",
-                "properties": {
-                    "name": {
-                        "description": "A new name. It also changes the slug.",
-                        "type": "string",
-                        "maxLength": 100,
-                        "minLength": 1
-                    },
-                    "description": {
-                        "description": "An empty string clears it.",
-                        "type": "string",
-                        "maxLength": 500
-                    },
-                    "domain": {
-                        "description": "An empty string clears it.",
-                        "type": "string",
-                        "maxLength": 255
-                    },
-                    "searchLanguage": {
-                        "$ref": "#/components/schemas/SearchLanguage"
-                    },
-                    "origins": {
-                        "description": "Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "maxItems": 20
-                    }
-                },
-                "type": "object"
-            },
             "ColumnUpdate": {
                 "description": "A field you leave out keeps its value.",
                 "properties": {
@@ -2906,6 +2890,22 @@
                     "terminal": {
                         "description": "Whether finished work goes in this column.",
                         "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ColumnOrder": {
+                "required": [
+                    "order"
+                ],
+                "properties": {
+                    "order": {
+                        "description": "The slug of every column except backlog, each once, from left to right.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "uniqueItems": true
                     }
                 },
                 "type": "object"
@@ -3038,51 +3038,6 @@
                         "description": "The CLI versions this server works with, as a caret range.",
                         "type": "string",
                         "example": "^2.0"
-                    }
-                },
-                "type": "object"
-            },
-            "UpdateBoardColumnRequest": {
-                "required": [
-                    "label",
-                    "terminal"
-                ],
-                "properties": {
-                    "label": {
-                        "type": "string",
-                        "maxLength": 100,
-                        "minLength": 1
-                    },
-                    "terminal": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "UpdateProjectRequest": {
-                "required": [
-                    "name",
-                    "description",
-                    "domain",
-                    "searchLanguage",
-                    "origins"
-                ],
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "searchLanguage": {
-                        "$ref": "#/components/schemas/SearchLanguage"
-                    },
-                    "origins": {
-                        "type": "array",
-                        "items": {}
                     }
                 },
                 "type": "object"
