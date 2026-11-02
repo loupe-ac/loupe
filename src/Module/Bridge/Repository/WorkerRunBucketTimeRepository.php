@@ -21,8 +21,8 @@ class WorkerRunBucketTimeRepository extends ServiceEntityRepository
 {
     private const string UPSERT_SQL = <<<'SQL'
         INSERT INTO bridge_worker_run_bucket_times (id, run_id, bucket, ms, ms_with_subagents, calls)
-        SELECT t.id, :run, t.bucket, t.ms, t.ms_with_subagents, t.calls
-        FROM jsonb_to_recordset(CAST(:times AS jsonb)) AS t(id uuid, bucket text, ms bigint, ms_with_subagents bigint, calls int)
+        SELECT t.id, t.run_id, t.bucket, t.ms, t.ms_with_subagents, t.calls
+        FROM jsonb_to_recordset(CAST(:times AS jsonb)) AS t(id uuid, run_id uuid, bucket text, ms bigint, ms_with_subagents bigint, calls int)
         ON CONFLICT (run_id, bucket) DO UPDATE SET ms = EXCLUDED.ms, ms_with_subagents = EXCLUDED.ms_with_subagents, calls = EXCLUDED.calls
         SQL;
 
@@ -39,17 +39,38 @@ class WorkerRunBucketTimeRepository extends ServiceEntityRepository
      */
     public function replaceForRun(Uuid $runId, array $times): void
     {
-        $connection = $this->getEntityManager()->getConnection();
-        $connection->executeStatement('DELETE FROM bridge_worker_run_bucket_times WHERE run_id = :run', ['run' => $runId->toRfc4122()]);
-        if ([] === $times) {
+        $this->replaceForRuns([$runId->toRfc4122() => $times]);
+    }
+
+    /**
+     * Gives each run exactly its rows, in two statements however many runs there are.
+     * The caller opens the transaction.
+     *
+     * @param array<string, array<int|string, BucketFigures>> $timesByRun run id => bucket name => figures
+     */
+    public function replaceForRuns(array $timesByRun): void
+    {
+        if ([] === $timesByRun) {
             return;
         }
 
+        $connection = $this->getEntityManager()->getConnection();
+        $connection->executeStatement(
+            'DELETE FROM bridge_worker_run_bucket_times WHERE run_id IN (:runs)',
+            ['runs' => array_map(strval(...), array_keys($timesByRun))],
+            ['runs' => ArrayParameterType::STRING],
+        );
+
         $rows = [];
-        foreach ($times as $bucket => $figures) {
-            $rows[] = ['id' => Uuid::v7()->toRfc4122(), 'bucket' => (string) $bucket, 'ms' => $figures->ms, 'ms_with_subagents' => $figures->msWithSubagents, 'calls' => $figures->calls];
+        foreach ($timesByRun as $runId => $times) {
+            foreach ($times as $bucket => $figures) {
+                $rows[] = ['id' => Uuid::v7()->toRfc4122(), 'run_id' => (string) $runId, 'bucket' => (string) $bucket, 'ms' => $figures->ms, 'ms_with_subagents' => $figures->msWithSubagents, 'calls' => $figures->calls];
+            }
         }
-        $connection->executeStatement(self::UPSERT_SQL, ['run' => $runId->toRfc4122(), 'times' => json_encode($rows, \JSON_THROW_ON_ERROR)]);
+        if ([] === $rows) {
+            return;
+        }
+        $connection->executeStatement(self::UPSERT_SQL, ['times' => json_encode($rows, \JSON_THROW_ON_ERROR)]);
     }
 
     /**

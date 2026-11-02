@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRunToolCall;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -77,23 +78,32 @@ class WorkerRunToolCallRepository extends ServiceEntityRepository
     }
 
     /**
-     * What the bucket computation reads of every call of the run, in order.
+     * What the bucket computation reads of every call of each run, in order. A run with no call has no entry.
      *
-     * @return list<array{signatures: list<string>, startedAt: \DateTimeImmutable, durationMs: ?int, inSubagent: bool}>
+     * @param list<Uuid> $runIds
+     *
+     * @return array<string, list<array{signatures: list<string>, startedAt: \DateTimeImmutable, durationMs: ?int, inSubagent: bool}>> run id => calls
      */
-    public function findBucketInputsOfRun(Uuid $runId): array
+    public function findBucketInputsOfRuns(array $runIds): array
     {
-        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT signatures, started_at, duration_ms, in_subagent FROM bridge_worker_run_tool_calls WHERE run_id = :run ORDER BY seq',
-            ['run' => $runId->toRfc4122()],
-        );
+        $inputs = [];
+        foreach (array_chunk($runIds, 1000) as $chunk) {
+            $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+                'SELECT run_id, signatures, started_at, duration_ms, in_subagent FROM bridge_worker_run_tool_calls WHERE run_id IN (:runs) ORDER BY run_id, seq',
+                ['runs' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $chunk)],
+                ['runs' => ArrayParameterType::STRING],
+            );
+            foreach ($rows as $row) {
+                $inputs[(string) $row['run_id']][] = [
+                    'signatures' => array_values(array_map(strval(...), json_decode((string) $row['signatures'], true, 512, \JSON_THROW_ON_ERROR))),
+                    'startedAt' => new \DateTimeImmutable((string) $row['started_at'], new \DateTimeZone('UTC')),
+                    'durationMs' => null === $row['duration_ms'] ? null : (int) $row['duration_ms'],
+                    'inSubagent' => (bool) $row['in_subagent'],
+                ];
+            }
+        }
 
-        return array_map(static fn (array $row): array => [
-            'signatures' => array_values(array_map(strval(...), json_decode((string) $row['signatures'], true, 512, \JSON_THROW_ON_ERROR))),
-            'startedAt' => new \DateTimeImmutable((string) $row['started_at'], new \DateTimeZone('UTC')),
-            'durationMs' => null === $row['duration_ms'] ? null : (int) $row['duration_ms'],
-            'inSubagent' => (bool) $row['in_subagent'],
-        ], $rows);
+        return $inputs;
     }
 
     /**
