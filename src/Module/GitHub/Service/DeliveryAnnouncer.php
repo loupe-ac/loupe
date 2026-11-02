@@ -12,9 +12,11 @@ use App\Module\Forge\ForgeEventType;
 use App\Module\Forge\Service\ForgeClaim;
 use App\Module\Forge\Service\ForgeClaimOutcome;
 use App\Module\Forge\Service\ForgeRepositories;
+use App\Module\Forge\Service\PullRequestRefreshTarget;
 use App\Module\Forge\Service\PullRequestTracker;
 use App\Module\GitHub\GitHubDelivery;
 use App\Module\GitHub\GitHubRepositoryRef;
+use App\Module\GitHub\PullRequestRefreshHint;
 use App\Module\Project\Entity\Project;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -76,12 +78,16 @@ final readonly class DeliveryAnnouncer
 
         // A repository with no state reads gets the bare events alone, so its review verdict never reaches the automation.
         $verdicts = $this->stateReadable($source);
-        foreach ($delivery->refreshHints() as $hint) {
-            match (true) {
-                null !== $hint->number => $this->tracker->refresh($project, GitHubDelivery::FORGE, $repository->fullName, $hint->number, $verdicts ? $hint->verdict : null, $verdicts ? $hint->reviewId : null),
-                null !== $hint->headSha => $this->tracker->refreshHead($project, GitHubDelivery::FORGE, $repository->fullName, $hint->headSha),
-                default => $this->tracker->refreshBase($project, GitHubDelivery::FORGE, $repository->fullName, $hint->baseBranch ?? throw new \LogicException('A hint sets one field.')),
-            };
+        $targets = array_map(
+            static fn (PullRequestRefreshHint $hint): PullRequestRefreshTarget => match (true) {
+                null !== $hint->number => PullRequestRefreshTarget::number($hint->number, $verdicts ? $hint->verdict : null, $verdicts ? $hint->reviewId : null),
+                null !== $hint->headSha => PullRequestRefreshTarget::head($hint->headSha),
+                default => PullRequestRefreshTarget::base($hint->baseBranch ?? throw new \LogicException('A hint sets one field.')),
+            },
+            $delivery->refreshHints(),
+        );
+        if ([] !== $targets) {
+            $this->tracker->refreshAll($project, GitHubDelivery::FORGE, $repository->fullName, $targets);
         }
     }
 
