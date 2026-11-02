@@ -21,7 +21,8 @@ const argv = process.argv;
 const config = JSON.parse(fs.readFileSync(argv[argv.indexOf('--mcp-config') + 1], 'utf8'));
 const log = config.mcpServers.loupe.env.LOUPE_STUB_LOG;
 const call = (tool, args) => fs.appendFileSync(log, JSON.stringify({ tool, args }) + '\\n');
-call('document_create', { markdown: 'brainstorming from superpowers' });
+const draft = process.env.FAKE_DRAFT === 'none' ? {} : { draft: true };
+call('document_create', { markdown: 'brainstorming from superpowers', ...draft });
 if (process.env.FAKE_CLOSE === '1') call('card_run_close', {});
 console.log(JSON.stringify({
     type: 'assistant',
@@ -87,6 +88,15 @@ describe('the session test verdict', () => {
         const result = run(env);
 
         expect(result.stdout).toContain('FAIL  every claude turn succeeded');
+        expect(result.status).toBe(1);
+    });
+
+    it('fails a session that creates its document without a draft', () => {
+        const result = run({ FAKE_CLOSE: '1', FAKE_DRAFT: 'none' });
+
+        expect(result.stdout).toContain(
+            'FAIL  every document_create asks for a draft',
+        );
         expect(result.status).toBe(1);
     });
 

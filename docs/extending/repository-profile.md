@@ -31,7 +31,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
-Six sections are optional. A missing optional section blocks nothing.
+Five sections are optional. A missing optional section blocks nothing.
 
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from

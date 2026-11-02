@@ -29,10 +29,10 @@ Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per t
 4. No file exists under `docs/superpowers/`.
 5. The repository has no new commit.
 6. No `writing-plans` skill load or read.
-7. `document_create` was called, and `document_publish` was not.
+7. `document_create` was called, each call asked for a draft, and `document_publish` was not called.
 8. The document names the skill and its plugin.
 
-`tests/js/session_test_run.test.js` runs the script with a fake `claude`, and covers checks 1 and 2.
+`tests/js/session_test_run.test.js` runs the script with a fake `claude`, and covers checks 1, 2 and the draft part of check 7.
 
 ## Output
 

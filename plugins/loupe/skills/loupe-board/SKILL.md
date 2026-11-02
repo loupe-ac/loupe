@@ -92,7 +92,7 @@ Every card names work with an addressee. It ends when somebody does that work an
 
 Before you write a card, say in one sentence what somebody must do. A card that cannot finish that sentence is an observation, and an observation asks nothing of anyone.
 
-Only work that somebody must do later earns a card. Anything else gets no card. A lesson, a fact about how the system behaves and a record of what happened have no addressee. The instructions of the project say where each of them goes. A problem in the code your branch touches is a fix in that branch.
+Only work that somebody must do later earns a card. Anything else gets no card. A lesson, a fact about how the system behaves and a record of what happened have no addressee. The instructions of the project say where each of them goes.
 
 A lesson is the common mistake, because it feels valuable and it has no owner. A card that holds a lesson sits in Backlog forever, because nobody can finish it.
 

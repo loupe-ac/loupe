@@ -271,6 +271,10 @@ const checks = [
     ],
     ['no writing-plans load', !planningLoaded],
     ['document_create called', creates.length > 0],
+    [
+        'every document_create asks for a draft',
+        creates.every((c) => c.args?.draft === true || c.args?.draft === 'true'),
+    ],
     ['document_publish not called', publishes.length === 0],
     ['decisions log names the skill and its source', logNamesSkill],
 ];
