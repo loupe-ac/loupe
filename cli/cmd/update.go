@@ -75,7 +75,7 @@ func newUpdateCmd() *cobra.Command {
 		version:     version,
 		goos:        runtime.GOOS,
 		goarch:      runtime.GOARCH,
-		apiBase:     update.GitHubAPI,
+		apiBase:     updateAPI(),
 		hc:          &http.Client{Timeout: updateTimeout},
 		executable:  os.Executable,
 		serverRange: readServerRange,

@@ -1599,6 +1599,10 @@ results:
   with "start the bridge again". When it cannot, it exits with the reason. A
   directory that takes no new file is named in that reason.
 - A release binary with `autoUpdate` off exits with "Run: loupe update".
+- A release binary in a setup that runs the shared binary exits with
+  "Run: LOUPE_CONFIG= loupe update". That command runs in the default setup, which
+  owns the shared binary. A plain `loupe update` with `LOUPE_CONFIG` set or `-c`
+  installs only the panel.
 - A Homebrew binary exits with "Run: brew upgrade loupe".
 - A binary above the range exits with "Upgrade the server".
 
@@ -1612,6 +1616,12 @@ every hour. The agents page shows the chip "Draining: needs ^2.0". When the
 version is back inside the range, because the bridge updated or the server
 changed its range, the bridge logs `bridge_resumed` and takes work again. A
 development build and a prerelease never drain.
+
+A bridge in a setup that runs the shared binary, and a Homebrew binary, never
+install a release. They drain in the same way, and `bridge_draining` names the
+command that replaces the binary. They resume when the server changes its range.
+After the command, start the bridge again, because a running bridge cannot hand
+over to a binary that it did not install.
 
 ### Blocked
 

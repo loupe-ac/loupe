@@ -592,12 +592,20 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		} else if setup := config.Current(); setup.Source != config.SourceDefault {
 			// A setup other than the default never replaces a binary. The
 			// default setup updates the shared one, and a build is rebuilt by
-			// its recipe.
-			state := updateOff
-			if setupbuild.Built(setup.Dir) {
-				state = updateDev
+			// its recipe. A release of the shared binary still drains.
+			switch {
+			case setupbuild.Built(setup.Dir):
+				hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: updateDev} }
+			case !validVersion(version):
+				hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: updateOff} }
+			default:
+				updates = newUpdater(r.log, version, dir, nil, nil)
+				updates.shared = true
+				updates.install = installMethod(updates.executable)
+				updates.onDrain = r.setDraining
+				updates.setState(updateOff, "")
+				hb.onRange, hb.update = updates.setRange, updates.state
 			}
-			hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: state} }
 		} else {
 			hook := logStaged(r.log, version)
 			if r.update != nil {
@@ -659,7 +667,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			env:    r.runEnv,
 			status: r.status,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
-				if updates == nil {
+				if updates == nil || updates.shared {
 					problem := "this bridge runs no update checks"
 					if setup := config.Current(); setup.Source != config.SourceDefault {
 						problem = "this bridge belongs to the setup " + setup.Dir + ", which runs no update checks"

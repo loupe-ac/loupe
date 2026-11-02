@@ -635,3 +635,54 @@ func TestTheUpdaterDrainsAVersionAboveTheRangeWithoutDowngrading(t *testing.T) {
 		t.Fatalf("hook calls = %v", h.staged)
 	}
 }
+
+func TestASharedSetupDrainsWithoutTouchingTheBinary(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.u.shared = true
+	h.u.setState(updateOff, "")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if releases, downloads := gh.counts(); releases != 0 || downloads != 0 {
+		t.Fatalf("releases = %d, downloads = %d", releases, downloads)
+	}
+	if !strings.Contains(h.log.String(), "Run: LOUPE_CONFIG= loupe update, then start this bridge again.") {
+		t.Fatalf("no working fix in the log: %s", h.log.String())
+	}
+
+	h.u.setRange("^1.0")
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != updateOff {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(drains) != 2 || !drains[0] || drains[1] {
+		t.Fatalf("drains = %v", drains)
+	}
+}
+
+func TestTheDrainMessageNamesTheFixOfTheBinary(t *testing.T) {
+	cases := map[string]struct {
+		version, install string
+		want             string
+	}{
+		"plain":    {"1.0.0", "", "Run: loupe update"},
+		"homebrew": {"1.0.0", installHomebrew, "Run: brew upgrade loupe, then start this bridge again."},
+		"too new":  {"3.0.0", "", "Upgrade the server."},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := &updater{version: tc.version, install: tc.install}
+			if got := u.drainFix("^2.0"); got != tc.want {
+				t.Fatalf("drainFix = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -122,6 +122,9 @@ type updater struct {
 	// install is the install method each state reports. It is fixed before
 	// start.
 	install string
+	// shared is a setup that runs the binary of the default setup. It never
+	// checks for a release, and it only drains. It is fixed before start.
+	shared bool
 
 	mu       sync.Mutex
 	cliRange string
@@ -141,16 +144,21 @@ type updater struct {
 	logged map[string]bool
 }
 
+// updateAPI is the GitHub API. LOUPE_UPDATE_API replaces it, for a test that
+// serves a fake one.
+func updateAPI() string {
+	return cmp.Or(os.Getenv("LOUPE_UPDATE_API"), update.GitHubAPI)
+}
+
 // newUpdater builds an updater for the running version, which is empty for a
-// development build. dir is the config directory. LOUPE_UPDATE_API replaces
-// the GitHub API, for a test that serves a fake one.
+// development build. dir is the config directory.
 func newUpdater(log *slog.Logger, version, dir string, autoUpdate func() bool, onStaged stagedHook) *updater {
 	return &updater{
 		version:    version,
 		goos:       runtime.GOOS,
 		goarch:     runtime.GOARCH,
 		dir:        dir,
-		apiBase:    cmp.Or(os.Getenv("LOUPE_UPDATE_API"), update.GitHubAPI),
+		apiBase:    updateAPI(),
 		hc:         &http.Client{Timeout: updateTimeout},
 		log:        log,
 		autoUpdate: autoUpdate,
@@ -390,6 +398,9 @@ func (u *updater) settle() {
 		u.draining = false
 		if was && u.current.State == updateDraining {
 			u.current = api.HeartbeatUpdate{State: updateCurrent}
+			if u.shared {
+				u.current.State = updateOff
+			}
 		}
 		u.mu.Unlock()
 		if was {
@@ -408,11 +419,25 @@ func (u *updater) settle() {
 	u.mu.Unlock()
 	if first {
 		u.log.Warn("bridge_draining", "version", u.version, "range", cliRange,
-			"message", "This CLI version is outside the range of the server. The bridge starts no new work, keeps its heartbeat and checks again every hour. Run: loupe update")
+			"message", "This CLI version is outside the range of the server. The bridge starts no new work, keeps its heartbeat and checks again every hour. "+u.drainFix(cliRange))
 	}
 	if u.onDrain != nil {
 		u.onDrain(true)
 	}
+}
+
+// drainFix is the sentence that names the way out of a drain. A bridge can hand
+// over only to a binary that it installed itself, so any other fix ends with a
+// restart.
+func (u *updater) drainFix(cliRange string) string {
+	switch {
+	case update.Above(u.version, cliRange):
+		return "Upgrade the server."
+	case u.shared || u.install == installHomebrew:
+		return "Run: " + updateCommand(u.install, u.shared) + ", then start this bridge again."
+	}
+
+	return "Run: " + updateCommand(u.install, u.shared)
 }
 
 // runCheck runs one update check.
@@ -422,6 +447,9 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 	u.mu.Unlock()
 	if u.version == "" {
 		return u.result(updateDev, "", "the bridge runs a development build")
+	}
+	if u.shared {
+		return u.result(updateOff, "", "")
 	}
 	if cliRange == "" {
 		return u.result(outcomeFailed, "", "the server has not sent the CLI range yet")

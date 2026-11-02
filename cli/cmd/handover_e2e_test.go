@@ -32,6 +32,8 @@ import (
 const (
 	e2eOld = "1.0.0"
 	e2eNew = "1.1.0"
+	// e2eMajor is a release in the range ^2.0, so a 1.x binary needs it.
+	e2eMajor = "2.0.0"
 	// e2eWait bounds each wait of the handover tests for the real processes.
 	e2eWait = 30 * time.Second
 )
@@ -55,6 +57,8 @@ exit "$(cat "$LOUPE_E2E_DIR/exit-$card" 2>/dev/null || echo 0)"
 // TestHandoverEndToEnd runs two real builds of the CLI. The bridge of the old
 // build finds the new one on a fake GitHub and execs it with two workers in
 // flight. LOUPE_E2E_OLD and LOUPE_E2E_NEW name prebuilt binaries instead.
+// LOUPE_E2E_RELEASED and LOUPE_E2E_RELEASED_VERSION name a build of a real 1.x
+// tag, which adds the handover from that build to 2.0.
 func TestHandoverEndToEnd(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs real builds of the CLI")
@@ -64,24 +68,50 @@ func TestHandoverEndToEnd(t *testing.T) {
 		if _, err := exec.LookPath("go"); err != nil {
 			t.Skip("go is not on PATH, and LOUPE_E2E_OLD and LOUPE_E2E_NEW are not set")
 		}
-		old, next = buildVersions(t)
+		old, next = buildVersions(t, e2eOld, e2eNew)
 	}
 
-	t.Run("forward", func(t *testing.T) { testHandoverForward(t, old, next) })
+	t.Run("forward", func(t *testing.T) { testHandoverForward(t, old, e2eOld, next, e2eNew, false) })
 	t.Run("rollback", func(t *testing.T) { testHandoverRollback(t, old, next) })
 }
 
-func buildVersions(t *testing.T) (string, string) {
+// TestMajorUpdateEndToEnd runs the move from CLI 1.x to 2.0 between real builds:
+// the handover of a running bridge, the refusal at start, and the drain.
+func TestMajorUpdateEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs real builds of the CLI")
+	}
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go is not on PATH")
+	}
+	old, major := buildVersions(t, e2eOld, e2eMajor)
+
+	t.Run("handover", func(t *testing.T) { testHandoverForward(t, old, e2eOld, major, e2eMajor, true) })
+	t.Run("handover from a real 1.x build", func(t *testing.T) {
+		released, from := os.Getenv("LOUPE_E2E_RELEASED"), os.Getenv("LOUPE_E2E_RELEASED_VERSION")
+		if released == "" || from == "" {
+			t.Skip("LOUPE_E2E_RELEASED and LOUPE_E2E_RELEASED_VERSION are not set")
+		}
+		testHandoverForward(t, released, from, major, e2eMajor, true)
+	})
+	t.Run("start updates itself", func(t *testing.T) { testStartUpdatesItself(t, old, major) })
+	t.Run("start refuses with auto-update off", func(t *testing.T) { testStartRefuses(t, old, major) })
+	t.Run("start in a shared setup names the working command", func(t *testing.T) { testStartInSharedSetup(t, old, major) })
+	t.Run("drain and resume", func(t *testing.T) { testDrainAndResume(t, old, major, false) })
+	t.Run("drain and resume in a shared setup", func(t *testing.T) { testDrainAndResume(t, old, major, true) })
+}
+
+func buildVersions(t *testing.T, older, newer string) (string, string) {
 	t.Helper()
 	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	paths := []string{filepath.Join(dir, "loupe-"+e2eOld), filepath.Join(dir, "loupe-"+e2eNew)}
+	paths := []string{filepath.Join(dir, "loupe-"+older), filepath.Join(dir, "loupe-"+newer)}
 	errs := make([]error, 2)
 	var wg sync.WaitGroup
-	for i, v := range []string{e2eOld, e2eNew} {
+	for i, v := range []string{older, newer} {
 		wg.Go(func() {
 			cmd := exec.Command("go", "build", "-o", paths[i], "-ldflags", "-X github.com/loupe-ac/loupe/cli/cmd.version="+v, ".")
 			cmd.Dir = root
@@ -102,6 +132,7 @@ func buildVersions(t *testing.T) (string, string) {
 // e2eLoupe is a Loupe instance, its Mercure hub and GitHub, as far as a
 // bridge that updates itself reaches them.
 type e2eLoupe struct {
+	version     string
 	archiveName string
 	archive     []byte
 	checksums   []byte
@@ -110,17 +141,26 @@ type e2eLoupe struct {
 	gateOnce sync.Once
 	// failBeatsOf answers 500 to each heartbeat of this CLI version.
 	failBeatsOf string
+	// autoUpdateOff and sharedSetup shape the home of the bridge.
+	autoUpdateOff bool
+	sharedSetup   bool
+	// noRelease answers an empty releases list.
+	noRelease bool
 
-	mu      sync.Mutex
-	events  []heldEvent
-	notify  chan struct{}
-	lastIDs []string
-	reports []api.RunStateReport
-	beats   []api.Heartbeat
-	unknown []string
+	mu sync.Mutex
+	// startRange is what /api/versions states, and beatRange is what a
+	// heartbeat answer states.
+	startRange string
+	beatRange  string
+	events     []heldEvent
+	notify     chan struct{}
+	lastIDs    []string
+	reports    []api.RunStateReport
+	beats      []api.Heartbeat
+	unknown    []string
 }
 
-func newE2ELoupe(t *testing.T, newBinary string) *e2eLoupe {
+func newE2ELoupe(t *testing.T, newBinary, newVersion string) *e2eLoupe {
 	t.Helper()
 	bin, err := os.ReadFile(newBinary)
 	if err != nil {
@@ -138,8 +178,11 @@ func newE2ELoupe(t *testing.T, newBinary string) *e2eLoupe {
 	if err := errors.Join(tw.Close(), gz.Close()); err != nil {
 		t.Fatal(err)
 	}
-	v, _ := update.ParseVersion(e2eNew)
+	v, _ := update.ParseVersion(newVersion)
 	f := &e2eLoupe{
+		version:     newVersion,
+		startRange:  "^1.0",
+		beatRange:   "^1.0",
 		archiveName: update.AssetName(v, runtime.GOOS, runtime.GOARCH),
 		archive:     buf.Bytes(),
 		gate:        make(chan struct{}),
@@ -152,16 +195,36 @@ func newE2ELoupe(t *testing.T, newBinary string) *e2eLoupe {
 
 func (f *e2eLoupe) open() { f.gateOnce.Do(func() { close(f.gate) }) }
 
+// setRanges states what /api/versions and each heartbeat answer say from now on.
+func (f *e2eLoupe) setRanges(start, beat string) {
+	f.mu.Lock()
+	f.startRange, f.beatRange = start, beat
+	f.mu.Unlock()
+}
+
+// bridgePath turns a path of a released 1.x build into the path of its route
+// under /api/v1/bridge, as the server answers both for one release.
+func bridgePath(path string) string {
+	if !strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/api/v1/") || path == "/api/versions" {
+		return path
+	}
+
+	return "/api/v1/bridge" + strings.Replace(strings.TrimPrefix(path, "/api"), "/board/columns", "/columns", 1)
+}
+
 func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 	base := "http://" + r.Host
-	path := r.URL.Path
+	path := bridgePath(r.URL.Path)
+	f.mu.Lock()
+	startRange, beatRange := f.startRange, f.beatRange
+	f.mu.Unlock()
 	switch {
 	case path == "/api/versions":
-		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^1.0"}`)
+		fmt.Fprintf(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":%q}`, startRange)
 	case path == "/api/v1/bridge/projects/loupe/columns":
 		fmt.Fprintf(w, `{"project":{"id":%q,"slug":"loupe"},"columns":[{"slug":"next"}]}`, testProject)
 	case path == "/api/v1/bridge/events":
-		fmt.Fprintf(w, `{"hubUrl":%q,"jwt":"jwt","topic":%q,"projects":[{"id":%q,"slug":"loupe","name":"Loupe"}]}`, base+"/hub", userTopic, testProject)
+		fmt.Fprintf(w, `{"hubUrl":%q,"jwt":"jwt","topic":%q,"projects":[{"id":%q,"slug":"loupe","name":"Loupe"}],"flags":{%q:10},"cliRange":%q}`, base+"/hub", userTopic, testProject, api.HeartbeatIntervalFlag, startRange)
 	case path == "/hub":
 		f.stream(w, r)
 	case r.Method == http.MethodPut && path == "/api/v1/bridge/bridges/"+testBridgeID+"/heartbeat":
@@ -175,7 +238,7 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		fmt.Fprint(w, `{"cliRange":"^1.0"}`)
+		fmt.Fprintf(w, `{"cliRange":%q}`, beatRange)
 	case r.Method == http.MethodPut && path == "/api/v1/bridge/bridges/"+testBridgeID+"/runs":
 		w.WriteHeader(http.StatusNoContent)
 	case strings.HasPrefix(path, "/api/v1/bridge/bridges/"+testBridgeID+"/work-requests/"):
@@ -209,8 +272,13 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		}
+		if f.noRelease {
+			fmt.Fprint(w, `[]`)
+
+			return
+		}
 		fmt.Fprintf(w, `[{"tag_name":"cli/v%s","assets":[{"name":%q,"browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}]`,
-			e2eNew, f.archiveName, base+"/github/assets/"+f.archiveName, base+"/github/assets/checksums.txt")
+			f.version, f.archiveName, base+"/github/assets/"+f.archiveName, base+"/github/assets/checksums.txt")
 	case path == "/github/assets/"+f.archiveName:
 		w.Write(f.archive)
 	case path == "/github/assets/checksums.txt":
@@ -301,8 +369,12 @@ type e2eBridge struct {
 	installed string
 	logPath   string
 	stdout    string
-	cmd       *exec.Cmd
-	exited    chan struct{}
+	rulesPath string
+	// setup is the folder of the shared setup, when the bridge runs in one.
+	setup  string
+	env    []string
+	cmd    *exec.Cmd
+	exited chan struct{}
 }
 
 // startE2EBridge sets up a home with a login and a rule file, a fake claude
@@ -324,7 +396,11 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := &e2eBridge{t: t, fake: fake, dir: filepath.Join(home, "e2e"), configDir: configDir, exited: make(chan struct{})}
+	b := &e2eBridge{t: t, fake: fake, dir: filepath.Join(home, "e2e"), configDir: configDir, env: env}
+	if fake.sharedSetup {
+		b.setup = filepath.Join(home, "setup")
+		b.env = append(b.env, config.EnvVar+"="+b.setup)
+	}
 	for _, d := range []string{configDir, b.dir, filepath.Join(home, "bin"), filepath.Join(home, "work")} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			t.Fatal(err)
@@ -338,19 +414,26 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	raw, _ := json.Marshal(cfg)
 	rulesPath := filepath.Join(home, "rules.yaml")
 	// No resume, so a failed run reports at once rather than after the delay.
-	rulesBody := "autoUpdate: true\naccounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
+	rulesBody := "autoUpdate: " + strconv.FormatBool(!fake.autoUpdateOff) + "\naccounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
 		"  plan:\n    prompt: \"{cardNumber}\"\n"
 	b.installed = filepath.Join(home, "bin", "loupe")
 	oldBytes, err := os.ReadFile(old)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for path, body := range map[string][]byte{
+	files := map[string][]byte{
 		filepath.Join(configDir, "config.json"): raw,
 		rulesPath:                               []byte(rulesBody),
 		filepath.Join(b.dir, "claude"):          []byte(e2eClaude),
 		b.installed:                             oldBytes,
-	} {
+	}
+	if b.setup != "" {
+		if err := os.MkdirAll(b.setup, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		files[filepath.Join(b.setup, "config.json")] = raw
+	}
+	for path, body := range files {
 		if err := os.WriteFile(path, body, 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -361,25 +444,65 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 
 	b.logPath = filepath.Join(home, "bridge.log")
 	b.stdout = filepath.Join(home, "stdout")
-	out, err := os.Create(b.stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer out.Close()
-	b.cmd = exec.Command(b.installed, "bridge", "run", "--rules", rulesPath, "--log-file", b.logPath)
-	b.cmd.Env = append(os.Environ(), env...)
-	b.cmd.Stdout, b.cmd.Stderr = out, out
-	b.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := b.cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	go func() {
-		_ = b.cmd.Wait()
-		close(b.exited)
-	}()
+	b.rulesPath = rulesPath
+	b.launch()
 	t.Cleanup(func() { b.stop(home) })
 
 	return b
+}
+
+// launch starts `bridge run` from the installed binary, and appends its output
+// to the stdout file.
+func (b *e2eBridge) launch() {
+	b.t.Helper()
+	out, err := os.OpenFile(b.stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		b.t.Fatal(err)
+	}
+	defer out.Close()
+	exited := make(chan struct{})
+	cmd := exec.Command(b.installed, "bridge", "run", "--rules", b.rulesPath, "--log-file", b.logPath)
+	cmd.Env = append(os.Environ(), b.env...)
+	cmd.Stdout, cmd.Stderr = out, out
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		b.t.Fatal(err)
+	}
+	b.cmd, b.exited = cmd, exited
+	go func() {
+		_ = cmd.Wait()
+		close(exited)
+	}()
+}
+
+// refused waits for the bridge to exit with a failure, and returns its output.
+func (b *e2eBridge) refused() string {
+	b.t.Helper()
+	select {
+	case <-b.exited:
+	case <-time.After(e2eWait):
+		b.t.Fatalf("the bridge still runs\n%s", b.dump())
+	}
+	if code := b.cmd.ProcessState.ExitCode(); code == 0 {
+		b.t.Fatalf("the bridge exited with 0\n%s", b.dump())
+	}
+	out, err := os.ReadFile(b.stdout)
+	if err != nil {
+		b.t.Fatal(err)
+	}
+
+	return string(out)
+}
+
+// beatState is the update state of the last heartbeat.
+func (f *e2eLoupe) beatState() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.beats) == 0 || f.beats[len(f.beats)-1].Update == nil {
+		return ""
+	}
+
+	return f.beats[len(f.beats)-1].Update.State
 }
 
 // stop releases the workers, ends the bridge and kills whatever it left.
@@ -557,22 +680,31 @@ func sameBytes(t *testing.T, path, want string) bool {
 	return bytes.Equal(have, wanted)
 }
 
-func testHandoverForward(t *testing.T, old, next string) {
-	fake := newE2ELoupe(t, next)
+// testHandoverForward hands a bridge with two workers over from one build to the
+// next. With major set, the server moves its range to ^2.0 while the bridge runs,
+// as it does when an instance upgrades under a running 1.x bridge.
+func testHandoverForward(t *testing.T, old, from, next, to string, major bool) {
+	fake := newE2ELoupe(t, next, to)
+	if major {
+		fake.setRanges("^1.0", "^2.0")
+	}
 	b := startE2EBridge(t, fake, old)
 	start := processStart(b.cmd.Process.Pid)
 	last := b.startTwoWorkers()
 
+	if major {
+		fake.setRanges("^2.0", "^2.0")
+	}
 	fake.open()
 	applied := b.waitEvent("update_applied")
 	handover, at := b.find("update_handover", 0)
 	if _, appliedAt := b.find("update_applied", 0); handover == nil || at > appliedAt {
 		t.Fatalf("update_handover must come before update_applied\n%s", b.dump())
 	}
-	if handover["from"] != e2eOld || handover["to"] != e2eNew || handover["live"] != float64(2) {
+	if handover["from"] != from || handover["to"] != to || handover["live"] != float64(2) {
 		t.Fatalf("update_handover = %v", handover)
 	}
-	if applied["from"] != e2eOld || applied["to"] != e2eNew {
+	if applied["from"] != from || applied["to"] != to {
 		t.Fatalf("update_applied = %v", applied)
 	}
 	b.same(start)
@@ -598,7 +730,7 @@ func testHandoverForward(t *testing.T, old, next string) {
 }
 
 func testHandoverRollback(t *testing.T, old, next string) {
-	fake := newE2ELoupe(t, next)
+	fake := newE2ELoupe(t, next, e2eNew)
 	fake.failBeatsOf = e2eNew
 	b := startE2EBridge(t, fake, old, "LOUPE_HEALTH_TIMEOUT=2s")
 	start := processStart(b.cmd.Process.Pid)
@@ -633,4 +765,100 @@ func testHandoverRollback(t *testing.T, old, next string) {
 	}
 	b.same(start)
 	b.noHandoverFile()
+}
+
+func testStartUpdatesItself(t *testing.T, old, major string) {
+	fake := newE2ELoupe(t, major, e2eMajor)
+	fake.setRanges("^2.0", "^2.0")
+	fake.open()
+	b := startE2EBridge(t, fake, old)
+
+	if out := b.refused(); !strings.Contains(out, "start the bridge again") {
+		t.Fatalf("output: %s", out)
+	}
+	if !sameBytes(t, b.installed, major) {
+		t.Fatalf("%s does not hold the new build\n%s", b.installed, b.dump())
+	}
+
+	b.launch()
+	b.wait("the first hub connection", func() bool { return len(fake.connections()) == 1 })
+}
+
+func testStartRefuses(t *testing.T, old, major string) {
+	fake := newE2ELoupe(t, major, e2eMajor)
+	fake.autoUpdateOff = true
+	fake.setRanges("^2.0", "^2.0")
+	fake.open()
+	b := startE2EBridge(t, fake, old)
+
+	if out := b.refused(); !strings.Contains(out, "Run: loupe update") {
+		t.Fatalf("output: %s", out)
+	}
+	if !sameBytes(t, b.installed, old) {
+		t.Fatalf("%s no longer holds the old build", b.installed)
+	}
+}
+
+// testStartInSharedSetup runs the command of the refusal, and proves that it
+// replaces the shared binary, so the bridge of the setup starts.
+func testStartInSharedSetup(t *testing.T, old, major string) {
+	fake := newE2ELoupe(t, major, e2eMajor)
+	fake.sharedSetup = true
+	fake.setRanges("^2.0", "^2.0")
+	fake.open()
+	b := startE2EBridge(t, fake, old)
+
+	const fix = "Run: LOUPE_CONFIG= loupe update"
+	if out := b.refused(); !strings.Contains(out, fix) {
+		t.Fatalf("output: %s", out)
+	}
+	if !sameBytes(t, b.installed, old) {
+		t.Fatalf("the refusal replaced %s", b.installed)
+	}
+
+	cmd := exec.Command(b.installed, "update")
+	cmd.Env = append(os.Environ(), config.EnvVar+"=")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%s: %v: %s", fix, err, out)
+	}
+	if !sameBytes(t, b.installed, major) {
+		t.Fatalf("%s does not hold the new build\n%s", b.installed, b.dump())
+	}
+
+	b.launch()
+	b.wait("the first hub connection", func() bool { return len(fake.connections()) == 1 })
+}
+
+// testDrainAndResume moves the range away from a running bridge when no release
+// fits. The bridge holds a new card back, keeps its heartbeat, and starts the
+// card when the range comes back.
+func testDrainAndResume(t *testing.T, old, major string, shared bool) {
+	fake := newE2ELoupe(t, major, e2eMajor)
+	fake.noRelease = true
+	fake.sharedSetup = shared
+	fake.setRanges("^1.0", "^2.0")
+	fake.open()
+	b := startE2EBridge(t, fake, old)
+	start := processStart(b.cmd.Process.Pid)
+
+	b.waitEvent("bridge_draining")
+	b.wait("a heartbeat that states the drain", func() bool { return fake.beatState() == updateDraining })
+	b.wait("the first hub connection", func() bool { return len(fake.connections()) == 1 })
+	fake.push(1)
+	time.Sleep(2 * time.Second)
+	if _, started := fake.report(1, api.RunRunning); started {
+		t.Fatalf("a draining bridge started a worker\n%s", b.dump())
+	}
+
+	fake.setRanges("^1.0", "^1.0")
+	b.waitEvent("bridge_resumed")
+	b.wait("the worker of the held card", func() bool {
+		_, started := fake.report(1, api.RunRunning)
+
+		return started
+	})
+	b.same(start)
+	if !sameBytes(t, b.installed, old) {
+		t.Fatalf("%s no longer holds the old build", b.installed)
+	}
 }

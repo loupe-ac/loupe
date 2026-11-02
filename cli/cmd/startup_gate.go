@@ -50,16 +50,28 @@ func (g startupGate) check(ctx context.Context, cliRange string) error {
 	switch {
 	case update.Above(g.version, cliRange):
 		return fmt.Errorf("%s It is newer than the server supports. Upgrade the server.", outside)
-	case g.install == installHomebrew:
-		return fmt.Errorf("%s Run: brew upgrade loupe", outside)
-	case g.shared || !g.autoUpdate:
-		return fmt.Errorf("%s Run: loupe update", outside)
+	case g.install == installHomebrew || g.shared || !g.autoUpdate:
+		return fmt.Errorf("%s Run: %s", outside, updateCommand(g.install, g.shared))
 	}
 	if err := g.updateNow(ctx, cliRange); err != nil {
-		return fmt.Errorf("%s It could not update itself: %w. Run: loupe update", outside, err)
+		return fmt.Errorf("%s It could not update itself: %w. Run: %s", outside, err, updateCommand(g.install, g.shared))
 	}
 
 	return fmt.Errorf("%s It updated itself, so start the bridge again.", outside)
+}
+
+// updateCommand is the command that replaces the binary of a bridge. In a
+// shared setup, `loupe update` installs only the panel, so the command leaves
+// that setup for the default one.
+func updateCommand(install string, shared bool) string {
+	switch {
+	case install == installHomebrew:
+		return "brew upgrade loupe"
+	case shared:
+		return config.EnvVar + "= loupe update"
+	}
+
+	return "loupe update"
 }
 
 // newStartupGate fills the gate from the running binary and the rule file.
@@ -79,7 +91,7 @@ func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGa
 			version:    version,
 			goos:       runtime.GOOS,
 			goarch:     runtime.GOARCH,
-			apiBase:    update.GitHubAPI,
+			apiBase:    updateAPI(),
 			hc:         &http.Client{Timeout: updateTimeout},
 			executable: exe,
 			serverRange: func(context.Context) (string, error) {

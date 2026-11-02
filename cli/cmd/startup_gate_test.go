@@ -62,7 +62,8 @@ func TestTheStartupGateRefusesAReleaseBinaryWithTheFix(t *testing.T) {
 		want string
 	}{
 		"auto-update off": {startupGate{version: "1.4.0"}, "Run: loupe update"},
-		"shared setup":    {startupGate{version: "1.4.0", autoUpdate: true, shared: true}, "Run: loupe update"},
+		"shared setup":    {startupGate{version: "1.4.0", autoUpdate: true, shared: true}, "Run: LOUPE_CONFIG= loupe update"},
+		"shared homebrew": {startupGate{version: "1.4.0", shared: true, install: installHomebrew}, "Run: brew upgrade loupe"},
 		"homebrew":        {startupGate{version: "1.4.0", autoUpdate: true, install: installHomebrew}, "Run: brew upgrade loupe"},
 		"too new":         {startupGate{version: "3.0.0", autoUpdate: true}, "Upgrade the server."},
 	}
