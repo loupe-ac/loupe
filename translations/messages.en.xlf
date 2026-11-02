@@ -10170,6 +10170,7 @@
             <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
             <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
             <trans-unit id="artifact.error.too_large"><source>artifact.error.too_large</source><target>The files together are larger than the size limit of this instance allows.</target></trans-unit>
+            <trans-unit id="artifact.error.upload_failed"><source>artifact.error.upload_failed</source><target>A file did not finish uploading. Send it again.</target></trans-unit>
             <trans-unit id="ds.relative_time.just_now"><source>ds.relative_time.just_now</source><target>just now</target></trans-unit>
             <trans-unit id="ds.relative_time.minutes"><source>ds.relative_time.minutes</source><target>%count%m ago</target></trans-unit>
             <trans-unit id="ds.relative_time.hours"><source>ds.relative_time.hours</source><target>%count%h ago</target></trans-unit>

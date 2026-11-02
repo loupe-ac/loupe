@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -113,6 +114,36 @@ class ArtifactRepository extends ServiceEntityRepository
 
         if (!$includeArchived) {
             $builder->andWhere('a.archivedAt IS NULL');
+        }
+
+        return array_values($builder->getQuery()->getResult());
+    }
+
+    /**
+     * One keyset page of the project's artifacts in creation order, ties broken on the id.
+     * Archived ones are left out unless asked for.
+     *
+     * @param ?array{\DateTimeImmutable, Uuid} $after the creation time and the id of the last row of the previous page
+     *
+     * @return list<Artifact>
+     */
+    public function findKeysetPageByProject(Project $project, bool $includeArchived, int $limit, bool $newestFirst, ?array $after): array
+    {
+        $builder = $this->createQueryBuilder('a')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('a.createdAt', $newestFirst ? 'DESC' : 'ASC')
+            ->addOrderBy('a.id', $newestFirst ? 'DESC' : 'ASC')
+            ->setMaxResults($limit);
+
+        if (!$includeArchived) {
+            $builder->andWhere('a.archivedAt IS NULL');
+        }
+        if (null !== $after) {
+            $operator = $newestFirst ? '<' : '>';
+            $builder->andWhere(\sprintf('(a.createdAt %1$s :afterAt OR (a.createdAt = :afterAt AND a.id %1$s :afterId))', $operator))
+                ->setParameter('afterAt', $after[0], Types::DATETIME_IMMUTABLE)
+                ->setParameter('afterId', $after[1], UuidType::NAME);
         }
 
         return array_values($builder->getQuery()->getResult());

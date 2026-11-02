@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Api\Pagination;
 
 use App\Api\Problem\ApiProblemException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Where a list walk stands: the sort value and the id of the last row of a page.
@@ -16,6 +17,8 @@ use App\Api\Problem\ApiProblemException;
  */
 final readonly class Cursor
 {
+    private const string TIME_FORMAT = 'Y-m-d H:i:s.u';
+
     /**
      * @param array<string, scalar|null> $filters
      */
@@ -25,6 +28,31 @@ final readonly class Cursor
         public string $id,
         public array $filters = [],
     ) {
+    }
+
+    /**
+     * The cursor that resumes after a row of a list that sorts on its creation time.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterCreated(string $sort, \DateTimeImmutable $createdAt, Uuid $id, array $filters = []): self
+    {
+        return new self($sort, $createdAt->format(self::TIME_FORMAT), (string) $id, $filters);
+    }
+
+    /**
+     * @return array{\DateTimeImmutable, Uuid} the creation time and the id of the last row of the previous page
+     *
+     * @throws ApiProblemException `invalid_cursor` for a position that does not parse
+     */
+    public function createdPosition(): array
+    {
+        $at = \DateTimeImmutable::createFromFormat(self::TIME_FORMAT, $this->sortValue);
+        if (false === $at || !Uuid::isValid($this->id)) {
+            throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+        }
+
+        return [$at, Uuid::fromString($this->id)];
     }
 
     public function encode(): string
