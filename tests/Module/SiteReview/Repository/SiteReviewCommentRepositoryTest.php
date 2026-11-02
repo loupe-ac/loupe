@@ -49,6 +49,41 @@ final class SiteReviewCommentRepositoryTest extends KernelTestCase
         self::assertSame(SiteReviewCommentStatus::Resolved, $fetched->status);
     }
 
+    public function test_losing_the_write_moves_the_copy_to_the_stored_status_and_leaves_no_write_behind(): void
+    {
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $repository = static::getContainer()->get(SiteReviewCommentRepository::class);
+
+        $owner = new User(fullName: 'Lost', email: 'repo-lost-write@example.com', password: 'x');
+        $em->persist($owner);
+        $project = new Project($owner, 'repo-lost-write-site');
+        $em->persist($project);
+        $comment = new SiteReviewComment($project, 0, 'Body', 'https://example.com/');
+        $em->persist($comment);
+        $em->flush();
+
+        $setStored = static fn (SiteReviewCommentStatus $status): mixed => $em->createQuery(
+            'UPDATE '.SiteReviewComment::class.' c SET c.status = :status WHERE c.id = :id'
+        )
+            ->setParameter('status', $status)
+            ->setParameter('id', $comment->id, 'uuid')
+            ->execute();
+        $setStored(SiteReviewCommentStatus::Addressed);
+
+        self::assertFalse($repository->markAddressedIfPending($comment));
+        self::assertSame(SiteReviewCommentStatus::Addressed, $comment->status);
+
+        $setStored(SiteReviewCommentStatus::Resolved);
+        $em->flush();
+
+        $id = $comment->id;
+        $em->clear();
+        $fetched = $em->find(SiteReviewComment::class, $id);
+        self::assertNotNull($fetched);
+        self::assertSame(SiteReviewCommentStatus::Resolved, $fetched->status);
+    }
+
     public function test_status_counts_cover_every_status(): void
     {
         self::bootKernel();

@@ -237,7 +237,8 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
      * Pending → Addressed as a single conditional statement, so a human who
      * clicks Resolve between the caller's read and this write keeps their
      * resolution instead of having it silently replaced. Returns false when the
-     * row was no longer pending.
+     * row was no longer pending, and the copy then holds the status of the row.
+     * A copy whose row is gone keeps its status.
      */
     public function markAddressedIfPending(SiteReviewComment $comment): bool
     {
@@ -253,21 +254,27 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
             ->execute();
 
         if (0 === $updated) {
+            $stored = $this->currentStatus($comment);
+            if (null !== $stored) {
+                $this->moveCopyTo($comment, $stored);
+            }
+
             return false;
         }
 
-        // A DQL update bypasses the identity map. The snapshot must move with
-        // the copy, or the next flush reissues this as an unconditional UPDATE
-        // and the race reopens. refresh() cannot do it: Doctrine refuses to
-        // rehydrate the entity's readonly property.
-        $comment->status = SiteReviewCommentStatus::Addressed;
-        $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(
-            spl_object_id($comment),
-            'status',
-            SiteReviewCommentStatus::Addressed,
-        );
+        $this->moveCopyTo($comment, SiteReviewCommentStatus::Addressed);
 
         return true;
+    }
+
+    // A DQL update bypasses the identity map. The snapshot must move with the
+    // copy, or the next flush reissues this as an unconditional UPDATE and the
+    // race reopens. refresh() cannot do it: Doctrine refuses to rehydrate the
+    // entity's readonly property.
+    private function moveCopyTo(SiteReviewComment $comment, SiteReviewCommentStatus $status): void
+    {
+        $comment->status = $status;
+        $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($comment), 'status', $status);
     }
 
     /**

@@ -258,6 +258,35 @@ final class FeedbackApiTest extends WebTestCase
         self::assertSame(SiteReviewCommentStatus::Addressed, $this->stored($note)->status);
     }
 
+    /** The note is pending in the identity map and addressed in the row, as when another request writes between the read and the update. */
+    public function test_a_concurrent_address_answers_the_stored_status(): void
+    {
+        $note = $this->note(null, 'Two agents');
+        $this->em->flush();
+        $this->setStatusBehindTheRequest($note, SiteReviewCommentStatus::Addressed);
+        $this->client->disableReboot();
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$note->id, '{"status":"addressed"}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('addressed', $this->json()['status']);
+        self::assertSame(SiteReviewCommentStatus::Addressed, $this->stored($note)->status);
+    }
+
+    public function test_a_concurrent_resolve_is_kept_and_answers_feedback_already_resolved(): void
+    {
+        $note = $this->note(null, 'A person got there first');
+        $this->em->flush();
+        $this->setStatusBehindTheRequest($note, SiteReviewCommentStatus::Resolved);
+        $this->client->disableReboot();
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$note->id, '{"status":"addressed"}');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('feedback_already_resolved', $this->json()['code']);
+        self::assertSame(SiteReviewCommentStatus::Resolved, $this->stored($note)->status);
+    }
+
     public function test_a_resolved_item_is_never_replaced_and_answers_feedback_already_resolved(): void
     {
         $note = $this->note(null, 'A person closed this', SiteReviewCommentStatus::Resolved);
@@ -398,6 +427,14 @@ final class FeedbackApiTest extends WebTestCase
         }
 
         return $comment;
+    }
+
+    private function setStatusBehindTheRequest(SiteReviewComment $comment, SiteReviewCommentStatus $status): void
+    {
+        $this->em->createQuery('UPDATE '.SiteReviewComment::class.' c SET c.status = :status WHERE c.id = :id')
+            ->setParameter('status', $status)
+            ->setParameter('id', $comment->id, 'uuid')
+            ->execute();
     }
 
     private function stored(SiteReviewComment $comment): SiteReviewComment
