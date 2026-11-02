@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Minimal stdio MCP server that stands in for the loupe MCP.
-// Every call is appended as one JSON line to $LOUPE_STUB_LOG.
+// Every accepted call is appended as one JSON line to $LOUPE_STUB_LOG.
 import { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
@@ -84,7 +84,7 @@ const tools = {
         docs[n] = {
             documentId: n,
             title: a.title,
-            markdown: a.markdown ?? a.content,
+            markdown: a.markdown,
             tags: typeof a.tags === 'string' ? JSON.parse(a.tags) : a.tags,
             status: draft ? 'draft' : 'published',
             version: 1,
@@ -95,7 +95,13 @@ const tools = {
             status: docs[n].status,
         };
     },
-    document_revise: () => ({ version: 2 }),
+    document_revise: (a) => {
+        const doc = docs[a.documentId];
+        if (!doc) return { error: 'not found' };
+        doc.markdown = a.markdown;
+        doc.version += 1;
+        return { version: doc.version };
+    },
     document_set_tags: () => ({ ok: true }),
     document_set_references: () => ({ ok: true }),
     document_publish: () => ({ status: 'published' }),
@@ -103,11 +109,42 @@ const tools = {
     inbox_search: () => ({ items: [] }),
     series_list: () => ({ series: [] }),
 };
+// The verdict reads a document from these fields, so they follow the real tools.
+const documentSchemas = {
+    document_create: {
+        type: 'object',
+        properties: {
+            title: { type: 'string' },
+            markdown: { type: 'string' },
+            description: { type: 'string' },
+            draft: { type: 'boolean' },
+            tags: { type: 'array', items: { type: 'string' } },
+            references: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['title', 'markdown'],
+    },
+    document_revise: {
+        type: 'object',
+        properties: {
+            documentId: { type: 'string' },
+            markdown: { type: 'string' },
+            description: { type: 'string' },
+        },
+        required: ['documentId', 'markdown', 'description'],
+    },
+};
 const defs = Object.keys(tools).map((name) => ({
     name,
     description: `Stub of the loupe ${name} tool.`,
-    inputSchema: { type: 'object', additionalProperties: true },
+    inputSchema: documentSchemas[name] ?? {
+        type: 'object',
+        additionalProperties: true,
+    },
 }));
+const missingField = (name, args) =>
+    (documentSchemas[name]?.required ?? []).find(
+        (field) => args[field] === undefined,
+    );
 const send = (m) =>
     process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');
 
@@ -131,6 +168,19 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     } else if (method === 'tools/list') {
         send({ id, result: { tools: defs } });
     } else if (method === 'tools/call') {
+        const missing = missingField(params.name, params.arguments || {});
+        if (missing) {
+            send({
+                id,
+                result: {
+                    isError: true,
+                    content: [
+                        { type: 'text', text: `${missing} is required.` },
+                    ],
+                },
+            });
+            return;
+        }
         appendFileSync(
             log,
             JSON.stringify({ tool: params.name, args: params.arguments }) +

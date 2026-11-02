@@ -346,7 +346,7 @@ const lastWrite = calls
     .filter((c) => ['document_create', 'document_revise'].includes(c.tool))
     .at(-1);
 const logNamesSkill = sectionEntries(
-    lastWrite?.args?.markdown ?? lastWrite?.args?.content ?? '',
+    lastWrite?.args?.markdown ?? '',
     kind === 'product' ? 'Decisions log' : 'Decided',
 ).some((entry) => /brainstorming/i.test(entry) && /superpowers/i.test(entry));
 

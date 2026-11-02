@@ -3,6 +3,7 @@ import {
     chmodSync,
     mkdirSync,
     mkdtempSync,
+    readFileSync,
     readdirSync,
     rmSync,
     writeFileSync,
@@ -16,6 +17,10 @@ const script = fileURLToPath(
     new URL('../skill-evals/session-test/run.mjs', import.meta.url),
 );
 
+const stub = fileURLToPath(
+    new URL('../skill-evals/session-test/loupe-stub.mjs', import.meta.url),
+);
+
 const fakeClaude = `#!/usr/bin/env node
 const fs = require('node:fs');
 const argv = process.argv;
@@ -25,7 +30,7 @@ const call = (tool, args) => fs.appendFileSync(log, JSON.stringify({ tool, args 
 const draft = process.env.FAKE_DRAFT === 'none' ? {} : { draft: true };
 call('document_create', {
     title: 'Notes by brainstorming from superpowers',
-    markdown: process.env.FAKE_MARKDOWN ?? '## Decisions log\\n\\n1. Method: brainstorming from superpowers.\\n',
+    [process.env.FAKE_FIELD ?? 'markdown']: process.env.FAKE_MARKDOWN ?? '## Decisions log\\n\\n1. Method: brainstorming from superpowers.\\n',
     ...draft,
 });
 if (process.env.FAKE_REVISION) call('document_revise', { markdown: process.env.FAKE_REVISION });
@@ -236,6 +241,16 @@ describe('the session test verdict', () => {
         expect(result.status).toBe(1);
     });
 
+    it.each(['body', 'content'])(
+        'fails a session that sends the document in the %s field',
+        (field) => {
+            const result = run({ FAKE_CLOSE: '1', FAKE_FIELD: field });
+
+            expect(result.stdout).toContain(logFailure);
+            expect(result.status).toBe(1);
+        },
+    );
+
     it('reads the entry from the last version of the document', () => {
         const added = run({
             FAKE_CLOSE: '1',
@@ -267,5 +282,74 @@ describe('the session test verdict', () => {
             'FAIL  session finished with card_run_close',
         );
         expect(result.status).toBe(1);
+    });
+});
+
+describe('the session test stub', () => {
+    let dir;
+
+    beforeEach(() => {
+        dir = mkdtempSync(join(tmpdir(), 'session-test-stub-'));
+    });
+
+    afterEach(() => {
+        rmSync(dir, { recursive: true, force: true });
+    });
+
+    const request = (id, method, params) =>
+        JSON.stringify({ jsonrpc: '2.0', id, method, params });
+    const callTool = (id, name, args) =>
+        request(id, 'tools/call', { name, arguments: args });
+
+    const talk = (lines) => {
+        const log = join(dir, 'calls.jsonl');
+        writeFileSync(log, '');
+        const result = spawnSync(process.execPath, [stub], {
+            encoding: 'utf8',
+            input: `${lines.join('\n')}\n`,
+            env: { ...process.env, LOUPE_STUB_LOG: log },
+        });
+        return {
+            answers: result.stdout.trim().split('\n').map(JSON.parse),
+            calls: readFileSync(log, 'utf8').trim().split('\n').filter(Boolean),
+        };
+    };
+
+    it.each([
+        ['document_create', ['title', 'markdown']],
+        ['document_revise', ['documentId', 'markdown', 'description']],
+    ])('declares the required fields of %s', (name, required) => {
+        const { answers } = talk([request(1, 'tools/list')]);
+        const tool = answers[0].result.tools.find((t) => t.name === name);
+
+        expect(tool.inputSchema.required).toEqual(required);
+    });
+
+    it.each([
+        ['document_create', { title: 'Notes', body: 'text' }],
+        ['document_create', { title: 'Notes', content: 'text' }],
+        ['document_revise', { documentId: 'doc-stub-1', description: 'x' }],
+    ])('refuses %s with %j, and logs no call', (name, args) => {
+        const { answers, calls } = talk([callTool(1, name, args)]);
+
+        expect(answers[0].result.isError).toBe(true);
+        expect(calls).toEqual([]);
+    });
+
+    it('returns a revised document with its new text', () => {
+        const { answers, calls } = talk([
+            callTool(1, 'document_create', { title: 'Notes', markdown: 'one' }),
+            callTool(2, 'document_revise', {
+                documentId: 'doc-stub-1',
+                markdown: 'two',
+                description: 'x',
+            }),
+            callTool(3, 'document_get', { documentId: 'doc-stub-1' }),
+        ]);
+        const document = JSON.parse(answers[2].result.content[0].text);
+
+        expect(document.markdown).toBe('two');
+        expect(document.version).toBe(2);
+        expect(calls).toHaveLength(3);
     });
 });

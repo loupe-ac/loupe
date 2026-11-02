@@ -17,7 +17,7 @@ Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per t
 
 1. It copies `plugins/loupe` without `hooks/`, because the hooks call the `loupe` CLI of the host.
 2. It makes a temporary git repository with one commit.
-3. It starts `claude -p` with both plugins and `loupe-stub.mjs` as the `loupe` MCP server. The stub returns plausible JSON and logs every call to `loupe-calls.jsonl`.
+3. It starts `claude -p` with both plugins and `loupe-stub.mjs` as the `loupe` MCP server. The stub returns plausible JSON and logs every accepted call to `loupe-calls.jsonl`. It declares the real fields of `document_create` and `document_revise`, and refuses a call with no `markdown`, because check 8 reads that field.
 4. It plays the owner with fixed replies, one `--resume` per reply. The first reply picks the `brainstorming` skill when the session asks which method leads. The mode is `bypassPermissions`, so a spec write would succeed and show.
 5. It stops after `card_run_close`, or after the turn limit.
 
