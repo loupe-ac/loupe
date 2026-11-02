@@ -58,6 +58,8 @@ stays out of the export.
 
 `openrouter_keys.json` holds one row for each [OpenRouter key](openrouter.md) of the user: the account key, and the key of each project the user owns. A row gives the scope, the project id, the state and the dates. It never holds the key, and it does not hold the end of the key.
 
+`idempotency_records.json` holds the API requests of the user that sent an `Idempotency-Key` header and that Loupe still stores. Each row gives the credential, the key, the request hash, the state and the dates. It also gives the status, the headers and the body of the stored answer. A request that still runs has no status, no headers and no body. Loupe deletes each row 24 hours after the request.
+
 `worker_run_facts.json` holds the metrics row of each worker run of the projects
 the user owns, with its outcome, its duration, its cost, its token sums, its
 timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.
