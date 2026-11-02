@@ -58,8 +58,10 @@ goes by its number in the project, such as `/projects/loupe/cards/42`.
    store files take `multipart/form-data`.
 2. Field names are camelCase.
 3. `PATCH` changes only the fields that the body names.
-4. A `POST` that creates answers `201`, with the URL of the new resource in the
-   `Location` header.
+4. A `POST` that creates answers `201`, with a URL in the `Location` header. The
+   URL names the new resource, or the nearest resource that a route can read. A
+   new artifact version names its artifact. A comment reply and a verdict name
+   the review of the document.
 
 ## Lists
 
@@ -105,7 +107,8 @@ defaults are 600 reads and 120 writes. An operator changes them with the
 `api.rate_limit_reads_per_minute` and `api.rate_limit_writes_per_minute` flags on
 the flags page of the [admin area](../../using/admin.md). A change needs no restart.
 
-Every response of a public route carries these headers:
+A request that signs in and reaches a public route gets these headers, also when
+the route refuses it:
 
 | Header | Meaning |
 |---|---|
@@ -116,6 +119,18 @@ Every response of a public route carries these headers:
 A request over the budget gets `429` with the code `rate_limited` and a
 `Retry-After` header that holds the seconds to wait. The bridge and widget
 routes keep their own limits, and send `Retry-After` only.
+
+These answers carry no budget headers:
+
+1. An answer to a request with no credential. `GET /api/v1/openapi.json` and
+   `GET /api/versions` need no credential, and spend from a budget of the client
+   address. A `429` on them still sends `Retry-After`.
+2. A `401` or a `403` with the code `credential_not_allowed` from the sign-in
+   check, because the request never reaches the budget.
+3. A `404` with the code `route_not_found`, and a `405`, because no route matched.
+
+The OpenAPI file lists these headers on the refusals that all routes share. Treat
+them as optional on any refusal.
 
 ## Errors
 

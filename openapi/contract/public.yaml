@@ -1594,9 +1594,12 @@ paths:
       summary: Record the verdict of the owner
       tags:
       - Review
+      description: An approval moves the card of the document on. A verdict on a draft stops its agent review. A bridge worker
+        is refused. `Location` points at the review, because no route reads one verdict.
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/Document'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -1613,6 +1616,8 @@ paths:
               $ref: '#/components/headers/RateLimit-Remaining'
             RateLimit-Reset:
               $ref: '#/components/headers/RateLimit-Reset'
+            Location:
+              $ref: '#/components/headers/Location'
           content:
             application/json:
               schema:
@@ -1630,7 +1635,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '409':
-          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnanswered'
+          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -6245,6 +6250,30 @@ components:
               $ref: '#/components/examples/VerdictChanged'
             decisions_unanswered:
               $ref: '#/components/examples/DecisionsUnanswered'
+    E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More:
+      description: 'Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `idempotency_key_reused`, `idempotency_in_progress`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            verdict_stale:
+              $ref: '#/components/examples/VerdictStale'
+            verdict_changed:
+              $ref: '#/components/examples/VerdictChanged'
+            decisions_unanswered:
+              $ref: '#/components/examples/DecisionsUnanswered'
+            idempotency_key_reused:
+              $ref: '#/components/examples/IdempotencyKeyReused'
+            idempotency_in_progress:
+              $ref: '#/components/examples/IdempotencyInProgress'
     E409VerdictStaleVerdictChangedVerdictNoneAnd1More:
       description: 'Refused: `verdict_stale`, `verdict_changed`, `verdict_none`, `verdict_already_withdrawn`.'
       headers:

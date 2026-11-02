@@ -181,6 +181,29 @@ final class GeneratedSpecTest extends KernelTestCase
         }
     }
 
+    /** The reference page promises both on each create, so an operation that lacks one makes the page false. */
+    public function test_every_public_create_declares_a_location_and_an_idempotency_key(): void
+    {
+        $spec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);
+        $checked = 0;
+
+        foreach ($spec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                if (!isset($operation['responses']['201'])) {
+                    continue;
+                }
+
+                $key = strtoupper((string) $method).' '.$path;
+                self::assertArrayHasKey('Location', self::resolved($spec, $operation['responses']['201'])['headers'] ?? [], $key);
+                $parameters = array_map(static fn (array $parameter): array => self::resolved($spec, $parameter), $operation['parameters'] ?? []);
+                self::assertContains('Idempotency-Key', array_column($parameters, 'name'), $key);
+                ++$checked;
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'No create was compared, so this test would prove nothing.');
+    }
+
     public function test_every_public_request_schema_has_the_nullable_fields_and_the_required_fields_of_the_contract(): void
     {
         $builtSpec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);

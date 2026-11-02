@@ -316,6 +316,26 @@ final class DocumentReviewApiTest extends WebTestCase
         self::assertSame('approved', $this->json()['verdict']);
     }
 
+    public function test_a_verdict_names_the_review_in_location_and_a_retry_repeats_it(): void
+    {
+        $document = $this->reviewable();
+        $this->sendJson(Request::METHOD_PUT, $this->url($document, '/decisions/target'), ['versionNumber' => 1, 'optionIndexes' => [0]]);
+        $url = $this->url($document, '/verdicts');
+        $body = (string) json_encode(['versionNumber' => 1, 'verdict' => 'approved', 'expectedVerdictId' => null]);
+        $server = ['HTTP_AUTHORIZATION' => 'Bearer '.$this->token, 'CONTENT_TYPE' => 'application/json', 'HTTP_IDEMPOTENCY_KEY' => 'verdict-retry'];
+
+        $this->client->request(Request::METHOD_POST, $url, server: $server, content: $body);
+        self::assertResponseStatusCodeSame(201);
+        $first = $this->json();
+        $location = $this->client->getResponse()->headers->get('Location');
+        self::assertStringEndsWith('/documents/'.$document->id.'/review', (string) $location);
+
+        $this->client->request(Request::METHOD_POST, $url, server: $server, content: $body);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($first, $this->json());
+        self::assertSame($location, $this->client->getResponse()->headers->get('Location'));
+    }
+
     public function test_a_verdict_refuses_a_stale_version_a_changed_review_and_a_missing_note(): void
     {
         $document = $this->reviewable();
