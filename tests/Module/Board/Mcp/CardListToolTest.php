@@ -13,6 +13,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardListTool;
 use App\Module\Board\Repository\CardRepository;
@@ -21,6 +22,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
@@ -31,6 +33,7 @@ final class CardListToolTest extends KernelTestCase
 {
     use BoardToolScenario;
     use McpTokenScenario;
+    use WorkflowProjects;
 
     private EntityManagerInterface $em;
     private CardListTool $tool;
@@ -553,6 +556,36 @@ final class CardListToolTest extends KernelTestCase
         self::assertCount(3, $small['cards']);
         self::assertCount(6, $big['cards']);
         self::assertCount(6, array_filter(array_column($big['cards'], 'documents'), static fn (array $linked): bool => 1 === \count($linked)));
+    }
+
+    public function test_a_full_page_reads_the_values_once_whatever_the_card_count(): void
+    {
+        $project = $this->workflowProject('card-list-values');
+        $this->bindLifecycle($project);
+        $this->actAsMcpTokenBoundTo($project);
+        for ($i = 0; $i < 6; ++$i) {
+            ($this->createTool)('Card '.$i, 'Body', 'feature');
+        }
+        $repository = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $repository);
+        foreach ($repository->findBy(['project' => $project]) as $card) {
+            $this->em->persist(new CardValue($card, 'tech-design-interactive', true, Actor::Human, $project->owner));
+        }
+        $this->em->flush();
+
+        $small = $this->statementsOfAFullPage(3);
+        $big = $this->statementsOfAFullPage(6);
+
+        // Guard: the page must read the values, or a count of one proves nothing.
+        $reads = static fn (array $sql): array => array_values(array_filter($sql, static fn (string $statement): bool => str_contains($statement, 'board_card_values')));
+        self::assertCount(1, $reads($small['sql']));
+        self::assertCount(1, $reads($big['sql']));
+        self::assertSame(\count($small['sql']), \count($big['sql']));
+        self::assertCount(3, $small['cards']);
+        self::assertCount(6, $big['cards']);
+        foreach ($big['cards'] as $row) {
+            self::assertTrue($row['values'][0]['value']);
+        }
     }
 
     /** @return array{sql: list<string>, cards: list<array<string, mixed>>} */
