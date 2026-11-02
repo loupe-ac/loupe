@@ -793,6 +793,469 @@ when@dev: &generator
                                     stored:
                                         type: integer
                                         description: The calls the server stored for the first time.
+                            PickerCards:
+                                type: object
+                                required:
+                                - cards
+                                properties:
+                                    cards:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - cardId
+                                            - number
+                                            - title
+                                            - status
+                                            properties:
+                                                cardId:
+                                                    type: string
+                                                    format: uuid
+                                                number:
+                                                    type: integer
+                                                title:
+                                                    type: string
+                                                status:
+                                                    type: string
+                                        maxItems: 20
+                            WidgetCardCreated:
+                                type: object
+                                required:
+                                - cardId
+                                - number
+                                - label
+                                - url
+                                properties:
+                                    cardId:
+                                        type: string
+                                        format: uuid
+                                    number:
+                                        type: integer
+                                    label:
+                                        type: string
+                                        description: '`#<number> <title>`.'
+                                    url:
+                                        type: string
+                                        format: uri
+                            VerdictPanel:
+                                type: object
+                                required:
+                                - cardId
+                                - connection
+                                - pullRequests
+                                - notes
+                                - preview
+                                - latestVerdict
+                                properties:
+                                    cardId:
+                                        type: string
+                                        format: uuid
+                                    connection:
+                                        type: object
+                                        required:
+                                        - state
+                                        - login
+                                        properties:
+                                            state:
+                                                type: string
+                                                enum:
+                                                - none
+                                                - connected
+                                                - expired
+                                            login:
+                                                type: string
+                                                nullable: true
+                                    pullRequests:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - label
+                                            - ownPullRequest
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                label:
+                                                    type: string
+                                                ownPullRequest:
+                                                    type: boolean
+                                    notes:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - url
+                                            - body
+                                            - anchorCount
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                url:
+                                                    type: string
+                                                    nullable: true
+                                                body:
+                                                    type: string
+                                                anchorCount:
+                                                    type: integer
+                                    preview:
+                                        type: object
+                                        required:
+                                        - approve
+                                        - request-changes
+                                        - comment
+                                        properties:
+                                            approve:
+                                                $ref: '#/components/schemas/VerdictActions'
+                                            request-changes:
+                                                $ref: '#/components/schemas/VerdictActions'
+                                            comment:
+                                                $ref: '#/components/schemas/VerdictActions'
+                                    latestVerdict:
+                                        type: object
+                                        required:
+                                        - id
+                                        - kind
+                                        - message
+                                        - createdAt
+                                        - deliveries
+                                        properties:
+                                            id:
+                                                type: string
+                                                format: uuid
+                                            kind:
+                                                type: string
+                                                enum:
+                                                - approve
+                                                - request-changes
+                                                - comment
+                                            message:
+                                                type: string
+                                            createdAt:
+                                                type: string
+                                                format: date-time
+                                            deliveries:
+                                                type: array
+                                                items:
+                                                    type: object
+                                                    required:
+                                                    - pullRequestId
+                                                    - label
+                                                    - state
+                                                    - reason
+                                                    - reviewUrl
+                                                    properties:
+                                                        pullRequestId:
+                                                            type: string
+                                                            format: uuid
+                                                        label:
+                                                            type: string
+                                                        state:
+                                                            type: string
+                                                            enum:
+                                                            - pending
+                                                            - posted
+                                                            - commented
+                                                            - skipped
+                                                            - refused
+                                                        reason:
+                                                            type: string
+                                                            nullable: true
+                                                        reviewUrl:
+                                                            type: string
+                                                            nullable: true
+                                        nullable: true
+                            VerdictActions:
+                                type: object
+                                required:
+                                - actions
+                                properties:
+                                    actions:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - code
+                                            - label
+                                            properties:
+                                                code:
+                                                    type: string
+                                                label:
+                                                    type: string
+                            CardVerdictSent:
+                                type: object
+                                required:
+                                - verdictId
+                                - kind
+                                - noteCount
+                                properties:
+                                    verdictId:
+                                        type: string
+                                        format: uuid
+                                    kind:
+                                        type: string
+                                        enum:
+                                        - approve
+                                        - request-changes
+                                        - comment
+                                    noteCount:
+                                        type: integer
+                            CommentUpdated:
+                                type: object
+                                required:
+                                - commentId
+                                - label
+                                properties:
+                                    commentId:
+                                        type: string
+                                        format: uuid
+                                    label:
+                                        type: string
+                                        description: The label of the card of the note.
+                                        nullable: true
+                            FeedbackAdded:
+                                type: object
+                                required:
+                                - commentId
+                                - cardId
+                                - number
+                                - label
+                                - url
+                                properties:
+                                    commentId:
+                                        type: string
+                                        format: uuid
+                                    cardId:
+                                        type: string
+                                        format: uuid
+                                    number:
+                                        type: integer
+                                    label:
+                                        type: string
+                                    url:
+                                        type: string
+                                        format: uri
+                            FeedbackDeleted:
+                                type: object
+                                required:
+                                - cardDeleted
+                                properties:
+                                    cardDeleted:
+                                        type: boolean
+                                        description: Whether the card the note created went too.
+                            PendingComments:
+                                type: object
+                                required:
+                                - projectId
+                                - drawingEnabled
+                                - parentTypes
+                                - context
+                                - comments
+                                properties:
+                                    projectId:
+                                        type: string
+                                        format: uuid
+                                    drawingEnabled:
+                                        type: boolean
+                                    parentTypes:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - key
+                                            - label
+                                            properties:
+                                                key:
+                                                    type: string
+                                                label:
+                                                    type: string
+                                    context:
+                                        type: object
+                                        required:
+                                        - label
+                                        - url
+                                        properties:
+                                            label:
+                                                type: string
+                                            url:
+                                                type: string
+                                                nullable: true
+                                        nullable: true
+                                    comments:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - body
+                                            - url
+                                            - surface
+                                            - native
+                                            - anchors
+                                            - strokes
+                                            - link
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                body:
+                                                    type: string
+                                                url:
+                                                    type: string
+                                                    nullable: true
+                                                surface:
+                                                    type: string
+                                                    enum:
+                                                    - web
+                                                    - ios-simulator
+                                                native:
+                                                    type: object
+                                                    nullable: true
+                                                    allOf:
+                                                    -   $ref: '#/components/schemas/NativeFacts'
+                                                anchors:
+                                                    type: array
+                                                    items:
+                                                        $ref: '#/components/schemas/NoteAnchor'
+                                                strokes:
+                                                    type: array
+                                                    items:
+                                                        $ref: '#/components/schemas/Stroke'
+                                                link:
+                                                    type: object
+                                                    required:
+                                                    - label
+                                                    - url
+                                                    properties:
+                                                        label:
+                                                            type: string
+                                                        url:
+                                                            type: string
+                                                            nullable: true
+                                                    nullable: true
+                            NativeFacts:
+                                type: object
+                                required:
+                                - app
+                                - device
+                                - screen
+                                - element
+                                properties:
+                                    app:
+                                        type: object
+                                        required:
+                                        - name
+                                        - bundleId
+                                        properties:
+                                            name:
+                                                type: string
+                                                nullable: true
+                                            bundleId:
+                                                type: string
+                                    device:
+                                        type: object
+                                        required:
+                                        - name
+                                        - udid
+                                        - osVersion
+                                        properties:
+                                            name:
+                                                type: string
+                                            udid:
+                                                type: string
+                                            osVersion:
+                                                type: string
+                                    screen:
+                                        type: object
+                                        required:
+                                        - title
+                                        properties:
+                                            title:
+                                                type: string
+                                                nullable: true
+                                    element:
+                                        type: object
+                                        required:
+                                        - role
+                                        - label
+                                        - identifier
+                                        - frame
+                                        properties:
+                                            role:
+                                                type: string
+                                            label:
+                                                type: string
+                                                nullable: true
+                                            identifier:
+                                                type: string
+                                                nullable: true
+                                            frame:
+                                                type: object
+                                                required:
+                                                - x
+                                                - y
+                                                - width
+                                                - height
+                                                properties:
+                                                    x:
+                                                        type: number
+                                                    y:
+                                                        type: number
+                                                    width:
+                                                        type: number
+                                                    height:
+                                                        type: number
+                                                nullable: true
+                                        nullable: true
+                            NoteAnchor:
+                                type: object
+                                required:
+                                - selector
+                                - text
+                                - quote
+                                - quotePrefix
+                                - quoteSuffix
+                                properties:
+                                    selector:
+                                        type: string
+                                    text:
+                                        type: string
+                                    quote:
+                                        type: string
+                                        nullable: true
+                                    quotePrefix:
+                                        type: string
+                                        nullable: true
+                                    quoteSuffix:
+                                        type: string
+                                        nullable: true
+                            Stroke:
+                                type: object
+                                required:
+                                - points
+                                properties:
+                                    space:
+                                        type: string
+                                        enum:
+                                        - anchor
+                                        - page
+                                        default: page
+                                    points:
+                                        type: array
+                                        items:
+                                            type: array
+                                            items:
+                                                type: number
+                                                minimum: -1000
+                                                maximum: 1000
+                                            minItems: 2
+                                            maxItems: 2
+                                        description: Fractions, not pixels.
+                                        minItems: 2
+                                        maxItems: 500
                             ExperimentHeadline:
                                 type: object
                                 properties:

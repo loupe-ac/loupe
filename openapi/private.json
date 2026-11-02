@@ -195,8 +195,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/FeedbackAdded"
                                 }
                             }
                         }
@@ -352,8 +351,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/PickerCards"
                                 }
                             }
                         }
@@ -454,8 +452,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/WidgetCardCreated"
                                 }
                             }
                         }
@@ -586,8 +583,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/FeedbackDeleted"
                                 }
                             }
                         }
@@ -793,8 +789,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/CardVerdictSent"
                                 }
                             }
                         }
@@ -936,8 +931,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/VerdictPanel"
                                 }
                             }
                         }
@@ -3882,8 +3876,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/PendingComments"
                                 }
                             }
                         }
@@ -4005,8 +3998,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
+                                    "$ref": "#/components/schemas/CommentUpdated"
                                 }
                             }
                         }
@@ -5128,6 +5120,654 @@
                     "stored": {
                         "description": "The calls the server stored for the first time.",
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "PickerCards": {
+                "required": [
+                    "cards"
+                ],
+                "properties": {
+                    "cards": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "number",
+                                "title",
+                                "status"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "maxItems": 20
+                    }
+                },
+                "type": "object"
+            },
+            "WidgetCardCreated": {
+                "required": [
+                    "cardId",
+                    "number",
+                    "label",
+                    "url"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "type": "integer"
+                    },
+                    "label": {
+                        "description": "`#<number> <title>`.",
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "type": "object"
+            },
+            "VerdictPanel": {
+                "required": [
+                    "cardId",
+                    "connection",
+                    "pullRequests",
+                    "notes",
+                    "preview",
+                    "latestVerdict"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "connection": {
+                        "required": [
+                            "state",
+                            "login"
+                        ],
+                        "properties": {
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "connected",
+                                    "expired"
+                                ]
+                            },
+                            "login": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "pullRequests": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "label",
+                                "ownPullRequest"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "ownPullRequest": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "notes": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "url",
+                                "body",
+                                "anchorCount"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "url": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "body": {
+                                    "type": "string"
+                                },
+                                "anchorCount": {
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "preview": {
+                        "required": [
+                            "approve",
+                            "request-changes",
+                            "comment"
+                        ],
+                        "properties": {
+                            "approve": {
+                                "$ref": "#/components/schemas/VerdictActions"
+                            },
+                            "request-changes": {
+                                "$ref": "#/components/schemas/VerdictActions"
+                            },
+                            "comment": {
+                                "$ref": "#/components/schemas/VerdictActions"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "latestVerdict": {
+                        "required": [
+                            "id",
+                            "kind",
+                            "message",
+                            "createdAt",
+                            "deliveries"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "approve",
+                                    "request-changes",
+                                    "comment"
+                                ]
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "deliveries": {
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "pullRequestId",
+                                        "label",
+                                        "state",
+                                        "reason",
+                                        "reviewUrl"
+                                    ],
+                                    "properties": {
+                                        "pullRequestId": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "state": {
+                                            "type": "string",
+                                            "enum": [
+                                                "pending",
+                                                "posted",
+                                                "commented",
+                                                "skipped",
+                                                "refused"
+                                            ]
+                                        },
+                                        "reason": {
+                                            "type": "string",
+                                            "nullable": true
+                                        },
+                                        "reviewUrl": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "VerdictActions": {
+                "required": [
+                    "actions"
+                ],
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "code",
+                                "label"
+                            ],
+                            "properties": {
+                                "code": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "CardVerdictSent": {
+                "required": [
+                    "verdictId",
+                    "kind",
+                    "noteCount"
+                ],
+                "properties": {
+                    "verdictId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "approve",
+                            "request-changes",
+                            "comment"
+                        ]
+                    },
+                    "noteCount": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "CommentUpdated": {
+                "required": [
+                    "commentId",
+                    "label"
+                ],
+                "properties": {
+                    "commentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "label": {
+                        "description": "The label of the card of the note.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackAdded": {
+                "required": [
+                    "commentId",
+                    "cardId",
+                    "number",
+                    "label",
+                    "url"
+                ],
+                "properties": {
+                    "commentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "type": "integer"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "type": "object"
+            },
+            "FeedbackDeleted": {
+                "required": [
+                    "cardDeleted"
+                ],
+                "properties": {
+                    "cardDeleted": {
+                        "description": "Whether the card the note created went too.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "PendingComments": {
+                "required": [
+                    "projectId",
+                    "drawingEnabled",
+                    "parentTypes",
+                    "context",
+                    "comments"
+                ],
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "drawingEnabled": {
+                        "type": "boolean"
+                    },
+                    "parentTypes": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "key",
+                                "label"
+                            ],
+                            "properties": {
+                                "key": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "context": {
+                        "required": [
+                            "label",
+                            "url"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "comments": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "body",
+                                "url",
+                                "surface",
+                                "native",
+                                "anchors",
+                                "strokes",
+                                "link"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "body": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "surface": {
+                                    "type": "string",
+                                    "enum": [
+                                        "web",
+                                        "ios-simulator"
+                                    ]
+                                },
+                                "native": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/NativeFacts"
+                                        }
+                                    ]
+                                },
+                                "anchors": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/NoteAnchor"
+                                    }
+                                },
+                                "strokes": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Stroke"
+                                    }
+                                },
+                                "link": {
+                                    "required": [
+                                        "label",
+                                        "url"
+                                    ],
+                                    "properties": {
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "url": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "NativeFacts": {
+                "required": [
+                    "app",
+                    "device",
+                    "screen",
+                    "element"
+                ],
+                "properties": {
+                    "app": {
+                        "required": [
+                            "name",
+                            "bundleId"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "bundleId": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "device": {
+                        "required": [
+                            "name",
+                            "udid",
+                            "osVersion"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "udid": {
+                                "type": "string"
+                            },
+                            "osVersion": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "screen": {
+                        "required": [
+                            "title"
+                        ],
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "element": {
+                        "required": [
+                            "role",
+                            "label",
+                            "identifier",
+                            "frame"
+                        ],
+                        "properties": {
+                            "role": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "identifier": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "frame": {
+                                "required": [
+                                    "x",
+                                    "y",
+                                    "width",
+                                    "height"
+                                ],
+                                "properties": {
+                                    "x": {
+                                        "type": "number"
+                                    },
+                                    "y": {
+                                        "type": "number"
+                                    },
+                                    "width": {
+                                        "type": "number"
+                                    },
+                                    "height": {
+                                        "type": "number"
+                                    }
+                                },
+                                "type": "object",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "NoteAnchor": {
+                "required": [
+                    "selector",
+                    "text",
+                    "quote",
+                    "quotePrefix",
+                    "quoteSuffix"
+                ],
+                "properties": {
+                    "selector": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "quote": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quotePrefix": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quoteSuffix": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Stroke": {
+                "required": [
+                    "points"
+                ],
+                "properties": {
+                    "space": {
+                        "type": "string",
+                        "default": "page",
+                        "enum": [
+                            "anchor",
+                            "page"
+                        ]
+                    },
+                    "points": {
+                        "description": "Fractions, not pixels.",
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number",
+                                "maximum": 1000,
+                                "minimum": -1000
+                            },
+                            "maxItems": 2,
+                            "minItems": 2
+                        },
+                        "maxItems": 500,
+                        "minItems": 2
                     }
                 },
                 "type": "object"

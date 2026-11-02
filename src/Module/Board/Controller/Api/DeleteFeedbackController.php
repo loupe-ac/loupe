@@ -29,7 +29,7 @@ use Symfony\Component\Uid\Uuid;
         new OA\Parameter(name: 'id', description: 'The note id. A value that is not a uuid answers 404 `not_found`.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The note went.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
+        new OA\Response(response: 200, description: 'The note went.', content: new OA\JsonContent(ref: '#/components/schemas/FeedbackDeleted')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),

@@ -32,7 +32,7 @@ use Symfony\Component\Routing\Attribute\Route;
         new OA\Parameter(name: 'cardId', description: 'The card id.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'What the widget shows in its verdict panel.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
+        new OA\Response(response: 200, description: 'What the widget shows in its verdict panel.', content: new OA\JsonContent(ref: '#/components/schemas/VerdictPanel')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
