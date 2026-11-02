@@ -7,17 +7,17 @@ description: "Use when the owner runs an interactive tech design session for a L
 
 Run a tech design session with the owner. Write the tech design, link it to the card, and stop. The owner's approval of the design moves the card on.
 
-This skill is not a stage skill. It loads no `stage-contract.md` and no unattended run notes, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1 of `../loupe-product-design/references/question-rules.md`).
+This skill is not a stage skill. It loads no `stage-contract.md` and no unattended run notes, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1 of `loupe-interviewing`).
 
 Never move the card. The workflow asked for this session, and the owner's approval of the design makes the move. This rule overrides the move table of `loupe-board`.
 
-`references/session-flow.md` holds the phases T0 to T6. `../loupe-stage-tech-design/references/tech-document.md` holds the content rules of the design and of its deploy notes. `../loupe-product-design/references/question-rules.md` holds the question rules Q1 to Q8.
+`references/session-flow.md` holds the phases T0 to T6. `../loupe-stage-tech-design/references/tech-document.md` holds the content rules of the design and of its deploy notes. `../loupe-interviewing/SKILL.md` holds the question rules Q1, Q2, Q3, Q7 and Q8, the options shape, the recap loop and the stop rule. This session has no rule Q5 or Q6, because it settles the technical choices. Q2 uses the rules of "Facts and recommendations" in `tech-document.md` as its principles.
 
 ## Procedure
 
-1. Load the `loupe-board` and `loupe-documents` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
+1. Load the `loupe-board`, `loupe-documents` and `loupe-interviewing` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
 2. Read `.loupe/lifecycle.md` for the writing style and the `Documents` tags. When the file is missing, write plainly.
-3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md` and `../loupe-product-design/references/question-rules.md`. Follow them for the whole session.
+3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md` and `../loupe-interviewing/SKILL.md`. Follow them for the whole session.
 4. Call `card_get`. Read the tags of each linked document with `document_get`, as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
    - With an approved tech design, stop and tell the owner.
    - An unapproved tech design is the existing document that T6 revises.

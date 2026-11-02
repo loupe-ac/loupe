@@ -34,6 +34,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `loupe-analysis` | Running an analysis of a project's worker runs through the `loupe` MCP: `analysis_get`, `metric_query`, `analysis_report`, the cost report and its proposals |
 | `loupe-product-design` | An interactive product design session with the owner through the `loupe` MCP, from a card or a one-line idea: `/loupe:product-design` |
 | `loupe-tech-design` | An interactive tech design session with the owner through the `loupe` MCP: `/loupe:tech-design` |
+| `loupe-interviewing` | The question rules, the recap and the stop rule that both design sessions load, and the interview method when no installed skill leads |
 | `loupe-stage-product-design` | One review round on a card's product document, or a prompt that names the skill |
 | `loupe-stage-tech-design` | A card entering the Tech design column, or a prompt that names the skill: write or revise the tech design |
 | `loupe-stage-implementation` | A card entering the Implementation column, or a prompt that names the skill: build the approved tech design into a ready pull request, or break an epic down into child cards |
