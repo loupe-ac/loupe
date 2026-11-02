@@ -19,6 +19,10 @@ Every endpoint on this page authenticates with an OAuth token that carries the
 agent scope. `loupe login` gets one. The firewall refuses a token that carries
 the `site-review` or the `mcp` scope.
 
+A route under `/api/v1` refuses with Problem JSON, as the
+[API reference](api/index.md#errors) says. The status tables name the `code` of
+each refusal.
+
 ## The states of a run
 
 | State | Who sets it | Meaning |
@@ -308,13 +312,13 @@ exception. It writes a new history row, and the server answers 201.
 |---|---|---|
 | 201 | `{"id":"<uuid>"}` | the state is new for this run, and the server wrote a history row |
 | 200 | `{"id":"<uuid>"}` | the run already held this state, and the report changed nothing |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | | agent push is switched off on the instance |
-| 422 | `{"error":"invalid_run_id"}` | `runId` is not a uuid |
-| 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
-| 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `route_not_found` or `http_404` | agent push is switched off on the instance |
+| 422 | `invalid_run_id` | `runId` is not a uuid |
+| 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
 `id` is the server's own id for the run, which the Worker runs page shows as
 the attempt ID. It is not the `runId`.
@@ -359,11 +363,11 @@ Each change writes a history row, stamped with the server clock.
 | Status | Body | When |
 |---|---|---|
 | 204 | | the report is taken |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | | `bridgeId` is not a uuid, or agent push is switched off on the instance |
-| 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
-| 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `route_not_found` or `http_404` | `bridgeId` is not a uuid, or agent push is switched off on the instance |
+| 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
 ## Reporting the usage of a session
 
@@ -415,16 +419,16 @@ unknown id count as no run, so the server writes nothing and answers 409 with
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"runs":2,"updated":1}` | the counts match. `updated` counts the runs whose usage changed |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | | agent push is switched off on the instance, or the server has no such endpoint |
-| 409 | `{"error":"process_count_mismatch"}` | the session has another count of started worker runs, or `runId` names no ended interactive run of the session, and the server wrote nothing |
-| 409 | `{"error":"ambiguous_start_order"}` | two started worker runs of the session start in the same second, and the server wrote nothing |
-| 422 | `{"error":"invalid_session_id"}` | `sessionId` is not a uuid |
-| 422 | `{"error":"invalid_run_id"}` | `runId` is not a uuid |
-| 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
-| 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `route_not_found` or `http_404` | agent push is switched off on the instance, or the server has no such endpoint |
+| 409 | `process_count_mismatch` | the session has another count of started worker runs, or `runId` names no ended interactive run of the session, and the server wrote nothing |
+| 409 | `ambiguous_start_order` | two started worker runs of the session start in the same second, and the server wrote nothing |
+| 422 | `invalid_session_id` | `sessionId` is not a uuid |
+| 422 | `invalid_run_id` | `runId` is not a uuid |
+| 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
 ## Reporting the tool calls of a run
 
@@ -491,16 +495,16 @@ the others. A retry is therefore safe, and it answers 200 with a lower
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"stored":12}` | the request is taken. `stored` counts the calls the server stored for the first time |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | `{"error":"run_not_found"}` | the project has no run with that `runId`, or two runs of the project share it |
-| 404 | | agent push is switched off on the instance, or the server has no such endpoint |
-| 422 | `{"error":"invalid_run_id"}` | `runId` is not a uuid |
-| 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
-| 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `run_not_found` | the project has no run with that `runId`, or two runs of the project share it |
+| 404 | `route_not_found` or `http_404` | agent push is switched off on the instance, or the server has no such endpoint |
+| 422 | `invalid_run_id` | `runId` is not a uuid |
+| 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
-The bridge reads a 404 with no error code as a server with no tool call
+The bridge reads a 404 with the code `route_not_found` or `http_404` as a server with no tool call
 endpoint, and drops that batch with no retry. The batches of later runs still
 try.
 
@@ -659,21 +663,20 @@ Two first calls for one card get the same answer, because the first pin stays.
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"variant":"sonnet","switchedFrom":null}` | the server resolved the variant of the card |
-| 400 | a problem object | the body is not valid JSON |
-| 415 | a problem object | the `Content-Type` is not `application/json` |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | | agent push is switched off on the instance, or the server has no such endpoint |
-| 422 | `{"error":"invalid_card_id"}` | `cardId` is not a uuid |
-| 422 | `{"error":"invalid_experiment"}` | `experiment` breaks the name pattern |
-| 422 | `{"error":"invalid_variants"}` | the body is empty, `variants` breaks its rule, or `candidate` is not one of `variants` |
-| 422 | `{"error":"invalid_baseline"}` | `baseline` is missing, or is not one of `variants` |
-| 429 | | the token went over the rate limit. See [Rate limit](#rate-limit) |
+| 400 | `invalid_json` | the body is not valid JSON |
+| 415 | `unsupported_media_type` | the `Content-Type` is not `application/json` |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `route_not_found` or `http_404` | agent push is switched off on the instance, or the server has no such endpoint |
+| 422 | `invalid_card_id` | `cardId` is not a uuid |
+| 422 | `invalid_experiment` | `experiment` breaks the name pattern |
+| 422 | `invalid_variants` | the body is empty, `variants` breaks its rule, or `candidate` is not one of `variants` |
+| 422 | `invalid_baseline` | `baseline` is missing, or is not one of `variants` |
+| 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
 
-Every refusal the endpoint makes carries an error code. The 400 and the 415 come
-from the framework before the endpoint runs, and carry none. The bridge reads a
-404 with no error code as a server that has no pin endpoint.
+The bridge reads a 404 with the code `route_not_found` or `http_404` as a server that has no pin
+endpoint.
 
 The bridge waits 10 seconds for the answer. On any failure, such as a timeout, a
 network error or a status other than 200, it runs the candidate. It then logs
@@ -766,7 +769,7 @@ The firewall admits agent-scoped tokens alone. The endpoint needs no feature fla
 push and a session that a person started needs no bridge. It shares the `agent_worker_runs` rate limit.
 
 The answer is 200 with `{"closed": <number>}`. The number is 0 when the owner holds no open run of the session.
-A session id that is not a UUID gets 422 with `{"error": "invalid_session_id"}`.
+A session id that is not a UUID gets 422 with the code `invalid_session_id`.
 
 ## Reading the card run of a session
 

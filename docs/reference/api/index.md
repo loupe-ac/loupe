@@ -16,10 +16,10 @@ That route needs no sign-in.
 Version `v1` is in beta for 3 months from its first release. During the beta, a
 field, a route or a refusal code can change, and the changelog says so. After
 the beta, a change to `v1` never removes or renames a field, a route or a code.
-A breaking change then goes into a new version, `v2`. Loupe serves both versions
-until the changelog sets an end date for `v1`. A response of `v1` then carries
-the `Deprecation` and `Sunset` headers. It carries neither header today, because
-no `v2` exists.
+A breaking change then goes into a new version, `v2`. Loupe keeps `v1` working
+for at least 6 months after `v2` appears. A response of `v1` then carries the
+`Deprecation` and `Sunset` headers, and the changelog names the end date. It
+carries neither header today, because no `v2` exists.
 
 `GET /api/versions` lists the versions that an instance serves and the range of
 CLI versions that it supports. It needs no sign-in.
@@ -32,8 +32,8 @@ Send a bearer token in the `Authorization` header:
 curl -H "Authorization: Bearer $LOUPE_API_KEY" https://app.example.com/api/v1/projects
 ```
 
-The token is an [API key](../using/api-keys.md), or the OAuth access token of a
-signed-in [`loupe` CLI](cli.md). An API key reaches the public API only. A
+The token is an [API key](../../using/api-keys.md), or the OAuth access token of a
+signed-in [`loupe` CLI](../cli.md). An API key reaches the public API only. A
 credential with no right to a route gets `403` with the code
 `credential_not_allowed`. A missing, unknown or revoked token gets `401` with the
 code `invalid_credentials`. An API key past its end date gets `401` with
@@ -103,7 +103,7 @@ characters. A key lasts 24 hours and belongs to one credential.
 Each credential has a read budget and a write budget for each minute. The
 defaults are 600 reads and 120 writes. An operator changes them with the
 `api.rate_limit_reads_per_minute` and `api.rate_limit_writes_per_minute` flags on
-the flags page of the [admin area](../using/admin.md). A change needs no restart.
+the flags page of the [admin area](../../using/admin.md). A change needs no restart.
 
 Every response of a public route carries these headers:
 
@@ -151,6 +151,6 @@ file describes them for outside use. An API key does not reach them.
 
 ## See also
 
-1. [API keys](../using/api-keys.md) creates the credential for a script.
+1. [API keys](../../using/api-keys.md) creates the credential for a script.
 2. [Error codes](errors.md) lists every code of the public API.
-3. [Connected apps](../using/connected-apps.md) covers OAuth sign-ins.
+3. [Connected apps](../../using/connected-apps.md) covers OAuth sign-ins.
