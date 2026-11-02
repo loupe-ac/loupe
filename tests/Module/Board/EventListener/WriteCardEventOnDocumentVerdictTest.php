@@ -23,9 +23,11 @@ use App\Module\Review\Command\UndoVerdictHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Review;
 use App\Module\Workflow\Contract\Actor;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class WriteCardEventOnDocumentVerdictTest extends KernelTestCase
 {
@@ -99,6 +101,25 @@ final class WriteCardEventOnDocumentVerdictTest extends KernelTestCase
         self::assertSame(Actor::Human, $withdrawal->actorKind);
         self::assertSame((string) $this->owner->id, (string) $withdrawal->actorUser?->id);
         self::assertEquals(['rule' => null, 'document' => 'Tech design', 'documentId' => (string) $document->id, 'verdict' => 'withdrawn', 'withdrawn' => 'approved'], $withdrawal->detail);
+    }
+
+    public function test_a_withdrawal_through_an_api_key_writes_a_row_that_names_the_key_and_its_owner(): void
+    {
+        $document = $this->document();
+        $card = $this->card($document);
+        $approval = $this->submit($document, 'approved', 'tech-design-auto-approve');
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+
+        $undo = self::getContainer()->get(UndoVerdictHandler::class);
+        self::assertInstanceOf(UndoVerdictHandler::class, $undo);
+        $undo(new UndoVerdictCommand($document, $this->owner, (string) $approval->id, apiKey: $key));
+
+        $withdrawal = array_find($this->rows($card, CardEventKind::DocumentVerdict), static fn (CardEvent $row): bool => 'withdrawn' === $row->detail['verdict']);
+        self::assertInstanceOf(CardEvent::class, $withdrawal);
+        self::assertSame(Actor::ApiKey, $withdrawal->actorKind);
+        self::assertSame((string) $this->owner->id, (string) $withdrawal->actorUser?->id);
+        self::assertEquals($key->keyId, $withdrawal->apiKeyId);
+        self::assertSame('CI', $withdrawal->apiKeyName);
     }
 
     private function submit(Document $document, string $verdict, ?string $rule, ?User $reviewer = null, ?string $note = null): Review

@@ -67,6 +67,8 @@ final readonly class AddCommentHandler
                 body: $command->body,
                 anchor: $anchor,
                 replacement: $command->replacement,
+                apiKeyId: $command->apiKey?->keyId,
+                apiKeyName: $command->apiKey?->keyName,
             );
             $comment->orphaned = $orphaned;
 
@@ -91,6 +93,7 @@ final readonly class AddCommentHandler
                 'versionId' => (string) $comment->version->id,
                 'orphaned' => $comment->orphaned,
                 'suggested' => null !== $command->replacement,
+                ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
             ],
             new AuditSubject('comment', (string) $comment->id),
         );

@@ -27,6 +27,12 @@ enum Actor: string
      */
     case System = 'system';
 
+    /**
+     * A script that authenticated with an API key of a person. The history names
+     * the key beside its owner.
+     */
+    case ApiKey = 'api-key';
+
     /** @return list<string> */
     public static function values(): array
     {

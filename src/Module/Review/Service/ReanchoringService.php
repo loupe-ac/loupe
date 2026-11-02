@@ -77,7 +77,7 @@ final readonly class ReanchoringService
         // An untargeted comment (empty-quote anchor) has nothing to relocate —
         // carry it forward unchanged; it is never orphaned.
         if ('' === $old->anchor->quote) {
-            $copy = new Comment($newVersion, $old->author, $old->body, $old->anchor, $newParent, $old->replacement, $old->createdAt);
+            $copy = new Comment($newVersion, $old->author, $old->body, $old->anchor, $newParent, $old->replacement, $old->createdAt, $old->apiKeyId, $old->apiKeyName);
             // An addressed thread carries its status onto the copy: the agent's
             // claim that it acted survives the revision, only the human clears it.
             $copy->status = $old->status;
@@ -100,11 +100,11 @@ final readonly class ReanchoringService
                 $resolvedOffset,
                 mb_strlen($old->anchor->quote, 'UTF-8'),
             );
-            $copy = new Comment($newVersion, $old->author, $old->body, $newAnchor, $newParent, $old->replacement, $old->createdAt);
+            $copy = new Comment($newVersion, $old->author, $old->body, $newAnchor, $newParent, $old->replacement, $old->createdAt, $old->apiKeyId, $old->apiKeyName);
             ++$carried;
         } else {
             // Quote not found — keep the old anchor data and mark orphaned.
-            $copy = new Comment($newVersion, $old->author, $old->body, $old->anchor, $newParent, $old->replacement, $old->createdAt);
+            $copy = new Comment($newVersion, $old->author, $old->body, $old->anchor, $newParent, $old->replacement, $old->createdAt, $old->apiKeyId, $old->apiKeyName);
             $copy->orphaned = true;
             ++$orphaned;
         }

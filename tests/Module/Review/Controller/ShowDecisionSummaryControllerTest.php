@@ -69,8 +69,8 @@ final class ShowDecisionSummaryControllerTest extends WebTestCase
             ->attr('data-decision-answers');
         self::assertSame(
             [
-                'target' => ['indexes' => [1], 'note' => null, 'throughAgent' => false],
-                'region' => ['indexes' => [], 'note' => 'Either works.', 'throughAgent' => false],
+                'target' => ['indexes' => [1], 'note' => null, 'throughAgent' => false, 'apiKeyName' => null],
+                'region' => ['indexes' => [], 'note' => 'Either works.', 'throughAgent' => false, 'apiKeyName' => null],
             ],
             json_decode((string) $answers, true, flags: \JSON_THROW_ON_ERROR),
         );

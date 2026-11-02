@@ -18,6 +18,7 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\ValueObject\Anchor;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -121,6 +122,45 @@ final class SubmitReviewHandlerTest extends KernelTestCase
 
         self::assertTrue($agent->throughAgent);
         self::assertFalse($page->throughAgent);
+    }
+
+    public function test_a_verdict_through_an_api_key_names_the_key_in_the_row_and_the_record(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'through-key');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+        $audit->forget();
+
+        $keyed = $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, apiKey: $key));
+        $page = $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, expectedReviewId: (string) $keyed->id));
+
+        self::assertEquals($key->keyId, $keyed->apiKeyId);
+        self::assertSame('CI', $keyed->apiKeyName);
+        self::assertFalse($keyed->throughAgent);
+        self::assertNull($page->apiKeyId);
+        self::assertNull($page->apiKeyName);
+        $record = $audit->records('review.document_verdict_submitted')[0];
+        self::assertSame((string) $key->keyId, $record->context['apiKeyId']);
+        self::assertSame('CI', $record->context['apiKeyName']);
+        self::assertArrayNotHasKey('apiKeyId', $audit->records('review.document_verdict_submitted')[1]->context);
+    }
+
+    public function test_a_key_is_never_also_an_agent(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        [$reviewer, $document] = $this->createUserAndDocument($em, 'key-and-agent');
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
+        $this->expectException(\LogicException::class);
+        $handler(new SubmitReviewCommand($reviewer, $document, 'approved', 1, throughAgent: true, apiKey: new ApiKeyActor(Uuid::v7(), 'CI')));
     }
 
     /** @return array{User, Document} */

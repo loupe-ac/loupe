@@ -43,6 +43,10 @@ final readonly class SaveDecisionAnswerHandler
 
     public function __invoke(SaveDecisionAnswerCommand $command): SaveDecisionAnswerResult
     {
+        if ($command->throughAgent && null !== $command->apiKey) {
+            throw new \LogicException('An answer is saved through an agent or through an API key, never both.');
+        }
+
         if (!$command->keepNote && mb_strlen(trim($command->note ?? '')) > DecisionAnswer::MAX_NOTE_LENGTH) {
             throw new DomainErrors(['note' => 'review.form.save_decision_answer_form.note.too_long']);
         }
@@ -110,7 +114,8 @@ final readonly class SaveDecisionAnswerHandler
             $selectionsChanged = $current !== $wanted || \count($stored) !== \count($wanted);
             $answerChanged = $unanswered
                 ? null !== $answer
-                : (null === $answer || $answer->note !== $note || $answer->answeredThroughAgent !== $command->throughAgent);
+                : (null === $answer || $answer->note !== $note || $answer->answeredThroughAgent !== $command->throughAgent
+                    || $answer->answeredApiKeyId?->toRfc4122() !== $command->apiKey?->keyId->toRfc4122());
             if (!$selectionsChanged && !$answerChanged) {
                 return new SaveDecisionAnswerResult(changed: false, cleared: $command->clear || $unanswered);
             }
@@ -145,6 +150,8 @@ final readonly class SaveDecisionAnswerHandler
                     $command->answeredBy,
                     $latest->versionNumber,
                     answeredThroughAgent: $command->throughAgent,
+                    answeredApiKeyId: $command->apiKey?->keyId,
+                    answeredApiKeyName: $command->apiKey?->keyName,
                 );
                 $this->em->persist($answer);
             } else {
@@ -152,6 +159,8 @@ final readonly class SaveDecisionAnswerHandler
                 $answer->answeredBy = $command->answeredBy;
                 $answer->answeredAtVersion = $latest->versionNumber;
                 $answer->answeredThroughAgent = $command->throughAgent;
+                $answer->answeredApiKeyId = $command->apiKey?->keyId;
+                $answer->answeredApiKeyName = $command->apiKey?->keyName;
                 $answer->updatedAt = new \DateTimeImmutable();
             }
             $this->em->flush();
@@ -163,6 +172,7 @@ final readonly class SaveDecisionAnswerHandler
                 'optionCount' => \count($wanted),
                 'hasNote' => null !== $note,
                 'throughAgent' => $command->throughAgent,
+                ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
             ];
             $changed = new DecisionAnswerChanged(
                 $command->document->project->id ?? throw new \LogicException('The project has no id.'),
@@ -174,6 +184,7 @@ final readonly class SaveDecisionAnswerHandler
                 $answer?->answeredBy?->fullName,
                 $answer->updatedAt ?? new \DateTimeImmutable(),
                 $answer->answeredThroughAgent ?? false,
+                $answer?->answeredApiKeyName,
             );
 
             return new SaveDecisionAnswerResult(changed: true, cleared: $command->clear || $unanswered);

@@ -1780,6 +1780,14 @@
                 <source>review.document.verdict.through_agent</source>
                 <target>An agent recorded this verdict for the owner.</target>
             </trans-unit>
+            <trans-unit id="review.document.verdict.through_api_key">
+                <source>review.document.verdict.through_api_key</source>
+                <target>Recorded through an API key</target>
+            </trans-unit>
+            <trans-unit id="review.document.verdict.through_named_api_key">
+                <source>review.document.verdict.through_named_api_key</source>
+                <target>Recorded through API key '%name%'</target>
+            </trans-unit>
             <trans-unit id="review.document.verdict.undo">
                 <source>review.document.verdict.undo</source>
                 <target>Undo</target>
@@ -2106,6 +2114,14 @@
                 <source>review.document.comment.reply</source>
                 <target>Reply</target>
             </trans-unit>
+            <trans-unit id="review.document.comment.author_api_key">
+                <source>review.document.comment.author_api_key</source>
+                <target>API key '%name%' (%owner%)</target>
+            </trans-unit>
+            <trans-unit id="review.document.comment.author_unnamed_api_key">
+                <source>review.document.comment.author_unnamed_api_key</source>
+                <target>An API key (%owner%)</target>
+            </trans-unit>
             <trans-unit id="review.document.comment.reply_count">
                 <source>review.document.comment.reply_count</source>
                 <target>{0}No replies|{1}1 reply|]1,Inf[ %count% replies</target>
@@ -2149,6 +2165,10 @@
             <trans-unit id="review.decision.agent_mark">
                 <source>review.decision.agent_mark</source>
                 <target>An agent recorded this answer for the owner.</target>
+            </trans-unit>
+            <trans-unit id="review.decision.api_key_mark">
+                <source>review.decision.api_key_mark</source>
+                <target>Recorded through API key '%name%'.</target>
             </trans-unit>
             <trans-unit id="review.decision.error.unknown_version">
                 <source>review.decision.error.unknown_version</source>
@@ -6526,6 +6546,10 @@
                 <source>board.card.reporter.agent</source>
                 <target>Raised by an agent</target>
             </trans-unit>
+            <trans-unit id="board.card.reporter.api-key">
+                <source>board.card.reporter.api-key</source>
+                <target>Raised by an API key</target>
+            </trans-unit>
             <trans-unit id="board.card.forge.github">
                 <source>board.card.forge.github</source>
                 <target>GitHub</target>
@@ -7878,6 +7902,8 @@
             <trans-unit id="board.card.history.actor.reviewer"><source>board.card.history.actor.reviewer</source><target>A reviewer</target></trans-unit>
             <trans-unit id="board.card.history.actor.deleted"><source>board.card.history.actor.deleted</source><target>A deleted user</target></trans-unit>
             <trans-unit id="board.card.history.actor.agent"><source>board.card.history.actor.agent</source><target>Agent for %name%</target></trans-unit>
+            <trans-unit id="board.card.history.actor.api_key"><source>board.card.history.actor.api_key</source><target>API key '%name%' (%owner%)</target></trans-unit>
+            <trans-unit id="board.card.history.actor.api_key_unnamed"><source>board.card.history.actor.api_key_unnamed</source><target>An API key (%owner%)</target></trans-unit>
             <trans-unit id="board.card.history.created"><source>board.card.history.created</source><target>%actor% created it in %column%.</target></trans-unit>
             <trans-unit id="board.card.history.moved"><source>board.card.history.moved</source><target>%actor% moved it from %from% to %to%.</target></trans-unit>
             <trans-unit id="board.card.history.fix_requested"><source>board.card.history.fix_requested</source><target>%actor% asked for a fix on #%pr%.</target></trans-unit>

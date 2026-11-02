@@ -31,6 +31,8 @@ final class DecisionAnswerExporterTest extends TestCase
             'answeredAtVersion' => 2,
             'updatedAt' => '2026-09-28T10:00:00+00:00',
             'answeredThroughAgent' => false,
+            'answeredApiKeyId' => null,
+            'answeredApiKeyName' => null,
         ]], iterator_to_array($exporter->export($user)));
         self::assertSame('decision_answers.json', $exporter->filename());
     }

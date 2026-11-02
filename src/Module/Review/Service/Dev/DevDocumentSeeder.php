@@ -7,17 +7,29 @@ namespace App\Module\Review\Service\Dev;
 use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
+use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\DocumentVersion;
+use App\Module\Review\Entity\Review;
+use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Service\DocumentTagApplier;
+use App\Module\Review\ValueObject\Anchor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
-/** Writes the three documents of the showcase: a plan with two versions, an approved spec and a tech design. */
+/**
+ * Writes the three documents of the showcase: a plan with two versions, an approved spec and a tech design.
+ * It also writes three approved documents in the project of the keys account: one with a verdict that an API
+ * key recorded, one with a comment that an API key wrote, and an empty twin where a person did both.
+ */
 #[When('dev')]
 #[When('test')]
 final readonly class DevDocumentSeeder implements DevSeederInterface
@@ -29,12 +41,18 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         private ProjectRepository $projects,
         private DocumentRepository $documents,
         private DocumentTagApplier $tagApplier,
+        private UserRepository $users,
     ) {
     }
 
     public static function documentId(string $slug): Uuid
     {
         return DevSeedId::of('review/document/'.$slug);
+    }
+
+    public static function apiKeyId(): Uuid
+    {
+        return DevSeedId::of('review/api-key/ci');
     }
 
     #[\Override]
@@ -91,6 +109,48 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
             $this->tagApplier->apply($onboarding, ['tech-design', 'decisions']);
             $this->store($context, $onboarding, 'first-handoff');
         }
+
+        $this->seedApiKeyDocuments($context);
+    }
+
+    private function seedApiKeyDocuments(SeedContext $context): void
+    {
+        $owner = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
+            ?? throw new \LogicException('The keys account does not exist.');
+        $project = $this->projects->find(DevProjectSeeder::keysProjectId())
+            ?? throw new \LogicException('The keys project does not exist.');
+
+        foreach (['key-verdict' => 'Verdict recorded by a script', 'key-comment' => 'Comment written by a script', 'person-twin' => 'Verdict and comment by a person'] as $slug => $title) {
+            if ($this->documents->find(self::documentId($slug)) instanceof Document) {
+                continue;
+            }
+
+            $document = new Document($owner, $project, $title, $context->at(1_200));
+            $version = $document->addVersion(
+                \sprintf("# %s\n\nA short document for the verdict chip and the comment thread.\n", $title),
+                \sprintf('<h1>%s</h1><p>A short document for the verdict chip and the comment thread.</p>', $title),
+            );
+            $document->status = DocumentStatus::Approved;
+            $this->store($context, $document, $slug);
+
+            $byKey = 'key-verdict' === $slug;
+            $this->em->persist(new Review($version, Verdict::Approved, $owner, submittedAt: $context->at(600), note: 'Ready to build.', apiKeyId: $byKey ? self::apiKeyId() : null, apiKeyName: $byKey ? 'CI' : null));
+            $this->em->persist($this->comment($context, $version, $owner, 'key-comment' === $slug));
+            $this->em->flush();
+        }
+    }
+
+    private function comment(SeedContext $context, DocumentVersion $version, User $author, bool $byKey): Comment
+    {
+        return new Comment(
+            $version,
+            $author,
+            'Please keep this section short.',
+            Anchor::unanchored(),
+            createdAt: $context->at(300),
+            apiKeyId: $byKey ? self::apiKeyId() : null,
+            apiKeyName: $byKey ? 'CI' : null,
+        );
     }
 
     private function store(SeedContext $context, Document $document, string $slug): void
