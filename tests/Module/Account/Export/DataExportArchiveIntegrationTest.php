@@ -35,7 +35,7 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
 {
     public function test_builds_the_complete_archive_from_a_full_object_graph(): void
     {
-        $client = static::createClient();
+        static::createClient();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
