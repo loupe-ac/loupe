@@ -41,7 +41,7 @@ final class LifecycleHoursToReadyToMergeMigrationTest extends KernelTestCase
         $shipped = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$shipped, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $migrated);
         self::assertSame($shipped['version'], (int) $this->em()->getConnection()->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$projectId]));
-        self::assertEquals(['from' => ['arrived' => 'implementation'], 'to' => 'ready-to-merge'], $this->metricOf($migrated)['duration'] ?? null);
+        self::assertEquals($this->metricOf($shipped)['duration'] ?? null, $this->metricOf($migrated)['duration'] ?? null);
     }
 
     private function migrate(): void

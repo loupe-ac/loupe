@@ -8,4 +8,7 @@ namespace App\Module\Workflow\Template;
 enum ManualMoveActor: string
 {
     case ParentRun = 'parent-run';
+
+    /** An update that opens an interactive session run in the same call. */
+    case Session = 'session';
 }

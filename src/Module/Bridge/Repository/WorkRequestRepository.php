@@ -518,6 +518,20 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /** Whether a bridge holds a claim on a request of the card that does not open an interactive session. */
+    public function hasClaimedNonInteractiveForCard(Uuid $cardId): bool
+    {
+        return null !== $this->ofSubject(WorkSubject::card($cardId))
+            ->select('w.id')
+            ->andWhere('w.state = :claimed')
+            ->andWhere('(w.capability IS NULL OR w.capability NOT IN (:interactive))')
+            ->setParameter('claimed', WorkRequestState::Claimed->value)
+            ->setParameter('interactive', [Bridge::CAPABILITY_SESSION, Bridge::CAPABILITY_INTERACTIVE])
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * The open and claimed requests of the card, oldest first.
      *

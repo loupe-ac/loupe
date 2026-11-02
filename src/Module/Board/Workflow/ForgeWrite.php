@@ -114,6 +114,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             new Parameter('comment', ParameterType::String, required: false, choices: self::COMMENTS),
             new Parameter('state', ParameterType::String, required: false, choices: self::APPROVAL_STATES),
             new Parameter('methods', ParameterType::List, required: false, choices: PullRequestMerger::METHODS),
+            new Parameter('checks', ParameterType::List, required: false),
         ];
     }
 

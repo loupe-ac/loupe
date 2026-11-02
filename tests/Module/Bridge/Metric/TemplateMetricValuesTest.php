@@ -70,6 +70,19 @@ final class TemplateMetricValuesTest extends TestCase
         ], $metric));
     }
 
+    public function test_a_duration_with_two_starts_begins_at_the_earliest_of_them(): void
+    {
+        $metric = new TemplateMetric('t', 'T', 'T.', MetricType::Duration, from: new DurationEvent(DurationEvent::ARRIVED, 'build'), to: new DurationEvent(DurationEvent::PR_MERGED), alsoFrom: [new DurationEvent(DurationEvent::PR_OPENED)]);
+        $end = new CardMilestone(DurationEvent::PR_MERGED, self::at('12:00'));
+        $arrived = new CardMilestone(DurationEvent::ARRIVED, self::at('08:00'), 'build');
+        $opened = new CardMilestone(DurationEvent::PR_OPENED, self::at('10:00'));
+
+        self::assertSame(4.0, TemplateMetricValues::hours([$arrived, $opened, $end], $metric));
+        self::assertSame(2.0, TemplateMetricValues::hours([$opened, $end], $metric));
+        self::assertSame(4.0, TemplateMetricValues::hours([$arrived, $end], $metric));
+        self::assertNull(TemplateMetricValues::hours([$end], $metric));
+    }
+
     public function test_an_end_at_the_same_moment_as_the_start_counts_as_zero_hours(): void
     {
         $milestones = [

@@ -23,3 +23,11 @@
         @apply break-all text-chrome-mute;
     }
 }
+/* `(hover: none)` matches a device whose main input cannot hover. Hidden with
+   `invisible`, a plain tooltip still counts for scroll width, so it leaves the
+   layout there. The chart sign detail pins itself to the screen and stays. */
+@media (hover: none) {
+    .lp-tooltip:not(.lp-tooltip--interactive, .lp-chart__sign-detail) {
+        display: none;
+    }
+}

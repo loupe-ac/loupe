@@ -21,6 +21,9 @@ enum WorkRequestRefusal
 
     case ProjectHeld;
 
+    /** An interactive session is open on the card, and the request is not a session itself. */
+    case SessionOpen;
+
     /** The request waits for a time that has not come. */
     case Waiting;
 
@@ -41,6 +44,7 @@ enum WorkRequestRefusal
             self::ClaimLost => 'claim_lost',
             self::CardHeld => 'card_held',
             self::ProjectHeld => 'project_held',
+            self::SessionOpen => 'session_open',
             self::Waiting => 'waiting',
             self::AccountBlocked => 'account_blocked',
             self::AccountUnknown => 'account_unknown',
@@ -51,7 +55,7 @@ enum WorkRequestRefusal
     {
         return match ($this) {
             self::NotFound => 404,
-            self::AlreadyClaimed, self::ClaimLost, self::CardHeld, self::ProjectHeld, self::Waiting, self::AccountBlocked => 409,
+            self::AlreadyClaimed, self::ClaimLost, self::CardHeld, self::ProjectHeld, self::SessionOpen, self::Waiting, self::AccountBlocked => 409,
             self::UnknownBridge, self::CapabilityMissing, self::AccountUnknown => 422,
         };
     }

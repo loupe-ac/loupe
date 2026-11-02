@@ -20,6 +20,7 @@ The [Analytics](analytics.md) page charts the metrics of the runs and compares t
 Delivery status describes delivery to bridges, not the outcome of an agent's work.
 A **Delivery failed** chip shows a help icon.
 Hover over or focus the chip to see the number of failed attempts and the last error.
+A touch screen hides the help icon and this text.
 
 Click a row to open its linked work, such as the card of a card event.
 Card events link to the current card when it still exists in this project.

@@ -79,7 +79,8 @@ final readonly class TemplateMetricValues
 
     /**
      * The hours from the chosen start to the last end at or after it. The start is the first event of the start
-     * name, or the last one when the metric starts at the last.
+     * name, or the last one when the metric starts at the last. A metric with more starts begins at the earliest
+     * event of all of them.
      *
      * @param list<CardMilestone> $milestones
      */
@@ -89,6 +90,9 @@ final readonly class TemplateMetricValues
         $to = $metric->to ?? throw new \LogicException('A duration metric names its end.');
 
         $starts = self::timesOf($milestones, $from);
+        foreach ($metric->alsoFrom as $also) {
+            $starts = [...$starts, ...self::timesOf($milestones, $also)];
+        }
         if ([] === $starts) {
             return null;
         }

@@ -23,7 +23,7 @@ rules as instructions, so write each one as a short, direct sentence.
 |---|---|---|
 | `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage, and the interactive design sessions |
 | `Environment` | A check that the worker is in its own folder | Implementation, fix round |
-| `Gate` | The base branch, and the commands to run before a push, in order | Implementation, fix round, merge, breakdown |
+| `Gate` | The base branch, the commands to run before a push, in order, and the required checks that the merge stage counts | Implementation, fix round, merge, breakdown |
 | `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |
 | `Changelog` | Where a change records its changelog entry, and how to check it. Write "none" when the repository keeps no changelog | Implementation |
 | `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
@@ -84,7 +84,14 @@ Write "none" for the folder check when your repository does not need it.
 
 ## A starter profile
 
-Copy this file to `.loupe/lifecycle.md`, and replace each value with the value
+`loupe init` writes a starter when the repository has none. A value it guessed is
+marked "detected, check it". A line that reads "owner to fill in" holds no value,
+such as the merge method. A stage that needs that value stops as if the section
+were missing. Its `Repair` section allows only `loupe env reset`, when the `repair`
+work entry sets `reset`, and the epic sync of the merge stage. Add each other action
+with its commands and its guards.
+
+To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
 of your repository. The example is for a Node project on GitHub with the
 Lifecycle workflow and its default column slugs.
 

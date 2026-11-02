@@ -18,7 +18,7 @@ The design stage skills send you here before their own steps. Follow every rule 
 ## Adapters and profile
 
 1. Load the adapter for your harness from the `../../loupe-stage-implementation/references/harnesses/` folder. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
-2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. The `Forge` and `Decision records` sections are optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
+2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing. The `Forge` and `Decision records` sections are optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
 
 ## Document tags
 

@@ -120,7 +120,7 @@ The card reports where the work stands. A session that reads the board mid-week 
 
 | Moment | Do this |
 |---|---|
-| You start the work | `card_update` with the slug of the working column as `status`, before you write any code. |
+| You start the work | Move the card to the working column before you write any code. When the workflow template refuses the move, leave the card where it is. |
 | A design document exists | Add its id to `documentIds`, before the code exists. |
 | You open the pull request | Add its URL to `pullRequestUrls`. A draft already has a URL. |
 | You hand the work over | Put the branch name and the remaining steps in the body. |
