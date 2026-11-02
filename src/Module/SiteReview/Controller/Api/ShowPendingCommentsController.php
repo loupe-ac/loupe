@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
@@ -39,7 +40,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
         new OA\Parameter(name: 'context', description: 'The marker of the preview card, or the target the widget stored.', in: 'query', schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'The notes and the widget settings.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
+        new OA\Response(response: 200, description: 'The notes and the widget settings.', content: new OA\JsonContent(ref: '#/components/schemas/PendingComments')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
@@ -76,7 +77,7 @@ final class ShowPendingCommentsController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         // Only an absent scope keeps the project-wide list, because a browser
@@ -91,7 +92,7 @@ final class ShowPendingCommentsController extends AppController
             ? ReviewSurface::tryFrom((string) $request->query->get('surface'))
             : ReviewSurface::Web;
         if (null === $surface) {
-            return $this->json(['error' => 'surface_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'surface_invalid', 'The surface is not valid.');
         }
 
         $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds, $surface));

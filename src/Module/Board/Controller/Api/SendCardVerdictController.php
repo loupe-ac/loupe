@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -24,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
     new OA\Parameter(name: 'X-Loupe-Project', description: 'The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.', in: 'header', schema: new OA\Schema(type: 'string', format: 'uuid')),
     new OA\Parameter(name: 'cardId', description: 'The card id.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
 ], responses: [
-    new OA\Response(response: 201, description: 'The verdict is recorded.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
+    new OA\Response(response: 201, description: 'The verdict is recorded.', content: new OA\JsonContent(ref: '#/components/schemas/CardVerdictSent')),
     new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
@@ -68,7 +69,7 @@ final class SendCardVerdictController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $reviewer = $this->getUser();
@@ -89,7 +90,7 @@ final class SendCardVerdictController extends AppController
         } catch (DomainErrors $error) {
             [$code, $status] = self::REFUSALS[array_first($error->errors)] ?? ['verdict_refused', JsonResponse::HTTP_UNPROCESSABLE_ENTITY];
 
-            return $this->json(['error' => $code], $status);
+            throw ApiProblemException::refused($status, $code, 'The verdict was refused.');
         }
 
         return $this->json([

@@ -6,6 +6,7 @@ namespace App\Tests\Api\Problem;
 
 use App\Api\Problem\ApiPaths;
 use App\Api\Problem\ApiProblem;
+use App\Api\Problem\ApiProblemException;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
@@ -66,5 +67,44 @@ final class ApiProblemTest extends TestCase
     public function test_it_tells_which_paths_belong_to_the_public_contract(string $path, bool $expected): void
     {
         self::assertSame($expected, ApiPaths::isPublic($path));
+    }
+
+    public function test_a_legacy_error_overrides_the_code_on_an_old_path_only(): void
+    {
+        $problem = new ApiProblem(426, 'no_bridge_id', 'Upgrade required', 'Upgrade the CLI.', legacyError: 'Upgrade the CLI.');
+
+        self::assertSame(['error' => 'Upgrade the CLI.'], $problem->toLegacyBody());
+        self::assertSame('no_bridge_id', $problem->toProblemBody()['code']);
+    }
+
+    public function test_it_answers_problem_json_on_a_new_path(): void
+    {
+        $problem = new ApiProblem(404, 'run_not_found', 'Run not found', 'No such run.', headers: ['X-Test' => '1']);
+
+        $response = $problem->toResponse('/api/v1/bridge/runs/x');
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertSame('application/problem+json', $response->headers->get('Content-Type'));
+        self::assertSame('1', $response->headers->get('X-Test'));
+        self::assertSame($problem->toProblemBody(), json_decode((string) $response->getContent(), true));
+    }
+
+    public function test_it_answers_the_flat_error_on_an_old_path(): void
+    {
+        $response = new ApiProblem(404, 'run_not_found', 'Run not found', 'No such run.')->toResponse('/api/runs/x');
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertStringNotContainsString('problem+json', (string) $response->headers->get('Content-Type'));
+        self::assertSame('{"error":"run_not_found"}', $response->getContent());
+    }
+
+    public function test_the_refused_factory_derives_the_title_from_the_code(): void
+    {
+        $problem = ApiProblemException::refused(404, 'project_not_found', 'No such project.', ['slug' => 'x'])->problem;
+
+        self::assertSame('Project not found', $problem->title);
+        self::assertSame('No such project.', $problem->detail);
+        self::assertSame(['slug' => 'x'], $problem->extras);
+        self::assertSame(404, $problem->status);
     }
 }

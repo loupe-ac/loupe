@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\CommentNotFound;
@@ -54,13 +55,13 @@ final class ResolveCommentController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         try {
             $commentId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
-            return $this->json(['error' => 'not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'not_found', 'No such record exists for this token.');
         }
 
         try {
@@ -69,7 +70,7 @@ final class ResolveCommentController extends AppController
                 commentId: $commentId,
             ));
         } catch (CommentNotFound) {
-            return $this->json(['error' => 'not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'not_found', 'No such record exists for this token.');
         }
 
         return new JsonResponse(null, JsonResponse::HTTP_NO_CONTENT);

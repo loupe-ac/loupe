@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
@@ -55,12 +56,12 @@ final class CreateProjectController extends AppController
 
         $credential = AuthenticatedCredential::of($this->tokenStorage->getToken());
         if (null === $credential || !$credential->allProjects) {
-            return $this->json(['error' => 'credential_not_owner_wide'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'credential_not_owner_wide', 'The credential does not cover the whole account.');
         }
 
         $name = $payload->name();
         if ('' === $name) {
-            return $this->json(['error' => 'name_required'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'name_required', 'The project needs a name.');
         }
 
         try {
@@ -73,15 +74,12 @@ final class CreateProjectController extends AppController
             ));
         } catch (DomainErrors $e) {
             if (isset($e->errors['name']) && 'project.error.slug_empty' === $e->errors['name']) {
-                return $this->json(['error' => 'name_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+                throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'name_invalid', 'The project name is not valid.');
             }
 
             $slug = ($this->findTakenSlug)(new FindTakenProjectSlugCommand($user, $name));
 
-            return $this->json(
-                ['error' => 'name_taken'] + (null === $slug ? [] : ['slug' => $slug]),
-                JsonResponse::HTTP_CONFLICT,
-            );
+            throw ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'name_taken', 'A project with this name exists already.', null === $slug ? [] : ['slug' => $slug]);
         }
 
         return $this->json([

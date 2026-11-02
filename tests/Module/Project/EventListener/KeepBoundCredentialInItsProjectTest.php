@@ -51,7 +51,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
 
         $swept = 0;
         foreach ($router->getRouteCollection() as $name => $route) {
-            if (!str_starts_with($route->getPath(), '/api/projects/{handle}')) {
+            if (!str_starts_with($route->getPath(), '/api/projects/{handle}') && !str_starts_with($route->getPath(), '/api/v1/bridge/projects/{handle}')) {
                 continue;
             }
 
@@ -69,10 +69,20 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
             ], content: '{}');
 
             self::assertResponseStatusCodeSame(404, $name.' let a bound credential reach another project.');
+            if (str_starts_with($uri, '/api/v1/')) {
+                self::assertSame('application/problem+json', $this->client->getResponse()->headers->get('Content-Type'), $name);
+                $problem = json_decode((string) $this->client->getResponse()->getContent(), true);
+                self::assertIsArray($problem, $name);
+                self::assertSame('project_not_found', $problem['code'] ?? null, $name);
+                self::assertSame(404, $problem['status'] ?? null, $name);
+
+                continue;
+            }
+
             self::assertSame('{"error":"project_not_found"}', $this->client->getResponse()->getContent(), $name);
         }
 
-        self::assertGreaterThanOrEqual(13, $swept);
+        self::assertGreaterThanOrEqual(26, $swept);
     }
 
     public function test_a_refusal_leaves_a_security_audit_row(): void

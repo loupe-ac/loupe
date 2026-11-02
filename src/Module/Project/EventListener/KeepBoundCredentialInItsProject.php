@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Module\Project\EventListener;
 
+use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -47,7 +48,8 @@ final readonly class KeepBoundCredentialInItsProject
 
         $request = $event->getRequest();
         $handle = $request->attributes->get('handle');
-        if (!\is_string($handle) || !str_starts_with($request->getPathInfo(), '/api/projects/')) {
+        $path = $request->getPathInfo();
+        if (!\is_string($handle) || !(str_starts_with($path, '/api/projects/') || str_starts_with($path, '/api/v1/bridge/projects/'))) {
             return;
         }
 
@@ -79,6 +81,11 @@ final readonly class KeepBoundCredentialInItsProject
             Auditor::CATEGORY_SECURITY,
         );
 
-        $event->setResponse(new JsonResponse(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND));
+        $event->setResponse(new ApiProblem(
+            Response::HTTP_NOT_FOUND,
+            'project_not_found',
+            'Project not found',
+            'No project answers this handle.',
+        )->toResponse($path));
     }
 }

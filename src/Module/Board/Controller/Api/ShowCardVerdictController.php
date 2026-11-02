@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Command\ShowCardVerdictCommand;
@@ -31,7 +32,7 @@ use Symfony\Component\Routing\Attribute\Route;
         new OA\Parameter(name: 'cardId', description: 'The card id.', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
     ],
     responses: [
-        new OA\Response(response: 200, description: 'What the widget shows in its verdict panel.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
+        new OA\Response(response: 200, description: 'What the widget shows in its verdict panel.', content: new OA\JsonContent(ref: '#/components/schemas/VerdictPanel')),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
@@ -64,7 +65,7 @@ final class ShowCardVerdictController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $reviewer = $this->getUser();
@@ -74,7 +75,7 @@ final class ShowCardVerdictController extends AppController
 
         $view = ($this->handler)(new ShowCardVerdictCommand($project, $cardId, $reviewer));
         if (!$view instanceof ShowCardVerdictView) {
-            return $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'card_not_found', 'No card answers this request.');
         }
 
         $latest = $view->latest;

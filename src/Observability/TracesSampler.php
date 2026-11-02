@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observability;
 
+use App\Api\Problem\ApiPaths;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use Sentry\Tracing\SamplingContext;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -35,7 +36,7 @@ final readonly class TracesSampler
             return 0.0;
         }
 
-        if (\in_array($context->getTransactionContext()?->getData()['route'] ?? null, self::UNTRACED_ROUTES, true)) {
+        if (\in_array(ApiPaths::canonicalRoute($context->getTransactionContext()?->getData()['route'] ?? null), self::UNTRACED_ROUTES, true)) {
             return 0.0;
         }
 

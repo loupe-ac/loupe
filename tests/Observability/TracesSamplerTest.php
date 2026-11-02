@@ -52,6 +52,7 @@ final class TracesSamplerTest extends TestCase
     {
         yield 'health check' => ['ubermuda_health_check'];
         yield 'bridge heartbeat' => ['api_bridge_heartbeat'];
+        yield 'legacy bridge heartbeat' => ['api_legacy_bridge_heartbeat'];
     }
 
     #[DataProvider('untracedRoutes')]
