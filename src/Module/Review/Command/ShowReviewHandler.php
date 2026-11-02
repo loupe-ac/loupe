@@ -25,10 +25,11 @@ use App\Module\Review\ValueObject\DecisionType;
  *     verdict: string|null,
  *     verdictId: string|null,
  *     verdictThroughAgent: bool,
+ *     verdictThroughApiKey: bool,
  *     note: string|null,
  *     version: int,
  *     comments: list<array{id: string, quote: string, body: string, replacement: string|null, author: 'agent'|'human', status: string, orphaned: bool, thread: list<array{id: string, quote: string, body: string, author: 'agent'|'human', orphaned: bool}>}>,
- *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, through_agent: bool, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>,
+ *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, through_agent: bool, through_api_key: bool, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>,
  *     agentReviews: list<DocumentAgentReviewSummary>
  * }
  */
@@ -85,11 +86,11 @@ final readonly class ShowReviewHandler
      * `note` is the reviewer's note on the decision, and `updated_at` is when its
      * answer was last saved. Both are null while the decision has no answer row.
      *
-     * `verdictId` and `verdictThroughAgent` describe the newest entry of the verdict log
+     * `verdictId`, `verdictThroughAgent` and `verdictThroughApiKey` describe the newest entry of the verdict log
      * on the current version, a withdrawal included, which is the entry the verdict
      * tools expect the caller to have read. Both are null and false while the log is
      * empty. `through_agent` on a decision says that an agent recorded its answer
-     * for the owner.
+     * for the owner, and `through_api_key` says that an API key did.
      *
      * @return ReviewPayload
      */
@@ -190,6 +191,7 @@ final readonly class ShowReviewHandler
                 'note' => ($answers[$decision->id] ?? null)?->note,
                 'updated_at' => ($answers[$decision->id] ?? null)?->updatedAt->format(\DateTimeInterface::ATOM),
                 'through_agent' => $answers[$decision->id]->answeredThroughAgent ?? false,
+                'through_api_key' => null !== ($answers[$decision->id]->answeredApiKeyId ?? null),
                 'selections' => $chosen,
             ];
         }
@@ -199,6 +201,7 @@ final readonly class ShowReviewHandler
             'verdict' => $review?->verdict->value,
             'verdictId' => $newestEntry?->id?->toRfc4122(),
             'verdictThroughAgent' => $newestEntry->throughAgent ?? false,
+            'verdictThroughApiKey' => null !== ($newestEntry->apiKeyId ?? null),
             'note' => $review?->note,
             'version' => $currentVersion->versionNumber,
             'comments' => $threadedComments,

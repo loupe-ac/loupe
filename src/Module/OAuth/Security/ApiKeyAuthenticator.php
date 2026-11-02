@@ -39,6 +39,8 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
 {
     public const string KEY_ATTRIBUTE = 'apiKeyId';
 
+    public const string CREDENTIAL_PREFIX = 'api-key:';
+
     /** The use time is written at most this often per key. */
     private const string USE_INTERVAL = '5 minutes';
 
@@ -51,7 +53,7 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
 
     public static function credentialId(Uuid $keyId): string
     {
-        return 'api-key:'.$keyId->toRfc4122();
+        return self::CREDENTIAL_PREFIX.$keyId->toRfc4122();
     }
 
     #[\Override]

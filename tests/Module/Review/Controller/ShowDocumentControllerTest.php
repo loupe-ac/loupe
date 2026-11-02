@@ -26,8 +26,10 @@ use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Translation\IdentityTranslator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 final class ShowDocumentControllerTest extends WebTestCase
@@ -748,6 +750,61 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-verdict-chip__agent');
     }
 
+    public function test_the_verdict_chip_names_the_key_a_verdict_was_recorded_through(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'keyverdict', 'key-verdict@example.com');
+        $project = $this->project($em, $owner);
+        $named = new Document(owner: $owner, project: $project, title: 'Named key');
+        $namedVersion = $named->addVersion('# Done', '<h1>Done</h1>');
+        $named->status = DocumentStatus::Approved;
+        $em->persist($named);
+        $em->persist(new Review($namedVersion, Verdict::Approved, $owner, apiKeyId: Uuid::v7(), apiKeyName: 'CI'));
+        $unnamed = new Document(owner: $owner, project: $project, title: 'Unnamed key');
+        $unnamedVersion = $unnamed->addVersion('# Done', '<h1>Done</h1>');
+        $unnamed->status = DocumentStatus::Approved;
+        $em->persist($unnamed);
+        $em->persist(new Review($unnamedVersion, Verdict::Approved, $owner, apiKeyId: Uuid::v7()));
+        $namedPath = '/projects/'.$project->id.'/documents/'.$named->id.'/review';
+        $unnamedPath = '/projects/'.$project->id.'/documents/'.$unnamed->id.'/review';
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $namedPath);
+        self::assertSelectorTextSame('.lp-verdict-chip__api-key', "Recorded through API key 'CI'");
+        self::assertSelectorNotExists('.lp-verdict-chip__agent');
+
+        $client->request(Request::METHOD_GET, $unnamedPath);
+        self::assertSelectorTextSame('.lp-verdict-chip__api-key', 'Recorded through an API key');
+    }
+
+    public function test_a_comment_written_by_a_key_shows_the_key_and_its_owner(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->createUser($em, 'keycomment', 'key-comment@example.com');
+        $project = $this->project($em, $owner);
+        $document = new Document(owner: $owner, project: $project, title: 'Key comment');
+        $version = $document->addVersion('# Hello', '<h1>Hello</h1>');
+        $em->persist($document);
+        $root = new Comment($version, $owner, 'From a script', Anchor::unanchored(), apiKeyId: Uuid::v7(), apiKeyName: 'CI');
+        $em->persist($root);
+        $em->persist(new Comment($version, $owner, 'By hand', Anchor::unanchored(), $root));
+        $path = '/projects/'.$project->id.'/documents/'.$document->id.'/review';
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        $authors = array_map(trim(...), $crawler->filter('.lp-comment-author')->each(static fn (Crawler $node): string => $node->text()));
+        self::assertContains("API key 'CI' (".$owner->fullName.')', $authors);
+        self::assertContains($owner->fullName, $authors);
+    }
+
     public function test_an_approved_document_follows_the_draft_state_signal(): void
     {
         $client = static::createClient();
@@ -1008,7 +1065,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSame(
             ['Replaced the rollout section with a phased plan.', 'The original brief.'],
             $history->filter('.lp-history__note')->each(
-                static fn (\Symfony\Component\DomCrawler\Crawler $node): string => trim($node->text()),
+                static fn (Crawler $node): string => trim($node->text()),
             ),
         );
     }
@@ -1394,7 +1451,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertSame(
             [$base.'2/3'],
             $crawler->filter('#review-page-menu a[href="'.$base.'2/3"]')->each(
-                static fn (\Symfony\Component\DomCrawler\Crawler $node): string => (string) $node->attr('href'),
+                static fn (Crawler $node): string => (string) $node->attr('href'),
             ),
             'Compare versions compares the current version with its predecessor',
         );

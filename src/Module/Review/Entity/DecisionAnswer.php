@@ -52,6 +52,14 @@ class DecisionAnswer
         // True while the latest save came from an agent in a chat; a save on the page clears it.
         #[ORM\Column(options: ['default' => false])]
         public bool $answeredThroughAgent = false,
+
+        // The API key behind the latest save, cleared by a save on the page. No foreign key.
+        #[ORM\Column(type: UuidType::NAME, nullable: true)]
+        public ?Uuid $answeredApiKeyId = null,
+
+        // The key's name when the answer was saved, because a key can be renamed later.
+        #[ORM\Column(length: 100, nullable: true)]
+        public ?string $answeredApiKeyName = null,
     ) {
     }
 }

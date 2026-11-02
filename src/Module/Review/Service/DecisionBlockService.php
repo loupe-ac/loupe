@@ -554,13 +554,14 @@ final readonly class DecisionBlockService
      * @param array<string, string>    $badgeLabels                 keyed by confidence
      * @param array<string, string>    $notesByDecisionId
      * @param list<string>             $throughAgentDecisionIds     blocks whose answer an agent recorded, marked by an attribute that the page draws
+     * @param array<string, string>    $apiKeyNamesByDecisionId     the key name of each block whose answer an API key recorded, marked the same way
      */
-    public function withSelections(string $html, array $selectedIndexesByDecisionId, bool $readOnly, array $badgeLabels = [], array $notesByDecisionId = [], array $throughAgentDecisionIds = []): string
+    public function withSelections(string $html, array $selectedIndexesByDecisionId, bool $readOnly, array $badgeLabels = [], array $notesByDecisionId = [], array $throughAgentDecisionIds = [], array $apiKeyNamesByDecisionId = []): string
     {
-        if ([] !== $notesByDecisionId || [] !== $throughAgentDecisionIds) {
+        if ([] !== $notesByDecisionId || [] !== $throughAgentDecisionIds || [] !== $apiKeyNamesByDecisionId) {
             $html = preg_replace_callback(
                 '~<fieldset[^>]*\s'.self::BLOCK_MARKER.'="('.self::ID_PATTERN.')"[^>]*>~',
-                static function (array $matches) use ($notesByDecisionId, $throughAgentDecisionIds): string {
+                static function (array $matches) use ($notesByDecisionId, $throughAgentDecisionIds, $apiKeyNamesByDecisionId): string {
                     $added = '';
                     if (isset($notesByDecisionId[$matches[1]])) {
                         $added .= ' data-decision-note="'.str_replace(
@@ -571,6 +572,9 @@ final readonly class DecisionBlockService
                     }
                     if (\in_array($matches[1], $throughAgentDecisionIds, true)) {
                         $added .= ' data-decision-through-agent';
+                    }
+                    if (isset($apiKeyNamesByDecisionId[$matches[1]])) {
+                        $added .= ' data-decision-api-key="'.htmlspecialchars($apiKeyNamesByDecisionId[$matches[1]], \ENT_QUOTES | \ENT_HTML5).'"';
                     }
 
                     return '' === $added ? $matches[0] : substr($matches[0], 0, -1).$added.'>';

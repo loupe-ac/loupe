@@ -57,6 +57,16 @@ when you suspend or delete the account that owns it.
 The page shows when each key was last used. Loupe writes this time at most once
 every five minutes for a key.
 
+## How Loupe records what a key does
+
+A key is a separate kind of actor. Each change that a key makes names the key.
+
+1. A card history row reads "API key 'CI' (your name)". The row keeps the key name after you remove the key.
+2. A verdict that a key records reads "Recorded through API key 'CI'".
+3. A comment that a key writes has you as author, and reads "API key 'CI' (your name)".
+
+An action through a CLI sign-in is not a key action. Loupe records it as an agent.
+
 ## Expiry
 
 Choose an end date for every key, unless a key must live without one. A key with

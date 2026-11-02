@@ -19,15 +19,40 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Form\AddCommentFormType;
 use App\Module\Review\Form\AddCommentRequest;
 use App\Module\Review\Service\AnchorService;
+use App\Security\ApiKeyActor;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 
 final class AddCommentHandlerTest extends KernelTestCase
 {
+    public function test_a_comment_through_an_api_key_keeps_the_owner_as_author_and_names_the_key(): void
+    {
+        self::bootKernel();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        [$owner, $document] = $this->seedForAudit('add-key@example.com');
+        $handler = self::getContainer()->get(AddCommentHandler::class);
+        self::assertInstanceOf(AddCommentHandler::class, $handler);
+        $key = new ApiKeyActor(Uuid::v7(), 'CI');
+        $audit->forget();
+
+        $keyed = $handler(new AddCommentCommand($owner, $document, 1, null, null, null, 'From a script', apiKey: $key));
+        $plain = $handler(new AddCommentCommand($owner, $document, 1, null, null, null, 'By hand'));
+
+        self::assertSame($owner, $keyed->author);
+        self::assertEquals($key->keyId, $keyed->apiKeyId);
+        self::assertSame('CI', $keyed->apiKeyName);
+        self::assertNull($plain->apiKeyId);
+        self::assertNull($plain->apiKeyName);
+        $record = $audit->records('review.comment_added')[0];
+        self::assertSame((string) $key->keyId, $record->context['apiKeyId']);
+        self::assertSame('CI', $record->context['apiKeyName']);
+    }
+
     public function test_stale_annotations_are_rejected_even_when_the_quote_survives(): void
     {
         $document = $this->seedDocument('stale-annotations', "# Title\n\nUnchanged passage.");

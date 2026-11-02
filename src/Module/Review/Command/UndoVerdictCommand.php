@@ -6,6 +6,7 @@ namespace App\Module\Review\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Review\Entity\Document;
+use App\Security\ApiKeyActor;
 
 final readonly class UndoVerdictCommand
 {
@@ -17,6 +18,8 @@ final readonly class UndoVerdictCommand
         public string $reviewId,
         public ?int $expectedVersionNumber = null,
         public bool $throughAgent = false,
+        // The API key that withdraws the verdict for its owner. Never set together with throughAgent.
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

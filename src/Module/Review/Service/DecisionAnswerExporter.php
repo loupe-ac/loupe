@@ -32,6 +32,8 @@ final readonly class DecisionAnswerExporter implements UserDataExporterInterface
                 'answeredAtVersion' => $answer->answeredAtVersion,
                 'updatedAt' => $answer->updatedAt->format(\DateTimeInterface::ATOM),
                 'answeredThroughAgent' => $answer->answeredThroughAgent,
+                'answeredApiKeyId' => $answer->answeredApiKeyId?->toRfc4122(),
+                'answeredApiKeyName' => $answer->answeredApiKeyName,
             ];
         }
     }
