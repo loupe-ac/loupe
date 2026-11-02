@@ -100,6 +100,8 @@ type fakeHeartbeats struct {
 	commands []api.Command
 	// watch is the watch list each successful answer carries.
 	watch []string
+	// work is the work requests each successful answer carries.
+	work []api.WorkRequest
 }
 
 func (f *fakeHeartbeats) Heartbeat(_ context.Context, bridgeID string, hb api.Heartbeat) (api.HeartbeatReply, error) {
@@ -108,7 +110,7 @@ func (f *fakeHeartbeats) Heartbeat(_ context.Context, bridgeID string, hb api.He
 	f.sent = append(f.sent, hb)
 	f.ids = append(f.ids, bridgeID)
 	if len(f.errors) == 0 {
-		return api.HeartbeatReply{CLIRange: f.cliRange, Paused: f.paused, Commands: f.commands, WatchSessions: f.watch}, nil
+		return api.HeartbeatReply{CLIRange: f.cliRange, Paused: f.paused, Commands: f.commands, WatchSessions: f.watch, WorkRequests: f.work}, nil
 	}
 	err := f.errors[0]
 	f.errors = f.errors[1:]

@@ -298,7 +298,7 @@ the owner recorded. The server compares the two logins without regard to case.
 | `blocked` | The bridge cannot write the directory of its binary, so it cannot install `version` |
 | `off` | `autoUpdate` is not `true`, and `version` waits |
 | `dev` | A development build, which never updates |
-| `draining` | The running version is outside the range and cannot update. The bridge starts no new work and keeps its heartbeat |
+| `draining` | The running version is outside the range, and no handover is running. The bridge starts no new work and keeps its heartbeat |
 
 The bridge sends no `update` until its first check has a state. Each heartbeat
 replaces the stored state, and a heartbeat with no `update` clears it. The

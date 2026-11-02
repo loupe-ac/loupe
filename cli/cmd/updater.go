@@ -138,6 +138,10 @@ type updater struct {
 	nudged time.Time
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	// settling keeps the drain decisions of the heartbeat lane and the check
+	// in order, so a decision from an old range never lands after a newer one.
+	// It is taken before mu.
+	settling sync.Mutex
 
 	// logged holds each once-only line already written. Only the holder of
 	// token reads or writes it.
@@ -193,8 +197,9 @@ func (u *updater) stop() {
 	u.wg.Wait()
 }
 
-// setRange applies the range of a heartbeat answer. It never blocks, because
-// the heartbeat lane calls it.
+// setRange applies the range of a heartbeat answer. It settles the drain before
+// it returns, because the heartbeat lane takes the work offers of the same
+// answer next, and the check it asks for can wait minutes on GitHub.
 func (u *updater) setRange(r string) {
 	u.mu.Lock()
 	if r == u.cliRange {
@@ -204,6 +209,7 @@ func (u *updater) setRange(r string) {
 	}
 	u.cliRange = r
 	u.mu.Unlock()
+	u.settle()
 
 	select {
 	case u.kick <- struct{}{}:
@@ -385,6 +391,8 @@ func (u *updater) run(ctx context.Context, force bool) updateResult {
 // ends the drain when the version is back inside. A development build, a
 // prerelease and a version that does not parse never drain.
 func (u *updater) settle() {
+	u.settling.Lock()
+	defer u.settling.Unlock()
 	u.mu.Lock()
 	cliRange := u.cliRange
 	u.mu.Unlock()

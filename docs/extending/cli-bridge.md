@@ -1608,11 +1608,13 @@ results:
 
 ### Draining
 
-A running bridge that falls outside the range tries the same update. When the
-update cannot run, the bridge drains. It starts no new work, and the runs that
-already started go on. It keeps sending [heartbeats](../reference/bridge-heartbeat.md)
-with the update state `draining`, logs `bridge_draining` once, and checks again
-every hour. The agents page shows the chip "Draining: needs ^2.0". When the
+A running bridge that falls outside the range drains at once, and then tries the
+same update. It starts no new work, and the runs that already started go on. This
+also holds for a work offer in the heartbeat answer that states the new range.
+When the update hands over, the new version takes work. When the update cannot
+run, the drain goes on. The bridge keeps sending
+[heartbeats](../reference/bridge-heartbeat.md) with the update state `draining`,
+logs `bridge_draining` once, and checks again every hour. The agents page shows the chip "Draining: needs ^2.0". When the
 version is back inside the range, because the bridge updated or the server
 changed its range, the bridge logs `bridge_resumed` and takes work again. A
 development build and a prerelease never drain.

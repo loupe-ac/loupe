@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/directive"
@@ -177,4 +178,41 @@ func TestADrainingRouterStartsNoWorkUntilTheDrainEnds(t *testing.T) {
 	h.router.setDraining(false)
 
 	eventually(t, "the worker to start after the drain", func() bool { return len(h.worker.recorded()) == 1 })
+}
+
+// A heartbeat answer that carries an incompatible range and a work offer starts
+// no worker, although no update check has run. The next compatible range does.
+func TestAHeartbeatWithANewRangeAndAnOfferStartsNoWork(t *testing.T) {
+	h := newHarnessWith(t, appPromptRules, rules.Defaults{})
+	h.states()
+	f := h.withWork()
+	h.worker.result = workerResult{hasResult: true, status: "finished"}
+	offer := appPromptOffer(1)
+	f.mu.Lock()
+	f.requests[offer.WorkRequestID] = offer
+	f.mu.Unlock()
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	updates := newTestUpdater(t, gh, "1.0.0")
+	updates.u.onDrain = h.router.setDraining
+	client := &fakeHeartbeats{cliRange: "^2.0", work: []api.WorkRequest{offer}}
+
+	hh := startHeartbeater(t, client, time.Minute, func(hb *heartbeater) {
+		hb.onRange = updates.u.setRange
+		hb.onReply = h.router.onHeartbeatReply
+	})
+	hh.tick(t, time.Minute)
+
+	if claims := h.heldClaims(); len(claims) != 0 {
+		t.Fatalf("claims while draining = %+v", claims)
+	}
+	if calls := h.worker.recorded(); len(calls) != 0 {
+		t.Fatalf("workers while draining = %+v", calls)
+	}
+
+	client.mu.Lock()
+	client.cliRange = "^1.0"
+	client.mu.Unlock()
+	hh.tick(t, time.Minute)
+
+	eventually(t, "the worker to start after the range comes back", func() bool { return len(h.worker.recorded()) == 1 })
 }

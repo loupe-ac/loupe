@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -586,6 +587,80 @@ func TestTheUpdaterDrainsWhileTheVersionIsOutsideTheRangeAndResumesInside(t *tes
 	}
 	if h.events("bridge_resumed") != 1 {
 		t.Fatalf("bridge_resumed logged %d times: %s", h.events("bridge_resumed"), h.log.String())
+	}
+}
+
+// The range drains and releases at once, and no check has run.
+func TestARangeChangeSettlesTheDrainBeforeACheck(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+
+	h.u.setRange("^2.0")
+
+	if got := h.u.state(); got.State != updateDraining {
+		t.Fatalf("state = %+v", got)
+	}
+	if !slices.Equal(drains, []bool{true}) {
+		t.Fatalf("drains = %v", drains)
+	}
+
+	h.u.setRange("^1.0")
+
+	if !slices.Equal(drains, []bool{true, false}) {
+		t.Fatalf("drains = %v", drains)
+	}
+	if releases, _ := gh.counts(); releases != 0 {
+		t.Fatalf("releases = %d", releases)
+	}
+}
+
+// A release that is still on its way never overrides the drain of a newer range.
+func TestANewRangeWaitsForTheReleaseInFlight(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	entered, release := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	var drains []bool
+	h.u.onDrain = func(on bool) {
+		if !on {
+			close(entered)
+			<-release
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		drains = append(drains, on)
+	}
+	h.u.setRange("^2.0")
+
+	released := make(chan struct{})
+	go func() {
+		defer close(released)
+		h.u.setRange("^1.0")
+	}()
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the new range released no drain")
+	}
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		h.u.setRange("^3.0")
+	}()
+	select {
+	case <-drained:
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	<-released
+	<-drained
+
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(drains, []bool{true, false, true}) {
+		t.Fatalf("drains = %v", drains)
 	}
 }
 
