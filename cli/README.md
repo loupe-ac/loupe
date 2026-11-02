@@ -1519,7 +1519,7 @@ every worker, so the resumed agent can ask again and record its reads.
 ### Heartbeat
 
 The bridge tells the server that it runs. It sends a heartbeat once at start,
-right after the first `GET /api/events`, and then once per interval. The
+right after the first `GET /api/v1/bridge/events`, and then once per interval. The
 heartbeat carries the ids of the projects the rule file maps and the version of
 the binary. A release sends its version, such as `1.0.0`. A development build
 sends its commit, such as `0f4a2c9b (dirty)`. The heartbeat also carries the
@@ -1643,7 +1643,7 @@ The bridge learns of a hold in these ways:
 
 1. A `board.card_held` event holds the card, and a `board.card_released` event
    ends the hold.
-2. On every connect, the bridge reads `GET /api/card-holds` before and after
+2. On every connect, the bridge reads `GET /api/v1/bridge/card-holds` before and after
    the catch-up. The answer lists the held cards of every project the
    token reaches, as `{"holds": [{"projectId": "…", "cardId": "…"}]}`. The list
    replaces every hold the bridge has. A server without the list answers 404,
@@ -1704,7 +1704,7 @@ command of a kind it does not know.
 A release build of the bridge keeps itself up to date. A development build never
 updates, and logs `update_skipped` once at start.
 
-The server names the CLI versions it supports as a caret range, such as `^1.0`,
+The server names the CLI versions it supports as a caret range, such as `^2.0`,
 in its answer to each heartbeat. The bridge checks the releases on GitHub after
 its first heartbeat, again when the range changes, and then every hour plus a
 random delay of up to 10 minutes. It reads only releases with a `cli/vX.Y.Z`
@@ -1904,8 +1904,8 @@ your config directory. Give `--rules` the path that the bridge got, because the
 hash comes from that path as given. The bridge first moves its lock when the
 rule path now resolves to another file. It then parses the file, runs the
 [start checks](#start-checks) against the server, and confirms that
-`GET /api/events` lists each mapped project. It applies the file only when every
-step passes. It then applies the server flags of that `GET /api/events` answer,
+`GET /api/v1/bridge/events` lists each mapped project. It applies the file only when every
+step passes. It then applies the server flags of that `GET /api/v1/bridge/events` answer,
 as a reconnect does.
 
 On success, the command writes to stdout and exits with status 0:
@@ -2151,16 +2151,17 @@ build time, so the binary matches no commit.
 
 ## How it works
 
-`loupe login` checks its new access token with `GET /api/projects`, which
+`loupe login` checks its new access token with `GET /api/v1/bridge/projects`, which
 lists your projects with their id, slug and name. The bridge reads that list only to name
 your slugs when a rule file names one you do not own. A path handle is a project
 id or a project slug, and a project name does not resolve.
 
-1. The bridge reads the rule file and checks it.
-2. `PUT /api/bridges/{bridgeId}/heartbeat` tells the server which kinds of work
+1. The bridge reads `GET /api/versions`, which needs no sign-in. A server without that route is too old, and a server without `v1` is too new. Either one stops the bridge with one sentence.
+   It then reads the rule file and checks it.
+2. `PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat` tells the server which kinds of work
    the bridge runs, before the bridge asks for events.
-3. `GET /api/projects/{slug}/board/columns` resolves each project slug to its id.
-4. `GET /api/events` returns the Mercure hub URL, your user topic, a short-lived
+3. `GET /api/v1/bridge/projects/{slug}/columns` resolves each project slug to its id.
+4. `GET /api/v1/bridge/events` returns the Mercure hub URL, your user topic, a short-lived
    subscriber JWT for that topic, the id, slug and name of every project you
    own, and the `flags` map. The request names the bridge, and the server
    answers 426 to a bridge whose heartbeat runs no work. The server publishes
@@ -2176,7 +2177,7 @@ id or a project slug, and a project name does not resolve.
 7. A type the bridge does not read is dropped without a word. A newer server
    publishes events an older binary has never heard of, and that is normal. A
    payload that will not parse is still logged.
-8. `PUT /api/bridges/{bridgeId}/heartbeat` tells the server that the bridge
+8. `PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat` tells the server that the bridge
    runs, at each interval, and renews the lease of each claim.
 
 A prompt carries only validated identifiers and slugs: the project id and slug,
@@ -2187,7 +2188,7 @@ auto-submitted prompt. The agent fetches the content itself through `card_get`,
 and the footer tells it to treat what it reads as data.
 
 Dropped connections are retried with capped backoff. Every retry calls
-`GET /api/events` for a **fresh subscriber JWT**. The JWT is short-lived, so a
+`GET /api/v1/bridge/events` for a **fresh subscriber JWT**. The JWT is short-lived, so a
 reused one would make the hub reject each retry once it lapsed. The bridge also
 compares each fresh project list with the rule file, and logs `project_gone` for
 a mapped project that is no longer listed. It reads the `flags` map of each
@@ -2206,11 +2207,11 @@ as the hub keeps its history.
 The bridge does not depend on that history. It keeps a cursor in
 `cursor-<hash>.json` in your config directory: the highest outbox sequence it
 handled. On every connect, before it reads the stream, it reads the events after
-the cursor from `GET /api/events/replay`. So a bridge that you stop and start
+the cursor from `GET /api/v1/bridge/events/replay`. So a bridge that you stop and start
 again runs the events of the time it was stopped. It runs an event that it
 handled already only once.
 
-A bridge with no cursor file starts from the `head` that `GET /api/events`
+A bridge with no cursor file starts from the `head` that `GET /api/v1/bridge/events`
 sends, and runs no event older than that start. A server that sends no `head`
 gives the bridge no cursor, and the bridge then catches up nothing. A replayed
 work request that ended since runs nothing, because its claim fails. The

@@ -22,7 +22,7 @@ func TestSitesCallsTheProjectsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/api/projects" || gotAuth != "Bearer secret" {
+	if gotPath != "/api/v1/bridge/projects" || gotAuth != "Bearer secret" {
 		t.Fatalf("path = %q, auth = %q", gotPath, gotAuth)
 	}
 	if len(got) != 1 || got[0].Name != "Loupe" {
@@ -59,7 +59,7 @@ func TestEventsCallsTheEventsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/api/events" || gotQuery != "" || gotAuth != "Bearer secret" {
+	if gotPath != "/api/v1/bridge/events" || gotQuery != "" || gotAuth != "Bearer secret" {
 		t.Fatalf("path = %q, query = %q, auth = %q", gotPath, gotQuery, gotAuth)
 	}
 	ids := []string{got.Projects[0].ID, got.Projects[1].ID}
@@ -116,7 +116,7 @@ func TestEventsNamesAMissingRoute(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	_, err := New(server.URL, "t", server.Client()).Events(context.Background(), testBridge)
-	if err == nil || !strings.Contains(err.Error(), "no GET /api/events endpoint") {
+	if err == nil || !strings.Contains(err.Error(), "no GET /api/v1/bridge/events endpoint") {
 		t.Fatalf("err = %v", err)
 	}
 }

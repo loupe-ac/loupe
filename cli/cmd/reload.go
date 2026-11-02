@@ -66,7 +66,7 @@ func newReloadSource(path string, defaults rules.Defaults, cfg config.Config, lo
 }
 
 // reload builds a new rule set, swaps it in and applies the server flags of
-// its GET /api/events answer. It runs one at a time. It builds and checks the
+// its GET /api/v1/bridge/events answer. It runs one at a time. It builds and checks the
 // set off mu, and any failure changes nothing.
 func (r *router) reload(ctx context.Context, src reloadSource) reloadResult {
 	if !r.reloadMu.TryLock() {
@@ -157,7 +157,7 @@ func shuttingDown() reloadResult {
 	return reloadResult{Problems: []string{"the bridge is shutting down"}}
 }
 
-// built is a set a reload built, with its hooks, the GET /api/events answer it
+// built is a set a reload built, with its hooks, the GET /api/v1/bridge/events answer it
 // was checked against, and the checks of its accounts.
 type built struct {
 	set      *rules.Set
@@ -188,7 +188,7 @@ func buildSet(ctx context.Context, src reloadSource) (built, string, error) {
 		return b, "server", err
 	}
 	if missing := missingProjects(set, events); len(missing) > 0 {
-		return b, "server", fmt.Errorf("GET /api/events does not list %s, so no event of theirs can reach the bridge", strings.Join(missing, ", "))
+		return b, "server", fmt.Errorf("GET /api/v1/bridge/events does not list %s, so no event of theirs can reach the bridge", strings.Join(missing, ", "))
 	}
 	b.events = events
 
@@ -307,7 +307,7 @@ func (r *router) rewriteLocked(set *rules.Set) []pending {
 }
 
 // pruneLocked forgets the unmapped marks of the projects the new set maps. The reload saw each project of the
-// new set in GET /api/events, so a gone mark holds only for the ids a newer
+// new set in GET /api/v1/bridge/events, so a gone mark holds only for the ids a newer
 // answer found gone. The caller holds mu.
 func (r *router) pruneLocked(set *rules.Set, gone []string) {
 	for _, slug := range set.Projects() {

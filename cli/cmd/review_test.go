@@ -47,7 +47,7 @@ func newReviewServer(t *testing.T) *reviewServer {
 		rs.bodies = append(rs.bodies, string(data))
 		rs.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/api/projects" {
+		if r.URL.Path == "/api/v1/bridge/projects" {
 			fmt.Fprintf(w, `{"sites":[{"id":%q,"slug":"a","name":"Alpha"},{"id":%q,"slug":"b","name":"Beta"}]}`, reviewProjectA, reviewProjectB)
 
 			return
@@ -55,19 +55,19 @@ func newReviewServer(t *testing.T) *reviewServer {
 		project := r.Header.Get("X-Loupe-Project")
 		if project != reviewProjectA && project != reviewProjectB {
 			w.WriteHeader(http.StatusForbidden)
-			fmt.Fprint(w, `{"error":"token_not_bound_to_site"}`)
+			fmt.Fprint(w, `{"code":"token_not_bound_to_site"}`)
 
 			return
 		}
 		switch r.URL.Path {
-		case "/api/board/cards":
+		case "/api/v1/live-review-widget/cards":
 			if r.URL.Query().Get("parent") == "1" {
 				fmt.Fprint(w, `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}`)
 
 				return
 			}
 			fmt.Fprint(w, `{"cards":[{"cardId":"c1","number":7,"title":"T","status":"todo"}]}`)
-		case "/api/live-review/review":
+		case "/api/v1/live-review-widget/review":
 			// Each destination holds its own notes, as the server scopes them.
 			switch r.URL.Query().Get("scope") {
 			case "card:" + reviewCardA:
@@ -77,7 +77,7 @@ func newReviewServer(t *testing.T) *reviewServer {
 			default:
 				fmt.Fprint(w, `{"comments":[]}`)
 			}
-		case "/api/board/feedback":
+		case "/api/v1/live-review-widget/feedback":
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprint(w, `{"id":"n1"}`)
 		default:
@@ -214,13 +214,13 @@ func TestReviewStatusWithNoProjectAndSignedOut(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/projects" {
+		if r.URL.Path == "/api/v1/bridge/projects" {
 			fmt.Fprint(w, `{"sites":[]}`)
 
 			return
 		}
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprint(w, `{"error":"insufficient_scope"}`)
+		fmt.Fprint(w, `{"code":"insufficient_scope"}`)
 	}))
 	t.Cleanup(server.Close)
 	if err := config.Save(testLogin(server.URL)); err != nil {
@@ -328,9 +328,9 @@ func newSignInServer(t *testing.T, tokenAnswers ...string) *signInServer {
 				w.WriteHeader(http.StatusBadRequest)
 			}
 			fmt.Fprint(w, answer)
-		case "/api/projects":
+		case "/api/v1/bridge/projects":
 			fmt.Fprintf(w, `{"sites":[{"id":%q,"slug":"a","name":"Alpha"}]}`, reviewProjectA)
-		case "/api/live-review/review":
+		case "/api/v1/live-review-widget/review":
 			fmt.Fprint(w, `{"comments":[]}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)

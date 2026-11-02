@@ -9,7 +9,7 @@ use Composer\Semver\Semver;
 /** The CLI versions this server works with. The heartbeat hands the range to the bridge, which updates within it. */
 final readonly class CliCompatibility
 {
-    public const string RANGE = '^1.0';
+    public const string RANGE = '^2.0';
 
     /** The install script fetches the newest release of this major, so the range must stay a caret range. */
     public static function major(string $range = self::RANGE): int

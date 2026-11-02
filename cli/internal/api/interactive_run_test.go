@@ -54,7 +54,7 @@ func TestReportInteractiveLaunchPutsTheLaunchOnTheSession(t *testing.T) {
 	if err != nil || !created {
 		t.Fatalf("created = %v, err = %v", created, err)
 	}
-	if path != "/api/projects/loupe/interactive-runs/"+testSessionID {
+	if path != "/api/v1/bridge/projects/loupe/interactive-runs/"+testSessionID {
 		t.Fatalf("path = %s", path)
 	}
 	if got := keys(body); got != "at,bridgeId,cardNumber,state,subjectId,subjectType,workKind" {
@@ -114,7 +114,7 @@ func TestReportInteractiveLaunchReadsEachAnswer(t *testing.T) {
 		{status: http.StatusOK, ok: true},
 		{status: http.StatusNotFound, unsupported: true},
 		{status: http.StatusNotFound, body: `<html>Not Found</html>`, unsupported: true},
-		{status: http.StatusNotFound, body: `{"error":"project_not_found"}`, refused: true},
+		{status: http.StatusNotFound, body: `{"code":"project_not_found"}`, refused: true},
 		{status: http.StatusUnprocessableEntity, refused: true},
 		{status: http.StatusTooManyRequests},
 		{status: http.StatusInternalServerError},

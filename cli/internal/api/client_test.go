@@ -23,7 +23,7 @@ func TestColumnsDecodesTheProjectAndItsColumns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/api/projects/loupe/board/columns" || gotAuth != "Bearer secret" {
+	if gotPath != "/api/v1/bridge/projects/loupe/columns" || gotAuth != "Bearer secret" {
 		t.Fatalf("path = %q, auth = %q", gotPath, gotAuth)
 	}
 	if got.Project.ID != "0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7" || got.Project.Slug != "loupe" {
@@ -44,7 +44,7 @@ func TestColumnsEscapesTheHandle(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	_, _ = New(server.URL, "t", server.Client()).Columns(context.Background(), "a/../b")
-	if gotPath != "/api/projects/a%2F..%2Fb/board/columns" {
+	if gotPath != "/api/v1/bridge/projects/a%2F..%2Fb/columns" {
 		t.Fatalf("path = %q", gotPath)
 	}
 }
@@ -95,11 +95,11 @@ func TestColumnsNamesEachFailure(t *testing.T) {
 		is     error
 		text   string
 	}{
-		{http.StatusNotFound, `{"error":"project_not_found"}`, ErrProjectNotFound, "loupe"},
+		{http.StatusNotFound, `{"code":"project_not_found"}`, ErrProjectNotFound, "loupe"},
 		{http.StatusNotFound, `<html>Not Found</html>`, ErrEndpointMissing, "loupe"},
 		{http.StatusNotFound, `{"message":"No route found"}`, ErrEndpointMissing, "loupe"},
 		{http.StatusNotFound, ``, ErrEndpointMissing, "loupe"},
-		{http.StatusConflict, `{"error":"ambiguous_project"}`, ErrProjectAmbiguous, "loupe"},
+		{http.StatusConflict, `{"code":"ambiguous_project"}`, ErrProjectAmbiguous, "loupe"},
 		{http.StatusForbidden, ``, nil, "agent scope"},
 		{http.StatusInternalServerError, ``, nil, "HTTP 500"},
 	} {

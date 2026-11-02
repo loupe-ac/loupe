@@ -119,7 +119,7 @@ func TestAckCommandPutsTheState(t *testing.T) {
 	if err != nil || stored != "expired" {
 		t.Fatalf("stored = %q, err = %v", stored, err)
 	}
-	if method != http.MethodPut || path != "/api/bridges/"+ackBridgeID+"/commands/"+ackCommandID || auth != "Bearer secret" || contentType != "application/json" {
+	if method != http.MethodPut || path != "/api/v1/bridge/bridges/"+ackBridgeID+"/commands/"+ackCommandID || auth != "Bearer secret" || contentType != "application/json" {
 		t.Fatalf("method = %q, path = %q, auth = %q, content type = %q", method, path, auth, contentType)
 	}
 	if body != `{"state":"done"}` {
@@ -156,10 +156,10 @@ func TestAckCommandNamesEachFailure(t *testing.T) {
 		notFound bool
 		text     string
 	}{
-		"command gone": {http.StatusNotFound, `{"error":"command_not_found"}`, true, ""},
+		"command gone": {http.StatusNotFound, `{"code":"command_not_found"}`, true, ""},
 		"old server":   {http.StatusNotFound, ``, false, "HTTP 404"},
-		"other code":   {http.StatusNotFound, `{"error":"project_not_found"}`, false, "HTTP 404"},
-		"invalid":      {http.StatusUnprocessableEntity, `{"error":"invalid_state"}`, false, "invalid_state"},
+		"other code":   {http.StatusNotFound, `{"code":"project_not_found"}`, false, "HTTP 404"},
+		"invalid":      {http.StatusUnprocessableEntity, `{"code":"invalid_state"}`, false, "invalid_state"},
 		"server error": {http.StatusInternalServerError, `boom`, false, "HTTP 500"},
 	} {
 		t.Run(name, func(t *testing.T) {

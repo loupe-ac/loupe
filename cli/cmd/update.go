@@ -38,7 +38,7 @@ type selfUpdate struct {
 }
 
 // readServerRange reads the CLI range the server supports from GET
-// /api/events, with the stored login, as a bridge does at start.
+// /api/v1/bridge/events, with the stored login, as a bridge does at start.
 func readServerRange(ctx context.Context) (string, error) {
 	cfg, err := config.Load()
 	if err != nil {

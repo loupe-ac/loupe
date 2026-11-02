@@ -716,11 +716,11 @@ func TestTheExampleParses(t *testing.T) {
 func columnsServer(t *testing.T, projects map[string]string) *api.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handle := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/board/columns")
+		handle := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/bridge/projects/"), "/columns")
 		body, ok := projects[handle]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(w, `{"error":"project_not_found"}`)
+			fmt.Fprint(w, `{"code":"project_not_found"}`)
 
 			return
 		}
@@ -775,9 +775,9 @@ func TestCheckNamesEachRefusal(t *testing.T) {
 		want   string
 		not    string
 	}{
-		"unknown project": {http.StatusNotFound, `{"error":"project_not_found"}`, "no project of yours has this slug", "too old"},
+		"unknown project": {http.StatusNotFound, `{"code":"project_not_found"}`, "no project of yours has this slug", "too old"},
 		"server too old":  {http.StatusNotFound, `<!DOCTYPE html><title>Not Found</title>`, "the server is too old for this bridge version", "no project"},
-		"ambiguous":       {http.StatusConflict, `{"error":"ambiguous_project"}`, "names more than one of your projects", "too old"},
+		"ambiguous":       {http.StatusConflict, `{"code":"ambiguous_project"}`, "names more than one of your projects", "too old"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -795,18 +795,18 @@ func TestCheckNamesEachRefusal(t *testing.T) {
 }
 
 // An unknown project names the slugs the caller does own, read once from
-// GET /api/projects, so the fix is a copy. A project with no slug is left out.
+// GET /api/v1/bridge/projects, so the fix is a copy. A project with no slug is left out.
 func TestCheckListsTheValidSlugsForAnUnknownProject(t *testing.T) {
 	sitesCalls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/projects" {
+		if r.URL.Path == "/api/v1/bridge/projects" {
 			sitesCalls++
 			fmt.Fprint(w, `{"sites":[{"id":"a","slug":"zeta","name":"Zeta"},{"id":"b","slug":null,"name":"Old"},{"id":"c","slug":"alpha","name":"Alpha"}]}`)
 
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(w, `{"error":"project_not_found"}`)
+		fmt.Fprint(w, `{"code":"project_not_found"}`)
 	}))
 	t.Cleanup(server.Close)
 	s := parse(t, strings.ReplaceAll(oneRule, "projects:\n", "projects:\n  other:\n    dir: "+t.TempDir()+"\n"))
@@ -819,7 +819,7 @@ func TestCheckListsTheValidSlugsForAnUnknownProject(t *testing.T) {
 		}
 	}
 	if sitesCalls != 1 {
-		t.Fatalf("GET /api/projects ran %d times, want once", sitesCalls)
+		t.Fatalf("GET /api/v1/bridge/projects ran %d times, want once", sitesCalls)
 	}
 }
 

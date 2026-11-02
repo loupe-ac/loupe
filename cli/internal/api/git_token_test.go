@@ -28,7 +28,7 @@ func TestIssueGitTokenPostsTheRepository(t *testing.T) {
 	if token != "ghs_1" || expires.UTC().Format("2006-01-02T15:04") != "2026-10-18T14:00" {
 		t.Fatalf("token = %q, expires = %v", token, expires)
 	}
-	if method != http.MethodPost || path != "/api/projects/p1/git-token" || auth != "Bearer secret" || body != `{"repository":"acme/site"}` {
+	if method != http.MethodPost || path != "/api/v1/bridge/projects/p1/git-token" || auth != "Bearer secret" || body != `{"repository":"acme/site"}` {
 		t.Fatalf("method = %q, path = %q, auth = %q, body = %s", method, path, auth, body)
 	}
 }
@@ -41,15 +41,15 @@ func TestIssueGitTokenNamesTheRefusal(t *testing.T) {
 		check  func(error) bool
 		text   string
 	}{
-		{"not managed", 403, `{"error":"git_identity_not_managed"}`, func(e error) bool { return errors.Is(e, ErrGitIdentityNotManaged) }, ""},
+		{"not managed", 403, `{"code":"git_identity_not_managed"}`, func(e error) bool { return errors.Is(e, ErrGitIdentityNotManaged) }, ""},
 		{"no route", 404, `<html>`, func(e error) bool { return errors.Is(e, ErrGitTokenUnsupported) }, ""},
-		{"no project", 404, `{"error":"project_not_found"}`, func(e error) bool {
+		{"no project", 404, `{"code":"project_not_found"}`, func(e error) bool {
 			return !errors.Is(e, ErrGitTokenUnsupported) && !errors.Is(e, ErrGitIdentityNotManaged)
 		}, "project_not_found"},
-		{"missing grant", 409, `{"error":"missing_grant","missing":["contents"]}`, nil, "missing_grant (contents)"},
-		{"no installation", 409, `{"error":"no_installation","missing":[]}`, nil, "no_installation"},
-		{"github down", 502, `{"error":"github_unavailable","missing":[]}`, nil, "github_unavailable"},
-		{"scope", 403, `{"error":"insufficient_scope"}`, func(e error) bool { return !errors.Is(e, ErrGitIdentityNotManaged) }, "insufficient_scope"},
+		{"missing grant", 409, `{"code":"missing_grant","missing":["contents"]}`, nil, "missing_grant (contents)"},
+		{"no installation", 409, `{"code":"no_installation","missing":[]}`, nil, "no_installation"},
+		{"github down", 502, `{"code":"github_unavailable","missing":[]}`, nil, "github_unavailable"},
+		{"scope", 403, `{"code":"insufficient_scope"}`, func(e error) bool { return !errors.Is(e, ErrGitIdentityNotManaged) }, "insufficient_scope"},
 		{"rate limit", 429, ``, nil, "HTTP 429"},
 	}
 	for _, c := range cases {

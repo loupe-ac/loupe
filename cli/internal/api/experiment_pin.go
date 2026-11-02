@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// ErrExperimentPinsUnsupported marks a 404 with no error code, which is the
+// ErrExperimentPinsUnsupported marks a 404 that routeMissing accepts, which is the
 // answer of a server with no pin endpoint, or with agent push switched off.
 var ErrExperimentPinsUnsupported = errors.New("the server has no experiment pin endpoint, or agent push is switched off")
 
@@ -88,7 +88,7 @@ func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, c
 		return "", "", fmt.Errorf("encode the experiment pin: %w", err)
 	}
 
-	status, detail, err := c.putReport(ctx, "/api/projects/"+url.PathEscape(handle)+
+	status, detail, err := c.putReport(ctx, "/api/v1/bridge/projects/"+url.PathEscape(handle)+
 		"/experiments/"+url.PathEscape(experiment)+"/pins/"+url.PathEscape(cardID), body)
 	if err != nil {
 		return "", "", fmt.Errorf("resolve the experiment pin: %w", err)
@@ -119,11 +119,11 @@ func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, c
 	return answer.Variant, switchedFrom, nil
 }
 
-// hasErrorCode reports whether an answer is a JSON object with an error code.
+// hasErrorCode reports whether an answer names a cause that routeMissing does not accept.
 func hasErrorCode(detail []byte) bool {
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 
-	return json.Unmarshal(detail, &payload) == nil && payload.Error != ""
+	return json.Unmarshal(detail, &payload) == nil && !routeMissing(payload.Code)
 }

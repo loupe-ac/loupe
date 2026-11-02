@@ -349,7 +349,7 @@ func (c *Client) HandBackWorkRequest(ctx context.Context, bridgeID, id, token st
 }
 
 func (c *Client) workRequestURL(bridgeID, id, action string) string {
-	return c.baseURL + "/api/bridges/" + url.PathEscape(bridgeID) + "/work-requests/" + url.PathEscape(id) + "/" + action
+	return c.baseURL + "/api/v1/bridge/bridges/" + url.PathEscape(bridgeID) + "/work-requests/" + url.PathEscape(id) + "/" + action
 }
 
 // workRequestError reads a failed answer. conflict is the error of a 409 that
@@ -357,19 +357,19 @@ func (c *Client) workRequestURL(bridgeID, id, action string) string {
 func workRequestError(resp *http.Response, conflict error, conflictCode string) error {
 	detail, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 	_ = json.Unmarshal(detail, &payload)
 
 	switch {
-	case resp.StatusCode == http.StatusConflict && payload.Error == conflictCode:
+	case resp.StatusCode == http.StatusConflict && payload.Code == conflictCode:
 		return conflict
-	case resp.StatusCode == http.StatusNotFound && payload.Error == "work_request_not_found":
+	case resp.StatusCode == http.StatusNotFound && payload.Code == "work_request_not_found":
 		return ErrWorkRequestNotFound
-	case resp.StatusCode == http.StatusNotFound && payload.Error == "":
+	case resp.StatusCode == http.StatusNotFound && routeMissing(payload.Code):
 		return ErrWorkRequestsUnsupported
 	case resp.StatusCode == http.StatusUnprocessableEntity, resp.StatusCode == http.StatusTooManyRequests:
-		return &WorkRequestRefusal{Status: resp.StatusCode, Code: payload.Error}
+		return &WorkRequestRefusal{Status: resp.StatusCode, Code: payload.Code}
 	}
 
 	return fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(detail)))

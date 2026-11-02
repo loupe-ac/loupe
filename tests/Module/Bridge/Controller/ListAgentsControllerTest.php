@@ -111,16 +111,17 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertStringNotContainsString($sha, $card->text());
     }
 
-    #[TestWith(['1.2.0', 'current', null, 'Up to date'])]
-    #[TestWith(['1.2.0', 'updating', '1.3.0', 'Updating'])]
-    #[TestWith(['1.2.0', 'rolled-back', '1.3.0', 'Rolled back from 1.3.0'])]
-    #[TestWith(['1.2.0', 'blocked', '1.3.0', 'Update blocked'])]
-    #[TestWith(['1.2.0', 'off', null, null])]
-    #[TestWith(['1.2.0', 'off', '1.3.0', 'Update available: 1.3.0'])]
-    #[TestWith(['1.2.0', 'dev', null, null])]
-    #[TestWith(['1.2.0', null, null, null])]
-    #[TestWith(['2.0.0', 'current', null, 'Needs ^1.0'])]
-    #[TestWith(['03cc8ba4f1e2d3c4b5a6978877665544332211aa', 'dev', null, 'Needs ^1.0'])]
+    #[TestWith(['2.2.0', 'current', null, 'Up to date'])]
+    #[TestWith(['2.2.0', 'updating', '2.3.0', 'Updating'])]
+    #[TestWith(['2.2.0', 'rolled-back', '2.3.0', 'Rolled back from 2.3.0'])]
+    #[TestWith(['2.2.0', 'blocked', '2.3.0', 'Update blocked'])]
+    #[TestWith(['2.2.0', 'off', null, null])]
+    #[TestWith(['2.2.0', 'off', '2.3.0', 'Update available: 2.3.0'])]
+    #[TestWith(['2.2.0', 'dev', null, null])]
+    #[TestWith(['2.2.0', null, null, null])]
+    #[TestWith(['3.0.0', 'current', null, 'Needs ^2.0'])]
+    #[TestWith(['1.2.0', 'current', null, 'Needs ^2.0'])]
+    #[TestWith(['03cc8ba4f1e2d3c4b5a6978877665544332211aa', 'dev', null, 'Needs ^2.0'])]
     public function test_the_update_chip_follows_the_version_and_the_update_state(string $cliVersion, ?string $state, ?string $version, ?string $expected): void
     {
         $client = static::createClient();
@@ -149,9 +150,9 @@ final class ListAgentsControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'agents-available@example.com');
         $project = $this->project($em, $owner, 'Available');
-        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.2.0');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '2.2.0');
         $bridge->updateState = CliUpdateState::Off;
-        $bridge->updateVersion = '1.3.0';
+        $bridge->updateVersion = '2.3.0';
         $bridge->installMethod = $method;
         $em->flush();
         $em->clear();
@@ -170,9 +171,9 @@ final class ListAgentsControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'agents-collapsed@example.com');
         $project = $this->project($em, $owner, 'Collapsed');
-        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.2.0');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '2.2.0');
         $bridge->updateState = CliUpdateState::Off;
-        $bridge->updateVersion = '1.3.0';
+        $bridge->updateVersion = '2.3.0';
         $em->flush();
         $em->clear();
 
@@ -195,7 +196,7 @@ final class ListAgentsControllerTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'agents-no-command@example.com');
         $project = $this->project($em, $owner, 'No command');
-        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '1.2.0');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: '2.2.0');
         $bridge->updateState = CliUpdateState::Current;
         $bridge->installMethod = CliInstallMethod::Homebrew;
         $em->flush();

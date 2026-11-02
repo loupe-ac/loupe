@@ -53,7 +53,7 @@ func TestClaimWorkRequestPostsAndReadsTheClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodPost || path != "/api/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/claim" || auth != "Bearer secret" || body != "" {
+	if method != http.MethodPost || path != "/api/v1/bridge/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/claim" || auth != "Bearer secret" || body != "" {
 		t.Fatalf("method = %q, path = %q, auth = %q, body = %q", method, path, auth, body)
 	}
 	if claim.ClaimToken != workToken || !claim.LeaseUntil.Equal(time.Date(2026, 10, 1, 12, 32, 0, 0, time.UTC)) {
@@ -100,11 +100,11 @@ func TestClaimWorkRequestNamesEachFailure(t *testing.T) {
 		rateLimited bool
 		code        string
 	}{
-		"already claimed":    {http.StatusConflict, `{"error":"already_claimed"}`, ErrWorkRequestAlreadyClaimed, false, false, ""},
-		"not found":          {http.StatusNotFound, `{"error":"work_request_not_found"}`, ErrWorkRequestNotFound, false, false, ""},
+		"already claimed":    {http.StatusConflict, `{"code":"already_claimed"}`, ErrWorkRequestAlreadyClaimed, false, false, ""},
+		"not found":          {http.StatusNotFound, `{"code":"work_request_not_found"}`, ErrWorkRequestNotFound, false, false, ""},
 		"old server":         {http.StatusNotFound, ``, ErrWorkRequestsUnsupported, false, false, ""},
-		"unknown bridge":     {http.StatusUnprocessableEntity, `{"error":"unknown_bridge"}`, nil, true, false, "unknown_bridge"},
-		"capability missing": {http.StatusUnprocessableEntity, `{"error":"capability_missing"}`, nil, true, false, "capability_missing"},
+		"unknown bridge":     {http.StatusUnprocessableEntity, `{"code":"unknown_bridge"}`, nil, true, false, "unknown_bridge"},
+		"capability missing": {http.StatusUnprocessableEntity, `{"code":"capability_missing"}`, nil, true, false, "capability_missing"},
 		"rate limit":         {http.StatusTooManyRequests, ``, nil, true, true, ""},
 		"server error":       {http.StatusInternalServerError, `boom`, nil, false, false, ""},
 	} {
@@ -142,7 +142,7 @@ func TestSettleWorkRequestPutsTheResult(t *testing.T) {
 	if err != nil || stored != WorkRequestRefused {
 		t.Fatalf("stored = %q, err = %v", stored, err)
 	}
-	if method != http.MethodPut || path != "/api/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/result" || contentType != "application/json" {
+	if method != http.MethodPut || path != "/api/v1/bridge/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/result" || contentType != "application/json" {
 		t.Fatalf("method = %q, path = %q, content type = %q", method, path, contentType)
 	}
 	if body != `{"claimToken":"`+workToken+`","state":"refused","reason":"worktree-dirty"}` {
@@ -173,13 +173,13 @@ func TestSettleWorkRequestNamesEachFailure(t *testing.T) {
 		rateLimited bool
 		code        string
 	}{
-		"claim lost":    {http.StatusConflict, `{"error":"claim_lost"}`, ErrClaimLost, false, false, ""},
-		"not found":     {http.StatusNotFound, `{"error":"work_request_not_found"}`, ErrWorkRequestNotFound, false, false, ""},
+		"claim lost":    {http.StatusConflict, `{"code":"claim_lost"}`, ErrClaimLost, false, false, ""},
+		"not found":     {http.StatusNotFound, `{"code":"work_request_not_found"}`, ErrWorkRequestNotFound, false, false, ""},
 		"old server":    {http.StatusNotFound, ``, ErrWorkRequestsUnsupported, false, false, ""},
-		"invalid state": {http.StatusUnprocessableEntity, `{"error":"invalid_state"}`, nil, true, false, "invalid_state"},
-		"invalid token": {http.StatusUnprocessableEntity, `{"error":"invalid_claim_token"}`, nil, true, false, "invalid_claim_token"},
+		"invalid state": {http.StatusUnprocessableEntity, `{"code":"invalid_state"}`, nil, true, false, "invalid_state"},
+		"invalid token": {http.StatusUnprocessableEntity, `{"code":"invalid_claim_token"}`, nil, true, false, "invalid_claim_token"},
 		"rate limit":    {http.StatusTooManyRequests, ``, nil, true, true, ""},
-		"other 409":     {http.StatusConflict, `{"error":"something_else"}`, nil, false, false, ""},
+		"other 409":     {http.StatusConflict, `{"code":"something_else"}`, nil, false, false, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := workServer(t, tc.status, tc.body, nil).SettleWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, WorkRequestDone, "")
@@ -325,7 +325,7 @@ func TestHandBackWorkRequestPutsTheOpenResult(t *testing.T) {
 	if err != nil || stored != WorkRequestOpen {
 		t.Fatalf("stored = %q, err = %v", stored, err)
 	}
-	if method != http.MethodPut || path != "/api/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/result" {
+	if method != http.MethodPut || path != "/api/v1/bridge/bridges/"+workBridgeID+"/work-requests/"+workRequestID+"/result" {
 		t.Fatalf("method = %q, path = %q", method, path)
 	}
 	want := `{"claimToken":"` + workToken + `","state":"open","cause":"usage-limit","account":"claude",` +
@@ -352,7 +352,7 @@ func TestHandBackSendsNullForAnUnknownUseAndReset(t *testing.T) {
 }
 
 func TestHandBackNamesAClaimLost(t *testing.T) {
-	client := workServer(t, http.StatusConflict, `{"error":"claim_lost"}`, nil)
+	client := workServer(t, http.StatusConflict, `{"code":"claim_lost"}`, nil)
 	_, err := client.HandBackWorkRequest(context.Background(), workBridgeID, workRequestID, workToken, HandBack{Cause: CauseUsageLimit})
 	if !errors.Is(err, ErrClaimLost) {
 		t.Fatalf("err = %v", err)

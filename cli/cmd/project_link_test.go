@@ -19,11 +19,11 @@ import (
 const firstProject = "01a0c0d9-905c-7922-a586-ccc8ce043704"
 const secondProject = "01a0c0e1-1111-7922-a586-ccc8ce043705"
 
-// projectsServer answers GET /api/projects with sites.
+// projectsServer answers GET /api/v1/bridge/projects with sites.
 func projectsServer(t *testing.T, sites string) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/projects" {
+		if r.URL.Path != "/api/v1/bridge/projects" {
 			t.Errorf("unexpected path %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")

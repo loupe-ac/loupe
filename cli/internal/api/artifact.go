@@ -73,6 +73,36 @@ func (e *ArtifactRefused) Error() string {
 	return strings.Join(reasons, "; ")
 }
 
+// artifactRefusalReasons reads the errors of a refused store. artifact_refused
+// sends a map of field to reason, and validation_failed sends a list of fields.
+func artifactRefusalReasons(body []byte) map[string]string {
+	var refusal struct {
+		Errors json.RawMessage `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &refusal); err != nil {
+		return nil
+	}
+
+	var byField map[string]string
+	if err := json.Unmarshal(refusal.Errors, &byField); err == nil {
+		return byField
+	}
+
+	var list []struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(refusal.Errors, &list); err != nil {
+		return nil
+	}
+	reasons := make(map[string]string, len(list))
+	for _, refused := range list {
+		reasons[refused.Field] = refused.Message
+	}
+
+	return reasons
+}
+
 // PushArtifact stores the files as a new artifact or a new version of one, in
 // the project named by handle.
 func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactPush) (ArtifactStored, error) {
@@ -111,7 +141,7 @@ func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactP
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/artifacts", bytes.NewReader(body.Bytes()))
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/artifacts", bytes.NewReader(body.Bytes()))
 	if err != nil {
 		return out, err
 	}
@@ -132,15 +162,13 @@ func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactP
 	case http.StatusNotFound:
 		return out, fmt.Errorf("%w: %s", notFound(resp.Body), handle)
 	case http.StatusUnprocessableEntity:
-		var refusal struct {
-			Errors map[string]string `json:"errors"`
-		}
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, maxBody))
-		if err := json.Unmarshal(data, &refusal); err != nil || len(refusal.Errors) == 0 {
+		reasons := artifactRefusalReasons(data)
+		if len(reasons) == 0 {
 			return out, errors.New("the server refused the artifact (HTTP 422): " + strings.TrimSpace(clip(string(data), 512)))
 		}
 
-		return out, &ArtifactRefused{Errors: refusal.Errors}
+		return out, &ArtifactRefused{Errors: reasons}
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return out, fmt.Errorf("the store was rejected (HTTP %d): the API token must have the agent scope, and the project must be yours", resp.StatusCode)
 	case http.StatusTooManyRequests:

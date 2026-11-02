@@ -54,18 +54,18 @@ func (c *Client) reportUsage(ctx context.Context, handle, sessionID, runID strin
 	}
 
 	status, detail, err := c.putReport(ctx,
-		"/api/projects/"+url.PathEscape(handle)+"/worker-runs/sessions/"+url.PathEscape(sessionID)+"/usage", body)
+		"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/worker-runs/sessions/"+url.PathEscape(sessionID)+"/usage", body)
 	if err != nil {
 		return SessionUsageResult{}, fmt.Errorf("report the session usage: %w", err)
 	}
 
 	if status != http.StatusOK {
 		var answer struct {
-			Error string `json:"error"`
+			Code string `json:"code"`
 		}
 		_ = json.Unmarshal(detail, &answer)
 
-		return SessionUsageResult{}, &UsageRefused{Status: status, Code: answer.Error}
+		return SessionUsageResult{}, &UsageRefused{Status: status, Code: answer.Code}
 	}
 	var result SessionUsageResult
 	if err := json.Unmarshal(detail, &result); err != nil {

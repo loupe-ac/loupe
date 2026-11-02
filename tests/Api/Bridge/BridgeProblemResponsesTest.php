@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Bridge;
 
+use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -96,6 +97,23 @@ final class BridgeProblemResponsesTest extends WebTestCase
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/api/card-holds');
         self::assertResponseStatusCodeSame(401);
         self::assertSame('{"error":"unauthorized"}', $client->getResponse()->getContent());
+    }
+
+    public function test_a_route_behind_a_flag_that_is_off_answers_http_404_on_the_new_path(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+        $owner = $this->user($em, 'problem-flag-off@example.com');
+        $server = ['HTTP_AUTHORIZATION' => 'Bearer '.AgentCredential::agentToken(static::getContainer(), $owner), 'CONTENT_TYPE' => 'application/json'];
+        $em->getConnection()->executeStatement("UPDATE feature_flag SET value = 'false' WHERE name = ?", [AgentPush::FLAG]);
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_PUT, '/api/v1/bridge/bridges/'.self::UNKNOWN_UUID.'/heartbeat', server: $server, content: '{}');
+
+        self::assertResponseStatusCodeSame(404);
+        $problem = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($problem);
+        self::assertSame('http_404', $problem['code']);
     }
 
     public function test_a_token_of_the_wrong_scope_is_credential_not_allowed_on_the_new_path_and_insufficient_scope_on_the_old_one(): void

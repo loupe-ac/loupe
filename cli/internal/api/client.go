@@ -21,7 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/usage"
 )
 
-// Site is one entry of GET /api/projects. A project with no slug yet sends a
+// Site is one entry of GET /api/v1/bridge/projects. A project with no slug yet sends a
 // null slug, which decodes as "".
 type Site struct {
 	ID   string `json:"id"`
@@ -38,7 +38,7 @@ type Site struct {
 	AllowedOrigins []string `json:"allowedOrigins"`
 }
 
-// EventsProject is one project of GET /api/events. Its events arrive on the
+// EventsProject is one project of GET /api/v1/bridge/events. Its events arrive on the
 // caller's topic. A project with no slug yet sends a null slug.
 type EventsProject struct {
 	ID   string `json:"id"`
@@ -49,7 +49,7 @@ type EventsProject struct {
 // InboxFlag is the flag that switches the inbox on.
 const InboxFlag = "inbox.enabled"
 
-// Events is the response of GET /api/events: the hub, the caller's own topic,
+// Events is the response of GET /api/v1/bridge/events: the hub, the caller's own topic,
 // a subscriber JWT for that topic, the projects whose events arrive on it, and
 // the feature flags the server shares with a bridge.
 type Events struct {
@@ -261,21 +261,21 @@ var ErrUpgradeRequired = errors.New("the server refuses this bridge")
 // upgradeRequired reads the message of a 426 answer.
 func upgradeRequired(body io.Reader) error {
 	var refusal struct {
-		Error string `json:"error"`
+		Detail string `json:"detail"`
 	}
 	_ = decodeBody(body, &refusal)
-	if refusal.Error == "" {
-		refusal.Error = "upgrade the loupe CLI"
+	if refusal.Detail == "" {
+		refusal.Detail = "upgrade the loupe CLI"
 	}
 
-	return fmt.Errorf("%w (HTTP 426): %s", ErrUpgradeRequired, refusal.Error)
+	return fmt.Errorf("%w (HTTP 426): %s", ErrUpgradeRequired, refusal.Detail)
 }
 
 // Events fetches the hub, the caller's topic, a subscriber JWT for it, and the
 // projects the caller owns, for the bridge bridgeID.
 func (c *Client) Events(ctx context.Context, bridgeID string) (Events, error) {
 	var out Events
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/events", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/bridge/events", nil)
 	if err != nil {
 		return out, err
 	}
@@ -293,7 +293,7 @@ func (c *Client) Events(ctx context.Context, bridgeID string) (Events, error) {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return out, fmt.Errorf("credentials rejected (HTTP %d): the API token must have the agent scope", resp.StatusCode)
 	case http.StatusNotFound:
-		return out, errors.New("the server has no GET /api/events endpoint: push is switched off on this Loupe instance, or the server is older than this bridge")
+		return out, errors.New("the server has no GET /api/v1/bridge/events endpoint: push is switched off on this Loupe instance, or the server is older than this bridge")
 	case http.StatusUpgradeRequired:
 		return out, upgradeRequired(resp.Body)
 	default:
@@ -305,13 +305,13 @@ func (c *Client) Events(ctx context.Context, bridgeID string) (Events, error) {
 		return out, fmt.Errorf("decode events: %w", err)
 	}
 	if out.Topic == "" {
-		return out, errors.New("GET /api/events returned no topic: the server is older than this bridge")
+		return out, errors.New("GET /api/v1/bridge/events returned no topic: the server is older than this bridge")
 	}
 
 	return out, nil
 }
 
-// ReplayEvent is one outbox event of GET /api/events/replay. ID holds the
+// ReplayEvent is one outbox event of GET /api/v1/bridge/events/replay. ID holds the
 // outbox sequence as text, the same text the hub sends as the SSE id, and Data
 // the payload the hub sends.
 type ReplayEvent struct {
@@ -320,7 +320,7 @@ type ReplayEvent struct {
 	Data string `json:"data"`
 }
 
-// Replay is one page of GET /api/events/replay.
+// Replay is one page of GET /api/v1/bridge/events/replay.
 type Replay struct {
 	Events  []ReplayEvent `json:"events"`
 	HasMore bool          `json:"hasMore"`
@@ -334,7 +334,7 @@ const maxReplayBody = 16 << 20
 // the bridge bridgeID.
 func (c *Client) Replay(ctx context.Context, bridgeID string, after int64) (Replay, error) {
 	var out Replay
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/events/replay?after="+strconv.FormatInt(after, 10), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/bridge/events/replay?after="+strconv.FormatInt(after, 10), nil)
 	if err != nil {
 		return out, err
 	}
@@ -352,7 +352,7 @@ func (c *Client) Replay(ctx context.Context, bridgeID string, after int64) (Repl
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return out, fmt.Errorf("credentials rejected (HTTP %d): the API token must have the agent scope", resp.StatusCode)
 	case http.StatusNotFound:
-		return out, errors.New("the server has no GET /api/events/replay endpoint: push is switched off on this Loupe instance, or the server is older than this bridge")
+		return out, errors.New("the server has no GET /api/v1/bridge/events/replay endpoint: push is switched off on this Loupe instance, or the server is older than this bridge")
 	case http.StatusTooManyRequests:
 		return out, errors.New("the replay request hit its rate limit (HTTP 429)")
 	case http.StatusUpgradeRequired:
@@ -369,18 +369,18 @@ func (c *Client) Replay(ctx context.Context, bridgeID string, after int64) (Repl
 	return out, nil
 }
 
-// CardHold is one held card of GET /api/card-holds.
+// CardHold is one held card of GET /api/v1/bridge/card-holds.
 type CardHold struct {
 	ProjectID string `json:"projectId"`
 	CardID    string `json:"cardId"`
 }
 
 // ErrNoCardHolds is the 404 of a server older than the held list.
-var ErrNoCardHolds = errors.New("the server has no GET /api/card-holds endpoint")
+var ErrNoCardHolds = errors.New("the server has no GET /api/v1/bridge/card-holds endpoint")
 
 // CardHolds reads the held cards of every project the token reaches.
 func (c *Client) CardHolds(ctx context.Context) ([]CardHold, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/card-holds", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/bridge/card-holds", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ type Column struct {
 	Default  bool   `json:"default"`
 }
 
-// ProjectColumns is the response of GET /api/projects/{handle}/board/columns.
+// ProjectColumns is the response of GET /api/v1/bridge/projects/{handle}/columns.
 // A server that predates project slugs sends a null slug, which decodes as "".
 type ProjectColumns struct {
 	Project struct {
@@ -443,14 +443,21 @@ var ErrProjectAmbiguous = errors.New("project handle is ambiguous")
 // is the answer of a server that predates the endpoint.
 var ErrEndpointMissing = errors.New("the server has no columns endpoint")
 
+// routeMissing reports whether a 404 body names no cause, names the code of an
+// unknown route, or names the code of a route behind a flag that is off. Each one
+// means that the server does not serve the endpoint now.
+func routeMissing(code string) bool {
+	return code == "" || code == "route_not_found" || code == "http_404"
+}
+
 // notFound reads which 404 the server meant from its JSON error code.
 func notFound(body io.Reader) error {
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 	_ = json.NewDecoder(io.LimitReader(body, 4096)).Decode(&payload)
 
-	switch payload.Error {
+	switch payload.Code {
 	case "project_not_found":
 		return ErrProjectNotFound
 	default:
@@ -463,7 +470,7 @@ func notFound(body io.Reader) error {
 func (c *Client) Columns(ctx context.Context, handle string) (ProjectColumns, error) {
 	var out ProjectColumns
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/board/columns", nil)
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/columns", nil)
 	if err != nil {
 		return out, err
 	}
@@ -503,7 +510,7 @@ const (
 
 // Sites lists the authenticated user's sites. Login calls it to check a token.
 func (c *Client) Sites(ctx context.Context) ([]Site, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/projects", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/bridge/projects", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +554,7 @@ const (
 // invalid. A retry cannot turn any of those into a stored row.
 var ErrReportRefused = errors.New("the server refused the worker run report")
 
-// Heartbeat is the body of PUT /api/bridges/{bridgeId}/heartbeat: the ids of
+// Heartbeat is the body of PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat: the ids of
 // the projects the bridge follows, the build it runs, where its own update
 // stands, and its hooks. The server keeps its stored hooks when the key is
 // absent and clears them on [], so a nil list sends no key and an empty one
@@ -835,7 +842,7 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 		return HeartbeatReply{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
-		c.baseURL+"/api/bridges/"+url.PathEscape(bridgeID)+"/heartbeat", bytes.NewReader(body))
+		c.baseURL+"/api/v1/bridge/bridges/"+url.PathEscape(bridgeID)+"/heartbeat", bytes.NewReader(body))
 	if err != nil {
 		return HeartbeatReply{}, err
 	}
@@ -895,7 +902,7 @@ type CardRead struct {
 // error alike.
 func (c *Client) ReadCard(ctx context.Context, handle, cardID string) (CardRead, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/board/cards/"+url.PathEscape(cardID), nil)
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/cards/"+url.PathEscape(cardID), nil)
 	if err != nil {
 		return CardRead{}, err
 	}

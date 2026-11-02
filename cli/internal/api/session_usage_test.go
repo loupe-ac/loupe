@@ -42,7 +42,7 @@ func TestReportSessionUsageSendsEachProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path != "/api/projects/loupe/worker-runs/sessions/"+usageSessionID+"/usage" {
+	if path != "/api/v1/bridge/projects/loupe/worker-runs/sessions/"+usageSessionID+"/usage" {
 		t.Fatalf("path = %s", path)
 	}
 	want := `{"processes":[{"source":"reported","models":{"claude-opus-5-5":{"inputTokens":1,"outputTokens":0,"cacheReadTokens":0,"cacheWriteTokens":0,"costUsd":0.5}}},{"source":"estimated","models":{}}]}`
@@ -70,7 +70,7 @@ func TestReportRunUsageNamesTheRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/api/projects/loupe/worker-runs/sessions/"+usageSessionID+"/usage" {
+	if gotPath != "/api/v1/bridge/projects/loupe/worker-runs/sessions/"+usageSessionID+"/usage" {
 		t.Fatalf("path = %s", gotPath)
 	}
 	want := `{"runId":"0199a0e2-4444-7c5e-9f2a-3b1c6d7e8f90","processes":[{"source":"estimated","models":{}}]}`
@@ -85,8 +85,8 @@ func TestReportRunUsageNamesTheRun(t *testing.T) {
 // The server names why it wrote nothing, and the caller prints that name.
 func TestReportSessionUsageNamesTheRefusal(t *testing.T) {
 	for status, answer := range map[int]string{
-		http.StatusConflict: `{"error":"process_count_mismatch"}`,
-		http.StatusNotFound: `{"error":"project_not_found"}`,
+		http.StatusConflict: `{"code":"process_count_mismatch"}`,
+		http.StatusNotFound: `{"code":"project_not_found"}`,
 	} {
 		_, _, _, err := putSessionUsage(t, status, answer)
 		var refused *UsageRefused
@@ -94,7 +94,7 @@ func TestReportSessionUsageNamesTheRefusal(t *testing.T) {
 			t.Fatalf("status %d: err = %v", status, err)
 		}
 	}
-	_, _, _, err := putSessionUsage(t, http.StatusConflict, `{"error":"ambiguous_start_order"}`)
+	_, _, _, err := putSessionUsage(t, http.StatusConflict, `{"code":"ambiguous_start_order"}`)
 	var refused *UsageRefused
 	if !errors.As(err, &refused) || refused.Code != "ambiguous_start_order" {
 		t.Fatalf("err = %v", err)
