@@ -6411,7 +6411,7 @@
         @apply grid gap-6 lg:grid-cols-2;
     }
     .lp-home-card {
-        @apply flex flex-col gap-7 min-w-0 rounded-2xl border p-6 sm:p-10;
+        @apply flex flex-col gap-7 rounded-2xl border p-6 sm:p-10;
     }
     .lp-home-card--needs {
         @apply border-line bg-app;
@@ -6427,10 +6427,6 @@
     }
     .lp-home-card__lead {
         @apply m-0 leading-relaxed text-fg-mute;
-    }
-    /* A sentence with a code block under it. A long line scrolls inside the block. */
-    .lp-home-card__prompt {
-        @apply flex flex-col gap-3 min-w-0;
     }
     .lp-home-card__action {
         @apply mt-auto self-stretch whitespace-normal py-2.5 text-center sm:self-center;
@@ -6457,6 +6453,13 @@
         @apply text-base leading-relaxed text-fg-mute;
     }
 
+    /* The prompt for a coding agent, across the requirements grid. A long line scrolls inside the code block. */
+    .lp-home-setup-prompt {
+        @apply mt-2 flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-app p-5 sm:px-8 sm:py-6 lg:col-span-2;
+    }
+    .lp-home-setup-prompt__lead {
+        @apply m-0 leading-relaxed text-fg-mute;
+    }
     .lp-home-ask {
         @apply mt-2 rounded-2xl border border-line bg-app transition-colors lg:col-span-2;
     }

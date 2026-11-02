@@ -82,6 +82,22 @@ final class LandingControllerTest extends WebTestCase
         self::assertSame('Copy', $block->filter('[data-controller="clipboard"] button')->text());
     }
 
+    public function test_setup_prompt_sits_between_the_requirement_cards_and_the_ask_card(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $classes = $client->getCrawler()->filter('.lp-home-requirements')->children()->each(
+            static fn ($child): string => (string) $child->attr('class'),
+        );
+        self::assertSame(
+            ['lp-home-card lp-home-card--needs', 'lp-home-card lp-home-card--extras', 'lp-home-setup-prompt', 'lp-home-ask'],
+            $classes,
+        );
+    }
+
     public function test_each_waitlist_button_names_its_click_event_and_still_opens_the_dialog(): void
     {
         $client = static::createClient();
