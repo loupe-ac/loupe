@@ -247,8 +247,10 @@ final class ListSitesApiTest extends WebTestCase
         $em->flush();
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $small = $this->settingsReadsOfTheList($client, $raw);
+        $small = $this->statementsOfTheList($client, $em, $raw, 1);
 
+        $owner = $em->find(User::class, $owner->id);
+        self::assertInstanceOf(User::class, $owner);
         for ($i = 1; $i < 5; ++$i) {
             $project = new Project($owner, 'count-site-'.$i);
             $em->persist($project);
@@ -257,17 +259,20 @@ final class ListSitesApiTest extends WebTestCase
             $em->persist($own);
         }
         $em->flush();
-        $em->clear();
 
-        $big = $this->settingsReadsOfTheList($client, $raw);
+        $big = $this->statementsOfTheList($client, $em, $raw, 5);
 
         // Guard: the read must happen, or the equal counts below prove nothing.
-        self::assertSame(1, $small);
-        self::assertSame($small, $big);
+        $settingsReads = static fn (array $sql): array => array_filter($sql, static fn (string $statement): bool => str_contains($statement, 'insights_project_settings'));
+        self::assertCount(1, $settingsReads($small));
+        self::assertCount(1, $settingsReads($big));
+        self::assertSame(\count($small), \count($big));
     }
 
-    private function settingsReadsOfTheList(KernelBrowser $client, string $raw): int
+    /** @return list<string> */
+    private function statementsOfTheList(KernelBrowser $client, EntityManagerInterface $em, string $raw, int $projects): array
     {
+        $em->clear();
         $queries = static::getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $queries);
         $queries->reset();
@@ -275,17 +280,19 @@ final class ListSitesApiTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/api/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
         self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        self::assertCount($projects, $data['sites']);
 
-        $reads = 0;
+        $all = [];
         foreach ($queries->getData() as $connectionQueries) {
             foreach ($connectionQueries as $query) {
-                if (str_contains((string) $query['sql'], 'insights_project_settings')) {
-                    ++$reads;
-                }
+                $all[] = (string) $query['sql'];
             }
         }
 
-        return $reads;
+        return $all;
     }
 
     private function em(): EntityManagerInterface
