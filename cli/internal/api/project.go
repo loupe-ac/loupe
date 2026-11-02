@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// CreateProjectRequest is the body of POST /api/projects. The server wants a
+// CreateProjectRequest is the body of POST /api/v1/projects. The server wants a
 // name, a remote, or both, and it names a project after its remote when the
 // name is empty. An empty field is left out of the body.
 type CreateProjectRequest struct {
@@ -83,7 +83,7 @@ func (c *Client) CreateProject(ctx context.Context, in CreateProjectRequest) (Si
 	if err != nil {
 		return Site{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/projects", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/projects", bytes.NewReader(body))
 	if err != nil {
 		return Site{}, err
 	}
@@ -107,33 +107,33 @@ func (c *Client) CreateProject(ctx context.Context, in CreateProjectRequest) (Si
 
 	detail, _ := io.ReadAll(io.LimitReader(resp.Body, maxProblemBody))
 	var payload struct {
-		Error      string `json:"error"`
-		Slug       string `json:"slug"`
-		Violations []struct {
-			PropertyPath string `json:"propertyPath"`
-			Title        string `json:"title"`
-		} `json:"violations"`
+		Code   string `json:"code"`
+		Slug   string `json:"slug"`
+		Errors []struct {
+			Field   string `json:"field"`
+			Message string `json:"message"`
+		} `json:"errors"`
 	}
 	_ = json.Unmarshal(detail, &payload)
 
-	if resp.StatusCode == http.StatusUnprocessableEntity && len(payload.Violations) > 0 {
-		values := make([]InvalidValue, 0, len(payload.Violations))
-		for _, v := range payload.Violations {
-			field, value := flagOf(v.PropertyPath, in)
-			values = append(values, InvalidValue{Field: field, Value: value, Message: v.Title})
+	if resp.StatusCode == http.StatusUnprocessableEntity && payload.Code == "validation_failed" && len(payload.Errors) > 0 {
+		values := make([]InvalidValue, 0, len(payload.Errors))
+		for _, v := range payload.Errors {
+			field, value := flagOf(v.Field, in)
+			values = append(values, InvalidValue{Field: field, Value: value, Message: v.Message})
 		}
 
 		return Site{}, &InvalidValuesError{Values: values}
 	}
 
 	switch {
-	case resp.StatusCode == http.StatusForbidden && payload.Error == "credential_not_owner_wide":
+	case resp.StatusCode == http.StatusForbidden && payload.Code == "credential_not_owner_wide":
 		return Site{}, ErrCredentialNotOwnerWide
-	case resp.StatusCode == http.StatusConflict && payload.Error == "name_taken":
+	case resp.StatusCode == http.StatusConflict && payload.Code == "name_taken":
 		return Site{}, &NameTakenError{Slug: payload.Slug}
-	case resp.StatusCode == http.StatusUnprocessableEntity && payload.Error == "name_required":
+	case resp.StatusCode == http.StatusUnprocessableEntity && payload.Code == "name_required":
 		return Site{}, ErrProjectNameRequired
-	case resp.StatusCode == http.StatusUnprocessableEntity && payload.Error == "name_invalid":
+	case resp.StatusCode == http.StatusUnprocessableEntity && payload.Code == "name_invalid":
 		return Site{}, ErrProjectNameInvalid
 	case resp.StatusCode == http.StatusUnauthorized, resp.StatusCode == http.StatusForbidden:
 		return Site{}, fmt.Errorf("create project rejected (HTTP %d): the API token must have the agent scope", resp.StatusCode)

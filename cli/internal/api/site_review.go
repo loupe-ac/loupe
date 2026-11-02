@@ -71,10 +71,10 @@ func (c *Client) siteReviewRequest(ctx context.Context, method, path string, pay
 	case http.StatusForbidden:
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		var refusal struct {
-			Error string `json:"error"`
+			Code string `json:"code"`
 		}
 		_ = json.Unmarshal(detail, &refusal)
-		if refusal.Error == "token_not_bound_to_site" {
+		if refusal.Code == "token_not_bound_to_site" {
 			return nil, ErrProjectNotCovered
 		}
 
@@ -96,7 +96,7 @@ func (c *Client) SiteReviewTargets(ctx context.Context, query string, parent boo
 	if parent {
 		params.Set("parent", "1")
 	}
-	path := "/api/board/cards"
+	path := "/api/v1/live-review-widget/cards"
 	if len(params) > 0 {
 		path += "?" + params.Encode()
 	}
@@ -115,12 +115,12 @@ func (c *Client) SiteReviewTargets(ctx context.Context, query string, parent boo
 func (c *Client) SiteReviewNotes(ctx context.Context, scope string) (json.RawMessage, error) {
 	params := url.Values{"surface": {"ios-simulator"}, "scope": {scope}}
 
-	return c.siteReviewRequest(ctx, http.MethodGet, "/api/live-review/review?"+params.Encode(), nil)
+	return c.siteReviewRequest(ctx, http.MethodGet, "/api/v1/live-review-widget/review?"+params.Encode(), nil)
 }
 
 // SaveSiteReviewNote posts one feedback request body and returns the answer.
 func (c *Client) SaveSiteReviewNote(ctx context.Context, body []byte) (json.RawMessage, error) {
-	return c.siteReviewRequest(ctx, http.MethodPost, "/api/board/feedback", body)
+	return c.siteReviewRequest(ctx, http.MethodPost, "/api/v1/live-review-widget/feedback", body)
 }
 
 // field returns one top-level key of a JSON object.

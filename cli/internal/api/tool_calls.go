@@ -16,7 +16,7 @@ import (
 const maxFullText = 20000
 
 // ToolCall is one tool call of a worker run, as PUT
-// /api/projects/{handle}/worker-runs/{runId}/tool-calls takes it. Every key
+// /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls takes it. Every key
 // goes out, and a nil pointer or an empty Kind goes out as null.
 type ToolCall struct {
 	Seq          int
@@ -102,7 +102,7 @@ func (c *Client) ReportToolCalls(ctx context.Context, handle, runID string, batc
 	}
 
 	status, detail, err := c.putReport(ctx,
-		"/api/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID)+"/tool-calls", body)
+		"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID)+"/tool-calls", body)
 	if err != nil {
 		return fmt.Errorf("report the tool calls: %w", err)
 	}
@@ -120,10 +120,10 @@ func (c *Client) ReportToolCalls(ctx context.Context, handle, runID string, batc
 // namesACause reports whether a 404 body is JSON with an error code.
 func namesACause(detail []byte) bool {
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 
-	return json.NewDecoder(bytes.NewReader(detail)).Decode(&payload) == nil && payload.Error != ""
+	return json.NewDecoder(bytes.NewReader(detail)).Decode(&payload) == nil && payload.Code != "" && payload.Code != "route_not_found"
 }
 
 // cutBytes keeps at most limit bytes of s, and never splits a rune.

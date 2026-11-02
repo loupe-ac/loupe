@@ -88,7 +88,7 @@ func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, c
 		return "", "", fmt.Errorf("encode the experiment pin: %w", err)
 	}
 
-	status, detail, err := c.putReport(ctx, "/api/projects/"+url.PathEscape(handle)+
+	status, detail, err := c.putReport(ctx, "/api/v1/bridge/projects/"+url.PathEscape(handle)+
 		"/experiments/"+url.PathEscape(experiment)+"/pins/"+url.PathEscape(cardID), body)
 	if err != nil {
 		return "", "", fmt.Errorf("resolve the experiment pin: %w", err)
@@ -122,8 +122,8 @@ func (c *Client) ResolveExperimentPin(ctx context.Context, handle, experiment, c
 // hasErrorCode reports whether an answer is a JSON object with an error code.
 func hasErrorCode(detail []byte) bool {
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 
-	return json.Unmarshal(detail, &payload) == nil && payload.Error != ""
+	return json.Unmarshal(detail, &payload) == nil && payload.Code != "" && payload.Code != "route_not_found"
 }

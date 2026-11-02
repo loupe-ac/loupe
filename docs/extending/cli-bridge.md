@@ -92,17 +92,17 @@ login` gets one through the OAuth device flow: it prints a link and a code, and
 you choose **Allow** on that page. The CLI then refreshes the access token by
 itself. There is no static token, so a machine where nobody can open a browser
 cannot run the bridge. See [Connected apps](../using/connected-apps.md) for the
-device flow. The token reaches `GET /api/projects`, `POST /api/projects`,
-`GET /api/events`,
-`GET /api/projects/{handle}/board/columns`,
-`GET /api/projects/{handle}/board/cards/{cardId}`,
-`PUT /api/projects/{handle}/worker-runs/{runId}`,
-`PUT /api/projects/{handle}/worker-runs/{runId}/tool-calls`,
-`PUT /api/projects/{handle}/interactive-runs/{sessionId}`,
-`PUT /api/bridges/{bridgeId}/runs`,
-`PUT /api/bridges/{bridgeId}/heartbeat`,
-`POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim` and
-`PUT /api/bridges/{bridgeId}/work-requests/{workRequestId}/result`, and no
+device flow. The token reaches `GET /api/v1/bridge/projects`, `POST /api/v1/projects`,
+`GET /api/v1/bridge/events`,
+`GET /api/v1/bridge/projects/{handle}/columns`,
+`GET /api/v1/bridge/projects/{handle}/cards/{cardId}`,
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}`,
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls`,
+`PUT /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}`,
+`PUT /api/v1/bridge/bridges/{bridgeId}/runs`,
+`PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat`,
+`POST /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim` and
+`PUT /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result`, and no
 other endpoint.
 The three run endpoints record the states and the tool calls of each worker
 run, and the states of each interactive session, and the
@@ -168,7 +168,7 @@ at all. A run that waits in the queue, or that the bridge sets aside, has no
 worker to write anything. The bridge is the only witness of those runs.
 
 The bridge gives each request it claims a new run id. It sends each state of the
-run to `PUT /api/projects/{handle}/worker-runs/{runId}` as the state happens.
+run to `PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}` as the state happens.
 One bridge follows several projects, so the handle is the id of the project of
 the request. Each log line below goes with the state the bridge reports:
 
@@ -337,7 +337,7 @@ whose totals go down or do not follow the start order. `cli/README.md` lists
 its flags and its output.
 
 Each time the bridge connects to the hub, it sends the runs it holds to
-`PUT /api/bridges/{bridgeId}/runs`. A held run is one whose last state is
+`PUT /api/v1/bridge/bridges/{bridgeId}/runs`. A held run is one whose last state is
 `queued`, `preparing`, `running` or `stopping`. Loupe marks `lost` each open or timed-out run
 of that bridge that the list does not name. The bridge keeps its id across restarts, so
 Loupe closes the open runs of a bridge that died when it next connects. The
@@ -377,7 +377,7 @@ seconds. It logs `report_dropped` with the count of the reports that miss the
 window. A missing record therefore means "unknown", and never "the worker did
 not run".
 
-The bridge sends a heartbeat to `/api/bridges/{bridgeId}/heartbeat` once at
+The bridge sends a heartbeat to `/api/v1/bridge/bridges/{bridgeId}/heartbeat` once at
 start and then at the interval that `bridge.heartbeat_interval_seconds` gives,
 60 seconds by default. The heartbeat names the projects the rule file maps and
 the version of the bridge, and the state of its [update](#updates). The server
@@ -1059,7 +1059,7 @@ The harness adapter of the bridge reads each tool call of a worker. For Claude
 Code, it reads the stream on claude's stdout. For Codex, it reads the session
 file of the run and the session file of each subagent, as
 [Codex metrics](#codex-metrics) says. When the worker ends, the bridge sends the calls after the final state of the
-run, to `PUT /api/projects/{handle}/worker-runs/{runId}/tool-calls`. One
+run, to `PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls`. One
 request holds at most 500 calls. The last request also holds the tool time and
 the idle time of the run, so a run with no call still sends one request.
 [Reporting the tool calls of a run](../reference/worker-runs.md#reporting-the-tool-calls-of-a-run)
@@ -1087,11 +1087,11 @@ The `insights.subcommand_programs` feature flag holds the subcommand list, as a
 comma list, and you change it at **`/admin/feature-flags`**. Its default is
 `git,just,npm,pnpm,yarn,cargo,go,docker,gh,composer,make,pip,uv`, and an empty
 value reads as the default. The flag is one list for the whole instance.
-`GET /api/projects` gives the list to the bridge as `subcommandPrograms` on
+`GET /api/v1/bridge/projects` gives the list to the bridge as `subcommandPrograms` on
 each project. The bridge keeps the answer for 10 minutes. When it cannot read
 it, the bridge uses the default list.
 
-`GET /api/projects` also gives `collectFullText` on each project. The bridge
+`GET /api/v1/bridge/projects` also gives `collectFullText` on each project. The bridge
 sends the full input text of a call only when that value is `true`. The
 project setting **Collect the full text of each tool call** turns it on, in the
 analysis settings on the
@@ -1529,7 +1529,7 @@ On macOS, an update also installs the Live review panel of the new version. See 
 
 ### The check
 
-The server declares the CLI versions it supports as a caret range, `^1.0` today,
+The server declares the CLI versions it supports as a caret range, `^2.0` today,
 and sends it in its answer to each [heartbeat](../reference/bridge-heartbeat.md).
 The bridge checks for a release after its first heartbeat, again when the range
 changes, and then every hour plus a random delay of up to 10 minutes. A server
@@ -1551,7 +1551,7 @@ The bridge installs that release when the running version is lower, or when the
 running version is outside the range. A bridge above the range therefore
 installs a lower version. When the running version is outside the range and no
 release fits, the bridge logs `update_unavailable` once and keeps running. The
-agents page then shows the chip "Needs ^1.0".
+agents page then shows the chip "Needs ^2.0".
 
 The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
@@ -1599,7 +1599,7 @@ The bridge replaces itself in the same process. These are the steps:
 
 1. The bridge runs the new binary as `loupe bridge preflight`, with a limit of
    30 seconds. The new binary reads the rule file, runs the start checks
-   against the server and calls `GET /api/events`.
+   against the server and calls `GET /api/v1/bridge/events`.
 2. The bridge pauses. It starts no worker, and new requests wait in the queue.
 3. The bridge waits up to 10 seconds for its run reports, its claims and its
    launches to go out. When they do not finish, the bridge resumes, logs
@@ -1994,7 +1994,7 @@ worker. A failure keeps the item open, with **Run again**.
 
 While the command runs, the bridge merges its standard output and standard error
 into one stream. About once a second it sends the new bytes to
-`PUT /api/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
 of the first byte. Loupe stores the text only when `offset` equals the number of
 bytes it holds, and answers with that number as `length`. The bridge sends again
 from `length` after a lost answer or a refused offset. The last piece goes out
@@ -2233,7 +2233,7 @@ Run `loupe bridge reload` after `install`, `remove` or `set`.
 
 ## Events endpoint
 
-`GET /api/events` returns what a client needs to follow the events of every
+`GET /api/v1/bridge/events` returns what a client needs to follow the events of every
 project the token's user owns:
 
 ```json
@@ -2252,7 +2252,7 @@ project the token's user owns:
     "bridge.host_sampling_enabled": false,
     "bridge.host_sample_interval_seconds": 60
   },
-  "cliRange": "^1.0",
+  "cliRange": "^2.0",
   "head": 4812
 }
 ```
@@ -2306,12 +2306,12 @@ call. Each event names its project in `projectId`.
 Events reach the project owner's topic only. A person who is not the owner
 receives no event there.
 
-This endpoint replaced `GET /api/projects/{handle}/stream`. A CLI binary built
+This endpoint replaced `GET /api/v1/bridge/projects/{handle}/stream`. A CLI binary built
 before the change calls the old route, gets `404`, and must be rebuilt.
 
 ### Replay
 
-`GET /api/events/replay?after=<sequence>` returns the events that a client
+`GET /api/v1/bridge/events/replay?after=<sequence>` returns the events that a client
 missed while it was stopped or reconnecting. It reads the outbox, which holds
 every event, so it does not depend on the history of the hub.
 
@@ -2411,7 +2411,7 @@ request of the card when the hold starts. It offers no request of a held card
 to a bridge, and it refuses a claim of one with `card_held`. It does not
 reopen a lapsed claim of a held card until the hold ends.
 
-`GET /api/card-holds` returns the held cards of every project that the user
+`GET /api/v1/bridge/card-holds` returns the held cards of every project that the user
 owns, in the order of the holds.
 
 ```json
@@ -2512,7 +2512,7 @@ A launch uses no worker slot, and does not wait for a worker on the same card.
 A paused bridge leaves an interactive request to another bridge.
 
 The bridge reports each launch to
-`PUT /api/projects/{handle}/interactive-runs/{sessionId}`. The report names the
+`PUT /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}`. The report names the
 card as the subject, with `subjectType` `card`, `subjectId` and `cardNumber`. An
 interactive run is about a card, so the server answers 422 to any other subject
 type. A good launch opens an interactive run in the state `running`, with the
@@ -2647,7 +2647,7 @@ session as running.
 
 ## Columns endpoint
 
-`GET /api/projects/{handle}/board/columns` returns the columns of one board, so
+`GET /api/v1/bridge/projects/{handle}/columns` returns the columns of one board, so
 the bridge can resolve each project of its rule file at start. The handle is a
 project id or a project slug. A project name does not resolve, and a handle
 cannot hold a slash. The token's user must own the project.
@@ -2677,7 +2677,7 @@ typed comes back as typed. `project.slug` is the project's slug.
 
 ## Card endpoint
 
-`GET /api/projects/{handle}/board/cards/{cardId}` returns the column a card is
+`GET /api/v1/bridge/projects/{handle}/cards/{cardId}` returns the column a card is
 in now, and whether a person paused the agents on it. The bridge calls it before
 a person's resume, and it refuses the resume when the read fails. The handle follows the same rules as the
 columns endpoint, and `cardId` is the card's uuid.
@@ -2704,7 +2704,7 @@ columns endpoint, and `cardId` is the card's uuid.
 
 ## Git token endpoint
 
-`POST /api/projects/{handle}/git-token` returns a GitHub App token for one
+`POST /api/v1/projects/{handle}/git-token` returns a GitHub App token for one
 repository of one project. The token opens that repository and no other, with
 Contents and Pull requests write access, and Workflows write access when the
 installation grants it. GitHub ends it after one hour. The handle follows the

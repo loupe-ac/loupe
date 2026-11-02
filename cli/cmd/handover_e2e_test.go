@@ -156,13 +156,15 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 	base := "http://" + r.Host
 	path := r.URL.Path
 	switch {
-	case path == "/api/projects/loupe/board/columns":
+	case path == "/api/versions":
+		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
+	case path == "/api/v1/bridge/projects/loupe/columns":
 		fmt.Fprintf(w, `{"project":{"id":%q,"slug":"loupe"},"columns":[{"slug":"next"}]}`, testProject)
-	case path == "/api/events":
+	case path == "/api/v1/bridge/events":
 		fmt.Fprintf(w, `{"hubUrl":%q,"jwt":"jwt","topic":%q,"projects":[{"id":%q,"slug":"loupe","name":"Loupe"}]}`, base+"/hub", userTopic, testProject)
 	case path == "/hub":
 		f.stream(w, r)
-	case r.Method == http.MethodPut && path == "/api/bridges/"+testBridgeID+"/heartbeat":
+	case r.Method == http.MethodPut && path == "/api/v1/bridge/bridges/"+testBridgeID+"/heartbeat":
 		var hb api.Heartbeat
 		_ = json.NewDecoder(r.Body).Decode(&hb)
 		f.mu.Lock()
@@ -174,10 +176,10 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Fprint(w, `{"cliRange":"^1.0"}`)
-	case r.Method == http.MethodPut && path == "/api/bridges/"+testBridgeID+"/runs":
+	case r.Method == http.MethodPut && path == "/api/v1/bridge/bridges/"+testBridgeID+"/runs":
 		w.WriteHeader(http.StatusNoContent)
-	case strings.HasPrefix(path, "/api/bridges/"+testBridgeID+"/work-requests/"):
-		id, action, _ := strings.Cut(strings.TrimPrefix(path, "/api/bridges/"+testBridgeID+"/work-requests/"), "/")
+	case strings.HasPrefix(path, "/api/v1/bridge/bridges/"+testBridgeID+"/work-requests/"):
+		id, action, _ := strings.Cut(strings.TrimPrefix(path, "/api/v1/bridge/bridges/"+testBridgeID+"/work-requests/"), "/")
 		req, ok := offeredRequest(id)
 		switch {
 		case !ok:

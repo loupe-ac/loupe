@@ -30,7 +30,7 @@ func TestResolveExperimentPinSendsTheContractBody(t *testing.T) {
 	if variant != "sonnet" || switchedFrom != "" {
 		t.Fatalf("variant = %q, switched from = %q", variant, switchedFrom)
 	}
-	if method != http.MethodPut || path != "/api/projects/my%20project/experiments/impl-model/pins/"+pinCard {
+	if method != http.MethodPut || path != "/api/v1/bridge/projects/my%20project/experiments/impl-model/pins/"+pinCard {
 		t.Fatalf("%s %s", method, path)
 	}
 	if auth != "Bearer secret" || contentType != "application/json" {
@@ -83,9 +83,9 @@ func TestResolveExperimentPinNamesEachFailure(t *testing.T) {
 		body        string
 		unsupported bool
 	}{
-		"coded 422":         {http.StatusUnprocessableEntity, `{"error":"invalid_variants"}`, false},
+		"coded 422":         {http.StatusUnprocessableEntity, `{"code":"invalid_variants"}`, false},
 		"bare 404":          {http.StatusNotFound, ``, true},
-		"unknown project":   {http.StatusNotFound, `{"error":"project_not_found"}`, false},
+		"unknown project":   {http.StatusNotFound, `{"code":"project_not_found"}`, false},
 		"rate limit":        {http.StatusTooManyRequests, ``, false},
 		"server error":      {http.StatusInternalServerError, ``, false},
 		"200 with no value": {http.StatusOK, `{"variant":"","switchedFrom":null}`, false},

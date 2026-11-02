@@ -175,9 +175,9 @@ func TestBridgeRunRefusesAHookThatIsNotInstalled(t *testing.T) {
 	}
 }
 
-// fakeLoupe serves the columns check, GET /api/events and a Mercure hub. The
+// fakeLoupe serves the columns check, GET /api/v1/bridge/events and a Mercure hub. The
 // first hub connection sends its events, and the first two close, so the
-// bridge refreshes its JWT twice. From the second call on, GET /api/events no
+// bridge refreshes its JWT twice. From the second call on, GET /api/v1/bridge/events no
 // longer lists the other project, as if it had been deleted.
 type fakeLoupe struct {
 	mu          sync.Mutex
@@ -186,7 +186,7 @@ type fakeLoupe struct {
 	hubTopics   [][]string
 	sse         string
 	heartbeats  []string
-	// flags is the raw flags object GET /api/events sends. Empty sends none.
+	// flags is the raw flags object GET /api/v1/bridge/events sends. Empty sends none.
 	flags string
 	// askState answers the ask check route. Empty answers 404.
 	askState  string
@@ -202,7 +202,7 @@ type fakeLoupe struct {
 	// cardColumn answers the card read route. Empty answers 404.
 	cardColumn string
 	cardReads  []string
-	// head is the head GET /api/events sends, and "" sends none. replayRows
+	// head is the head GET /api/v1/bridge/events sends, and "" sends none. replayRows
 	// are the card numbers the replay route holds, each its own sequence.
 	head         string
 	replayRows   []int
@@ -210,25 +210,27 @@ type fakeLoupe struct {
 	lastEventIDs []string
 	// calls lists the heartbeat and events requests in order, each events
 	// request with its bridge header. refuseEventsFrom answers 426 from that
-	// GET /api/events call on, and zero refuses none.
+	// GET /api/v1/bridge/events call on, and zero refuses none.
 	calls            []string
 	refuseEventsFrom int
 }
 
 const (
 	userTopic = "https://loupe.test/users/0192f3a1-4b2c-7d3e-8f10-0000000000aa/events"
-	// newProject is created after the bridge starts, so GET /api/events never
+	// newProject is created after the bridge starts, so GET /api/v1/bridge/events never
 	// lists it, and the file does not map it.
 	newProject = "0192f3a1-4b2c-7d3e-8f10-000000000003"
 )
 
 func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
-	case "/api/projects/loupe/board/columns":
+	case "/api/versions":
+		fmt.Fprint(w, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
+	case "/api/v1/bridge/projects/loupe/columns":
 		fmt.Fprint(w, `{"project":{"id":"`+testProject+`","slug":"loupe"},"columns":[{"slug":"next"}]}`)
-	case "/api/projects/other/board/columns":
+	case "/api/v1/bridge/projects/other/columns":
 		fmt.Fprint(w, `{"project":{"id":"`+otherProject+`","slug":"other"},"columns":[{"slug":"next"}]}`)
-	case "/api/events":
+	case "/api/v1/bridge/events":
 		f.mu.Lock()
 		f.eventsCalls++
 		n := f.eventsCalls
@@ -237,7 +239,7 @@ func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 		f.mu.Unlock()
 		if refused {
 			w.WriteHeader(http.StatusUpgradeRequired)
-			fmt.Fprint(w, `{"error":"This bridge runs no work requests. Upgrade the loupe CLI."}`)
+			fmt.Fprint(w, `{"detail":"This bridge runs no work requests. Upgrade the loupe CLI."}`)
 
 			return
 		}
@@ -253,7 +255,7 @@ func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 			flags += `,"head":` + f.head
 		}
 		fmt.Fprintf(w, `{"hubUrl":"http://%s/hub","jwt":"jwt-%d","topic":%q,"projects":[%s]%s}`, r.Host, n, userTopic, projects, flags)
-	case "/api/events/replay":
+	case "/api/v1/bridge/events/replay":
 		after, _ := strconv.Atoi(r.URL.Query().Get("after"))
 		f.mu.Lock()
 		f.replayAfters = append(f.replayAfters, r.URL.Query().Get("after"))
@@ -286,13 +288,13 @@ func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 		}
 	default:
-		if prefix := "/api/bridges/" + testBridgeID + "/work-requests/"; strings.HasPrefix(r.URL.Path, prefix) {
+		if prefix := "/api/v1/bridge/bridges/" + testBridgeID + "/work-requests/"; strings.HasPrefix(r.URL.Path, prefix) {
 			id, action, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, prefix), "/")
 			req, ok := offeredRequest(id)
 			switch {
 			case !ok:
 				w.WriteHeader(http.StatusNotFound)
-				fmt.Fprint(w, `{"error":"work_request_not_found"}`)
+				fmt.Fprint(w, `{"code":"work_request_not_found"}`)
 			case action == "claim":
 				req.State = api.WorkRequestClaimed
 				_ = json.NewEncoder(w).Encode(map[string]any{"workRequestId": id, "claimToken": "token-" + id, "leaseUntil": time.Now().Add(2 * time.Minute), "workRequest": req})
@@ -306,7 +308,7 @@ func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		if r.Method == http.MethodPut && r.URL.Path == "/api/bridges/"+testBridgeID+"/heartbeat" {
+		if r.Method == http.MethodPut && r.URL.Path == "/api/v1/bridge/bridges/"+testBridgeID+"/heartbeat" {
 			raw, _ := io.ReadAll(r.Body)
 			f.mu.Lock()
 			f.heartbeats = append(f.heartbeats, string(raw))
@@ -321,7 +323,7 @@ func (f *fakeLoupe) serve(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		if r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/board/cards/") {
+		if r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/cards/") {
 			f.mu.Lock()
 			f.cardReads = append(f.cardReads, r.URL.Path)
 			f.mu.Unlock()
@@ -355,7 +357,7 @@ func (f *fakeLoupe) connections() int {
 // Two mapped projects share the one user topic, and each starts workers in its
 // own directory. A project created after the start reaches the bridge, and the
 // file does not map it, so it is ignored and logged once. The bridge reads
-// GET /api/events once to start, and again for the JWT of each reconnect. A
+// GET /api/v1/bridge/events once to start, and again for the JWT of each reconnect. A
 // mapped project that a refresh no longer lists is logged once, with its rules.
 func TestOneTopicServesEveryProject(t *testing.T) {
 	sse := ""
@@ -436,11 +438,11 @@ func TestOneTopicServesEveryProject(t *testing.T) {
 		}
 	}
 	if fake.eventsCalls < 3 || fake.hubAuth[0] != "Bearer jwt-1" || fake.hubAuth[1] != "Bearer jwt-2" || fake.hubAuth[2] != "Bearer jwt-3" {
-		t.Fatalf("GET /api/events ran %d times, hub auth = %q", fake.eventsCalls, fake.hubAuth)
+		t.Fatalf("GET /api/v1/bridge/events ran %d times, hub auth = %q", fake.eventsCalls, fake.hubAuth)
 	}
 }
 
-// The bridge sends a heartbeat as soon as it has read GET /api/events, with the
+// The bridge sends a heartbeat as soon as it has read GET /api/v1/bridge/events, with the
 // ids of the projects it maps and its build, and stops cleanly with the stream.
 func TestTheBridgeSendsAHeartbeatAtStart(t *testing.T) {
 	injectVersion(t, "1.0.0")
@@ -495,7 +497,7 @@ func TestTheBridgeSendsAHeartbeatAtStart(t *testing.T) {
 }
 
 // The server reads the capabilities of the bridge from its last heartbeat, so
-// the bridge sends one before its first GET /api/events, and names itself on
+// the bridge sends one before its first GET /api/v1/bridge/events, and names itself on
 // each one.
 func TestTheBridgeSendsAHeartbeatBeforeItReadsTheEvents(t *testing.T) {
 	fake := &fakeLoupe{flags: `{"bridge.heartbeat_interval_seconds":3600}`}
@@ -576,7 +578,7 @@ func TestAnUpgradeRefusalStopsTheBridge(t *testing.T) {
 	}
 }
 
-// A mapped project that GET /api/events does not list could never fire, so the
+// A mapped project that GET /api/v1/bridge/events does not list could never fire, so the
 // bridge refuses to start rather than look healthy.
 func TestMissingProjectsNamesAMappedProjectTheServerDoesNotList(t *testing.T) {
 	set, _ := loadRules(t, defaultRules, rules.Defaults{})
@@ -775,7 +777,7 @@ func TestTheBridgeLoggerWritesJSONToEveryWriter(t *testing.T) {
 	}
 }
 
-// A bridge with no cursor file starts from the head of GET /api/events. On
+// A bridge with no cursor file starts from the head of GET /api/v1/bridge/events. On
 // connect it reads the outbox after the head, and the hub starts after it too.
 // An event that both send runs once, and the cursor file keeps the last id.
 // The bridge reads no card, because a work request is never stale.

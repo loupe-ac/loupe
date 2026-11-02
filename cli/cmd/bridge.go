@@ -230,6 +230,9 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return err
 	}
+	if err := apiClient(cfg).CheckServer(cmd.Context()); err != nil {
+		return fmt.Errorf("rule file %s: %w", path, err)
+	}
 	if err := set.Check(cmd.Context(), apiClient(cfg)); err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
@@ -709,9 +712,9 @@ func logStaged(log *slog.Logger, from string) stagedHook {
 	}
 }
 
-// announce sends one heartbeat before the first GET /api/events, because the
+// announce sends one heartbeat before the first GET /api/v1/bridge/events, because the
 // server serves the events only to a bridge whose heartbeat names the
-// work-requests capability. A failure leaves GET /api/events to answer.
+// work-requests capability. A failure leaves GET /api/v1/bridge/events to answer.
 func announce(ctx context.Context, client heartbeatSender, bridgeID string, set *rules.Set, identities *identityReporter, log *slog.Logger) {
 	body := heartbeatBody(set)
 	body.GitIdentities = identities.start(ctx, set)
@@ -730,7 +733,7 @@ func logUpgradeRequired(log *slog.Logger, err error) {
 	}
 }
 
-// startEvents reads GET /api/events, and fails when it does not list a mapped
+// startEvents reads GET /api/v1/bridge/events, and fails when it does not list a mapped
 // project.
 func startEvents(ctx context.Context, cfg config.Config, bridgeID string, set *rules.Set) (api.Events, error) {
 	events, err := apiClient(cfg).Events(ctx, bridgeID)
@@ -738,7 +741,7 @@ func startEvents(ctx context.Context, cfg config.Config, bridgeID string, set *r
 		return events, err
 	}
 	if missing := missingProjects(set, events); len(missing) > 0 {
-		return events, fmt.Errorf("GET /api/events does not list %s, so no event of theirs can reach the bridge", strings.Join(missing, ", "))
+		return events, fmt.Errorf("GET /api/v1/bridge/events does not list %s, so no event of theirs can reach the bridge", strings.Join(missing, ", "))
 	}
 
 	return events, nil
@@ -763,7 +766,7 @@ func heartbeatBody(set *rules.Set) api.Heartbeat {
 	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, WorkKinds: set.WorkKindsOn(), Name: &name, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
 }
 
-// missingProjects names the mapped projects that GET /api/events does not list:
+// missingProjects names the mapped projects that GET /api/v1/bridge/events does not list:
 // deleted, or no longer the user's. Their rules can never fire.
 func missingProjects(set *rules.Set, events api.Events) []string {
 	listed := map[string]bool{}

@@ -23,7 +23,7 @@ final class ShowInstallScriptControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Cache-Control', 'max-age=300, public');
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
         $lines = explode("\n", (string) $client->getResponse()->getContent());
-        self::assertSame(['#!/bin/sh', "LOUPE_URL='http://localhost'", "LOUPE_CLI_MAJOR='1'"], array_slice($lines, 0, 3));
+        self::assertSame(['#!/bin/sh', "LOUPE_URL='http://localhost'", "LOUPE_CLI_MAJOR='2'"], array_slice($lines, 0, 3));
     }
 
     /** A browser that holds a session must get the same shared, cacheable answer. */

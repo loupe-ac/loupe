@@ -35,7 +35,7 @@ func TestPutRunOutputSendsTheChunk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path != "/api/projects/my%2Fproject/worker-runs/"+testRunID+"/output" {
+	if path != "/api/v1/bridge/projects/my%2Fproject/worker-runs/"+testRunID+"/output" {
 		t.Fatalf("path = %s", path)
 	}
 	if auth != "Bearer t" {
@@ -63,7 +63,7 @@ func TestPutRunOutputReadsEachFailure(t *testing.T) {
 		http.StatusTooManyRequests:     false,
 		http.StatusBadGateway:          false,
 	} {
-		_, _, _, _, err := putOutput(t, status, `{"error":"run_not_found"}`)
+		_, _, _, _, err := putOutput(t, status, `{"code":"run_not_found"}`)
 		if err == nil {
 			t.Fatalf("status %d: no error", status)
 		}

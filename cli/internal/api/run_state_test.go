@@ -96,7 +96,7 @@ func TestReportRunStatePutsTheReportOnTheRun(t *testing.T) {
 	if !created {
 		t.Fatal("created = false, want the 201 to read as a new state")
 	}
-	if path != "/api/projects/loupe/worker-runs/"+testRunID {
+	if path != "/api/v1/bridge/projects/loupe/worker-runs/"+testRunID {
 		t.Fatalf("path = %s", path)
 	}
 	if keys(body) != withBase() {
@@ -329,7 +329,7 @@ func TestReportRunStateEscapesTheHandleAndTheRunID(t *testing.T) {
 	_, _ = New(server.URL, "t", server.Client()).
 		ReportRunState(context.Background(), "a/../b", "c/d", stateReport(RunQueued))
 
-	if gotPath != "/api/projects/a%2F..%2Fb/worker-runs/c%2Fd" {
+	if gotPath != "/api/v1/bridge/projects/a%2F..%2Fb/worker-runs/c%2Fd" {
 		t.Fatalf("path = %s", gotPath)
 	}
 }
@@ -348,7 +348,7 @@ func TestReportRunStateReadsEachAnswer(t *testing.T) {
 		{status: http.StatusOK, ok: true},
 		{status: http.StatusNotFound, refused: true},
 		{status: http.StatusNotFound, body: `<html>Not Found</html>`, refused: true},
-		{status: http.StatusNotFound, body: `{"error":"project_not_found"}`, refused: true},
+		{status: http.StatusNotFound, body: `{"code":"project_not_found"}`, refused: true},
 		{status: http.StatusUnauthorized, refused: true},
 		{status: http.StatusForbidden, refused: true},
 		{status: http.StatusBadRequest, refused: true},
@@ -467,7 +467,7 @@ func TestReportRunInventoryPutsTheRunsOfTheBridge(t *testing.T) {
 	if err := New(server.URL, "t", server.Client()).ReportRunInventory(context.Background(), "bridge/1", runs); err != nil {
 		t.Fatal(err)
 	}
-	if gotMethod != http.MethodPut || gotPath != "/api/bridges/bridge%2F1/runs" {
+	if gotMethod != http.MethodPut || gotPath != "/api/v1/bridge/bridges/bridge%2F1/runs" {
 		t.Fatalf("%s %s", gotMethod, gotPath)
 	}
 	got, _ := json.Marshal(gotBody)

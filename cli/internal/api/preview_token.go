@@ -19,19 +19,19 @@ var ErrPreviewTokensUnsupported = errors.New("the server has no preview token en
 // previewTokenError turns a refused answer into one line for a person.
 func previewTokenError(what string, status int, body []byte) error {
 	var payload struct {
-		Error string `json:"error"`
+		Code string `json:"code"`
 	}
 	_ = json.Unmarshal(body, &payload)
 
 	switch {
-	case status == http.StatusNotFound && payload.Error == "":
+	case status == http.StatusNotFound && routeMissing(payload.Code):
 		return ErrPreviewTokensUnsupported
-	case status == http.StatusNotFound && payload.Error == "project_not_found":
+	case status == http.StatusNotFound && payload.Code == "project_not_found":
 		return ErrProjectNotFound
 	case status == http.StatusUnauthorized, status == http.StatusForbidden:
 		return fmt.Errorf("%s was rejected (HTTP %d): sign in again with `loupe login`", what, status)
-	case payload.Error != "":
-		return fmt.Errorf("the server refused to %s (HTTP %d): %s", what, status, payload.Error)
+	case payload.Code != "":
+		return fmt.Errorf("the server refused to %s (HTTP %d): %s", what, status, payload.Code)
 	default:
 		return fmt.Errorf("the server refused to %s (HTTP %d): %s", what, status, clip(strings.TrimSpace(string(body)), 200))
 	}
@@ -50,7 +50,7 @@ func (c *Client) MintPreviewToken(ctx context.Context, handle, label, cardID str
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/preview-tokens", bytes.NewReader(body))
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/preview-tokens", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +85,7 @@ func (c *Client) MintPreviewToken(ctx context.Context, handle, label, cardID str
 // answers how many it revoked, and zero is not an error.
 func (c *Client) RevokePreviewTokens(ctx context.Context, handle, label string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/preview-tokens/"+url.PathEscape(label), nil)
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/preview-tokens/"+url.PathEscape(label), nil)
 	if err != nil {
 		return 0, err
 	}

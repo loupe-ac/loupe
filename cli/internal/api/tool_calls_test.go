@@ -49,7 +49,7 @@ func TestReportToolCallsSendsEveryKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path != "/api/projects/my%2Fproject/worker-runs/"+testRunID+"/tool-calls" {
+	if path != "/api/v1/bridge/projects/my%2Fproject/worker-runs/"+testRunID+"/tool-calls" {
 		t.Fatalf("path = %s", path)
 	}
 	want := `{"calls":[` +
@@ -83,9 +83,9 @@ func TestReportToolCallsReadsEachAnswer(t *testing.T) {
 		{status: http.StatusNoContent, ok: true},
 		{status: http.StatusNotFound, answer: ``, unsupported: true},
 		{status: http.StatusNotFound, answer: `<html>not found</html>`, unsupported: true},
-		{status: http.StatusNotFound, answer: `{"error":"run_not_found"}`, refused: true},
-		{status: http.StatusNotFound, answer: `{"error":"project_not_found"}`, refused: true},
-		{status: http.StatusUnprocessableEntity, answer: `{"error":"x"}`, refused: true},
+		{status: http.StatusNotFound, answer: `{"code":"run_not_found"}`, refused: true},
+		{status: http.StatusNotFound, answer: `{"code":"project_not_found"}`, refused: true},
+		{status: http.StatusUnprocessableEntity, answer: `{"code":"x"}`, refused: true},
 		{status: http.StatusForbidden, refused: true},
 		{status: http.StatusTooManyRequests},
 		{status: http.StatusRequestTimeout},

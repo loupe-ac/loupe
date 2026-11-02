@@ -10,10 +10,11 @@ use PHPUnit\Framework\TestCase;
 
 final class CliCompatibilityTest extends TestCase
 {
-    #[TestWith(['1.0.0', true])]
-    #[TestWith(['1.4.2', true])]
-    #[TestWith(['1.0.0-rc.1', true])]
-    #[TestWith(['2.0.0', false])]
+    #[TestWith(['2.0.0', true])]
+    #[TestWith(['2.4.2', true])]
+    #[TestWith(['2.0.0-rc.1', true])]
+    #[TestWith(['3.0.0', false])]
+    #[TestWith(['1.9.0', false])]
     #[TestWith(['0.9.0', false])]
     #[TestWith(['a1b2c3d', false])]
     #[TestWith(['03cc8ba4f1e2d3c4b5a6978877665544332211aa', false])]
@@ -26,7 +27,7 @@ final class CliCompatibilityTest extends TestCase
 
     public function test_the_major_version_comes_from_the_range(): void
     {
-        self::assertSame(1, CliCompatibility::major());
+        self::assertSame(2, CliCompatibility::major());
         self::assertSame(12, CliCompatibility::major('^12.3'));
     }
 

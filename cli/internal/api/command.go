@@ -113,7 +113,7 @@ func (c *Client) AckCommand(ctx context.Context, bridgeID, commandID, state, rea
 		return "", err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
-		c.baseURL+"/api/bridges/"+url.PathEscape(bridgeID)+"/commands/"+url.PathEscape(commandID), bytes.NewReader(body))
+		c.baseURL+"/api/v1/bridge/bridges/"+url.PathEscape(bridgeID)+"/commands/"+url.PathEscape(commandID), bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -137,9 +137,9 @@ func (c *Client) AckCommand(ctx context.Context, bridgeID, commandID, state, rea
 		return stored.State, nil
 	case http.StatusNotFound:
 		var payload struct {
-			Error string `json:"error"`
+			Code string `json:"code"`
 		}
-		if json.Unmarshal(detail, &payload) == nil && payload.Error == "command_not_found" {
+		if json.Unmarshal(detail, &payload) == nil && payload.Code == "command_not_found" {
 			return "", fmt.Errorf("%w: %s", ErrCommandNotFound, commandID)
 		}
 	}

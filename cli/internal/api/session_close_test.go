@@ -26,7 +26,7 @@ func TestCloseInteractiveSessionPostsToTheSessionPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 2 || gotMethod != http.MethodPost || gotPath != "/api/interactive-sessions/a%2Fb/close" || gotAuth != "Bearer tok" || len(gotBody) != 0 {
+	if n != 2 || gotMethod != http.MethodPost || gotPath != "/api/v1/bridge/interactive-sessions/a%2Fb/close" || gotAuth != "Bearer tok" || len(gotBody) != 0 {
 		t.Fatalf("n=%d method=%s path=%s auth=%s body=%q", n, gotMethod, gotPath, gotAuth, gotBody)
 	}
 }

@@ -34,7 +34,7 @@ func backfillServer(t *testing.T, refusals map[string]string) *recordedRequests 
 		for session, code := range refusals {
 			if strings.Contains(r.URL.Path, session) {
 				w.WriteHeader(http.StatusConflict)
-				_, _ = io.WriteString(w, `{"error":"`+code+`"}`)
+				_, _ = io.WriteString(w, `{"code":"`+code+`"}`)
 
 				return
 			}
@@ -135,7 +135,7 @@ func TestBackfillGoesOnAfterARefusal(t *testing.T) {
 	if len(got.order) != 4 {
 		t.Fatalf("requests = %v", got.order)
 	}
-	body := got.bodies["PUT /api/projects/"+backfillProject+"/worker-runs/sessions/"+backfillSession+"3/usage"]
+	body := got.bodies["PUT /api/v1/bridge/projects/"+backfillProject+"/worker-runs/sessions/"+backfillSession+"3/usage"]
 	want := `{"processes":[{"source":"estimated","models":{"claude-opus-5-5":{"inputTokens":0,"outputTokens":1000,"cacheReadTokens":0,"cacheWriteTokens":0,"costUsd":0.02}}},{"source":"reported","models":{"claude-opus-5-5":{"inputTokens":1,"outputTokens":5,"cacheReadTokens":0,"cacheWriteTokens":0,"costUsd":0.25}}}]}`
 	if body != want {
 		t.Fatalf("body = %s\nwant %s", body, want)

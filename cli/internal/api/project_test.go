@@ -27,7 +27,7 @@ func TestCreateProjectPostsOnlyTheFieldsItHolds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodPost || path != "/api/projects" || auth != "Bearer secret" || contentType != "application/json" {
+	if method != http.MethodPost || path != "/api/v1/projects" || auth != "Bearer secret" || contentType != "application/json" {
 		t.Fatalf("method = %q, path = %q, auth = %q, content type = %q", method, path, auth, contentType)
 	}
 	var sent map[string]string
@@ -49,11 +49,11 @@ func TestCreateProjectMapsTheRefusals(t *testing.T) {
 		want   error
 		text   string
 	}{
-		"limited token":    {http.StatusForbidden, `{"error":"credential_not_owner_wide"}`, ErrCredentialNotOwnerWide, ""},
-		"name taken":       {http.StatusConflict, `{"error":"name_taken"}`, ErrProjectNameTaken, ""},
-		"name taken, slug": {http.StatusConflict, `{"error":"name_taken","slug":"blog"}`, ErrProjectNameTaken, "blog"},
-		"no name":          {http.StatusUnprocessableEntity, `{"error":"name_required"}`, ErrProjectNameRequired, ""},
-		"bad name":         {http.StatusUnprocessableEntity, `{"error":"name_invalid"}`, ErrProjectNameInvalid, ""},
+		"limited token":    {http.StatusForbidden, `{"code":"credential_not_owner_wide"}`, ErrCredentialNotOwnerWide, ""},
+		"name taken":       {http.StatusConflict, `{"code":"name_taken"}`, ErrProjectNameTaken, ""},
+		"name taken, slug": {http.StatusConflict, `{"code":"name_taken","slug":"blog"}`, ErrProjectNameTaken, "blog"},
+		"no name":          {http.StatusUnprocessableEntity, `{"code":"name_required"}`, ErrProjectNameRequired, ""},
+		"bad name":         {http.StatusUnprocessableEntity, `{"code":"name_invalid"}`, ErrProjectNameInvalid, ""},
 		"other 403":        {http.StatusForbidden, `{}`, nil, "HTTP 403"},
 		"server error":     {http.StatusInternalServerError, `boom`, nil, "HTTP 500): boom"},
 	} {
@@ -110,7 +110,7 @@ func TestCreateProjectPostsDomainAndOrigins(t *testing.T) {
 func TestCreateProjectNameTakenCarriesTheSlug(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusConflict)
-		fmt.Fprint(w, `{"error":"name_taken","slug":"blog"}`)
+		fmt.Fprint(w, `{"code":"name_taken","slug":"blog"}`)
 	}))
 	t.Cleanup(server.Close)
 
@@ -122,11 +122,11 @@ func TestCreateProjectNameTakenCarriesTheSlug(t *testing.T) {
 }
 
 func TestCreateProjectMapsViolationsToTheFlagValues(t *testing.T) {
-	body := `{"violations":[` +
-		`{"propertyPath":"origins[1]","title":"Use https."},` +
-		`{"propertyPath":"origins","title":"Too many origins."},` +
-		`{"propertyPath":"domain","title":"Too long."},` +
-		`{"propertyPath":"origins[7]","title":"Out of range."}]}`
+	body := `{"code":"validation_failed","errors":[` +
+		`{"field":"origins[1]","message":"Use https."},` +
+		`{"field":"origins","message":"Too many origins."},` +
+		`{"field":"domain","message":"Too long."},` +
+		`{"field":"origins[7]","message":"Out of range."}]}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -162,12 +162,12 @@ func TestCreateProjectMapsViolationsToTheFlagValues(t *testing.T) {
 
 func TestCreateProjectReadsALong422Body(t *testing.T) {
 	var b strings.Builder
-	b.WriteString(`{"violations":[`)
+	b.WriteString(`{"code":"validation_failed","errors":[`)
 	for i := 0; i < 20; i++ {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		fmt.Fprintf(&b, `{"propertyPath":"origins[%d]","title":"%s"}`, i, strings.Repeat("x", 200))
+		fmt.Fprintf(&b, `{"field":"origins[%d]","message":"%s"}`, i, strings.Repeat("x", 200))
 	}
 	b.WriteString(`]}`)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

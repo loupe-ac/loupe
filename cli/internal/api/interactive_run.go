@@ -12,7 +12,7 @@ import (
 )
 
 // InteractiveLaunchReport is how one launch of an interactive session went, as
-// PUT /api/projects/{handle}/interactive-runs/{sessionId} takes it. State is
+// PUT /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId} takes it. State is
 // RunRunning or RunNotStarted, and only RunNotStarted carries a FailureReason.
 type InteractiveLaunchReport struct {
 	BridgeID string `json:"bridgeId"`
@@ -56,7 +56,7 @@ func (c *Client) ReportInteractiveLaunch(ctx context.Context, handle, sessionID 
 	}
 
 	status, detail, err := c.putReport(ctx,
-		"/api/projects/"+url.PathEscape(handle)+"/interactive-runs/"+url.PathEscape(sessionID), body)
+		"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/interactive-runs/"+url.PathEscape(sessionID), body)
 	if err != nil {
 		return false, fmt.Errorf("report the interactive launch: %w", err)
 	}

@@ -10,11 +10,11 @@ import (
 )
 
 // CloseInteractiveSession tells Loupe that an interactive session ended, as
-// POST /api/interactive-sessions/{sessionId}/close takes it. It answers how
+// POST /api/v1/bridge/interactive-sessions/{sessionId}/close takes it. It answers how
 // many open runs the server closed, which is 0 for a session it does not know.
 func (c *Client) CloseInteractiveSession(ctx context.Context, sessionID string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/interactive-sessions/"+url.PathEscape(sessionID)+"/close", nil)
+		c.baseURL+"/api/v1/bridge/interactive-sessions/"+url.PathEscape(sessionID)+"/close", nil)
 	if err != nil {
 		return 0, err
 	}

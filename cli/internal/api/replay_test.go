@@ -23,7 +23,7 @@ func TestReplayReadsAPage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodGet || path != "/api/events/replay" || query != "after=4810" || auth != "Bearer secret" {
+	if method != http.MethodGet || path != "/api/v1/bridge/events/replay" || query != "after=4810" || auth != "Bearer secret" {
 		t.Fatalf("method = %q, path = %q, query = %q, auth = %q", method, path, query, auth)
 	}
 	if !page.HasMore || len(page.Events) != 2 {
@@ -42,7 +42,7 @@ func TestReplayNamesEachFailure(t *testing.T) {
 	}{
 		"forbidden":    {http.StatusForbidden, ``, "agent scope"},
 		"unauthorized": {http.StatusUnauthorized, ``, "agent scope"},
-		"old server":   {http.StatusNotFound, ``, "no GET /api/events/replay"},
+		"old server":   {http.StatusNotFound, ``, "no GET /api/v1/bridge/events/replay"},
 		"rate limited": {http.StatusTooManyRequests, ``, "rate limit"},
 		"server error": {http.StatusInternalServerError, `boom`, "HTTP 500): boom"},
 		"not json":     {http.StatusOK, `<html>`, "decode"},
@@ -106,7 +106,7 @@ func TestTheEventsRoutesNameTheBridge(t *testing.T) {
 	if _, err := client.Replay(context.Background(), testBridge, 0); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"/api/events " + testBridge, "/api/events/replay " + testBridge}; !slices.Equal(got, want) {
+	if want := []string{"/api/v1/bridge/events " + testBridge, "/api/v1/bridge/events/replay " + testBridge}; !slices.Equal(got, want) {
 		t.Fatalf("requests = %q, want %q", got, want)
 	}
 }
@@ -116,7 +116,7 @@ func TestTheEventsRoutesNameTheBridge(t *testing.T) {
 func TestTheEventsRoutesReadAnUpgradeRefusal(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUpgradeRequired)
-		fmt.Fprint(w, `{"error":"This bridge runs no work requests. Upgrade the loupe CLI."}`)
+		fmt.Fprint(w, `{"detail":"This bridge runs no work requests. Upgrade the loupe CLI."}`)
 	}))
 	t.Cleanup(server.Close)
 	client := New(server.URL, "t", server.Client())

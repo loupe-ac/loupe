@@ -111,7 +111,7 @@ func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactP
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/artifacts", bytes.NewReader(body.Bytes()))
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/artifacts", bytes.NewReader(body.Bytes()))
 	if err != nil {
 		return out, err
 	}
@@ -133,14 +133,21 @@ func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactP
 		return out, fmt.Errorf("%w: %s", notFound(resp.Body), handle)
 	case http.StatusUnprocessableEntity:
 		var refusal struct {
-			Errors map[string]string `json:"errors"`
+			Errors []struct {
+				Field   string `json:"field"`
+				Message string `json:"message"`
+			} `json:"errors"`
 		}
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, maxBody))
 		if err := json.Unmarshal(data, &refusal); err != nil || len(refusal.Errors) == 0 {
 			return out, errors.New("the server refused the artifact (HTTP 422): " + strings.TrimSpace(clip(string(data), 512)))
 		}
+		reasons := make(map[string]string, len(refusal.Errors))
+		for _, refused := range refusal.Errors {
+			reasons[refused.Field] = refused.Message
+		}
 
-		return out, &ArtifactRefused{Errors: refusal.Errors}
+		return out, &ArtifactRefused{Errors: reasons}
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return out, fmt.Errorf("the store was rejected (HTTP %d): the API token must have the agent scope, and the project must be yours", resp.StatusCode)
 	case http.StatusTooManyRequests:
