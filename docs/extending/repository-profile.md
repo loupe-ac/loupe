@@ -84,7 +84,14 @@ Write "none" for the folder check when your repository does not need it.
 
 ## A starter profile
 
-Copy this file to `.loupe/lifecycle.md`, and replace each value with the value
+`loupe init` writes a starter when the repository has none. A value it guessed is
+marked "detected, check it". A line that reads "owner to fill in" holds no value,
+such as the merge method. A stage that needs that value stops as if the section
+were missing. Its `Repair` section allows only `loupe env reset`, when the `repair`
+work entry sets `reset`, and the epic sync of the merge stage. Add each other action
+with its commands and its guards.
+
+To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
 of your repository. The example is for a Node project on GitHub with the
 Lifecycle workflow and its default column slugs.
 

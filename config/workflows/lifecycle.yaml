@@ -1,5 +1,5 @@
 key: lifecycle
-version: 38
+version: 39
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -389,6 +389,10 @@ rules:
                   - The .loupe/lifecycle.md sections that the stage skills read
                   - A build command and a test command that an agent can run
                   - A draft pull request that a separate agent reviews after the push
+                  - "Conflict check: agent instruction files. No instruction file contradicts what a stage skill does"
+                  - "Conflict check: repository hooks. No hook refuses a command that a stage skill runs"
+                  - "Conflict check: repository profile. .loupe/lifecycle.md holds each section and value that a stage skill reads, also when no value carries a marker"
+                  - "Conflict check: workflow template. The profile agrees with the columns, epicBranch and approvalCoversConflictResolution that workflow_get returns"
 
     # After implement, so a card that comes back opens its new request before these read the latest request.
     - id: nothing-to-build
@@ -456,6 +460,7 @@ rules:
                   - The worktree of the card is still available, or the agent can make it again
                   - The gate commands of .loupe/lifecycle.md
                   - Read access to the CI check logs
+                  - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
               refill:
                   all:
                       - pr.checks_passed: {}
@@ -481,6 +486,7 @@ rules:
               checks:
                   - A bridge work entry for the review kind
                   - The Loupe plugin skills are installed for the agent
+                  - "Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules"
 
     - id: fix-agent-review
       slot: implementation
@@ -536,6 +542,7 @@ rules:
                   - The worktree of the card is still available, or the agent can make it again
                   - The gate commands of .loupe/lifecycle.md
                   - Read access to the CI check logs
+                  - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
               refill:
                   all:
                       - pr.checks_passed: {}
@@ -568,6 +575,7 @@ rules:
               checks:
                   - A bridge work entry for the review kind
                   - The Loupe plugin skills are installed for the agent
+                  - "Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules"
 
     - id: fix-agent-review-in-review
       slot: in-review
@@ -671,7 +679,15 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
+      then:
+          forge-write:
+              write: merge
+              methods: [squash, merge, rebase]
+              fallback: merge
+              checks:
+                  - "Conflict check: branch rules. The base branch has a pull request rule, requires the check Loupe / Approval from the Loupe App, requires no approving review, requires a check that is not a Loupe check, and forbids force pushes and deletion"
+                  - "Conflict check: merge method. The repository and the rules of the base branch allow squash, merge or rebase"
+                  - "Conflict check: merge queue. No merge queue holds a merge that this rule or the merge stage expects to finish at once"
 
     - id: merge-ready-epic-child
       slot: in-review
@@ -689,7 +705,14 @@ rules:
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
-      then: { forge-write: { write: merge, methods: [squash, merge, rebase], fallback: merge } }
+      then:
+          forge-write:
+              write: merge
+              methods: [squash, merge, rebase]
+              fallback: merge
+              checks:
+                  - "Conflict check: merge method. The repository and the rules of the base branch allow squash, merge or rebase"
+                  - "Conflict check: merge queue. No merge queue holds a merge that this rule or the merge stage expects to finish at once"
 
     - id: epic-to-review
       slot: implementation
