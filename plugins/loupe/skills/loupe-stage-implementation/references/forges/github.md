@@ -238,6 +238,22 @@ gh api repos/<nameWithOwner>/merges -f base='<epic branch>' -f head='<base>' -i
 
 A non-zero exit of `git ls-remote` means the epic branch does not exist. The forge makes the merge commit on the epic branch. The status line reports the result: `201` merged, `204` already up to date, and `409` a conflict. Any other status is a failed step.
 
+## Read the rules of the base branch
+
+These commands only read.
+
+```bash
+gh api repos/<nameWithOwner>/rules/branches/<base>
+gh repo view <nameWithOwner> --json mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed
+gh api repos/<nameWithOwner>/branches/<base>/protection
+```
+
+The first command lists the active rules by `type`. `pull_request` holds `required_approving_review_count` and `allowed_merge_methods`. `required_status_checks` names the required checks. `non_fast_forward` forbids a force push, `deletion` forbids deletion, and `merge_queue` is a merge queue. The second command gives the repository switches.
+
+The third command reads classic branch protection. The message `Branch not protected` means that the branch has none. Any other error, such as `Not Found` with no admin permission, means that it could not be read.
+
+Report each setting that a command fails to read as not readable, and quote the error.
+
 ## Merge
 
 ```bash

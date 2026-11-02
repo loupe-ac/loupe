@@ -96,6 +96,10 @@ Discovery runs these generic checks on every project:
 - Each setup step that an agent cannot do through the MCP.
 
 It also runs the checks of each kind of work that the workflow asks for.
+The Lifecycle workflow adds a conflict check, which compares the way the repository already works with what the workflow needs: the branch rules, the merge method, a merge queue, other review bots, the agent instruction files, the repository hooks, the CI checks, the repository profile and the workflow template.
+Each conflict is a suggestion that names the options: change the repository, or change the profile. A setting that the worker cannot read is a suggestion that says so and asks you to check it.
+The profile check covers a hand-written `.loupe/lifecycle.md` too, and each line that reads "owner to fill in" is a suggestion.
+[First steps](../getting-started/index.md#6-act-on-the-conflict-findings) says how to act on these findings.
 The [Lifecycle workflow](workflows.md) asks for product design work, so it adds two checks for a project with a user interface.
 The first check looks for a design system that an agent can read.
 The second check looks for a Design System artifact on claude.ai that holds or mirrors it, named in `.loupe/lifecycle.md` or the agent instructions.
