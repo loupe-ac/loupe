@@ -1210,7 +1210,8 @@
 
     /* Settings pages keep section navigation beside narrow paper panels. */
     .lp-redesign-settings .lp-danger-zone,
-    .lp-redesign-settings .lp-panel + .lp-panel {
+    .lp-redesign-settings .lp-panel + .lp-panel,
+    .lp-redesign-settings .lp-panel + div:has(> .lp-panel) {
         @apply mt-5;
     }
     .lp-redesign-settings .lp-btn {
@@ -4118,6 +4119,9 @@
     /* The new key wraps, so that the whole key shows before the dialog closes. */
     [data-api-key-once] .lp-code-dark__body {
         @apply whitespace-pre-wrap break-all;
+    }
+    [data-api-key-once] .lp-form-actions {
+        @apply mt-6;
     }
     /* Metric, Key, Type, What it reads. */
     .lp-data-table--metrics {
