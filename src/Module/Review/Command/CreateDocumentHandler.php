@@ -40,6 +40,10 @@ final readonly class CreateDocumentHandler
 
     public function __invoke(CreateDocumentCommand $command): Document
     {
+        if (\strlen($command->markdown) > Document::MAX_MARKDOWN_BYTES) {
+            throw new DomainErrors(['markdown' => Document::MARKDOWN_TOO_LARGE]);
+        }
+
         // Before persist(), not after: persist() schedules the insert
         // immediately, and declining to flush does not unschedule it. A rejected
         // name would otherwise leave the document sitting in the unit of work for

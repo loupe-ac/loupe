@@ -50,11 +50,12 @@ final readonly class ToolCallErrorMessages
     /**
      * @param array<string, int|string> $parameters
      */
-    private static function sentence(string $key, array $parameters = []): string
+    public static function sentence(string $key, array $parameters = []): string
     {
         return match ($key) {
             'review.create.error.blank', 'review.rename.error.blank' => 'A document title must not be blank.',
             'review.create.error.too_long', 'review.rename.error.too_long' => \sprintf('A document title must be at most %d characters.', Document::MAX_TITLE_LENGTH),
+            Document::MARKDOWN_TOO_LARGE => 'The markdown content exceeds the maximum allowed size.',
             'review.revise.error.description_blank' => 'A description of what changed in this version is required.',
             'review.archive.error.reason_blank' => 'A reason for archiving the document is required.',
             'review.publish.error.archived' => 'An archived document cannot be published. Restore it with document_unarchive first.',
