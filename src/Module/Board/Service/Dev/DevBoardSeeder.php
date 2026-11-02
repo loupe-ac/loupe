@@ -8,6 +8,8 @@ use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEvent;
@@ -40,6 +42,7 @@ use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Security\ApiKeyActor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
@@ -71,6 +74,8 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         'sync-forge-state' => 550_000,
         'outdated-approval' => 540_000,
         'empty-basket' => 530_000,
+        'api-key-history' => 520_000,
+        'person-history' => 510_000,
     ];
 
     public function __construct(
@@ -83,12 +88,18 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         private PullRequestUrlResolver $pullRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
+        private UserRepository $users,
     ) {
     }
 
     public static function cardId(string $slug): Uuid
     {
         return DevSeedId::of('board/card/'.$slug);
+    }
+
+    public static function apiKeyId(): Uuid
+    {
+        return DevSeedId::of('board/api-key/ci');
     }
 
     public static function pullRequestUrl(int $number): string
@@ -178,11 +189,44 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $this->seedPausedCard($context, $project, $inProgress);
         $this->seedOutdatedApproval($context, $project, $columns['in-review'] ?? $columns['in-progress'] ?? $backlog);
         $this->seedBasketCard($context, $project);
+        $this->seedApiKeyHistory($context);
 
         $this->em->flush();
         foreach ([$history, $onboarding, $this->cards->find(self::cardId('export-documents')), $this->cards->find(self::cardId('sync-forge-state'))] as $card) {
             if ($card instanceof Card) {
                 $this->runCardLinks->relink($project, $card->id ?? throw new \LogicException('A stored card has an id.'), $card->number);
+            }
+        }
+    }
+
+    /**
+     * Two cards of the keys account: one whose History tab names an API key as the actor, and an empty twin
+     * whose History tab names only the person.
+     */
+    private function seedApiKeyHistory(SeedContext $context): void
+    {
+        $owner = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
+            ?? throw new \LogicException('The keys account does not exist.');
+        $project = $this->projects->find(DevProjectSeeder::keysProjectId())
+            ?? throw new \LogicException('The keys project does not exist.');
+        $backlog = array_find($this->boardColumns->findForProject($project), static fn (BoardColumn $column): bool => 'backlog' === $column->slug)
+            ?? throw new \LogicException('The keys project has no backlog column.');
+        $column = CardEvent::columnDetail($backlog);
+
+        foreach (['api-key-history' => ['A card raised by a script', Actor::ApiKey], 'person-history' => ['A card raised by a person', Actor::Human]] as $slug => [$title, $actor]) {
+            [$card, $created] = $this->card($context, $project, $slug, fn (int $number, \DateTimeImmutable $at): Card => new Card(
+                project: $project,
+                column: $backlog,
+                title: $title,
+                body: 'A card for the History tab.',
+                number: $number,
+                type: 'feature',
+                createdAt: $at,
+                source: new CardSource(CardSourceKind::Person),
+            ));
+            if ($created) {
+                $key = Actor::ApiKey === $actor ? new ApiKeyActor(self::apiKeyId(), 'CI') : null;
+                $this->cardEvents->record($card, CardEventKind::Created, $actor, $owner, ['column' => $column, 'type' => $card->type], $context->at(2 * 86_400), $key);
             }
         }
     }
