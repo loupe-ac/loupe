@@ -408,6 +408,13 @@ final class CardApiTest extends WebTestCase
         $this->send(Request::METHOD_PATCH, $this->base().'/2', '{"clearParent":true}');
         self::assertResponseStatusCodeSame(200);
         self::assertNull($this->json()['parent']);
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/2', json_encode(['parentCardId' => $epic['cardId']], \JSON_THROW_ON_ERROR));
+        self::assertSame($epic['cardId'], $this->json()['parent']['cardId']);
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/2', '{"parentCardId":""}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->json()['parent']);
     }
 
     public function test_a_hold_makes_the_card_unmanaged_and_a_second_hold_conflicts(): void

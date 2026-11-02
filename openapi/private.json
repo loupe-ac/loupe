@@ -2744,9 +2744,8 @@
                         }
                     },
                     "parentCardId": {
-                        "description": "The id of the new parent. Leave it out to keep the parent, and use `clearParent` to remove it.",
-                        "type": "string",
-                        "format": "uuid"
+                        "description": "The id of the new parent. Leave it out to keep the parent. An empty string clears it.",
+                        "type": "string"
                     },
                     "clearParent": {
                         "description": "True removes the card from its parent. Do not pass it with `parentCardId`.",

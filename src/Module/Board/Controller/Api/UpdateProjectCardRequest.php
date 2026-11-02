@@ -52,7 +52,7 @@ final class UpdateProjectCardRequest
     #[OA\Property(description: 'The full set. It replaces every link that touches the card, including links written from the other card.', type: 'array', items: new OA\Items(ref: new Model(type: RelatedCardInput::class)))]
     public array $relatedCards;
 
-    #[OA\Property(description: 'The id of the new parent. Leave it out to keep the parent, and use `clearParent` to remove it.', format: 'uuid')]
+    #[OA\Property(description: 'The id of the new parent. Leave it out to keep the parent. An empty string clears it.')]
     public string $parentCardId;
 
     #[OA\Property(description: 'True removes the card from its parent. Do not pass it with `parentCardId`.')]
