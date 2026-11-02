@@ -125,13 +125,13 @@ final class AccountOpenRouterControllerTest extends WebTestCase
     {
         $client = $this->client();
         $user = $this->makeUser(static::getContainer(), 'page-mine');
-        $this->makeKey(static::getContainer(), $this->makeUser(static::getContainer(), 'page-theirs'), 'sk-or-v1-theirs-9999');
+        $this->makeKey(static::getContainer(), $this->makeUser(static::getContainer(), 'page-theirs'), 'sk-or-v1-theirs-wxyz');
         $client->loginUser($user);
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, self::PAGE);
 
         self::assertCount(1, $crawler->filter('[data-testid="openrouter-key-empty"]'));
-        self::assertStringNotContainsString('9999', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('wxyz', (string) $client->getResponse()->getContent());
     }
 
     public function test_the_page_subscribes_to_the_openrouter_topic_of_the_user_and_the_status_frame_does_not(): void
