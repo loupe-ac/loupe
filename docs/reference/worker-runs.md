@@ -773,7 +773,7 @@ A session id that is not a UUID gets 422 with the code `invalid_session_id`.
 
 ## Reading the card run of a session
 
-`GET /api/interactive-sessions/{sessionId}/card-run` tells the session start hook of the Loupe plugin two
+`GET /api/v1/bridge/interactive-sessions/{sessionId}/card-run` tells the session start hook of the Loupe plugin two
 facts about one project. The first is the workflow template of the project. The second is whether the
 session already holds an open interactive run on a card of that project.
 
@@ -791,9 +791,9 @@ The answer is 200 with `{"template": "<key>", "openCardRun": <boolean>}`.
 
 | Status | Body | When |
 |---|---|---|
-| 422 | `{"error": "project_header_required"}` | the `X-Loupe-Project` header is missing or blank |
-| 422 | `{"error": "invalid_session_id"}` | the session id is not a UUID |
-| 404 | `{"error": "unknown_project"}` | the token owner has no such project. A project of another account gets the same answer as a project that does not exist |
+| 422 | `project_header_required` | the `X-Loupe-Project` header is missing or blank |
+| 422 | `invalid_session_id` | the session id is not a UUID |
+| 404 | `project_not_found` | the token owner has no such project. A project of another account gets the same answer as a project that does not exist |
 
 An interactive run records why it closed, in `closeReason`:
 

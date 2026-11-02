@@ -3033,6 +3033,122 @@
                 }
             }
         },
+        "/api/v1/bridge/interactive-sessions/{sessionId}/card-run": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Read the workflow template of a project and the open card run of a session",
+                "operationId": "showInteractiveSessionCardRun",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "A project id or a project slug. A missing or blank value answers 422 `project_header_required`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The template and the card run state.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SessionCardRun"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `project_header_required`, `invalid_session_id`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/bridge/projects/{handle}/git-token": {
             "post": {
                 "tags": [
@@ -8096,6 +8212,24 @@
                     "closed": {
                         "description": "The runs this call closed.",
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "SessionCardRun": {
+                "required": [
+                    "template",
+                    "openCardRun"
+                ],
+                "properties": {
+                    "template": {
+                        "description": "The key of the workflow template of the project, or null when the project has none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openCardRun": {
+                        "description": "Whether the session holds a running interactive run on a card of the project.",
+                        "type": "boolean"
                     }
                 },
                 "type": "object"

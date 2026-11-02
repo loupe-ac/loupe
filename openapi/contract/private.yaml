@@ -338,6 +338,42 @@ paths:
           $ref: '#/components/responses/E422InvalidSessionId'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/interactive-sessions/{sessionId}/card-run:
+    get:
+      operationId: showInteractiveSessionCardRun
+      summary: Read the workflow template of a project and the open card run of a session
+      tags:
+      - Worker runs
+      description: No feature flag gates this route.
+      parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - name: X-Loupe-Project
+        in: header
+        required: true
+        description: A project id or a project slug. A missing or blank value answers 422 `project_header_required`.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The template and the card run state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionCardRun'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ProjectHeaderRequiredInvalidSessionId'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects:
     get:
       operationId: listBridgeProjects
@@ -2910,6 +2946,19 @@ components:
         closed:
           type: integer
           description: The runs this call closed.
+    SessionCardRun:
+      type: object
+      required:
+      - template
+      - openCardRun
+      properties:
+        template:
+          type: string
+          nullable: true
+          description: The key of the workflow template of the project, or null when the project has none.
+        openCardRun:
+          type: boolean
+          description: Whether the session holds a running interactive run on a card of the project.
     ExperimentPin:
       type: object
       description: The controller checks each field itself, so a bad field gets its own code rather than `validation_failed`.
@@ -4059,6 +4108,13 @@ components:
         title: Invalid session id
         status: 422
         code: invalid_session_id
+    ProjectHeaderRequired:
+      summary: project_header_required
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#project_header_required
+        title: Project header required
+        status: 422
+        code: project_header_required
     InvalidCardId:
       summary: invalid_card_id
       value:
@@ -4598,6 +4654,17 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
           examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+    E422ProjectHeaderRequiredInvalidSessionId:
+      description: 'Refused: `project_header_required`, `invalid_session_id`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_header_required:
+              $ref: '#/components/examples/ProjectHeaderRequired'
             invalid_session_id:
               $ref: '#/components/examples/InvalidSessionId'
     E422InvalidCardIdInvalidExperimentInvalidVariantsAnd1More:

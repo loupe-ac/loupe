@@ -36,7 +36,7 @@ func TestSessionCardRunReadsTheAnswer(t *testing.T) {
 			if got != tc.want {
 				t.Fatalf("got %+v, want %+v", got, tc.want)
 			}
-			if gotMethod != http.MethodGet || gotPath != "/api/interactive-sessions/a%2Fb/card-run" || gotAuth != "Bearer tok" || gotProject != "proj-1" {
+			if gotMethod != http.MethodGet || gotPath != "/api/v1/bridge/interactive-sessions/a%2Fb/card-run" || gotAuth != "Bearer tok" || gotProject != "proj-1" {
 				t.Fatalf("method=%s path=%s auth=%s project=%s", gotMethod, gotPath, gotAuth, gotProject)
 			}
 		})

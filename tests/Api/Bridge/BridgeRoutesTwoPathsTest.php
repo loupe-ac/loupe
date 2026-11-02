@@ -20,6 +20,7 @@ use App\Module\Bridge\Controller\Api\ReportToolCallsController;
 use App\Module\Bridge\Controller\Api\ReportWorkerRunStateController;
 use App\Module\Bridge\Controller\Api\ResolveExperimentPinController;
 use App\Module\Bridge\Controller\Api\SettleWorkRequestController;
+use App\Module\Bridge\Controller\Api\ShowInteractiveSessionCardRunController;
 use App\Module\GitHub\Controller\Api\IssueGitTokenController;
 use App\Module\Inbox\Controller\Api\CheckInboxAskController;
 use App\Module\OAuth\Controller\Api\MintPreviewTokenController;
@@ -30,6 +31,7 @@ use App\Module\SiteReview\Controller\Api\ShowEventsController;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Matcher\RequestMatcherInterface;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
@@ -68,6 +70,7 @@ final class BridgeRoutesTwoPathsTest extends KernelTestCase
             'ShowProjectCardController' => [ShowProjectCardController::class, 'GET', '/api/projects/{handle}/board/cards/{cardId}', '/api/v1/bridge/projects/{handle}/cards/{cardId}'],
             'ListProjectColumnsController' => [ListProjectColumnsController::class, 'GET', '/api/projects/{handle}/board/columns', '/api/v1/bridge/projects/{handle}/columns'],
             'CloseInteractiveSessionController' => [CloseInteractiveSessionController::class, 'POST', '/api/interactive-sessions/{sessionId}/close', '/api/v1/bridge/interactive-sessions/{sessionId}/close'],
+            'ShowInteractiveSessionCardRunController' => [ShowInteractiveSessionCardRunController::class, 'GET', '/api/interactive-sessions/{sessionId}/card-run', '/api/v1/bridge/interactive-sessions/{sessionId}/card-run'],
             'ReportWorkerRunStateController' => [ReportWorkerRunStateController::class, 'PUT', '/api/projects/{handle}/worker-runs/{runId}', '/api/v1/bridge/projects/{handle}/worker-runs/{runId}'],
             'ReportSessionUsageController' => [ReportSessionUsageController::class, 'PUT', '/api/projects/{handle}/worker-runs/sessions/{sessionId}/usage', '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage'],
             'ReportToolCallsController' => [ReportToolCallsController::class, 'PUT', '/api/projects/{handle}/worker-runs/{runId}/tool-calls', '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls'],
@@ -116,7 +119,7 @@ final class BridgeRoutesTwoPathsTest extends KernelTestCase
     private function match(string $template, string $method): array
     {
         $router = static::getContainer()->get(RouterInterface::class);
-        self::assertInstanceOf(RouterInterface::class, $router);
+        self::assertInstanceOf(RequestMatcherInterface::class, $router);
         $path = strtr($template, self::SAMPLE);
 
         return $router->matchRequest(Request::create($path, $method));

@@ -140,6 +140,7 @@ security:
         - { path: '^/api/v1/bridge/events/replay$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/card-holds$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/close$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/card-run$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }

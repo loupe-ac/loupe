@@ -24,6 +24,7 @@ final class BridgeProblemResponsesTest extends WebTestCase
         yield 'preview token of an unknown project' => ['DELETE', '/api/v1/bridge/projects/no-such/preview-tokens/label', '/api/projects/no-such/preview-tokens/label', '', 404, 'project_not_found', 'Project not found'];
         yield 'git token of an unknown project' => ['POST', '/api/v1/bridge/projects/no-such/git-token', '/api/projects/no-such/git-token', '{"repository":"acme/site"}', 404, 'project_not_found', 'Project not found'];
         yield 'claim by an unknown bridge' => ['POST', '/api/v1/bridge/bridges/'.self::UNKNOWN_UUID.'/work-requests/'.self::UNKNOWN_UUID.'/claim', '/api/bridges/'.self::UNKNOWN_UUID.'/work-requests/'.self::UNKNOWN_UUID.'/claim', '{}', 422, 'unknown_bridge', 'Unknown bridge'];
+        yield 'card run with no project header' => ['GET', '/api/v1/bridge/interactive-sessions/'.self::UNKNOWN_UUID.'/card-run', '/api/interactive-sessions/'.self::UNKNOWN_UUID.'/card-run', '', 422, 'project_header_required', 'Project header required'];
     }
 
     #[DataProvider('refusals')]
