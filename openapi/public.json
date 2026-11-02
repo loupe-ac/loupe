@@ -10006,7 +10006,7 @@
                     "Review"
                 ],
                 "summary": "Record the verdict of the owner",
-                "description": "An approval moves the card of the document on. A verdict on a draft stops its agent review. A bridge worker is refused.",
+                "description": "An approval moves the card of the document on. A verdict on a draft stops its agent review. A bridge worker is refused. `Location` points at the review, because no route reads one verdict.",
                 "operationId": "submitDocumentVerdict",
                 "parameters": [
                     {
@@ -10027,6 +10027,15 @@
                         "schema": {
                             "type": "string",
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
                         }
                     }
                 ],
@@ -10052,6 +10061,9 @@
                             },
                             "RateLimit-Reset": {
                                 "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Location": {
+                                "$ref": "#/components/headers/Location"
                             }
                         },
                         "content": {
@@ -10126,7 +10138,7 @@
                         }
                     },
                     "409": {
-                        "description": "Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`.",
+                        "description": "Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `idempotency_key_reused`, `idempotency_in_progress`.",
                         "headers": {
                             "RateLimit-Limit": {
                                 "$ref": "#/components/headers/RateLimit-Limit"

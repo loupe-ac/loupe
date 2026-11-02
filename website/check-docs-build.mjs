@@ -1,6 +1,7 @@
 // Checks the built docs in dist/ (or the folder in argument 1). A page fails
 // when it has a next page and no pagination-links element, or when it lacks
-// one of the three chrome markers.
+// one of the three chrome markers. The source pages in docs/ fail when a relative
+// link names a .md file that does not exist, because the build keeps such a link.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +40,25 @@ for (const page of pages) {
 }
 
 if (checked === 0) problems.push(`no docs page found under ${root}`);
+
+const docsRoot = fileURLToPath(new URL('../docs', import.meta.url));
+const walkSources = (directory) => {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const full = path.join(directory, entry.name);
+    if (entry.isDirectory()) walkSources(full);
+    else if (entry.name.endsWith('.md')) checkLinks(full);
+  }
+};
+const checkLinks = (file) => {
+  const source = fs.readFileSync(file, 'utf8').replace(/```[\s\S]*?```/g, '');
+  for (const [, target] of source.matchAll(/\]\(([^)\s#]+\.md)(?:#[^)\s]*)?\)/g)) {
+    if (/^[a-z]+:/i.test(target) || target.startsWith('/')) continue;
+    if (!fs.existsSync(path.resolve(path.dirname(file), target))) {
+      problems.push(`${path.relative(docsRoot, file)}: broken link to ${target}`);
+    }
+  }
+};
+walkSources(docsRoot);
 if (problems.length > 0) {
   console.error(problems.join('\n'));
   process.exit(1);

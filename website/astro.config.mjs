@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { remarkDocsLinks } from './remark-docs-links.mjs';
@@ -56,6 +57,17 @@ export default defineConfig({
         { tag: 'meta', attrs: { property: 'og:image', content: OG_IMAGE_URL } },
         { tag: 'script', attrs: { src: '/site/docs.js', defer: true } },
         ...siteReviewWidget,
+      ],
+      plugins: [
+        // The committed public spec, the same file that GET /api/v1/openapi.json serves.
+        starlightOpenAPI([
+          {
+            base: 'reference/api/operations',
+            label: 'API operations',
+            schema: '../openapi/public.json',
+            sidebar: { operations: { labels: 'summary' } },
+          },
+        ]),
       ],
       customCss: ['./src/styles/theme.css'],
       components: {
@@ -165,6 +177,9 @@ export default defineConfig({
           label: 'Reference',
           collapsed: true,
           items: [
+            { slug: 'reference/api' },
+            { slug: 'reference/api/errors' },
+            ...openAPISidebarGroups,
             { slug: 'reference/environment' },
             { slug: 'reference/commands' },
             { slug: 'reference/cli' },

@@ -132,6 +132,16 @@ final class LandingControllerTest extends WebTestCase
         self::assertStringNotContainsString('claude design', strtolower($client->getCrawler()->filter('main')->text()));
     }
 
+    public function test_home_page_links_the_beta_api_claim_to_the_api_reference(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('#integrations a.lp-home-tile__link[href$="/reference/api/"]', 'HTTP API (beta)');
+    }
+
     public function test_home_page_footer_links_to_the_x_account_the_flag_names_and_not_to_bluesky(): void
     {
         $client = static::createClient();

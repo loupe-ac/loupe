@@ -15,11 +15,15 @@ nothing to do.
 
 ## Posting a heartbeat
 
-`PUT /api/bridges/{bridgeId}/heartbeat`
+`PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat`
 
 The bridge authenticates with an OAuth token that carries the agent scope, as
 it does for [worker runs](worker-runs.md). The firewall refuses a token that
 carries the `site-review` or the `mcp` scope.
+
+A route under `/api/v1` refuses with Problem JSON, as the
+[API reference](api/index.md#errors) says. The status tables name the `code` of
+each refusal.
 
 `bridgeId` is the uuid the bridge generates on its first start and keeps in
 `config.json`. The server takes it as a lower-case uuid of version 1 or 3 to 8.
@@ -336,12 +340,12 @@ pause then reach the server up to one interval late.
 
 | Status | Body | When |
 |---|---|---|
-| 200 | `{"cliRange":"^1.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[]}` | the heartbeat is accepted |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | | `bridgeId` is not a uuid the server accepts, or agent push is switched off on the instance |
-| 422 | a problem object with a `violations` list | the body is invalid, and each violation names its field in `propertyPath` |
-| 429 | | more than 60 heartbeats in one minute from one token. The `Retry-After` header gives the seconds to wait |
+| 200 | `{"cliRange":"^2.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[]}` | the heartbeat is accepted |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `route_not_found` or `http_404` | `bridgeId` is not a uuid the server accepts, or agent push is switched off on the instance |
+| 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 429 | `rate_limited` | more than 60 heartbeats in one minute from one token. The `Retry-After` header gives the seconds to wait |
 
 The server keys a row by the account and the bridge id together. Two accounts
 that share one config directory send the same bridge id, and each account keeps
@@ -379,7 +383,7 @@ A value below 10 reads as the default, because a shorter interval lets one
 bridge spend most of its token's limit. The bridge applies the same floor to the
 value it receives.
 
-`GET /api/events` shares the value with each bridge in its `flags` map. A bridge
+`GET /api/v1/bridge/events` shares the value with each bridge in its `flags` map. A bridge
 reads the map at start, at each reconnect and at each `loupe bridge reload`, so
 a change reaches a running bridge at its next reconnect or reload. A lower
 interval makes the bridges of one token reach the limit sooner.
@@ -423,7 +427,7 @@ end. A task runs each minute and marks each open run of a quiet bridge
 intervals, and a lowered flag never shortens that wait. A later report from the
 bridge replaces the timeout.
 
-The bridge also sends the runs it holds to `PUT /api/bridges/{bridgeId}/runs`
+The bridge also sends the runs it holds to `PUT /api/v1/bridge/bridges/{bridgeId}/runs`
 each time it connects to the hub. The server marks `lost` each open or timed-out
 run of that bridge that the list does not name. See
 [Timed out and lost](worker-runs.md#timed-out-and-lost).
@@ -571,13 +575,13 @@ and you change them at **`/admin/feature-flags`**:
 
 The defaults come from `app.bridge.default_stop_sigterm_after_ms` and
 `app.bridge.default_stop_sigkill_after_ms` in `config/services.yaml`. A value
-below 100 reads as the default. `GET /api/events` shares both values with each
+below 100 reads as the default. `GET /api/v1/bridge/events` shares both values with each
 bridge in its `flags` map. A change reaches a running bridge at its next
 reconnect or `loupe bridge reload`.
 
 ### Acknowledging a command
 
-`PUT /api/bridges/{bridgeId}/commands/{commandId}`
+`PUT /api/v1/bridge/bridges/{bridgeId}/commands/{commandId}`
 
 The bridge sends its answer after it acts on a command. It uses the same token
 as the heartbeat.
@@ -608,12 +612,12 @@ answer settles a command.
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"commandId":"…","state":"done"}` | the answer is accepted. `state` is the stored state |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope |
-| 404 | `{"error":"command_not_found"}` | the command does not exist, or belongs to another account or another bridge |
-| 404 | | an id is not a uuid, or agent push is switched off on the instance |
-| 422 | `{"error":"invalid_state"}`, `{"error":"invalid_reason"}` or `{"error":"reason_too_long"}` | the body is invalid |
-| 429 | | the token sent too many reports. The route shares the limit of the [worker run reports](worker-runs.md) |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope |
+| 404 | `command_not_found` | the command does not exist, or belongs to another account or another bridge |
+| 404 | `route_not_found` or `http_404` | an id is not a uuid, or agent push is switched off on the instance |
+| 422 | `invalid_state`, `invalid_reason` or `reason_too_long` | the body is invalid |
+| 429 | `rate_limited` | the token sent too many reports. The route shares the limit of the [worker run reports](worker-runs.md) |
 
 ## Work requests
 
@@ -691,7 +695,7 @@ The event and the reply never carry the claim token.
 
 ### Claiming a request
 
-`POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
+`POST /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim`
 
 The bridge claims an open request before it starts the work. It uses the same
 token as the heartbeat. The body names the account that the bridge chose for the
@@ -715,20 +719,20 @@ record holds no claim token.
 | Status | Body | When |
 |---|---|---|
 | 200 | the claim | the bridge holds the claim |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope |
-| 404 | `{"error":"work_request_not_found"}` | the request does not exist, belongs to another account, or belongs to a project the bridge does not follow |
-| 404 | | an id is not a uuid, or agent push is switched off on the instance |
-| 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
-| 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
-| 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
-| 409 | `{"error":"session_open"}` | an interactive session is open on the card of the request, and the request does not open a session. The request stays open, and the bridge claims it after the session closes |
-| 409 | `{"error":"waiting"}` | the request waits for a time that has not passed yet |
-| 409 | `{"error":"account_blocked"}` | the named account is at its hard limit, or at or above its stop value |
-| 422 | `{"error":"account_unknown"}` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |
-| 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
-| 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
-| 429 | | more than 60 claims in one minute from one token |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope |
+| 404 | `work_request_not_found` | the request does not exist, belongs to another account, or belongs to a project the bridge does not follow |
+| 404 | `route_not_found` or `http_404` | an id is not a uuid, or agent push is switched off on the instance |
+| 409 | `already_claimed` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
+| 409 | `card_held` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
+| 409 | `project_held` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
+| 409 | `session_open` | an interactive session is open on the card of the request, and the request does not open a session. The request stays open, and the bridge claims it after the session closes |
+| 409 | `waiting` | the request waits for a time that has not passed yet |
+| 409 | `account_blocked` | the named account is at its hard limit, or at or above its stop value |
+| 422 | `account_unknown` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |
+| 422 | `unknown_bridge` | the server has no heartbeat of this bridge from this account |
+| 422 | `capability_missing` | the bridge does not report `work-requests`, or the capability the request needs |
+| 429 | `rate_limited` | more than 60 claims in one minute from one token |
 
 A refused claim leaves the request open and spends no retry. The bridge tries
 again at the next offer. A bridge from before the account field sends no
@@ -768,7 +772,7 @@ it in `lostClaims`, or when the result answers `claim_lost`.
 
 ### Sending the result
 
-`PUT /api/bridges/{bridgeId}/work-requests/{workRequestId}/result`
+`PUT /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result`
 
 The bridge sends the result after it ends the work. It uses the same token as
 the heartbeat.
@@ -794,13 +798,13 @@ writes a `bridge.work_request_settled` record to the audit log.
 | Status | Body | When |
 |---|---|---|
 | 200 | `{"workRequestId":"…","state":"done"}` | the result is accepted. `state` is the stored state |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope |
-| 404 | `{"error":"work_request_not_found"}` | the request does not exist, or belongs to another account |
-| 404 | | an id is not a uuid, or agent push is switched off on the instance |
-| 409 | `{"error":"claim_lost"}` | this bridge does not hold the claim with this token, or the request already settled with another state |
-| 422 | `{"error":"invalid_state"}`, `{"error":"invalid_claim_token"}`, `{"error":"invalid_reason"}`, `{"error":"invalid_cause"}` or `{"error":"invalid_hand_back"}` | the body is invalid |
-| 429 | | more than 60 results in one minute from one token |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope |
+| 404 | `work_request_not_found` | the request does not exist, or belongs to another account |
+| 404 | `route_not_found` or `http_404` | an id is not a uuid, or agent push is switched off on the instance |
+| 409 | `claim_lost` | this bridge does not hold the claim with this token, or the request already settled with another state |
+| 422 | `invalid_state`, `invalid_claim_token`, `invalid_reason`, `invalid_cause` or `invalid_hand_back` | the body is invalid |
+| 429 | `rate_limited` | more than 60 results in one minute from one token |
 
 ### Giving a request back at a usage limit
 

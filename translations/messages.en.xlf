@@ -5390,6 +5390,14 @@
                 <source>landing.works_with.mcp.text</source>
                 <target>Any MCP client can read and write the board.</target>
             </trans-unit>
+            <trans-unit id="landing.works_with.api.name">
+                <source>landing.works_with.api.name</source>
+                <target>HTTP API (beta)</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.api.text">
+                <source>landing.works_with.api.text</source>
+                <target>Call Loupe from a script or CI job with an API key. The API is in beta and has a public OpenAPI spec.</target>
+            </trans-unit>
             <trans-unit id="landing.works_with.claude_design.name">
                 <source>landing.works_with.claude_design.name</source>
                 <target>Design canvas</target>

@@ -14,10 +14,9 @@ use Symfony\Component\Yaml\Yaml;
  * Keeps the committed specs under openapi/ equal to what the generator builds from
  * the controllers, and keeps every built operation inside the reviewed contract.
  *
- * The contract files under openapi/contract/ hold the whole reviewed API. Until the
- * docs card makes the comparison demand the whole spec, they cover the routes that
- * exist and no more: an operation that is built must be in the contract, and a
- * contract operation that is not built yet is no failure.
+ * The contract files under openapi/contract/ hold the whole reviewed API. Each
+ * operation of a contract must be built, and each built operation must be in its
+ * contract, so the two sets are equal.
  *
  * Rebuild a committed file with `just openapi-dump`.
  */
@@ -49,12 +48,17 @@ final class GeneratedSpecTest extends KernelTestCase
             self::assertNotEmpty($built, 'The public spec holds no operation, so this test would prove nothing.');
         }
 
+        self::assertSame([], array_values(array_diff(array_keys($contract), array_keys($built))), 'These operations are in the reviewed contract and are not built.');
+        self::assertSame([], array_values(array_diff(array_keys($built), array_keys($contract))), 'These operations are built and are not in the reviewed contract.');
+
         foreach ($built as $key => $operation) {
             self::assertArrayHasKey($key, $contract, sprintf('%s is built but the reviewed contract has no such operation.', $key));
             self::assertSame($contract[$key]['operationId'], $operation['operationId'], sprintf('%s has another operationId in the contract.', $key));
 
             $extra = array_diff(array_keys($operation['responses']), array_keys($contract[$key]['responses']));
             self::assertSame([], array_values($extra), sprintf('%s answers statuses that the contract does not list.', $key));
+            $missing = array_diff(array_keys($contract[$key]['responses']), array_keys($operation['responses']));
+            self::assertSame([], array_values($missing), sprintf('%s lacks statuses that the contract lists.', $key));
         }
     }
 
@@ -175,6 +179,29 @@ final class GeneratedSpecTest extends KernelTestCase
         foreach ($this->operations($spec) as $key => $operation) {
             self::assertArrayHasKey('Retry-After', $operation['responses']['429']['headers'] ?? [], $key);
         }
+    }
+
+    /** The reference page promises both on each create, so an operation that lacks one makes the page false. */
+    public function test_every_public_create_declares_a_location_and_an_idempotency_key(): void
+    {
+        $spec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);
+        $checked = 0;
+
+        foreach ($spec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                if (!isset($operation['responses']['201'])) {
+                    continue;
+                }
+
+                $key = strtoupper((string) $method).' '.$path;
+                self::assertArrayHasKey('Location', self::resolved($spec, $operation['responses']['201'])['headers'] ?? [], $key);
+                $parameters = array_map(static fn (array $parameter): array => self::resolved($spec, $parameter), $operation['parameters'] ?? []);
+                self::assertContains('Idempotency-Key', array_column($parameters, 'name'), $key);
+                ++$checked;
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'No create was compared, so this test would prove nothing.');
     }
 
     public function test_every_public_request_schema_has_the_nullable_fields_and_the_required_fields_of_the_contract(): void
