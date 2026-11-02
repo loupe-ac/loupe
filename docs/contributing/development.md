@@ -15,6 +15,48 @@ just exec bin/console app:dev:seed   # dev@loupe.test or admin@loupe.test / pass
 `just up` publishes no host port and needs a reverse proxy — see
 [Reverse proxy](../extending/reverse-proxy.md) before the first command.
 
+## The dev seed
+
+`app:dev:seed` fills a development database with one demo dataset. Each module
+owns its seeders in `Service/Dev/`, and the command runs them in dependency
+order. The dataset holds the dev and admin accounts, two demo accounts, "Dev
+Project", and the data that the Metrics, Dashboard, Experiments, Artifact and
+analysis pages show.
+
+- `.env.dev` holds a dev-only `APP_ENCRYPTION_KEY`, so the seed can write encrypted
+  columns with no setup. A key in `.env.local` wins.
+- A run is safe to repeat. A seeder skips a record that exists, and a later day
+  only adds the missing days of the time series. The seed never deletes a record
+  that has a fixed id. It looks up each record with a fixed id on its own, and
+  restores only the records that a person deleted. A restored card gets a new
+  number, and the seed writes that number to the runs of the card. A restored
+  run links its stored usage row again, so the cost of a card stays the same.
+- A record that a page address names has a fixed id, so a preview link opens
+  the same record on every database. The dev and admin accounts keep the id they
+  have, because an existing database points projects at them.
+- An old "Dev Project" is renamed to `Dev Project (old <8 characters of its id>)`.
+  The new "Dev Project" gets the fixed id.
+- The seed switches on the flags of `DevFeatureFlagSeeder`, which are
+  `inbox.enabled`, `artifacts.enabled` and `billing.enabled`. It tags each flag
+  row `dev-seed`.
+  A flag row with that tag stays as a person left it, so the seed never switches
+  it on again.
+- `--keep-flag-defaults` writes no flag row and leaves the existing flag values
+  unchanged. It seeds every record, the billing data included. The e2e stack
+  uses it, because the specs assume the coded flag defaults.
+- The command prints the time of each seeder. The target for a full seed is 30
+  seconds on a worktree. No test checks it, so a reviewer must read the printed
+  times when a change adds a seeder.
+
+On 2026-11-01 a full seed of an empty, migrated database took 3.7 seconds by the
+wall clock, including the start of the command. The seeders took 3.0 seconds
+together. The run was on an Apple M1 Max with Docker, while other worktrees used
+the same stack. The time on other hardware is unknown.
+
+A feature that shows data on a page adds or extends a `DevSeederInterface`
+implementation in its module. When the page sits behind a flag that defaults to
+off, it also adds the flag to `DevFeatureFlagSeeder`.
+
 ## Day to day
 
 ```sh
