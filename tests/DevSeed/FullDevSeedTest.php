@@ -579,14 +579,19 @@ final class FullDevSeedTest extends KernelTestCase
         self::assertFalse($this->flag('inbox.enabled')?->value, 'A second run switched a flag back on.');
     }
 
-    public function test_keep_flag_defaults_writes_no_flag_row(): void
+    public function test_keep_flag_defaults_writes_no_flag_row_and_seeds_every_other_record(): void
     {
         $before = $this->flagRows();
 
         $this->seed(self::DAY, ['--keep-flag-defaults' => true]);
 
         self::assertSame($before, $this->flagRows());
-        self::assertSame(0, (int) self::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM billing_profiles'));
+        self::assertGreaterThan(0, (int) self::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM billing_profiles'));
+        $counts = $this->rowCounts();
+
+        $this->seed(self::DAY);
+
+        self::assertSame(array_diff_key($counts, ['feature_flag' => 0]), array_diff_key($this->rowCounts(), ['feature_flag' => 0]), 'The option left out a record that the full seed writes.');
         self::assertInstanceOf(Project::class, $this->em()->find(Project::class, DevProjectSeeder::devProjectId()));
     }
 

@@ -24,9 +24,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
  * One billing state per demo account, and a few beta invites, so the billing
  * page, the admin account page and the invite list show records. The seed also
  * switches on `billing.enabled`, and the dev and admin accounts hold a comp with
- * no end, so the paywall never shuts them out when a trial would end. The
- * option --keep-flag-defaults skips the seeder, because the e2e suite starts
- * from the coded flag defaults and sets its own billing state.
+ * no end, so the paywall never shuts them out when a trial would end.
  */
 #[When('dev')]
 #[When('test')]
@@ -57,10 +55,6 @@ final readonly class DevBillingSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
-        if ($context->keepFlagDefaults) {
-            return;
-        }
-
         $now = $context->now;
         $dev = $context->devUser();
         $admin = $context->adminUser();
