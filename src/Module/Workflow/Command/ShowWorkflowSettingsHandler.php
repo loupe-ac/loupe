@@ -82,6 +82,7 @@ final readonly class ShowWorkflowSettingsHandler
                     match ($move->by) {
                         null => 'workflow.settings.moves.by.anyone',
                         ManualMoveActor::ParentRun => 'workflow.settings.moves.by.parent_run',
+                        ManualMoveActor::Session => 'workflow.settings.moves.by.session',
                     },
                 ),
                 $template->manualMoves,

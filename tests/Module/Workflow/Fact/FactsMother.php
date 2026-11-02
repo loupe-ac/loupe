@@ -42,6 +42,7 @@ use App\Module\Board\Workflow\ParentFactProvider;
 use App\Module\Board\Workflow\ParentFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Board\Workflow\PullRequestListFactProvider;
+use App\Module\Board\Workflow\SessionArrivalFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
 use App\Module\Board\Workflow\StuckDelayFacts;
 use App\Module\Board\Workflow\WorkAtHeadFacts;
@@ -129,7 +130,7 @@ final class FactsMother
             ...self::byClass(new DocumentReviewFacts([]), new DocumentReviewConclusionFacts([], [])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, [], $run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, [], $run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
-            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null), new ScheduledRetryFacts([])),
+            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new SessionArrivalFacts(false), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null), new ScheduledRetryFacts([])),
             ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([])),
             ...self::byClass(new RunNeedsPersonFacts(null, null, null, null), new RunAskingFacts(false, null), new AgentReviewOpenFacts([])),
         ];
@@ -141,6 +142,7 @@ final class FactsMother
             CardActivityFacts::class => null,
             DocumentReviewConclusionFacts::class => [],
             ColumnArrivalFacts::class => null,
+            SessionArrivalFacts::class => false,
             ChildActivityFacts::class => [null, false],
             StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
             BlockerHoldFacts::class => null,

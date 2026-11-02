@@ -720,6 +720,7 @@ record holds no claim token.
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
 | 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
 | 409 | `{"error":"project_held"}` | the project holds its new work, because a connected repository has a blocking gap in its last certain check. The reply covers every card request, and a claim that races the start of the hold. Claimed work goes on |
+| 409 | `{"error":"session_open"}` | an interactive session is open on the card of the request, and the request does not open a session. The request stays open, and the bridge claims it after the session closes |
 | 409 | `{"error":"waiting"}` | the request waits for a time that has not passed yet |
 | 409 | `{"error":"account_blocked"}` | the named account is at its hard limit, or at or above its stop value |
 | 422 | `{"error":"account_unknown"}` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |

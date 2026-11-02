@@ -19,6 +19,7 @@ use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\CardMoveGuard;
+use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\WorkflowAutomation;
@@ -225,6 +226,36 @@ final class WorkflowCardMoveGuardTest extends KernelTestCase
         self::assertFalse($this->guard()->allows($child->snapshot(), $this->column($this->project, 'in-progress')->ref(), Actor::Agent, $this->runCause($epic, 'breakdown')));
     }
 
+    public function test_a_session_move_is_allowed_only_for_an_update_that_opens_a_run(): void
+    {
+        $this->bindWithSessionMove($this->project);
+        $card = $this->card('backlog');
+        $to = $this->column($this->project, 'in-progress')->ref();
+
+        self::assertTrue($this->guard()->allows($card->snapshot(), $to, Actor::Agent, null, true));
+        self::assertFalse($this->guard()->allows($card->snapshot(), $to, Actor::Agent, null, false));
+        self::assertFalse($this->guard()->allows($card->snapshot(), $to, Actor::Human, null));
+    }
+
+    public function test_a_session_move_leaves_a_child_and_an_epic_to_their_own_paths(): void
+    {
+        $this->bindWithSessionMove($this->project);
+        $epic = $this->card('backlog', 'epic');
+        $child = $this->card('backlog', parent: $epic);
+        $to = $this->column($this->project, 'in-progress')->ref();
+
+        self::assertFalse($this->guard()->allows($epic->snapshot(), $to, Actor::Agent, null, true));
+        self::assertFalse($this->guard()->allows($child->snapshot(), $to, Actor::Agent, null, true));
+    }
+
+    /** The shipped template names no session move until its own release, so the tests give Lifecycle one. */
+    private function bindWithSessionMove(Project $project): void
+    {
+        $binding = $this->bindLifecycle($project);
+        $binding->definition['manualMoves'][] = ['from' => '@backlog', 'to' => 'implementation', 'by' => 'session'];
+        $this->em()->flush();
+    }
+
     /** The engine keeps the entry for a template that names it, so the tests give Lifecycle one. */
     private function bindWithParentRunMove(Project $project): void
     {
@@ -248,7 +279,10 @@ final class WorkflowCardMoveGuardTest extends KernelTestCase
         $projects = self::getContainer()->get(ProjectRepository::class);
         self::assertInstanceOf(ProjectRepository::class, $projects);
 
-        return new WorkflowCardMoveGuard($automation, $ledger, $templates, $facts, $projects, []);
+        $cardTypes = self::getContainer()->get(CardTypeCatalog::class);
+        self::assertInstanceOf(CardTypeCatalog::class, $cardTypes);
+
+        return new WorkflowCardMoveGuard($automation, $ledger, $templates, $facts, $projects, $cardTypes, []);
     }
 
     private function boardAutomation(): BoardAutomation

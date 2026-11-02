@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Messenger\CollectSessionUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -35,6 +36,7 @@ final readonly class InteractiveRuns
 {
     public function __construct(
         private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
         private WorkerRunSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
@@ -50,6 +52,11 @@ final readonly class InteractiveRuns
         return $this->openUnlessFound(
             $project, WorkSubject::card($cardId), $cardNumber, $sessionId, $name, $bridgeId,
             fn (): ?WorkerRun => $this->workerRuns->findOpenInteractive($project, $cardId, $sessionId),
+            beforeCreate: function () use ($cardId): void {
+                if ($this->workerRuns->anyOpenWorkerRunOfCards([$cardId]) || $this->workRequests->hasClaimedNonInteractiveForCard($cardId)) {
+                    throw new CardHasWorker();
+                }
+            },
         )[0];
     }
 
@@ -88,17 +95,18 @@ final readonly class InteractiveRuns
     /**
      * @param \Closure(): ?WorkerRun           $find          the run that stops the open, read under the project lock
      * @param (\Closure(WorkerRun): bool)|null $recordHarness sets the harness fields, and says whether one changed
+     * @param (\Closure(): void)|null          $beforeCreate  runs under the project lock when no run is found, and throws to refuse the new run
      *
      * @return array{WorkerRun, bool}
      */
-    private function openUnlessFound(Project $project, WorkSubject $subject, ?int $cardNumber, Uuid $sessionId, string $name, ?Uuid $bridgeId, \Closure $find, ?Uuid $workRequestId = null, ?string $ruleId = null, ?\Closure $recordHarness = null): array
+    private function openUnlessFound(Project $project, WorkSubject $subject, ?int $cardNumber, Uuid $sessionId, string $name, ?Uuid $bridgeId, \Closure $find, ?Uuid $workRequestId = null, ?string $ruleId = null, ?\Closure $recordHarness = null, ?\Closure $beforeCreate = null): array
     {
         if ('' === trim($name) || mb_strlen($name) > WorkerRun::MAX_WORK_KIND_LENGTH) {
             throw new \InvalidArgumentException(\sprintf('An interactive run needs a name of 1 to %d characters.', WorkerRun::MAX_WORK_KIND_LENGTH));
         }
 
         /** @var array{WorkerRun, bool, bool} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($project, $subject, $cardNumber, $sessionId, $name, $bridgeId, $find, $workRequestId, $ruleId, $recordHarness): array {
+        $outcome = $this->em->wrapInTransaction(function () use ($project, $subject, $cardNumber, $sessionId, $name, $bridgeId, $find, $workRequestId, $ruleId, $recordHarness, $beforeCreate): array {
             // The project lock serialises two opens of one session, which would
             // otherwise both miss the read and trip the unique index.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
@@ -111,6 +119,10 @@ final readonly class InteractiveRuns
                 }
 
                 return [$found, false, $changed];
+            }
+
+            if (null !== $beforeCreate) {
+                $beforeCreate();
             }
 
             $now = $this->clock->now();

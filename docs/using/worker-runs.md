@@ -483,6 +483,8 @@ reason in its row of the Runs list, and in the drawer under **Closed because**.
    reaches Loupe only through the claude.ai connector sends no session header,
    so only its explicit `card_run_open` and `card_run_close` calls count.
 
+A bridge does not start a worker on a card while an interactive session is open on it. The request stays open, and the bridge claims it after the session closes. A request that opens a session itself is not held back.
+
 A session on a Lifecycle card that ends with no pull request sends the card
 back to Backlog, so no worker starts on work that a session began. A pull
 request link that comes later brings the card back to Implementation.

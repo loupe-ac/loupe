@@ -10,6 +10,7 @@ use App\Module\Board\Command\OpenCardRunCommand;
 use App\Module\Board\Command\OpenCardRunHandler;
 use App\Module\Board\Command\ShowCardCommand;
 use App\Module\Board\Command\ShowCardHandler;
+use App\Module\Bridge\Service\CardHasWorker;
 use App\Module\Workflow\Contract\Actor;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -63,6 +64,8 @@ final readonly class CardRunOpenTool
             ];
         } catch (DomainErrors $e) {
             throw $this->errorMessages->forAgent($e);
+        } catch (CardHasWorker $e) {
+            throw new ToolCallException(CardHasWorker::AGENT_MESSAGE, previous: $e);
         } catch (CardManaged $e) {
             throw new ToolCallException(CardManaged::AGENT_MESSAGE, previous: $e);
         } catch (ToolCallException $e) {
