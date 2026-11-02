@@ -31,14 +31,29 @@ final readonly class BoardColumnCards
         return new \DateTimeImmutable(\sprintf('-%d days', $days));
     }
 
-    /** @return list<Card> */
-    public function shown(BoardColumn $column, \DateTimeImmutable $windowStart): array
+    /**
+     * The cards each column shows. The open columns are read in one query, and
+     * each terminal column on its own.
+     *
+     * @param list<BoardColumn> $columns
+     *
+     * @return array<string, list<Card>> column id => the cards it shows
+     */
+    public function shownByColumn(array $columns, \DateTimeImmutable $windowStart): array
     {
-        if ($column->terminal) {
-            return $this->cards->findCompletedSince($column, $windowStart);
+        $open = array_values(array_filter($columns, static fn (BoardColumn $column): bool => !$column->terminal));
+        $byColumn = array_fill_keys(array_map(static fn (BoardColumn $column): string => (string) $column->id, $open), []);
+        foreach ($this->cards->findForBoard($open) as $card) {
+            $byColumn[(string) $card->column->id][] = $card;
         }
 
-        return $this->cards->findForBoard([$column]);
+        foreach ($columns as $column) {
+            if ($column->terminal) {
+                $byColumn[(string) $column->id] = $this->cards->findCompletedSince($column, $windowStart);
+            }
+        }
+
+        return $byColumn;
     }
 
     /** The id of the column that shows the card, or null when the board does not show it. */
