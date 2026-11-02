@@ -685,3 +685,44 @@ Pick **Other or mixed (no stemming)** for a project whose text has no single lan
 
 `/archive` and `/unarchive` take a document out of the default listing and put
 it back. Nothing is deleted.
+
+## Use documents through the API
+
+A script can read and write documents with the public API. Send an
+[API key](./api-keys.md) in the `Authorization` header. All paths start with
+`/api/v1/projects/{project}`. `{project}` is a project id or a project slug.
+`{document}` is the document id.
+
+| Method | Path | What it does |
+|---|---|---|
+| `GET` | `/documents` | List the documents. |
+| `POST` | `/documents` | Create a document. The answer also holds `reviewUrl`. |
+| `GET` | `/documents/{document}` | Read a document with the Markdown of its current version. |
+| `PATCH` | `/documents/{document}` | Change the title, tags, references, series or archive state. |
+| `POST` | `/documents/{document}/publish` | Send a draft to review. |
+| `GET` | `/documents/{document}/versions` | List the versions. |
+| `POST` | `/documents/{document}/versions` | Submit a revision. |
+| `GET` | `/documents/{document}/versions/{version}` | Read one version with its Markdown. |
+
+A list walks in creation order, oldest first, and `sort=-createdAt` reverses it.
+`limit` takes 1 to 200 and the default is 50. The answer holds `next`, the URL of
+the next page, which is `null` on the last page. A `status`, `tag`, `series` or `q`
+filter narrows the list, and `includeArchived=true` adds archived documents.
+`series` without `sort` reads the documents by their position in the series.
+`q` without `sort` puts the documents with every word in the title first.
+A cursor stays valid for the filters it was made with. A cursor used with other
+filters gets `400` with the code `invalid_cursor`.
+
+A `PATCH` checks every field before it writes one, so a refused field changes nothing. A field you leave out keeps
+its value. A change to the Markdown needs `POST .../versions`. Send `archived: true`
+with `archiveReason` to archive a document, and `archived: false` to restore it.
+
+A document or a version that does not exist in the project answers `404` with the
+code `document_not_found` or `document_version_not_found`. This also holds for a
+document of another project. A refused field answers `422` with an `errors` list.
+Each entry names the `field`, a stable `code` and a `message`. A series position that
+another document holds answers `409` with the code `series_ordinal_taken`.
+
+A `POST` that creates takes an `Idempotency-Key` header. A retry with the same key
+and body repeats the first answer and creates nothing.
+The Markdown of a document or a version is at most 1,048,575 bytes.

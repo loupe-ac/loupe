@@ -1406,6 +1406,10 @@
                 <source>review.revise.error.description_blank</source>
                 <target>Say what changed in this version.</target>
             </trans-unit>
+            <trans-unit id="review.document.error.markdown_too_large">
+                <source>review.document.error.markdown_too_large</source>
+                <target>The Markdown is too large. It must be at most 1 MiB.</target>
+            </trans-unit>
             <trans-unit id="review.dashboard.tags.label">
                 <source>review.dashboard.tags.label</source>
                 <target>Tags</target>
