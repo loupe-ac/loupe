@@ -60,7 +60,7 @@ final class CardGetHistoryToolTest extends KernelTestCase
         self::assertSame(['page' => 1, 'perPage' => ListCardsHandler::DEFAULT_PER_PAGE, 'total' => 2, 'hasMore' => false], array_diff_key($history, ['events' => true]));
         [$moved, $creation] = $history['events'];
         self::assertSame('moved', $moved['kind']);
-        self::assertSame(['kind' => 'agent', 'name' => 'Riley'], $moved['actor']);
+        self::assertSame(['kind' => 'agent', 'name' => 'Riley', 'apiKey' => null], $moved['actor']);
         self::assertSame(['id' => (string) $backlog->id, 'slug' => 'backlog', 'label' => 'Backlog'], $moved['from']);
         self::assertSame(['id' => (string) $next->id, 'slug' => 'next', 'label' => 'Next'], $moved['to']);
         self::assertNull($moved['cause']);
@@ -81,7 +81,7 @@ final class CardGetHistoryToolTest extends KernelTestCase
         $event = ($this->tool)($created['cardId'])['events'][0];
 
         self::assertSame('fix-requested', $event['kind']);
-        self::assertSame(['kind' => 'system', 'name' => null], $event['actor']);
+        self::assertSame(['kind' => 'system', 'name' => null, 'apiKey' => null], $event['actor']);
         self::assertSame('checks failed', $event['reason']);
         self::assertSame(42, $event['pullRequest']);
         self::assertSame([null, null, null, null], [$event['from'], $event['to'], $event['cause'], $event['run']]);

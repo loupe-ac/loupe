@@ -2380,9 +2380,11 @@ nothing.
 
 A person or an agent makes a card unmanaged, and Loupe then holds the card. A
 stop of a run holds nothing. Loupe writes a `board.card_held` event when a
-person selects **Make unmanaged** or an agent calls `card_hold`. It writes a
-`board.card_released` event when a person selects **Manage again** or an agent
-calls `card_release`. The two events have the same payload.
+person selects **Make unmanaged**, an agent calls `card_hold`, or a client calls
+`PUT /api/v1/projects/{project}/cards/{number}/hold`. It writes a
+`board.card_released` event when a person selects **Manage again**, an agent
+calls `card_release`, or a client calls `DELETE` on that path. The two events
+have the same payload.
 
 ```json
 {
@@ -2399,7 +2401,8 @@ calls `card_release`. The two events have the same payload.
 | `subject.type` | always `card` |
 | `subject.id` | the card whose agents the person or the agent paused or let run |
 | `projectId` | the project of the card |
-| `actor` | `human` for a person on the card page, `agent` for an MCP call |
+| `actor` | `human` for a person on the card page, `agent` for an MCP call or a CLI sign-in on the public API, `api-key` for an API key on the public API |
+| `apiKey` | only with the actor `api-key`: the `id` and the `name` of the key |
 
 The bridge keeps the hold, starts no worker on a held card, and starts the
 queued runs of the card on the release. A worker that runs when the hold starts

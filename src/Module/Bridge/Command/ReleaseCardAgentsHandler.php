@@ -9,6 +9,7 @@ use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Outbox\OutboxWriter;
+use App\Security\CurrentApiKeyActor;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -29,6 +30,7 @@ final readonly class ReleaseCardAgentsHandler
         private WorkerRunChangedPublisher $runsChanged,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private CurrentApiKeyActor $currentKey,
     ) {
     }
 
@@ -50,6 +52,7 @@ final readonly class ReleaseCardAgentsHandler
                 'subject' => ['type' => 'card', 'id' => (string) $cardId],
                 'projectId' => (string) $project->id,
                 'actor' => $command->actor,
+                ...$this->currentKey->eventFields($command->actor),
             ]);
             $this->em->flush();
 
