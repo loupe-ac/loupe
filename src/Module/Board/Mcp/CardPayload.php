@@ -90,9 +90,8 @@ final readonly class CardPayload
     /**
      * Many cards in one read, so a board-sized list costs one comment query,
      * one card link query, one children query, one parent query, one pause
-     * query and one query for each map of the pull request states rather
-     * than one of each per card. The values cost one query for each card when
-     * the template declares a key, and none when it declares none.
+     * query, one document link query, one value query and one query for each
+     * map of the pull request states rather than one of each per card.
      *
      * @param list<Card> $cards
      *
@@ -105,6 +104,8 @@ final readonly class CardPayload
         $epics = array_values(array_filter($cards, fn (Card $card): bool => $this->catalog->forProject($card->project->requireId())->get($card->type)->children));
         $childrenByCard = [] === $epics ? [] : $this->cards->findChildrenOfCards($epics);
         $this->cards->loadParentsOf($cards);
+        $this->cards->loadDocumentsOf($cards);
+        $valuesByCard = $this->cardValues->forCards($cards);
         $states = $this->pullRequestStates->forCards($cards);
         $reviews = $this->agentReviews->forCards($cards);
         $pausesByCard = $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards))));
@@ -126,7 +127,7 @@ final readonly class CardPayload
                 StoredCardMarkers::of($card),
                 $artifactsByCard[(string) $card->id] ?? [],
                 $sizes,
-                $this->cardValues->forCard($card),
+                $valuesByCard[(string) $card->id] ?? [],
             ),
             $cards,
         );
