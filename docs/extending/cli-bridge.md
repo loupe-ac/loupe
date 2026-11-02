@@ -1097,8 +1097,9 @@ project setting **Collect the full text of each tool call** turns it on, in the
 analysis settings on the
 [Reports](../using/analytics.md#reports) tab. It is off by default.
 
-A server with no tool call endpoint answers 404 with no error code, and so does
-a server with agent push switched off. The bridge then logs
+A server with no tool call endpoint answers 404 with no error code or with the
+code `route_not_found`. A server with agent push switched off answers 404 with
+the code `http_404`. The bridge then logs
 `tool_calls_unsupported` once. It drops that batch with no retry. The batches
 of later runs still try, so the calls come back when agent push comes back on. Set `collect: false` in `rules.yaml` to send no tool call and no
 timing at all.
@@ -1238,7 +1239,7 @@ on the machine of the bridge.
 |---|---|
 | A token | is managed |
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
-| 404 with no error code, from a server without the route | keeps the git setup of the machine |
+| 404 with no error code or with `route_not_found`, from a server without the route | keeps the git setup of the machine |
 | A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
 | Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, another SSH address of GitHub, or an address that a rule of your git configuration sends to SSH | is managed, and its credentials fail until the cause ends |
 
@@ -2258,9 +2259,10 @@ project the token's user owns:
 ```
 
 The request names the bridge in an `X-Loupe-Bridge` header. The server answers
-`426` with an `error` message when the header is missing or is not a UUID, when
-the user has no bridge with that id, or when the last heartbeat of the bridge
-does not list the `work-requests` capability. The bridge sends a heartbeat
+`426` with Problem JSON. The `code` is `no_bridge_id` when the header is missing
+or is not a UUID, `unknown_bridge` when the user has no bridge with that id, and
+`no_work_requests` when the last heartbeat of the bridge does not list the
+`work-requests` capability. The `detail` holds the message. The bridge sends a heartbeat
 before its first call, and it stops on a `426`. The replay route below applies
 the same check. Only the types `bridge.work_request`, `bridge.command`,
 `board.card_held`, `board.card_released` and `project.renamed` reach the hub
@@ -2306,7 +2308,7 @@ call. Each event names its project in `projectId`.
 Events reach the project owner's topic only. A person who is not the owner
 receives no event there.
 
-This endpoint replaced `GET /api/v1/bridge/projects/{handle}/stream`. A CLI binary built
+This endpoint replaced `GET /api/projects/{handle}/stream`. A CLI binary built
 before the change calls the old route, gets `404`, and must be rebuilt.
 
 ### Replay
@@ -2325,7 +2327,7 @@ every event, so it does not depend on the history of the hub.
 }
 ```
 
-1. `after` is a required integer, `0` or higher. A missing, non-integer or negative value answers `400`.
+1. `after` is a required integer, `0` or higher. A missing, non-integer or negative value answers `400` with the code `invalid_query`.
 2. `id` is a string, the same text that the hub sends as the SSE id. It holds the outbox sequence, so parse it as a 64-bit integer.
 3. `data` is the stored payload string, byte for byte what the hub sends.
 4. The list holds the events of the projects that the user owns, in sequence order.
@@ -2667,13 +2669,27 @@ but the list keeps it. `default` and `backlog` are
 both true on that row alone. A seeded label is translated, and a label a person
 typed comes back as typed. `project.slug` is the project's slug.
 
-| Status | Body | When |
+A refusal answers `application/problem+json`. The `code` names the cause, and the
+tables of this section and of the next two list each code. A git token refusal
+from GitHub adds `missing`.
+
+```json
+{
+  "type": "https://loupe.ac/docs/reference/api/errors#project_not_found",
+  "title": "Project not found",
+  "status": 404,
+  "code": "project_not_found",
+  "detail": "No project answers this request."
+}
+```
+
+| Status | `code` | When |
 |---|---|---|
-| 200 | the object above | the user owns the project |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 429 | | more than 60 reads in one minute from one token |
+| 200 | | the user owns the project, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 429 | `rate_limited` | more than 60 reads in one minute from one token |
 
 ## Card endpoint
 
@@ -2693,18 +2709,18 @@ columns endpoint, and `cardId` is the card's uuid.
 | `column` | the slug of the card's column |
 | `held` | `true` when a person paused the agents on the card. A move of the card to another column by a person releases the hold. An older bridge ignores the key |
 
-| Status | Body | When |
+| Status | `code` | When |
 |---|---|---|
-| 200 | the object above | the user owns the project and the project holds the card |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | `{"error":"card_not_found"}` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
-| 429 | | more than 60 reads in one minute from one token, counted together with the columns endpoint |
+| 200 | | the user owns the project and the project holds the card, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `card_not_found` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
+| 429 | `rate_limited` | more than 60 reads in one minute from one token, counted together with the columns endpoint |
 
 ## Git token endpoint
 
-`POST /api/v1/projects/{handle}/git-token` returns a GitHub App token for one
+`POST /api/v1/bridge/projects/{handle}/git-token` returns a GitHub App token for one
 repository of one project. The token opens that repository and no other, with
 Contents and Pull requests write access, and Workflows write access when the
 installation grants it. GitHub ends it after one hour. The handle follows the
@@ -2726,20 +2742,20 @@ link several repositories, so each worker asks for the one it pushes to.
 A project holds the setting "Loupe manages the git identity of agents". It is on
 for every project. With the setting off, the endpoint hands out no token.
 
-| Status | Body | When |
+| Status | `code` | When |
 |---|---|---|
-| 201 | the object above | the user owns the project, the setting is on, and the installation grants the access |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
-| 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
-| 422 | | the body names no repository, or a value that is not `owner/name` |
-| 409 | `{"error":"app_not_configured","missing":[]}` | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
-| 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
-| 429 | | more than 60 requests in one minute from one token |
-| 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
+| 201 | | the user owns the project, the setting is on, and the installation grants the access, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 403 | `git_identity_not_managed` | the setting is off for the project |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 409 | `no_installation`, with `missing` empty | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
+| 409 | `no_repository`, with `missing` empty | the project has installed repositories, and the named one is not among them |
+| 422 | `validation_failed` | the body names no repository, or a value that is not `owner/name` |
+| 409 | `app_not_configured`, with `missing` empty | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
+| 409 | `missing_grant`, with `missing` such as `["contents"]` | the installation lacks write access to the permissions that `missing` names |
+| 429 | `rate_limited` | more than 60 requests in one minute from one token |
+| 502 | `github_unavailable`, with `missing` empty | GitHub did not answer |
 
 The Connect page of the project shows the same cause under "Agents of this
 project cannot push", so the owner can install the App, grant the permission, or
