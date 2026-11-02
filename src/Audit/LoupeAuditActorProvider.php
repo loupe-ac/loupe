@@ -81,6 +81,7 @@ final readonly class LoupeAuditActorProvider implements AuditActorProviderInterf
             $credential->hasRole(ApiScope::SiteReview->role()) => AuditChannel::Widget,
             $credential->hasRole(ApiScope::Mcp->role()) => AuditChannel::Mcp,
             $credential->hasRole(ApiScope::Agent->role()) => AuditChannel::Agent,
+            $credential->hasRole(ApiScope::Public->role()) => AuditChannel::Api,
             default => AuditChannel::Session,
         };
     }

@@ -9,10 +9,12 @@ enum ApiScope: string
     case Mcp = 'mcp';
     case SiteReview = 'site-review';
     case Agent = 'agent';
+    case Public = 'public';
 
     public function role(): string
     {
         return match ($this) {
+            self::Public => 'ROLE_API_PUBLIC',
             self::Mcp => 'ROLE_API_MCP',
             self::SiteReview => 'ROLE_API_SITE_REVIEW',
             self::Agent => 'ROLE_API_AGENT',

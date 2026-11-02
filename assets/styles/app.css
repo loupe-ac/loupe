@@ -4110,6 +4110,15 @@
     .lp-data-table--history .lp-data-table__row {
         @apply min-h-18 py-4.5;
     }
+    /* Name, Key, Expires, Last used, Actions. */
+    .lp-data-table--api-keys {
+        --lp-data-table-columns: minmax(0, 1.3fr) minmax(0, 1fr)
+            minmax(0, 1.1fr) minmax(0, 1fr) calc(var(--spacing) * 24);
+    }
+    /* The new key wraps, so that the whole key shows before the dialog closes. */
+    [data-api-key-once] .lp-code-dark__body {
+        @apply whitespace-pre-wrap break-all;
+    }
     /* Metric, Key, Type, What it reads. */
     .lp-data-table--metrics {
         --lp-data-table-columns: minmax(0, 2.4fr) minmax(0, 1.1fr)

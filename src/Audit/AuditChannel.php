@@ -15,6 +15,7 @@ enum AuditChannel: string
     case Mcp = 'mcp';
     case Agent = 'agent';
     case Widget = 'widget';
+    case Api = 'api';
     case Webhook = 'webhook';
     case Console = 'console';
     case Cron = 'cron';
