@@ -219,6 +219,57 @@ final class CardApiTest extends WebTestCase
         self::assertSame([1, 2, 3, 4, 5], $this->walk($this->base().'?limit=2&sort=createdAt'));
     }
 
+    public function test_a_numeric_search_stays_inside_the_project(): void
+    {
+        $this->addCardsToAnotherProject();
+        $this->createCard('Own card');
+        $this->createCard('Release 7 notes');
+
+        self::assertSame(['Release 7 notes'], $this->titles($this->base().'?q=7'));
+    }
+
+    /** Only a row with the same sort value as the cursor row reaches the tie-break, so every card shares one time. */
+    public function test_an_update_time_walk_stays_inside_the_project(): void
+    {
+        $this->addCardsToAnotherProject();
+        $this->createCard('First');
+        $this->createCard('Second');
+        $this->createCard('Third');
+        $this->em->getConnection()->executeStatement('UPDATE board_cards SET updated_at = ?', ['2026-11-02 08:00:00']);
+
+        self::assertSame([3, 2, 1], $this->walk($this->base().'?limit=1&sort=-updatedAt'));
+        self::assertSame([1, 2, 3], $this->walk($this->base().'?limit=1&sort=updatedAt'));
+    }
+
+    /** Only a row with the same time as the cursor row reaches the tie-break, so every event shares one time. */
+    public function test_a_history_walk_stays_inside_the_card(): void
+    {
+        $this->createCard('Walked');
+        $this->createCard('Next door');
+        foreach ([['1', 'done'], ['2', 'done'], ['1', 'backlog'], ['2', 'backlog']] as [$number, $status]) {
+            $this->send(Request::METHOD_PATCH, $this->base().'/'.$number, json_encode(['status' => $status], \JSON_THROW_ON_ERROR));
+            self::assertResponseStatusCodeSame(200);
+        }
+        $this->em->getConnection()->executeStatement('UPDATE board_card_events SET occurred_at = ?', ['2026-11-02 08:00:00.000000']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1/events?limit=200');
+        self::assertResponseStatusCodeSame(200);
+        $whole = $this->json()['items'];
+        self::assertGreaterThanOrEqual(3, count($whole));
+
+        $walked = [];
+        $url = $this->base().'/1/events?limit=1';
+        for ($guard = 0; null !== $url && $guard < 20; ++$guard) {
+            $this->send(Request::METHOD_GET, $url);
+            self::assertResponseStatusCodeSame(200);
+            $page = $this->json();
+            array_push($walked, ...$page['items']);
+            $url = $page['next'];
+        }
+
+        self::assertSame($whole, $walked);
+    }
+
     public function test_a_page_may_hold_two_hundred_rows_and_no_more(): void
     {
         $this->send(Request::METHOD_GET, $this->base().'?limit=200');
@@ -423,6 +474,19 @@ final class CardApiTest extends WebTestCase
     private function base(): string
     {
         return '/api/v1/projects/'.$this->project->id.'/cards';
+    }
+
+    /** Cards of the same owner that a list of the project under test must never show. */
+    private function addCardsToAnotherProject(): void
+    {
+        $other = new Project($this->owner, 'cards-other-shop');
+        $this->em->persist($other);
+        $this->seedColumns($other);
+        $column = $this->column($other, 'backlog');
+        foreach ([[7, 'Number match'], [901, 'Title 7'], [902, 'Other title']] as [$number, $title]) {
+            $this->em->persist(new Card($other, $column, $title, 'Body 7', $number, 'feature'));
+        }
+        $this->em->flush();
     }
 
     /**
