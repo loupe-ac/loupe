@@ -1184,7 +1184,7 @@ test('Mark resolved in the row menu resolves the note', async ({ page }) => {
     const [resolved] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                /\/api\/live-review\/comments\/[^/]+\/resolve$/.test(
+                /\/api\/v1\/live-review-widget\/comments\/[^/]+\/resolve$/.test(
                     response.url(),
                 ) && response.request().method() === 'POST',
         ),

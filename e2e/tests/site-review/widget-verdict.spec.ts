@@ -98,18 +98,22 @@ const openLockedPage = async (
             context: { label: '#7 Preview card', url: null },
         }),
     );
-    await page.route(/\/api\/board\/cards\/[^/]+\/verdict$/, (route) =>
-        json(route, verdict()),
+    await page.route(
+        /\/api\/v1\/live-review-widget\/cards\/[^/]+\/verdict$/,
+        (route) => json(route, verdict()),
     );
-    await page.route(/\/api\/board\/cards\/[^/]+\/verdicts$/, (route) => {
-        posted.push(route.request().postDataJSON());
+    await page.route(
+        /\/api\/v1\/live-review-widget\/cards\/[^/]+\/verdicts$/,
+        (route) => {
+            posted.push(route.request().postDataJSON());
 
-        return json(
-            route,
-            { verdictId: 'v1', kind: 'approve', noteCount: 0 },
-            201,
-        );
-    });
+            return json(
+                route,
+                { verdictId: 'v1', kind: 'approve', noteCount: 0 },
+                201,
+            );
+        },
+    );
     await page.route('**/dev/live-review-harness*', async (route) => {
         const response = await route.fetch();
         const body = (await response.text()).replace(
