@@ -64,6 +64,11 @@ final readonly class CardApiProblems
         if ($refusal instanceof EpicChildrenOpen) {
             return new ApiProblemException(new ApiProblem(409, 'epic_children_open', 'Open child cards', \sprintf('This epic has open child cards %s. Move each of them to a terminal column first.', $refusal->cardList()), ['cards' => $refusal->numbers]), $refusal);
         }
+        if ($refusal instanceof ChildDesignRefused && null !== $refusal->fieldCode) {
+            $problem = ApiProblemException::validationFailed([['field' => 'childDesign', 'code' => $refusal->fieldCode, 'message' => preg_replace('/^childDesign: /', '', $refusal->getMessage()) ?? $refusal->getMessage()]]);
+
+            return new ApiProblemException($problem->problem, $refusal);
+        }
         if ($refusal instanceof ChildDesignRefused) {
             return new ApiProblemException(new ApiProblem(409, 'child_design_refused', 'Child design refused', $refusal->getMessage()), $refusal);
         }
