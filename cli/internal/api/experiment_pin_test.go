@@ -85,6 +85,8 @@ func TestResolveExperimentPinNamesEachFailure(t *testing.T) {
 	}{
 		"coded 422":         {http.StatusUnprocessableEntity, `{"code":"invalid_variants"}`, false},
 		"bare 404":          {http.StatusNotFound, ``, true},
+		"unknown route":     {http.StatusNotFound, `{"code":"route_not_found"}`, true},
+		"flag off":          {http.StatusNotFound, `{"code":"http_404"}`, true},
 		"unknown project":   {http.StatusNotFound, `{"code":"project_not_found"}`, false},
 		"rate limit":        {http.StatusTooManyRequests, ``, false},
 		"server error":      {http.StatusInternalServerError, ``, false},

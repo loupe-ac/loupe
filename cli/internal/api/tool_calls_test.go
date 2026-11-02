@@ -83,6 +83,8 @@ func TestReportToolCallsReadsEachAnswer(t *testing.T) {
 		{status: http.StatusNoContent, ok: true},
 		{status: http.StatusNotFound, answer: ``, unsupported: true},
 		{status: http.StatusNotFound, answer: `<html>not found</html>`, unsupported: true},
+		{status: http.StatusNotFound, answer: `{"code":"route_not_found"}`, unsupported: true},
+		{status: http.StatusNotFound, answer: `{"code":"http_404"}`, unsupported: true},
 		{status: http.StatusNotFound, answer: `{"code":"run_not_found"}`, refused: true},
 		{status: http.StatusNotFound, answer: `{"code":"project_not_found"}`, refused: true},
 		{status: http.StatusUnprocessableEntity, answer: `{"code":"x"}`, refused: true},

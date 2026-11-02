@@ -443,10 +443,11 @@ var ErrProjectAmbiguous = errors.New("project handle is ambiguous")
 // is the answer of a server that predates the endpoint.
 var ErrEndpointMissing = errors.New("the server has no columns endpoint")
 
-// routeMissing reports whether a 404 body names no cause, or names the code of
-// an unknown route. Both mean the server has no such endpoint.
+// routeMissing reports whether a 404 body names no cause, names the code of an
+// unknown route, or names the code of a route behind a flag that is off. Each one
+// means that the server does not serve the endpoint now.
 func routeMissing(code string) bool {
-	return code == "" || code == "route_not_found"
+	return code == "" || code == "route_not_found" || code == "http_404"
 }
 
 // notFound reads which 404 the server meant from its JSON error code.

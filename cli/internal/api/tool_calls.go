@@ -77,7 +77,7 @@ func (c ToolCall) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// ErrToolCallsUnsupported marks a 404 with no error code, which is the answer
+// ErrToolCallsUnsupported marks a 404 that routeMissing accepts, which is the answer
 // of a server older than the tool call endpoint, or with agent push switched
 // off. No retry changes it.
 var ErrToolCallsUnsupported = errors.New("the server has no tool call endpoint, or agent push is switched off")
@@ -117,13 +117,13 @@ func (c *Client) ReportToolCalls(ctx context.Context, handle, runID string, batc
 	return reportFailure("tool call report", status, detail)
 }
 
-// namesACause reports whether a 404 body is JSON with an error code.
+// namesACause reports whether a 404 body names a cause that routeMissing does not accept.
 func namesACause(detail []byte) bool {
 	var payload struct {
 		Code string `json:"code"`
 	}
 
-	return json.NewDecoder(bytes.NewReader(detail)).Decode(&payload) == nil && payload.Code != "" && payload.Code != "route_not_found"
+	return json.NewDecoder(bytes.NewReader(detail)).Decode(&payload) == nil && !routeMissing(payload.Code)
 }
 
 // cutBytes keeps at most limit bytes of s, and never splits a rune.
