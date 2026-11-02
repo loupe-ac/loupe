@@ -58,7 +58,8 @@ func newProjectLinkCmd() *cobra.Command {
 			"It also writes " + profile.Path + " when the repository has none, also when " +
 			projectfile.Name + " exists already. The stage skills " +
 			"read that profile, and stop without it. The starter guesses the gate commands from " +
-			"the files it finds, and marks each guess \"" + profile.Marker + "\". Commit the file " +
+			"the files it finds, marks each guess \"" + profile.Marker + "\", and marks each value it " +
+			"cannot know \"" + profile.OpenQuestion + "\". Commit the file " +
 			"after you read it. A profile that exists is never replaced.\n\n" +
 			"It then checks how Claude Code starts the `" + mcpjson.ServerKey + "` MCP server, and " +
 			"offers to declare `loupe mcp` for every project when nothing does. One declaration " +

@@ -47,14 +47,14 @@ nothing that is done already.
 the file, so everyone in the repository reaches the same project.
 
 It also writes `.loupe/lifecycle.md`, the repository profile that every stage
-skill reads, also when `.loupe.yaml` exists already. The file holds the gate
-commands, the pull request rules, the column names and the epic branch rules.
-It guesses the gate commands from a `justfile`, a `Makefile`,
-`package.json`, `composer.json` or `go.mod`, and marks each guess "detected,
-check it". It lists only checks with a common name, such as `lint` or `test`, so
-add each other check that CI runs. Read the file, correct the guesses, and
-commit it, because a worker sees only what you push. A profile that exists is
-never replaced.
+skill reads, also when `.loupe.yaml` exists already. The file holds the values that a stage reads. It
+guesses the gate commands from a `justfile`, a `Makefile`, `package.json`,
+`composer.json` or `go.mod`, and marks each guess "detected, check it". It lists
+only checks with a common name, such as `lint` or `test`, so add each other check
+that CI runs. A value that Loupe cannot know, such as the merge method, reads
+"owner to fill in". A stage that needs such a value stops blocked until you write
+it. Read the file, correct the guesses, and commit it, because a worker sees only
+what you push. A profile that exists is never replaced.
 
 When Claude Code does not start the `loupe` MCP server yet, `loupe project link`
 offers to declare it for every repository. `--mcp` accepts the offer with no
@@ -112,6 +112,30 @@ suggest a replacement for the passage.
 When you finish, select **Finish review**. Approve the version, or request
 changes with a note. When you request changes, ask the agent to read the
 review. It calls `document_get_review` and sends a new version. [Documents and review](../using/documents.md) describes the review page.
+
+## 6. Act on the conflict findings
+
+[Run discovery](../using/workshop.md#run-discovery) before agents work the cards
+of this project. It compares the way the repository already works with what the
+workflow needs, and it changes nothing. You get a readiness report.
+
+Each finding that starts `Conflict check:` has one of these results:
+
+- Ready means that the repository fits. The evidence says what the worker read.
+- Could not be read means that the worker has no permission, or no way to read
+  the setting. The worker did not guess it, so check the setting yourself. The
+  Repositories tab of [Project settings](../using/projects.md#the-list) shows what
+  Loupe read with the permissions of the GitHub App.
+- A suggestion that names options means a conflict. Choose one of the options:
+  change the repository, change `.loupe/lifecycle.md`, or change the workflow
+  template.
+
+Also write each value of `.loupe/lifecycle.md` that reads "owner to fill in".
+
+A change that only you can make, such as a branch rule, has no proposed card. Make
+it on the forge. Each other change is a proposed card. Tick the proposals that you
+want, and approve the report. Loupe then creates one card in Next for each ticked
+proposal.
 
 ## Next
 

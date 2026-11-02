@@ -194,3 +194,56 @@ func TestTheEpicBranchPatternIsMarked(t *testing.T) {
 		t.Fatalf("epic branch pattern is missing or unmarked:\n%s", text)
 	}
 }
+
+func TestNoPolicyIsStatedAsFact(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	for _, policy := range []string{"squash", "<type>", "--admin", "--no-verify", "pre-dates", "largest change"} {
+		if strings.Contains(text, policy) {
+			t.Errorf("the starter states %q:\n%s", policy, text)
+		}
+	}
+}
+
+func TestEveryPolicyOfTheMergeIsAnOpenQuestion(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	for _, want := range []string{
+		"The merge method: " + OpenQuestion,
+		"The merge method of an epic child: " + OpenQuestion,
+		"Required checks: " + OpenQuestion,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestEveryItemIsMarkedOrPointsAtASection(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	for _, line := range strings.Split(text, "\n") {
+		if "" == line || line[0] < '0' || line[0] > '9' {
+			continue
+		}
+		if !strings.Contains(line, Marker) && !strings.Contains(line, OpenQuestion) && line != "4. An epic child merges as the `Epics` section says." {
+			t.Errorf("unmarked item: %s", line)
+		}
+	}
+}
+
+func TestTheBoardNamesEverySlugThatAStageReads(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	for _, want := range []string{"`in-review`", "`product-design`", "`tech-design`", "`implementation`", "`backlog`", "`done`"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+}
+
+func TestRepairAllowsAResetOnlyWithAResetCommand(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	if !strings.Contains(text, "only when the `repair` work entry of the rule file sets `reset`") {
+		t.Fatalf("the reset is not conditional:\n%s", text)
+	}
+	if !strings.Contains(text, "\"Sync the epic branch\"") {
+		t.Fatalf("the epic sync is missing:\n%s", text)
+	}
+}

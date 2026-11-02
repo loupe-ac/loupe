@@ -421,8 +421,12 @@ that change from one setup to the next.
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.
    `loupe init` writes a starter profile when the repository has none, from
-   `cli/internal/profile`. It marks each guessed value "detected, check it", and
-   the discovery run proposes a card for each marked value that is wrong.
+   `cli/internal/profile`. The starter holds only what a stage reads. It marks
+   each guessed value "detected, check it", and marks each value that it cannot
+   know "owner to fill in". The discovery run proposes a card for each marked value
+   that is wrong, and asks the owner for each open value. Its conflict check also
+   compares a hand-written profile and the rest of the repository with the checks
+   of `workflow_get`.
 2. A harness adapter maps the steps of a worker to the tools of one agent
    harness: connect to Loupe, load an instruction, run a long command,
    dispatch a sub-agent, and write and run the build notes. The generic adapter is
