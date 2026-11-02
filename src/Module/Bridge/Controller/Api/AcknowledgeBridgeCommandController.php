@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\AcknowledgeBridgeCommandCommand;
@@ -56,15 +57,15 @@ final class AcknowledgeBridgeCommandController extends AppController
 
         $state = $payload?->state();
         if (null === $state) {
-            return $this->json(['error' => 'invalid_state'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_state', 'The state is not one this route takes.');
         }
 
         if (!$payload->hasTextReason()) {
-            return $this->json(['error' => 'invalid_reason'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_reason', 'The reason is not valid.');
         }
 
         if ($payload->reasonTooLong()) {
-            return $this->json(['error' => 'reason_too_long'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'reason_too_long', 'The reason is too long.');
         }
 
         $result = ($this->acknowledgeBridgeCommand)(new AcknowledgeBridgeCommandCommand(
@@ -76,7 +77,7 @@ final class AcknowledgeBridgeCommandController extends AppController
         ));
 
         if (null === $result->command) {
-            return $this->json(['error' => 'command_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'command_not_found', 'No command answers this request.');
         }
 
         return $this->json(['commandId' => (string) $result->command->id, 'state' => $result->command->state->value]);

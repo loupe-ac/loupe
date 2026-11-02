@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -53,7 +54,7 @@ final class RevokePreviewTokenController extends AppController
         try {
             $revoked = ($this->revokePreviewTokens)(new RevokePreviewTokensCommand(owner: $user, handle: $handle, label: $label));
         } catch (DomainErrors) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this request.');
         }
 
         return $this->json(['revoked' => $revoked]);

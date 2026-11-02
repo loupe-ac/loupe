@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\CloseInteractiveSessionCommand;
@@ -44,7 +45,7 @@ final class CloseInteractiveSessionController extends AppController
         }
 
         if (!Uuid::isValid($sessionId)) {
-            return $this->json(['error' => 'invalid_session_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_session_id', 'The session id is not a valid id.');
         }
 
         $closed = ($this->closeInteractiveSession)(new CloseInteractiveSessionCommand($user, Uuid::fromString($sessionId)));

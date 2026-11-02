@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\AddFeedbackCommand;
@@ -42,11 +43,11 @@ final class AddFeedbackController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         if ([] !== $payload->strokes && !$this->featureFlags->isEnabled(SiteReviewDrawing::FLAG, SiteReviewDrawing::DEFAULT)) {
-            return $this->json(['error' => 'drawing_disabled'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'drawing_disabled', 'Drawing is switched off for this project.');
         }
 
         $body = trim($payload->body ?? '');
@@ -61,7 +62,7 @@ final class AddFeedbackController extends AppController
         // it can never be drawn again.
         $anchorSpace = array_filter($strokes, static fn (NewStroke $stroke): bool => 'anchor' === $stroke->space);
         if ([] === $anchors && [] !== $anchorSpace) {
-            return $this->json(['error' => 'anchor_stroke_without_anchor'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'anchor_stroke_without_anchor', 'A stroke needs an anchor.');
         }
 
         try {
@@ -84,11 +85,10 @@ final class AddFeedbackController extends AppController
 
             // A sub-handler refusal, such as a card write losing a race, carries
             // a translation key the widget cannot name, so it gets a stable one.
-            return match ($field) {
-                'target' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
-                'screenshot' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
-                'deliveryId' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_CONFLICT),
-                default => $this->json(['error' => 'feedback_refused'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
+            throw match ($field) {
+                'target', 'screenshot' => ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, $error->errors[$field], 'The feedback was refused.'),
+                'deliveryId' => ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, $error->errors[$field], 'The feedback was refused.'),
+                default => ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'feedback_refused', 'The feedback was refused.'),
             };
         }
 

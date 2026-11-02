@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ReportSessionUsageCommand;
@@ -51,11 +52,11 @@ final class ReportSessionUsageController extends AppController
         }
 
         if (!Uuid::isValid($sessionId)) {
-            return $this->json(['error' => 'invalid_session_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_session_id', 'The session id is not a valid id.');
         }
 
         if (null !== $payload->runId && !Uuid::isValid($payload->runId)) {
-            return $this->json(['error' => 'invalid_run_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_run_id', 'The run id is not a valid id.');
         }
 
         $result = ($this->reportSessionUsage)(new ReportSessionUsageCommand(
@@ -67,15 +68,15 @@ final class ReportSessionUsageController extends AppController
         ));
 
         if (null === $result->runs) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this request.');
         }
 
         if ($result->runs !== $result->processes) {
-            return $this->json(['error' => 'process_count_mismatch'], JsonResponse::HTTP_CONFLICT);
+            throw ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'process_count_mismatch', 'The process count does not match the run.');
         }
 
         if ($result->ambiguousOrder) {
-            return $this->json(['error' => 'ambiguous_start_order'], JsonResponse::HTTP_CONFLICT);
+            throw ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'ambiguous_start_order', 'The start order of the processes is ambiguous.');
         }
 
         return $this->json(['runs' => $result->runs, 'updated' => $result->updated]);

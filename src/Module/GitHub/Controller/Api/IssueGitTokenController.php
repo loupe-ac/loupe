@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\GitHub\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -61,14 +62,9 @@ final class IssueGitTokenController extends AppController
                 $payload->repository ?? throw new \LogicException('repository required after validation'),
             ));
         } catch (DomainErrors $e) {
-            return isset($e->errors['handle'])
-                ? $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND)
-                : $this->json(['error' => 'git_identity_not_managed'], JsonResponse::HTTP_FORBIDDEN);
+            throw isset($e->errors['handle']) ? ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this handle.') : ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'git_identity_not_managed', 'This project does not manage its git identity.');
         } catch (GitHubGitTokenRefused $refused) {
-            return $this->json(
-                ['error' => $refused->cause, 'missing' => $refused->missingGrants],
-                GitHubGitTokenRefused::GITHUB_UNAVAILABLE === $refused->cause ? JsonResponse::HTTP_BAD_GATEWAY : JsonResponse::HTTP_CONFLICT,
-            );
+            throw ApiProblemException::refused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE === $refused->cause ? JsonResponse::HTTP_BAD_GATEWAY : JsonResponse::HTTP_CONFLICT, $refused->cause, 'GitHub did not issue a git token.', ['missing' => $refused->missingGrants]);
         }
 
         return $this->json([

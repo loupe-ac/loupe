@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Board\Command\SearchCardsCommand;
 use App\Module\Board\Command\SearchCardsHandler;
@@ -43,7 +44,7 @@ final class ListCardsController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $known = $this->catalog->forProject($project->requireId());

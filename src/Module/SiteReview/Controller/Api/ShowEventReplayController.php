@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\Problem\ApiProblem;
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Service\BridgeUpgradeRequired;
@@ -64,7 +66,7 @@ final class ShowEventReplayController extends AppController
         try {
             $view = ($this->showEventReplay)(new ShowEventReplayCommand($user, $request->headers->get(EventStreamGate::HEADER), $after));
         } catch (BridgeUpgradeRequired $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UPGRADE_REQUIRED);
+            throw new ApiProblemException(new ApiProblem(Response::HTTP_UPGRADE_REQUIRED, $e->reason, 'Upgrade required', $e->getMessage(), legacyError: $e->getMessage()));
         }
 
         return new JsonResponse([

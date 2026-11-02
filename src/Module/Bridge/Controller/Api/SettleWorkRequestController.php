@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\SettleWorkRequestCommand;
@@ -63,27 +64,27 @@ final class SettleWorkRequestController extends AppController
 
         $state = $payload?->state();
         if (null === $state) {
-            return $this->json(['error' => 'invalid_state'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_state', 'The state is not one this route takes.');
         }
 
         $claimToken = $payload->claimToken();
         if (null === $claimToken) {
-            return $this->json(['error' => 'invalid_claim_token'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_claim_token', 'The claim token is not valid.');
         }
 
         if (!$payload->hasValidReason()) {
-            return $this->json(['error' => 'invalid_reason'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_reason', 'The reason is not valid.');
         }
 
         $handBack = null;
         if (WorkRequestState::Open === $state) {
             if (!$payload->hasValidCause()) {
-                return $this->json(['error' => 'invalid_cause'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+                throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_cause', 'The cause is not one this route takes.');
             }
 
             $handBack = $payload->handBack();
             if (null === $handBack) {
-                return $this->json(['error' => 'invalid_hand_back'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+                throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_hand_back', 'The hand back is not valid.');
             }
         }
 
@@ -101,7 +102,7 @@ final class SettleWorkRequestController extends AppController
         if (null === $request) {
             $refusal = $result->refusal ?? throw new \LogicException('A result with no request carries a refusal.');
 
-            return $this->json(['error' => $refusal->code()], $refusal->httpStatus());
+            throw ApiProblemException::refused($refusal->httpStatus(), $refusal->code(), 'The work request cannot be settled.');
         }
 
         return $this->json(['workRequestId' => (string) $request->id, 'state' => $request->state->value]);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Security;
 
-use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Api\Problem\ApiProblem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -22,6 +22,11 @@ final class ApiAccessDeniedHandler implements AccessDeniedHandlerInterface
     #[\Override]
     public function handle(Request $request, AccessDeniedException $accessDeniedException): Response
     {
-        return new JsonResponse(['error' => 'insufficient_scope'], Response::HTTP_FORBIDDEN);
+        return new ApiProblem(
+            Response::HTTP_FORBIDDEN,
+            'credential_not_allowed',
+            'Credential not allowed',
+            'This credential may not use this route.',
+        )->toResponse($request->getPathInfo());
     }
 }

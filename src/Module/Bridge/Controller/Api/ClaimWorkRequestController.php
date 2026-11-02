@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ClaimWorkRequestCommand;
@@ -72,7 +73,7 @@ final class ClaimWorkRequestController extends AppController
         if (null === $request) {
             $refusal = $result->refusal ?? throw new \LogicException('A claim with no request carries a refusal.');
 
-            return $this->json(['error' => $refusal->code()], $refusal->httpStatus());
+            throw ApiProblemException::refused($refusal->httpStatus(), $refusal->code(), 'The work request cannot be claimed.');
         }
 
         return $this->json([

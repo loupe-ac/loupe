@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ReportToolCallsCommand;
@@ -51,7 +52,7 @@ final class ReportToolCallsController extends AppController
         }
 
         if (!Uuid::isValid($runId)) {
-            return $this->json(['error' => 'invalid_run_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_run_id', 'The run id is not a valid id.');
         }
 
         $result = ($this->reportToolCalls)(new ReportToolCallsCommand(
@@ -63,11 +64,11 @@ final class ReportToolCallsController extends AppController
         ));
 
         if (!$result->projectFound) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this request.');
         }
 
         if (!$result->runFound) {
-            return $this->json(['error' => 'run_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'run_not_found', 'No run answers this request.');
         }
 
         return $this->json(['stored' => $result->stored]);

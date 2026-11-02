@@ -69,6 +69,16 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
             ], content: '{}');
 
             self::assertResponseStatusCodeSame(404, $name.' let a bound credential reach another project.');
+            if (str_starts_with($uri, '/api/v1/')) {
+                self::assertSame('application/problem+json', $this->client->getResponse()->headers->get('Content-Type'), $name);
+                $problem = json_decode((string) $this->client->getResponse()->getContent(), true);
+                self::assertIsArray($problem, $name);
+                self::assertSame('project_not_found', $problem['code'] ?? null, $name);
+                self::assertSame(404, $problem['status'] ?? null, $name);
+
+                continue;
+            }
+
             self::assertSame('{"error":"project_not_found"}', $this->client->getResponse()->getContent(), $name);
         }
 

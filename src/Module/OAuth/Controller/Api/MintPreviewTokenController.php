@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -55,11 +56,11 @@ final class MintPreviewTokenController extends AppController
         try {
             $view = ($this->mintPreviewToken)(new MintPreviewTokenCommand($user, $handle, $payload->label ?? '', $payload->cardId()));
         } catch (DomainErrors $e) {
-            return match (true) {
-                isset($e->errors['handle']) => $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND),
-                'oauth.preview_token.error.card_finished' === ($e->errors['card'] ?? null) => $this->json(['error' => 'card_finished'], JsonResponse::HTTP_CONFLICT),
-                isset($e->errors['card']) => $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND),
-                default => $this->json(['error' => 'invalid_label'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
+            throw match (true) {
+                isset($e->errors['handle']) => ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this handle.'),
+                'oauth.preview_token.error.card_finished' === ($e->errors['card'] ?? null) => ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'card_finished', 'The card is finished.'),
+                isset($e->errors['card']) => ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'card_not_found', 'No card answers this request.'),
+                default => ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_label', 'The label is not valid.'),
             };
         }
 

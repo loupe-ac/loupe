@@ -47,6 +47,6 @@ final readonly class EventStreamGate
             'reason' => $reason,
         ]);
 
-        throw new BridgeUpgradeRequired($message);
+        throw new BridgeUpgradeRequired($reason, $message);
     }
 }

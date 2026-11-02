@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -45,7 +46,7 @@ final class SendCardVerdictController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $reviewer = $this->getUser();
@@ -66,7 +67,7 @@ final class SendCardVerdictController extends AppController
         } catch (DomainErrors $error) {
             [$code, $status] = self::REFUSALS[array_first($error->errors)] ?? ['verdict_refused', JsonResponse::HTTP_UNPROCESSABLE_ENTITY];
 
-            return $this->json(['error' => $code], $status);
+            throw ApiProblemException::refused($status, $code, 'The verdict was refused.');
         }
 
         return $this->json([

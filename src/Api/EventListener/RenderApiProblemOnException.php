@@ -9,7 +9,6 @@ use App\Api\Problem\ApiProblem;
 use App\Api\Problem\ApiProblemException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
@@ -58,15 +57,7 @@ final readonly class RenderApiProblemOnException
             return;
         }
 
-        $response = new JsonResponse($problemJson ? $problem->toProblemBody() : $problem->toLegacyBody(), $problem->status);
-        if ($problemJson) {
-            $response->headers->set('Content-Type', 'application/problem+json');
-        }
-        foreach ($problem->headers as $name => $value) {
-            $response->headers->set($name, $value);
-        }
-
-        $event->setResponse($response);
+        $event->setResponse($problem->toResponse($path));
     }
 
     private function problemFor(\Throwable $exception, Request $request, bool $problemJson): ?ApiProblem

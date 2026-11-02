@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -65,10 +66,7 @@ final class StoreArtifactVersionController extends AppController
         }
 
         if (array_values($files) !== $files || \count($files) !== \count($payload->paths)) {
-            return $this->json(
-                ['error' => 'artifact_refused', 'errors' => ['files' => $this->translator->trans('artifact.error.paths_mismatch')]],
-                JsonResponse::HTTP_UNPROCESSABLE_ENTITY,
-            );
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'artifact_refused', 'The artifact was refused.', ['errors' => ['files' => $this->translator->trans('artifact.error.paths_mismatch')]]);
         }
 
         $inputs = [];
@@ -99,13 +97,10 @@ final class StoreArtifactVersionController extends AppController
             ));
         } catch (DomainErrors $error) {
             if (isset($error->errors['project'])) {
-                return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+                throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this handle.');
             }
 
-            return $this->json([
-                'error' => 'artifact_refused',
-                'errors' => array_map(fn (string $key): string => $this->translator->trans($key), $error->errors),
-            ], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'artifact_refused', 'The artifact was refused.', ['errors' => array_map(fn (string $key): string => $this->translator->trans($key), $error->errors)]);
         }
 
         $projectId = (string) $version->artifact->project->id;

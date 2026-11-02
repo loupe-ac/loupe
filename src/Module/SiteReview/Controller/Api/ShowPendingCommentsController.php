@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
@@ -49,7 +50,7 @@ final class ShowPendingCommentsController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         // Only an absent scope keeps the project-wide list, because a browser
@@ -64,7 +65,7 @@ final class ShowPendingCommentsController extends AppController
             ? ReviewSurface::tryFrom((string) $request->query->get('surface'))
             : ReviewSurface::Web;
         if (null === $surface) {
-            return $this->json(['error' => 'surface_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'surface_invalid', 'The surface is not valid.');
         }
 
         $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds, $surface));

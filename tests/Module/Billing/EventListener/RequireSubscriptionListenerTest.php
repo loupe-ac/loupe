@@ -183,6 +183,40 @@ final class RequireSubscriptionListenerTest extends TestCase
         self::assertStringContainsString('subscription_required', (string) $response->getContent());
     }
 
+    public function test_a_current_api_path_gets_a_problem_with_the_subscribe_url(): void
+    {
+        $user = $this->user();
+        $event = $this->event('api_projects_list', '/api/v1/projects');
+
+        $this->listener($user, $this->expiredProfile($user))($event);
+
+        $response = $event->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame(Response::HTTP_PAYMENT_REQUIRED, $response->getStatusCode());
+        self::assertSame('application/problem+json', $response->headers->get('Content-Type'));
+        self::assertEqualsCanonicalizing([
+            'type' => 'https://loupe.ac/docs/reference/api/errors#subscription_required',
+            'title' => 'Subscription required',
+            'status' => 402,
+            'code' => 'subscription_required',
+            'detail' => 'This account needs an active subscription.',
+            'subscribeUrl' => self::SUBSCRIBE_URL,
+        ], json_decode((string) $response->getContent(), true));
+    }
+
+    public function test_an_old_api_path_keeps_the_flat_body(): void
+    {
+        $user = $this->user();
+        $event = $this->event('api_site_review_submit', '/api/live-review/batches');
+
+        $this->listener($user, $this->expiredProfile($user))($event);
+
+        $response = $event->getResponse();
+        self::assertNotNull($response);
+        self::assertSame(['error' => 'subscription_required', 'subscribeUrl' => self::SUBSCRIBE_URL], json_decode((string) $response->getContent(), true));
+        self::assertStringNotContainsString('problem', (string) $response->headers->get('Content-Type'));
+    }
+
     #[DataProvider('machinePaths')]
     public function test_machine_endpoints_pass_while_the_trial_runs(string $path): void
     {

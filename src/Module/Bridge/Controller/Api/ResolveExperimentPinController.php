@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ResolveExperimentPinCommand;
@@ -56,21 +57,21 @@ final class ResolveExperimentPinController extends AppController
         }
 
         if (!Uuid::isValid($cardId)) {
-            return $this->json(['error' => 'invalid_card_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_card_id', 'The card id is not a valid id.');
         }
 
         if (!ResolveExperimentPinRequest::isName($experiment)) {
-            return $this->json(['error' => 'invalid_experiment'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_experiment', 'The experiment is not valid.');
         }
 
         $choice = $payload?->choice();
         if (null === $choice) {
-            return $this->json(['error' => 'invalid_variants'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_variants', 'The variants are not valid.');
         }
 
         $baseline = $payload?->baseline();
         if (null === $baseline) {
-            return $this->json(['error' => 'invalid_baseline'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_baseline', 'The baseline is not valid.');
         }
 
         $result = ($this->resolveExperimentPin)(new ResolveExperimentPinCommand(
@@ -88,7 +89,7 @@ final class ResolveExperimentPinController extends AppController
         ));
 
         if (null === $result->variant) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this request.');
         }
 
         return $this->json(['variant' => $result->variant, 'switchedFrom' => $result->switchedFrom]);

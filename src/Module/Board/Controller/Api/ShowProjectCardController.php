@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Command\ShowProjectCardCommand;
@@ -44,11 +45,11 @@ final class ShowProjectCardController extends AppController
 
         $view = ($this->showCard)(new ShowProjectCardCommand($user, $handle, $cardId));
         if (null === $view->project) {
-            return $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'project_not_found', 'No project answers this request.');
         }
 
         if (null === $view->card) {
-            return $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'card_not_found', 'No card answers this request.');
         }
 
         return $this->json([

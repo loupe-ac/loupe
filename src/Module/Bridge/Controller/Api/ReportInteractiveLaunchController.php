@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ReportInteractiveLaunchCommand;
@@ -51,7 +52,7 @@ final class ReportInteractiveLaunchController extends AppController
         }
 
         if (!Uuid::isValid($sessionId)) {
-            return $this->json(['error' => 'invalid_session_id'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_session_id', 'The session id is not a valid id.');
         }
 
         $result = ($this->reportInteractiveLaunch)(new ReportInteractiveLaunchCommand(
@@ -74,7 +75,7 @@ final class ReportInteractiveLaunchController extends AppController
         ));
 
         if (null === $result->run) {
-            return $this->json(['error' => $result->error], ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE === $result->error ? JsonResponse::HTTP_UNPROCESSABLE_ENTITY : JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE === $result->error ? JsonResponse::HTTP_UNPROCESSABLE_ENTITY : JsonResponse::HTTP_NOT_FOUND, $result->error, 'The interactive launch was refused.');
         }
 
         return $this->json(

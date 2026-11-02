@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Security;
 
+use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\OAuth\Repository\PreviewTokenRepository;
@@ -173,13 +174,23 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
             'reason' => $exception->getMessage(),
         ]);
 
-        return new Response('{"error":"unauthorized"}', Response::HTTP_UNAUTHORIZED, ['Content-Type' => 'application/json']);
+        return $this->unauthorized($request);
     }
 
     /** An unauthenticated request on a machine firewall, which gets no HTML. */
     #[\Override]
     public function start(Request $request, ?AuthenticationException $authException = null): Response
     {
-        return new Response('{"error":"unauthorized"}', Response::HTTP_UNAUTHORIZED, ['Content-Type' => 'application/json']);
+        return $this->unauthorized($request);
+    }
+
+    private function unauthorized(Request $request): Response
+    {
+        return new ApiProblem(
+            Response::HTTP_UNAUTHORIZED,
+            'invalid_credentials',
+            'Invalid credentials',
+            'The request carries no valid access token.',
+        )->toResponse($request->getPathInfo());
     }
 }

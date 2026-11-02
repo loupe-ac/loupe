@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Command\ShowCardVerdictCommand;
@@ -39,7 +40,7 @@ final class ShowCardVerdictController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $reviewer = $this->getUser();
@@ -49,7 +50,7 @@ final class ShowCardVerdictController extends AppController
 
         $view = ($this->handler)(new ShowCardVerdictCommand($project, $cardId, $reviewer));
         if (!$view instanceof ShowCardVerdictView) {
-            return $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND);
+            throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'card_not_found', 'No card answers this request.');
         }
 
         $latest = $view->latest;
