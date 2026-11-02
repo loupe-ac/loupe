@@ -131,6 +131,23 @@ describe('the session test verdict', () => {
             'product',
             `## Decisions log\n\n\`\`\`inline\`\`\`\n\n- Method: ${named}.\n`,
         ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n        Source: superpowers.\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n- Method: brainstorming.\n  - Plugin:\n\n    superpowers.\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n- Scope: small.\n\n        example\n\n- Method: ${named}.\n`,
+        ],
+        ['product', `## Decisions log\n\n    \`\`\`\n\n- Method: ${named}.\n`],
+        [
+            'product',
+            `## Decisions log\n\n1. Method:\nbrainstorming.\n\n    Source: superpowers.\n`,
+        ],
         ['tech', `## Decided\n\nThe owner picked ${named}.\n`],
     ])('passes a %s session with the entry in %j', (kind, markdown) => {
         const result = run({ FAKE_CLOSE: '1', FAKE_MARKDOWN: markdown }, kind);
@@ -181,6 +198,36 @@ describe('the session test verdict', () => {
             `## Decisions log\n\n\`\`\`text\n\`\`\`text\n${named}\n\`\`\`\n`,
         ],
         ['product', `## Decisions log\n\n    ${named}\n`],
+        ['product', `## Decisions log\n\n\t${named}\n`],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n        superpowers\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n- Method: brainstorming.\n\n\t\tsuperpowers\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n        one\n\n        superpowers\n`,
+        ],
+        ['product', `## Decisions log\n\n1.     ${named}\n`],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n   ### Example\n       superpowers\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n\`\`\`text\n    \`\`\`\n${named}\n\`\`\`\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n  1. Method: brainstorming.\n  2. Plugin: superpowers.\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n  Plugin: superpowers.\n`,
+        ],
         ['tech', `## Decided\n\n\`\`\`text\n${named}\n\`\`\`\n`],
     ])('fails a %s session with no entry in %j', (kind, markdown) => {
         const result = run({ FAKE_CLOSE: '1', FAKE_MARKDOWN: markdown }, kind);

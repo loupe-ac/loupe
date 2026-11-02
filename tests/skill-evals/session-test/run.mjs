@@ -35,16 +35,31 @@ const opt = (name, fallback) => {
     return i >= 0 ? args[i + 1] : fallback;
 };
 
-// One entry is a top-level list item, a table row or a paragraph. A code block
-// is an example, so its text belongs to no entry.
+function expandTabs(line) {
+    let expanded = '';
+    for (const char of line)
+        expanded += char === '\t' ? ' '.repeat(4 - (expanded.length % 4)) : char;
+    return expanded;
+}
+
+// One entry is a top-level list item, a table row or a paragraph. A code block,
+// fenced or indented past its list item, is an example and belongs to no entry.
 function sectionEntries(markdown, heading) {
     const entries = [];
     let inSection = false;
     let openFence = null;
-    let inList = false;
+    let entryIndent = null;
+    let contentIndent = 0;
+    let inParagraph = false;
     let afterBlank = false;
-    for (const line of markdown.split(/\r?\n/)) {
-        const fence = /^\s*(`{3,}(?=[^`]*$)|~{3,})(.*)$/.exec(line);
+    for (const rawLine of markdown.split(/\r?\n/)) {
+        const line = expandTabs(rawLine);
+        const indent = line.search(/\S|$/);
+        const blank = line.trim() === '';
+        const fence =
+            indent < contentIndent + 4
+                ? /^\s*(`{3,}(?=[^`]*$)|~{3,})(.*)$/.exec(line)
+                : null;
         if (openFence) {
             if (
                 fence &&
@@ -53,29 +68,61 @@ function sectionEntries(markdown, heading) {
                 fence[2].trim() === ''
             ) {
                 openFence = null;
+                inParagraph = false;
                 afterBlank = true;
             }
             continue;
         }
         if (fence) {
             openFence = fence[1];
+            inParagraph = false;
             continue;
         }
         if (/^#{1,2}\s/.test(line)) {
             inSection = line.trim().toLowerCase() === `## ${heading}`.toLowerCase();
-            inList = false;
+            entryIndent = null;
+            contentIndent = 0;
+            inParagraph = false;
             entries.push('');
             continue;
         }
         if (!inSection) continue;
-        const listItem = /^(?:[-*+]\s|\d+[.)]\s)/.test(line);
-        if (listItem || line.startsWith('|') || (afterBlank && /^\S/.test(line))) {
-            inList = listItem;
-            entries.push('');
+        if (blank) {
+            inParagraph = false;
+            afterBlank = true;
+            continue;
         }
-        if (inList || !/^(?: {4}|\t)/.test(line))
-            entries[entries.length - 1] += `${line}\n`;
-        afterBlank = line.trim() === '';
+        if (!inParagraph && indent >= contentIndent + 4) {
+            afterBlank = true;
+            continue;
+        }
+        const topLevel = indent < (entryIndent ?? 4);
+        const marker = /^ *([-*+]|\d+[.)])( +|$)(.*)$/.exec(line);
+        if (
+            (marker && topLevel) ||
+            line.startsWith('|') ||
+            (afterBlank && topLevel)
+        ) {
+            entries.push('');
+            entryIndent = null;
+            contentIndent = 0;
+        }
+        afterBlank = false;
+        if (marker) {
+            const startsWithCode = marker[2].length >= 5;
+            const gap =
+                startsWithCode || marker[3] === '' ? 1 : marker[2].length;
+            contentIndent = indent + marker[1].length + gap;
+            entryIndent ??= contentIndent;
+            if (startsWithCode) {
+                inParagraph = false;
+                continue;
+            }
+        } else if (entryIndent !== null && indent < contentIndent) {
+            contentIndent = Math.max(indent, entryIndent);
+        }
+        inParagraph = !/^ {0,3}#{1,6}\s/.test(line);
+        entries[entries.length - 1] += `${line}\n`;
     }
     return entries;
 }
