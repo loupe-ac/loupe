@@ -5,7 +5,7 @@
     {key: 'openrouter', icon: 'logos:openrouter-icon'},
     {key: 'github', icon: 'logos:github-icon'},
     {key: 'mcp', icon: 'simple-icons:modelcontextprotocol'},
-    {key: 'api', icon: 'lucide:code-xml'},
+    {key: 'api', icon: 'lucide:code-xml', href: app_docs_url ~ '/reference/api/'},
 ] %}
 <section id="integrations" class="lp-home-section lp-home-section--sunken">
     <div class="lp-home-container">
@@ -15,7 +15,13 @@
             {% for tile in tiles %}
                 <li class="lp-home-tile">
                     <span class="lp-home-tile__logo"><twig:UX:Icon :name="tile.icon" class="w-6 h-6" aria-hidden="true" /></span>
-                    <span class="lp-home-tile__name">{{ ('landing.works_with.' ~ tile.key ~ '.name')|trans }}</span>
+                    <span class="lp-home-tile__name">
+                        {%- if tile.href is defined -%}
+                            <a href="{{ tile.href }}" class="lp-home-tile__link">{{ ('landing.works_with.' ~ tile.key ~ '.name')|trans }}</a>
+                        {%- else -%}
+                            {{ ('landing.works_with.' ~ tile.key ~ '.name')|trans }}
+                        {%- endif -%}
+                    </span>
                     <span class="lp-home-tile__text">{{ ('landing.works_with.' ~ tile.key ~ '.text')|trans }}</span>
                 </li>
             {% endfor %}

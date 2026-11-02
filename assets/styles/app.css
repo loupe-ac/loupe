@@ -6405,6 +6405,10 @@
     .lp-home-tile__name {
         @apply font-display text-lg font-extrabold tracking-tight text-ink;
     }
+    /* The name of a tile that links to a page of the docs. */
+    .lp-home-tile__link {
+        @apply text-ink underline underline-offset-2 transition-colors hover:text-fg-mute;
+    }
     .lp-home-tile__text {
         @apply text-sm leading-normal text-fg-mute;
     }
