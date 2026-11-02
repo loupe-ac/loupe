@@ -99,7 +99,8 @@
     .lp-decision__badge:is(:hover, :focus-visible) {
         @apply z-10;
     }
-    .lp-decision__tooltip {
+    /* The attribute lifts this rule above .lp-tooltip, because tooltip.css loads after this file. */
+    .lp-decision__tooltip[data-tooltip-align='end'] {
         @apply right-0 left-auto w-max max-w-72 text-left whitespace-normal transition-none;
     }
     .lp-decision__tooltip::before {
