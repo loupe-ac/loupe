@@ -18,12 +18,15 @@ final readonly class ListSitesHandler
 
     public function __invoke(ListSitesCommand $command): ListSitesView
     {
+        $projects = $this->projects->findByOwner($command->owner);
+        $collection = $this->toolCallCollection->forOwner($command->owner, $projects);
+
         return new ListSitesView(
             sites: array_map(fn (Project $project): ListedSite => new ListedSite(
                 project: $project,
-                collectFullText: $this->toolCallCollection->collectFullText($project),
-                subcommandPrograms: $this->toolCallCollection->subcommandPrograms($project),
-            ), $this->projects->findByOwner($command->owner)),
+                collectFullText: $collection[(string) $project->id]['collectFullText'],
+                subcommandPrograms: $collection[(string) $project->id]['subcommandPrograms'],
+            ), $projects),
         );
     }
 }

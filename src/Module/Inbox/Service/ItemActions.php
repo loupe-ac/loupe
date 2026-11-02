@@ -16,12 +16,10 @@ use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
-use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReviewTargetKind;
-use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandView;
 use App\Module\Inbox\View\SendAgentTarget;
@@ -37,7 +35,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class ItemActions
 {
     public function __construct(
-        private InboxCardWatchRepository $inboxCardWatches,
+        private InboxWatchLookup $watches,
         private WorkerRunRepository $workerRuns,
         private WorkerRunControls $runControls,
         private CardPauses $pauses,
@@ -93,7 +91,7 @@ final readonly class ItemActions
      */
     public function waitFor(InboxItem $item, InboxActionKind $kind): ?InboxCardWait
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         $match = match ($kind) {
@@ -114,7 +112,7 @@ final readonly class ItemActions
     /** The newest open wait of the item, or null. An action that needs no run or pause answers this wait. */
     public function newestOpenWait(InboxItem $item): ?InboxCardWait
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         return array_last($waits);
@@ -123,7 +121,7 @@ final readonly class ItemActions
     /** The card and the stage work that Send an agent starts for the item now, or null when the action does not fit. */
     public function sendAgentFor(InboxItem $item): ?SendAgentTarget
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
 
         return $this->sendAgentTargets([$item], null === $watch ? [] : [self::key($item) => $watch->cardId])[self::key($item)] ?? null;
     }
@@ -136,7 +134,7 @@ final readonly class ItemActions
      */
     public function runCommandFor(InboxItem $item, ?string $branch = null, ?array $params = null): ?RunCommandView
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
         $runs = $this->runsOf($waits);
         $suggestion = $this->suggestionsOf($item, $waits, $runs)[InboxActionKind::RunCommand->value] ?? null;
@@ -151,7 +149,7 @@ final readonly class ItemActions
     public function runCommandCardId(InboxItem $item): ?Uuid
     {
         if ($item->isAutomatic()) {
-            return $this->watchOf($item)?->cardId;
+            return $this->watches->forItem($item)?->cardId;
         }
 
         return self::onlyCardOf($item);
@@ -163,7 +161,7 @@ final readonly class ItemActions
      */
     public function sessionSubjectOf(InboxItem $item): WorkSubject
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
         $cardId = self::sessionCardOf($item, $watch?->cardId);
 
         return null === $cardId ? new WorkSubject(InboxItem::SUBJECT_TYPE, $item->id ?? throw new \LogicException('A stored item has an id.')) : WorkSubject::card($cardId);
@@ -176,7 +174,7 @@ final readonly class ItemActions
         if (null !== $suggested) {
             return $suggested;
         }
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
 
         return $this->sessionPrompts->write($item, null === $watch ? [] : self::openWaits($watch->waits->toArray()));
     }
@@ -189,7 +187,7 @@ final readonly class ItemActions
     /** The card that an action on the item acts on: the card of its watch, else the card its suggestion names, else its first linked card. */
     public function cardIdOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
-        $watch = $this->watchOf($item);
+        $watch = $this->watches->forItem($item);
         if (null !== $watch) {
             return $watch->cardId;
         }
@@ -221,7 +219,7 @@ final readonly class ItemActions
     {
         $openWaits = [];
         $watchedCards = [];
-        foreach ($this->inboxCardWatches->findForItems(array_values(array_filter($items, static fn (InboxItem $item): bool => $item->isAutomatic()))) as $watch) {
+        foreach ($this->watches->forItems($items) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
             $watchedCards[self::key($watch->item)] = $watch->cardId;
         }
@@ -379,9 +377,19 @@ final readonly class ItemActions
      */
     private function freeTargets(array $cards): array
     {
+        $cardsOfProject = [];
+        foreach ($cards as [$project, $cardId]) {
+            $cardsOfProject[(string) $project->id][0] = $project->id ?? throw new \LogicException('A stored project has an id.');
+            $cardsOfProject[(string) $project->id][1][$cardId->toRfc4122()] = $cardId;
+        }
+        $kinds = [];
+        foreach ($cardsOfProject as $projectKey => [$projectId, $cardIds]) {
+            $kinds[$projectKey] = $this->stageWorks->ofCards($projectId, array_values($cardIds));
+        }
+
         $candidates = [];
         foreach ($cards as $key => [$project, $cardId]) {
-            $kind = $this->stageWorks->of($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId);
+            $kind = $kinds[(string) $project->id][$cardId->toRfc4122()] ?? null;
             if (null !== $kind) {
                 $candidates[$key] = [$project, new SendAgentTarget($cardId, $kind)];
             }
@@ -729,12 +737,6 @@ final readonly class ItemActions
         }
 
         return $releasable;
-    }
-
-    /** Only an automatic item has a watch, so any other item costs no read. */
-    private function watchOf(InboxItem $item): ?InboxCardWatch
-    {
-        return $item->isAutomatic() ? ($this->inboxCardWatches->findForItems([$item])[0] ?? null) : null;
     }
 
     private static function key(InboxItem $item): string

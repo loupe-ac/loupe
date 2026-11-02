@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Repository\CardValueRepository;
 use App\Module\Board\View\CardValueView;
 use App\Module\Workflow\Contract\CardValueKeys;
@@ -25,13 +26,48 @@ final readonly class CardValueReader
      */
     public function forCard(Card $card): array
     {
-        $declared = $this->keys->forProject($card->project->requireId());
-        if ([] === $declared) {
+        if ([] === $this->keys->forProject($card->project->requireId())) {
             return [];
         }
 
+        return $this->viewsOf($card, $this->cardValues->findForCard($card));
+    }
+
+    /**
+     * The same views as forCard(), for many cards with one read of the values.
+     *
+     * @param list<Card> $cards
+     *
+     * @return array<string, list<CardValueView>> keyed by card id
+     */
+    public function forCards(array $cards): array
+    {
+        $declaring = array_values(array_filter(
+            $cards,
+            fn (Card $card): bool => [] !== $this->keys->forProject($card->project->requireId()),
+        ));
+        $rowsByCard = $this->cardValues->findForCards($declaring);
+
+        $views = [];
+        foreach ($cards as $card) {
+            $views[(string) $card->id] = [] === $this->keys->forProject($card->project->requireId())
+                ? []
+                : $this->viewsOf($card, $rowsByCard[(string) $card->id] ?? []);
+        }
+
+        return $views;
+    }
+
+    /**
+     * @param list<CardValue> $stored
+     *
+     * @return list<CardValueView>
+     */
+    private function viewsOf(Card $card, array $stored): array
+    {
+        $declared = $this->keys->forProject($card->project->requireId());
         $rows = [];
-        foreach ($this->cardValues->findForCard($card) as $row) {
+        foreach ($stored as $row) {
             $rows[$row->key] = $row;
         }
 

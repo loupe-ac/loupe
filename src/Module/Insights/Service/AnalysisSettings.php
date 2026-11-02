@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Service;
 
+use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\ProjectCollectionSettingsInterface;
 use App\Module\Insights\Repository\InsightsProjectSettingsRepository;
@@ -57,5 +58,19 @@ final readonly class AnalysisSettings implements ProjectCollectionSettingsInterf
         $programs = $this->insightsProjectSettings->findForProject($project)?->subcommandPrograms;
 
         return [] === $programs ? null : $programs;
+    }
+
+    #[\Override]
+    public function forOwner(User $owner): array
+    {
+        $byProject = [];
+        foreach ($this->insightsProjectSettings->findByOwner($owner) as $settings) {
+            $byProject[(string) $settings->project->id] = [
+                'collectFullText' => $settings->collectFullText,
+                'subcommandPrograms' => [] === $settings->subcommandPrograms ? null : $settings->subcommandPrograms,
+            ];
+        }
+
+        return $byProject;
     }
 }

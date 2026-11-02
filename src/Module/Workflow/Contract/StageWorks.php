@@ -10,8 +10,12 @@ use Symfony\Component\Uid\Uuid;
 interface StageWorks
 {
     /**
-     * @return ?string the kind of work of the slot that the column of the card links to, or null when the card sits
-     *                 in the backlog, in a terminal column or in a column with no slot, or the slot names none
+     * The kind of work of the slot that the column of each card links to. A card is absent when it sits in the
+     * backlog, in a terminal column or in a column with no slot, when the slot names none, or when it is in no such project.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, string> the kind of work, by the RFC 4122 card id
      */
-    public function of(Uuid $projectId, Uuid $cardId): ?string;
+    public function ofCards(Uuid $projectId, array $cardIds): array;
 }

@@ -88,6 +88,32 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of the project, with their columns and the columns of their parents, which a snapshot reads.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return list<Card>
+     */
+    public function findWithColumnsByIdsInProject(Uuid $projectId, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->leftJoin('c.parent', 'p')
+            ->leftJoin('p.column', 'pk')
+            ->addSelect('k', 'p', 'pk')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * @param list<Uuid> $ids
      *
      * @return array<string, string> card id => title
@@ -623,6 +649,28 @@ class CardRepository extends ServiceEntityRepository
         $this->createQueryBuilder('c')
             ->leftJoin('c.pullRequests', 'l')
             ->addSelect('l')
+            ->andWhere('c IN (:cards)')
+            ->setParameter('cards', $lazy)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Loads the document links of the cards, with their documents, in one read.
+     *
+     * @param list<Card> $cards
+     */
+    public function loadDocumentsOf(array $cards): void
+    {
+        $lazy = array_values(array_filter($cards, static fn (Card $card): bool => $card->documents instanceof AbstractLazyCollection && !$card->documents->isInitialized()));
+        if ([] === $lazy) {
+            return;
+        }
+
+        $this->createQueryBuilder('c')
+            ->leftJoin('c.documents', 'l')
+            ->leftJoin('l.document', 'd')
+            ->addSelect('l', 'd')
             ->andWhere('c IN (:cards)')
             ->setParameter('cards', $lazy)
             ->getQuery()
@@ -1738,12 +1786,9 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * The board's read query, one column at a time.
-     *
-     * A column is read on its own even when the caller asks for the whole
-     * board, because a terminal column sorts by completion while every other
-     * column sorts by position. The cost is one query per column for an
-     * unfiltered read, each on the composite index.
+     * The board's read query. Every open column is read in one query, and each
+     * terminal column on its own, because a terminal column sorts by
+     * completion while every other column sorts by position.
      *
      * @param list<BoardColumn> $columns in board order, which is the order the cards come back in
      *
@@ -1751,9 +1796,15 @@ class CardRepository extends ServiceEntityRepository
      */
     public function findForBoard(array $columns, ?string $type = null, ?Actor $reporter = null, ?Card $parent = null, ?bool $paused = null): array
     {
+        $open = array_values(array_filter($columns, static fn (BoardColumn $column): bool => !$column->terminal));
+        $byColumn = [];
+        foreach ($this->findOpenColumns($open, $type, $reporter, $parent, $paused) as $card) {
+            $byColumn[(string) $card->column->id][] = $card;
+        }
+
         $cards = [];
         foreach ($columns as $column) {
-            $cards = [...$cards, ...$this->findColumn($column, $type, $reporter, $parent, $paused)];
+            $cards = [...$cards, ...($column->terminal ? $this->findColumn($column, $type, $reporter, $parent, $paused) : ($byColumn[(string) $column->id] ?? []))];
         }
 
         return $cards;
@@ -1815,28 +1866,37 @@ class CardRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /**
+     * @param list<BoardColumn> $columns
+     *
+     * @return list<Card>
+     */
+    private function findOpenColumns(array $columns, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): array
+    {
+        if ([] === $columns) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->addSelect('k')
+            ->andWhere('c.column IN (:columns)')
+            ->setParameter('columns', $columns);
+        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused);
+        $qb->orderBy('c.position', 'ASC')
+            ->addOrderBy('c.createdAt', 'ASC')
+            ->addOrderBy('c.id', 'ASC');
+
+        return array_values($this->withPullRequests($qb)->getQuery()->getResult());
+    }
+
     /** @return list<Card> */
     private function findColumn(BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): array
     {
         $qb = $this->createQueryBuilder('c')
             ->andWhere('c.column = :column')
             ->setParameter('column', $column);
-
-        if (null !== $type) {
-            $qb->andWhere('c.type = :type')->setParameter('type', $type);
-        }
-        if (null !== $parent) {
-            $qb->andWhere('c.parent = :parent')->setParameter('parent', $parent);
-        }
-        if (null !== $paused) {
-            $qb->andWhere(\sprintf('%sEXISTS (SELECT pause.id FROM %s pause WHERE pause.card = c AND pause.releasedAt IS NULL)', $paused ? '' : 'NOT ', CardPause::class));
-        }
-        if (null !== $reporter) {
-            // COALESCE, not c.reporter: a row an older image wrote after this
-            // release carries origin alone, and it still has to match.
-            $qb->andWhere('COALESCE(c.storedReporter, c.origin) = :reporter')
-                ->setParameter('reporter', $reporter->value);
-        }
+        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused);
 
         // The tie-break runs with its column, not after both branches. A
         // terminal column sorts newest first and completed_at holds whole
@@ -1853,6 +1913,25 @@ class CardRepository extends ServiceEntityRepository
         }
 
         return array_values($this->withPullRequests($qb)->getQuery()->getResult());
+    }
+
+    private function applyBoardFilters(QueryBuilder $qb, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): void
+    {
+        if (null !== $type) {
+            $qb->andWhere('c.type = :type')->setParameter('type', $type);
+        }
+        if (null !== $parent) {
+            $qb->andWhere('c.parent = :parent')->setParameter('parent', $parent);
+        }
+        if (null !== $paused) {
+            $qb->andWhere(\sprintf('%sEXISTS (SELECT pause.id FROM %s pause WHERE pause.card = c AND pause.releasedAt IS NULL)', $paused ? '' : 'NOT ', CardPause::class));
+        }
+        if (null !== $reporter) {
+            // COALESCE, not c.reporter: a row an older image wrote after this
+            // release carries origin alone, and it still has to match.
+            $qb->andWhere('COALESCE(c.storedReporter, c.origin) = :reporter')
+                ->setParameter('reporter', $reporter->value);
+        }
     }
 
     /**
