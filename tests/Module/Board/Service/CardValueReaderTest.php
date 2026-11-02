@@ -90,6 +90,22 @@ final class CardValueReaderTest extends KernelTestCase
         self::assertSame([], $this->reader()->forCard($card));
     }
 
+    public function test_many_cards_read_the_same_views_as_one_card_at_a_time(): void
+    {
+        $withValue = $this->lifecycleCard();
+        $bare = $this->card($withValue->project);
+        $this->em()->persist(new CardValue($withValue, self::KEY, true, Actor::Human));
+        $this->em()->flush();
+
+        $views = $this->reader()->forCards([$withValue, $bare]);
+
+        self::assertEquals($this->reader()->forCard($withValue), $views[(string) $withValue->id]);
+        self::assertEquals($this->reader()->forCard($bare), $views[(string) $bare->id]);
+        // Guard: the stored value must reach its card, or two equal unset lists prove nothing.
+        self::assertTrue($views[(string) $withValue->id][0]->value);
+        self::assertNull($views[(string) $bare->id][0]->value);
+    }
+
     private function lifecycleCard(): Card
     {
         self::bootKernel();

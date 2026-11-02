@@ -11,6 +11,8 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -227,6 +229,63 @@ final class ListSitesApiTest extends WebTestCase
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
         self::assertSame('insufficient_scope', $data['error'] ?? null);
+    }
+
+    /** The settings of the projects read once, so a list of five projects sends the statements of a list of one. */
+    public function test_the_statement_count_does_not_grow_with_the_project_count(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-sites-count@example.com');
+        $first = new Project($owner, 'count-site-0');
+        $em->persist($first);
+        $settings = new InsightsProjectSettings($first);
+        $settings->subcommandPrograms = ['bazel'];
+        $em->persist($settings);
+        $em->flush();
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+
+        $small = $this->settingsReadsOfTheList($client, $raw);
+
+        for ($i = 1; $i < 5; ++$i) {
+            $project = new Project($owner, 'count-site-'.$i);
+            $em->persist($project);
+            $own = new InsightsProjectSettings($project);
+            $own->collectFullText = true;
+            $em->persist($own);
+        }
+        $em->flush();
+        $em->clear();
+
+        $big = $this->settingsReadsOfTheList($client, $raw);
+
+        // Guard: the read must happen, or the equal counts below prove nothing.
+        self::assertSame(1, $small);
+        self::assertSame($small, $big);
+    }
+
+    private function settingsReadsOfTheList(KernelBrowser $client, string $raw): int
+    {
+        $queries = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        self::assertResponseIsSuccessful();
+
+        $reads = 0;
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                if (str_contains((string) $query['sql'], 'insights_project_settings')) {
+                    ++$reads;
+                }
+            }
+        }
+
+        return $reads;
     }
 
     private function em(): EntityManagerInterface

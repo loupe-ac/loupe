@@ -10,12 +10,14 @@ use App\Module\Board\Command\ListCardsHandler;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardListTool;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
@@ -524,6 +526,55 @@ final class CardListToolTest extends KernelTestCase
         self::assertSame(ListCardsHandler::MAX_PER_PAGE, ($this->tool)(perPage: 500)['perPage']);
     }
 
+    public function test_a_full_page_reads_the_linked_documents_once_whatever_the_card_count(): void
+    {
+        $project = $this->boardWith('card-list-documents');
+        for ($i = 0; $i < 3; ++$i) {
+            ($this->createTool)('Extra '.$i, 'Body', 'feature');
+        }
+        $repository = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $repository);
+        $cards = $repository->findBy(['project' => $project]);
+        foreach ($cards as $card) {
+            $document = new Document($project->owner, $project, 'Design of '.$card->number);
+            $this->em->persist($document);
+            $this->em->persist(new CardDocument($card, $document));
+        }
+        $this->em->flush();
+
+        $small = $this->statementsOfAFullPage(3);
+        $big = $this->statementsOfAFullPage(6);
+
+        // Guard: the page must read the document links, or a count of one proves nothing.
+        $reads = static fn (array $sql): array => array_values(array_filter($sql, static fn (string $statement): bool => str_contains($statement, 'board_card_documents')));
+        self::assertCount(1, $reads($small['sql']));
+        self::assertCount(1, $reads($big['sql']));
+        self::assertSame(\count($small['sql']), \count($big['sql']));
+        self::assertCount(3, $small['cards']);
+        self::assertCount(6, $big['cards']);
+        self::assertCount(6, array_filter(array_column($big['cards'], 'documents'), static fn (array $linked): bool => 1 === \count($linked)));
+    }
+
+    /** @return array{sql: list<string>, cards: list<array<string, mixed>>} */
+    private function statementsOfAFullPage(int $perPage): array
+    {
+        $this->em->clear();
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $cards = ($this->tool)(full: true, perPage: $perPage)['cards'];
+
+        $all = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $all[] = (string) $query['sql'];
+            }
+        }
+
+        return ['sql' => $all, 'cards' => $cards];
+    }
+
     private function boardWith(string $label): Project
     {
         $project = $this->makeProject($label);
@@ -606,7 +657,6 @@ final class CardListToolTest extends KernelTestCase
         $all = [];
         foreach ($queries->getData() as $connectionQueries) {
             foreach ($connectionQueries as $query) {
-                // Documents load one query per card before this change, so they stay out of the count.
                 if (str_contains((string) $query['sql'], 'FROM board_cards')) {
                     $all[] = (string) $query['sql'];
                 }

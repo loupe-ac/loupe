@@ -566,6 +566,28 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * Loads the document links of the cards, with their documents, in one read.
+     *
+     * @param list<Card> $cards
+     */
+    public function loadDocumentsOf(array $cards): void
+    {
+        $lazy = array_values(array_filter($cards, static fn (Card $card): bool => $card->documents instanceof AbstractLazyCollection && !$card->documents->isInitialized()));
+        if ([] === $lazy) {
+            return;
+        }
+
+        $this->createQueryBuilder('c')
+            ->leftJoin('c.documents', 'l')
+            ->leftJoin('l.document', 'd')
+            ->addSelect('l', 'd')
+            ->andWhere('c IN (:cards)')
+            ->setParameter('cards', $lazy)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Whether the database shows anyone worked on the card: a body or a title
      * other than the ones it was created with, another type, a pull request, a
      * document, or a link to or from another card.
