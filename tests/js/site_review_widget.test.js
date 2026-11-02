@@ -80,7 +80,7 @@ function feedbackSave(fetchMock) {
         ([url, init]) =>
             init &&
             init.method === 'POST' &&
-            url.endsWith('/api/board/feedback'),
+            url.endsWith('/api/v1/live-review-widget/feedback'),
     );
 
     return save ? JSON.parse(save[1].body) : null;
@@ -144,7 +144,7 @@ describe('the mode', () => {
             'The hero image is blurry',
         );
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent('cards:')}`,
+            `${BACKEND}/api/v1/live-review-widget/review?scope=${encodeURIComponent('cards:')}`,
         );
     });
 
@@ -273,7 +273,7 @@ describe('the mode', () => {
         await settle();
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent(`card:${CARD}`)}&context=${encodeURIComponent(`card:${CARD}`)}`,
+            `${BACKEND}/api/v1/live-review-widget/review?scope=${encodeURIComponent(`card:${CARD}`)}&context=${encodeURIComponent(`card:${CARD}`)}`,
         );
         const root = openNote();
         expect(targetText(root)).toBe('#3');
@@ -367,7 +367,7 @@ describe('the delivery id', () => {
                 ([url, init]) =>
                     init &&
                     init.method === 'POST' &&
-                    url.endsWith('/api/board/feedback'),
+                    url.endsWith('/api/v1/live-review-widget/feedback'),
             )
             .map(([, init]) => JSON.parse(init.body));
 
@@ -498,7 +498,7 @@ describe('the mode picker', () => {
     it('picks an existing card on a row and confirms it with Save', async () => {
         bootWidget({
             respond: (url) =>
-                url.includes('/api/board/cards')
+                url.includes('/api/v1/live-review-widget/cards')
                     ? ok({
                           cards: [
                               { cardId: CARD, number: 9, title: 'Pricing' },
@@ -563,7 +563,7 @@ describe('the mode picker', () => {
                               label: '#9 Q4',
                               url: null,
                           })
-                        : url.includes('/api/board/cards')
+                        : url.includes('/api/v1/live-review-widget/cards')
                           ? ok({ cards: [] })
                           : ok({ comments: [], context: null, parentTypes });
                 },
@@ -583,7 +583,7 @@ describe('the mode picker', () => {
             JSON.parse(
                 fetchMock.mock.calls.find(
                     ([url, init]) =>
-                        url.endsWith('/api/board/cards') &&
+                        url.endsWith('/api/v1/live-review-widget/cards') &&
                         init.method === 'POST',
                 )[1].body,
             );
@@ -609,7 +609,7 @@ describe('the mode picker', () => {
 
             expect(
                 fetchMock.mock.calls.some(([url]) =>
-                    url.includes('/api/board/cards?parent=1'),
+                    url.includes('/api/v1/live-review-widget/cards?parent=1'),
                 ),
             ).toBe(true);
             expect(root.getElementById('lp-picker-type').style.display).toBe(
@@ -759,7 +759,9 @@ describe('deleting a note', () => {
         const deleted = fetchMock.mock.calls.find(
             ([, init]) => init && init.method === 'DELETE',
         );
-        expect(deleted[0]).toBe(`${BACKEND}/api/board/feedback/c1`);
+        expect(deleted[0]).toBe(
+            `${BACKEND}/api/v1/live-review-widget/feedback/c1`,
+        );
     });
 
     const listOf = (count) =>
@@ -1098,7 +1100,7 @@ describe('boot', () => {
 
         const [url, options] = fetchMock.mock.calls[0];
         expect(url).toBe(
-            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent('cards:')}`,
+            `${BACKEND}/api/v1/live-review-widget/review?scope=${encodeURIComponent('cards:')}`,
         );
         expect(options.method).toBe('GET');
         expect(options.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
@@ -1580,7 +1582,7 @@ describe('style sheet colour tokens', () => {
 const listRequest = (fetchMock, index = 0) => {
     const url = new URL(
         fetchMock.mock.calls.filter(([target]) =>
-            target.includes('/api/live-review/review'),
+            target.includes('/api/v1/live-review-widget/review'),
         )[index][0],
     );
 
@@ -1902,7 +1904,7 @@ describe('the scope of the list request', () => {
                 saved = true;
                 return madeCard(OTHER);
             }
-            if (!url.includes('/api/live-review/review')) {
+            if (!url.includes('/api/v1/live-review-widget/review')) {
                 return ok({ comments: [], context: null });
             }
             // The first list request of the new page answers last, with a

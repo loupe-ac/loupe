@@ -8,9 +8,9 @@
  * and keeps the grant in session storage. The other thing the widget keeps
  * there is which corner the launcher sits in.
  *
- * There is no send step. Every saved comment POSTs to /api/board/feedback,
+ * There is no send step. Every saved comment POSTs to /api/v1/live-review-widget/feedback,
  * which files it on a card, and is Pending — live for the agent — from that
- * moment; the list rehydrates from GET /api/live-review/review on load, edits
+ * moment; the list rehydrates from GET /api/v1/live-review-widget/review on load, edits
  * PATCH and deletes DELETE. Only a Pending comment is still editable, so once
  * the agent addresses one the widget's PATCH/DELETE 404s by design.
  *
@@ -52,7 +52,7 @@ const e2eEmail = (): string =>
  * The widget appends `?context=` when the page names a card, so a glob without
  * the trailing star silently misses that form and the real endpoint answers.
  */
-const REVIEW_ROUTE = '**/api/live-review/review*';
+const REVIEW_ROUTE = '**/api/v1/live-review-widget/review*';
 
 const harnessUrl = (): string =>
     `/dev/live-review-harness?email=${encodeURIComponent(e2eEmail())}`;
@@ -133,7 +133,7 @@ const registerUser = async (
 const gotoHarness = async (page: Page, url: string): Promise<void> => {
     const booted = page.waitForResponse(
         (response) =>
-            response.url().includes('/api/live-review/review') &&
+            response.url().includes('/api/v1/live-review-widget/review') &&
             response.request().method() === 'GET',
     );
     await page.goto(url);
@@ -174,9 +174,13 @@ const clickSave = async (page: Page): Promise<void> => {
     await Promise.all([
         page.waitForResponse(
             (response) =>
-                (response.url().includes('/api/board/feedback') &&
+                (response
+                    .url()
+                    .includes('/api/v1/live-review-widget/feedback') &&
                     response.request().method() === 'POST') ||
-                (response.url().includes('/api/live-review/comments/') &&
+                (response
+                    .url()
+                    .includes('/api/v1/live-review-widget/comments/') &&
                     response.request().method() === 'PATCH'),
         ),
         page.getByRole('button', { name: 'Save note' }).click(),
@@ -255,7 +259,7 @@ const fetchReviewComments = (
         )!;
         const key = `loupe-site-review:oauth:${new URL(script.src).origin}:${script.dataset.project}`;
         const { accessToken } = JSON.parse(sessionStorage.getItem(key)!);
-        const response = await fetch('/api/live-review/review', {
+        const response = await fetch('/api/v1/live-review-widget/review', {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         const { comments } = (await response.json()) as {
@@ -422,7 +426,7 @@ const nextSaveTarget = async (page: Page): Promise<Record<string, unknown>> => {
     const [request] = await Promise.all([
         page.waitForRequest(
             (request) =>
-                request.url().includes('/api/board/feedback') &&
+                request.url().includes('/api/v1/live-review-widget/feedback') &&
                 request.method() === 'POST',
         ),
         clickSave(page),
@@ -501,7 +505,7 @@ test('one card per review is chosen once and remembered after a reload', async (
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().endsWith('/api/board/cards') &&
+                response.url().endsWith('/api/v1/live-review-widget/cards') &&
                 response.request().method() === 'POST',
         ),
         page.locator('#lp-destination-save').click(),
@@ -609,7 +613,7 @@ test('epic mode files each note as a card under the epic', async ({ page }) => {
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().endsWith('/api/board/cards') &&
+                response.url().endsWith('/api/v1/live-review-widget/cards') &&
                 response.request().method() === 'POST',
         ),
         page.locator('#lp-destination-save').click(),
@@ -633,7 +637,7 @@ test('epic mode shows a type selector when the template has two grouping types',
 }) => {
     // Both shipped templates declare one grouping type, so the start request
     // is rewritten to name two. The server still holds the real template.
-    await page.route('**/api/live-review/review*', async (route) => {
+    await page.route('**/api/v1/live-review-widget/review*', async (route) => {
         const response = await route.fetch();
         const payload = await response.json();
         payload.parentTypes = [
@@ -654,7 +658,7 @@ test('epic mode shows a type selector when the template has two grouping types',
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().endsWith('/api/board/cards') &&
+                response.url().endsWith('/api/v1/live-review-widget/cards') &&
                 response.request().method() === 'POST',
         ),
         page.locator('#lp-destination-save').click(),
@@ -691,7 +695,7 @@ test('a keep=1 reload rehydrates the live comments into pins and list', async ({
 
     // Reload the harness with keep=1: the comments survive, because they belong
     // to the site rather than to the grant, and the widget boots by rehydrating
-    // from GET /api/live-review/review.
+    // from GET /api/v1/live-review-widget/review.
     await gotoHarness(page, keepUrl);
 
     // The launcher badge shows the rehydrated count without any interaction.
@@ -733,16 +737,19 @@ for (const changeDraft of [false, true]) {
         const textarea = page.getByPlaceholder(/What should change/);
         await textarea.fill('Persisted before the connection drops');
         const deliveryIds: string[] = [];
-        await page.route('**/api/board/feedback', async (route) => {
-            deliveryIds.push(route.request().postDataJSON().deliveryId);
-            if (deliveryIds.length === 1) {
-                const response = await route.fetch();
-                expect(response.status()).toBe(201);
-                await route.abort('failed');
-            } else {
-                await route.continue();
-            }
-        });
+        await page.route(
+            '**/api/v1/live-review-widget/feedback',
+            async (route) => {
+                deliveryIds.push(route.request().postDataJSON().deliveryId);
+                if (deliveryIds.length === 1) {
+                    const response = await route.fetch();
+                    expect(response.status()).toBe(201);
+                    await route.abort('failed');
+                } else {
+                    await route.continue();
+                }
+            },
+        );
 
         await siteReviewPanelSettled(page);
         await page.getByRole('button', { name: 'Save note' }).click();
@@ -795,7 +802,7 @@ test('a failed save keeps the text in the composer so it can be retried', async 
 
     // Make the backend reject the next save.
     let calls = 0;
-    await page.route('**/api/board/feedback', (route) => {
+    await page.route('**/api/v1/live-review-widget/feedback', (route) => {
         calls += 1;
         void route.fulfill({
             status: 500,
@@ -842,7 +849,7 @@ test('a comment the agent already addressed can no longer be edited', async ({
     // as a 404 on PATCH. The widget must say so plainly rather than offering a
     // retry that would fail the same way. The 404 also makes it reconcile, so
     // the frozen row drops out of the list.
-    await page.route('**/api/live-review/comments/*', (route) => {
+    await page.route('**/api/v1/live-review-widget/comments/*', (route) => {
         void route.fulfill({
             status: 404,
             contentType: 'application/json',
@@ -1006,7 +1013,7 @@ test('a grant revoked mid-session signs the reviewer out and clears the on-page 
     await expect(page.locator('.pin')).toHaveText('1');
 
     // The grant is revoked between load and the next save: that POST 401s.
-    await page.route('**/api/board/feedback', (route) => {
+    await page.route('**/api/v1/live-review-widget/feedback', (route) => {
         void route.fulfill({
             status: 401,
             contentType: 'application/json',
@@ -1110,7 +1117,9 @@ test('deleting a list comment confirms inside its menu', async ({ page }) => {
     const [deleted] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().includes('/api/board/feedback/') &&
+                response
+                    .url()
+                    .includes('/api/v1/live-review-widget/feedback/') &&
                 response.request().method() === 'DELETE',
         ),
         confirm.getByRole('button', { name: 'Delete', exact: true }).click(),
@@ -1735,7 +1744,7 @@ test('a comment can be anchored to several elements at once', async ({
     page.on('request', (request) => {
         if (
             request.method() === 'POST' &&
-            request.url().includes('/api/board/feedback')
+            request.url().includes('/api/v1/live-review-widget/feedback')
         ) {
             saved = JSON.parse(request.postData() ?? '{}');
         }
@@ -2657,7 +2666,7 @@ const saveComposed = async (page: Page, body: string): Promise<void> => {
 const openWithComments = async (page: Page, url: string): Promise<void> => {
     await Promise.all([
         page.waitForResponse((response) =>
-            response.url().includes('/api/live-review/review'),
+            response.url().includes('/api/v1/live-review-widget/review'),
         ),
         page.goto(url),
     ]);
@@ -2733,7 +2742,7 @@ test('a comment can quote a run of text inside an element', async ({
     page.on('request', (request) => {
         if (
             request.method() === 'POST' &&
-            request.url().includes('/api/board/feedback')
+            request.url().includes('/api/v1/live-review-widget/feedback')
         ) {
             saved = JSON.parse(request.postData() ?? '{}');
         }
@@ -3216,7 +3225,7 @@ const fetchReviewStrokes = (
         )!;
         const key = `loupe-site-review:oauth:${new URL(script.src).origin}:${script.dataset.project}`;
         const { accessToken } = JSON.parse(sessionStorage.getItem(key)!);
-        const response = await fetch('/api/live-review/review', {
+        const response = await fetch('/api/v1/live-review-widget/review', {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         const { comments } = (await response.json()) as {
@@ -4272,7 +4281,7 @@ const recordListRequests = (
     page.on('request', (request) => {
         const url = new URL(request.url());
         if (
-            url.pathname === '/api/live-review/review' &&
+            url.pathname === '/api/v1/live-review-widget/review' &&
             request.method() === 'GET'
         ) {
             seen.push({
@@ -4349,7 +4358,9 @@ test('a card per note lists the cards this tab made, and a new destination clear
     const [saved] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().includes('/api/board/feedback') &&
+                response
+                    .url()
+                    .includes('/api/v1/live-review-widget/feedback') &&
                 response.request().method() === 'POST',
         ),
         clickSave(page),
@@ -4380,7 +4391,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                response.url().endsWith('/api/board/cards') &&
+                response.url().endsWith('/api/v1/live-review-widget/cards') &&
                 response.request().method() === 'POST',
         ),
         page.locator('#lp-destination-save').click(),

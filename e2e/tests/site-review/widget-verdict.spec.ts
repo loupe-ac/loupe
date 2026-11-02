@@ -92,7 +92,7 @@ const openLockedPage = async (
     await signWidgetIn(page, projectId!);
 
     const posted: Array<Record<string, unknown>> = [];
-    await page.route('**/api/live-review/review*', (route) =>
+    await page.route('**/api/v1/live-review-widget/review*', (route) =>
         json(route, {
             comments: [],
             context: { label: '#7 Preview card', url: null },
