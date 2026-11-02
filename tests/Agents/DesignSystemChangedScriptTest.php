@@ -48,7 +48,7 @@ final class DesignSystemChangedScriptTest extends TestCase
             'assets/styles/tokens.css.bak',
             'templates/components/Other/Thing.html.twig',
             'src/Module/DesignSystem/Other.php',
-            'src/Command/SeedShowcaseDataCommand.php',
+            'src/Command/SeedDevDataCommand.php',
         ] as $path) {
             $this->write($path);
         }

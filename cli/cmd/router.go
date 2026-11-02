@@ -80,6 +80,12 @@ type router struct {
 	// skipped for them, until a heartbeat carries them.
 	blocked blockedSet
 	skips   skipLog
+	// claimWaits holds the requests whose claim failed. claimClock stands in
+	// for time.Now in a test. updateCheck asks for an update check after a
+	// lasting refusal. A nil one asks for none.
+	claimWaits  claimBackoff
+	claimClock  func() time.Time
+	updateCheck func()
 	// hostSampling and hostInterval are the host sampling flags, under mu.
 	hostSampling bool
 	hostInterval time.Duration

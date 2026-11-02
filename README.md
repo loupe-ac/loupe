@@ -56,6 +56,11 @@ just migrate-run       # set up the database
 just exec bin/console app:dev:seed   # log in as dev@loupe.test / password
 ```
 
+`app:dev:seed` fills the database with one demo dataset, so every page shows
+records. It also switches on the flags `inbox.enabled`, `artifacts.enabled` and
+`billing.enabled`, and tags their rows `dev-seed`. Pass `--keep-flag-defaults` to
+leave the existing flag values unchanged.
+
 `just up` publishes no host port — it expects a reverse proxy on an external
 Docker network named `traefik`, and fails rather than degrades without one.
 [`examples/`](examples/) holds a working proxy and a plain-HTTP alternative;

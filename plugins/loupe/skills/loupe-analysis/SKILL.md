@@ -7,7 +7,7 @@ description: "Use when a work request asks for an analysis of a Loupe project, s
 
 An analysis reads the worker runs of one project, or the comparison of one experiment. It ends with a report document and a short list of proposals. The owner starts it on the Reports tab of the Analytics page. A bridge then runs you with the analysis id. The owner reads the report and creates or dismisses each proposal.
 
-Change no code and no card. Read through the `loupe` MCP, write one document, and report.
+Change no code and no card. Read through the `loupe` MCP, write one document, and report. An analysis saves no graph to the Dashboard. The report may name the settings of a graph worth saving, and the owner decides whether to ask for it with `graph_save`.
 
 ## Procedure
 

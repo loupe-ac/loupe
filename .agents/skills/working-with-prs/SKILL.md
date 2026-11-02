@@ -192,9 +192,7 @@ two thirds of the way down, next to the gate results, makes the reviewer hunt.
 "Try it", "Click it" and "Verification" are typical names for such a section.
 Lead with the links, then explain the change.
 
-Give each link a one-line label that says what state it shows. A child of an
-epic also writes a `State:` text on each line, as "A child of an epic targets
-the epic branch" says. When a change has several states, seed one document per
+Give each link a one-line label that says what state it shows. When a change has several states, seed one document per
 state and link each. A reviewer who can see all of them side by side reviews
 what the code does. Otherwise the reviewer sees only the one case you seeded.
 
@@ -250,8 +248,8 @@ container fails, because the page renders them with no data too. In
 `pr:loupe-ac/loupe#1381`, the Metrics marker `data-metrics-title` counted 1 on a
 project with 0 runs, so every chart was empty. Pick a marker that the template
 prints once for each record, such as a row id or a `data-series` attribute.
-The temporary seed command also creates an empty twin of the record and prints
-its path. Mint a link to that path, and fetch it with the same cookie jar:
+The module seeder that writes the data also writes an empty twin of the record
+with a fixed id. Mint a link to that path, and fetch it with the same cookie jar:
 
 ```bash
 twin=$( ( cd .worktrees/<name> && bin/worktrees/compose-exec.sh \
@@ -288,8 +286,7 @@ must be 1 or more. The marker must not be on `main`:
 - [Landing page](https://card-42.loupe.dev.localhost/), marker `rel="help"`. Signed out.
 ```
 
-A child of an epic appends `. State: <text>` to the line, so a signed-out line
-ends `. Signed out. State: <text>`. A link to a file, an artifact or a CI run
+A link to a file, an artifact or a CI run
 takes the same shape with no marker. So does the card line:
 `- [Card 42: <title>](<card URL>)`.
 
@@ -337,15 +334,15 @@ A branch that adds no route can still produce reviewable output, such as HTML
 from a renderer, a generated report or a file. Publish the output as an
 artifact and link it. Say which questions it answers and which it defers.
 
-Seed the data the change needs. `bin/console app:dev:seed` creates a user, an
-admin and a project, and no documents, comments, verdicts or exports. A diff
-feature is untestable without a document that carries several versions. Create
-fixtures that contain the exact shape the bug had, not merely a happy path.
-Tell the reviewer which one to open and what to look for.
-
-Seed with a temporary `#[When('dev')]` console command created inside the
-worktree. Run it, delete it, then confirm that `git status --porcelain` is
-empty. Fixtures must never reach the branch.
+Seed the data the change needs. `bin/console app:dev:seed` fills the database
+with the demo dataset of the module seeders, which covers most pages. A diff
+feature is untestable without a document that carries several versions. When
+the dataset lacks the state, extend the module seeder in the branch. Give each
+record that a link names a fixed id. Write the exact shape the bug had, not
+merely a happy path. A page behind a flag adds the flag to
+`DevFeatureFlagSeeder`. A link to an account page names a demo account, never
+the dev or the admin account. Tell the reviewer which link to open and what to
+look for.
 
 ## Reviewing work you did not write
 
@@ -594,13 +591,11 @@ carries the preview links of the child to the epic pull request.
 needs, and how the epic preview refreshes.
 
 So write each Preview line of a child with a signed link, or a plain link for a
-signed-out page. Add its marker in backticks, and a `State:` text. The database
-of the child goes at teardown, and the stage seeds each state again on the epic
-preview from that text alone. So name every record that the page needs, with
-its counts, its flags and the account that owns it. For example: "State:
-project owned by dev@loupe.test, 2 open inbox items, readiness guide not
-hidden". A line with no `State:` text, or a state that the stage cannot build,
-reads "not proved" on the epic pull request.
+signed-out page. Add its marker in backticks. The database of the child goes at
+teardown, and the epic preview runs `app:dev:seed` only. So write the state of
+each link in a module seeder of the branch. The seed of the epic preview then
+holds it once the child merges. A link whose record the seed lacks reads "not
+proved" on the epic pull request.
 
 ## Running several branches at once
 

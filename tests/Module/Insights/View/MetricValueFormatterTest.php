@@ -67,6 +67,39 @@ final class MetricValueFormatterTest extends TestCase
         self::assertSame('1,234', new MetricValueFormatter('en')->format(1234, $metric, MetricStatistic::Count));
     }
 
+    /** @return iterable<string, array{int|float, string}> */
+    public static function ticks(): iterable
+    {
+        yield 'zero' => [0, '0'];
+        yield 'under a thousand' => [500, '500'];
+        yield 'thousands' => [1500, '1.5K'];
+        yield 'millions' => [80_000_000, '80M'];
+        yield 'a fraction of a million' => [1_500_000, '1.5M'];
+        yield 'billions' => [1_000_000_000, '1B'];
+        yield 'negative' => [-2_500_000, '-2.5M'];
+    }
+
+    #[DataProvider('ticks')]
+    public function test_a_token_axis_tick_is_short(int|float $value, string $expected): void
+    {
+        self::assertSame($expected, new MetricValueFormatter('en')->axisTick($value, self::built(Metric::InputTokens)));
+    }
+
+    public function test_a_count_axis_tick_is_short_on_any_metric(): void
+    {
+        self::assertSame('2M', new MetricValueFormatter('en')->axisTick(2_000_000, self::built(Metric::Cost), MetricStatistic::Count));
+        self::assertSame('3M', new MetricValueFormatter('en')->axisTick(3_000_000, self::built(Metric::Runs)));
+    }
+
+    #[DataProvider('metricsOfOtherTypes')]
+    public function test_other_axis_ticks_read_as_the_full_format(MetricShape $metric): void
+    {
+        $formatter = new MetricValueFormatter('en');
+
+        self::assertSame($formatter->format(1500, $metric), $formatter->axisTick(1500, $metric));
+        self::assertSame($formatter->format(0.5, $metric, moneyDecimals: 1), $formatter->axisTick(0.5, $metric, moneyDecimals: 1));
+    }
+
     public function test_an_unknown_value_has_no_text(): void
     {
         self::assertNull(new MetricValueFormatter('en')->format(null, self::built(Metric::Cost)));

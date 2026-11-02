@@ -44,6 +44,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertCount(1, $empty);
         self::assertSame('No runs are recorded yet', trim($empty->filter('h2')->text()));
         self::assertCount(0, $crawler->filter('[data-metrics-chart]'));
+        self::assertCount(0, $crawler->filter('[data-series]'));
         self::assertCount(0, $crawler->filter('[data-metrics-note]'));
     }
 
@@ -119,6 +120,32 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame('2', trim($crawler->filter('[data-metrics-chart] .lp-data-table__row .lp-data-table__cell--end')->text()));
         $ticks = $crawler->filter('[data-metrics-chart] .lp-chart__tick[text-anchor="end"]')->each(static fn (Crawler $tick): string => trim($tick->text()));
         self::assertSame(['0', '1', '2', '3', '4'], $ticks);
+    }
+
+    public function test_a_token_axis_prints_short_ticks_and_the_table_keeps_the_full_value(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'metrics-ticks@example.com');
+        $project = $this->project($em, $owner, 'Tick metrics');
+        $run = $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('2026-09-01 10:05:00'));
+        $this->seedUsage($em, $run, inputTokens: 74_136_984);
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=input-tokens&unit=run&statistic=sum&range=all&bucket=day');
+
+        self::assertResponseIsSuccessful();
+        $ticks = $crawler->filter('[data-metrics-chart] .lp-chart__tick[text-anchor="end"]')->each(static fn (Crawler $tick): string => trim($tick->text()));
+        self::assertContains('80M', $ticks);
+        self::assertSame('74,136,984', trim($crawler->filter('[data-metrics-chart] .lp-data-table__row .lp-data-table__cell--end')->text()));
+        self::assertCount(1, $crawler->filter('[data-metrics-chart] g[data-series="0"]'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/metrics?metric=input-tokens&unit=run&statistic=sum&range=all&bucket=day&chart=stacked-bars');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-metrics-chart] path.lp-chart__bar[data-series="0"]'));
     }
 
     public function test_a_grouped_query_draws_one_line_per_group_with_a_legend_and_a_row_each(): void

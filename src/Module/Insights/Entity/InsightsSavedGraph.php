@@ -91,6 +91,12 @@ class InsightsSavedGraph
         return null !== $this->removedAt && $this->removedAt >= $now->modify(self::UNDO_WINDOW);
     }
 
+    /** The end of the Undo window, or null for a graph on show. */
+    public function undoUntil(): ?\DateTimeImmutable
+    {
+        return $this->removedAt?->sub(\DateInterval::createFromDateString(self::UNDO_WINDOW));
+    }
+
     /** @return array<string, string> the Metrics controls of the graph, by name */
     public function settings(): array
     {

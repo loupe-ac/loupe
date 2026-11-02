@@ -35,7 +35,7 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
 {
     public function test_builds_the_complete_archive_from_a_full_object_graph(): void
     {
-        $client = static::createClient();
+        static::createClient();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
@@ -102,7 +102,7 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
             }
             sort($names);
             self::assertSame(
-                ['artifacts.json', 'audit_log.json', 'beta_invite.json', 'billing_profile.json', 'bridge_account_readings.json', 'bridge_account_try_now.json', 'bridge_card_holds.json', 'bridge_commands.json', 'bridge_host_samples.json', 'bridge_work_requests.json', 'bridges.json', 'card-verdicts.json', 'cards.json', 'comments.json', 'connected_accounts.json', 'connected_apps.json', 'decision_answers.json', 'documents.json', 'experiment_definitions.json', 'experiment_pins.json', 'forge_repositories.json', 'github_hooks.json', 'github_installations.json', 'github_user_connection.json', 'inbox_actions.json', 'inbox_asks.json', 'inbox_items.json', 'inbox_reviews.json', 'insights_analyses.json', 'insights_bucket_rules.json', 'insights_project_settings.json', 'insights_saved_graphs.json', 'notification_preferences.json', 'openrouter_keys.json', 'profile.json', 'projects.json', 'push_devices.json', 'reviews.json', 'waitlist.json', 'worker_run_billed_costs.json', 'worker_run_bucket_times.json', 'worker_run_facts.json', 'worker_run_output.json', 'worker_run_tool_calls.json', 'worker_run_usage.json', 'worker_runs.json'],
+                ['artifacts.json', 'audit_log.json', 'beta_invite.json', 'billing_profile.json', 'bridge_account_readings.json', 'bridge_account_try_now.json', 'bridge_card_holds.json', 'bridge_claim_refusals.json', 'bridge_commands.json', 'bridge_host_samples.json', 'bridge_work_requests.json', 'bridges.json', 'card-verdicts.json', 'cards.json', 'comments.json', 'connected_accounts.json', 'connected_apps.json', 'decision_answers.json', 'documents.json', 'experiment_definitions.json', 'experiment_pins.json', 'forge_repositories.json', 'github_hooks.json', 'github_installations.json', 'github_user_connection.json', 'idempotency_records.json', 'inbox_actions.json', 'inbox_asks.json', 'inbox_items.json', 'inbox_reviews.json', 'insights_analyses.json', 'insights_bucket_rules.json', 'insights_project_settings.json', 'insights_saved_graphs.json', 'notification_preferences.json', 'openrouter_keys.json', 'profile.json', 'projects.json', 'push_devices.json', 'reviews.json', 'waitlist.json', 'worker_run_billed_costs.json', 'worker_run_bucket_times.json', 'worker_run_facts.json', 'worker_run_output.json', 'worker_run_tool_calls.json', 'worker_run_usage.json', 'worker_runs.json'],
                 $names,
             );
 

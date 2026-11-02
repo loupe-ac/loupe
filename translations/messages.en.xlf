@@ -3082,6 +3082,30 @@
                 <source>project.connect.tool.metric_query</source>
                 <target>Read one metric, such as cost, tokens, duration or merge rate, over time, by run or by card, with the rows behind it.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.graph_list">
+                <source>project.connect.tool.graph_list</source>
+                <target>Read the saved graphs on the Dashboard of the project, with their settings and the removed graphs that can come back.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_save">
+                <source>project.connect.tool.graph_save</source>
+                <target>Save a graph as a new tile at the end of the Dashboard.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_update">
+                <source>project.connect.tool.graph_update</source>
+                <target>Change the settings, the name, the width or the legend of a saved graph.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_move">
+                <source>project.connect.tool.graph_move</source>
+                <target>Move a saved graph to another place on the Dashboard.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_remove">
+                <source>project.connect.tool.graph_remove</source>
+                <target>Remove a saved graph from the Dashboard, in two calls: a preview, then the removal with a code that the owner confirmed.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.graph_restore">
+                <source>project.connect.tool.graph_restore</source>
+                <target>Bring a removed saved graph back to the Dashboard, as Undo does, for one day after its removal.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.experiment_get">
                 <source>project.connect.tool.experiment_get</source>
                 <target>Read the comparison of one experiment: each variant, each metric with its likely range, and the cards it keeps or leaves out.</target>
@@ -6131,6 +6155,18 @@
                 <source>inbox.bridge_outage.body.remedy</source>
                 <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
             </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.version_gap">
+                <source>inbox.bridge_outage.body.refused.version_gap</source>
+                <target>%bridge% runs a CLI that names no account in its claims. Run `loupe update` on that machine.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.account">
+                <source>inbox.bridge_outage.body.refused.account</source>
+                <target>The server refused %bridge% for the account %account%. Check the account of the work entry or the experiment variant in `rules.yaml`, then run `loupe bridge reload`.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.refused.no_account">
+                <source>inbox.bridge_outage.body.refused.no_account</source>
+                <target>The server refused %bridge% because its claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.</target>
+            </trans-unit>
             <trans-unit id="inbox.account_limit.title">
                 <source>inbox.account_limit.title</source>
                 <target>{0}%account% on %bridge% is at its %window% limit · no cards wait · resets %resets%|{1}%account% on %bridge% is at its %window% limit · 1 card waits · resets %resets%|]1,Inf[%account% on %bridge% is at its %window% limit · %count% cards wait · resets %resets%</target>
@@ -8528,6 +8564,10 @@
             <trans-unit id="bridge.agents.status.login_expired"><source>bridge.agents.status.login_expired</source><target>Login expired</target></trans-unit>
             <trans-unit id="bridge.agents.hint.login_expired"><source>bridge.agents.hint.login_expired</source><target>Run `loupe login` on %name%.</target></trans-unit>
             <trans-unit id="bridge.agents.hint.stale"><source>bridge.agents.hint.stale</source><target>Run `loupe bridge status` on %name% to see why.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.chip"><source>bridge.agents.refused.chip</source><target>Cannot take work</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.version_gap"><source>bridge.agents.refused.cause.version_gap</source><target>This CLI names no account in its claims. Run `loupe update`.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.account"><source>bridge.agents.refused.cause.account</source><target>The server refused the account %account%. Check the work entry or experiment variant in `rules.yaml`, then run `loupe bridge reload`.</target></trans-unit>
+            <trans-unit id="bridge.agents.refused.cause.no_account"><source>bridge.agents.refused.cause.no_account</source><target>The claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.</target></trans-unit>
             <trans-unit id="bridge.agents.status.healthy"><source>bridge.agents.status.healthy</source><target>Healthy</target></trans-unit>
             <trans-unit id="bridge.agents.project_connection"><source>bridge.agents.project_connection</source><target>Receives eligible work for %project%.</target></trans-unit>
             <trans-unit id="bridge.agents.runtime"><source>bridge.agents.runtime</source><target>CLI version</target></trans-unit>
@@ -8876,6 +8916,7 @@
             <trans-unit id="insights.saved_graph.error.chart_needs_several_lines"><source>insights.saved_graph.error.chart_needs_several_lines</source><target>This chart type needs several lines to add up. Group the graph first, or pick another chart type.</target></trans-unit>
             <trans-unit id="insights.saved_graph.error.chart_statistic_does_not_add"><source>insights.saved_graph.error.chart_statistic_does_not_add</source><target>This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.</target></trans-unit>
             <trans-unit id="insights.saved_graph.error.chart_rate_does_not_add"><source>insights.saved_graph.error.chart_rate_does_not_add</source><target>The rates of several lines never add up to a whole. Pick another chart type.</target></trans-unit>
+            <trans-unit id="insights.saved_graph.error.confirmation_refused"><source>insights.saved_graph.error.confirmation_refused</source><target>This code does not fit the graph any more. Preview the graph again, then ask the owner.</target></trans-unit>
             <trans-unit id="insights.form.saved_graph_form.name.label"><source>insights.form.saved_graph_form.name.label</source><target>Name</target></trans-unit>
             <trans-unit id="analytics.metrics.saved_graph.flash.saved"><source>analytics.metrics.saved_graph.flash.saved</source><target>The graph is saved.</target></trans-unit>
             <trans-unit id="analytics.metrics.saved_graph.flash.updated"><source>analytics.metrics.saved_graph.flash.updated</source><target>The graph is updated.</target></trans-unit>

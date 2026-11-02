@@ -8,8 +8,8 @@ use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\SavedGraphLocker;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ubermuda\AuditBundle\Auditor;
@@ -22,6 +22,7 @@ final readonly class UpdateSavedGraphHandler
     public function __construct(
         private EntityManagerInterface $em,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
+        private SavedGraphLocker $locker,
         private SavedGraphSettingsResolver $settings,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
@@ -35,11 +36,10 @@ final readonly class UpdateSavedGraphHandler
         $projectId = (string) $project->requireId();
         $query = $this->settings->resolve($project, $command->settings);
 
-        $graph = $this->em->wrapInTransaction(function () use ($command, $project, $projectId, $query): ?InsightsSavedGraph {
-            // The lock orders the update against a save and against a removal of the same project.
-            $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+        $graph = $this->em->wrapInTransaction(function () use ($command, $projectId, $query): ?InsightsSavedGraph {
+            // A caller can hold the graph already, so its removal time is read again under the lock.
             $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($command->graphId, $projectId);
-            if (null === $graph || null !== $graph->removedAt) {
+            if (null === $graph || !$this->locker->lockActive($graph)) {
                 return null;
             }
             $graph->metric = $query->metric->key->key();
