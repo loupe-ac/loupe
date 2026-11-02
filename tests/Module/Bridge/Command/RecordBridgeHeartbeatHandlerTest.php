@@ -11,9 +11,11 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\BridgeAccountReadingsStored;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeReported;
+use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
@@ -24,6 +26,7 @@ use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
@@ -1002,6 +1005,77 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
             self::reading('session', 35.0, readAt: '2026-01-01 10:04:30'),
         ]));
         self::assertEqualsWithDelta(15.0, (float) $delta(), 0.001, 'A reading equal to the latest stores nothing and still recomputes.');
+    }
+
+    public function test_a_heartbeat_keeps_the_refusals_of_open_requests_and_drops_those_of_closed_ones(): void
+    {
+        [$owner, $bridge, $open] = $this->refusalScenario('heartbeat-refusals-closed');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, $bridge->projects, 'b4e39aa7', accounts: [self::account()]));
+
+        self::assertSame([[(string) $open->id]], $this->em()->getConnection()->fetchAllNumeric('SELECT DISTINCT work_request_id FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_heartbeat_with_a_new_cli_version_drops_every_refusal_of_the_bridge(): void
+    {
+        [$owner, $bridge, , , $otherBridge] = $this->refusalScenario('heartbeat-refusals-version');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, $bridge->projects, '1.33.0', accounts: [self::account()]));
+
+        self::assertSame([[(string) $otherBridge->id]], $this->em()->getConnection()->fetchAllNumeric('SELECT DISTINCT bridge_id FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_heartbeat_with_new_accounts_drops_every_refusal_of_the_bridge(): void
+    {
+        [$owner, $bridge, , , $otherBridge] = $this->refusalScenario('heartbeat-refusals-accounts');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, $bridge->projects, 'b4e39aa7', accounts: [self::account(), ['name' => 'spare', 'harness' => 'claude', 'state' => 'ready', 'reason' => null]]));
+
+        self::assertSame([[(string) $otherBridge->id]], $this->em()->getConnection()->fetchAllNumeric('SELECT DISTINCT bridge_id FROM bridge_claim_refusals'));
+    }
+
+    public function test_a_heartbeat_that_omits_the_accounts_keeps_the_refusals(): void
+    {
+        [$owner, $bridge] = $this->refusalScenario('heartbeat-refusals-omitted');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, $bridge->projects, 'b4e39aa7'));
+
+        self::assertSame(1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_claim_refusals WHERE bridge_id = ?', [(string) $bridge->id]));
+    }
+
+    public function test_a_heartbeat_with_the_same_accounts_and_version_keeps_the_refusals_of_open_requests(): void
+    {
+        [$owner, $bridge, $open] = $this->refusalScenario('heartbeat-refusals-same');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, $bridge->id, $bridge->projects, 'b4e39aa7', accounts: [self::account()]));
+
+        self::assertSame(2, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_claim_refusals WHERE work_request_id = ?', [(string) $open->id]));
+    }
+
+    /**
+     * The bridge has refusals for an open and a closed request, and a second bridge has one for the open request.
+     *
+     * @return array{User, Bridge, WorkRequest, WorkRequest, Bridge}
+     */
+    private function refusalScenario(string $name): array
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, $name.'@example.com');
+        $project = $this->project($em, $owner, 'Project '.$name);
+        $projects = [(string) $project->id];
+        $bridge = $this->seedBridge($em, $owner, projects: $projects, cliVersion: 'b4e39aa7', accounts: [self::account()]);
+        $otherBridge = $this->seedBridge($em, $owner, projects: $projects);
+        $open = $this->seedWorkRequest($em, $project);
+        $closed = $this->seedWorkRequest($em, $project, kind: 'fix', state: WorkRequestState::Done);
+        $refusals = self::getContainer()->get(BridgeClaimRefusalRepository::class);
+        self::assertInstanceOf(BridgeClaimRefusalRepository::class, $refusals);
+        $ownerId = $owner->id ?? throw new \LogicException('The owner has an id.');
+        $refusals->put($ownerId, $bridge->id, $open->id ?? throw new \LogicException('The request has an id.'), null);
+        $refusals->put($ownerId, $bridge->id, $closed->id ?? throw new \LogicException('The request has an id.'), 'work');
+        $refusals->put($ownerId, $otherBridge->id, $open->id, null);
+
+        return [$owner, $bridge, $open, $closed, $otherBridge];
     }
 
     private function retention(): WorkerRunRetentionPolicy

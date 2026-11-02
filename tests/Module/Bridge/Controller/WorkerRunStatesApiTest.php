@@ -155,6 +155,51 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertCount(1, $this->historyOf($this->onlyRun()));
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function datesWithAFraction(): iterable
+    {
+        yield 'milliseconds' => ['2026-11-01T12:37:46.027-05:00'];
+        yield 'nine digits' => ['2026-11-01T12:37:46.288146826-05:00'];
+    }
+
+    /** The state table holds whole seconds. WorkerRunToolCallsApiTest proves a column that keeps the fraction. */
+    #[DataProvider('datesWithAFraction')]
+    public function test_a_date_with_a_fraction_is_stored_as_the_same_second(string $at): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-fraction-'.md5($at).'@example.com');
+        $project = $this->project($em, $owner, 'Run States Fraction '.md5($at));
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['at' => $at]));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(['2026-11-01 17:37:46'], $this->em()->getConnection()->fetchFirstColumn('SELECT at FROM bridge_worker_run_states'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function datesTheAppRefuses(): iterable
+    {
+        yield 'words' => ['tomorrow'];
+        yield 'a day that does not exist' => ['2026-02-30T17:58:08.177Z'];
+    }
+
+    #[DataProvider('datesTheAppRefuses')]
+    public function test_a_date_that_is_not_real_rfc_3339_is_refused(string $at): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-refused-'.md5($at).'@example.com');
+        $project = $this->project($em, $owner, 'Run States Refused '.md5($at));
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['at' => $at]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->allRuns());
+    }
+
     public function test_a_run_moves_through_its_states_and_keeps_each_one(): void
     {
         $client = static::createClient();

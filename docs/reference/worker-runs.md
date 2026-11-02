@@ -104,7 +104,7 @@ order.
 |---|---|
 | `bridgeId` | required. A uuid the bridge generates once and keeps. It points at no table, so any uuid is accepted |
 | `state` | required. One of the seventeen states the bridge sets. The server refuses `timed-out`, `lost` and `closed` |
-| `at` | required. When the run reached the state, on the bridge clock, as an ISO 8601 timestamp |
+| `at` | required. When the run reached the state, on the bridge clock, as an RFC 3339 date |
 | `subjectType` | required. What the run is about, such as `card`. It matches `^[a-z][a-z0-9-]{0,39}$`. The bridge copies it from the work request |
 | `subjectId` | required. The uuid of the subject, which is the card id for a card. It is a plain value, so a deleted card leaves its run history intact |
 | `cardNumber` | the short number the card shows, counting from 1 inside the project, at most 2147483647. It is a label for a person, and never identifies the card. Required for a `card` subject, and refused for any other subject. The bridge leaves it out for another subject |

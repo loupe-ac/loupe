@@ -651,7 +651,10 @@ Loupe opens the notice **No bridge can take work** when the work of a card waits
 for 10 minutes and no online bridge can take it. A paused bridge keeps the work
 waiting, and Loupe opens no notice for it.
 The notice lists each card that waits. It tells you to start a bridge, or to run
-`loupe login`. When more work starts to wait, Loupe adds its card to the open
+`loupe login`. When the server refused the claim of a bridge for one waiting
+request, the notice names that bridge and the cause. It says `loupe update` only
+when the bridge is too old to name an account. Otherwise it tells you to check
+the account of the work entry in `rules.yaml` and to run `loupe bridge reload`. When more work starts to wait, Loupe adds its card to the open
 notice. A project has one such notice at a time. The `inbox:` list of the
 template does not turn it off.
 

@@ -135,7 +135,7 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
         self::assertSame($expected, $watched, 'a Codex session stays watched for its transcript time');
 
         $this->heartbeat($client, $bridgeId, $raw, [
-            ['sessionId' => $codex->toRfc4122(), 'alive' => false, 'transcriptAt' => '2026-10-28 11:30:00+00:00'],
+            ['sessionId' => $codex->toRfc4122(), 'alive' => false, 'transcriptAt' => '2026-10-28T11:30:00+00:00'],
             ['sessionId' => $claude->toRfc4122(), 'alive' => false, 'transcriptAt' => null],
         ]);
 
@@ -161,8 +161,8 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
         $futureRun = $this->open($project, $future, $bridgeId);
 
         $this->heartbeat($client, $bridgeId, $raw, [
-            ['sessionId' => $past->toRfc4122(), 'alive' => null, 'transcriptAt' => '2026-10-28 09:30:00+00:00'],
-            ['sessionId' => $future->toRfc4122(), 'alive' => null, 'transcriptAt' => '2026-10-29 09:30:00+00:00'],
+            ['sessionId' => $past->toRfc4122(), 'alive' => null, 'transcriptAt' => '2026-10-28T09:30:00+00:00'],
+            ['sessionId' => $future->toRfc4122(), 'alive' => null, 'transcriptAt' => '2026-10-29T09:30:00+00:00'],
         ]);
 
         self::assertResponseStatusCodeSame(200);

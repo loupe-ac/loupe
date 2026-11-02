@@ -72,6 +72,23 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
         self::assertSame(['2026-01-01 10:00:05.12', '2026-01-01 10:00:05.87'], array_column($this->rows($run), 'started_at'));
     }
 
+    public function test_a_date_keeps_its_fraction_in_storage_up_to_six_digits(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'tool-calls-fraction@example.com');
+        $project = $this->project($em, $owner, 'Tool Calls Fraction');
+        $run = $this->keyedRun($project);
+
+        $this->put($client, $project, $run, $this->agentToken($client, $owner), ['calls' => [
+            ['startedAt' => '2026-11-01T17:58:08.177Z'] + self::call(1, 'Bash'),
+            ['startedAt' => '2026-11-01T12:37:46.288146826-05:00'] + self::call(2, 'Read'),
+        ], 'timing' => null]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['2026-11-01 17:58:08.177', '2026-11-01 17:37:46.288146'], array_column($this->rows($run), 'started_at'));
+    }
+
     public function test_a_seq_the_batch_repeats_is_stored_once(): void
     {
         $client = static::createClient();

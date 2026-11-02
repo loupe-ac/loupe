@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -71,7 +72,7 @@ class BridgeRepository extends ServiceEntityRepository
         }
 
         $bridge = $this->createQueryBuilder('b')
-            ->innerJoin(Project::class, 'p', 'WITH', 'p.owner = b.owner')
+            ->innerJoin(Project::class, 'p', Join::ON, 'p.owner = b.owner')
             ->andWhere('p.id = :projectId')
             ->andWhere('b.id = :bridgeId')
             ->setParameter('projectId', Uuid::fromString($projectId), UuidType::NAME)

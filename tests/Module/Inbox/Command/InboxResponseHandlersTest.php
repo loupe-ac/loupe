@@ -114,7 +114,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $stale = $this->todo($this->em, $this->project, 1);
         // An older page marked it done after this request loaded the item.
         $this->em->getConnection()->executeStatement(
-            "UPDATE inbox_items SET state = 'done', closed_at = NOW(), updated_at = '2026-01-01 00:00:00' WHERE id = ?",
+            "UPDATE inbox_items SET state = 'resolved', closed_by = 'owner', closed_at = NOW(), updated_at = '2026-01-01 00:00:00' WHERE id = ?",
             [(string) $stale->id],
         );
 
@@ -210,7 +210,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $item = $this->question($this->em, $this->project, 1, freeText: true);
         // Another request answers and commits after this one loaded the item.
         $this->em->getConnection()->executeStatement(
-            "UPDATE inbox_items SET state = 'answered', selected_options = '[1]', answer_text = 'CSV', closed_at = NOW() WHERE id = ?",
+            "UPDATE inbox_items SET state = 'resolved', closed_by = 'owner', selected_options = '[1]', note = 'CSV', closed_at = NOW() WHERE id = ?",
             [(string) $item->id],
         );
 

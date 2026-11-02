@@ -1,5 +1,5 @@
 key: lifecycle
-version: 37
+version: 38
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -30,6 +30,10 @@ metrics:
       label: Hours waiting for approval
       description: The hours from the last agent review pass to ready to merge.
       duration: { from: { last: agent-review-passed }, to: ready-to-merge }
+    - key: hours-to-ready-to-merge
+      label: Hours to ready to merge
+      description: The hours from the first arrival in Implementation to ready to merge.
+      duration: { from: { arrived: implementation }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
 repositorySettings:
