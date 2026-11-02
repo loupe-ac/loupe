@@ -100,6 +100,12 @@ The shipped Lifecycle template declares **Fix rounds**, **Design review rounds**
 waiting for approval** and **Hours to ready to merge**. The shipped Simple
 template declares **Merge rate** and **Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
 
+**Hours to ready to merge** starts at the first arrival of the card in
+Implementation. A later release of the Lifecycle template starts it at the earlier
+of that arrival and the first pull request opening. A session that links its pull
+request late then still gets a correct start. A template can already name two
+starts with [`earliest`](workflows.md#metrics).
+
 The metric picker lists one **Time in** metric for each bucket that has data
 on a run of the project. A bucket has data on a run when the run stores a time
 for it, and that time can be 0 ms. The time is unknown for a run with no

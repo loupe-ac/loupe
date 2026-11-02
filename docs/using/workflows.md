@@ -704,14 +704,18 @@ When you withdraw the approval of a design, the card goes back to that design. S
 
 A session that does the work of a card itself follows one flow on a Lifecycle
 board. The Loupe plugin ships it as the `loupe-lifecycle-session` skill. A project
-with no plugin can copy these steps into its own instructions:
+with no plugin can copy these steps into its own instructions. The current
+Lifecycle template has no `by: session` move, so `card_run_open` refuses the move
+of step 3 from Backlog or Next, and the card takes step 5. A later release of the
+template adds the move:
 
 1. Call `workflow_get`. Go on only when the template key is `lifecycle`.
 2. Call `card_search`, then `card_create` with no `status`. The card lands in
    Backlog. Never create the card in Implementation, because a worker would
    start before the run opens.
 3. Call `card_run_open` with the slug of Implementation as `status`, and your
-   session id. The card moves to Implementation and no worker starts on it.
+   session id. When the template allows the move, the card moves to
+   Implementation and no worker starts on it.
 4. When the answer starts `worker:`, a worker holds the card. Make no edit.
    Wait for the worker, or stop it with `worker_run_stop`.
 5. When the answer says that the card is managed, call `card_run_open` again

@@ -277,7 +277,7 @@ value. A bucket or a kind that no run has shows no data, not an error.
 | Hours from open to merge | the time from the first pull request of a merged card to the last merge |
 | Design review rounds | the design revise requests of a finished card. The Lifecycle template declares it |
 | Hours to agent review pass | the time from the first pull request opening to the last agent review pass. The Lifecycle template declares it |
-| Hours to ready to merge | the time from the first arrival of a card in Implementation to the last time it was ready to merge. The Lifecycle template declares it |
+| Hours to ready to merge | the time from the first arrival of a card in Implementation to the last time it was ready to merge. A later release of the Lifecycle template starts it at the earlier of that arrival and the first pull request opening. The Lifecycle template declares it |
 
 The rows for the merge rate, the fix rounds and the times exist only when the
 workflow template of the project declares them.

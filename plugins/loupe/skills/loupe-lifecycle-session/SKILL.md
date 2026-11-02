@@ -5,7 +5,7 @@ description: "Use when you do work on a Loupe card yourself, in a session the ow
 
 # Lifecycle session
 
-Do the work of a card yourself and keep the board true while you work. The card moves to Implementation before your first edit, and no worker starts on it.
+Do the work of a card yourself and keep the board true while you work. When the template allows the move, the card moves to Implementation before your first edit, and no worker starts on it.
 
 This skill is not a stage skill. A workflow request starts no part of it. It loads no stage skill and no harness adapter. It shares `.loupe/lifecycle.md` with the stages.
 
@@ -29,6 +29,6 @@ Call `workflow_get` first. The skill applies only when the answer has the templa
 ## Rules
 
 1. Never move the card after step 3. The workflow moves it to review and to done.
-2. When you stop before step 6, call `card_run_close`. The card goes back to Backlog. A later pull request link brings it back to Implementation.
+2. When you stop before step 6, call `card_run_close`. A card that step 3 moved goes back to Backlog when the template has that rule. A later pull request link brings it to Implementation.
 3. Do not create a second card for the same work. A session that restarts reuses its card and calls `card_run_open` again.
 4. A card whose body opens with `**Parked.**` stays where it is. Do not start it.
