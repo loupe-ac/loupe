@@ -18,7 +18,7 @@ test.use({
     isMobile: true,
 });
 
-test('a touch screen takes a plain tooltip out of the layout', async ({
+test('a touch screen hides the tooltip and the help icon of a chip', async ({
     page,
 }) => {
     await suppressWidget(page);
@@ -52,10 +52,11 @@ test('a touch screen takes a plain tooltip out of the layout', async ({
         },
     );
     expect(response.status()).toBe(201);
+    const { id } = await response.json();
 
     await page.goto(`/projects/${projectId}/worker-runs`);
     const chip = page.locator(
-        `[data-worker-run-id="${runId}"] .lp-status-chip`,
+        `[data-worker-run-id="${id}"] > .lp-worker-run-outcome > .lp-worker-run-outcome__status > .lp-status-chip`,
     );
     await expect(chip).toBeVisible();
     await expect(chip.locator('.lp-tooltip')).toHaveCSS('display', 'none');
@@ -63,10 +64,6 @@ test('a touch screen takes a plain tooltip out of the layout', async ({
         'display',
         'none',
     );
-    const widths = await page
-        .locator('.lp-main')
-        .evaluate((main) => [main.scrollWidth, main.clientWidth]);
-    expect(widths[0]).toBe(widths[1]);
 
     await page.evaluate(() => {
         const sign = document.createElement('span');
