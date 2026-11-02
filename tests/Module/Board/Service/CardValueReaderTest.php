@@ -15,6 +15,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardValueKeys;
 use App\Module\Workflow\Contract\CardValueType;
 use App\Tests\Module\Workflow\WorkflowProjects;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class CardValueReaderTest extends KernelTestCase
@@ -88,6 +89,34 @@ final class CardValueReaderTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertSame([], $this->reader()->forCard($card));
+        self::assertSame([(string) $card->id => []], $this->reader()->forCards([$card]));
+    }
+
+    public function test_many_cards_read_the_same_views_as_one_card_at_a_time(): void
+    {
+        $withValue = $this->lifecycleCard();
+        $bare = $this->card($withValue->project);
+        $this->em()->persist(new CardValue($withValue, self::KEY, true, Actor::Human));
+        $this->em()->flush();
+
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        $views = $this->reader()->forCards([$withValue, $bare]);
+
+        $reads = 0;
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $reads += str_contains((string) $query['sql'], 'board_card_values') ? 1 : 0;
+            }
+        }
+        self::assertSame(1, $reads);
+        self::assertEquals($this->reader()->forCard($withValue), $views[(string) $withValue->id]);
+        self::assertEquals($this->reader()->forCard($bare), $views[(string) $bare->id]);
+        // Guard: the stored value must reach its card, or two equal unset lists prove nothing.
+        self::assertTrue($views[(string) $withValue->id][0]->value);
+        self::assertNull($views[(string) $bare->id][0]->value);
     }
 
     private function lifecycleCard(): Card

@@ -17,6 +17,7 @@ use App\Module\Board\EventListener\DispatchCardChangedOnReviewSubmitted;
 use App\Module\Board\EventListener\DispatchCardChangedOnWorkerRunChanged;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\CardChangeAnnouncer;
 use App\Module\Board\Service\CardMove;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Review\Entity\Review;
@@ -55,7 +56,7 @@ final class CardTileRefreshOnStateInputsTest extends KernelTestCase
         $first = Uuid::v7();
         $second = Uuid::v7();
 
-        new DispatchCardChangedOnWorkerRunChanged($this->dispatcher)(new WorkerRunChanged($projectId, [$first->toRfc4122(), $second->toRfc4122()], [Uuid::v7()->toRfc4122()]));
+        new DispatchCardChangedOnWorkerRunChanged(new CardChangeAnnouncer($this->dispatcher))(new WorkerRunChanged($projectId, [$first->toRfc4122(), $second->toRfc4122()], [Uuid::v7()->toRfc4122()]));
 
         self::assertSame([$first->toRfc4122(), $second->toRfc4122()], $this->changedCardIds());
         self::assertTrue($projectId->equals($this->changes[0]->projectId));

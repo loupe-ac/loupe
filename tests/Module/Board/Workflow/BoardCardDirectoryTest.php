@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Workflow\BoardCardDirectory;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardDirectory;
+use App\Module\Workflow\Contract\CardSnapshot;
 use App\Tests\Module\Board\CardPauseScenario;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -63,6 +64,19 @@ final class BoardCardDirectoryTest extends KernelTestCase
 
         self::assertNotNull($this->directory()->findInProject($project->id ?? throw new \LogicException(), $cardId));
         self::assertNull($this->directory()->findInProject($other->id ?? throw new \LogicException(), $cardId));
+    }
+
+    public function test_many_cards_leave_out_a_card_of_another_project(): void
+    {
+        $project = $this->makeProject('directory-many');
+        $other = $this->makeProject('directory-many-other');
+        $mine = $this->cardIn($project)->id ?? throw new \LogicException();
+        $theirs = $this->cardIn($other)->id ?? throw new \LogicException();
+
+        $found = $this->directory()->findManyInProject($project->id ?? throw new \LogicException(), [$mine, $theirs, Uuid::v7()]);
+
+        self::assertSame([$mine->toRfc4122()], array_map(static fn (CardSnapshot $card): string => $card->id->toRfc4122(), $found));
+        self::assertSame([], $this->directory()->findManyInProject($project->id, []));
     }
 
     public function test_a_refresh_reads_the_column_the_database_holds(): void

@@ -9,13 +9,11 @@ use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\View\CardWaitLine;
 use App\Module\Inbox\View\WorkLimitStory;
-use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseReasonText;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -35,8 +33,7 @@ final readonly class CardWaitText
     private const string WORK_LIMIT_LABEL = 'marker.paused.work_limit';
 
     public function __construct(
-        private DocumentRepository $documents,
-        private ForgePullRequestRepository $forgePullRequests,
+        private InboxWaitSubjects $subjects,
         private WorkerRunRepository $workerRuns,
         private CardPauseRepository $cardPauses,
         private UrlGeneratorInterface $urls,
@@ -76,9 +73,16 @@ final readonly class CardWaitText
         if (InboxCardWaitType::WorkerRun !== $wait->type || null === $wait->runId) {
             return null;
         }
-        $run = $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $wait->watch->project->id);
+        $run = $this->runOf($wait);
 
         return null === $run ? null : RunSuggestions::title($run);
+    }
+
+    private function runOf(InboxCardWait $wait): ?WorkerRun
+    {
+        $run = null === $wait->runId ? null : $this->subjects->run($wait->runId);
+
+        return null !== $run && (string) $run->project->id === (string) $wait->watch->project->id ? $run : null;
     }
 
     /**
@@ -213,7 +217,7 @@ final readonly class CardWaitText
 
         switch ($wait->type) {
             case InboxCardWaitType::Document:
-                $document = null === $wait->documentId ? null : $this->documents->find($wait->documentId);
+                $document = null === $wait->documentId ? null : $this->subjects->document($wait->documentId);
                 $params['%title%'] = $document->title ?? '';
                 $params['%version%'] = $wait->versionNumber ?? 0;
                 if (null !== $wait->documentId && null === $document) {
@@ -230,13 +234,13 @@ final readonly class CardWaitText
                 }
                 break;
             case InboxCardWaitType::PullRequest:
-                $pullRequest = null === $wait->pullRequestId ? null : $this->forgePullRequests->find($wait->pullRequestId);
+                $pullRequest = null === $wait->pullRequestId ? null : $this->subjects->pullRequest($wait->pullRequestId);
                 $params['%number%'] = $pullRequest->number ?? 0;
                 $params['%pr_title%'] = $pullRequest->title ?? '';
                 $href = null === $pullRequest ? null : \sprintf('https://github.com/%s/pull/%d', $pullRequest->repository, $pullRequest->number);
                 break;
             case InboxCardWaitType::WorkerRun:
-                $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
+                $run = $this->runOf($wait);
                 $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                 $detail = null === $run ? null : RunOutputText::clean($run->output);
                 $params = [...$params, ...RunOutputText::params($run->workKind ?? null, $run->output ?? '')];

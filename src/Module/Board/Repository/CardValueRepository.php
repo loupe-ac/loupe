@@ -24,6 +24,35 @@ class CardValueRepository extends ServiceEntityRepository
         return array_values($this->findBy(['card' => $card], ['key' => 'ASC']));
     }
 
+    /**
+     * @param list<Card> $cards
+     *
+     * @return array<string, list<CardValue>> the values of each card by key, keyed by card id; a card with none has no key
+     */
+    public function findForCards(array $cards): array
+    {
+        if ([] === $cards) {
+            return [];
+        }
+
+        /** @var list<CardValue> $rows */
+        $rows = $this->createQueryBuilder('v')
+            ->leftJoin('v.writerUser', 'writer')
+            ->addSelect('writer')
+            ->where('v.card IN (:cards)')
+            ->setParameter('cards', $cards)
+            ->orderBy('v.key', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $byCard = [];
+        foreach ($rows as $row) {
+            $byCard[(string) $row->card->id][] = $row;
+        }
+
+        return $byCard;
+    }
+
     public function findOneForCard(Card $card, string $key): ?CardValue
     {
         return $this->findOneBy(['card' => $card, 'key' => $key]);

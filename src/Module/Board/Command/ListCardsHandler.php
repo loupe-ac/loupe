@@ -48,8 +48,8 @@ final readonly class ListCardsHandler
         );
 
         $total = \count($cards);
-        // Board order is one differently-ordered query per column concatenated in
-        // PHP, so one LIMIT cannot express it and the page is cut here instead.
+        // Board order is the open columns in one query and each terminal column in
+        // its own, joined in PHP, so one LIMIT cannot express it and the page is cut here instead.
         // The offset is capped before the multiplication, because a page near
         // PHP_INT_MAX would overflow to a float and array_slice() refuses it.
         $offset = $page - 1 > intdiv($total, $perPage) ? $total : ($page - 1) * $perPage;

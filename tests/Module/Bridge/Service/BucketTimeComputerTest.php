@@ -15,6 +15,7 @@ use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -137,6 +138,84 @@ final class BucketTimeComputerTest extends KernelTestCase
 
         self::assertSame(['git' => 1000, 'other' => 300], $this->rowsOf($run));
         self::assertSame(['git' => 1, 'other' => 1], $this->callsOf($run));
+    }
+
+    public function test_a_recompute_runs_the_same_number_of_statements_however_many_runs_it_takes(): void
+    {
+        self::bootKernel();
+        $project = $this->project($this->em(), $this->user($this->em(), 'bucket-computer-count-'.uniqid().'@example.com'), 'Bucket count');
+        $computer = $this->computer([new BucketRule('Bash(git *)', 'git')]);
+        $small = $this->seedStoredRuns($project, 1);
+        $big = $this->seedStoredRuns($project, 5);
+
+        $smallStatements = $this->statementsOf(fn () => $computer->recompute($project, $small));
+        $bigStatements = $this->statementsOf(fn () => $computer->recompute($project, $big));
+
+        self::assertSame($smallStatements, $bigStatements);
+        foreach ([...$small, ...$big] as $runId) {
+            self::assertSame(['git' => 1000, 'other' => 300], $this->rowsOfId($runId));
+        }
+    }
+
+    public function test_runs_with_and_without_tool_calls_recompute_together(): void
+    {
+        self::bootKernel();
+        $project = $this->project($this->em(), $this->user($this->em(), 'bucket-computer-mixed-'.uniqid().'@example.com'), 'Bucket mixed');
+        $withCalls = $this->seedRun($this->em(), $project);
+        $this->store($withCalls, [$this->call(0, 400, ['Read'])]);
+        $withoutCalls = $this->seedRun($this->em(), $project);
+        $this->bucketTimes()->replaceForRun($this->idOf($withoutCalls), self::figures(['stale' => 7]));
+        $this->bucketTimes()->replaceForRun($this->idOf($withCalls), self::figures(['stale' => 9]));
+
+        $this->computer([])->recompute($project, [$this->idOf($withoutCalls), $this->idOf($withCalls)]);
+
+        self::assertSame([], $this->rowsOf($withoutCalls));
+        self::assertSame(['other' => 400], $this->rowsOf($withCalls));
+    }
+
+    /** @return list<Uuid> */
+    private function seedStoredRuns(Project $project, int $count): array
+    {
+        $ids = [];
+        for ($i = 0; $i < $count; ++$i) {
+            $run = $this->seedRun($this->em(), $project);
+            $this->store($run, [$this->call(0, 1000, ['Bash(git push)']), $this->call(2000, 300, ['Read'])]);
+            $ids[] = $this->idOf($run);
+        }
+
+        return $ids;
+    }
+
+    /** @return array<string, int> */
+    private function rowsOfId(Uuid $runId): array
+    {
+        /** @var array<string, int> $rows */
+        $rows = $this->em()->getConnection()->fetchAllKeyValue('SELECT bucket, ms FROM bridge_worker_run_bucket_times WHERE run_id = :run ORDER BY bucket', ['run' => $runId->toRfc4122()]);
+        ksort($rows);
+
+        return array_map(intval(...), $rows);
+    }
+
+    /**
+     * @param callable(): mixed $action
+     *
+     * @return int the number of statements the action ran
+     */
+    private function statementsOf(callable $action): int
+    {
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+        $action();
+
+        $count = 0;
+        foreach ($queries->getData() as $connectionQueries) {
+            $count += \count($connectionQueries);
+        }
+        // Guard: a count of zero proves nothing unless the recompute ran.
+        self::assertGreaterThan(0, $count);
+
+        return $count;
     }
 
     public function test_a_run_with_no_tool_call_keeps_no_row(): void
