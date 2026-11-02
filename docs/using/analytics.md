@@ -96,9 +96,9 @@ Their unit is card, and they take the groups **By variant**, **By card type** an
 names it keeps working. A project whose template declares no metric shows none.
 
 The shipped Lifecycle template declares **Fix rounds**, **Design review rounds**,
-**Merge rate**, **Hours to merge**, **Hours to agent review pass** and **Hours
-waiting for approval**. The shipped Simple template declares **Merge rate** and
-**Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
+**Merge rate**, **Hours to merge**, **Hours to agent review pass**, **Hours
+waiting for approval** and **Hours to ready to merge**. The shipped Simple
+template declares **Merge rate** and **Hours to merge**. [Workflows](workflows.md) describes how to declare your own.
 
 The metric picker lists one **Time in** metric for each bucket that has data
 on a run of the project. A bucket has data on a run when the run stores a time
@@ -228,7 +228,9 @@ the series.
 The **Chart** control sets how the page draws the series. A legend under the
 chart names the series when there is more than one. With more than eight series,
 the first seven keep their colours, and the rest share one grey. The value axis
-of a rate stops at 100%, except with **Count**.
+of a rate stops at 100%, except with **Count**. The value axis of tokens and
+counts prints short numbers, such as `80M`. Hover a point, or read the table, for
+the full number.
 
 | Chart | What it shows |
 |---|---|
@@ -556,4 +558,9 @@ The MCP tools `analysis_get` and `analysis_report` let the agent read and
 finish an analysis. `analytics_settings_get` and `analytics_settings_update`
 read and change the settings. `bucket_rule_list`, `bucket_rule_create`,
 `bucket_rule_move` and `bucket_rule_delete` read and change the time bucket
-rules, as the Time buckets page does. See [the MCP tools](mcp.md#what-the-tools-do).
+rules, as the Time buckets page does. `graph_list`, `graph_save`, `graph_update`,
+`graph_move`, `graph_remove` and `graph_restore` read and change the saved graphs
+of the [Dashboard](#the-dashboard). A removal takes two calls, so that the agent
+asks you first, and an agent that a bridge started as a worker cannot remove a
+graph. A graph that an agent removed comes back with `graph_restore` for one day.
+An open Dashboard follows each change. See [the MCP tools](mcp.md#what-the-tools-do).

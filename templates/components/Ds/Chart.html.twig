@@ -79,7 +79,7 @@
                 {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\MetricChartScale::WIDTH') }} {{ height }}" role="group" aria-label="{{ chartLabel }}">
                     {% for tick in layout.yTicks %}
                         <line class="lp-chart__grid" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
-                        <text class="lp-chart__tick" x="{{ plotLeft - 8 }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|metric_value(axisMetric, axisStatistic, layout.moneyDecimals) }}</text>
+                        <text class="lp-chart__tick" x="{{ plotLeft - 8 }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|metric_tick(axisMetric, axisStatistic, layout.moneyDecimals) }}</text>
                     {% endfor %}
                     {% for tick in layout.xTicks %}
                         <text class="lp-chart__tick" x="{{ tick.position }}" y="{{ height - 6 }}" text-anchor="middle">{{ tick.start|date(layout.bucket.value == 'month' ? (longSpan ? 'M Y' : 'M') : dayFormat, 'UTC') }}</text>
@@ -87,7 +87,7 @@
                     <line class="lp-chart__baseline" x1="{{ plotLeft }}" x2="{{ plotRight }}" y1="{{ baseline }}" y2="{{ baseline }}" />
                     {% if isLine %}
                         {% for line in layout.lines %}
-                            <g class="lp-chart-slot--{{ line.series.slot }}">
+                            <g class="lp-chart-slot--{{ line.series.slot }}" data-series="{{ line.series.position }}">
                                 {% if line.previousPath %}<path class="lp-chart__line lp-chart__line--previous" d="{{ line.previousPath }}" />{% endif %}
                                 {% if line.path %}<path class="lp-chart__line" d="{{ line.path }}" />{% endif %}
                                 {% for dot in line.dots %}
@@ -98,7 +98,7 @@
                     {% else %}
                         {% for bucket in layout.buckets %}
                             {% for bar in bucket.bars %}
-                                {% if bar.path %}<path class="lp-chart__bar lp-chart-slot--{{ bar.series.slot }}" d="{{ bar.path }}" />{% endif %}
+                                {% if bar.path %}<path class="lp-chart__bar lp-chart-slot--{{ bar.series.slot }}" d="{{ bar.path }}" data-series="{{ bar.series.position }}" />{% endif %}
                             {% endfor %}
                         {% endfor %}
                     {% endif %}

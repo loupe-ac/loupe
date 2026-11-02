@@ -538,3 +538,22 @@ func TestARejectedReleaseIsSkippedAndStaysRolledBack(t *testing.T) {
 		t.Fatalf("state = %+v", got)
 	}
 }
+
+func TestANudgeStartsOneCheckInTenMinutes(t *testing.T) {
+	u := newUpdater(newBridgeLogger(&syncBuffer{}), "1.0.0", t.TempDir(), func() bool { return true }, nil)
+	now := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+
+	u.nudge(now)
+	if len(u.kick) != 1 {
+		t.Fatal("the first nudge asks for no check")
+	}
+	<-u.kick
+	u.nudge(now.Add(10*time.Minute - time.Second))
+	if len(u.kick) != 0 {
+		t.Fatal("a nudge inside the window asks for a check")
+	}
+	u.nudge(now.Add(10 * time.Minute))
+	if len(u.kick) != 1 {
+		t.Fatal("a nudge after the window asks for no check")
+	}
+}

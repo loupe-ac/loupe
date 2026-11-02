@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
+use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\AccountLimits;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\View\AgentConnection;
 use App\Module\Bridge\View\AgentHealthChip;
+use App\Module\Bridge\View\AgentRefusalChip;
 use App\Module\Bridge\View\AgentUpdateChip;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -21,6 +23,7 @@ final readonly class ListAgentsHandler
         private BridgeLiveness $liveness,
         private AccountLimits $accountLimits,
         private BridgeAccountTryNowRepository $bridgeAccountTryNows,
+        private BridgeClaimRefusalRepository $bridgeClaimRefusals,
         private CliCompatibility $compatibility,
         private UrlGeneratorInterface $urlGenerator,
     ) {
@@ -40,6 +43,11 @@ final readonly class ListAgentsHandler
 
         $installScriptUrl = $this->urlGenerator->generate('app_install_script', referenceType: UrlGeneratorInterface::ABSOLUTE_URL);
 
+        $refusals = [];
+        foreach ($this->bridgeClaimRefusals->findOfBridges($command->project->id ?? throw new \LogicException('A stored project has an id.'), array_map(static fn ($bridge) => $bridge->id, $bridges)) as $refusal) {
+            $refusals[$refusal->bridgeId->toRfc4122()][] = $refusal;
+        }
+
         return new ListAgentsView(
             $command->project,
             array_map(
@@ -50,6 +58,8 @@ final readonly class ListAgentsHandler
                     AgentHealthChip::for($bridge, $statuses[$bridge->id->toRfc4122()]),
                     $this->accountLimits->forBridge($bridge),
                     $this->bridgeAccountTryNows->findLatestOfBridge($bridge),
+                    AgentRefusalChip::for($bridge, $refusals[$bridge->id->toRfc4122()] ?? []),
+                    $refusals[$bridge->id->toRfc4122()] ?? [],
                 ),
                 $bridges,
             ),

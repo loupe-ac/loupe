@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
 use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphConfirmations;
 use App\Module\Insights\Service\SavedGraphLocker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -29,6 +30,7 @@ final readonly class RestoreSavedGraphHandler
         private SavedGraphCap $cap,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
+        private SavedGraphConfirmations $confirmations,
         private ClockInterface $clock,
     ) {
     }
@@ -61,6 +63,7 @@ final readonly class RestoreSavedGraphHandler
                 return $e;
             }
             $graph->removedAt = null;
+            $this->confirmations->forget($graph);
 
             return true;
         });

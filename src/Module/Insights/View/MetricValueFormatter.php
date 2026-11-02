@@ -47,6 +47,20 @@ final readonly class MetricValueFormatter
         };
     }
 
+    /** A value axis label: tokens and counts in short form, as 80M, and any other value as format() prints it. */
+    public function axisTick(int|float $value, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic = null, ?int $moneyDecimals = null): string
+    {
+        $type = $metric instanceof MetricShape ? $metric->valueType() : $metric;
+        $short = MetricStatistic::Count === $statistic
+            || \in_array($type, [MetricValueType::Tokens, MetricValueType::Count, MetricValueType::Boolean], true);
+
+        if (!$short) {
+            return $this->format($value, $metric, $statistic, $moneyDecimals) ?? '';
+        }
+
+        return $this->number($value, \NumberFormatter::DECIMAL_COMPACT_SHORT, 0, 1);
+    }
+
     /** A fraction of a whole as a percentage, with a decimal only when it has one. */
     public function share(float $fraction): string
     {

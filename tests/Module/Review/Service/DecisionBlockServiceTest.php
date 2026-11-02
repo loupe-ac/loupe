@@ -913,7 +913,7 @@ final class DecisionBlockServiceTest extends TestCase
         ]);
 
         self::assertStringContainsString(
-            '<span class="lp-decision__badge" data-decision-recommended="moderate" tabindex="0" role="note" aria-label="Advised &amp; sure"><span class="lp-tooltip lp-decision__tooltip" role="tooltip" data-label="Advised &amp; sure"></span><span class="lp-decision__star',
+            '<span class="lp-decision__badge" data-decision-recommended="moderate" tabindex="0" role="note" aria-label="Advised &amp; sure"><span class="lp-tooltip lp-decision__tooltip" role="tooltip" data-tooltip-align="end" data-label="Advised &amp; sure"></span><span class="lp-decision__star',
             $marked,
         );
         self::assertSame(strip_tags($html), strip_tags($marked));
