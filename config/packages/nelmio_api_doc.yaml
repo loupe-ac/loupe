@@ -145,6 +145,19 @@ when@dev: &generator
                 - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }
                 - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
                 - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
+                - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
+                - { alias: DocumentSummary, type: App\Module\Review\Controller\Api\DocumentSummaryResponse }
+                - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }
+                - { alias: Document, type: App\Module\Review\Controller\Api\DocumentResponse }
+                - { alias: DocumentCreated, type: App\Module\Review\Controller\Api\DocumentCreatedResponse }
+                - { alias: DocumentPublishResult, type: App\Module\Review\Controller\Api\DocumentPublishResponse }
+                - { alias: DocumentVersionSummary, type: App\Module\Review\Controller\Api\DocumentVersionSummaryResponse }
+                - { alias: DocumentVersionList, type: App\Module\Review\Controller\Api\DocumentVersionListResponse }
+                - { alias: DocumentVersion, type: App\Module\Review\Controller\Api\DocumentVersionResponse }
+                - { alias: DocumentRevision, type: App\Module\Review\Controller\Api\DocumentRevisionResponse }
+                - { alias: DocumentCreate, type: App\Module\Review\Controller\Api\CreateDocumentRequest }
+                - { alias: DocumentUpdate, type: App\Module\Review\Controller\Api\UpdateDocumentRequest }
+                - { alias: DocumentRevise, type: App\Module\Review\Controller\Api\CreateDocumentVersionRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:
