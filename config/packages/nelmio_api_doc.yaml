@@ -222,6 +222,17 @@ when@dev: &generator
                 - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
                 - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
                 - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }
+                - { alias: CardSummary, type: App\Module\Board\Controller\Api\CardSummaryResponse }
+                - { alias: Card, type: App\Module\Board\Controller\Api\CardResponse }
+                - { alias: CardList, type: App\Module\Board\Controller\Api\CardListResponse }
+                - { alias: CardCreate, type: App\Module\Board\Controller\Api\CreateProjectCardRequest }
+                - { alias: CardUpdate, type: App\Module\Board\Controller\Api\UpdateProjectCardRequest }
+                - { alias: CardRelatedInput, type: App\Module\Board\Controller\Api\RelatedCardInput }
+                - { alias: CardEvent, type: App\Module\Board\Controller\Api\CardEventResponse }
+                - { alias: CardEventList, type: App\Module\Board\Controller\Api\CardEventListResponse }
+                - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }
+                - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
+                - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentSummary, type: App\Module\Review\Controller\Api\DocumentSummaryResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }

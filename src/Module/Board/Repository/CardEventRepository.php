@@ -136,6 +136,33 @@ class CardEventRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /**
+     * One keyset page of a card's history, newest first, after the row that the cursor names.
+     *
+     * @param array{\DateTimeImmutable, Uuid}|null $after the time and the id of the last row of the previous page
+     *
+     * @return list<CardEvent>
+     */
+    public function findPageForCardAfter(Card $card, int $limit, ?array $after): array
+    {
+        $qb = $this->createQueryBuilder('e')
+            ->leftJoin('e.actorUser', 'u')
+            ->addSelect('u')
+            ->andWhere('e.card = :card')
+            ->setParameter('card', $card)
+            ->orderBy('e.occurredAt', 'DESC')
+            ->addOrderBy('e.id', 'DESC')
+            ->setMaxResults($limit);
+
+        if (null !== $after) {
+            $qb->andWhere('e.occurredAt < :afterTime OR (e.occurredAt = :afterTime AND e.id < :afterId)')
+                ->setParameter('afterTime', $after[0], MicrosecondDateTimeImmutableType::NAME)
+                ->setParameter('afterId', $after[1], UuidType::NAME);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
     public function countForCard(Card $card): int
     {
         return $this->count(['card' => $card]);

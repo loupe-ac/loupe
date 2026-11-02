@@ -126,7 +126,7 @@ final class GeneratedSpecTest extends KernelTestCase
     {
         $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
 
-        foreach (['ProjectUpdate', 'ColumnUpdate'] as $name) {
+        foreach (['ProjectUpdate', 'ColumnUpdate', 'CardUpdate'] as $name) {
             self::assertArrayNotHasKey('required', $schemas[$name], $name);
             self::assertNotEmpty($schemas[$name]['properties'], $name);
             self::assertArrayNotHasKey('x-partial-change', $schemas[$name], $name);

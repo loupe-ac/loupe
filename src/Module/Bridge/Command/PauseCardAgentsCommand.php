@@ -14,7 +14,7 @@ final readonly class PauseCardAgentsCommand
         public Project $project,
         public Uuid $cardId,
         public User $requestedBy,
-        /** @var 'human'|'agent' */
+        /** @var 'human'|'agent'|'api-key' */
         public string $actor = 'human',
     ) {
     }

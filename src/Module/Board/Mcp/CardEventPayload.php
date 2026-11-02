@@ -15,7 +15,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * or malformed key reads null rather than fail the whole page.
  *
  * @phpstan-type CardEventColumnSummary array{id: string, slug: string, label: string}
- * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}, humanReview: ?array{value: ?bool, cause: ?string, ruleId: ?string}, valueChange: ?array{key: ?string, value: ?bool, previous: ?bool}}
+ * @phpstan-type CardEventSummary array{kind: string, occurredAt: string, actor: array{kind: string, name: ?string, apiKey: ?array{id: string, name: string}}, from: ?CardEventColumnSummary, to: ?CardEventColumnSummary, cause: ?array<mixed>, run: ?array<string, mixed>, reason: ?string, pullRequest: ?int, pause: ?array{kind: ?string, ruleId: ?string, releaseReason: ?string}, override: ?array{approver: ?string, headSha: ?string}, document: ?array{documentId: ?string, title: ?string, rule: ?string, verdict: ?string, withdrawn: ?string, refusal: ?string}, humanReview: ?array{value: ?bool, cause: ?string, ruleId: ?string}, valueChange: ?array{key: ?string, value: ?bool, previous: ?bool}}
  */
 final readonly class CardEventPayload
 {
@@ -35,7 +35,7 @@ final readonly class CardEventPayload
     }
 
     /** @return CardEventSummary */
-    private function forEvent(CardEvent $event): array
+    public function forEvent(CardEvent $event): array
     {
         $detail = $event->detail;
         $moved = CardEventKind::Moved === $event->kind;
@@ -43,7 +43,11 @@ final readonly class CardEventPayload
         return [
             'kind' => $event->kind->value,
             'occurredAt' => $event->occurredAt->format(\DATE_ATOM),
-            'actor' => ['kind' => $event->actorKind->value, 'name' => $event->actorUser?->fullName],
+            'actor' => [
+                'kind' => $event->actorKind->value,
+                'name' => $event->actorUser?->fullName,
+                'apiKey' => null === $event->apiKeyId ? null : ['id' => (string) $event->apiKeyId, 'name' => $event->apiKeyName ?? ''],
+            ],
             'from' => $moved ? $this->column($detail['from'] ?? null) : null,
             'to' => match ($event->kind) {
                 CardEventKind::Moved => $this->column($detail['to'] ?? null),
