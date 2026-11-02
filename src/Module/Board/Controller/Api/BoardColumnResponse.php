@@ -11,6 +11,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['slug', 'label', 'terminal', 'default', 'backlog'])]
 final readonly class BoardColumnResponse
 {
+    /** The top-level names of a column, in the order of its row. */
+    public const array FIELDS = ['slug', 'label', 'terminal', 'default', 'backlog'];
+
     public function __construct(
         #[OA\Property(description: 'The value you pass as `status`.')]
         public string $slug,

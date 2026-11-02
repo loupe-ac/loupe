@@ -10,6 +10,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(description: 'A missing or malformed key of the stored detail reads null.', required: ['kind', 'occurredAt', 'actor', 'from', 'to', 'cause', 'run', 'reason', 'pullRequest', 'pause', 'override', 'document', 'humanReview', 'valueChange'])]
 final readonly class CardEventResponse
 {
+    /** The top-level names of a history row, in the order of its row. */
+    public const array FIELDS = ['kind', 'occurredAt', 'actor', 'from', 'to', 'cause', 'run', 'reason', 'pullRequest', 'pause', 'override', 'document', 'humanReview', 'valueChange'];
+
     /**
      * @param array{kind: string, name: ?string, apiKey: ?array{id: string, name: string}} $actor
      * @param array<string, mixed>|null                                                    $from

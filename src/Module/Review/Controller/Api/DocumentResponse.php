@@ -19,6 +19,12 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
 final readonly class DocumentResponse
 {
+    /** The top-level names of a document, in the order of its row. */
+    public const array FIELDS = ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'];
+
+    /** The names a document list refuses: its Markdown can hold a megabyte, so a list never reads it. */
+    public const array REFUSED_IN_LIST = ['markdown', 'all'];
+
     /**
      * @param list<string>               $tags
      * @param list<DocumentLinkResponse> $references

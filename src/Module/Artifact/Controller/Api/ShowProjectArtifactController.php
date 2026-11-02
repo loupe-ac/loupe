@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -30,6 +32,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'artifact', description: 'The artifact id.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
         new OA\Parameter(name: 'versionNumber', description: 'The artifact version to read. It defaults to the latest.', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1)),
+        new FieldsParameter(ArtifactResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'The artifact, its versions, and the files of one version.', ArtifactResponse::class),
@@ -52,8 +55,10 @@ final class ShowProjectArtifactController extends AppController
 
     public function __invoke(Request $request, #[ReachableArtifact] Artifact $artifact): JsonResponse
     {
+        $fields = FieldSelection::fromRequest($request, ArtifactResponse::FIELDS);
+
         try {
-            return new JsonResponse(($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request))));
+            return new JsonResponse($fields->keep(($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request)))));
         } catch (DomainErrors) {
             throw $this->problems->versionNotFound();
         }

@@ -211,10 +211,11 @@ when@dev: &generator
                 - { alias: ColumnUpdate, type: App\Module\Board\Controller\Api\UpdateBoardColumnRequest }
                 - { alias: ColumnOrder, type: App\Module\Board\Controller\Api\ReorderBoardColumnsRequest }
                 - { alias: FeedbackItem, type: App\Module\Board\Controller\Api\FeedbackResponse }
+                - { alias: FeedbackRow, type: App\Module\Board\Controller\Api\FeedbackRowResponse }
                 - { alias: FeedbackList, type: App\Module\Board\Controller\Api\FeedbackListResponse }
                 - { alias: FeedbackAnchor, type: App\Module\Board\Controller\Api\FeedbackAnchorResponse }
                 - { alias: FeedbackUpdate, type: App\Module\Board\Controller\Api\FeedbackUpdateRequest }
-                - { alias: ArtifactSummary, type: App\Module\Artifact\Controller\Api\ArtifactSummaryResponse }
+                - { alias: ArtifactRow, type: App\Module\Artifact\Controller\Api\ArtifactRowResponse }
                 - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
                 - { alias: ArtifactVersion, type: App\Module\Artifact\Controller\Api\ArtifactVersionResponse }
                 - { alias: ArtifactFile, type: App\Module\Artifact\Controller\Api\ArtifactFileResponse }
@@ -235,12 +236,12 @@ when@dev: &generator
                 - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
                 - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
-                - { alias: DocumentSummary, type: App\Module\Review\Controller\Api\DocumentSummaryResponse }
+                - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }
                 - { alias: Document, type: App\Module\Review\Controller\Api\DocumentResponse }
                 - { alias: DocumentCreated, type: App\Module\Review\Controller\Api\DocumentCreatedResponse }
                 - { alias: DocumentPublishResult, type: App\Module\Review\Controller\Api\DocumentPublishResponse }
-                - { alias: DocumentVersionSummary, type: App\Module\Review\Controller\Api\DocumentVersionSummaryResponse }
+                - { alias: DocumentVersionRow, type: App\Module\Review\Controller\Api\DocumentVersionRowResponse }
                 - { alias: DocumentVersionList, type: App\Module\Review\Controller\Api\DocumentVersionListResponse }
                 - { alias: DocumentVersion, type: App\Module\Review\Controller\Api\DocumentVersionResponse }
                 - { alias: DocumentRevision, type: App\Module\Review\Controller\Api\DocumentRevisionResponse }

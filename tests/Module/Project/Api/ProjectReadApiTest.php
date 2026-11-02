@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Project\Api;
 
 use App\Module\Account\Entity\User;
+use App\Module\Project\Controller\Api\ProjectResponse;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
@@ -57,6 +58,36 @@ final class ProjectReadApiTest extends WebTestCase
             'allowedOrigins' => ['https://shop.example.com'],
             'createdAt' => '2026-01-01T10:00:00+00:00',
         ], $body['items'][0]);
+    }
+
+    public function test_fields_narrow_the_list_and_the_single_read_alike(): void
+    {
+        $owner = $this->scenario->createUser('fields-project@example.com');
+        $project = $this->project($owner, 'Shop', '2026-01-01 10:00:00');
+        $project->description = 'Shop site';
+        $this->em->flush();
+        $token = $this->publicToken($owner);
+
+        $this->get('/api/v1/projects/'.$project->id, $token);
+        $single = $this->json();
+        self::assertSame(ProjectResponse::FIELDS, array_keys($single));
+
+        foreach (ProjectResponse::FIELDS as $field) {
+            $this->get('/api/v1/projects?fields='.$field, $token);
+            self::assertSame([[$field => $single[$field]]], $this->json()['items'], $field);
+
+            $this->get('/api/v1/projects/'.$project->id.'?fields='.$field, $token);
+            self::assertSame([$field => $single[$field]], $this->json(), $field);
+        }
+
+        $this->get('/api/v1/projects?fields=all', $token);
+        self::assertSame([$single], $this->json()['items']);
+
+        foreach (['/api/v1/projects', '/api/v1/projects/'.$project->id] as $url) {
+            $this->get($url.'?fields=nope', $token);
+            self::assertResponseStatusCodeSame(422, $url);
+            self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
+        }
     }
 
     public function test_a_list_can_run_newest_first(): void

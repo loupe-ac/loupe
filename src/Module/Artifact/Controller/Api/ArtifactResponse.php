@@ -11,6 +11,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'])]
 final readonly class ArtifactResponse
 {
+    /** The top-level names of an artifact, in the order of its row. */
+    public const array FIELDS = ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'];
+
     /**
      * @param list<ArtifactVersionResponse> $versions
      * @param list<ArtifactFileResponse>    $files

@@ -12,6 +12,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['id', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'])]
 final readonly class ProjectResponse
 {
+    /** The top-level names of a project, in the order of its row. */
+    public const array FIELDS = ['id', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'];
+
     /** @param list<string> $allowedOrigins */
     public function __construct(
         #[OA\Property(format: 'uuid')]

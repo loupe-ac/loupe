@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -14,6 +16,7 @@ use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
 use App\Module\Review\Command\PageDocumentsCommand;
 use App\Module\Review\Command\PageDocumentsHandler;
+use App\Module\Review\View\DocumentPageItem;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,6 +38,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'tag', description: 'Only documents with this tag, ignoring case and surrounding spaces.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'series', description: 'Only documents in this series, ignoring case. With no `sort`, they read by their position.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'includeArchived', description: 'Include archived rows, which are left out by default.', in: 'query', schema: new OA\Schema(type: 'boolean', default: false)),
+        new FieldsParameter(DocumentResponse::FIELDS, DocumentResponse::REFUSED_IN_LIST),
     ],
     responses: [
         new SuccessResponse(200, 'One page of documents.', DocumentListResponse::class, page: true),
@@ -58,12 +62,14 @@ final class ListDocumentsController extends AppController
     public function __invoke(#[ReachableProject] Project $project, Request $request): JsonResponse
     {
         $query = DocumentListQueryParser::fromRequest($request);
+        $fields = FieldSelection::fromRequest($request, DocumentResponse::FIELDS, DocumentResponse::REFUSED_IN_LIST);
         $page = ($this->pageDocuments)(new PageDocumentsCommand(
             project: $project,
             query: $query,
             page: PageRequest::fromRequest($request, $query->order->value, $query->filters()),
+            links: $fields->isDefault() || $fields->has('references') || $fields->has('referencedBy'),
         ));
 
-        return $page->toResponse($request, DocumentSummaryResponse::fromItem(...));
+        return $page->toResponse($request, static fn (DocumentPageItem $item): array => $fields->keepObject(DocumentRowResponse::fromItem($item)));
     }
 }

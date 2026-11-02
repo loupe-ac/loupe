@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Api;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Controller\Api\CardEventResponse;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
@@ -284,6 +285,48 @@ final class CardApiTest extends WebTestCase
             self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
             self::assertSame('fields', $this->json()['errors'][0]['field']);
         }
+    }
+
+    public function test_a_single_card_is_only_narrowed_and_an_unknown_name_is_refused(): void
+    {
+        $this->createCard('One', ['body' => 'Text']);
+        $this->linkPullRequestAndFeedback();
+        $this->send(Request::METHOD_GET, $this->base().'/1');
+        $whole = $this->json();
+
+        $this->send(Request::METHOD_GET, $this->base().'/1?fields=title,number');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['number' => 1, 'title' => 'One'], $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'/1?fields=pullRequests');
+        self::assertSame(['pullRequests' => $whole['pullRequests']], $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'/1?fields=all');
+        self::assertSame($whole, $this->json());
+
+        foreach (['nope', '', 'all,title'] as $bad) {
+            $this->send(Request::METHOD_GET, $this->base().'/1?fields='.$bad);
+            self::assertResponseStatusCodeSame(422, $bad);
+            self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
+        }
+    }
+
+    public function test_the_history_takes_fields_and_each_name_equals_the_same_name_of_the_whole_row(): void
+    {
+        $this->createCard('Tracked');
+        $this->send(Request::METHOD_GET, $this->base().'/1/events');
+        $row = $this->json()['items'][0];
+        self::assertSame(CardEventResponse::FIELDS, array_keys($row));
+
+        foreach (CardEventResponse::FIELDS as $field) {
+            $this->send(Request::METHOD_GET, $this->base().'/1/events?fields='.$field);
+            self::assertResponseStatusCodeSame(200, $field);
+            self::assertSame([[$field => $row[$field]]], $this->json()['items'], $field);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'/1/events?fields=nope');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
     }
 
     public function test_the_next_link_keeps_fields_and_a_walk_may_change_them(): void

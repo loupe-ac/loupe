@@ -108,6 +108,16 @@ final readonly class FieldSelection
         return array_intersect_key($row, array_flip($this->names));
     }
 
+    /**
+     * The same cut for a response object: its public properties are the row.
+     *
+     * @return array<string, mixed>
+     */
+    public function keepObject(object $row): array
+    {
+        return $this->keep(get_object_vars($row));
+    }
+
     /** @return array{field: string, code: string, message: string} */
     private static function invalid(string $message): array
     {

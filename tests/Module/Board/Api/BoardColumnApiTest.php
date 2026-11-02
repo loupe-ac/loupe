@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\Api;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Controller\Api\BoardColumnResponse;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
@@ -63,6 +64,24 @@ final class BoardColumnApiTest extends WebTestCase
         self::assertSame(['key', 'label', 'children', 'lane'], array_keys($body['types'][0]));
         self::assertContains($body['defaultType'], array_column($body['types'], 'key'));
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
+    }
+
+    public function test_fields_narrow_each_column_and_leave_the_card_types_alone(): void
+    {
+        $this->send(Request::METHOD_GET, $this->base());
+        $whole = $this->json();
+
+        foreach (BoardColumnResponse::FIELDS as $field) {
+            $this->send(Request::METHOD_GET, $this->base().'?fields='.$field);
+            self::assertResponseStatusCodeSame(200, $field);
+            $body = $this->json();
+            self::assertSame(array_map(static fn (array $column): array => [$field => $column[$field]], $whole['items']), $body['items'], $field);
+            self::assertSame($whole['types'], $body['types']);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=nope');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('fields_invalid', $this->json()['errors'][0]['code']);
     }
 
     public function test_a_page_follows_the_board_order_and_the_walk_ends(): void

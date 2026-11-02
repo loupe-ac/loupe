@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\Fields\FieldSelection;
+use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
@@ -13,6 +15,7 @@ use App\Module\Board\Command\FindCardByNumberCommand;
 use App\Module\Board\Command\FindCardByNumberHandler;
 use App\Module\Board\Command\PageCardEventsCommand;
 use App\Module\Board\Command\PageCardEventsHandler;
+use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Mcp\CardEventPayload;
 use App\Module\Board\Service\CardApiProblems;
 use App\Module\Project\Entity\Project;
@@ -36,6 +39,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'number', description: 'The card number, the short label that counts from 1 inside this project.', in: 'path', required: true, schema: new OA\Schema(type: 'integer', minimum: 1)),
         new OA\Parameter(name: 'limit', description: 'The most rows to return.', in: 'query', schema: new OA\Schema(type: 'integer', default: PageRequest::DEFAULT_LIMIT, maximum: PageRequest::MAX_LIMIT, minimum: 1)),
         new OA\Parameter(name: 'cursor', description: 'The opaque position from the `next` URL of the last page.', in: 'query', schema: new OA\Schema(type: 'string')),
+        new FieldsParameter(CardEventResponse::FIELDS),
     ],
     responses: [
         new SuccessResponse(200, 'One page of events, newest first.', CardEventListResponse::class, page: true),
@@ -62,10 +66,11 @@ final class ListCardEventsController extends AppController
 
     public function __invoke(Request $request, #[ReachableProject] Project $project, int $number): JsonResponse
     {
+        $fields = FieldSelection::fromRequest($request, CardEventResponse::FIELDS);
         $card = ($this->findCard)(new FindCardByNumberCommand($project, $number)) ?? throw $this->problems->cardNotFound();
 
         $view = ($this->pageEvents)(new PageCardEventsCommand($card, PageRequest::fromRequest($request, PageCardEventsHandler::NEWEST_FIRST)));
 
-        return $view->page->toResponse($request, $this->payload->forEvent(...));
+        return $view->page->toResponse($request, fn (CardEvent $event): array => $fields->keep($this->payload->forEvent($event)));
     }
 }

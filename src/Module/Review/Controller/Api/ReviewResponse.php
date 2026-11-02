@@ -16,6 +16,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['status', 'verdict', 'verdictId', 'verdictThroughAgent', 'note', 'version', 'comments', 'decisions', 'agentReviews', 'verdictThroughApiKey'])]
 final readonly class ReviewResponse
 {
+    /** The top-level names of a review, in the order of its row. */
+    public const array FIELDS = ['status', 'verdict', 'verdictId', 'verdictThroughAgent', 'note', 'version', 'comments', 'decisions', 'agentReviews', 'verdictThroughApiKey'];
+
     /**
      * @param list<ReviewCommentResponse>       $comments
      * @param list<ReviewDecisionResponse>      $decisions

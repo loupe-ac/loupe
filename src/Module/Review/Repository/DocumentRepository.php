@@ -260,12 +260,22 @@ class DocumentRepository extends ServiceEntityRepository
     }
 
     /**
+     * The same, for the documents that point at each one.
+     *
+     * @param list<Document> $documents
+     */
+    public function preloadReferencedBy(array $documents): void
+    {
+        $this->preloadCollection($documents, 'referencedBy');
+    }
+
+    /**
      * Kept to one query per association rather than one fetch-join carrying all
      * of them: joining several collections at once multiplies their rows
      * together, so a document with 3 versions and 4 tags would hydrate from 12.
      *
      * @param list<Document>                 $documents
-     * @param 'references'|'tags'|'versions' $association
+     * @param 'referencedBy'|'references'|'tags'|'versions' $association
      */
     private function preloadCollection(array $documents, string $association): void
     {

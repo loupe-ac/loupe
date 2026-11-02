@@ -11,9 +11,9 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(required: ['items', 'next'])]
 final readonly class DocumentVersionListResponse
 {
-    /** @param list<DocumentVersionSummaryResponse> $items */
+    /** @param list<DocumentVersionRowResponse> $items */
     public function __construct(
-        #[OA\Property(type: 'array', items: new OA\Items(ref: new Model(type: DocumentVersionSummaryResponse::class)))]
+        #[OA\Property(type: 'array', items: new OA\Items(ref: new Model(type: DocumentVersionRowResponse::class)))]
         public array $items,
 
         #[OA\Property(description: 'The URL of the next page, or null on the last page.', format: 'uri', nullable: true)]

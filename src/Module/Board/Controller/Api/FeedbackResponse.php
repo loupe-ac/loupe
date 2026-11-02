@@ -14,6 +14,12 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(description: 'A note that a reviewer left with the live-review widget.', required: ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
 final readonly class FeedbackResponse
 {
+    /** The top-level names of a note, in the order of its row. */
+    public const array FIELDS = ['id', 'url', 'surface', 'native', 'screenshot', 'anchors', 'body', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'];
+
+    /** The names whose value a list row leaves out. */
+    public const array LEFT_OUT_OF_ROW = ['native', 'anchors', 'body'];
+
     /**
      * @param list<FeedbackAnchorResponse>    $anchors
      * @param ?array<string, mixed>           $native

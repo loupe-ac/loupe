@@ -97,6 +97,18 @@ final class FieldSelectionTest extends TestCase
         self::assertStringContainsString('all', $errors[0]['message']);
     }
 
+    public function test_keep_object_cuts_the_public_properties_of_a_response(): void
+    {
+        $row = new class {
+            public string $title = 'T';
+            public int $number = 3;
+            public ?string $body = null;
+        };
+
+        self::assertSame(['title' => 'T', 'number' => 3, 'body' => null], FieldSelection::fromRequest(Request::create('/x'), ['title', 'number', 'body'])->keepObject($row));
+        self::assertSame(['number' => 3, 'body' => null], FieldSelection::fromRequest(Request::create('/x?fields=body,number'), ['title', 'number', 'body'])->keepObject($row));
+    }
+
     public function test_a_refused_name_has_its_own_code(): void
     {
         $errors = $this->errorsOf('/x?fields=title,body,nope', ['body', 'all']);
