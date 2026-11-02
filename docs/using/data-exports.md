@@ -60,6 +60,8 @@ stays out of the export.
 
 `idempotency_records.json` holds the API requests of the user that sent an `Idempotency-Key` header and that Loupe still stores. Each row gives the credential, the key, the request hash, the state and the dates. It also gives the status, the headers and the body of the stored answer. A request that still runs has no status, no headers and no body. Loupe deletes each row 24 hours after the request.
 
+`bridge_claim_refusals.json` holds one row for each refused claim that still waits: the bridge id, the work request id and the account the claim named, if any.
+
 `worker_run_facts.json` holds the metrics row of each worker run of the projects
 the user owns, with its outcome, its duration, its cost, its token sums, its
 timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.

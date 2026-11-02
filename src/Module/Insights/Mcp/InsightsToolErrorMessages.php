@@ -7,11 +7,14 @@ namespace App\Module\Insights\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
+use App\Module\Insights\Command\RemoveSavedGraphHandler;
 use App\Module\Insights\Command\ReportAnalysisHandler;
 use App\Module\Insights\Command\UpdateAnalyticsSettingsHandler;
 use App\Module\Insights\Entity\InsightsBucketRule;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Service\BucketRuleWriter;
+use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use Mcp\Exception\ToolCallException;
 
 /** Renders a handler's DomainErrors as the message an agent reads. An unmapped key gives a generic message, never the key. */
@@ -24,6 +27,10 @@ final readonly class InsightsToolErrorMessages
     {
         $lines = [];
         foreach ($errors->errors as $field => $key) {
+            if (SavedGraphCap::ERROR_KEY === $key) {
+                $lines[] = \sprintf('The Dashboard holds the most graphs it can, %d. Remove a graph with graph_remove first.', $errors->parameters[$field]['%limit%'] ?? 0);
+                continue;
+            }
             $lines[] = \sprintf('%s: %s', $arguments[$field] ?? $field, self::sentence($key));
         }
 
@@ -51,6 +58,10 @@ final readonly class InsightsToolErrorMessages
             BucketRuleWriter::PATTERN_TOO_LONG => \sprintf('A pattern must be at most %d characters.', InsightsBucketRule::MAX_PATTERN_LENGTH),
             BucketRuleWriter::BUCKET_INVALID => \sprintf('A bucket name is 1 to %d characters: lower case letters, digits, underscore and hyphen.', InsightsBucketRule::MAX_BUCKET_LENGTH),
             BucketRuleWriter::LIMIT_REACHED => \sprintf('A project holds at most %d rules. Delete a rule with bucket_rule_delete first.', InsightsBucketRule::MAX_PER_PROJECT),
+            SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'needs_several_lines' => 'This chart type needs several lines to add up. Group the graph first, or pick another chart type.',
+            SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'statistic_does_not_add' => 'This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.',
+            SavedGraphSettingsResolver::CHART_LOCKED_PREFIX.'rate_does_not_add' => 'The rates of several lines never add up to a whole. Pick another chart type.',
+            RemoveSavedGraphHandler::CONFIRMATION_REFUSED => 'This code does not fit the graph any more. Call graph_remove with no confirmation to preview the graph again, then ask the owner.',
             default => self::UNMAPPED,
         };
     }

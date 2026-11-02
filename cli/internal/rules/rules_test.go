@@ -1082,9 +1082,9 @@ func TestNameOfReadsTheNameOfAnInvalidFile(t *testing.T) {
 
 	for body, want := range map[string]string{
 		"name: mac\nwork: [not, a, map]\n": "mac",
-		"work: {}\n":                        "host",
-		"name: [a]\n":                       "host",
-		"name: \"\"\n":                      "",
+		"work: {}\n":                       "host",
+		"name: [a]\n":                      "host",
+		"name: \"\"\n":                     "",
 	} {
 		if got := NameOf(write(body)); got != want {
 			t.Errorf("%q: name = %q, want %q", body, got, want)
