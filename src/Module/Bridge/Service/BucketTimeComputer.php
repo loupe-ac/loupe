@@ -43,9 +43,12 @@ final readonly class BucketTimeComputer
         }
 
         $this->em->wrapInTransaction(function () use ($runIds, $rules): void {
+            $inputs = $this->workerRunToolCalls->findBucketInputsOfRuns($runIds);
+            $times = [];
             foreach ($runIds as $runId) {
-                $this->workerRunBucketTimes->replaceForRun($runId, $this->timesOf($this->workerRunToolCalls->findBucketInputsOfRun($runId), $rules));
+                $times[$runId->toRfc4122()] = $this->timesOf($inputs[$runId->toRfc4122()] ?? [], $rules);
             }
+            $this->workerRunBucketTimes->replaceForRuns($times);
         });
     }
 

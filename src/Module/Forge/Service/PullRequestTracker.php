@@ -45,25 +45,37 @@ final readonly class PullRequestTracker
         $this->forgePullRequests->deleteByKey(self::projectId($project), $forge, $repository, $number);
     }
 
-    /** Reads a closed row too, because a delivery for one number can say that it reopened. */
-    public function refresh(Project $project, string $forge, string $repository, int $number, ?PullRequestReview $verdict = null, ?string $reviewId = null): void
+    /**
+     * Queues one refresh for each pull request the targets name, however many
+     * targets name it. The earliest delay and the first verdict win. A number
+     * target reads a closed row too, because a delivery for one number can say
+     * that it reopened.
+     *
+     * @param list<PullRequestRefreshTarget> $targets
+     */
+    public function refreshAll(Project $project, string $forge, string $repository, array $targets): void
     {
-        foreach ($this->forgePullRequests->findIds(self::projectId($project), $forge, $repository, ['number' => $number], openOnly: false) as $id) {
-            $this->queue($id, verdict: $verdict, reviewId: $reviewId);
+        $projectId = self::projectId($project);
+        $plans = [];
+        foreach ($targets as $target) {
+            [$criteria, $openOnly, $delay] = match (true) {
+                null !== $target->number => [['number' => $target->number], false, 0],
+                null !== $target->headSha => [['headSha' => $target->headSha], true, 0],
+                default => [['baseBranch' => $target->baseBranch ?? throw new \LogicException('A target sets one field.')], true, self::BASE_DELAY_MILLISECONDS],
+            };
+            foreach ($this->forgePullRequests->findIds($projectId, $forge, $repository, $criteria, openOnly: $openOnly) as $id) {
+                $key = (string) $id;
+                $plans[$key] ??= ['id' => $id, 'delay' => $delay, 'verdict' => null, 'reviewId' => null];
+                $plans[$key]['delay'] = min($plans[$key]['delay'], $delay);
+                if (null === $plans[$key]['verdict'] && null !== $target->verdict) {
+                    $plans[$key]['verdict'] = $target->verdict;
+                    $plans[$key]['reviewId'] = $target->reviewId;
+                }
+            }
         }
-    }
 
-    public function refreshHead(Project $project, string $forge, string $repository, string $sha): void
-    {
-        foreach ($this->forgePullRequests->findIds(self::projectId($project), $forge, $repository, ['headSha' => $sha], openOnly: true) as $id) {
-            $this->queue($id);
-        }
-    }
-
-    public function refreshBase(Project $project, string $forge, string $repository, string $branch): void
-    {
-        foreach ($this->forgePullRequests->findIds(self::projectId($project), $forge, $repository, ['baseBranch' => $branch], openOnly: true) as $id) {
-            $this->queue($id, self::BASE_DELAY_MILLISECONDS);
+        foreach ($plans as $plan) {
+            $this->queue($plan['id'], $plan['delay'], $plan['verdict'], $plan['reviewId']);
         }
     }
 

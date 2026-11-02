@@ -10,6 +10,7 @@ use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Messenger\RefreshPullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\PullRequestRefreshTarget;
 use App\Module\Forge\Service\PullRequestStateReaders;
 use App\Module\Forge\Service\PullRequestTracker;
 use App\Module\Project\Entity\Project;
@@ -107,7 +108,7 @@ final class PullRequestTrackerTest extends KernelTestCase
         $open = $this->row($project, 42);
         $this->row($project, 43);
 
-        $this->tracker->refresh($project, FakePullRequestStateReader::FORGE, 'ACME/widgets', 42);
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'ACME/widgets', [PullRequestRefreshTarget::number(42)]);
 
         self::assertSame([(string) $open->id], $this->queuedIds());
     }
@@ -117,8 +118,8 @@ final class PullRequestTrackerTest extends KernelTestCase
         $project = $this->project();
         $this->row($project, 42);
 
-        $this->tracker->refresh($project, FakePullRequestStateReader::FORGE, 'acme/widgets', 42, PullRequestReview::ChangesRequested, '80');
-        $this->tracker->refresh($project, FakePullRequestStateReader::FORGE, 'acme/widgets', 42);
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [PullRequestRefreshTarget::number(42, PullRequestReview::ChangesRequested, '80')]);
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [PullRequestRefreshTarget::number(42)]);
 
         self::assertSame([[PullRequestReview::ChangesRequested, '80'], [null, null]], array_map(static function (Envelope $envelope): array {
             $message = $envelope->getMessage();
@@ -133,9 +134,53 @@ final class PullRequestTrackerTest extends KernelTestCase
         $project = $this->project();
         $closed = $this->row($project, 44, state: PullRequestState::Closed);
 
-        $this->tracker->refresh($project, FakePullRequestStateReader::FORGE, 'acme/widgets', 44);
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [PullRequestRefreshTarget::number(44)]);
 
         self::assertSame([(string) $closed->id], $this->queuedIds());
+    }
+
+    public function test_refresh_all_queues_a_pull_request_once_when_several_targets_name_it(): void
+    {
+        $project = $this->project();
+        $row = $this->row($project, 42, headSha: 'abc', baseBranch: 'main');
+        $other = $this->row($project, 43, headSha: 'def', baseBranch: 'main');
+
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [
+            PullRequestRefreshTarget::number(42),
+            PullRequestRefreshTarget::head('abc'),
+            PullRequestRefreshTarget::base('main'),
+        ]);
+
+        $expected = [(string) $row->id, (string) $other->id];
+        $actual = $this->queuedIds();
+        sort($expected);
+        sort($actual);
+        self::assertSame($expected, $actual);
+        $delays = [];
+        foreach ($this->sent() as $envelope) {
+            $message = $envelope->getMessage();
+            self::assertInstanceOf(RefreshPullRequestState::class, $message);
+            $delays[$message->pullRequestId] = $envelope->last(DelayStamp::class)?->getDelay();
+        }
+        self::assertNull($delays[(string) $row->id]);
+        self::assertSame(30_000, $delays[(string) $other->id]);
+    }
+
+    public function test_refresh_all_keeps_the_verdict_of_a_later_target_for_the_same_pull_request(): void
+    {
+        $project = $this->project();
+        $this->row($project, 42, headSha: 'abc');
+
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [
+            PullRequestRefreshTarget::head('abc'),
+            PullRequestRefreshTarget::number(42, PullRequestReview::Approved, '9'),
+        ]);
+
+        $sent = $this->sent();
+        self::assertCount(1, $sent);
+        $message = $sent[0]->getMessage();
+        self::assertInstanceOf(RefreshPullRequestState::class, $message);
+        self::assertSame([PullRequestReview::Approved, '9'], [$message->verdict, $message->reviewId]);
     }
 
     public function test_refresh_head_queues_every_open_row_on_that_commit(): void
@@ -147,7 +192,7 @@ final class PullRequestTrackerTest extends KernelTestCase
         $this->row($project, 45, headSha: 'abc', state: PullRequestState::Closed);
         $this->row($this->project(), 42, headSha: 'abc');
 
-        $this->tracker->refreshHead($project, FakePullRequestStateReader::FORGE, 'Acme/Widgets', 'abc');
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'Acme/Widgets', [PullRequestRefreshTarget::head('abc')]);
 
         $expected = [(string) $first->id, (string) $second->id];
         sort($expected);
@@ -165,7 +210,7 @@ final class PullRequestTrackerTest extends KernelTestCase
         $onMain = $this->row($project, 42, baseBranch: 'main');
         $this->row($project, 43, baseBranch: 'develop');
 
-        $this->tracker->refreshBase($project, FakePullRequestStateReader::FORGE, 'acme/widgets', 'main');
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [PullRequestRefreshTarget::base('main')]);
 
         self::assertSame([(string) $onMain->id], $this->queuedIds());
         self::assertSame(30_000, $this->sent()[0]->last(DelayStamp::class)?->getDelay());
