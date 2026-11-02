@@ -428,9 +428,9 @@ func (u *updater) settle() {
 	if first {
 		u.log.Warn("bridge_draining", "version", u.version, "range", cliRange,
 			"message", "This CLI version is outside the range of the server. The bridge starts no new work, keeps its heartbeat and checks again every hour. "+u.drainFix(cliRange))
-	}
-	if u.onDrain != nil {
-		u.onDrain(true)
+		if u.onDrain != nil {
+			u.onDrain(true)
+		}
 	}
 }
 

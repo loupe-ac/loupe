@@ -685,9 +685,6 @@ func sameBytes(t *testing.T, path, want string) bool {
 // as it does when an instance upgrades under a running 1.x bridge.
 func testHandoverForward(t *testing.T, old, from, next, to string, major bool) {
 	fake := newE2ELoupe(t, next, to)
-	if major {
-		fake.setRanges("^1.0", "^2.0")
-	}
 	b := startE2EBridge(t, fake, old)
 	start := processStart(b.cmd.Process.Pid)
 	last := b.startTwoWorkers()
