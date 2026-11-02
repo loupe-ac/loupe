@@ -55,7 +55,7 @@ goes by its number in the project, such as `/projects/loupe/cards/42`.
 
 Each project, card, document and artifact in an answer has a `url`. The `url` is
 the full address of its page in the app, such as
-`https://app.example.com/projects/<id>/cards/<id>`. A person who follows it
+`https://app.example.com/projects/<id>/board/cards/<id>`. A person who follows it
 sees the resource.
 
 1. The address starts with the public address of the instance, the `DEFAULT_URI`
