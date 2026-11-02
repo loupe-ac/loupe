@@ -44,12 +44,21 @@ final readonly class ShowBoardHandler
         $terminalWindowDays = $this->automation->settingsOf($project)->terminalWindowDays;
         $windowStart = BoardColumnCards::windowStart($terminalWindowDays);
 
+        $boardColumns = [];
         foreach ($this->boardColumns->findForProject($project) as $column) {
             if ($column->backlog) {
                 $backlog = $column;
                 continue;
             }
-            $shown = $this->columnCards->shown($column, $windowStart);
+            $boardColumns[] = $column;
+        }
+
+        $shownByColumn = $this->columnCards->shownByColumn($boardColumns, $windowStart);
+        // The epic of a card can sit outside the cards shown, in Done or in the Backlog, and the card reads it as it draws.
+        $this->cards->loadParentsOf(array_merge(...array_values($shownByColumn)));
+
+        foreach ($boardColumns as $column) {
+            $shown = $shownByColumn[(string) $column->id];
             $columns[] = new BoardColumnView(
                 $column,
                 $shown,
