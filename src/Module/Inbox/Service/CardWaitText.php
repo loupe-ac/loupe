@@ -76,9 +76,49 @@ final readonly class CardWaitText
         if (InboxCardWaitType::WorkerRun !== $wait->type || null === $wait->runId) {
             return null;
         }
-        $run = $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $wait->watch->project->id);
+        $run = $this->runOf($wait);
 
         return null === $run ? null : RunSuggestions::title($run);
+    }
+
+    /** A find() answers from the identity map, so a run that preloadSubjects() loaded costs no statement. */
+    private function runOf(InboxCardWait $wait): ?WorkerRun
+    {
+        $run = null === $wait->runId ? null : $this->workerRuns->find($wait->runId);
+
+        return null !== $run && (string) $run->project->id === (string) $wait->watch->project->id ? $run : null;
+    }
+
+    /**
+     * Loads the run, the document and the pull request of each wait in one query per type, so that the later
+     * find() of each line reads no row. A page that shows many waits calls this first.
+     *
+     * @param list<InboxCardWait> $waits
+     */
+    public function preloadSubjects(array $waits): void
+    {
+        $runs = [];
+        $documents = [];
+        $pullRequests = [];
+        foreach ($waits as $wait) {
+            if (null !== $wait->runId) {
+                $runs[$wait->runId->toRfc4122()] = $wait->runId->toRfc4122();
+            }
+            if (null !== $wait->documentId) {
+                $documents[$wait->documentId->toRfc4122()] = $wait->documentId->toRfc4122();
+            }
+            if (null !== $wait->pullRequestId) {
+                $pullRequests[$wait->pullRequestId->toRfc4122()] = $wait->pullRequestId->toRfc4122();
+            }
+        }
+
+        $this->workerRuns->findByIds(array_values($runs));
+        if ([] !== $documents) {
+            $this->documents->findBy(['id' => array_values($documents)]);
+        }
+        if ([] !== $pullRequests) {
+            $this->forgePullRequests->findBy(['id' => array_values($pullRequests)]);
+        }
     }
 
     /**
@@ -236,7 +276,7 @@ final readonly class CardWaitText
                 $href = null === $pullRequest ? null : \sprintf('https://github.com/%s/pull/%d', $pullRequest->repository, $pullRequest->number);
                 break;
             case InboxCardWaitType::WorkerRun:
-                $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
+                $run = $this->runOf($wait);
                 $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                 $detail = null === $run ? null : RunOutputText::clean($run->output);
                 $params = [...$params, ...RunOutputText::params($run->workKind ?? null, $run->output ?? '')];

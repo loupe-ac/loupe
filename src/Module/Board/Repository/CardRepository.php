@@ -88,6 +88,32 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of the project, with their columns and the columns of their parents, which a snapshot reads.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return list<Card>
+     */
+    public function findWithColumnsByIdsInProject(Uuid $projectId, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->leftJoin('c.parent', 'p')
+            ->leftJoin('p.column', 'pk')
+            ->addSelect('k', 'p', 'pk')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * @param list<Uuid> $ids
      *
      * @return array<string, string> card id => title

@@ -24,15 +24,29 @@ final readonly class TemplateStageWorks implements StageWorks
     }
 
     #[\Override]
-    public function of(Uuid $projectId, Uuid $cardId): ?string
+    public function ofCards(Uuid $projectId, array $cardIds): array
     {
-        $card = $this->cards->findInProject($projectId, $cardId);
-        if (null === $card || $card->column->backlog || $card->column->terminal) {
-            return null;
-        }
         $project = $this->projects->find($projectId);
-        $slotKey = null === $project ? null : $this->workflowSlotLinks->findSlotKeyForColumnId($project, $card->column->id);
+        if (null === $project) {
+            return [];
+        }
 
-        return null === $slotKey ? null : $this->templates->of($projectId)->slot($slotKey)?->stageWork;
+        $works = [];
+        $worksByColumn = [];
+        foreach ($this->cards->findManyInProject($projectId, $cardIds) as $card) {
+            if ($card->column->backlog || $card->column->terminal) {
+                continue;
+            }
+            $column = $card->column->id->toRfc4122();
+            if (!\array_key_exists($column, $worksByColumn)) {
+                $slotKey = $this->workflowSlotLinks->findSlotKeyForColumnId($project, $card->column->id);
+                $worksByColumn[$column] = null === $slotKey ? null : $this->templates->of($projectId)->slot($slotKey)?->stageWork;
+            }
+            if (null !== $worksByColumn[$column]) {
+                $works[$card->id->toRfc4122()] = $worksByColumn[$column];
+            }
+        }
+
+        return $works;
     }
 }

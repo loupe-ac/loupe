@@ -14,6 +14,15 @@ interface CardDirectory
     /** Answers null when the card belongs to another project. */
     public function findInProject(Uuid $projectId, Uuid $cardId): ?CardSnapshot;
 
+    /**
+     * Leaves out a card that belongs to another project.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return list<CardSnapshot>
+     */
+    public function findManyInProject(Uuid $projectId, array $cardIds): array;
+
     /** Reads the stored column, type and parent again, so the snapshot shows what a move or an edit committed. */
     public function refresh(Uuid $cardId): ?CardSnapshot;
 

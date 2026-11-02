@@ -34,6 +34,12 @@ final readonly class BoardCardDirectory implements CardDirectory
     }
 
     #[\Override]
+    public function findManyInProject(Uuid $projectId, array $cardIds): array
+    {
+        return array_map(static fn (Card $card): CardSnapshot => $card->snapshot(), $this->cards->findWithColumnsByIdsInProject($projectId, $cardIds));
+    }
+
+    #[\Override]
     public function refresh(Uuid $cardId): ?CardSnapshot
     {
         $card = $this->cards->find($cardId);

@@ -377,13 +377,19 @@ final readonly class ItemActions
      */
     private function freeTargets(array $cards): array
     {
-        $candidates = [];
+        $cardsOfProject = [];
+        foreach ($cards as [$project, $cardId]) {
+            $cardsOfProject[(string) $project->id][0] = $project->id ?? throw new \LogicException('A stored project has an id.');
+            $cardsOfProject[(string) $project->id][1][$cardId->toRfc4122()] = $cardId;
+        }
         $kinds = [];
+        foreach ($cardsOfProject as $projectKey => [$projectId, $cardIds]) {
+            $kinds[$projectKey] = $this->stageWorks->ofCards($projectId, array_values($cardIds));
+        }
+
+        $candidates = [];
         foreach ($cards as $key => [$project, $cardId]) {
-            // Items of one card ask for the same card, so each card is read once.
-            $kindKey = $project->id?->toRfc4122().':'.$cardId->toRfc4122();
-            $kinds[$kindKey] ??= [$this->stageWorks->of($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId)];
-            $kind = $kinds[$kindKey][0];
+            $kind = $kinds[(string) $project->id][$cardId->toRfc4122()] ?? null;
             if (null !== $kind) {
                 $candidates[$key] = [$project, new SendAgentTarget($cardId, $kind)];
             }

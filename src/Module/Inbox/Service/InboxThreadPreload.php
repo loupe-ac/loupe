@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\View\InboxActionStatus;
@@ -28,6 +29,7 @@ final class InboxThreadPreload implements ResetInterface
         private readonly InboxWatchLookup $watches,
         private readonly ItemActions $itemActions,
         private readonly InboxActionStatuses $actionStatuses,
+        private readonly CardWaitText $cardWaitText,
     ) {
     }
 
@@ -40,6 +42,10 @@ final class InboxThreadPreload implements ResetInterface
 
         $this->inboxItems->loadDocuments($items);
         $this->watches->preload($items);
+        $this->cardWaitText->preloadSubjects(array_merge(...array_map(
+            static fn (InboxCardWatch $watch): array => array_values($watch->waits->toArray()),
+            $this->watches->forItems($items),
+        )));
         $this->actions = [...$this->actions, ...$this->itemActions->forItems($items)];
         $this->statuses = [...$this->statuses, ...$this->actionStatuses->forItems($items)];
         foreach ($items as $item) {

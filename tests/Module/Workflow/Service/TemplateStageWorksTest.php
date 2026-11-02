@@ -38,7 +38,25 @@ final class TemplateStageWorksTest extends KernelTestCase
         $this->bindLifecycle($project);
         $card = $this->card($project, $slug);
 
-        self::assertSame($expected, $this->stageWorks()->of($project->requireId(), $card->id ?? throw new \LogicException('Stored.')));
+        self::assertSame($expected, $this->workOf($project, $card->id ?? throw new \LogicException('Stored.')));
+    }
+
+    public function test_many_cards_each_get_the_work_of_their_own_column(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('stage-works-many');
+        $this->bindLifecycle($project);
+        $design = $this->card($project, 'tech-design')->id ?? throw new \LogicException('Stored.');
+        $sameColumn = $this->card($project, 'tech-design')->id ?? throw new \LogicException('Stored.');
+        $build = $this->card($project, 'in-progress')->id ?? throw new \LogicException('Stored.');
+        $backlog = $this->card($project, 'backlog')->id ?? throw new \LogicException('Stored.');
+
+        $works = $this->stageWorks()->ofCards($project->requireId(), [$design, $sameColumn, $build, $backlog, Uuid::v7()]);
+
+        $expected = [$design->toRfc4122() => 'tech-design', $sameColumn->toRfc4122() => 'tech-design', $build->toRfc4122() => 'implement'];
+        ksort($expected);
+        ksort($works);
+        self::assertSame($expected, $works);
     }
 
     public function test_a_template_with_no_stage_work_names_none(): void
@@ -48,7 +66,7 @@ final class TemplateStageWorksTest extends KernelTestCase
         $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
         $card = $this->card($project, 'in-progress');
 
-        self::assertNull($this->stageWorks()->of($project->requireId(), $card->id ?? throw new \LogicException('Stored.')));
+        self::assertNull($this->workOf($project, $card->id ?? throw new \LogicException('Stored.')));
     }
 
     public function test_a_card_of_another_project_gets_none(): void
@@ -60,7 +78,7 @@ final class TemplateStageWorksTest extends KernelTestCase
         $this->bindLifecycle($other);
         $card = $this->card($other, 'tech-design');
 
-        self::assertNull($this->stageWorks()->of($project->requireId(), $card->id ?? throw new \LogicException('Stored.')));
+        self::assertNull($this->workOf($project, $card->id ?? throw new \LogicException('Stored.')));
     }
 
     public function test_an_unknown_card_gets_none(): void
@@ -69,7 +87,12 @@ final class TemplateStageWorksTest extends KernelTestCase
         $project = $this->workflowProject('stage-works-unknown');
         $this->bindLifecycle($project);
 
-        self::assertNull($this->stageWorks()->of($project->requireId(), Uuid::v7()));
+        self::assertNull($this->workOf($project, Uuid::v7()));
+    }
+
+    private function workOf(Project $project, Uuid $cardId): ?string
+    {
+        return $this->stageWorks()->ofCards($project->requireId(), [$cardId])[$cardId->toRfc4122()] ?? null;
     }
 
     private function card(Project $project, string $columnSlug): Card
