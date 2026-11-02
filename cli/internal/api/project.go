@@ -68,6 +68,8 @@ var (
 	// ErrCredentialNotOwnerWide marks a token that is limited to some projects.
 	// Only a token that covers all of them can create one.
 	ErrCredentialNotOwnerWide = errors.New("this login is limited to some projects, so it cannot create one: log in again with `loupe login`")
+	// ErrSignInPredatesPublicAPI marks a CLI grant from before the public scope.
+	ErrSignInPredatesPublicAPI = errors.New("This sign-in predates the public API. Run: loupe login")
 	// ErrProjectNameTaken marks a name that another project of the owner has.
 	ErrProjectNameTaken = errors.New("another project of yours has this name: choose another name")
 	// ErrProjectNameRequired marks a request with no name and no usable remote.
@@ -129,6 +131,8 @@ func (c *Client) CreateProject(ctx context.Context, in CreateProjectRequest) (Si
 	switch {
 	case resp.StatusCode == http.StatusForbidden && payload.Code == "credential_not_owner_wide":
 		return Site{}, ErrCredentialNotOwnerWide
+	case resp.StatusCode == http.StatusForbidden && payload.Code == "credential_not_allowed":
+		return Site{}, ErrSignInPredatesPublicAPI
 	case resp.StatusCode == http.StatusConflict && payload.Code == "name_taken":
 		return Site{}, &NameTakenError{Slug: payload.Slug}
 	case resp.StatusCode == http.StatusUnprocessableEntity && payload.Code == "name_required":

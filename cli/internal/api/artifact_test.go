@@ -89,7 +89,8 @@ func TestPushArtifactNamesEachRefusal(t *testing.T) {
 		text   string
 		is     error
 	}{
-		"refused":      {http.StatusUnprocessableEntity, `{"code":"validation_failed","errors":[{"field":"session","code":"x","message":"Workers read artifacts and do not store them."}]}`, "Workers read artifacts", nil},
+		"refused":      {http.StatusUnprocessableEntity, `{"code":"artifact_refused","errors":{"session":"Workers read artifacts and do not store them."}}`, "Workers read artifacts", nil},
+		"invalid":      {http.StatusUnprocessableEntity, `{"code":"validation_failed","errors":[{"field":"notes","code":"x","message":"The notes are too long."}]}`, "The notes are too long.", nil},
 		"refused bare": {http.StatusUnprocessableEntity, `nope`, "HTTP 422", nil},
 		"no project":   {http.StatusNotFound, `{"code":"project_not_found"}`, "project not found", ErrProjectNotFound},
 		"old server":   {http.StatusNotFound, ``, "no columns endpoint", ErrEndpointMissing},
@@ -119,7 +120,7 @@ func TestPushArtifactNamesEachRefusal(t *testing.T) {
 func TestAnArtifactRefusalIsATypedError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write([]byte(`{"errors":[{"field":"b","message":"second"},{"field":"a","message":"first"}]}`))
+		_, _ = w.Write([]byte(`{"code":"artifact_refused","errors":{"b":"second","a":"first"}}`))
 	}))
 	t.Cleanup(server.Close)
 

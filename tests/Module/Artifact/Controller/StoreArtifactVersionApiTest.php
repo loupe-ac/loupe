@@ -153,6 +153,20 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         self::assertSame(0, $this->artifactRepository()->count([]));
     }
 
+    public function test_the_bridge_path_answers_a_refusal_as_a_map_of_field_to_reason(): void
+    {
+        $client = static::createClient();
+        $project = $this->project($this->em(), 'route-map@example.com', 'Artifacts');
+        $token = $this->token($project);
+
+        $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['a.html']], ['a.html' => 'a'], prefix: '/api/v1/bridge');
+
+        self::assertResponseStatusCodeSame(422);
+        $body = $this->json($client);
+        self::assertSame('artifact_refused', $body['code']);
+        self::assertSame(['artifacts' => 'Artifacts are switched off'], $body['errors']);
+    }
+
     public function test_it_refuses_a_store_from_a_worker_session(): void
     {
         $client = static::createClient();
@@ -306,7 +320,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
      * @param array<string, mixed>  $fields
      * @param array<string, string> $contentsByName file contents; the key only names the temp file
      */
-    private function post(KernelBrowser $client, Project $project, ?string $token, array $fields, array $contentsByName, ?string $session = null): void
+    private function post(KernelBrowser $client, Project $project, ?string $token, array $fields, array $contentsByName, ?string $session = null, string $prefix = '/api'): void
     {
         $files = [];
         foreach ($contentsByName as $name => $contents) {
@@ -325,7 +339,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
             $server['HTTP_X_LOUPE_SESSION'] = $session;
         }
 
-        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, \sprintf('/api/projects/%s/artifacts', $project->id), $fields, ['files' => $files], $server);
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, \sprintf('%s/projects/%s/artifacts', $prefix, $project->id), $fields, ['files' => $files], $server);
     }
 
     /** @return array<string, mixed> */

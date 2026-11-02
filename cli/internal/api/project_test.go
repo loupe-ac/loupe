@@ -50,6 +50,7 @@ func TestCreateProjectMapsTheRefusals(t *testing.T) {
 		text   string
 	}{
 		"limited token":    {http.StatusForbidden, `{"code":"credential_not_owner_wide"}`, ErrCredentialNotOwnerWide, ""},
+		"old grant":        {http.StatusForbidden, `{"code":"credential_not_allowed"}`, ErrSignInPredatesPublicAPI, "This sign-in predates the public API. Run: loupe login"},
 		"name taken":       {http.StatusConflict, `{"code":"name_taken"}`, ErrProjectNameTaken, ""},
 		"name taken, slug": {http.StatusConflict, `{"code":"name_taken","slug":"blog"}`, ErrProjectNameTaken, "blog"},
 		"no name":          {http.StatusUnprocessableEntity, `{"code":"name_required"}`, ErrProjectNameRequired, ""},
