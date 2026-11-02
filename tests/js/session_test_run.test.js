@@ -119,6 +119,18 @@ describe('the session test verdict', () => {
             'product',
             `## Decisions log\n\n\`\`\`text\n## Other\n\`\`\`\n\n- Method: ${named}.\n`,
         ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n   \`\`\`text\n   example\n   \`\`\`\n\n   Source: superpowers.\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n    Source: superpowers.\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n\`\`\`inline\`\`\`\n\n- Method: ${named}.\n`,
+        ],
         ['tech', `## Decided\n\nThe owner picked ${named}.\n`],
     ])('passes a %s session with the entry in %j', (kind, markdown) => {
         const result = run({ FAKE_CLOSE: '1', FAKE_MARKDOWN: markdown }, kind);
@@ -147,6 +159,29 @@ describe('the session test verdict', () => {
             'product',
             `## Notes\n\n\`\`\`text\n## Decisions log\n\n${named}\n\`\`\`\n`,
         ],
+        ['product', `## Decisions log\n\n\`\`\`text\n${named}\n\`\`\`\n`],
+        [
+            'product',
+            `## Decisions log\n\n1. Scope: small.\n\n   \`\`\`text\n   ${named}\n   \`\`\`\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n1. Method: brainstorming.\n\n   \`\`\`text\n   superpowers\n   \`\`\`\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n\`\`\`\`text\n\`\`\`\n${named}\n\`\`\`\n\`\`\`\`\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n\`\`\`text\n~~~\n${named}\n~~~\n\`\`\`\n`,
+        ],
+        [
+            'product',
+            `## Decisions log\n\n\`\`\`text\n\`\`\`text\n${named}\n\`\`\`\n`,
+        ],
+        ['product', `## Decisions log\n\n    ${named}\n`],
+        ['tech', `## Decided\n\n\`\`\`text\n${named}\n\`\`\`\n`],
     ])('fails a %s session with no entry in %j', (kind, markdown) => {
         const result = run({ FAKE_CLOSE: '1', FAKE_MARKDOWN: markdown }, kind);
 

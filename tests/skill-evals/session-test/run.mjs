@@ -35,24 +35,46 @@ const opt = (name, fallback) => {
     return i >= 0 ? args[i + 1] : fallback;
 };
 
-// One entry is a top-level list item, a table row or a paragraph.
+// One entry is a top-level list item, a table row or a paragraph. A code block
+// is an example, so its text belongs to no entry.
 function sectionEntries(markdown, heading) {
     const entries = [];
     let inSection = false;
-    let inFence = false;
+    let openFence = null;
+    let inList = false;
     let afterBlank = false;
     for (const line of markdown.split(/\r?\n/)) {
-        if (/^\s*(```|~~~)/.test(line)) {
-            inFence = !inFence;
-        } else if (!inFence && /^#{1,2}\s/.test(line)) {
+        const fence = /^\s*(`{3,}(?=[^`]*$)|~{3,})(.*)$/.exec(line);
+        if (openFence) {
+            if (
+                fence &&
+                fence[1][0] === openFence[0] &&
+                fence[1].length >= openFence.length &&
+                fence[2].trim() === ''
+            ) {
+                openFence = null;
+                afterBlank = true;
+            }
+            continue;
+        }
+        if (fence) {
+            openFence = fence[1];
+            continue;
+        }
+        if (/^#{1,2}\s/.test(line)) {
             inSection = line.trim().toLowerCase() === `## ${heading}`.toLowerCase();
+            inList = false;
             entries.push('');
             continue;
         }
         if (!inSection) continue;
-        if (!inFence && (/^(?:[-*+]\s|\d+[.)]\s|\|)/.test(line) || (afterBlank && /^\S/.test(line))))
+        const listItem = /^(?:[-*+]\s|\d+[.)]\s)/.test(line);
+        if (listItem || line.startsWith('|') || (afterBlank && /^\S/.test(line))) {
+            inList = listItem;
             entries.push('');
-        if (entries.length) entries[entries.length - 1] += `${line}\n`;
+        }
+        if (inList || !/^(?: {4}|\t)/.test(line))
+            entries[entries.length - 1] += `${line}\n`;
         afterBlank = line.trim() === '';
     }
     return entries;
