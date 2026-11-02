@@ -239,6 +239,7 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   repository has an active GitHub App installation.
 - `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
+- `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move to another column clears it. A new rank in the same column keeps it.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
   the round and the `rounds` limit.
@@ -376,7 +377,10 @@ the Workflow panel of the card page.
 A move in the template can name who may make it. A move with
 `by: parent-run` is open to an open worker run of the parent epic, and not
 to a person. The run may be of any work kind, such as a breakdown or a fix.
-An interactive run does not count. Lifecycle names no such move. A move with
+An interactive run does not count. A move with `by: session` is open only to
+an update that opens an interactive session run in the same call, such as
+`card_run_open` with a `status`. It refuses a card with a parent and a card of
+a type that can have children. Lifecycle names no such move yet. A move with
 no `by` is open to anyone. The **Who** column of the manual moves on the Workflow settings page shows who may
 make each move.
 
@@ -649,8 +653,10 @@ A **duration** is the time from a start event to an end event. The events are
 slot events are `{ arrived: <slot> }` and `{ left: <slot> }`. The slot can be a
 slot key of the template, `@backlog` or `@terminal`. A duration runs from the
 first start to the last end after it. On `from`, `{ last: <event> }` starts at
-the last time the event happened. A card with a start and no end after it has
-no value.
+the last time the event happened. `{ earliest: [<event>, <event>] }` names two
+or more starts, and the duration begins at the earliest one that happened. It
+cannot be used with `last`. A card with a start and no end after it has no
+value.
 
 The event `ready-to-merge` happens when Loupe reads that a pull request is ready
 to merge. A pull request that merges with no such read has its ready time at the
@@ -693,6 +699,34 @@ When you withdraw the approval of a design, the card goes back to that design. S
 | Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it. When the card value `tech-design-interactive` is on, the workflow asks for an interactive tech design session in place of the agent. See [Interactive tech design](#interactive-tech-design) |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
+
+### Work a card in a session
+
+A session that does the work of a card itself follows one flow on a Lifecycle
+board. The Loupe plugin ships it as the `loupe-lifecycle-session` skill. A project
+with no plugin can copy these steps into its own instructions. The current
+Lifecycle template has no `by: session` move, so `card_run_open` refuses the move
+of step 3 from Backlog or Next, and the card takes step 5. A later release of the
+template adds the move:
+
+1. Call `workflow_get`. Go on only when the template key is `lifecycle`.
+2. Call `card_search`, then `card_create` with no `status`. The card lands in
+   Backlog. Never create the card in Implementation, because a worker would
+   start before the run opens.
+3. Call `card_run_open` with the slug of Implementation as `status`, and your
+   session id. When the template allows the move, the card moves to
+   Implementation and no worker starts on it.
+4. When the answer starts `worker:`, a worker holds the card. Make no edit.
+   Wait for the worker, or stop it with `worker_run_stop`.
+5. When the answer says that the card is managed, call `card_run_open` again
+   with no `status`. The card stays where it is. An older template, a card with
+   a parent and an epic all take this path.
+6. Do the work. Open the draft pull request, and link it to the card with
+   `card_update`. Pass no `status`.
+7. Call `card_run_close`.
+
+A project that does nothing of this still works. The card reaches Implementation
+when the pull request is linked.
 
 ### Interactive tech design
 

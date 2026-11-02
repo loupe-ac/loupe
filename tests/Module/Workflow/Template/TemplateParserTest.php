@@ -1253,7 +1253,7 @@ final class TemplateParserTest extends TestCase
             $t['manualMoves'][2]['by'] = 'anyone';
 
             return $t;
-        }, 'manualMoves[2].by: must be one of parent-run'];
+        }, 'manualMoves[2].by: must be one of parent-run, session'];
         yield 'wildcard rule slot' => [static function (array $t): array {
             $t['rules'][0]['slot'] = '*';
 

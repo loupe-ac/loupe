@@ -116,7 +116,7 @@ final readonly class ChildDesignChoices
             if (!$this->moveGuard->allows($snapshot, $step->to, Actor::Agent, $cause)) {
                 throw new CardManaged($card->number);
             }
-            $snapshot = new CardSnapshot($snapshot->id, $snapshot->projectId, $snapshot->number, $snapshot->type, $step->to, $snapshot->parentId, $snapshot->parentNumber, $snapshot->parentColumn);
+            $snapshot = new CardSnapshot($snapshot->id, $snapshot->projectId, $snapshot->number, $snapshot->type, $step->to, $snapshot->parentId, $snapshot->parentNumber, $snapshot->parentColumn, $snapshot->arrivedInSession);
         }
     }
 

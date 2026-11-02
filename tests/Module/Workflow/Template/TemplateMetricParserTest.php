@@ -218,6 +218,18 @@ final class TemplateMetricParserTest extends TestCase
         self::assertFalse($metric->fromLast);
     }
 
+    public function test_it_reads_a_duration_with_two_starts(): void
+    {
+        $metric = $this->parser->parse(self::withMetric(['duration' => [
+            'from' => ['earliest' => [['arrived' => '@terminal'], 'pr-opened']],
+            'to' => 'pr-merged',
+        ]]))->metrics[0];
+
+        self::assertEquals(new DurationEvent('arrived', '@terminal'), $metric->from);
+        self::assertEquals([new DurationEvent('pr-opened')], $metric->alsoFrom);
+        self::assertFalse($metric->fromLast);
+    }
+
     /** @param array<string, mixed> $metric */
     #[DataProvider('invalidMetrics')]
     public function test_it_refuses_a_bad_metric(array $metric, string $error): void
@@ -251,6 +263,9 @@ final class TemplateMetricParserTest extends TestCase
         yield 'a rate with both forms' => [['rate' => ['outcome' => 'merged', 'any' => ['role' => 'fix']]], 'metrics[0] (my-metric) rate: must be a map with exactly one of outcome and any'];
         yield 'a duration with no end' => [['duration' => ['from' => 'pr-opened']], 'metrics[0] (my-metric) duration: must be a map with "from" and "to"'];
         yield 'an unknown event' => [['duration' => ['from' => 'pr-closed', 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: must be one of pr-opened, agent-review-passed, ready-to-merge, pr-merged, or a map with "arrived" or "left" and a slot'];
+        yield 'earliest with last' => [['duration' => ['from' => ['last' => ['earliest' => ['pr-opened', 'pr-merged']]], 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: "earliest" cannot be used with "last"'];
+        yield 'earliest with one event' => [['duration' => ['from' => ['earliest' => ['pr-opened']], 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: "earliest" must be a list of at least two events'];
+        yield 'earliest with a bad event' => [['duration' => ['from' => ['earliest' => ['pr-opened', 'pr-closed']], 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from earliest 2: must be one of pr-opened, agent-review-passed, ready-to-merge, pr-merged, or a map with "arrived" or "left" and a slot'];
         yield 'an unknown slot' => [['duration' => ['from' => ['arrived' => 'in-review'], 'to' => 'pr-merged']], 'metrics[0] (my-metric) duration from: unknown slot "in-review"; known slots: build, @backlog, @terminal'];
     }
 

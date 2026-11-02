@@ -192,7 +192,7 @@ final readonly class TemplateMetricParser
             return null;
         }
 
-        return new TemplateMetric($key, $label, $description, $type, $metric['filter'] ?? null, $splitBy, $metric['outcome'] ?? null, $metric['from'] ?? null, $metric['fromLast'] ?? false, $metric['to'] ?? null);
+        return new TemplateMetric($key, $label, $description, $type, $metric['filter'] ?? null, $splitBy, $metric['outcome'] ?? null, $metric['from'] ?? null, $metric['fromLast'] ?? false, $metric['to'] ?? null, $metric['alsoFrom'] ?? []);
     }
 
     /**
@@ -262,7 +262,7 @@ final readonly class TemplateMetricParser
      * @param list<string> $slotKeys
      * @param list<string> $errors
      *
-     * @return ?array{from: DurationEvent, fromLast: bool, to: DurationEvent}
+     * @return ?array{from: DurationEvent, fromLast: bool, to: DurationEvent, alsoFrom: list<DurationEvent>}
      */
     private function duration(mixed $given, string $where, array $slotKeys, ProducedWork $produced, array &$errors): ?array
     {
@@ -274,14 +274,37 @@ final readonly class TemplateMetricParser
         }
         $from = $given['from'];
         $fromLast = false;
+        $starts = null;
         if (\is_array($from) && !array_is_list($from) && ['last'] === array_keys($from)) {
             $fromLast = true;
             $from = $from['last'];
+            if (\is_array($from) && !array_is_list($from) && ['earliest'] === array_keys($from)) {
+                $errors[] = $where.' from: "earliest" cannot be used with "last"';
+
+                return null;
+            }
+        } elseif (\is_array($from) && !array_is_list($from) && ['earliest'] === array_keys($from)) {
+            $list = $from['earliest'];
+            if (!\is_array($list) || !array_is_list($list) || \count($list) < 2) {
+                $errors[] = $where.' from: "earliest" must be a list of at least two events';
+
+                return null;
+            }
+            $starts = [];
+            foreach ($list as $index => $item) {
+                $event = $this->event($item, $where.' from earliest '.($index + 1), $slotKeys, $produced, $errors);
+                if (null !== $event) {
+                    $starts[] = $event;
+                }
+            }
+            if (\count($starts) !== \count($list)) {
+                return null;
+            }
         }
-        $start = $this->event($from, $where.' from', $slotKeys, $produced, $errors);
+        $start = null === $starts ? $this->event($from, $where.' from', $slotKeys, $produced, $errors) : $starts[0];
         $end = $this->event($given['to'], $where.' to', $slotKeys, $produced, $errors);
 
-        return null === $start || null === $end ? null : ['from' => $start, 'fromLast' => $fromLast, 'to' => $end];
+        return null === $start || null === $end ? null : ['from' => $start, 'fromLast' => $fromLast, 'to' => $end, 'alsoFrom' => null === $starts ? [] : \array_slice($starts, 1)];
     }
 
     /**

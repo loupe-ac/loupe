@@ -384,7 +384,7 @@ class CardRepository extends ServiceEntityRepository
     public function refreshColumn(Card $card): void
     {
         $row = $this->getEntityManager()->getConnection()->fetchAssociative(
-            'SELECT column_id FROM board_cards WHERE id = :id',
+            'SELECT column_id, arrived_in_session FROM board_cards WHERE id = :id',
             ['id' => (string) $card->id],
         );
 
@@ -394,6 +394,7 @@ class CardRepository extends ServiceEntityRepository
 
         $card->column = $this->getEntityManager()->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']))
             ?? throw new \LogicException('Card row points at a missing column.');
+        $card->arrivedInSession = (bool) $row['arrived_in_session'];
     }
 
     /**
@@ -422,7 +423,7 @@ class CardRepository extends ServiceEntityRepository
     public function refreshPlacement(Card $card): void
     {
         $row = $this->getEntityManager()->getConnection()->fetchAssociative(
-            'SELECT column_id, type, parent_card_id, lane_enabled FROM board_cards WHERE id = :id',
+            'SELECT column_id, type, parent_card_id, lane_enabled, arrived_in_session FROM board_cards WHERE id = :id',
             ['id' => (string) $card->id],
         );
 
@@ -432,6 +433,7 @@ class CardRepository extends ServiceEntityRepository
 
         $card->column = $this->getEntityManager()->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']))
             ?? throw new \LogicException('Card row points at a missing column.');
+        $card->arrivedInSession = (bool) $row['arrived_in_session'];
         $card->type = (string) $row['type'];
         $card->laneEnabled = (bool) $row['lane_enabled'];
         $card->parent = null === $row['parent_card_id']
@@ -1488,7 +1490,7 @@ class CardRepository extends ServiceEntityRepository
         return $this->getEntityManager()->getConnection()->executeQuery(
             \sprintf(
                 'UPDATE board_cards c
-                 SET column_id = :to, updated_at = :now, completed_at = %s, completions = %s, position = %s
+                 SET column_id = :to, updated_at = :now, arrived_in_session = FALSE, completed_at = %s, completions = %s, position = %s
                  FROM (
                      SELECT s.id,
                             row_number() OVER (ORDER BY s.position, s.completed_at, s.created_at, s.number) - 1 AS rank,
@@ -1526,7 +1528,7 @@ class CardRepository extends ServiceEntityRepository
             }
 
             $row = $connection->fetchAssociative(
-                'SELECT column_id, position, completed_at, completions, updated_at FROM board_cards WHERE id = :id',
+                'SELECT column_id, position, completed_at, completions, updated_at, arrived_in_session FROM board_cards WHERE id = :id',
                 ['id' => (string) $card->id],
             );
             $column = false === $row ? null : $em->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']));
@@ -1536,6 +1538,7 @@ class CardRepository extends ServiceEntityRepository
 
             $card->column = $column;
             $card->position = (int) $row['position'];
+            $card->arrivedInSession = (bool) $row['arrived_in_session'];
             $card->completedAt = $dateTime->convertToPHPValue($row['completed_at'], $connection->getDatabasePlatform());
             $card->completions = (int) $row['completions'];
             $card->updatedAt = $dateTime->convertToPHPValue($row['updated_at'], $connection->getDatabasePlatform());

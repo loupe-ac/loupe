@@ -25,6 +25,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'agent_review.uncommented' => 'workflow.source.agent_review',
         'agent_review.unposted' => 'workflow.source.agent_review',
         'bridge.account.usage' => 'workflow.source.bridge',
+        'card.arrived_in_session' => 'workflow.source.board',
         'card.blocker.closed' => 'workflow.source.board',
         'card.blocker.open' => 'workflow.source.board',
         'card.children.exist' => 'workflow.source.board',

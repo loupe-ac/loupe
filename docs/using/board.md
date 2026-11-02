@@ -1078,10 +1078,16 @@ settings refuses, and the error says what the agent can fix. A setting that
 `card_run_open` and `card_run_close` record an interactive session on a card.
 See [Interactive sessions](worker-runs.md#interactive-sessions).
 
+`card_run_open` refuses a card where a worker runs or holds a claim. The answer starts with `worker:`. The session makes no edit. The owner waits for the worker, or stops it with `worker_run_stop`.
+
 A move that an agent makes through the MCP names its worker run in the card
 history. This works when the `loupe` CLI sends the session of the agent in the
 `X-Loupe-Session` header. A `card_run_open` call that moves the card names the
-run it opens.
+run it opens. The Lifecycle template allows no such move yet. A later release of
+the template allows one for a session, from Backlog or Next to Implementation.
+Until then the call refuses that move, and the session opens its run with no
+`status`. See
+[Work a card in a session](workflows.md#work-a-card-in-a-session).
 
 `status` takes a column slug on `card_create`, `card_update` and `card_list`. An
 unknown slug is refused. The error lists the slugs the board has, such as

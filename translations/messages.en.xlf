@@ -9410,6 +9410,8 @@
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.parent_in_slot"><source>workflow.waiting.not.parent_in_slot</source><target>Waiting: the parent card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_type"><source>workflow.waiting.card_type</source><target>Waiting: the card type is not %type%.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_arrived_in_session"><source>workflow.waiting.card_arrived_in_session</source><target>Waiting: the card did not arrive through a session.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_arrived_in_session"><source>workflow.waiting.not.card_arrived_in_session</source><target>Waiting: a session brought the card here.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_value"><source>workflow.waiting.card_value</source><target>Waiting: the card value "%key%" is not %value%.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_value"><source>workflow.waiting.not.card_value</source><target>Waiting: the card value "%key%" is %value%.</target></trans-unit>
@@ -9687,6 +9689,7 @@
             <trans-unit id="workflow.settings.metrics.event.pr-merged"><source>workflow.settings.metrics.event.pr-merged</source><target>the pull request merged</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.arrived"><source>workflow.settings.metrics.event.arrived</source><target>the card arrived in %slot%</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.left"><source>workflow.settings.metrics.event.left</source><target>the card left %slot%</target></trans-unit>
+            <trans-unit id="workflow.settings.metrics.event.earliest"><source>workflow.settings.metrics.event.earliest</source><target>the earlier of %events% and %last%</target></trans-unit>
             <trans-unit id="workflow.settings.metrics.event.last"><source>workflow.settings.metrics.event.last</source><target>the last time %event%</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.stuck"><source>workflow.settings.markers.kind.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.needs-you"><source>workflow.settings.markers.kind.needs-you</source><target>Needs you</target></trans-unit>
@@ -9734,6 +9737,7 @@
             <trans-unit id="workflow.settings.moves.by"><source>workflow.settings.moves.by</source><target>Who</target></trans-unit>
             <trans-unit id="workflow.settings.moves.by.anyone"><source>workflow.settings.moves.by.anyone</source><target>Anyone</target></trans-unit>
             <trans-unit id="workflow.settings.moves.by.parent_run"><source>workflow.settings.moves.by.parent_run</source><target>A run of the parent epic</target></trans-unit>
+            <trans-unit id="workflow.settings.moves.by.session"><source>workflow.settings.moves.by.session</source><target>A session that opens its run with the move</target></trans-unit>
             <trans-unit id="workflow.settings.moves.none"><source>workflow.settings.moves.none</source><target>This template allows no manual moves.</target></trans-unit>
             <trans-unit id="workflow.settings.timings.heading"><source>workflow.settings.timings.heading</source><target>Retry timings</target></trans-unit>
             <trans-unit id="workflow.settings.timings.backoff"><source>workflow.settings.timings.backoff</source><target>Retry delays: %minutes% minutes</target></trans-unit>

@@ -26,6 +26,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `loupe-documents` | Writing or revising any document submitted to the Loupe app through the `loupe` MCP |
 | `project-tech-design` | A technical design that settles an architecture, an entity model, a module boundary, or a subsystem |
 | `loupe-site-review` | Acting on site-review feedback through the `loupe` MCP: `feedback_list` or `card_get`, fixing feedback, `feedback_mark_addressed` |
+| `loupe-lifecycle-session` | Doing the work of a card yourself in a session on a Lifecycle board: `card_run_open` with the move to Implementation, the pull request link, `card_run_close` |
 | `loupe-board` | Working a project board through the `loupe` MCP: `card_create`, `card_list`, `card_get`, `card_update`, writing a card, linking a pull request |
 | `loupe-discovery` | A discovery run of the project: `readiness_get`, `workflow_get`, `readiness_report_submit`, the readiness report |
 | `loupe-inbox` | Asking the project owner through the `loupe` MCP: `inbox_search`, `inbox_join`, `inbox_ask`, `inbox_list`, `inbox_get`, `inbox_withdraw`, ending a turn after a blocking ask |
@@ -67,7 +68,7 @@ Work that the owner asks for in a session and that opens a pull request needs a 
 2. Open the draft pull request, and put the card URL in its body.
 3. Call `card_update` with the pull request URL in `pullRequestUrls`, and pass no `status`.
 
-The workflow then moves the card to Implementation, and reviews and merges the pull request. Do not move the card yourself.
+Invoke the `loupe-lifecycle-session` skill for this flow. It opens a run with `card_run_open`, and that call moves the card to Implementation before your first edit. Move the card in no other way. The workflow then reviews and merges the pull request.
 
 A card whose body opens with `**Parked.**` is paused: do not start it or move it.
 

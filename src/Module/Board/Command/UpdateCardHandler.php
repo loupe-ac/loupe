@@ -187,7 +187,7 @@ final readonly class UpdateCardHandler
             }
             // After the parent step, so the guard reads the parent the move keeps or sets.
             // A card the update holds is unmanaged, so the guard has nothing to refuse.
-            $needsHold = $column !== $card->column && !$this->moveGuard->allows($card->snapshot(), $column->ref(), $command->actor, $command->cause);
+            $needsHold = $column !== $card->column && !$this->moveGuard->allows($card->snapshot(), $column->ref(), $command->actor, $command->cause, null !== $command->openInteractiveRun);
             if ($needsHold && null === $command->unmanageBy) {
                 // A returned refusal commits, so the parent goes back first.
                 $card->parent = $oldParent;
@@ -230,6 +230,10 @@ final readonly class UpdateCardHandler
             // column, so the run this update opens is not the one closed.
             $openedRun = null;
             if (null !== $command->openInteractiveRun) {
+                // Set after the move, which clears it. It commits with the move.
+                if (null !== $move && $move->fromColumn !== $card->column) {
+                    $card->arrivedInSession = true;
+                }
                 $cardId = $card->id ?? throw new \LogicException('A persisted card has an id.');
                 $openedRun = $this->interactiveRuns->open($card->project, $cardId, $card->number, $command->openInteractiveRun->sessionId, $command->openInteractiveRun->name);
             }
