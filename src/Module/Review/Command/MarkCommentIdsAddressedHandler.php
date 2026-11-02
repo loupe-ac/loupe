@@ -55,7 +55,7 @@ final readonly class MarkCommentIdsAddressedHandler
             $plan[] = ['id' => $id, 'reason' => null];
         }
 
-        $outcomes = ($this->markCommentsAddressed)(new MarkCommentsAddressedCommand($resolved));
+        $outcomes = ($this->markCommentsAddressed)(new MarkCommentsAddressedCommand($resolved, $command->apiKey));
 
         $addressed = [];
         $skipped = [];

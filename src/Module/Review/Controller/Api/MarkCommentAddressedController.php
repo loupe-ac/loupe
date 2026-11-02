@@ -16,6 +16,7 @@ use App\Module\Review\Security\DocumentComment;
 use App\Module\Review\Security\DocumentVoter;
 use App\Module\Review\Security\ProjectDocument;
 use App\Module\Review\Service\DocumentApiProblems;
+use App\Security\CurrentApiKeyActor;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -49,12 +50,13 @@ final class MarkCommentAddressedController extends AppController
 {
     public function __construct(
         private readonly MarkCommentIdsAddressedHandler $markAddressed,
+        private readonly CurrentApiKeyActor $apiKeys,
     ) {
     }
 
     public function __invoke(#[ProjectDocument] Document $document, #[DocumentComment] Comment $comment, #[MapRequestPayload] MarkCommentAddressedRequest $payload): JsonResponse
     {
-        $result = ($this->markAddressed)(new MarkCommentIdsAddressedCommand($document->project, [(string) $comment->id]));
+        $result = ($this->markAddressed)(new MarkCommentIdsAddressedCommand($document->project, [(string) $comment->id], $this->apiKeys->current()));
         foreach ($result->skipped as $skipped) {
             if (null !== $problem = DocumentApiProblems::commentSkipped($skipped['reason'])) {
                 throw $problem;

@@ -744,8 +744,8 @@ gets `403` with the code `credential_not_allowed` on a verdict or a decision.
 | `POST` | `/documents/{document}/verdicts` | Record a verdict, `approved` or `changes-requested`. |
 | `DELETE` | `/documents/{document}/verdicts/{verdict}?versionNumber=N` | Withdraw the newest verdict. |
 
-Read the review first. Every write names the version you showed the owner in
-`versionNumber`. A newer version answers `409` with `decision_stale` or
+Read the review first. A decision or verdict write names the version you showed
+the owner in `versionNumber`. A newer version answers `409` with `decision_stale` or
 `verdict_stale`. A verdict also carries `expectedVerdictId`, the `verdictId` of
 the review, or `null` when it is `null`. A newer verdict answers `409` with
 `verdict_changed`. An approval needs an answer to every decision, or it answers

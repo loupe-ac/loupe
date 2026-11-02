@@ -18,6 +18,7 @@ use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\ValueObject\Anchor;
+use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
@@ -121,6 +122,20 @@ final class DocumentReviewApiTest extends WebTestCase
 
         $this->send(Request::METHOD_GET, $this->url($document, '/review'));
         self::assertSame('addressed', $this->json()['comments'][0]['status']);
+    }
+
+    public function test_marking_a_thread_addressed_names_the_api_key_in_the_audit_record(): void
+    {
+        $audit = RecordingAuditor::installedIn(static::getContainer());
+        $document = $this->reviewable();
+        $root = $this->comment($document);
+
+        $this->sendJson(Request::METHOD_PATCH, $this->url($document, '/comments/'.$root->id), ['status' => 'addressed']);
+
+        self::assertResponseStatusCodeSame(200);
+        $record = $audit->record('review.comment_addressed');
+        self::assertArrayHasKey('apiKeyId', $record->context);
+        self::assertSame('Test key', $record->context['apiKeyName']);
     }
 
     public function test_marking_addressed_refuses_a_reply_a_foreign_comment_and_another_status(): void
