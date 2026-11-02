@@ -469,7 +469,7 @@ final class MarkdownRendererTest extends TestCase
             $yaml .= sprintf("a%d: &a%d [%s]\n", $level, $level, $references);
         }
         $markdown = $yaml."---\n\nBody.\n";
-        // Every shape is far inside DocumentCreateTool::MAX_MARKDOWN_BYTES, which
+        // Every shape is far inside Document::MAX_MARKDOWN_BYTES, which
         // is what makes the source cap useless against exponential growth.
         self::assertLessThan(5_000, \strlen($markdown));
 

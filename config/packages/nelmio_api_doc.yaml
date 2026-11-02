@@ -222,6 +222,19 @@ when@dev: &generator
                 - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
                 - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
                 - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }
+                - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
+                - { alias: DocumentSummary, type: App\Module\Review\Controller\Api\DocumentSummaryResponse }
+                - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }
+                - { alias: Document, type: App\Module\Review\Controller\Api\DocumentResponse }
+                - { alias: DocumentCreated, type: App\Module\Review\Controller\Api\DocumentCreatedResponse }
+                - { alias: DocumentPublishResult, type: App\Module\Review\Controller\Api\DocumentPublishResponse }
+                - { alias: DocumentVersionSummary, type: App\Module\Review\Controller\Api\DocumentVersionSummaryResponse }
+                - { alias: DocumentVersionList, type: App\Module\Review\Controller\Api\DocumentVersionListResponse }
+                - { alias: DocumentVersion, type: App\Module\Review\Controller\Api\DocumentVersionResponse }
+                - { alias: DocumentRevision, type: App\Module\Review\Controller\Api\DocumentRevisionResponse }
+                - { alias: DocumentCreate, type: App\Module\Review\Controller\Api\CreateDocumentRequest }
+                - { alias: DocumentUpdate, type: App\Module\Review\Controller\Api\UpdateDocumentRequest }
+                - { alias: DocumentRevise, type: App\Module\Review\Controller\Api\CreateDocumentVersionRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

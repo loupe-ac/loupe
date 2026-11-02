@@ -2042,6 +2042,510 @@
                 },
                 "type": "object"
             },
+            "DocumentLink": {
+                "required": [
+                    "documentId",
+                    "title",
+                    "archived"
+                ],
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentStatus": {
+                "type": "string",
+                "enum": [
+                    "in-review",
+                    "approved",
+                    "changes-requested",
+                    "draft"
+                ]
+            },
+            "DocumentSummary": {
+                "required": [
+                    "documentId",
+                    "title",
+                    "status",
+                    "currentVersion",
+                    "versionDescription",
+                    "archived",
+                    "tags",
+                    "series",
+                    "seriesOrdinal",
+                    "createdAt"
+                ],
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DocumentStatus"
+                    },
+                    "currentVersion": {
+                        "type": "integer"
+                    },
+                    "versionDescription": {
+                        "description": "What that version is.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "series": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "seriesOrdinal": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentSummary"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Document": {
+                "required": [
+                    "documentId",
+                    "title",
+                    "language",
+                    "status",
+                    "archived",
+                    "archiveReason",
+                    "version",
+                    "versionDescription",
+                    "markdown",
+                    "tags",
+                    "series",
+                    "seriesOrdinal",
+                    "references",
+                    "referencedBy",
+                    "createdAt"
+                ],
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DocumentStatus"
+                    },
+                    "archived": {
+                        "type": "boolean"
+                    },
+                    "archiveReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "version": {
+                        "description": "The current version number.",
+                        "type": "integer"
+                    },
+                    "versionDescription": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "markdown": {
+                        "description": "The Markdown source of the current version.",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "series": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "seriesOrdinal": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "references": {
+                        "description": "The documents this one points at. Only this direction is writable.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
+                    },
+                    "referencedBy": {
+                        "description": "The documents that point at this one.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLink"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentCreated": {
+                "required": [
+                    "documentId",
+                    "reviewUrl",
+                    "tags",
+                    "series",
+                    "seriesOrdinal",
+                    "language",
+                    "status"
+                ],
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reviewUrl": {
+                        "description": "The review page in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "series": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "seriesOrdinal": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DocumentStatus"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentPublishResult": {
+                "required": [
+                    "documentId",
+                    "status",
+                    "published"
+                ],
+                "properties": {
+                    "documentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DocumentStatus"
+                    },
+                    "published": {
+                        "description": "False when the document was not a draft.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentVersionSummary": {
+                "required": [
+                    "versionNumber",
+                    "createdAt",
+                    "description",
+                    "threadCount"
+                ],
+                "properties": {
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "description": "What changed in this version.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadCount": {
+                        "description": "The number of comment threads on this version.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentVersionList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentVersionSummary"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentVersion": {
+                "required": [
+                    "versionNumber",
+                    "createdAt",
+                    "description",
+                    "markdown"
+                ],
+                "properties": {
+                    "versionNumber": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "markdown": {
+                        "description": "The Markdown source of this version.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentRevision": {
+                "required": [
+                    "versionNumber",
+                    "carried",
+                    "orphaned"
+                ],
+                "properties": {
+                    "versionNumber": {
+                        "description": "The number of the new version.",
+                        "type": "integer"
+                    },
+                    "carried": {
+                        "description": "The open comments carried to the new version.",
+                        "type": "integer"
+                    },
+                    "orphaned": {
+                        "description": "The comments whose quoted text no longer appears.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentCreate": {
+                "required": [
+                    "title",
+                    "markdown"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "markdown": {
+                        "description": "At most 1048575 bytes. Write a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`.",
+                        "type": "string"
+                    },
+                    "description": {
+                        "title": "A blank description means none was given, but \"0\" is a description.",
+                        "description": "What this first version is, in one or two sentences.",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "description": "Lowercased on write and created on first use.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        },
+                        "default": []
+                    },
+                    "references": {
+                        "description": "Documents of the same project.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "default": []
+                    },
+                    "series": {
+                        "description": "The ordered set this document is an item of. It needs `seriesOrdinal`.",
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "seriesOrdinal": {
+                        "description": "The position in that series, from 1. No two documents in one series hold the same number.",
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/SearchLanguage"
+                    },
+                    "draft": {
+                        "description": "Keep the document out of review and the inbox until `publish`.",
+                        "type": "boolean",
+                        "default": false
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentUpdate": {
+                "description": "A field you leave out keeps its value. No version is created.",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "tags": {
+                        "description": "The complete set, and an empty list clears it.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        }
+                    },
+                    "references": {
+                        "description": "The complete set, and an empty list clears it. A document cannot reference itself.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    "series": {
+                        "description": "The series name. Null with a null `seriesOrdinal` takes the document out of its series.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 100
+                    },
+                    "seriesOrdinal": {
+                        "description": "The position in that series, from 1.",
+                        "type": "integer",
+                        "nullable": true,
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "archived": {
+                        "description": "True archives the document, and false restores it. Nothing is deleted and no version is created.",
+                        "type": "boolean"
+                    },
+                    "archiveReason": {
+                        "description": "Why the document is archived. It is required with `archived: true`, and ignored otherwise.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentRevise": {
+                "required": [
+                    "markdown",
+                    "description"
+                ],
+                "properties": {
+                    "markdown": {
+                        "description": "The new Markdown. At most 1048575 bytes.",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "What changed and why, for a reviewer who read the previous version.",
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "title": {
+                        "description": "A corrected title.",
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "references": {
+                        "description": "The complete set. Leave it out to keep it, and send an empty list to clear it.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    "series": {
+                        "description": "Leave it out to keep the placement. An empty string takes the document out of its series.",
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "seriesOrdinal": {
+                        "description": "Required whenever `series` is given.",
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [

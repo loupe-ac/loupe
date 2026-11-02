@@ -34,7 +34,7 @@ final readonly class ReachableArtifactValueResolver implements ValueResolverInte
     #[\Override]
     public function resolve(Request $request, ArgumentMetadata $argument): array
     {
-        $project = $this->projects->reachable($request->attributes->get('project'));
+        $project = $this->projects->projectOf($request, 'project');
         $id = $request->attributes->get($argument->getName());
         $artifact = \is_string($id) ? $this->artifacts->findOneByIdInProject($id, $project) : null;
 

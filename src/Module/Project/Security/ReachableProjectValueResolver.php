@@ -35,14 +35,17 @@ final readonly class ReachableProjectValueResolver implements ValueResolverInter
     #[\Override]
     public function resolve(Request $request, ArgumentMetadata $argument): array
     {
-        return [$this->reachable($request->attributes->get($argument->getName()))];
+        return [$this->projectOf($request, $argument->getName())];
     }
 
     /**
+     * The project that a path segment names, for a resolver of a child entity that must stay in it.
+     *
      * @throws ApiProblemException `project_not_found` for a handle that names no project the credential may view
      */
-    public function reachable(mixed $handle): Project
+    public function projectOf(Request $request, string $segment): Project
     {
+        $handle = $request->attributes->get($segment);
         $user = $this->tokenStorage->getToken()?->getUser();
         $project = \is_string($handle) && $user instanceof User ? $this->projects->findOneByIdOrSlugForOwner($handle, $user) : null;
 

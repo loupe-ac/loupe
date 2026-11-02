@@ -92,6 +92,21 @@ final class ApiAccessControlTest extends KernelTestCase
         }
     }
 
+    public function test_the_public_scope_reaches_the_document_routes_and_no_other_scope_does(): void
+    {
+        $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
+        foreach ([
+            '/api/v1/projects/my-project/documents',
+            '/api/v1/projects/my-project/documents/'.$document,
+            '/api/v1/projects/my-project/documents/'.$document.'/publish',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions/2',
+        ] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
     public function test_the_feedback_and_artifact_rules_open_no_other_route(): void
     {
         $paths = [
@@ -106,6 +121,24 @@ final class ApiAccessControlTest extends KernelTestCase
             '/api/v1/projects/my-project/artifactsx',
         ];
         foreach ($paths as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+        }
+    }
+
+    /** The document rule names its routes, so a later route under a document (reviews, comments) starts denied. */
+    public function test_the_document_rule_opens_no_other_route(): void
+    {
+        $document = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
+        foreach ([
+            '/api/v1/projects/my-project/documents/',
+            '/api/v1/projects/my-project/documents/'.$document.'/',
+            '/api/v1/projects/my-project/documents/'.$document.'/review',
+            '/api/v1/projects/my-project/documents/'.$document.'/comments/'.$document,
+            '/api/v1/projects/my-project/documents/'.$document.'/verdicts',
+            '/api/v1/projects/my-project/documents/'.$document.'/versions/2/extra',
+            '/api/v1/projects/my-project/documents/'.$document.'/publish/extra',
+            '/api/v1/projects/my-project/documentsx',
+        ] as $path) {
             self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
         }
     }

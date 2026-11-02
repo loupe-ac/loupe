@@ -26,7 +26,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * @phpstan-type RevisionSummary array{carried: int, orphaned: int}
+ * @phpstan-type RevisionSummary array{carried: int, orphaned: int, versionNumber: int}
  */
 final readonly class ReviseDocumentHandler
 {
@@ -51,6 +51,10 @@ final readonly class ReviseDocumentHandler
     public function __invoke(ReviseDocumentCommand $command): array
     {
         $document = $command->document;
+
+        if (\strlen($command->markdown) > Document::MAX_MARKDOWN_BYTES) {
+            throw new DomainErrors(['markdown' => Document::MARKDOWN_TOO_LARGE]);
+        }
 
         // Checked before the transaction opens: an over-long title would
         // otherwise reach Postgres inside wrapInTransaction and roll back the
@@ -163,6 +167,7 @@ final readonly class ReviseDocumentHandler
             return [
                 'carried' => $summary['carried'],
                 'orphaned' => $summary['orphaned'],
+                'versionNumber' => $newVersion->versionNumber,
             ];
         });
 
