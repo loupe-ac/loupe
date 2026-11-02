@@ -51,7 +51,9 @@ Six sections are optional. A missing optional section blocks nothing.
    stage checks previews.
 5. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
-   branches.
+   branches. The starter profile says `Epic preview: none`. With that line,
+   a request for an epic preview refresh finishes with no change. Replace the
+   line when the repository serves an epic branch.
 
 ## Draft pull requests and the agent review
 
