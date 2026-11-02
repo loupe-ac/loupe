@@ -37,10 +37,12 @@ analysis pages show.
 - An old "Dev Project" is renamed to `Dev Project (old <8 characters of its id>)`.
   The new "Dev Project" gets the fixed id.
 - The seed switches on the flags of `DevFeatureFlagSeeder`, which are
-  `inbox.enabled` and `artifacts.enabled`. It tags each flag row `dev-seed`.
+  `inbox.enabled`, `artifacts.enabled` and `billing.enabled`. It tags each flag
+  row `dev-seed`.
   A flag row with that tag stays as a person left it, so the seed never switches
   it on again.
-- `--keep-flag-defaults` writes no flag row. The e2e stack uses it, because the
+- `--keep-flag-defaults` writes no flag row and leaves the existing flag values
+  unchanged. It also skips the billing data. The e2e stack uses it, because the
   specs assume the coded flag defaults.
 - The command prints the time of each seeder. The target for a full seed is 30
   seconds on a worktree. No test checks it, so a reviewer must read the printed
