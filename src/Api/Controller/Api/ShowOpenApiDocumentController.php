@@ -6,6 +6,7 @@ namespace App\Api\Controller\Api;
 
 use App\Api\Command\ShowOpenApiDocumentCommand;
 use App\Api\Command\ShowOpenApiDocumentHandler;
+use App\Api\OpenApi\RateLimitedResponse;
 use App\Controller\AppController;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,7 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[OA\Get(operationId: 'getOpenApiDocument', description: 'No sign-in is needed.', summary: 'Read this OpenAPI document', security: [], tags: ['Meta'], responses: [
     new OA\Response(response: 200, description: 'The public v1 specification, as JSON.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 429, description: 'Refused: `rate_limited`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new RateLimitedResponse(),
 ])]
 #[Route(
     '/api/v1/openapi.json',

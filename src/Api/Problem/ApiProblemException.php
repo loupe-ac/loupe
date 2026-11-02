@@ -19,6 +19,12 @@ final class ApiProblemException extends \RuntimeException
         return new self(new ApiProblem(400, 'invalid_cursor', 'Invalid cursor', $detail));
     }
 
+    /** The same answer for a project that does not exist and one the caller may not see. */
+    public static function projectNotFound(): self
+    {
+        return new self(new ApiProblem(404, 'project_not_found', 'Project not found', 'No project with this id or slug is reachable with this credential.'));
+    }
+
     /** @param list<array{field: string, code: string, message: string}> $errors */
     public static function validationFailed(array $errors): self
     {

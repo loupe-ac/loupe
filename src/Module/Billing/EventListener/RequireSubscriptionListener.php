@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Billing\EventListener;
 
+use App\Api\Problem\ApiPaths;
+use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Service\PaywallExemptions;
 use App\Module\Billing\Service\PaywallGate;
@@ -61,11 +63,21 @@ final readonly class RequireSubscriptionListener
             return;
         }
 
-        $event->setResponse($isMachineRequest
-            ? new JsonResponse(
-                ['error' => 'subscription_required', 'subscribeUrl' => $this->urlGenerator->generate('app_billing_subscribe', referenceType: UrlGeneratorInterface::ABSOLUTE_URL)],
-                Response::HTTP_PAYMENT_REQUIRED,
-            )
-            : new RedirectResponse($this->urlGenerator->generate('app_billing_subscribe')));
+        if (!$isMachineRequest) {
+            $event->setResponse(new RedirectResponse($this->urlGenerator->generate('app_billing_subscribe')));
+
+            return;
+        }
+
+        $problem = new ApiProblem(
+            Response::HTTP_PAYMENT_REQUIRED,
+            'subscription_required',
+            'Subscription required',
+            'This account needs an active subscription.',
+            extras: ['subscribeUrl' => $this->urlGenerator->generate('app_billing_subscribe', referenceType: UrlGeneratorInterface::ABSOLUTE_URL)],
+        );
+        $event->setResponse(ApiPaths::usesProblemJson($request->getPathInfo())
+            ? new JsonResponse($problem->toProblemBody(), $problem->status, ['Content-Type' => 'application/problem+json'])
+            : new JsonResponse($problem->toLegacyBody(), $problem->status));
     }
 }

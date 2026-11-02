@@ -61,6 +61,37 @@ class BoardColumnRepository extends ServiceEntityRepository
         return $columns;
     }
 
+    /**
+     * One keyset page of the board in board order, ties broken on the id.
+     * The page starts after the last row ($after) when one is given.
+     *
+     * @param ?array{int, Uuid} $after the position and the id of the last row of the previous page
+     *
+     * @return list<BoardColumn>
+     */
+    public function findPageForProject(Project $project, int $limit, ?array $after): array
+    {
+        $qb = $this->createQueryBuilder('k')
+            ->andWhere('k.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('k.position', 'ASC')
+            ->addOrderBy('k.id', 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $after) {
+            $qb->andWhere('(k.position > :afterPosition OR (k.position = :afterPosition AND k.id > :afterId))')
+                ->setParameter('afterPosition', $after[0])
+                ->setParameter('afterId', $after[1], UuidType::NAME);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    public function findOneByProjectAndSlug(Project $project, string $slug): ?BoardColumn
+    {
+        return $this->findOneBy(['project' => $project, 'slug' => $slug]);
+    }
+
     /** @return list<BoardColumn> the columns the board draws, which leaves the Backlog out */
     public function findBoardColumns(Project $project): array
     {

@@ -135,6 +135,37 @@ class ProjectRepository extends ServiceEntityRepository
     }
 
     /**
+     * One keyset page of the owner's projects in creation order, ties broken on the id.
+     * The page starts after the last row ($after) when one is given.
+     *
+     * @param ?Uuid                            $only  the one project a bound credential reaches, or null for all
+     * @param ?array{\DateTimeImmutable, Uuid} $after the creation time and the id of the last row of the previous page
+     *
+     * @return list<Project>
+     */
+    public function findPageByOwner(User $owner, ?Uuid $only, int $limit, bool $newestFirst, ?array $after): array
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->andWhere('p.owner = :owner')
+            ->setParameter('owner', $owner)
+            ->orderBy('p.createdAt', $newestFirst ? 'DESC' : 'ASC')
+            ->addOrderBy('p.id', $newestFirst ? 'DESC' : 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $only) {
+            $qb->andWhere('p.id = :only')->setParameter('only', $only, UuidType::NAME);
+        }
+        if (null !== $after) {
+            $operator = $newestFirst ? '<' : '>';
+            $qb->andWhere(\sprintf('(p.createdAt %1$s :afterAt OR (p.createdAt = :afterAt AND p.id %1$s :afterId))', $operator))
+                ->setParameter('afterAt', $after[0], Types::DATETIME_IMMUTABLE)
+                ->setParameter('afterId', $after[1], UuidType::NAME);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
      * The owner's very first project — used to gate the first-run wizard.
      */
     public function findOldestByOwner(User $owner): ?Project

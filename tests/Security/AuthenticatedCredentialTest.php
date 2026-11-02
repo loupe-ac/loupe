@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Security\AuthenticatedCredential;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
+use Symfony\Component\Uid\Uuid;
 
 final class AuthenticatedCredentialTest extends TestCase
 {
@@ -36,6 +37,26 @@ final class AuthenticatedCredentialTest extends TestCase
         $securityToken->setAttribute(AuthenticatedCredential::ATTRIBUTE, 'grant-1');
 
         self::assertNull(AuthenticatedCredential::of($securityToken));
+    }
+
+    public function test_an_unbound_public_credential_reaches_every_project(): void
+    {
+        self::assertTrue(new AuthenticatedCredential('key', ['ROLE_API_PUBLIC'])->reachesEveryProject());
+    }
+
+    public function test_a_grant_over_all_projects_reaches_every_project(): void
+    {
+        self::assertTrue(new AuthenticatedCredential('grant', ['ROLE_API_AGENT'], allProjects: true)->reachesEveryProject());
+    }
+
+    public function test_a_credential_bound_to_one_project_reaches_no_more(): void
+    {
+        self::assertFalse(new AuthenticatedCredential('grant', ['ROLE_API_PUBLIC'], Uuid::v7())->reachesEveryProject());
+    }
+
+    public function test_an_unbound_agent_credential_reaches_no_project(): void
+    {
+        self::assertFalse(new AuthenticatedCredential('grant', ['ROLE_API_AGENT'])->reachesEveryProject());
     }
 
     private function securityToken(): PostAuthenticationToken

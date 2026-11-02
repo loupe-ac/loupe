@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Module\OAuth\Scope\ApiScope;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -41,6 +42,16 @@ final readonly class AuthenticatedCredential
     public function hasRole(string $role): bool
     {
         return \in_array($role, $this->roles, true);
+    }
+
+    /**
+     * Whether the credential reaches every project of its owner. A grant that says so
+     * does, and so does a public-scope credential that names no project, such as an API
+     * key. An agent-scope credential with no project grant reaches none.
+     */
+    public function reachesEveryProject(): bool
+    {
+        return $this->allProjects || (null === $this->projectId && $this->hasRole(ApiScope::Public->role()));
     }
 
     public static function of(?TokenInterface $securityToken): ?self

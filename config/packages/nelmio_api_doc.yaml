@@ -19,7 +19,64 @@ when@dev: &generator
                         type: http
                         scheme: bearer
                         description: 'An API key or an OAuth access token, in `Authorization: Bearer <token>`.'
+                headers:
+                    Retry-After:
+                        description: The number of seconds to wait before the next request.
+                        schema: { type: integer }
+                    RateLimit-Limit:
+                        description: The number of requests the window allows.
+                        schema: { type: integer }
+                    RateLimit-Remaining:
+                        description: The number of requests left in the window.
+                        schema: { type: integer }
+                    RateLimit-Reset:
+                        description: The seconds until the window resets.
+                        schema: { type: integer }
+                    Link:
+                        description: 'The next page, as `<url>; rel="next"`. It is absent on the last page.'
+                        schema: { type: string }
+                    Location:
+                        description: The URL of the new resource.
+                        schema: { type: string, format: uri }
                 schemas:
+                    # The generator marks a typed property with no default as required, and a
+                    # partial change needs each field optional and not nullable.
+                    ProjectUpdate:
+                        type: object
+                        description: A field you leave out keeps its value.
+                        properties:
+                            name:
+                                type: string
+                                description: A new name. It also changes the slug.
+                                minLength: 1
+                                maxLength: 100
+                            description:
+                                type: string
+                                description: An empty string clears it.
+                                maxLength: 500
+                            domain:
+                                type: string
+                                description: An empty string clears it.
+                                maxLength: 255
+                            searchLanguage:
+                                $ref: '#/components/schemas/SearchLanguage'
+                            origins:
+                                type: array
+                                items: { type: string }
+                                description: Replaces the whole stored list, and an empty list clears it. At most 20 entries and 4000 characters together, with no line break in an entry.
+                                maxItems: 20
+                    ColumnUpdate:
+                        type: object
+                        description: A field you leave out keeps its value.
+                        properties:
+                            label:
+                                type: string
+                                description: A new name. The slug changes with it, so a bridge rule or a script that uses the old slug stops working.
+                                minLength: 1
+                                maxLength: 100
+                            terminal:
+                                type: boolean
+                                description: Whether finished work goes in this column.
                     Problem:
                         type: object
                         description: An error, as RFC 9457 `application/problem+json`.
@@ -41,6 +98,37 @@ when@dev: &generator
                             detail:
                                 type: string
                                 description: What happened in this request.
+                    ValidationProblem:
+                        description: A refusal of one or more fields.
+                        allOf:
+                            - $ref: '#/components/schemas/Problem'
+                            - type: object
+                              required: [errors]
+                              properties:
+                                  errors:
+                                      type: array
+                                      items:
+                                          type: object
+                                          required: [field, code, message]
+                                          properties:
+                                              field:
+                                                  type: string
+                                                  description: The field, as a request names it.
+                                              code:
+                                                  type: string
+                                                  description: The stable code of the refusal.
+                                              message:
+                                                  type: string
+                                                  description: A sentence that says why.
+                    NameTakenProblem:
+                        description: A refusal because a name is taken.
+                        allOf:
+                            - $ref: '#/components/schemas/Problem'
+                            - type: object
+                              properties:
+                                  slug:
+                                      type: string
+                                      description: The slug of the project that holds the name.
                     ApiVersions:
                         type: object
                         description: The API versions of this instance.
@@ -63,6 +151,21 @@ when@dev: &generator
                                 type: string
                                 description: The CLI versions this server works with, as a caret range.
                                 example: ^2.0
+        # The component name of each response or request class of the public API. Without an entry
+        # the name is the class name, and a body shared by two operations may get two names.
+        models:
+            names:
+                - { alias: Project, type: App\Module\Project\Controller\Api\ProjectResponse }
+                - { alias: ProjectList, type: App\Module\Project\Controller\Api\ProjectListResponse }
+                - { alias: ProjectCreate, type: App\Module\Project\Controller\Api\CreateProjectRequest }
+                - { alias: BoardColumn, type: App\Module\Board\Controller\Api\BoardColumnResponse }
+                - { alias: CardType, type: App\Module\Board\Controller\Api\CardTypeResponse }
+                - { alias: BoardColumnList, type: App\Module\Board\Controller\Api\BoardColumnListResponse }
+                - { alias: ColumnWriteResult, type: App\Module\Board\Controller\Api\ColumnWriteResponse }
+                - { alias: ColumnOrderResult, type: App\Module\Board\Controller\Api\ColumnOrderResponse }
+                - { alias: ColumnDeleteResult, type: App\Module\Board\Controller\Api\ColumnDeleteResponse }
+                - { alias: ColumnCreate, type: App\Module\Board\Controller\Api\CreateBoardColumnRequest }
+                - { alias: ColumnOrder, type: App\Module\Board\Controller\Api\ReorderBoardColumnsRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:
