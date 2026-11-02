@@ -69,7 +69,7 @@ final class AnswerDecisionController extends AppController
                 document: $document,
                 decisionId: $decision,
                 displayedVersionNumber: $payload->versionNumber ?? throw new \LogicException('versionNumber required after validation'),
-                optionIndexes: array_values($payload->optionIndexes ?? throw new \LogicException('optionIndexes required after validation')),
+                optionIndexes: array_values($payload->optionIndexes),
                 note: $payload->note,
                 clear: false,
                 answeredBy: $user instanceof User ? $user : throw new \LogicException('An API call always authenticates a user.'),

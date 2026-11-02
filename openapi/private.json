@@ -3507,7 +3507,7 @@
                             "type": "integer",
                             "minimum": 0
                         },
-                        "default": null,
+                        "default": [],
                         "minItems": 1
                     },
                     "note": {
