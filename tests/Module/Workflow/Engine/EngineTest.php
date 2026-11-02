@@ -32,6 +32,7 @@ use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\PullRequestCommentRepository;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
+use App\Module\Board\Service\CardEventActor;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\StaleApprovalNoticeBody;
 use App\Module\Board\Workflow\BoardCardPauses;
@@ -4975,6 +4976,7 @@ final class EngineTest extends KernelTestCase
             new PauseCardHandler($cardPauses, $this->em(), $clock, $auditor, $dispatcher, $this->service(CardEventRepository::class)),
             $releaseCardPause,
             $this->em(),
+            $this->service(CardEventActor::class),
         );
         $doctrine = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);

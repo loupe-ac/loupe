@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
+use App\Security\CurrentApiKeyActor;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -24,6 +25,7 @@ final readonly class CardPause
         private OutboxWriter $outbox,
         private WorkerRunChangedPublisher $runsChanged,
         private Auditor $auditor,
+        private CurrentApiKeyActor $currentKey,
     ) {
     }
 
@@ -31,7 +33,7 @@ final readonly class CardPause
      * Call it under the project lock, inside a transaction. Answers false when
      * the card is held already, and then writes nothing.
      *
-     * @param 'human'|'agent' $actor
+     * @param 'human'|'agent'|'api-key' $actor
      */
     public function take(Project $project, Uuid $cardId, User $requestedBy, string $actor): bool
     {
@@ -45,6 +47,7 @@ final readonly class CardPause
             'subject' => ['type' => 'card', 'id' => (string) $cardId],
             'projectId' => (string) $project->id,
             'actor' => $actor,
+            ...$this->currentKey->eventFields($actor),
         ]);
 
         return true;

@@ -350,6 +350,70 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * One keyset page of a project's cards, for the public list. The walk sorts on
+     * the card number, which is unique inside a project, or on the update time with
+     * the id as tie-break. A search narrows the walk and does not rank it.
+     *
+     * @param 'number'|'updatedAt'     $sort
+     * @param array{string, Uuid}|null $after  the sort value and the id of the last row of the previous page
+     * @param ?bool                    $paused true reads cards with an active pause, false those with none
+     *
+     * @return list<Card>
+     */
+    public function findPageForProject(Project $project, string $sort, bool $descending, int $limit, ?array $after, ?BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?string $query): array
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->addSelect('k')
+            ->andWhere('c.project = :project')
+            ->setParameter('project', $project)
+            ->setMaxResults($limit);
+
+        if (null !== $column) {
+            $qb->andWhere('c.column = :column')->setParameter('column', $column);
+        }
+        if (null !== $type) {
+            $qb->andWhere('c.type = :type')->setParameter('type', $type);
+        }
+        if (null !== $parent) {
+            $qb->andWhere('c.parent = :parent')->setParameter('parent', $parent);
+        }
+        if (null !== $paused) {
+            $qb->andWhere(\sprintf('%sEXISTS (SELECT pause.id FROM %s pause WHERE pause.card = c AND pause.releasedAt IS NULL)', $paused ? '' : 'NOT ', CardPause::class));
+        }
+        if (null !== $reporter) {
+            $qb->andWhere('COALESCE(c.storedReporter, c.origin) = :reporter')->setParameter('reporter', $reporter->value);
+        }
+        if (null !== $query) {
+            $search = SearchQuery::parse($query);
+            if (1 === preg_match('/^#?([1-9][0-9]{0,8})$/D', $query, $match)) {
+                $qb->andWhere('c.number = :searchNumber OR '.SubstringSearch::expression($qb, 'c', ['title', 'body'], $search))
+                    ->setParameter('searchNumber', (int) $match[1]);
+            } else {
+                SubstringSearch::andMatches($qb, 'c', ['title', 'body'], $search);
+            }
+        }
+
+        $direction = $descending ? 'DESC' : 'ASC';
+        $compare = $descending ? '<' : '>';
+        if ('number' === $sort) {
+            if (null !== $after) {
+                $qb->andWhere('c.number '.$compare.' :afterNumber')->setParameter('afterNumber', (int) $after[0]);
+            }
+            $qb->orderBy('c.number', $direction);
+        } else {
+            if (null !== $after) {
+                $qb->andWhere(\sprintf('c.updatedAt %1$s :afterTime OR (c.updatedAt = :afterTime AND c.id %1$s :afterId)', $compare))
+                    ->setParameter('afterTime', \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $after[0]) ?: throw new \InvalidArgumentException('The cursor time does not parse.'), Types::DATETIME_IMMUTABLE)
+                    ->setParameter('afterId', $after[1], UuidType::NAME);
+            }
+            $qb->orderBy('c.updatedAt', $direction)->addOrderBy('c.id', $direction);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
      * Narrows card alias c to the cards that match a search query, in the
      * Backlog list as in the search.
      */

@@ -37,6 +37,18 @@ final readonly class CurrentApiKeyActor
         return null === $this->credentialId() ? $fallback : Actor::ApiKey;
     }
 
+    /**
+     * The fields an outbox event carries beside its actor, to name the key behind `api-key`.
+     *
+     * @return array{}|array{apiKey: array{id: string, name: string}}
+     */
+    public function eventFields(string $actor): array
+    {
+        $key = Actor::ApiKey->value === $actor ? $this->current() : null;
+
+        return null === $key ? [] : ['apiKey' => ['id' => (string) $key->keyId, 'name' => $key->keyName]];
+    }
+
     private function credentialId(): ?string
     {
         $id = AuthenticatedCredential::of($this->tokenStorage->getToken())?->id;

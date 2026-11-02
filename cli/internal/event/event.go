@@ -88,6 +88,7 @@ const (
 	ActorAgent    = "agent"
 	ActorReviewer = "reviewer"
 	ActorSystem   = "system"
+	ActorAPIKey   = "api-key"
 )
 
 // ErrUnknownType marks an event this build does not handle. A newer server
@@ -177,7 +178,7 @@ func checkCommon(e Event) error {
 		return fmt.Errorf("%s event has a subject id that is not a uuid", e.Type)
 	}
 	switch e.Actor {
-	case ActorHuman, ActorAgent, ActorReviewer, ActorSystem:
+	case ActorHuman, ActorAgent, ActorReviewer, ActorSystem, ActorAPIKey:
 	default:
 		return fmt.Errorf("%s event has an unknown actor %q", e.Type, e.Actor)
 	}

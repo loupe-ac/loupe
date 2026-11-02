@@ -165,6 +165,8 @@ jobs:
 
       # The flag rides the invocation, not the `phpunit` recipe, so a
       # workstation run still writes nothing. ParaTest creates the directory.
+      # The slowest of 26 hosted runs took 603s, and identical runs differ by
+      # 1.8x. The job limit must stay above this one, so the upload still runs.
       - run: just phpunit --log-junit var/phpunit-timing/junit.xml
         timeout-minutes: 20
 

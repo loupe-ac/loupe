@@ -53,9 +53,24 @@ final class ApiAccessControlTest extends KernelTestCase
     /** A rule per route shape, so a route the contract adds later inherits no grant from the project rule. */
     public function test_the_project_rule_opens_no_nested_route(): void
     {
-        self::assertFalse($this->decide('/api/v1/projects/my-project/cards', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/not-a-route', ['ROLE_USER', 'ROLE_API_PUBLIC']));
         self::assertFalse($this->decide('/api/v1/projects/my-project/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
         self::assertFalse($this->decide('/api/v1/projectsx', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
+    public function test_the_public_scope_reaches_the_card_routes_and_no_other_scope_does(): void
+    {
+        foreach (['/api/v1/projects/my-project/cards', '/api/v1/projects/my-project/cards/12', '/api/v1/projects/my-project/cards/12/events', '/api/v1/projects/my-project/cards/12/hold', '/api/v1/projects/my-project/cards/12/pause'] as $path) {
+            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']), $path);
+        }
+    }
+
+    public function test_the_card_rule_opens_no_other_card_route(): void
+    {
+        foreach (['/api/v1/projects/my-project/cards/', '/api/v1/projects/my-project/cards/0', '/api/v1/projects/my-project/cards/abc', '/api/v1/projects/my-project/cards/12/comments', '/api/v1/projects/my-project/cards/12/events/3', '/api/v1/projects/my-project/cards/1234567890', '/api/v1/projects/my-project/cardsx'] as $path) {
+            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_PUBLIC']), $path);
+        }
     }
 
     public function test_the_public_scope_reaches_the_column_routes_and_no_other_scope_does(): void
