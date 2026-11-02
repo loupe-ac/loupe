@@ -8,7 +8,6 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\InboxThreadClosing;
 use App\Module\Inbox\View\InboxThreadReply;
 use App\Module\Inbox\View\InboxThreadView;
@@ -17,7 +16,8 @@ use App\Module\Inbox\View\InboxThreadView;
 final readonly class InboxThreadBuilder
 {
     public function __construct(
-        private InboxCardWatchRepository $inboxCardWatches,
+        private InboxWatchLookup $watches,
+        private InboxThreadPreload $preload,
         private CardWaitText $cardWaitText,
         private InboxActionStatuses $actionStatuses,
         private InboxOutcome $outcome,
@@ -28,8 +28,8 @@ final readonly class InboxThreadBuilder
     /** @param ?string $hostCardId the card whose page shows the item, so the thread offers no link back to it */
     public function build(InboxItem $item, ?string $hostCardId = null): InboxThreadView
     {
-        $watch = $item->isAutomatic() ? $this->inboxCardWatches->findOneForItem($item) : null;
-        $statuses = $this->actionStatuses->forItems([$item])[(string) $item->id] ?? [];
+        $watch = $this->watches->forItem($item);
+        $statuses = $this->preload->statusesOf($item) ?? $this->actionStatuses->forItems([$item])[(string) $item->id] ?? [];
         $last = array_last($statuses);
         // An action under way answers the wait, so the card stays away until it expires, is refused or is cancelled.
         $answering = null !== $last && $last->answers($watch->waits ?? []);

@@ -13,6 +13,7 @@ use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxOutcome;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxThreadPreload;
 use App\Module\Inbox\Service\ShownInboxAsk;
 use App\Module\Inbox\View\InboxPageView;
 use App\Module\Inbox\View\InboxRow;
@@ -33,6 +34,7 @@ final readonly class ShowInboxHandler
         private BridgeLiveness $bridgeLiveness,
         private InboxReviewLookup $inboxReviews,
         private InboxOutcome $outcome,
+        private InboxThreadPreload $threadPreload,
     ) {
     }
 
@@ -63,6 +65,9 @@ final readonly class ShowInboxHandler
 
         $view = $view->withPage($page);
         $selected = $this->select($project, $view, $rows);
+        if (null !== $selected) {
+            $this->threadPreload->preload($selected->items);
+        }
 
         $bridgeId = $selected?->ask?->bridgeId;
         $totalPages = max(1, (int) ceil($total / $perPage));
