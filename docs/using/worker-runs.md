@@ -485,11 +485,10 @@ reason in its row of the Runs list, and in the drawer under **Closed because**.
 
 A bridge does not start a worker on a card while an interactive session is open on it. The request stays open, and the bridge claims it after the session closes. A request that opens a session itself is not held back.
 
-A later release of the Lifecycle template lets a session bring its card to
-Implementation. A card that came there this way goes back to Backlog when the
-session ends with no pull request, so no worker starts on work that a session
-began. A pull request link that comes later brings the card back to
-Implementation. Today the card stays where it is when the session ends.
+The Lifecycle template lets a session bring its card to Implementation. A card
+that came there this way goes back to Backlog when the session ends with no pull
+request, so no worker starts on work that a session began. A pull request link
+that comes later brings the card back to Implementation.
 
 A wrong close costs little. The next `card_run_open` call of the session opens a
 new run. A workflow rule that waits for "no session open" reacts to the close as

@@ -323,3 +323,11 @@ func mustGetwd(t *testing.T) string {
 
 	return d
 }
+
+func TestRemindTextTellsDesignSessionsToIgnoreIt(t *testing.T) {
+	for _, want := range []string{"product design or tech design session ignores this reminder", "never moves its card to Implementation"} {
+		if !strings.Contains(remindText, want) {
+			t.Fatalf("remindText lacks %q: %s", want, remindText)
+		}
+	}
+}

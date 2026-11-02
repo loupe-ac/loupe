@@ -1,5 +1,5 @@
 key: lifecycle
-version: 39
+version: 40
 defaultType: feature
 epicBranch: 'epic/{number}'
 outcomes:
@@ -32,8 +32,8 @@ metrics:
       duration: { from: { last: agent-review-passed }, to: ready-to-merge }
     - key: hours-to-ready-to-merge
       label: Hours to ready to merge
-      description: The hours from the first arrival in Implementation to ready to merge.
-      duration: { from: { arrived: implementation }, to: ready-to-merge }
+      description: The hours from the first arrival in Implementation, or the first pull request opening when that is earlier, to ready to merge.
+      duration: { from: { earliest: [{ arrived: implementation }, pr-opened] }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
 repositorySettings:
@@ -72,6 +72,8 @@ manualMoves:
     - { from: '@backlog', to: '@terminal' }
     - { from: next, to: '@terminal' }
     - { from: implementation, to: tech-design }
+    - { from: '@backlog', to: implementation, by: session }
+    - { from: next, to: implementation, by: session }
 childChoices:
     inherit: [{ link-document: { from: parent, tag: tech-design } }]
     own: [{ move: { to: tech-design } }]
@@ -380,9 +382,13 @@ rules:
           all:
               - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
+              - not: { card.run.session_open: {} }
+              - not: { card.arrived_in_session: {} }
       then:
           request:
               kind: implement
+              cancelWhen: { card.run.session_open: {} }
+              cancelOnly: open
               checks:
                   - A worktree per card, so two cards never share one checkout
                   - A preview URL per branch, with the review widget on it
@@ -402,6 +408,7 @@ rules:
               - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
               - not: { card.run.work_active: {} }
+              - not: { card.arrived_in_session: {} }
               - card.run.finished_with: { kind: implement, reason: nothing-to-build }
       then: { move: { to: '@terminal' } }
 
@@ -412,8 +419,18 @@ rules:
               - not: { card.type: { types: [epic] } }
               - not: { card.pr.linked: {} }
               - not: { card.run.work_active: {} }
+              - not: { card.arrived_in_session: {} }
               - card.run.finished_with: { kind: implement, reason: delivered-without-code }
       then: { move: { to: '@terminal' } }
+
+    - id: session-ended-no-pull-request
+      slot: implementation
+      when:
+          all:
+              - card.arrived_in_session: {}
+              - not: { card.run.session_open: {} }
+              - not: { card.pr.linked: {} }
+      then: { move: { to: '@backlog' } }
 
     - id: breakdown
       slot: implementation

@@ -38,9 +38,7 @@ final class SessionMoveTest extends KernelTestCase
     {
         self::bootKernel();
         $this->project = $this->workflowProject('session-move');
-        $binding = $this->bindLifecycle($this->project);
-        $binding->definition['manualMoves'][] = ['from' => '@backlog', 'to' => 'implementation', 'by' => 'session'];
-        $this->em()->flush();
+        $this->bindLifecycle($this->project);
     }
 
     public function test_a_session_move_records_the_arrival_and_opens_the_run(): void
