@@ -94,7 +94,7 @@ func Render(d Detection) string {
 	b.WriteString("## Repair\n\n")
 	b.WriteString("1. Before each action, `git status --porcelain` must print nothing (" + Marker + "). Otherwise stop blocked.\n")
 	b.WriteString("2. Remove a broken worker folder with `loupe env reset`, only when the `repair` work entry of the rule file sets `reset` (" + Marker + "). With no `reset`, the command exits 0 and removes nothing, so stop blocked when the folder stays.\n")
-	b.WriteString("3. Sync the epic branch of the parent card, as `loupe-stage-merge` \"Sync the epic branch\" says (" + Marker + ").\n")
+	b.WriteString("3. Sync the epic branch of the parent card, as `loupe-stage-merge` \"Sync the epic branch\" says, with the forge adapter it names (" + Marker + ").\n")
 	b.WriteString("4. Other actions: " + OpenQuestion + ". Write each action with its commands and its guards. The worker takes no action that this list does not name.\n")
 
 	return b.String()

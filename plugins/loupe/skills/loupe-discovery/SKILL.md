@@ -66,7 +66,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 
 The checks of `workflow_get` that start `Conflict check:` name what the workflow needs from a repository. The list below says where Loupe defines each need, what to read and what counts as a conflict. Compare only the checks that `workflow_get` returns, and only with these needs. Judge no other practice of the repository.
 
-Read what is there, and assume that none of it exists. Change nothing.
+Read what is there, and assume that none of it exists. Change nothing. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says. With no adapter, each check that reads the forge is a finding that says the setting could not be read.
 
 1. `Conflict check: branch rules`. The `merge-ready` rule needs `pr.approval_check_passed`, `pr.checks_passed` and `pr.base_is_merge_target`. Read "Read the rules of the base branch" in the forge adapter. A conflict is a gap in the rules that the check names. A required approving review is one, because the app posts `Loupe / Approval` as the approval.
 2. `Conflict check: merge method`. The `merge` write takes the first method of its `methods` list that the repository and the rules of the base branch allow. Read the same forge section. A conflict is a base branch that allows none. A profile `Merge` or `Epics` method that the base branch does not allow is also a conflict.
