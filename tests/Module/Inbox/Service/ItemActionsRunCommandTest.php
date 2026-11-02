@@ -38,6 +38,7 @@ use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxWatchLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -856,7 +857,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertInstanceOf(SessionPromptWriter::class, $sessionPrompts);
 
         return new ItemActions(
-            $watches,
+            new InboxWatchLookup($watches),
             $runs,
             $controls,
             $pauses,

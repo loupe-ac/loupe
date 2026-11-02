@@ -24,6 +24,7 @@ final readonly class ReplyCardBuilder
     public function __construct(
         private ItemActions $itemActions,
         private InboxThreadActionBuilder $threadActions,
+        private InboxThreadPreload $preload,
         private InboxReviewLookup $inboxReviews,
     ) {
     }
@@ -35,7 +36,7 @@ final readonly class ReplyCardBuilder
             return null;
         }
 
-        $actions = $this->itemActions->forItem($item);
+        $actions = $this->preload->actionsOf($item) ?? $this->itemActions->forItem($item);
         $rows = $this->threadActions->fromActions($item, $actions, $hostCardId);
         $review = InboxItemKind::Review === $item->kind && !$item->isAutomatic() ? $this->inboxReviews->forItem($item) : null;
         $targetGone = InboxItemKind::Review === $item->kind && !$item->isAutomatic() && self::targetIsGone($review);

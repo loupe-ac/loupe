@@ -399,6 +399,73 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertSame($reads['three-cards']['selects'], $reads['twelve-cards']['selects']);
     }
 
+    public function test_the_board_reads_its_cards_and_their_parents_in_a_fixed_number_of_queries(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'board-card-queries@example.com');
+        $boards = [];
+        foreach (['small' => [0, 1], 'big' => [6, 6]] as $name => [$extraColumns, $doneEpics]) {
+            $project = $this->project($em, $owner, $name);
+            $slugs = ['next', 'in-progress'];
+            for ($index = 0; $index < $extraColumns; ++$index) {
+                $column = new BoardColumn(project: $project, label: 'Extra '.$index, slug: 'extra-'.$index, position: 50 + $index);
+                $em->persist($column);
+                $this->seededColumns[$project->id.'/'.$column->slug] = $column;
+                $slugs[] = $column->slug;
+            }
+            $em->flush();
+            foreach ($slugs as $slug) {
+                $this->card($em, $project, 'In '.$slug, $slug);
+            }
+            for ($index = 0; $index < $doneEpics; ++$index) {
+                $epic = $this->card($em, $project, 'Done epic '.$index, 'done');
+                // Completed long ago, outside the window the Done column shows, so no other read has loaded the epic.
+                $epic->completedAt = new \DateTimeImmutable('-10 years');
+                $this->card($em, $project, 'Child '.$index, 'next', 10 + $index)->parent = $epic;
+            }
+            $em->flush();
+            $boards[$name] = '/projects/'.$project->id.'/board';
+        }
+        $em->clear();
+
+        $client->loginUser($owner);
+        // The first request shares the kernel the fixtures used, so its profile holds their queries too.
+        $client->request(Request::METHOD_GET, (string) reset($boards));
+
+        $reads = [];
+        foreach ($boards as $name => $url) {
+            $client->enableProfiler();
+            $client->request(Request::METHOD_GET, $url);
+            self::assertResponseIsSuccessful();
+
+            $profile = $client->getProfile();
+            self::assertInstanceOf(Profile::class, $profile);
+            $collector = $profile->getCollector('db');
+            self::assertInstanceOf(DoctrineDataCollector::class, $collector);
+
+            $selects = 0;
+            $openColumnReads = 0;
+            foreach ($collector->getQueries() as $queries) {
+                foreach ($queries as $query) {
+                    $sql = (string) $query['sql'];
+                    if (!str_starts_with($sql, 'SELECT')) {
+                        continue;
+                    }
+                    ++$selects;
+                    if (str_contains($sql, 'FROM board_cards') && str_contains($sql, 'column_id IN')) {
+                        ++$openColumnReads;
+                    }
+                }
+            }
+            $reads[$name] = ['selects' => $selects, 'openColumns' => $openColumnReads];
+        }
+
+        // The guard: the open columns come from one read, so a board that read nothing proves nothing.
+        self::assertSame([1], array_values(array_unique(array_column($reads, 'openColumns'))));
+        self::assertCount(1, array_unique(array_column($reads, 'selects')), 'The board query count grew with its columns or its Done epics.');
+    }
+
     public function test_a_card_shows_how_many_documents_it_links(): void
     {
         $client = static::createClient();

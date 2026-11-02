@@ -322,6 +322,27 @@ class InboxItemRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Loads the document links of the items and their documents in one query, so a thread that reads them asks nothing more.
+     *
+     * @param list<InboxItem> $items
+     */
+    public function loadDocuments(array $items): void
+    {
+        if ([] === $items) {
+            return;
+        }
+
+        $this->createQueryBuilder('i')
+            ->select('i', 'd', 'document')
+            ->leftJoin('i.documents', 'd')
+            ->leftJoin('d.document', 'document')
+            ->andWhere('i IN (:items)')
+            ->setParameter('items', $items)
+            ->getQuery()
+            ->getResult();
+    }
+
     /** The item with this id inside this project, so a URL cannot reach another project's item. */
     public function findOneByIdAndProjectId(string $itemId, string $projectId): ?InboxItem
     {

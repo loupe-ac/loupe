@@ -71,6 +71,7 @@ use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitText;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxWatchLookup;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunCommandRuns;
@@ -1709,7 +1710,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     private function itemActions(?WorkRequestRepository $workRequests = null): ItemActions
     {
         return new ItemActions(
-            $this->service(InboxCardWatchRepository::class),
+            new InboxWatchLookup($this->service(InboxCardWatchRepository::class)),
             $this->service(WorkerRunRepository::class),
             $this->service(WorkerRunControls::class),
             $this->service(CardPauses::class),
