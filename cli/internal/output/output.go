@@ -8,9 +8,10 @@ import (
 	"io"
 	"strings"
 	"time"
-	"unicode/utf8"
+	"unicode"
 
 	"github.com/toon-format/toon-go"
+	"golang.org/x/text/width"
 )
 
 type Format string
@@ -348,20 +349,46 @@ func ago(now, t time.Time) string {
 	return t.UTC().Format("2006-01-02")
 }
 
-func truncate(s string, width int) string {
-	if width <= 0 || utf8.RuneCountInString(s) <= width {
-		return s
+// runeCells is the number of terminal cells that one rune fills.
+func runeCells(r rune) int {
+	if unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf) {
+		return 0
 	}
-	if width == 1 {
-		return "…"
+	switch width.LookupRune(r).Kind() {
+	case width.EastAsianWide, width.EastAsianFullwidth:
+		return 2
 	}
-	r := []rune(s)
-	return string(r[:width-1]) + "…"
+	return 1
 }
 
-func pad(s string, width int) string {
-	if n := utf8.RuneCountInString(s); n < width {
-		return s + strings.Repeat(" ", width-n)
+func cells(s string) int {
+	n := 0
+	for _, r := range s {
+		n += runeCells(r)
+	}
+	return n
+}
+
+// truncate cuts s to at most limit terminal cells. A limit of zero means no cut.
+func truncate(s string, limit int) string {
+	if limit <= 0 || cells(s) <= limit {
+		return s
+	}
+	var b strings.Builder
+	used := 0
+	for _, r := range s {
+		used += runeCells(r)
+		if used > limit-1 {
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String() + "…"
+}
+
+func pad(s string, limit int) string {
+	if n := cells(s); n < limit {
+		return s + strings.Repeat(" ", limit-n)
 	}
 	return s
 }
@@ -389,7 +416,7 @@ func tableList(out *bytes.Buffer, items []any, cols []string, o Options) {
 	widths := make([]int, len(cols))
 	for _, r := range rows {
 		for i, c := range r {
-			widths[i] = max(widths[i], utf8.RuneCountInString(c))
+			widths[i] = max(widths[i], cells(c))
 		}
 	}
 	fit(widths, o.Width)
@@ -402,17 +429,18 @@ func tableList(out *bytes.Buffer, items []any, cols []string, o Options) {
 			}
 			line.WriteString(c)
 		}
-		out.WriteString(strings.TrimRight(line.String(), " "))
+		out.WriteString(truncate(strings.TrimRight(line.String(), " "), o.Width))
 		out.WriteByte('\n')
 	}
 }
 
-// fit narrows the widest column until the row fits the width.
+// fit narrows the widest column until the row fits the width. A width with no
+// room for one cell per column leaves the rest to the cut of the whole line.
 func fit(widths []int, width int) {
 	if width <= 0 {
 		return
 	}
-	const floor = 4
+	const floor = 1
 	for {
 		total := columnGap * (len(widths) - 1)
 		widest := 0
@@ -433,7 +461,10 @@ func tableItem(out *bytes.Buffer, obj toon.Object, o Options) {
 	fields := order(obj, o.names(), o.LongText)
 	nameWidth := 0
 	for _, f := range fields {
-		nameWidth = max(nameWidth, utf8.RuneCountInString(clean(f.Key, false)))
+		nameWidth = max(nameWidth, cells(clean(f.Key, false)))
+	}
+	if o.Width > 0 {
+		nameWidth = min(nameWidth, max(o.Width-columnGap-1, 1))
 	}
 	var long []toon.Field
 	for _, f := range fields {
@@ -441,19 +472,19 @@ func tableItem(out *bytes.Buffer, obj toon.Object, o Options) {
 			long = append(long, f)
 			continue
 		}
-		line := pad(clean(f.Key, false), nameWidth) + strings.Repeat(" ", columnGap)
+		line := pad(truncate(clean(f.Key, false), nameWidth), nameWidth) + strings.Repeat(" ", columnGap)
 		value := cell(f.Key, f.Value, o)
 		if o.Width > 0 {
-			value = truncate(value, max(o.Width-utf8.RuneCountInString(line), 1))
+			value = truncate(value, max(o.Width-cells(line), 1))
 		}
-		out.WriteString(strings.TrimRight(line+value, " "))
+		out.WriteString(truncate(strings.TrimRight(line+value, " "), o.Width))
 		out.WriteByte('\n')
 	}
 	for _, f := range long {
 		if out.Len() > 0 {
 			out.WriteByte('\n')
 		}
-		out.WriteString(clean(f.Key, false))
+		out.WriteString(truncate(clean(f.Key, false), o.Width))
 		out.WriteByte('\n')
 		value := clean(text(f.Value), true)
 		out.WriteString(value)

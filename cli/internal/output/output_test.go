@@ -111,6 +111,72 @@ func TestTableItemCutsValuesToWidth(t *testing.T) {
 	}
 }
 
+func TestTableLinesFitEveryWidth(t *testing.T) {
+	long := strings.Repeat("title ", 10)
+	wide := strings.Repeat("日本語", 10)
+	list := `{"items":[{"number":1345,"title":"` + long + `","status":"implementation","type":"feature","updatedAt":"2026-11-02T10:00:00Z"},` +
+		`{"number":2,"title":"` + wide + `","status":"` + wide + `","type":"e\u0301e\u0301","updatedAt":"2026-11-02T10:00:00Z"}]}`
+	item := `{"aVeryLongFieldNameThatFillsTheLine":"value","title":"` + wide + `","a":[1,2,3]}`
+	columns := []string{"number", "title", "status", "type", "updatedAt"}
+	for w := 1; w <= 90; w++ {
+		for name, body := range map[string]string{"list": list, "item": item} {
+			got := render(t, Table, body, Options{Columns: columns, TimeFields: []string{"updatedAt"}, Width: w})
+			for _, line := range strings.Split(strings.TrimSuffix(got, "\n"), "\n") {
+				if n := cells(line); n > w {
+					t.Fatalf("%s width %d: line of %d cells: %q", name, w, n, line)
+				}
+			}
+		}
+	}
+}
+
+func TestTableFiveColumnsAtWidthTwenty(t *testing.T) {
+	body := `{"items":[{"number":1345,"title":"Print table","status":"implementation","type":"feature","updatedAt":"2026-11-02T10:00:00Z"}]}`
+	got := render(t, Table, body, Options{Columns: []string{"number", "title", "status", "type", "updatedAt"}, Width: 20})
+	want := "N…  T…  S…  TY…  UP…\n1…  P…  i…  fe…  20…\n"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestTableItemLongFieldNameLeavesRoomForValue(t *testing.T) {
+	got := render(t, Table, `{"aVeryLongFieldName":"v"}`, Options{Width: 10})
+	if want := "aVeryL…  v\n"; got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestTableItemCutsLongTextNameAndKeepsValueWhole(t *testing.T) {
+	value := strings.Repeat("x", 30) + "\n"
+	got := render(t, Table, `{"aVeryLongFieldName":"`+strings.ReplaceAll(value, "\n", `\n`)+`"}`, Options{Width: 10})
+	if want := "aVeryLong…\n" + value; got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestTruncateAndPadCountTerminalCells(t *testing.T) {
+	cases := []struct {
+		in    string
+		limit int
+		want  string
+	}{
+		{"日本語テキスト", 6, "日本…"},
+		{"日本語", 6, "日本語"},
+		{"日本語", 1, "…"},
+		{"日本語", 2, "…"},
+		{"e\u0301e\u0301e\u0301", 3, "e\u0301e\u0301e\u0301"},
+		{"abc", 0, "abc"},
+	}
+	for _, c := range cases {
+		if got := truncate(c.in, c.limit); got != c.want {
+			t.Errorf("truncate(%q, %d) = %q, want %q", c.in, c.limit, got, c.want)
+		}
+	}
+	if got := pad("日本", 6); got != "日本  " {
+		t.Fatalf("pad = %q", got)
+	}
+}
+
 func TestTableListKeepsHeaderForOneRow(t *testing.T) {
 	body := `{"items":[{"number":1,"title":"a","updatedAt":"2026-11-02T10:00:00Z"}],"next":null}`
 	now := time.Date(2026, 11, 2, 12, 30, 0, 0, time.UTC)
