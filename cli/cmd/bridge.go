@@ -586,6 +586,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	r.skills.list = apiClient(cfg).Sites
 	r.skills.cliVersion = version
 	if dir, err := config.Dir(); err != nil {
+		r.skills.storeErr = err
 		r.log.Warn("skill_store_skipped", "reason", err.Error())
 	} else {
 		r.startSkills(dir)

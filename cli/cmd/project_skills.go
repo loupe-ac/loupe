@@ -33,11 +33,16 @@ type skillState struct {
 	// project keeps the fallback.
 	list func(ctx context.Context) ([]api.Site, error)
 	// dir is the config folder whose skills folder is the store. A router
-	// with no dir gives its workers no packages. cliVersion is the version
+	// with no dir has an empty store. cliVersion is the version
 	// the minCli of a package is compared with, and "" is a development
 	// build that meets every minCli.
 	dir        string
 	cliVersion string
+	// storeErr says why the store could not be set up, for the worker that
+	// then finds it empty.
+	storeErr error
+	// install fills the store. A nil one unpacks the starting copy.
+	install func(dir string) ([]string, error)
 	// exe is the path a worker starts loupe from for the MCP server. A nil
 	// one uses the running binary.
 	exe func() (string, error)
@@ -116,12 +121,18 @@ func (r *router) skillLoop(ctx context.Context) {
 }
 
 // startSkills unpacks the starting copy into the store, and keeps the store
-// folder for the workers that start after it. A failure is logged, and the
-// store keeps what it held.
+// folder for the workers that start after it. A failure is logged, the store
+// keeps what it held, and a release worker that finds the store empty fails with
+// the reason.
 func (r *router) startSkills(dir string) {
 	r.skills.dir = dir
-	written, err := skills.Install(dir)
+	install := r.skills.install
+	if install == nil {
+		install = skills.Install
+	}
+	written, err := install(dir)
 	if err != nil {
+		r.skills.storeErr = err
 		r.log.Warn("skill_store_install_failed", "error", err.Error())
 
 		return
@@ -209,19 +220,27 @@ func (r *router) runningSessions() (map[string]bool, error) {
 // givePackages picks the skill packages of a Claude Code worker and the loupe
 // MCP server it starts with. A resume uses the versions its session started
 // with while the store still holds them, and the current ones otherwise. It
-// fails when the project names a package the store cannot serve, or when the
-// record of the session cannot be written, and the run then does not start. The
-// caller calls releasePackages when the worker ended.
+// fails when the project names a package the store cannot serve, when a release
+// build has an empty store, or when the record of the session cannot be written,
+// and the run then does not start. The caller calls releasePackages when the
+// worker ended.
 func (r *router) givePackages(spec *workerSpec, p pending) error {
 	s := &r.skills
-	if s.dir == "" || (spec.harnessName != "" && spec.harnessName != rules.HarnessClaudeCode) {
+	if spec.harnessName != "" && spec.harnessName != rules.HarnessClaudeCode {
 		return nil
 	}
-	held := skills.Held(s.dir)
+	var held []string
+	if s.dir != "" {
+		held = skills.Held(s.dir)
+	}
 	if len(held) == 0 {
 		// A development build holds no starting copy. The worker then uses
 		// the plugin its account installed.
-		return nil
+		if s.cliVersion == "" {
+			return nil
+		}
+
+		return s.emptyStoreError()
 	}
 	picks, err := r.pickPackages(*spec, p.runID, r.projectPackages(p.project, held))
 	if err != nil {
@@ -243,6 +262,17 @@ func (r *router) givePackages(spec *workerSpec, p pending) error {
 	spec.packages, spec.mcpConfig = picks, string(mcp)
 
 	return nil
+}
+
+// emptyStoreError is the failure of a release worker that has no packages. An
+// account has no fallback plugin or server, so the worker could not do its work.
+func (s *skillState) emptyStoreError() error {
+	const fix = "fix that and restart the bridge"
+	if s.storeErr != nil {
+		return fmt.Errorf("the skill store holds no packages: %w; %s", s.storeErr, fix)
+	}
+
+	return errors.New("the skill store holds no packages; " + fix)
 }
 
 // pickPackages chooses the versions of one worker, holds them for the run and

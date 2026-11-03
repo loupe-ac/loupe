@@ -405,6 +405,71 @@ func TestACodexWorkerAndAnEmptyStoreGetNoPackages(t *testing.T) {
 	}
 }
 
+func TestAReleaseWorkerFailsWhenTheStoreIsEmpty(t *testing.T) {
+	failing := func(string) ([]string, error) { return nil, errors.New("disk full") }
+	cases := []struct {
+		name  string
+		setup func(r *router)
+		want  string
+	}{
+		{"the install failed", func(r *router) {
+			r.skills.install = failing
+			r.startSkills(t.TempDir())
+		}, "disk full"},
+		{"the install wrote nothing", func(r *router) {
+			r.skills.install = func(string) ([]string, error) { return nil, nil }
+			r.startSkills(t.TempDir())
+		}, "holds no packages"},
+		{"the config folder is unknown", func(r *router) {
+			r.skills.storeErr = errors.New("no home folder")
+		}, "no home folder"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, _ := skillRouter(nil)
+			r.skills.cliVersion = "1.0.0"
+			c.setup(r)
+			spec := workerSpec{sessionID: "s"}
+
+			err := r.givePackages(&spec, pending{project: "x"})
+			if err == nil || !strings.Contains(err.Error(), c.want) || !strings.Contains(err.Error(), "restart the bridge") {
+				t.Fatalf("err = %v, want %q and the fix", err, c.want)
+			}
+			if spec.packages != nil || spec.mcpConfig != "" {
+				t.Fatalf("spec = %+v, %q, want nothing", spec.packages, spec.mcpConfig)
+			}
+
+			// A worker that takes no packages is not affected.
+			codex := workerSpec{harnessName: rules.HarnessCodex}
+			if err := r.givePackages(&codex, pending{project: "x"}); err != nil {
+				t.Fatalf("a Codex worker failed: %v", err)
+			}
+		})
+	}
+}
+
+func TestADevelopmentWorkerKeepsItsAccountWhenTheInstallFails(t *testing.T) {
+	r, _ := skillRouter(nil)
+	r.skills.install = func(string) ([]string, error) { return nil, errors.New("disk full") }
+	r.startSkills(t.TempDir())
+	spec := workerSpec{sessionID: "s"}
+
+	if err := r.givePackages(&spec, pending{project: "x"}); err != nil || spec.packages != nil {
+		t.Fatalf("packages = %+v, err = %v, want the account's plugin", spec.packages, err)
+	}
+}
+
+func TestAReleaseWorkerGetsThePackagesAPartInstallLeft(t *testing.T) {
+	r, _ := packageStore(t)
+	r.skills.cliVersion = "1.0.0"
+	r.skills.storeErr = errors.New("disk full")
+	spec := workerSpec{sessionID: "s"}
+
+	if err := r.givePackages(&spec, pending{project: "unlisted"}); err != nil || len(spec.packages) != 2 {
+		t.Fatalf("packages = %+v, err = %v, want both", spec.packages, err)
+	}
+}
+
 func TestAResumeKeepsTheVersionsItsSessionStartedWith(t *testing.T) {
 	r, dir := packageStore(t)
 	if err := os.MkdirAll(filepath.Join(dir, "skills", "loupe", "0.9.0"), 0o755); err != nil {

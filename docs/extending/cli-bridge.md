@@ -590,6 +590,12 @@ pass. The bridge writes the package versions of each session to
 `<config dir>/skills/.records/`. When it cannot write that file, the run or the
 interactive session does not start, and the run shows the reason.
 
+A release of the bridge unpacks its starting copy of the packages when it starts.
+When the store then holds no package, a Claude Code run or interactive session
+does not start, and the run shows the reason. Fix that reason and restart the
+bridge. A development build has no starting copy, so its worker uses the plugins
+of its account.
+
 ### A worker account with its own plugins
 
 Each worker runs `claude -p` with your user settings, so it loads every plugin

@@ -438,6 +438,16 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 			t.Fatal(err)
 		}
 	}
+	// The test binaries are release builds with no starting copy, and a release
+	// worker needs a store that holds a package.
+	for _, d := range []string{configDir, b.setup} {
+		if d == "" {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Join(d, "skills", "loupe", "1.0.0"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
 	t.Setenv("PATH", b.dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("LOUPE_E2E_DIR", b.dir)
 	t.Setenv("LOUPE_UPDATE_API", server.URL+"/github")
