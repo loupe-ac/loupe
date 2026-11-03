@@ -108,9 +108,9 @@ func keep(v any, names []string) any {
 		return v
 	}
 	var fields []toon.Field
-	for _, n := range names {
-		if val, ok := lookup(obj, n); ok {
-			fields = append(fields, toon.Field{Key: n, Value: val})
+	for _, f := range obj.Fields {
+		if contains(names, f.Key) {
+			fields = append(fields, f)
 		}
 	}
 	return toon.NewObject(fields...)

@@ -166,3 +166,27 @@ func TestTOONCutsFields(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestCutKeepsAPIKeyOrder(t *testing.T) {
+	const item = `{"number":1,"status":"next","title":"a"}`
+	const list = `{"items":[{"number":1,"status":"next","title":"a"}],"next":null}`
+	reversed := Options{Fields: []string{"title", "number"}}
+	cases := []struct {
+		name string
+		f    Format
+		body string
+		want string
+	}{
+		{"json item", JSON, item, "{\n  \"number\": 1,\n  \"title\": \"a\"\n}\n"},
+		{"json list", JSON, list, "{\n  \"items\": [\n    {\n      \"number\": 1,\n      \"title\": \"a\"\n    }\n  ],\n  \"next\": null\n}\n"},
+		{"toon item", TOON, item, "number: 1\ntitle: a\n"},
+		{"toon list", TOON, list, "items[1]{number,title}:\n  1,a\nnext: null\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := render(t, c.f, c.body, reversed); got != c.want {
+				t.Fatalf("got %q want %q", got, c.want)
+			}
+		})
+	}
+}
