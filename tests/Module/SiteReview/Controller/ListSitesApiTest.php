@@ -10,6 +10,7 @@ use App\Module\Insights\Entity\InsightsProjectSettings;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
+use App\Tests\Module\Readiness\DiscoveryScenario;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class ListSitesApiTest extends WebTestCase
 {
+    use DiscoveryScenario;
+
     public function test_lists_only_callers_sites(): void
     {
         $client = static::createClient();
@@ -232,6 +235,34 @@ final class ListSitesApiTest extends WebTestCase
             self::assertNull($packages[$slug], $slug);
             self::assertNull($profile[$slug], $slug);
         }
+    }
+
+    /** `loupe init` names discovery in its last lines only while the owner still has to start it. */
+    public function test_each_site_says_whether_discovery_remains(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $started = $this->workflowProject('discovery-started');
+        $this->discoveryRun($this->discoveryCard($started));
+        $owner = $started->owner;
+        $owner->emailVerifiedAt = new \DateTimeImmutable();
+        AcceptedTerms::stamp($owner, static::getContainer());
+        $em = $this->em();
+        $untouched = new Project($owner, 'discovery-untouched');
+        $em->persist($untouched);
+        $em->flush();
+
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        $remains = array_column($data['sites'], 'discoveryRemains', 'id');
+        self::assertFalse($remains[(string) $started->id]);
+        self::assertTrue($remains[(string) $untouched->id]);
     }
 
     public function test_the_old_agent_path_is_gone(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Readiness\Repository;
 
+use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -12,6 +13,7 @@ use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DiscoveryRunRepositoryTest extends KernelTestCase
 {
@@ -28,6 +30,27 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         $this->discoveryRun($other, DiscoveryRunState::Requested, '2026-10-02 12:00:00');
 
         self::assertSame($latest, $this->repository()->latestForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
+    }
+
+    public function test_only_a_latest_run_that_did_not_fail_counts_as_started(): void
+    {
+        self::bootKernel();
+        $none = $this->workflowProject('discovery-started-none');
+        $failed = $this->workflowProject('discovery-started-failed');
+        $retried = $this->workflowProject('discovery-started-retried');
+        $failedAgain = $this->workflowProject('discovery-started-failed-again');
+        $outside = $this->workflowProject('discovery-started-outside');
+        $this->discoveryRun($this->discoveryCard($failed), DiscoveryRunState::Failed);
+        $this->discoveryRun($this->discoveryCard($retried), DiscoveryRunState::Failed, '2026-10-02 10:00:00');
+        $this->discoveryRun($this->discoveryCard($retried), DiscoveryRunState::Reported, '2026-10-02 11:00:00');
+        $this->discoveryRun($this->discoveryCard($failedAgain), DiscoveryRunState::Done, '2026-10-02 10:00:00');
+        $this->discoveryRun($this->discoveryCard($failedAgain), DiscoveryRunState::Failed, '2026-10-02 11:00:00');
+        $this->discoveryRun($this->discoveryCard($outside), DiscoveryRunState::Done);
+
+        $ids = array_map(static fn (Project $project): Uuid => $project->id ?? throw new \LogicException('A flushed project has an id.'), [$none, $failed, $retried, $failedAgain]);
+
+        self::assertSame([(string) $retried->id], $this->repository()->findProjectIdsWithDiscoveryStarted($ids));
+        self::assertSame([], $this->repository()->findProjectIdsWithDiscoveryStarted([]));
     }
 
     public function test_a_card_with_no_run_has_no_latest_run(): void

@@ -22,15 +22,27 @@ loupe init
 
 1. It signs you in, when you are signed out.
 2. It chooses the project, or creates one from the `origin` remote.
-3. It runs `loupe project link`, which writes `.loupe.yaml` and the starter
-   `.loupe/lifecycle.md`, and connects the MCP server.
+3. It runs `loupe project link`, which writes `.loupe.yaml` and connects the
+   MCP server.
 4. It installs the two Loupe plugins in Claude Code.
 5. It writes the rule file.
 6. It asks whether to turn on automatic updates.
 7. It starts the bridge in the background.
 8. It offers to install the Playwright browser, when the repository uses
    Playwright.
-9. It prints the next page to open on your instance.
+9. It starts an agent that writes the repository profile, `.loupe/lifecycle.md`,
+   with you. This step runs only when the workflow of the project needs a
+   profile and the file is missing or unfinished.
+10. It reports the state of each account, and prints what remains.
+
+The account report comes before the agent starts. It names each failure with its
+project, reason and fix. A failing account does not stop the agent, and
+`loupe init` exits with an error when an account that a rule uses fails for this
+project. A failure in another project does not change the exit status. The last
+lines come after the agent exits. They name only the steps that remain, such as
+fixing an account, pushing `.loupe.yaml` and the profile, restarting Claude Code
+and starting discovery, and end with the link to the project page. The discovery
+step goes away after a run starts, and it comes back when the latest run failed.
 
 Each step skips itself when it is done already. A second run changes nothing,
 so run `loupe init` again to repair the setup. On a rule file that exists, it

@@ -9,6 +9,7 @@ use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Review\Entity\Document;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -31,6 +32,33 @@ class DiscoveryRunRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The projects whose latest discovery run did not fail. The owner has no run to start for them.
+     *
+     * @param list<Uuid> $projectIds
+     *
+     * @return list<string> RFC 4122 project ids
+     */
+    public function findProjectIdsWithDiscoveryStarted(array $projectIds): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT project_id FROM (
+                 SELECT DISTINCT ON (project_id) project_id, state
+                 FROM discovery_runs
+                 WHERE project_id IN (:projectIds)
+                 ORDER BY project_id, created_at DESC, id DESC
+             ) latest
+             WHERE state <> :failed',
+            ['projectIds' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $projectIds), 'failed' => DiscoveryRunState::Failed->value],
+            ['projectIds' => ArrayParameterType::STRING],
+        );
+
+        return array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $ids);
     }
 
     public function latestForCard(Uuid $cardId): ?DiscoveryRun

@@ -343,9 +343,24 @@ loupe init --reset               # write the first-run rules again
    subfolder, such as `e2e/`. It asks first, and runs
    `npx playwright install chromium` in the folder of that `package.json`, so
    the browser matches the Playwright version of that package.
-9. Print the page to open next, the machine step of the wizard at
-   `/welcome/connect` on your instance, and remind you to commit
-   `.loupe/lifecycle.md`.
+9. Write the repository profile with an agent, when the workflow of the project
+   needs one and `.loupe/lifecycle.md` is missing, lacks a section or holds a
+   value that reads "owner to fill in". `--review-profile` starts the agent also
+   for a complete file. `--agent` picks `claude` or `codex`. With both on the
+   `PATH` and a terminal, the command asks once. With no terminal or no agent,
+   it prints the prompt to paste.
+10. Report the account check and print what remains. Before step 9, the
+   command prints each account of the rule file as `ready`, or one line for
+   each failure with its project, the reason and the fix. A failing account
+   never stops the agent. After the agent exits, the last lines name only the steps that remain:
+   fixing a failing account, finishing the profile, pushing `.loupe.yaml` and
+   the profile, restarting Claude Code after a plugin install, and starting
+   discovery. The discovery step goes away after a run starts, and it comes
+   back when the latest run failed. The last line is the link to
+   `/projects/<id>` on your instance.
+   The command exits with an error when an account that a rule uses fails for
+   this project. A failure in another project and an account that no rule uses
+   never change the exit status.
 
 ## `loupe project link`
 

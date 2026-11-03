@@ -19,6 +19,7 @@ final readonly class ListedSite
         public array $subcommandPrograms,
         public ?array $skillPackages,
         public ?bool $needsProfile,
+        public bool $discoveryRemains,
     ) {
     }
 }

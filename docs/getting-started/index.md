@@ -46,15 +46,17 @@ nothing that is done already.
 `loupe project link` writes `.loupe.yaml`, which holds the project id. Commit
 the file, so everyone in the repository reaches the same project.
 
-It also writes `.loupe/lifecycle.md`, the repository profile that every stage
-skill reads, also when `.loupe.yaml` exists already. The file holds the values that a stage reads. It
-guesses the gate commands from a `justfile`, a `Makefile`, `package.json`,
-`composer.json` or `go.mod`, and marks each guess "detected, check it". It lists
-only checks with a common name, such as `lint` or `test`, so add each other check
-that CI runs. A value that Loupe cannot know, such as the merge method, reads
-"owner to fill in". A stage that needs such a value stops blocked until you write
-it. Read the file, correct the guesses, and commit it, because a worker sees only
-what you push. A profile that exists is never replaced.
+At the end, `loupe init` starts an agent that writes `.loupe/lifecycle.md`, the
+repository profile that every stage skill reads. The agent reads the repository,
+shows every value in one grouped view with the source of each, and asks one
+question for each value that it cannot find. It then gets the profile and
+`.loupe.yaml` to the remote in the way your repository usually works. A project
+whose workflow needs no profile skips this step. With no terminal or no agent,
+`loupe init` prints a prompt for you to paste into an agent. A profile that is
+complete is left alone. Pass `--review-profile` to review it.
+
+The last lines name only what remains. They end with the link to the project
+page. Start discovery from there.
 
 When Claude Code does not start the `loupe` MCP server yet, `loupe project link`
 offers to declare it for every repository. `--mcp` accepts the offer with no
