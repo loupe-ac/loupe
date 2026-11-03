@@ -455,7 +455,10 @@ func tableItem(out *bytes.Buffer, obj toon.Object, o Options) {
 		}
 		out.WriteString(clean(f.Key, false))
 		out.WriteByte('\n')
-		out.WriteString(strings.TrimRight(clean(text(f.Value), true), "\n"))
-		out.WriteByte('\n')
+		value := clean(text(f.Value), true)
+		out.WriteString(value)
+		if !strings.HasSuffix(value, "\n") {
+			out.WriteByte('\n')
+		}
 	}
 }

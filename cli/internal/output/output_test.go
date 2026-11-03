@@ -84,6 +84,26 @@ func TestTableItemOneLineBodyStillLast(t *testing.T) {
 	}
 }
 
+func TestTableItemKeepsTrailingNewlinesOfLongText(t *testing.T) {
+	cases := map[string]struct{ body, want string }{
+		"one kept":        {`{"number":1,"body":"a\n"}`, "number  1\n\nbody\na\n"},
+		"several kept":    {`{"number":1,"body":"a\n\n\n"}`, "number  1\n\nbody\na\n\n\n"},
+		"only newlines":   {`{"number":1,"body":"\n\n"}`, "number  1\n\nbody\n\n\n"},
+		"none gets one":   {`{"number":1,"body":"a"}`, "number  1\n\nbody\na\n"},
+		"empty gets one":  {`{"number":1,"body":""}`, "number  1\n\nbody\n\n"},
+		"not the last":    {`{"note":"a\n\n","body":"b\n"}`, "note\na\n\n\nbody\nb\n"},
+		"multi-line note": {`{"note":"a\nb\n\n","number":1}`, "number  1\n\nnote\na\nb\n\n"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := render(t, Table, c.body, Options{LongText: "body"})
+			if got != c.want {
+				t.Fatalf("got\n%q\nwant\n%q", got, c.want)
+			}
+		})
+	}
+}
+
 func TestTableItemCutsValuesToWidth(t *testing.T) {
 	got := render(t, Table, `{"title":"`+strings.Repeat("x", 50)+`"}`, Options{Width: 20})
 	if line := strings.TrimSuffix(got, "\n"); len([]rune(line)) != 20 || !strings.HasSuffix(line, "…") {
