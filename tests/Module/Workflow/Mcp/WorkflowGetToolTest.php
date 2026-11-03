@@ -24,8 +24,8 @@ final class WorkflowGetToolTest extends KernelTestCase
         'Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires',
     ];
 
-    private const string DISCOVERY_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-discovery skill';
-    private const string ANALYSIS_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-analysis skill';
+    private const string DISCOVERY_CHECK = 'The loupe skill package is installed for the agent, with the loupe-discovery skill';
+    private const string ANALYSIS_CHECK = 'The loupe skill package is installed for the agent, with the loupe-analysis skill';
     private const string ANALYSIS_BRIDGE_CHECK = 'The bridge rule file maps the analysis kind, or sets appPrompts to true';
     private const string DISCOVERY_REVISE_BRIDGE_CHECK = 'The bridge rule file maps the discovery-revise kind, or sets appPrompts to true';
 
@@ -44,7 +44,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 40], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 41], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         $kinds = array_column($answer['kinds'], null, 'kind');
@@ -57,7 +57,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertNotContains('The agent pushes as its own GitHub account', $kinds['implement']['checks']);
         self::assertCount(9, $kinds['implement']['checks']);
         self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-agent-review', 'fix-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
-        self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The Loupe plugin skills are installed for the agent', 'Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules']], $kinds['review']);
+        self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The loupe and loupe-lifecycle skill packages are installed for the agent', 'Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules']], $kinds['review']);
         self::assertSame(['kind' => 'sync', 'origin' => 'template', 'rules' => ['update-behind'], 'checks' => []], $kinds['sync']);
         self::assertSame(['merge-ready', 'merge-ready-epic-child'], $kinds['merge']['rules']);
         self::assertCount(3, $kinds['merge']['checks']);
@@ -90,7 +90,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 13], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => 14], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],

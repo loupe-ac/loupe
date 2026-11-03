@@ -170,6 +170,8 @@ type router struct {
 
 	// prices is the state of the OpenRouter price refresh.
 	prices priceState
+	// skills is the state of the read of the skill packages of each project.
+	skills skillState
 
 	mu sync.Mutex
 	// reloading is on while a reload builds its set. reloadKills holds each

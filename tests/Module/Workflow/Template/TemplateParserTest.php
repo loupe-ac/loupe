@@ -495,6 +495,51 @@ final class TemplateParserTest extends TestCase
         self::assertNull($template->epicBranchOf(42));
     }
 
+    public function test_a_template_reads_its_skill_packages_and_its_profile_need(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['skillPackages' => ['loupe', 'loupe-lifecycle'], 'needsProfile' => false]);
+
+        self::assertSame(['loupe', 'loupe-lifecycle'], $template->skillPackages);
+        self::assertFalse($template->needsProfile);
+    }
+
+    public function test_a_template_with_no_skill_packages_names_none(): void
+    {
+        $template = $this->parser->parse(self::valid());
+
+        self::assertNull($template->skillPackages);
+        self::assertNull($template->needsProfile);
+    }
+
+    #[DataProvider('invalidSkillSettings')]
+    public function test_skill_settings_that_are_not_valid_are_refused_and_a_stored_copy_has_none(string $key, mixed $value, string $error): void
+    {
+        $source = self::valid() + [$key => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains($error, $e->errors);
+        }
+        $stored = $this->parser->parseStored($source);
+        self::assertNull('skillPackages' === $key ? $stored->skillPackages : $stored->needsProfile);
+    }
+
+    /** @return iterable<string, array{string, mixed, string}> */
+    public static function invalidSkillSettings(): iterable
+    {
+        $packages = 'skillPackages: must be a list of one or more different package names';
+        yield 'a string' => ['skillPackages', 'loupe', $packages];
+        yield 'an empty list' => ['skillPackages', [], $packages];
+        yield 'a repeated name' => ['skillPackages', ['loupe', 'loupe'], $packages];
+        yield 'an uppercase name' => ['skillPackages', ['Loupe'], $packages];
+        yield 'a path' => ['skillPackages', ['../loupe'], $packages];
+        yield 'a map' => ['skillPackages', ['a' => 'loupe'], $packages];
+        yield 'a string profile need' => ['needsProfile', 'true', 'needsProfile: must be true or false'];
+        yield 'an integer profile need' => ['needsProfile', 1, 'needsProfile: must be true or false'];
+    }
+
     public function test_a_template_lets_an_approval_cover_a_conflict_resolution_unless_it_says_otherwise(): void
     {
         self::assertTrue($this->parser->parse(self::valid())->approvalCoversConflictResolution);

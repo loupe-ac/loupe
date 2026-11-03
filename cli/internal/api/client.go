@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,10 +33,54 @@ type Site struct {
 	// SubcommandPrograms are the programs whose subcommand a signature keeps.
 	// nil means the bridge's default list, and an empty list keeps none.
 	SubcommandPrograms []string `json:"subcommandPrograms"`
+	// SkillPackages names the skill packages a worker of the project needs.
+	// nil means the app sent none, as an older app does. PackagesIn treats a
+	// list that is not valid the same way.
+	SkillPackages []string `json:"skillPackages"`
+	// NeedsProfile says whether the project needs a repository profile. nil
+	// means the app sent none, as an older app does.
+	NeedsProfile *bool `json:"needsProfile"`
 	// Domain and AllowedOrigins come back from the create call only. An
 	// instance that predates them leaves both empty.
 	Domain         string   `json:"domain"`
 	AllowedOrigins []string `json:"allowedOrigins"`
+}
+
+// PackagesIn returns the skill packages a worker of the site needs, from the
+// packages held. A site with no list, or with a list that is not valid, gets
+// every package held, which is what a project gets before the app sends the list.
+func (s Site) PackagesIn(held []string) []string {
+	if !validPackages(s.SkillPackages) {
+		return slices.Clone(held)
+	}
+
+	return slices.Clone(s.SkillPackages)
+}
+
+// packageName is what the app accepts as a skill package name.
+var packageName = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+// validPackages reports whether names is a list of one or more different
+// package names, the rule of the app for a template.
+func validPackages(names []string) bool {
+	if len(names) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		if len(name) > 64 || !packageName.MatchString(name) || seen[name] {
+			return false
+		}
+		seen[name] = true
+	}
+
+	return true
+}
+
+// ProfileNeeded says whether the project needs a repository profile. A site
+// with no value needs one, as a project did before the app sent the value.
+func (s Site) ProfileNeeded() bool {
+	return s.NeedsProfile == nil || *s.NeedsProfile
 }
 
 // EventsProject is one project of GET /api/v1/bridge/events. Its events arrive on the

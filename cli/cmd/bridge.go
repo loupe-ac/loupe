@@ -582,6 +582,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.readHolds = apiClient(cfg).CardHolds
 	}
 	r.applyFlags(events)
+	// An adopted queue dispatches in restoreState, so the first read comes first.
+	r.skills.list = apiClient(cfg).Sites
+	r.loadSkills(ctx)
+	go r.skillLoop(ctx)
 	r.restoreState(events.Head)
 	var updates *updater
 	var watched <-chan struct{}

@@ -127,6 +127,9 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 
 		return reloadResult{Stage: stage, Problems: problems}
 	}
+	// The swap dispatches, and a new rule file can name a project the last read
+	// lacked. A failed read fails no reload.
+	r.loadSkills(buildCtx)
 	cancel()
 	// The checks have their own time, so a slow build turns off no account.
 	// A failing account fails no reload.
