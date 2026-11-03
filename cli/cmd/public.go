@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"slices"
@@ -22,6 +24,7 @@ import (
 
 // groupShort is the help line of each command group the builder makes.
 var groupShort = map[string]string{
+	"project":  "Read and change the projects of an account",
 	"column":   "Read and change the columns of a board",
 	"card":     "Read and change the cards of a project",
 	"feedback": "Read and answer the feedback of a project",
@@ -97,6 +100,10 @@ type publicFlags struct {
 	retry   bool
 	project string
 	query   map[string]func() (string, bool)
+	// write reads the body of a write. It is nil for a read.
+	write *writeFlags
+	idem  string
+	yes   bool
 }
 
 func newPublicLeaf(c publicapi.Command, op publicapi.Operation) *cobra.Command {
@@ -141,6 +148,15 @@ func newPublicLeaf(c publicapi.Command, op publicapi.Operation) *cobra.Command {
 	}
 	for _, p := range op.Query {
 		addQueryFlag(flags, &f, p)
+	}
+	if len(op.Body) > 0 && !op.Multipart {
+		f.write = addWriteFlags(flags, c, op)
+	}
+	if op.Idempotent {
+		flags.StringVar(&f.idem, "idempotency-key", "", "a key of your choice; a retry with the same key and body answers as the first request did (else "+seedEnv+" gives one)")
+	}
+	if c.Confirm {
+		flags.BoolVar(&f.yes, "yes", false, "send without asking for a confirmation")
 	}
 
 	return cmd
@@ -270,6 +286,21 @@ func runPublic(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 	if err := checkFields(op, f.fields); err != nil {
 		return err
 	}
+	if err := checkRequiredQuery(op, f); err != nil {
+		return err
+	}
+	var body []byte
+	if f.write != nil {
+		var err error
+		if body, err = buildBody(cmd, c, op, f.write); err != nil {
+			return err
+		}
+	}
+	if c.Confirm {
+		if err := confirmSend(cmd, op, args, f.yes); err != nil {
+			return err
+		}
+	}
 
 	query := url.Values{}
 	for _, p := range op.Query {
@@ -314,12 +345,28 @@ func runPublic(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 		path = strings.ReplaceAll(path, "{"+name+"}", url.PathEscape(args[i]))
 	}
 
-	resp, err := s.send(ctx, api.PublicRequest{Method: op.Method, Path: path, Query: query}, so)
+	req := api.PublicRequest{Method: op.Method, Path: path, Query: query, Body: body}
+	if op.Idempotent {
+		if key := retryKey(f.idem, os.Getenv(seedEnv), op.Method, path, body); key != "" {
+			req.Header = http.Header{idempotencyKey: {key}}
+		}
+	}
+	resp, err := s.send(ctx, req, so)
 	if err != nil {
 		return err
 	}
 
 	out := cmd.OutOrStdout()
+	if isWrite(op) {
+		if f.format == "" && len(f.fields) == 0 {
+			writeShort(cmd, op, resp.Body)
+
+			return nil
+		}
+		if len(bytes.TrimSpace(resp.Body)) == 0 {
+			return nil
+		}
+	}
 	if hook := renderHooks[op.ID]; hook != nil {
 		handled, err := hook(cmd, format, resp.Body, len(f.fields) > 0)
 		if handled || err != nil {

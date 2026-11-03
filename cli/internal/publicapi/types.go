@@ -43,6 +43,8 @@ type Command struct {
 	// LongText is the long text field: --body-file fills it on a write, and one
 	// item prints it last.
 	LongText string
+	// Confirm is true when the command asks before it sends.
+	Confirm bool
 }
 
 // Exception is an operation that has no command, with the reason.
