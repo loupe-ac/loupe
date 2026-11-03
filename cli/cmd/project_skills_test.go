@@ -347,7 +347,7 @@ func ageRecord(t *testing.T, dir, session string, age time.Duration) {
 
 func TestAClaudeWorkerGetsThePackagesOfItsProject(t *testing.T) {
 	r, dir := packageStore(t, api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}})
-	spec := workerSpec{}
+	spec := workerSpec{sessionID: "s"}
 
 	if err := r.givePackages(&spec, pending{project: "simple"}); err != nil {
 		t.Fatal(err)
@@ -366,7 +366,7 @@ func TestAClaudeWorkerGetsThePackagesOfItsProject(t *testing.T) {
 
 func TestAProjectWithNoListGetsEveryPackageHeld(t *testing.T) {
 	r, _ := packageStore(t)
-	spec := workerSpec{}
+	spec := workerSpec{sessionID: "s"}
 
 	if err := r.givePackages(&spec, pending{project: "unlisted"}); err != nil || len(spec.packages) != 2 {
 		t.Fatalf("packages = %+v, err = %v, want both", spec.packages, err)
@@ -544,6 +544,71 @@ func TestThePruneKeepsTheVersionsOfASessionAfterItsLauncherReturned(t *testing.T
 	}
 }
 
+// A session with no record outlives what the prune can see, so it never starts.
+func TestALaunchWhoseRecordCannotBeWrittenDoesNotOpen(t *testing.T) {
+	h, _ := launchHarness(t, `[sh, -c, 'exit 0', sh, '{script}']`)
+	store := unwritableRecords(t)
+	old := filepath.Join(store, "skills", "loupe", "1.0.0")
+	h.router.skills.dir = store
+	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	h.router.skills.processes = noSessions
+
+	h.send(movedPayload(87, "backlog", "next", "agent"))
+	line := h.only(t, "session_launch_failed")
+	if reason, _ := line["reason"].(string); !strings.Contains(reason, "record the skill packages of session "+testSession) {
+		t.Fatalf("reason = %q", reason)
+	}
+	if left := h.scripts(t); len(left) != 0 {
+		t.Fatalf("the launch left %v", left)
+	}
+	h.router.skills.mu.Lock()
+	holds := len(h.router.skills.holds)
+	h.router.skills.mu.Unlock()
+	if holds != 0 {
+		t.Fatalf("%d holds, want none", holds)
+	}
+	replaceLoupe(t, store, "2.0.0", "{}")
+	h.router.pruneSkills(time.Now())
+	if exists(old) {
+		t.Fatal("a version stayed for a session that never opened")
+	}
+}
+
+func TestAWorkerWhoseRecordCannotBeWrittenDoesNotStart(t *testing.T) {
+	h := newHarness(t)
+	h.router.skills.dir = unwritableRecords(t)
+	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	started := make(chan struct{}, 1)
+	h.router.worker.run = func(context.Context, workerSpec, func(workerProc)) workerResult {
+		started <- struct{}{}
+
+		return workerResult{hasResult: true}
+	}
+
+	h.router.onData([]byte(cardMoved(87)))
+	eventually(t, "the failed run", func() bool { return len(h.events(t, "worker_failed")) == 1 })
+	if reason, _ := h.only(t, "worker_failed")["error"].(string); !strings.Contains(reason, "record the skill packages") {
+		t.Fatalf("error = %q", reason)
+	}
+	if len(started) != 0 {
+		t.Fatal("a worker started with no record")
+	}
+}
+
+// unwritableRecords is a store with one version, whose records folder is a file.
+func unwritableRecords(t *testing.T) string {
+	t.Helper()
+	store := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(store, "skills", "loupe", "1.0.0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store, "skills", ".records"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	return store
+}
+
 // A launcher can return before the terminal starts the program.
 func TestThePruneKeepsTheVersionsOfANewRecordWithNoProcess(t *testing.T) {
 	r, dir := packageStore(t)
@@ -611,7 +676,7 @@ func TestThePruneKeepsTheVersionsOfARunThatStartedThroughTheRouter(t *testing.T)
 		t.Fatalf("packages = %+v", spec.packages)
 	}
 	replaceLoupe(t, store, "2.0.0", "{}")
-	// The hold alone must keep the version, as when a record fails to write.
+	// The hold alone must keep the version while the worker runs.
 	if err := os.RemoveAll(filepath.Join(store, "skills", ".records")); err != nil {
 		t.Fatal(err)
 	}

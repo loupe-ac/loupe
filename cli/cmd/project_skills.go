@@ -209,8 +209,9 @@ func (r *router) runningSessions() (map[string]bool, error) {
 // givePackages picks the skill packages of a Claude Code worker and the loupe
 // MCP server it starts with. A resume uses the versions its session started
 // with while the store still holds them, and the current ones otherwise. It
-// fails when the project names a package the store cannot serve, and the run
-// then does not start. The caller calls releasePackages when the worker ended.
+// fails when the project names a package the store cannot serve, or when the
+// record of the session cannot be written, and the run then does not start. The
+// caller calls releasePackages when the worker ended.
 func (r *router) givePackages(spec *workerSpec, p pending) error {
 	s := &r.skills
 	if s.dir == "" || (spec.harnessName != "" && spec.harnessName != rules.HarnessClaudeCode) {
@@ -224,7 +225,7 @@ func (r *router) givePackages(spec *workerSpec, p pending) error {
 	}
 	picks, err := r.pickPackages(*spec, p.runID, r.projectPackages(p.project, held))
 	if err != nil {
-		return fmt.Errorf("%w; run `loupe update`", err)
+		return err
 	}
 	exe := s.exe
 	if exe == nil {
@@ -245,9 +246,9 @@ func (r *router) givePackages(spec *workerSpec, p pending) error {
 }
 
 // pickPackages chooses the versions of one worker, holds them for the run and
-// records them for the session. A run starts when its record fails to write. A
-// resume then takes the current versions, and the prune can no longer see the
-// versions of an interactive session after its launcher returns.
+// records them for the session. It fails when the record cannot be written,
+// because only the record keeps the versions of a session that outlives its
+// launcher or its bridge.
 func (r *router) pickPackages(spec workerSpec, runID string, wanted []string) ([]skills.Pick, error) {
 	s := &r.skills
 	s.mu.Lock()
@@ -263,16 +264,16 @@ func (r *router) pickPackages(spec workerSpec, runID string, wanted []string) ([
 	if picks == nil {
 		var err error
 		if picks, err = skills.Resolve(s.dir, s.cliVersion, wanted); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w; run `loupe update`", err)
 		}
+	}
+	if err := skills.WriteRecord(s.dir, spec.sessionID, picks); err != nil {
+		return nil, fmt.Errorf("record the skill packages of session %s: %w", spec.sessionID, err)
 	}
 	if s.holds == nil {
 		s.holds = map[string][]skills.Pick{}
 	}
 	s.holds[runID] = picks
-	if err := skills.WriteRecord(s.dir, spec.sessionID, picks); err != nil {
-		r.log.Warn("skill_record_not_written", "session_id", spec.sessionID, "error", err.Error())
-	}
 
 	return picks, nil
 }

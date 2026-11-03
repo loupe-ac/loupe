@@ -586,7 +586,9 @@ deletes a version 30 days after a newer one replaced it, unless a running worker
 or an interactive session started with it, or a new worker of a project would
 still get it. The bridge finds a running session in the process list of the
 machine. When it cannot read that list, it deletes nothing until the next hourly
-pass.
+pass. The bridge writes the package versions of each session to
+`<config dir>/skills/.records/`. When it cannot write that file, the run or the
+interactive session does not start, and the run shows the reason.
 
 ### A worker account with its own plugins
 
