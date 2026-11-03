@@ -51,9 +51,11 @@ Five sections are optional. A missing optional section blocks nothing.
    stage checks previews.
 5. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
-   branches. The starter profile says `Epic preview: none`. With that line,
-   a request for an epic preview refresh finishes with no change. Replace the
-   line when the repository serves an epic branch.
+   branches. The profile agent sets the epic preview with you. When the
+   repository serves an epic branch, tell the agent how, and it writes the
+   value. With `Epic preview: none`, or with no epic preview in the section, a
+   request for an epic preview refresh finishes with no change. To change the
+   value later, run `loupe init --review-profile`.
 
 ## Draft pull requests and the agent review
 
@@ -87,9 +89,9 @@ of the project needs one and the file is missing, lacks a section or holds a
 line that reads "owner to fill in". The workflow template says whether it needs
 a profile: Lifecycle does, and Simple does not. `loupe init` writes no guessed
 values. A line that reads "owner to fill in" holds no value, such as the merge
-method. A stage that needs that value stops as if the section were missing. Its `Repair` section allows only `loupe env reset`, when the `repair`
-work entry sets `reset`, and the epic sync of the merge stage. Add each other action
-with its commands and its guards.
+method. A stage that needs that value stops as if the section were missing. The
+`Repair` section lists each action that a repair worker may take, with its
+commands and its guards.
 
 To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
 of your repository. The example is for a Node project on GitHub with the
