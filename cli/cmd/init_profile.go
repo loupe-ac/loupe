@@ -46,25 +46,26 @@ var initExecutable = os.Executable
 // initProfile starts the agent that writes the repository profile with the
 // owner. It runs only for a project whose workflow needs a profile, and only
 // when the file is missing, lacks a section or holds an open value. It never
-// fails init: when it cannot start the agent, it prints the prompt to paste.
-func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
+// fails init: when it cannot start the agent, it prints the prompt to paste. It
+// returns why the profile is not finished, and an empty string when it is.
+func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) string {
 	out := cmd.OutOrStdout()
 
 	if !site.ProfileNeeded() {
 		step(out, "Profile", "skipped", "the workflow of this project needs no profile")
 
-		return
+		return ""
 	}
 	status, err := profile.Check(dir)
 	if err != nil {
 		step(out, "Profile", "failed", err.Error())
 
-		return
+		return "the check failed: " + err.Error()
 	}
 	if status.Complete() && !o.reviewProfile {
 		step(out, "Profile", "skipped", profile.Path+" is complete. Pass --review-profile to review it")
 
-		return
+		return ""
 	}
 
 	paths, packages := profilePackageDirs(site)
@@ -80,7 +81,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, prompt)
 
-		return
+		return "no agent ran: " + why
 	}
 
 	if agent == agentCodex {
@@ -89,7 +90,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, prompt)
 
-			return
+			return "no agent ran: " + why
 		}
 	}
 
@@ -101,7 +102,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, prompt)
 
-			return
+			return "no agent ran: cannot find loupe for the MCP server"
 		}
 		args = []string{}
 		for _, p := range packages {
@@ -115,17 +116,23 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, prompt)
 
-		return
+		return agent + " stopped: " + err.Error()
 	}
 
 	after, err := profile.Check(dir)
 	switch {
 	case err != nil:
 		step(out, "Profile", "failed", err.Error())
+
+		return "the check failed: " + err.Error()
 	case after.Complete():
-		step(out, "Profile", "done", profile.Path+" is complete. Commit it and push it, because a worker sees only what you push")
+		step(out, "Profile", "done", profile.Path+" is complete")
+
+		return ""
 	default:
 		step(out, "Profile", "open", after.Reason()+". Run `loupe init --review-profile` to go on")
+
+		return after.Reason()
 	}
 }
 

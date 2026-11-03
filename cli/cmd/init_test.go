@@ -17,7 +17,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -53,6 +55,11 @@ type initWorld struct {
 	bridgeFlags  []string
 	reloads      int
 	reloadErr    error
+
+	// accounts is what the account check reports, and gitClean says the remote
+	// holds the setup files.
+	accounts []accountResult
+	gitClean bool
 }
 
 func newInitWorld(t *testing.T, sites string) *initWorld {
@@ -88,9 +95,22 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	t.Cleanup(w.server.Close)
 
 	oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload := initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge
+	oldCheck, oldGit := initCheckAccounts, initGit
 	t.Cleanup(func() {
 		initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload
+		initCheckAccounts, initGit = oldCheck, oldGit
 	})
+	initCheckAccounts = func(context.Context, *rules.Set, api.Site) []accountResult { return w.accounts }
+	initGit = func(_ string, args ...string) (string, error) {
+		if !w.gitClean {
+			return "?? file", nil
+		}
+		if args[0] == "rev-parse" {
+			return "origin/main", nil
+		}
+
+		return "", nil
+	}
 	initGOOS = "darwin"
 	initLookPath = func(name string) (string, error) {
 		if name == "claude" && w.claude {
@@ -214,7 +234,7 @@ func TestInitRunsEveryStepOnAFreshRepository(t *testing.T) {
 		"Sign in: skipped", "Project: done, using Dev Project", "Link: done", "Plugin: skipped",
 		"Rules: done", "Turn on automatic updates? [y/N]", "Auto-update: done, automatic updates are on",
 		"Bridge: done", "Playwright: skipped",
-		"Open " + w.server.URL + "/welcome/connect", "Commit " + profile.Path,
+		"What remains:", "Commit and push .loupe.yaml", "Start discovery", "Open " + w.server.URL + "/projects/" + firstProject,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -1939,5 +1959,71 @@ func TestIsTerminalRefusesDevNullAndAcceptsOtherReaders(t *testing.T) {
 	}
 	if !isTerminal(strings.NewReader("")) {
 		t.Error("a plain reader stands in for a terminal")
+	}
+}
+
+func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{
+		{name: "main", harness: "claude", used: true},
+		{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
+		{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Detail: "run loupe init"}}},
+	}
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+
+	if err == nil || !strings.Contains(err.Error(), "broken: not logged in") || strings.Contains(err.Error(), "spare") {
+		t.Fatalf("err = %v, want only the used account", err)
+	}
+	for _, want := range []string{
+		"Account: main (claude): ready", "Account: broken (claude): failing: not logged in", "run claude login",
+		"Account: spare (codex, unused): failing: no plugins",
+		"Fix the account broken: not logged in", "Open " + w.server.URL + "/projects/" + firstProject,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, "Account: main") > strings.Index(out, "Profile:") {
+		t.Errorf("accounts come after the profile step:\n%s", out)
+	}
+	if strings.Contains(out, "Fix the account spare") {
+		t.Errorf("an unused account is on the last lines:\n%s", out)
+	}
+}
+
+func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{{name: "main", harness: "claude", used: true}}
+	w.gitClean = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	last := out[strings.Index(out, "What remains:"):]
+	if strings.Contains(last, "Commit and push") || strings.Contains(last, "Fix the account") || strings.Contains(last, "Restart Claude Code") {
+		t.Errorf("last lines name a step that is done:\n%s", last)
+	}
+	if !strings.Contains(last, "1. Finish the profile") && !strings.Contains(last, "Start discovery") {
+		t.Errorf("last lines lack the discovery step:\n%s", last)
+	}
+}
+
+func TestInitRestartLineFollowsAPluginInstall(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.gitClean = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out[strings.Index(out, "What remains:"):], "Restart Claude Code") {
+		t.Errorf("no restart line:\n%s", out)
 	}
 }

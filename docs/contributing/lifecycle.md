@@ -420,11 +420,10 @@ that change from one setup to the next.
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.
-   `loupe init` writes a starter profile when the repository has none, from
-   `cli/internal/profile`. The starter holds only what a stage reads. It marks
-   each guessed value "detected, check it", and marks each value that it cannot
-   know "owner to fill in". The discovery run proposes a card for each marked value
-   that is wrong, and asks the owner for each open value. Its conflict check also
+   `loupe init` starts an agent with the `loupe-lifecycle:loupe-profile` skill when the
+   repository has no complete profile. The skill writes only what a stage reads,
+   and it marks each value that it cannot know "owner to fill in". The discovery
+   run asks the owner for each open value. Its conflict check also
    compares a hand-written profile and the rest of the repository with the checks
    of `workflow_get`.
 2. The unattended run notes cover what differs when a worker runs with no

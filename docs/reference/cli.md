@@ -140,7 +140,10 @@ The steps, in order:
 6. Ask whether to turn on automatic updates.
 7. Start the bridge in the background.
 8. Install the Playwright browser, when the repository uses Playwright.
-9. Print the page to open next.
+9. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
+10. Report the accounts, and print what remains.
+
+Before step 9, `loupe init` prints each account of the rule file as ready or failing. A failing account does not stop the agent. The last lines come after the agent exits, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files, restarting Claude Code and starting discovery. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project.
 
 | Flag | Purpose |
 |---|---|
@@ -151,6 +154,8 @@ The steps, in order:
 | `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
+| `--agent` | The agent that writes the profile: `claude` or `codex`. With both installed and a terminal, `loupe init` asks once |
+| `--review-profile` | Start the profile agent also when `.loupe/lifecycle.md` is complete, to review each value |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.

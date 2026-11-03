@@ -1,0 +1,178 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/profile"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+)
+
+// initCheckAccounts checks the accounts of the rule file for the project. A
+// test replaces it.
+var initCheckAccounts = func(ctx context.Context, set *rules.Set, site api.Site) []accountResult {
+	return checkAccountsWith(ctx, set, []api.Site{site})
+}
+
+// initGit runs git in dir. A test replaces it.
+var initGit = func(dir string, args ...string) (string, error) {
+	c := exec.Command("git", args...)
+	c.Dir = dir
+	out, err := c.Output()
+
+	return strings.TrimSpace(string(out)), err
+}
+
+// initLeft collects what remains after the steps of init, for the last lines.
+type initLeft struct {
+	// accounts holds one line for each used account that fails for the project.
+	accounts []string
+	// profile says why the profile is not finished, and is empty when it is.
+	profile string
+	// restart is true when init installed the Claude Code plugins.
+	restart bool
+}
+
+// reportAccounts prints the state of each account of the rule file, and returns
+// the lines of the used accounts that fail for this project. An account that no
+// rule uses never counts. It runs before the profile agent, which needs no
+// account.
+func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site) []string {
+	set, err := rules.Load(path, rules.Defaults{})
+	if err != nil {
+		fmt.Fprintf(out, "Accounts: failed, cannot read %s: %v.\n", path, err)
+
+		return nil
+	}
+	slug := ""
+	for _, s := range set.Projects() {
+		if set.ProjectID(s) == site.ID {
+			slug = s
+		}
+	}
+
+	var failing []string
+	for _, a := range initCheckAccounts(ctx, set, site) {
+		label := a.harness
+		if !a.used {
+			label += ", unused"
+		}
+		reason := a.reason()
+		projectReason := a.projectReasons()[slug]
+		switch {
+		case reason != "":
+			fmt.Fprintf(out, "Account: %s (%s): failing: %s\n", a.name, label, reason)
+			if detail := a.detail(); detail != "" {
+				fmt.Fprintf(out, "         %s\n", detail)
+			}
+		case projectReason != "":
+			fmt.Fprintf(out, "Account: %s (%s): failing for this project: %s\n", a.name, label, projectReason)
+			for _, p := range a.problems {
+				if p.Project == slug && p.Detail != "" {
+					fmt.Fprintf(out, "         %s\n", p.Detail)
+				}
+			}
+		default:
+			fmt.Fprintf(out, "Account: %s (%s): ready\n", a.name, label)
+
+			continue
+		}
+		if !a.used {
+			continue
+		}
+		failing = append(failing, a.name+": "+strings.Join(nonEmpty(reason, projectReason), "; "))
+	}
+
+	return failing
+}
+
+func nonEmpty(values ...string) []string {
+	var out []string
+	for _, v := range values {
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+
+	return out
+}
+
+// reportAccountsStep runs the account check with the bound of the checks.
+func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site) []string {
+	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout+10*time.Second)
+	defer cancel()
+
+	return reportAccounts(ctx, out, path, site)
+}
+
+// filesNotPushed lists the files of the setup that the remote lacks. The files
+// are .loupe.yaml, and the profile when the project needs one. A file that
+// does not exist is the job of another step. A repository with no upstream
+// counts as not pushed, because nothing can prove it.
+func filesNotPushed(dir string, site api.Site) []string {
+	names := []string{projectfile.Name}
+	if site.ProfileNeeded() {
+		names = append(names, profile.Path)
+	}
+	var files []string
+	for _, n := range names {
+		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
+			files = append(files, n)
+		}
+	}
+	var open []string
+	for _, f := range files {
+		if !pushed(dir, f) {
+			open = append(open, f)
+		}
+	}
+
+	return open
+}
+
+func pushed(dir, file string) bool {
+	if status, err := initGit(dir, "status", "--porcelain", "--", file); err != nil || status != "" {
+		return false
+	}
+	ref, err := initGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}")
+	if err != nil || ref == "" {
+		return false
+	}
+	_, err = initGit(dir, "diff", "--quiet", ref, "--", file)
+
+	return err == nil
+}
+
+// initNext prints the last lines. They name only what remains, and the link
+// opens the project.
+func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) {
+	var todo []string
+	for _, a := range left.accounts {
+		todo = append(todo, "Fix the account "+a+". Then run `loupe init` again to check it.")
+	}
+	if left.profile != "" {
+		todo = append(todo, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
+	}
+	if files := filesNotPushed(dir, site); len(files) > 0 {
+		todo = append(todo, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")
+	}
+	if left.restart {
+		todo = append(todo, "Restart Claude Code to load the Loupe plugins.")
+	}
+	todo = append(todo, "Start discovery with Run discovery on the project page, so an agent checks the profile against the repository.")
+
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "What remains:")
+	for i, t := range todo {
+		fmt.Fprintf(out, "%d. %s\n", i+1, t)
+	}
+	fmt.Fprintf(out, "Open %s/projects/%s\n", strings.TrimRight(baseURL, "/"), site.ID)
+}

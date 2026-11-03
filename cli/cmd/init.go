@@ -147,9 +147,9 @@ func newInitCmd() *cobra.Command {
 			profile.Path + " is missing, lacks a section or holds a value marked \"" + profile.OpenQuestion + "\". " +
 			"--review-profile starts the agent also for a complete file. --agent picks claude or codex; with both on the PATH " +
 			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
-			"10. Print the wizard page to open next.\n\n" +
+			"10. Print what remains and the project page. The accounts are reported before step 9, so a failing account never stops the agent.\n\n" +
 			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
-			"A bridge that fails to start makes the command exit with an error after the last step.",
+			"A bridge that fails to start, or a used account that fails for this project, makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runInit(cmd, o)
@@ -199,10 +199,11 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err := initLink(cmd, dir, site.ID, o); err != nil {
 		return err
 	}
+	var left initLeft
 	if inSecondSetup() {
 		skipSharedStep(cmd, "Plugin")
 	} else {
-		initPlugin(cmd, dir)
+		left.restart = initPlugin(cmd, dir)
 	}
 
 	path, err := rulesPathOr(o.rulesPath)
@@ -227,10 +228,16 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	} else {
 		initPlaywright(cmd, dir)
 	}
-	initProfile(cmd, dir, site, o)
-	initNext(cmd, cfg.BaseURL)
+	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site)
+	left.profile = initProfile(cmd, dir, site, o)
+	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 
-	return bridgeErr
+	var accountErr error
+	if len(left.accounts) > 0 {
+		accountErr = fmt.Errorf("an account that a rule uses fails for this project: %s", strings.Join(left.accounts, "; "))
+	}
+
+	return errors.Join(bridgeErr, accountErr)
 }
 
 // checkNameFlags checks the flags that need no network, before init signs in.
@@ -685,8 +692,8 @@ func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
 }
 
 // initPlugin installs the Loupe plugins in Claude Code. It never fails: what it
-// cannot do, it prints for you to run.
-func initPlugin(cmd *cobra.Command, dir string) {
+// cannot do, it prints for you to run. It reports whether it installed a plugin.
+func initPlugin(cmd *cobra.Command, dir string) bool {
 	out := cmd.OutOrStdout()
 	add := "claude plugin marketplace add " + pluginMarketplace
 	install := "claude plugin install " + pluginSpec
@@ -696,7 +703,7 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	if _, err := initLookPath("claude"); err != nil {
 		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+byHand)
 
-		return
+		return false
 	}
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
@@ -707,7 +714,7 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	if hasCore && hasLifecycle {
 		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugins")
 
-		return
+		return false
 	}
 
 	// A marketplace that is added already can make this command fail while the
@@ -721,11 +728,13 @@ func initPlugin(cmd *cobra.Command, dir string) {
 		if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", spec); err != nil {
 			step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
 
-			return
+			return false
 		}
 		installed = append(installed, spec)
 	}
 	step(out, "Plugin", "done", "installed "+strings.Join(installed, " and ")+". Restart Claude Code to load it")
+
+	return true
 }
 
 // codexOnly reports whether Codex is on the PATH and Claude Code is not, which
@@ -1475,14 +1484,4 @@ func resolveNodePackage(from, name string) (string, bool) {
 			return "", false
 		}
 	}
-}
-
-// initNext sends you to the machine step of the wizard, which shows the local
-// steps and leads on to the Workshop.
-func initNext(cmd *cobra.Command, baseURL string) {
-	out := cmd.OutOrStdout()
-
-	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Open %s/welcome/connect to finish the setup.\n", baseURL)
-	fmt.Fprintf(out, "Commit %s, because a worker sees only what you push.\n", profile.Path)
 }

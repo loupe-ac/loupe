@@ -80,12 +80,14 @@ The refresh after a sync that brings new commits, such as a dependency install o
 
 Write "none" for the folder check when your repository does not need it.
 
-## A starter profile
+## Write the profile with an agent
 
-`loupe init` writes a starter when the repository has none. A value it guessed is
-marked "detected, check it". A line that reads "owner to fill in" holds no value,
-such as the merge method. A stage that needs that value stops as if the section
-were missing. Its `Repair` section allows only `loupe env reset`, when the `repair`
+`loupe init` starts an agent that writes the profile with you, when the workflow
+of the project needs one and the file is missing, lacks a section or holds a
+line that reads "owner to fill in". The workflow template says whether it needs
+a profile: Lifecycle does, and Simple does not. `loupe init` writes no guessed
+values. A line that reads "owner to fill in" holds no value, such as the merge
+method. A stage that needs that value stops as if the section were missing. Its `Repair` section allows only `loupe env reset`, when the `repair`
 work entry sets `reset`, and the epic sync of the merge stage. Add each other action
 with its commands and its guards.
 
