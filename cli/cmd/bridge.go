@@ -292,6 +292,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	// A failing account turns off its entries, and never stops the start.
 	accounts := checkAccounts(cmd.Context(), set)
 	set.SetAccountProblems(accountsOff(accounts))
+	set.SetProjectProblems(projectsOff(accounts))
 
 	r := &router{
 		log:          bl.log,
@@ -582,6 +583,21 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.readHolds = apiClient(cfg).CardHolds
 	}
 	r.applyFlags(events)
+	// An adopted queue dispatches in restoreState, so the first read comes first.
+	r.skills.list = apiClient(cfg).Sites
+	r.skills.cliVersion = version
+	if dir, err := config.Dir(); err != nil {
+		r.skills.storeErr = err
+		r.log.Warn("skill_store_skipped", "reason", err.Error())
+	} else {
+		r.startSkills(dir)
+	}
+	r.loadSkills(ctx)
+	if r.source.checkAccounts != nil {
+		r.source.checkAccounts = r.checkAccounts
+	}
+	go r.syncCodexPlugins(ctx)
+	go r.skillLoop(ctx)
 	r.restoreState(events.Head)
 	var updates *updater
 	var watched <-chan struct{}
@@ -599,8 +615,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			case !validVersion(version):
 				hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: updateOff} }
 			default:
-				updates = newUpdater(r.log, version, dir, nil, nil)
+				updates = newUpdater(r.log, version, dir, func() bool { return autoUpdateOn(r.rules(), r.assumeAutoUpdate) }, nil)
 				updates.shared = true
+				updates.skillNames = r.skillNames
 				updates.install = installMethod(updates.executable)
 				updates.onDrain = r.setDraining
 				updates.setState(updateOff, "")
@@ -621,8 +638,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			}
 			updates.install = installMethod(updates.executable)
 			updates.onDrain = r.setDraining
+			updates.skillNames = r.skillNames
 			hb.onRange, hb.update = updates.setRange, updates.state
 		}
+		hb.skills = r.skillReports
 		if r.update != nil {
 			hb.onSent = r.update.markBeat
 		}
@@ -830,6 +849,9 @@ func (r *router) status() statusResult {
 		LogFile:   r.logPath,
 		Login:     loginValid,
 		Workers:   []statusWorker{},
+		Skills:    r.skillReports(),
+
+		CodexPlugins: r.codexHomeReports(),
 	}
 	if g := currentBridgeGate(); g != nil && g.expired() {
 		res.Login = loginExpired
@@ -848,6 +870,9 @@ func (r *router) status() statusResult {
 		}
 		if w.Kind == "" {
 			w.Kind = run.p.rule
+		}
+		if run.p.spec.harnessName == rules.HarnessCodex {
+			w.CodexHome = resolveCodexHome(run.p.spec.configDir)
 		}
 		res.Workers = append(res.Workers, w)
 	}

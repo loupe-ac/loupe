@@ -86,10 +86,22 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           node: 'true'
       - run: just lint
+
+      # A plugin folder that changes without a greater version never reaches a
+      # worker, because the store keeps one folder for each version and selects
+      # the highest. This runs in a required job, because a job the ruleset does
+      # not name can fail and still merge.
+      - name: Every changed plugin has a greater version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: sh cli/scripts/plugin-version-check.sh "origin/$BASE_REF"
 
       # A matrix leg the ruleset does not name can fail and still merge.
       - name: Every e2e leg is a required check

@@ -60,6 +60,25 @@ func TestHeartbeatSendsAnEmptyListRatherThanNull(t *testing.T) {
 
 // The server keeps its stored rows when the key is absent, and clears them on
 // an empty list. So nil sends no key, and an empty list sends [].
+func TestHeartbeatSendsSkillsOnlyWhenTheListIsSet(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		skills []SkillReport
+		want   string
+	}{
+		{"nil", nil, `{"projects":[],"cliVersion":"v"}`},
+		{"empty", []SkillReport{}, `{"projects":[],"cliVersion":"v","skills":[]}`},
+	} {
+		body, err := json.Marshal(Heartbeat{Projects: []string{}, CLIVersion: "v", Skills: tc.skills})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(body) != tc.want {
+			t.Errorf("%s: body = %s, want %s", tc.name, body, tc.want)
+		}
+	}
+}
+
 func TestHeartbeatSendsHooksOnlyWhenTheListIsSet(t *testing.T) {
 	var body string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

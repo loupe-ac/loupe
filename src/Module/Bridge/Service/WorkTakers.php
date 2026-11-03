@@ -186,7 +186,9 @@ final readonly class WorkTakers
     public function capableFor(Project $project, string $kind, bool $hasPrompt): WorkTakerReading
     {
         [$followers, $narrowedAt, $quietBefore, $window, $expiredIds] = $this->followersOf($project);
+        $projectId = (string) $project->id;
         $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->takesWorkRequests()
+            && !$bridge->failsProjectFor($projectId, $kind)
             && (\in_array($kind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
 
         return $this->read($this->clock->now(), $followers, $takers, $narrowedAt, $quietBefore, $window, $hasPrompt, $expiredIds);
@@ -225,6 +227,7 @@ final readonly class WorkTakers
     private static function takes(Bridge $bridge, WorkRequest $request): bool
     {
         return $bridge->canRun($request)
+            && !$bridge->failsProjectFor((string) $request->project->id, Bridge::workKindOf($request->subjectType, $request->kind))
             && (\in_array(Bridge::workKindOf($request->subjectType, $request->kind), $bridge->workKinds, true)
                 || self::runsAsAppPrompt($bridge, $request));
     }

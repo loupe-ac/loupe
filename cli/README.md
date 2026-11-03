@@ -311,14 +311,14 @@ loupe init --reset               # write the first-run rules again
    remote of the repository. With no remote, it stops and asks for `--project`
    or `--name`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
-   The step also writes `.loupe/lifecycle.md`.
-4. Install the Loupe plugin in Claude Code, when `claude` is on your `PATH` and
-   `claude plugin list` shows no Loupe plugin. A failed command is printed for
+4. Install in Claude Code the plugins that this project needs, when `claude` is on
+   your `PATH` and `claude plugin list` does not show them: `loupe`, and
+   `loupe-lifecycle` when the workflow of the project uses it. A failed command is printed for
    you to run, and never fails the step. When only `codex` is on your `PATH`,
    the step declares `loupe mcp` to Codex instead, sets
    `default_tools_approval_mode = "approve"` for each Codex account of the rule
-   file, and copies the Loupe skills into `~/.agents/skills/`. The Codex part
-   runs after step 5, because it reads the Codex accounts of the rule file.
+   file, and installs the Loupe plugins in each Codex home of the rule file. The
+   Codex part runs after step 5, because it reads the Codex accounts of the rule file.
 5. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
    terminal, a product-design entry. With no known terminal, the step says
@@ -343,9 +343,24 @@ loupe init --reset               # write the first-run rules again
    subfolder, such as `e2e/`. It asks first, and runs
    `npx playwright install chromium` in the folder of that `package.json`, so
    the browser matches the Playwright version of that package.
-9. Print the page to open next, the machine step of the wizard at
-   `/welcome/connect` on your instance, and remind you to commit
-   `.loupe/lifecycle.md`.
+9. Write the repository profile with an agent, when the workflow of the project
+   needs one and `.loupe/lifecycle.md` is missing, lacks a section or holds a
+   value that reads "owner to fill in". `--review-profile` starts the agent also
+   for a complete file. `--agent` picks `claude` or `codex`. With both on the
+   `PATH` and a terminal, the command asks once. With no terminal or no agent,
+   it prints the prompt to paste.
+10. Report the account check and print what remains. Before step 9, the
+   command prints each account of the rule file as `ready`, or one line for
+   each failure with its project, the reason and the fix. A failing account
+   never stops the agent. After the agent exits, the last lines name only the steps that remain:
+   fixing a failing account, finishing the profile, pushing `.loupe.yaml` and
+   the profile, restarting Claude Code after a plugin install, and starting
+   discovery. The discovery step goes away after a run starts, and it comes
+   back when the latest run failed. The last line is the link to
+   `/projects/<id>` on your instance.
+   The command exits with an error when an account that a rule uses fails for
+   this project. A failure in another project and an account that no rule uses
+   never change the exit status.
 
 ## `loupe project link`
 
@@ -623,6 +638,11 @@ file that sets no permission default, one that has no `appPrompts` and no `work`
 entry, and one that maps no project to the current directory. `~` and symlinks
 in a `dir` are resolved before the comparison. `loupe init` fixes each note.
 
+The `Skills:` lines give each skill package in the store with its highest
+usable version and its state, as in `Skills:      loupe 1.4.0 current`. A running
+bridge adds the reason when its last update of a package failed, as in
+`Skills:      loupe-lifecycle 1.3.0 failed: <reason>`. They are notes, and they never fail the check.
+
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. A
 failure exits with status 1, and the error on stderr says what to run next.
 Read the exit status, because the error comes after the verdict when you merge
@@ -708,10 +728,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 ```
 
 The bridge prints this example when it finds no file, or an empty one.
@@ -860,7 +880,7 @@ or after it is ignored, and a second one with content stops the bridge.
 An entry with `action: interactive` opens an interactive Claude Code session in
 a terminal window on this machine, when the workflow asks for that kind of
 work. Use it for Product design, so that you do not type
-`/loupe:product-design <n>` by hand:
+`/loupe-lifecycle:product-design <n>` by hand:
 
 ```yaml
 launch:
@@ -869,10 +889,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 ```
 
 The top-level `launch` block names the terminal command. `command` is an argv
@@ -918,7 +938,7 @@ work request of kind `session`. The `session` entry must have
 work:
   session:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
 ```
 
 The bridge reports the capability `session` for this entry, and the app offers
@@ -982,7 +1002,7 @@ work:
       run: ["bin/worktree-up.sh", "{cardNumber}"]
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   teardown:
     action: command
     run: ["bin/teardown.sh", "{cardNumber}"]
@@ -2119,6 +2139,14 @@ loupe update --rules ~/loupe/other-project.yaml
 |---|---|---|
 | `--rules` | `rules.yaml` in your config dir | Update the bridge that reads this rule file |
 
+The command updates the skill packages too, before the CLI. It installs the
+newest release of each package that the store holds or that a project names,
+and it prints one line for each package, such as `skills: loupe 1.4.0 installed`.
+It restarts no worker. A failed package update prints its reason and changes
+neither the packages in the store nor the CLI update. The store keeps the
+reason, so `loupe status` and the agents page show it. See
+[Skill package updates](../docs/extending/cli-bridge.md#skill-package-updates).
+
 When a bridge runs, the command asks it to check and install at once, through
 its local socket. When no bridge runs, the command downloads the release,
 checks it against `checksums.txt`, and replaces the binary on your `PATH`
@@ -2132,11 +2160,11 @@ When that `exec` fails, the line says `rejected` instead, and the command exits
 with status 1.
 
 The command does not update a binary that Homebrew installed, and it asks no
-bridge either. It prints
+bridge either. It still updates the skill packages first. It then prints
 `loupe was installed with Homebrew. Run: brew upgrade loupe`, changes nothing,
 and exits with status 1. A bridge that runs a Homebrew binary refuses the
 request of an older CLI with the same message, and stages nothing. Automatic
-updates with `autoUpdate: true` still run. The command finds such a binary by its
+updates of the skill packages with `autoUpdate: true` still run. The command finds such a binary by its
 path, with symlinks resolved: the path holds `/Cellar/loupe/`. A bridge reports
 the same install method in its heartbeat, so the agents page names
 `brew upgrade loupe`.

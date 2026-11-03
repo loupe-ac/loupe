@@ -170,7 +170,7 @@ js-test *args:
 # Runs on the host. The plugin copy drops hooks/, whose SessionEnd hook calls the real
 # `loupe` CLI, and names a `loupe` server so the mocks attach. Nothing connects to its URL.
 # SKILL_EVAL_REF=<ref> takes the plugin from a git ref. See tests/skill-evals/README.md.
-# Offline evals of plugins/loupe with mocked loupe tools. Usage: just skill-eval [--case <glob>] [flags]
+# Offline evals of plugins/loupe and plugins/loupe-lifecycle, merged into one plugin, with mocked loupe tools. Usage: just skill-eval [--case <glob>] [flags]
 skill-eval *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -178,8 +178,10 @@ skill-eval *args:
     trap 'rm -rf "$tmp"' EXIT
     ref="${SKILL_EVAL_REF:-}"
     mkdir -p "$tmp/plugins"
-    if [ -n "$ref" ]; then git archive "$ref" plugins/loupe | tar -x -C "$tmp"; else cp -R plugins/loupe "$tmp/plugins/"; fi
+    if [ -n "$ref" ]; then git archive "$ref" plugins | tar -x -C "$tmp"; else cp -R plugins/loupe plugins/loupe-lifecycle "$tmp/plugins/"; fi
     plugin="$tmp/plugins/loupe"
+    # The eval runs one plugin, so the lifecycle skills join the core ones. A ref from before the split has no lifecycle folder.
+    if [ -d "$tmp/plugins/loupe-lifecycle/skills" ]; then cp -R "$tmp/plugins/loupe-lifecycle/skills/." "$plugin/skills/"; fi
     rm -rf "$plugin/hooks"
     printf '{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.invalid/mcp"}}}\n' > "$plugin/.mcp.json"
     cp -R tests/skill-evals/evals "$plugin/evals"
@@ -623,6 +625,7 @@ cli-build goos="darwin" goarch="arm64":
     set -euo pipefail
     # The container mounts cli/ alone, so it has no .git and no git binary. The
     # host reads both values here. Outside a repository the commit is unknown.
+    sh cli/scripts/bundle-skills.sh
     commit="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
     dirty=""
     [ -z "$(git status --porcelain 2>/dev/null)" ] || dirty=true

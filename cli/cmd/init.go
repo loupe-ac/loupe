@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"net/url"
 	"os"
 	"os/exec"
@@ -26,17 +25,18 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
 )
 
 const (
 	pluginMarketplace = "loupe-ac/loupe"
-	pluginSpec        = "loupe@loupe"
+	pluginPackage     = "loupe"
+	lifecyclePackage  = "loupe-lifecycle"
+	pluginSpec        = pluginPackage + "@loupe"
+	lifecyclePlugin   = lifecyclePackage + "@loupe"
 	playwrightCommand = "npx playwright install chromium"
-
-	codexSkillsRepository = "https://github.com/loupe-ac/loupe"
-	codexSkillsPath       = "plugins/loupe/skills"
 )
 
 // The programs init runs, and the checks it makes, are variables so a test
@@ -54,6 +54,7 @@ var (
 		return c.CombinedOutput()
 	}
 	initStartBridge = startDaemon
+	initBusyHomes   = busyCodexHomes
 	initBridgeRuns  = func(rulesPath string) bool {
 		abs, err := filepath.Abs(rulesPath)
 		if err != nil {
@@ -98,6 +99,9 @@ type initOptions struct {
 	name      string
 	domain    string
 	origins   []string
+
+	agent         string
+	reviewProfile bool
 }
 
 func newInitCmd() *cobra.Command {
@@ -118,15 +122,17 @@ func newInitCmd() *cobra.Command {
 			"The server checks every value first, and a bad value creates no project. " +
 			"--name cannot go with --project, and it needs --force when " + projectfile.Name + " names a project already. " +
 			"When your login covers no project, the command creates one from the `origin` remote of this repository.\n" +
-			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + " and " +
-			profile.Path + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
+			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
-			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
-			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
+			"4. Install the Loupe plugins that this project needs in Claude Code, when `claude` is on your PATH " +
+			"and lacks one: `loupe`, and `loupe-lifecycle` when the workflow of the project uses it. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
 			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for each " +
 			"Codex account of the rule file: in its profile file when that sets the mode, else in config.toml " +
-			"of its Codex home. Then copy the Loupe skills into ~/.agents/skills/. The Codex part runs " +
-			"after step 5, because it reads the Codex accounts of the rule file. " +
+			"of its Codex home. Then fill the skill store, build a local plugin marketplace from it, and " +
+			"install the Loupe plugins in the Codex home of each account. A home with a running worker " +
+			"is left to the bridge. After the last home, the Loupe skill folders in ~/.agents/skills/ move to " +
+			"the backup folder of the skill store, because Codex reads that folder for every home. The Codex " +
+			"part runs after step 5, because it reads the Codex accounts of the rule file. " +
 			"When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
@@ -139,9 +145,13 @@ func newInitCmd() *cobra.Command {
 			"8. Install the Playwright browser, when the package.json of the repository root or of one of " +
 			"its direct subfolders lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
-			"9. Print the wizard page to open next.\n\n" +
+			"9. Write the repository profile with an agent, when the workflow of the project needs one and " +
+			profile.Path + " is missing, lacks a section or holds a value marked \"" + profile.OpenQuestion + "\". " +
+			"--review-profile starts the agent also for a complete file. --agent picks claude or codex; with both on the PATH " +
+			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
+			"10. Print what remains and the project page. The accounts are reported before step 9, so a failing account never stops the agent.\n\n" +
 			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
-			"A bridge that fails to start makes the command exit with an error after the last step.",
+			"A bridge that fails to start, or a used account that fails for this project, makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runInit(cmd, o)
@@ -156,6 +166,8 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
 	cmd.Flags().BoolVar(&o.link.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
+	cmd.Flags().StringVar(&o.agent, "agent", "", "agent that writes the repository profile: claude or codex; else init asks when both are on the PATH")
+	cmd.Flags().BoolVar(&o.reviewProfile, "review-profile", false, "start the profile agent also when "+profile.Path+" is complete, to review each value")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
 	cmd.MarkFlagsMutuallyExclusive("name", "project")
@@ -182,17 +194,24 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	site, err := initProject(cmd, cfg, dir, o)
+	listCtx, cancelList := context.WithTimeout(cmd.Context(), 30*time.Second)
+	sites, err := apiClient(cfg).Sites(listCtx)
+	cancelList()
+	if err != nil {
+		return err
+	}
+	site, err := initProject(cmd, cfg, dir, o, sites)
 	if err != nil {
 		return err
 	}
 	if err := initLink(cmd, dir, site.ID, o); err != nil {
 		return err
 	}
+	var left initLeft
 	if inSecondSetup() {
 		skipSharedStep(cmd, "Plugin")
 	} else {
-		initPlugin(cmd, dir)
+		left.restart = initPlugin(cmd, dir, site)
 	}
 
 	path, err := rulesPathOr(o.rulesPath)
@@ -217,9 +236,16 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	} else {
 		initPlaywright(cmd, dir)
 	}
-	initNext(cmd, cfg.BaseURL)
+	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
+	left.profile = initProfile(cmd, dir, site, o)
+	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 
-	return bridgeErr
+	var accountErr error
+	if len(left.accounts) > 0 {
+		accountErr = fmt.Errorf("an account that a rule uses fails for this project: %s", strings.Join(left.accounts, "; "))
+	}
+
+	return errors.Join(bridgeErr, accountErr)
 }
 
 // checkNameFlags checks the flags that need no network, before init signs in.
@@ -285,16 +311,12 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 
 // initProject chooses the project of this repository. The returned site holds
 // the slug when the server lists the project.
-func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOptions) (api.Site, error) {
+func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOptions, sites []api.Site) (api.Site, error) {
 	out := cmd.OutOrStdout()
 	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 	defer cancel()
 
 	client := apiClient(cfg)
-	sites, err := client.Sites(ctx)
-	if err != nil {
-		return api.Site{}, err
-	}
 	// find takes an id or a slug, because the first-run command names the
 	// project by its slug. A handle that no listed project has stays as given.
 	find := func(handle string) (api.Site, bool) {
@@ -635,9 +657,6 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !link.force {
-		if err := writeProfile(cmd, dir); err != nil {
-			return err
-		}
 		if err := offerServer(cmd, dir, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
 			return err
 		}
@@ -676,37 +695,71 @@ func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
 	return nil
 }
 
-// initPlugin installs the Loupe plugin in Claude Code. It never fails: what it
-// cannot do, it prints for you to run.
-func initPlugin(cmd *cobra.Command, dir string) {
+// initPlugin installs the plugins of handPlugins in Claude Code. It never fails:
+// what it cannot do, it prints for you to run. It reports whether it installed one.
+func initPlugin(cmd *cobra.Command, dir string, site api.Site) bool {
 	out := cmd.OutOrStdout()
-	add := "claude plugin marketplace add " + pluginMarketplace
-	install := "claude plugin install " + pluginSpec
-	byHand := fmt.Sprintf("run `%s`, then `%s`", add, install)
+	specs := handPlugins(site)
 
 	if _, err := initLookPath("claude"); err != nil {
-		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+byHand)
+		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+pluginCommands(specs))
 
-		return
+		return false
 	}
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
-	if listed, err := initExec(ctx, dir, nil, "claude", "plugin", "list"); err == nil && strings.Contains(string(listed), "loupe@") {
-		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugin")
+	listed, listErr := initExec(ctx, dir, nil, "claude", "plugin", "list")
+	missing := specs
+	if listErr == nil {
+		missing = slices.DeleteFunc(slices.Clone(specs), func(spec string) bool {
+			name, _, _ := strings.Cut(spec, "@")
 
-		return
+			return strings.Contains(string(listed), name+"@")
+		})
+	}
+	if len(missing) == 0 {
+		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugins")
+
+		return false
 	}
 
 	// A marketplace that is added already can make this command fail while the
 	// install still works, so only the install decides.
 	_, _ = initExec(ctx, dir, nil, "claude", "plugin", "marketplace", "add", pluginMarketplace)
-	if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", pluginSpec); err != nil {
-		step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
+	var installed []string
+	for i, spec := range missing {
+		if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", spec); err != nil {
+			step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), pluginCommands(missing[i:])))
 
-		return
+			return len(installed) > 0
+		}
+		installed = append(installed, spec)
 	}
-	step(out, "Plugin", "done", "installed "+pluginSpec+". Restart Claude Code to load it")
+	step(out, "Plugin", "done", "installed "+strings.Join(installed, " and ")+". Restart Claude Code to load it")
+
+	return true
+}
+
+// handPlugins names the plugins for a hand session: the core plugin, and the
+// Lifecycle plugin when PackagesIn lists it for the site.
+func handPlugins(site api.Site) []string {
+	specs := []string{pluginSpec}
+	if slices.Contains(site.PackagesIn([]string{pluginPackage, lifecyclePackage}), lifecyclePackage) {
+		specs = append(specs, lifecyclePlugin)
+	}
+
+	return specs
+}
+
+// pluginCommands says how to install these plugins by hand.
+func pluginCommands(specs []string) string {
+	installs := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		installs = append(installs, "`claude plugin install "+spec+"`")
+	}
+
+	return "run `claude plugin marketplace add " + pluginMarketplace + "`, then " + strings.Join(installs, " and ")
 }
 
 // codexOnly reports whether Codex is on the PATH and Claude Code is not, which
@@ -718,7 +771,7 @@ func codexOnly() bool {
 // initCodex connects each Codex account of the rule file. For each account, it
 // declares `loupe mcp` as --mcp and --no-mcp say, in the Codex home and profile
 // of that account. Without --no-mcp, it approves the Loupe tools of a
-// declaration that starts `loupe mcp`. Then it installs the skills once.
+// declaration that starts `loupe mcp`. Then it installs the plugins.
 func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets []codexTarget) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
@@ -728,7 +781,7 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets 
 			initCodexApproval(cmd.OutOrStdout(), t)
 		}
 	}
-	initCodexSkills(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), dir)
+	initCodexPlugins(ctx, cmd.OutOrStdout(), targets)
 }
 
 // initCodexServer checks the declaration of one Codex account, and reports
@@ -989,150 +1042,131 @@ func initCodexApproval(out io.Writer, t codexTarget) {
 	}
 }
 
-// initCodexSkills copies the Loupe skills into ~/.agents/skills, where Codex
-// finds them. It takes them from a sparse clone of the repository. It replaces
-// an installed skill that differs only when the user says yes.
-func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir string) {
-	byHand := "copy the folders of " + codexSkillsPath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
-	fail := func(err error, raw []byte) {
-		step(out, "Codex skills", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
-	}
-	home, err := os.UserHomeDir()
+// initCodexPlugins installs the Loupe plugins in the Codex home of each account.
+// It fills the store from the starting copy, builds the local marketplace, and
+// installs each plugin whose version differs. A home with a running worker waits
+// for the bridge. After the last home, it moves the old skill folders of the user
+// home away, because Codex reads that folder for every home.
+func initCodexPlugins(ctx context.Context, out io.Writer, targets []codexTarget) {
+	const name = "Codex plugins"
+	dir, err := config.Dir()
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", err.Error())
 
 		return
 	}
-	base, err := config.TempDir()
+	if _, err := skills.Install(dir); err != nil {
+		step(out, name, "failed", fmt.Sprintf("fill the skill store: %v; run `loupe update`", err))
+
+		return
+	}
+	picks, err := skills.BuildMarketplace(dir, version)
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", fmt.Sprintf("build the plugin marketplace: %v", err))
 
 		return
 	}
-	tmp, err := os.MkdirTemp(base, "loupe-skills-")
+	if len(picks) == 0 {
+		step(out, name, "skipped", "the skill store holds no package for Codex; run `loupe update`")
+
+		return
+	}
+	binary, err := initLookPath("codex")
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", err.Error())
 
 		return
 	}
-	defer os.RemoveAll(tmp)
-
-	clone := filepath.Join(tmp, "loupe")
-	if raw, err := initExec(ctx, dir, nil, "git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", codexSkillsRepository, clone); err != nil {
-		fail(err, raw)
-
-		return
-	}
-	if raw, err := initExec(ctx, dir, nil, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath); err != nil {
-		fail(err, raw)
-
-		return
-	}
-	replace := func(changed []string) bool {
-		return confirm(out, in, fmt.Sprintf("%d installed Loupe skills differ from the current version (%s). Replace them?", len(changed), strings.Join(changed, ", ")))
-	}
-	copied, kept, err := copySkills(filepath.Join(clone, filepath.FromSlash(codexSkillsPath)), filepath.Join(home, ".agents", "skills"), replace)
-	switch {
-	case err != nil:
-		fail(err, nil)
-	case copied == 0 && kept == 0:
-		step(out, "Codex skills", "skipped", "the Loupe skills in ~/.agents/skills are current")
-	case copied == 0:
-		step(out, "Codex skills", "skipped", fmt.Sprintf("kept %d changed skills in ~/.agents/skills", kept))
-	case kept > 0:
-		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills, kept %d changed skills", copied, kept))
-	default:
-		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills", copied))
-	}
-}
-
-// copySkills copies each skill folder of src that dst lacks. It asks replace
-// once about the folders that dst holds with other contents, and replaces them
-// on yes. It reports how many folders it copied and how many changed ones it kept.
-func copySkills(src, dst string, replace func(changed []string) bool) (copied, kept int, err error) {
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return 0, 0, err
-	}
-	if !slices.ContainsFunc(entries, fs.DirEntry.IsDir) {
-		return 0, 0, errors.New("the clone holds no skills")
-	}
-	var missing, changed []string
-	for _, e := range entries {
-		if !e.IsDir() {
+	busy := initBusyHomes()
+	allDone := true
+	var done []string
+	for _, t := range targets {
+		home := filepath.Clean(t.codexHome())
+		if slices.Contains(done, home) {
 			continue
 		}
-		target := filepath.Join(dst, e.Name())
-		if _, err := os.Stat(target); errors.Is(err, fs.ErrNotExist) {
-			missing = append(missing, e.Name())
-
-			continue
+		done = append(done, home)
+		lock, free, err := reserveInitHome(dir, home, busy)
+		switch {
+		case err != nil:
+			allDone = false
+			step(out, name, "failed", err.Error())
+		case !free:
+			allDone = false
+			step(out, name, "skipped", "a worker runs on "+home+", the bridge installs it later")
+		default:
+			installed, err := codex.SyncPlugins(ctx, binary, codex.HomeEnv(os.Environ(), home), skills.MarketplaceDir(dir), picks)
+			lock.Release()
+			switch {
+			case err != nil:
+				allDone = false
+				step(out, name, "failed", fmt.Sprintf("%v; run `%s`", err, "CODEX_HOME="+home+" codex plugin list"))
+			case len(installed) == 0:
+				step(out, name, "skipped", "the Loupe plugins in "+home+" are current")
+			default:
+				step(out, name, "done", "installed "+strings.Join(installed, ", ")+" in "+home)
+			}
 		}
-		same, err := sameTree(filepath.Join(src, e.Name()), target)
+	}
+	if !allDone {
+		return
+	}
+	// A running worker can read the old folders, so the move waits for it.
+	for _, home := range done {
+		lock, free, err := reserveInitHome(dir, home, busy)
 		if err != nil {
-			return 0, 0, err
-		}
-		if !same {
-			changed = append(changed, e.Name())
-		}
-	}
-	if len(changed) > 0 && replace(changed) {
-		missing = append(missing, changed...)
-	} else {
-		kept = len(changed)
-	}
-	if len(missing) > 0 {
-		if err := os.MkdirAll(dst, 0o755); err != nil {
-			return 0, kept, err
-		}
-	}
-	for _, name := range missing {
-		target := filepath.Join(dst, name)
-		if err := os.RemoveAll(target); err != nil {
-			return copied, kept, err
-		}
-		if err := os.CopyFS(target, os.DirFS(filepath.Join(src, name))); err != nil {
-			return copied, kept, err
-		}
-		copied++
-	}
+			step(out, "Codex skills", "failed", err.Error())
 
-	return copied, kept, nil
+			return
+		}
+		if !free {
+			step(out, "Codex skills", "skipped", "a worker runs on "+home+", the bridge moves the old folders later")
+
+			return
+		}
+		defer lock.Release()
+	}
+	switch moved, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(dir), "backup"), skills.PickSkills(picks), time.Now()); {
+	case err != nil:
+		step(out, "Codex skills", "failed", err.Error())
+	case moved != "":
+		step(out, "Codex skills", "done", "moved the old Loupe skill folders of ~/.agents/skills to "+moved)
+	}
 }
 
-// sameTree reports whether two folders hold the same files with the same contents.
-func sameTree(a, b string) (bool, error) {
-	ta, err := readTree(a)
-	if err != nil {
-		return false, err
+// reserveInitHome takes the Codex home for an install, and reports false when a
+// worker or a session uses it. busy names the homes of the workers that a running
+// bridge reported. A worker that a bridge starts now waits for the lock.
+func reserveInitHome(dir, home string, busy map[string]bool) (*skills.HomeLock, bool, error) {
+	if busy[home] {
+		return nil, false, nil
 	}
-	tb, err := readTree(b)
-	if err != nil {
-		return false, err
+	lock, free, err := skills.ReserveHome(dir, home)
+	if err != nil || !free {
+		return nil, false, err
+	}
+	if used, _ := sessionOnHome(dir, home, listProcesses); used {
+		lock.Release()
+
+		return nil, false, nil
 	}
 
-	return maps.Equal(ta, tb), nil
+	return lock, true, nil
 }
 
-func readTree(root string) (map[string]string, error) {
-	tree := map[string]string{}
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == root {
-			return err
+// busyCodexHomes names the Codex homes that a running bridge has a worker on.
+func busyCodexHomes() map[string]bool {
+	reports, _ := collectBridges()
+	busy := map[string]bool{}
+	for _, b := range reports {
+		for _, w := range b.status.Workers {
+			if w.CodexHome != "" {
+				busy[w.CodexHome] = true
+			}
 		}
-		rel, _ := filepath.Rel(root, path)
-		if d.IsDir() {
-			tree[rel] = "\x00dir"
+	}
 
-			return nil
-		}
-		body, err := os.ReadFile(path)
-		tree[rel] = string(body)
-
-		return err
-	})
-
-	return tree, err
+	return busy
 }
 
 // indented formats the output of a failed command as a block after a message.
@@ -1148,11 +1182,17 @@ func indented(raw []byte) string {
 	return ":\n  " + strings.ReplaceAll(text, "\n", "\n  ") + "\n"
 }
 
+// siteRuleSlug is the key of the project in the projects map that initRules
+// writes. A project with no slug yet goes by its id.
+func siteRuleSlug(site api.Site) string {
+	return cmp.Or(site.Slug, site.ID)
+}
+
 // initRules writes the first-run rule file, or adds to the one that exists. It
 // reports whether it changed a file that existed.
 func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
 	out := cmd.OutOrStdout()
-	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
+	opts := rules.FirstRunOptions{Slug: siteRuleSlug(site), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)
@@ -1475,14 +1515,4 @@ func resolveNodePackage(from, name string) (string, bool) {
 			return "", false
 		}
 	}
-}
-
-// initNext sends you to the machine step of the wizard, which shows the local
-// steps and leads on to the Workshop.
-func initNext(cmd *cobra.Command, baseURL string) {
-	out := cmd.OutOrStdout()
-
-	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Open %s/welcome/connect to finish the setup.\n", baseURL)
-	fmt.Fprintf(out, "Commit %s, because a worker sees only what you push.\n", profile.Path)
 }

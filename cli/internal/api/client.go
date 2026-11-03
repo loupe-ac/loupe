@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,10 +33,63 @@ type Site struct {
 	// SubcommandPrograms are the programs whose subcommand a signature keeps.
 	// nil means the bridge's default list, and an empty list keeps none.
 	SubcommandPrograms []string `json:"subcommandPrograms"`
+	// SkillPackages names the skill packages a worker of the project needs.
+	// nil means the app sent none, as an older app does. PackagesIn treats a
+	// list that is not valid the same way.
+	SkillPackages []string `json:"skillPackages"`
+	// NeedsProfile says whether the project needs a repository profile. nil
+	// means the app sent none, as an older app does.
+	NeedsProfile *bool `json:"needsProfile"`
+	// DiscoveryRemains says whether the owner still has to start discovery. nil
+	// means the app sent none, as an older app or the create call does.
+	DiscoveryRemains *bool `json:"discoveryRemains"`
 	// Domain and AllowedOrigins come back from the create call only. An
 	// instance that predates them leaves both empty.
 	Domain         string   `json:"domain"`
 	AllowedOrigins []string `json:"allowedOrigins"`
+}
+
+// PackagesIn returns the skill packages a worker of the site needs, from the
+// packages held. A site with no list, or with a list that is not valid, gets
+// every package held, which is what a project gets before the app sends the list.
+func (s Site) PackagesIn(held []string) []string {
+	if !validPackages(s.SkillPackages) {
+		return slices.Clone(held)
+	}
+
+	return slices.Clone(s.SkillPackages)
+}
+
+// packageName is what the app accepts as a skill package name.
+var packageName = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+// validPackages reports whether names is a list of one or more different
+// package names, the rule of the app for a template.
+func validPackages(names []string) bool {
+	if len(names) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		if len(name) > 64 || !packageName.MatchString(name) || seen[name] {
+			return false
+		}
+		seen[name] = true
+	}
+
+	return true
+}
+
+// ProfileNeeded says whether the project needs a repository profile. A site
+// with no value needs one, as a project did before the app sent the value.
+func (s Site) ProfileNeeded() bool {
+	return s.NeedsProfile == nil || *s.NeedsProfile
+}
+
+// DiscoveryToStart says whether the owner still has to start discovery. A site
+// with no value counts as yes, because nothing proves that a run started.
+func (s Site) DiscoveryToStart() bool {
+	return s.DiscoveryRemains == nil || *s.DiscoveryRemains
 }
 
 // EventsProject is one project of GET /api/v1/bridge/events. Its events arrive on the
@@ -554,6 +608,16 @@ const (
 // invalid. A retry cannot turn any of those into a stored row.
 var ErrReportRefused = errors.New("the server refused the worker run report")
 
+// SkillReport is the state of one skill package in the store of the bridge.
+// State is "current" or "failed". Version is the highest version the store holds
+// that the CLI can use, and Reason says why a package failed.
+type SkillReport struct {
+	Package string `json:"package"`
+	Version string `json:"version"`
+	State   string `json:"state"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 // Heartbeat is the body of PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat: the ids of
 // the projects the bridge follows, the build it runs, where its own update
 // stands, and its hooks. The server keeps its stored hooks when the key is
@@ -564,6 +628,9 @@ type Heartbeat struct {
 	CLIVersion string           `json:"cliVersion"`
 	Update     *HeartbeatUpdate `json:"update,omitempty"`
 	Hooks      []HookReport     `json:"hooks,omitzero"`
+	// Skills holds one row for each skill package the bridge keeps. Nil sends
+	// no key, and an empty list sends [], which clears the stored rows.
+	Skills []SkillReport `json:"skills,omitzero"`
 	// WorkerPools is nil until the router reports its pools.
 	WorkerPools []WorkerPoolReport `json:"workerPools,omitzero"`
 	// Paused and Capabilities send no key when nil, which keeps what the
@@ -696,6 +763,13 @@ type AccountReport struct {
 	Reason  string `json:"reason,omitempty"`
 	// Used is false for an account no rule runs on.
 	Used bool `json:"used"`
+	// FailedProjects lists the projects the account failed its check for. An
+	// account with only these stays ready, and Loupe holds back the work of
+	// those projects on it.
+	FailedProjects []FailedProject `json:"failedProjects,omitempty"`
+	// AppPrompts marks the account that runs the app prompts, so Loupe can
+	// apply FailedProjects to a kind that no work entry maps.
+	AppPrompts bool `json:"appPrompts,omitempty"`
 	// Kinds are the work kinds that can run on the account, through a work
 	// entry or an experiment variant. StopAt is the use, in percent, at which
 	// Loupe stops new work on the account. Readings are the latest reading of
@@ -705,6 +779,13 @@ type AccountReport struct {
 	Kinds    []string        `json:"kinds"`
 	StopAt   int             `json:"stopAt,omitempty"`
 	Readings []usage.Reading `json:"readings,omitempty"`
+}
+
+// FailedProject is a project an account failed its check for. Reason is a short
+// fixed phrase, and names no path and no identity.
+type FailedProject struct {
+	ProjectID string `json:"projectId"`
+	Reason    string `json:"reason"`
 }
 
 // MaxHostSamples caps the samples the bridge keeps. HostSamplesPerHeartbeat

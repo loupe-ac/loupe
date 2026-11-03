@@ -108,14 +108,14 @@ final class CardInteractiveRunTest extends KernelTestCase
             card: $card,
             actor: Actor::Agent,
             column: $this->column($this->project, 'next'),
-            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe:product-design'),
+            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe-lifecycle:product-design'),
         ));
 
         self::assertSame('next', $card->column->slug);
         self::assertSame(WorkerRunState::Closed, $this->stateOf($old));
         $new = $this->workerRuns()->findOpenInteractive($this->project, $this->idOf($card), $sessionId);
         self::assertNotNull($new);
-        self::assertSame('loupe:product-design', $new->workKind);
+        self::assertSame('loupe-lifecycle:product-design', $new->workKind);
         self::assertSame($card->number, $new->cardNumber);
     }
 
@@ -129,7 +129,7 @@ final class CardInteractiveRunTest extends KernelTestCase
             card: $card,
             actor: Actor::Agent,
             column: $this->column($this->project, 'next'),
-            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe:product-design'),
+            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe-lifecycle:product-design'),
         ));
 
         self::assertSame(WorkerRunState::Running, $this->stateOf($other));
@@ -145,7 +145,7 @@ final class CardInteractiveRunTest extends KernelTestCase
             card: $card,
             actor: Actor::Agent,
             column: $this->column($this->project, 'next'),
-            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe:product-design'),
+            openInteractiveRun: new OpenInteractiveRun($sessionId, 'loupe-lifecycle:product-design'),
         ));
 
         self::assertSame($card, $updated->card);

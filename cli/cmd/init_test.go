@@ -11,13 +11,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -53,6 +56,11 @@ type initWorld struct {
 	bridgeFlags  []string
 	reloads      int
 	reloadErr    error
+
+	// accounts is what the account check reports, and gitClean says the remote
+	// holds the setup files.
+	accounts []accountResult
+	gitClean bool
 }
 
 func newInitWorld(t *testing.T, sites string) *initWorld {
@@ -88,9 +96,22 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	t.Cleanup(w.server.Close)
 
 	oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload := initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge
+	oldCheck, oldGit := initCheckAccounts, initGit
 	t.Cleanup(func() {
 		initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload
+		initCheckAccounts, initGit = oldCheck, oldGit
 	})
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult { return w.accounts }
+	initGit = func(_ string, args ...string) (string, error) {
+		if !w.gitClean {
+			return "?? file", nil
+		}
+		if args[0] == "rev-parse" {
+			return "origin/main", nil
+		}
+
+		return "", nil
+	}
 	initGOOS = "darwin"
 	initLookPath = func(name string) (string, error) {
 		if name == "claude" && w.claude {
@@ -123,10 +144,6 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 				}
 			}
 			writeFile(t, filepath.Join(home, "config.toml"), "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
-		case name == "git" && len(args) > 2 && args[2] == "sparse-checkout":
-			for _, skill := range []string{"loupe-board", "loupe-inbox"} {
-				writeFile(t, filepath.Join(args[1], "plugins", "loupe", "skills", skill, "SKILL.md"), "# "+skill+"\n")
-			}
 		}
 
 		return []byte(out), nil
@@ -218,7 +235,7 @@ func TestInitRunsEveryStepOnAFreshRepository(t *testing.T) {
 		"Sign in: skipped", "Project: done, using Dev Project", "Link: done", "Plugin: skipped",
 		"Rules: done", "Turn on automatic updates? [y/N]", "Auto-update: done, automatic updates are on",
 		"Bridge: done", "Playwright: skipped",
-		"Open " + w.server.URL + "/welcome/connect", "Commit " + profile.Path,
+		"What remains:", "Commit and push .loupe.yaml", "Start discovery", "Open " + w.server.URL + "/projects/" + firstProject,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -611,13 +628,28 @@ func TestInitSkipsThePluginWhenClaudeHasIt(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.claude = true
 	inRepo(t, w.server.URL)
-	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\n"
+	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\nloupe-lifecycle@loupe 0.1.0 enabled\n"
 
 	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
 	if w.called("claude plugin install") || !strings.Contains(out, "Plugin: skipped") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitInstallsOnlyTheLifecyclePluginWhenClaudeHasTheCoreOne(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\n"
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("claude plugin install loupe-lifecycle@loupe") || w.called("claude plugin install loupe@loupe") {
 		t.Errorf("calls = %v\n%s", w.execCalls, out)
 	}
 }
@@ -636,6 +668,97 @@ func TestInitPrintsThePluginCommandsAndGoesOnWhenInstallFails(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+func simpleSite() string {
+	return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project","skillPackages":["loupe"],"needsProfile":false}`
+}
+
+func lifecycleSite() string {
+	return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project","skillPackages":["loupe","loupe-lifecycle"],"needsProfile":false}`
+}
+
+func TestInitInstallsTheLifecyclePluginOnlyWhenTheProjectNeedsIt(t *testing.T) {
+	tests := map[string]struct {
+		site      string
+		listed    string
+		core      bool
+		lifecycle bool
+		line      string
+	}{
+		"a Simple project gets the core plugin":         {simpleSite(), "", true, false, "Plugin: done, installed loupe@loupe."},
+		"a Simple project with the core plugin is done": {simpleSite(), "loupe@loupe 1.2.3 enabled\n", false, false, "Plugin: skipped, Claude Code has the Loupe plugins"},
+		"a Lifecycle project gets both":                 {lifecycleSite(), "", true, true, "Plugin: done, installed loupe@loupe and loupe-lifecycle@loupe."},
+		"a project with no list gets both":              {devSite(), "", true, true, "Plugin: done, installed loupe@loupe and loupe-lifecycle@loupe."},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			w := newInitWorld(t, tt.site)
+			w.claude = true
+			inRepo(t, w.server.URL)
+			w.execOut["claude plugin list"] = tt.listed
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+			if err != nil {
+				t.Fatalf("init: %v\n%s", err, out)
+			}
+			if got := w.called("claude plugin install loupe@loupe"); got != tt.core {
+				t.Errorf("core install = %v, calls = %v", got, w.execCalls)
+			}
+			if got := w.called("claude plugin install loupe-lifecycle@loupe"); got != tt.lifecycle {
+				t.Errorf("lifecycle install = %v, calls = %v", got, w.execCalls)
+			}
+			if !strings.Contains(out, tt.line) {
+				t.Errorf("output lacks %q:\n%s", tt.line, out)
+			}
+		})
+	}
+}
+
+func TestInitNamesOnlyThePluginsTheProjectNeedsWhenClaudeIsMissing(t *testing.T) {
+	w := newInitWorld(t, simpleSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "claude plugin install loupe@loupe") || strings.Contains(out, "claude plugin install loupe-lifecycle@loupe") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestInitAsksForARestartAfterAPartialPluginInstall(t *testing.T) {
+	w := newInitWorld(t, lifecycleSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execFail["claude plugin install loupe-lifecycle@loupe"] = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Plugin: failed") || !strings.Contains(out, "Restart Claude Code") {
+		t.Errorf("output:\n%s", out)
+	}
+	if strings.Contains(out, "`claude plugin install loupe@loupe`") || !strings.Contains(out, "`claude plugin install loupe-lifecycle@loupe`") {
+		t.Errorf("the commands must name only the plugin that is left:\n%s", out)
+	}
+}
+
+func TestInitAsksForNoRestartWhenNoPluginInstalled(t *testing.T) {
+	w := newInitWorld(t, lifecycleSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execFail["claude plugin install"] = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Restart Claude Code") {
+		t.Errorf("output:\n%s", out)
 	}
 }
 
@@ -1240,17 +1363,13 @@ func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
 	if !w.called("codex mcp add loupe -- loupe mcp") {
 		t.Errorf("init did not declare the server to Codex: %v", w.execCalls)
 	}
-	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", "Codex approval: done", "Codex skills: done, installed 2 skills"} {
+	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", "Codex approval: done", "Codex plugins: skipped, the skill store holds no package for Codex"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
 	}
 	if body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml")); !strings.Contains(body, "# mine\n[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n") {
 		t.Errorf("config.toml lacks the approval mode, or lost its comment:\n%s", body)
-	}
-	home, _ := os.UserHomeDir()
-	if body := readOrEmpty(t, filepath.Join(home, ".agents", "skills", "loupe-board", "SKILL.md")); body != "# loupe-board\n" {
-		t.Errorf("the skills were not installed, got %q", body)
 	}
 	if body := readOrEmpty(t, path); !strings.Contains(body, "harness: codex") {
 		t.Errorf("rule file has no codex account:\n%s", body)
@@ -1439,24 +1558,8 @@ func TestInitApprovesNoCodexToolsWhenTheDeclarationIsDeclined(t *testing.T) {
 	if strings.Contains(out, "Codex approval") {
 		t.Errorf("init ran the approval step with no declaration:\n%s", out)
 	}
-	if !strings.Contains(out, "Codex skills: done") {
-		t.Errorf("the skills do not need the declaration:\n%s", out)
-	}
-}
-
-func TestInitPrintsTheSkillsStepWhenTheCloneFails(t *testing.T) {
-	w := newInitWorld(t, devSite())
-	w.codex = true
-	w.execFail["git clone"] = true
-	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
-	inRepo(t, w.server.URL)
-
-	out, err := runInitCmd(t, "1\nn\n")
-	if err != nil {
-		t.Fatalf("init: %v\n%s", err, out)
-	}
-	if !strings.Contains(out, "Codex skills: failed") || !strings.Contains(out, "into ~/.agents/skills/") {
-		t.Errorf("output lacks the failure and the manual step:\n%s", out)
+	if !strings.Contains(out, "Codex plugins:") {
+		t.Errorf("the plugins do not need the declaration:\n%s", out)
 	}
 }
 
@@ -1679,78 +1782,6 @@ func TestInitLeavesAServerThatTheProfileDeclaresWhenDeclined(t *testing.T) {
 	}
 	if strings.Contains(out, "Codex approval") {
 		t.Errorf("init approved the tools of a server it did not connect:\n%s", out)
-	}
-}
-
-// A second run must not drop a local edit to an installed skill, so init asks
-// before it replaces a skill that differs, and copies a missing one either way.
-func TestInitAsksBeforeItReplacesAChangedCodexSkill(t *testing.T) {
-	for _, answer := range []string{"y", "n"} {
-		t.Run(answer, func(t *testing.T) {
-			w := newInitWorld(t, devSite())
-			w.codex = true
-			w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
-			inRepo(t, w.server.URL)
-			home, _ := os.UserHomeDir()
-			board := filepath.Join(home, ".agents", "skills", "loupe-board", "SKILL.md")
-			writeFile(t, board, "# my edit\n")
-
-			out, err := runInitCmd(t, "1\n"+answer+"\nn\n")
-			if err != nil {
-				t.Fatalf("init: %v\n%s", err, out)
-			}
-			if !strings.Contains(out, "1 installed Loupe skills differ from the current version (loupe-board). Replace them?") {
-				t.Errorf("init did not ask:\n%s", out)
-			}
-			want, msg := "# loupe-board\n", "Codex skills: done, installed 2 skills"
-			if answer == "n" {
-				want, msg = "# my edit\n", "Codex skills: done, installed 1 skills in ~/.agents/skills, kept 1 changed skills"
-			}
-			if body := readOrEmpty(t, board); body != want {
-				t.Errorf("loupe-board holds %q, want %q", body, want)
-			}
-			if body := readOrEmpty(t, filepath.Join(home, ".agents", "skills", "loupe-inbox", "SKILL.md")); body != "# loupe-inbox\n" {
-				t.Errorf("the missing skill was not copied: %q", body)
-			}
-			if !strings.Contains(out, msg) {
-				t.Errorf("output lacks %q:\n%s", msg, out)
-			}
-		})
-	}
-}
-
-func TestInitSkipsCodexSkillsThatAreCurrent(t *testing.T) {
-	w := newInitWorld(t, devSite())
-	w.codex = true
-	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
-	inRepo(t, w.server.URL)
-	home, _ := os.UserHomeDir()
-	for _, skill := range []string{"loupe-board", "loupe-inbox"} {
-		writeFile(t, filepath.Join(home, ".agents", "skills", skill, "SKILL.md"), "# "+skill+"\n")
-	}
-
-	out, err := runInitCmd(t, "1\nn\n")
-	if err != nil {
-		t.Fatalf("init: %v\n%s", err, out)
-	}
-	if strings.Contains(out, "Replace them?") || !strings.Contains(out, "Codex skills: skipped, the Loupe skills in ~/.agents/skills are current") {
-		t.Errorf("output:\n%s", out)
-	}
-}
-
-func TestCopySkillsKeepsAChangedSkillWhenReplaceSaysNo(t *testing.T) {
-	src, dst := t.TempDir(), t.TempDir()
-	writeFile(t, filepath.Join(src, "a", "SKILL.md"), "new\n")
-	writeFile(t, filepath.Join(src, "a", "references", "x.md"), "x\n")
-	writeFile(t, filepath.Join(dst, "a", "SKILL.md"), "new\n")
-
-	var asked []string
-	copied, kept, err := copySkills(src, dst, func(changed []string) bool { asked = changed; return false })
-	if err != nil || copied != 0 || kept != 1 || !slices.Equal(asked, []string{"a"}) {
-		t.Fatalf("copied %d, kept %d, asked %v, err %v", copied, kept, asked, err)
-	}
-	if _, err := os.Stat(filepath.Join(dst, "a", "references")); !os.IsNotExist(err) {
-		t.Error("copySkills changed a skill it kept")
 	}
 }
 
@@ -2020,5 +2051,384 @@ func TestIsTerminalRefusesDevNullAndAcceptsOtherReaders(t *testing.T) {
 	}
 	if !isTerminal(strings.NewReader("")) {
 		t.Error("a plain reader stands in for a terminal")
+	}
+}
+
+func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{
+		{name: "main", harness: "claude", used: true},
+		{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
+		{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Detail: "run loupe init"}}},
+	}
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+
+	if err == nil || !strings.Contains(err.Error(), "broken: not logged in") || strings.Contains(err.Error(), "spare") {
+		t.Fatalf("err = %v, want only the used account", err)
+	}
+	for _, want := range []string{
+		"Account: main (claude): ready", "Account: broken (claude): failing: not logged in", "run claude login",
+		"Account: spare (codex, unused): failing: no plugins",
+		"Fix the account broken: not logged in", "Open " + w.server.URL + "/projects/" + firstProject,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, "Account: main") > strings.Index(out, "Profile:") {
+		t.Errorf("accounts come after the profile step:\n%s", out)
+	}
+	if strings.Contains(out, "Fix the account spare") {
+		t.Errorf("an unused account is on the last lines:\n%s", out)
+	}
+}
+
+func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
+	cases := map[string]struct{ site, key string }{
+		"a project with a slug":  {devSite(), "dev"},
+		"a project with no slug": {`{"id":"` + firstProject + `","name":"Dev Project"}`, firstProject},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			w := newInitWorld(t, c.site)
+			inRepo(t, w.server.URL)
+			w.accounts = []accountResult{
+				{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
+				{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+				{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Project: c.key}}},
+			}
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+
+			if err == nil || !strings.Contains(err.Error(), "broken: no skills") {
+				t.Fatalf("err = %v, want the account that fails for this project", err)
+			}
+			if strings.Contains(err.Error(), "elsewhere") || strings.Contains(err.Error(), "spare") {
+				t.Errorf("err = %v, names an account that does not count", err)
+			}
+			for _, want := range []string{
+				"Account: broken (claude): failing for this project: no skills", "run loupe skills update",
+				"Account: elsewhere (claude): failing for project other: no folder", "clone it",
+				"Account: spare (codex, unused): failing for this project: no plugins",
+				"Fix the account broken: no skills",
+			} {
+				if !strings.Contains(out, want) {
+					t.Errorf("output lacks %q:\n%s", want, out)
+				}
+			}
+			for _, unwanted := range []string{"Account: elsewhere (claude): ready", "Fix the account elsewhere", "Fix the account spare"} {
+				if strings.Contains(out, unwanted) {
+					t.Errorf("output holds %q:\n%s", unwanted, out)
+				}
+			}
+		})
+	}
+}
+
+// A failure in another project shows in the report, and it asks nothing of this
+// run of init.
+func TestInitExitsWithSuccessWhenAnAccountFailsOnlyForAnotherProject(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{
+		{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+	}
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("err = %v, want success", err)
+	}
+	if !strings.Contains(out, "Account: elsewhere (claude): failing for project other: no folder\n         clone it\n") {
+		t.Errorf("output lacks the failure of the other project:\n%s", out)
+	}
+	if strings.Contains(out, "Fix the account") {
+		t.Errorf("the last lines ask for a fix of another project:\n%s", out)
+	}
+}
+
+// reportWorld is a rule file with a Simple and a Lifecycle project, and a real
+// check of a Codex home that holds only the loupe plugin.
+func reportWorld(t *testing.T) string {
+	t.Helper()
+	inRepo(t, "")
+	t.Setenv("HOME", t.TempDir())
+	store, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	putPackage(t, store, "loupe", "1.0.0")
+	putPackage(t, store, "loupe-lifecycle", "0.3.0")
+	bin := t.TempDir()
+	programs := map[string]string{"loupe": "#!/bin/sh\nexit 0\n", "codex": `#!/bin/sh
+case "$*" in
+"login status") exit 0 ;;
+"plugin list --json") echo '` + installedList(installedPlugin("loupe", "1.0.0")) + `'; exit 0 ;;
+"mcp get loupe --json") echo '{"enabled":true,"transport":{"type":"stdio","command":"loupe","args":["mcp"]}}'; exit 0 ;;
+esac
+exit 2
+`}
+	for name, script := range programs {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
+	path := filepath.Join(t.TempDir(), "rules.yaml")
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\ndefaults:\n  account: cdx\n"+
+		"projects:\n  simple:\n    dir: "+t.TempDir()+"\n  flow:\n    dir: "+t.TempDir()+"\nwork:\n  plan:\n    prompt: go\n")
+
+	return path
+}
+
+// Each project is checked against its own packages, so an account with only the
+// core plugin is ready for a Simple project and fails for a Lifecycle one.
+func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
+	path := reportWorld(t)
+	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
+	flow := api.Site{ID: "p2", Slug: "flow", SkillPackages: []string{"loupe", "loupe-lifecycle"}}
+	list := []api.Site{simple, flow}
+
+	var out strings.Builder
+	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
+		t.Errorf("failing for the Simple project = %v\n%s", failing, out.String())
+	}
+	if want := "failing for project flow: loupe plugin loupe-lifecycle is not installed"; !strings.Contains(out.String(), want) {
+		t.Errorf("output lacks %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "failing for this project") {
+		t.Errorf("the Simple project fails:\n%s", out.String())
+	}
+
+	out.Reset()
+	failing := reportAccounts(context.Background(), &out, path, flow, list)
+	if len(failing) != 1 || !strings.Contains(failing[0], "loupe-lifecycle is not installed") {
+		t.Errorf("failing for the Lifecycle project = %v\n%s", failing, out.String())
+	}
+	if strings.Contains(out.String(), "failing for project simple") {
+		t.Errorf("the report blames the Simple project:\n%s", out.String())
+	}
+}
+
+// A project that the list does not hold yet keeps the values init read for it.
+func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
+	path := reportWorld(t)
+	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
+	old := initCheckAccounts
+	t.Cleanup(func() { initCheckAccounts = old })
+	var got []api.Site
+	initCheckAccounts = func(_ context.Context, _ *rules.Set, sites []api.Site) []accountResult {
+		got = sites
+
+		return nil
+	}
+
+	reportAccounts(context.Background(), io.Discard, path, simple, []api.Site{{ID: "p2", Slug: "flow"}})
+
+	if len(got) != 2 || got[0].ID != "p2" || got[1].ID != "p1" {
+		t.Errorf("sites = %+v", got)
+	}
+}
+
+// An account can fail in more than one way, and each problem keeps its own fix.
+func TestPrintAccountNamesEachProblemInAFixedOrder(t *testing.T) {
+	var out bytes.Buffer
+
+	printAccount(&out, accountResult{name: "main", harness: "claude", used: true, problems: []harn.Problem{
+		{Reason: "no folder", Detail: "clone z", Project: "z"},
+		{Reason: "no folder", Detail: "clone a", Project: "a"},
+		{Reason: "no skills", Detail: "run update", Project: "dev"},
+		{Reason: "not logged in", Detail: "run login"},
+	}}, "dev")
+
+	want := `Account: main (claude): failing: not logged in
+         run login
+Account: main (claude): failing for this project: no skills
+         run update
+Account: main (claude): failing for project a: no folder
+         clone a
+Account: main (claude): failing for project z: no folder
+         clone z
+`
+	if out.String() != want {
+		t.Errorf("output = %q, want %q", out.String(), want)
+	}
+}
+
+// A worker reads only the upstream tree, so a setup file counts as pushed only
+// when that tree holds the same content.
+func TestFilesNotPushedReadsTheUpstreamTree(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+	const yaml, lifecycle = projectfile.Name, profile.Path
+	both := []string{yaml, lifecycle}
+
+	for _, tc := range []struct {
+		name  string
+		setup func(git func(...string), write func(file, text string))
+		want  []string
+	}{
+		{"both files pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+			git("push")
+		}, nil},
+		{"both files ignored", func(_ func(...string), write func(string, string)) {
+			write(".gitignore", ".loupe.yaml\n.loupe/\n")
+			write(yaml, "a")
+			write(lifecycle, "b")
+		}, both},
+		{"one file ignored", func(git func(...string), write func(string, string)) {
+			write(".git/info/exclude", ".loupe/\n")
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("push")
+		}, []string{lifecycle}},
+		{"files ignored after they were pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+			git("push")
+			write(".git/info/exclude", ".loupe.yaml\n.loupe/\n")
+		}, nil},
+		{"files committed and not pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+		}, both},
+		{"a file edited after the push", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("push")
+			write(yaml, "changed")
+		}, []string{yaml}},
+		{"no upstream", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("branch", "--unset-upstream")
+		}, []string{yaml}},
+		{"no setup file", func(func(...string), func(string, string)) {}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "work")
+			run := func(cwd string, args ...string) {
+				t.Helper()
+				c := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.test"}, args...)...)
+				c.Dir = cwd
+				if out, err := c.CombinedOutput(); err != nil {
+					t.Fatalf("git %v: %v\n%s", args, err, out)
+				}
+			}
+			run(root, "init", "--bare", "-b", "main", "origin.git")
+			run(root, "init", "-b", "main", "work")
+			run(dir, "remote", "add", "origin", filepath.Join(root, "origin.git"))
+			run(dir, "commit", "--allow-empty", "-m", "start")
+			run(dir, "push", "-u", "origin", "main")
+
+			tc.setup(func(args ...string) { t.Helper(); run(dir, args...) }, func(file, text string) {
+				t.Helper()
+				path := filepath.Join(dir, file)
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			})
+
+			if got := filesNotPushed(dir, api.Site{}); !slices.Equal(got, tc.want) {
+				t.Errorf("filesNotPushed = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{{name: "main", harness: "claude", used: true}}
+	w.gitClean = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	last := out[strings.Index(out, "What remains:"):]
+	if strings.Contains(last, "Commit and push") || strings.Contains(last, "Fix the account") || strings.Contains(last, "Restart Claude Code") {
+		t.Errorf("last lines name a step that is done:\n%s", last)
+	}
+	if !strings.Contains(last, "1. Finish the profile") && !strings.Contains(last, "Start discovery") {
+		t.Errorf("last lines lack the discovery step:\n%s", last)
+	}
+}
+
+func TestInitLastLinesNameDiscoveryOnlyWhileItRemains(t *testing.T) {
+	site := func(remains string) string {
+		return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project"` + remains + `}`
+	}
+	for _, tc := range []struct {
+		name, site string
+		want       bool
+	}{
+		{"an older app sends no value", site(""), true},
+		{"no run started", site(`,"discoveryRemains":true`), true},
+		{"a run started", site(`,"discoveryRemains":false`), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newInitWorld(t, tc.site)
+			inRepo(t, w.server.URL)
+			w.gitClean = true
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+			if err != nil {
+				t.Fatalf("init: %v\n%s", err, out)
+			}
+
+			if got := strings.Contains(out, "Start discovery"); got != tc.want {
+				t.Errorf("names discovery = %v, want %v:\n%s", got, tc.want, out)
+			}
+			if !strings.Contains(out, "Open "+w.server.URL+"/projects/"+firstProject) {
+				t.Errorf("output lacks the link:\n%s", out)
+			}
+		})
+	}
+}
+
+func TestInitNextPrintsNoHeadingWhenNothingRemains(t *testing.T) {
+	remains := false
+	var out strings.Builder
+
+	initNext(&out, "https://app.example", t.TempDir(), api.Site{ID: "p1", DiscoveryRemains: &remains}, initLeft{})
+
+	if got, want := out.String(), "\nOpen https://app.example/projects/p1\n"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
+func TestInitRestartLineFollowsAPluginInstall(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.gitClean = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out[strings.Index(out, "What remains:"):], "Restart Claude Code") {
+		t.Errorf("no restart line:\n%s", out)
 	}
 }

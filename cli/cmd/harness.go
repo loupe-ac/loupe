@@ -57,7 +57,12 @@ func (s workerSpec) adapter() harn.Harness {
 }
 
 func (s workerSpec) harnessSpec(env []string) harn.Spec {
-	return harn.Spec{
+	dirs := make([]string, 0, len(s.packages))
+	for _, pick := range s.packages {
+		dirs = append(dirs, pick.Dir)
+	}
+
+	return harn.Spec{PluginDirs: dirs, MCPConfig: s.mcpConfig, HideSkills: s.hideSkills,
 		Dir: s.dir, Model: s.model, Effort: s.effort, PermissionMode: s.permissionMode, Schema: s.schema,
 		SessionID: s.sessionID, Prompt: s.prompt, Env: env, RunID: s.runID, RunDir: s.runDir,
 	}

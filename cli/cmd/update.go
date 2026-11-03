@@ -18,9 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -35,6 +37,21 @@ type selfUpdate struct {
 	hc                             *http.Client
 	executable                     func() (string, error)
 	serverRange                    func(ctx context.Context) (string, error)
+	// sites reads the projects of the server, for the skill packages they
+	// name. nil reads none, and only the packages in the store update.
+	sites func(ctx context.Context) ([]api.Site, error)
+}
+
+// readSites reads the project list with the stored login.
+func readSites(ctx context.Context) ([]api.Site, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, skillsTimeout)
+	defer cancel()
+
+	return apiClient(cfg).Sites(ctx)
 }
 
 // readServerRange reads the CLI range the server supports from GET
@@ -79,6 +96,7 @@ func newUpdateCmd() *cobra.Command {
 		hc:          &http.Client{Timeout: updateTimeout},
 		executable:  os.Executable,
 		serverRange: readServerRange,
+		sites:       readSites,
 	})
 }
 
@@ -89,11 +107,13 @@ func newUpdateCmdWith(self selfUpdate) *cobra.Command {
 		Use:   "update",
 		Short: "Update the CLI now, through each running bridge or in place",
 		Long: "Asks each running bridge to check for a CLI release now and to hand over " +
-			"to it. The check ignores the skip list and the autoUpdate key. With no running " +
+			"to it. The same check installs newer versions of the skill packages, and restarts " +
+			"nothing. The check ignores the skip list and the autoUpdate key. With no running " +
 			"bridge, this command replaces the loupe binary in place. A binary that Homebrew " +
 			"installed is left to brew: the command then asks no bridge, prints the brew " +
 			"upgrade command, changes nothing and exits with status 1. A bridge that runs a " +
-			"Homebrew binary refuses the request too. The command also exits with status 1 " +
+			"Homebrew binary refuses the request too. Before it does, it updates the skill " +
+			"packages: they never need brew. The command also exits with status 1 " +
 			"when a bridge or the update in place fails. Automatic updates are off unless the rule " +
 			"file holds autoUpdate: true; see loupe update auto.",
 		Args: cobra.NoArgs,
@@ -107,6 +127,8 @@ func newUpdateCmdWith(self selfUpdate) *cobra.Command {
 				return self.run(cmd.Context(), out)
 			}
 			if installMethod(self.executable) == installHomebrew {
+				self.runSkillsOnly(cmd.Context(), out)
+
 				return errors.New(homebrewRefusal)
 			}
 			bridges, err := runningBridges(rulesPath)
@@ -135,6 +157,7 @@ func newUpdateCmdWith(self selfUpdate) *cobra.Command {
 				}
 				failed = failed || !res.OK
 				fmt.Fprintln(out, updateLine(b.name, res))
+				printSkillResults(out, res.Skills)
 			}
 			if failed {
 				return errors.New("a bridge did not update")
@@ -455,6 +478,7 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	s.updateSkills(ctx, out, u, releases)
 	c, found := update.PickWhere(releases, u.goos, u.goarch, keep)
 	inRange := rangeErr == nil && update.Satisfies(s.version, cliRange)
 	if !found && !inRange {
@@ -512,6 +536,87 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	return nil
 }
 
+// skillNames lists the packages to update: those in the store, and those the
+// projects of the server name. A server that cannot be read leaves the store.
+func (s selfUpdate) skillNames(ctx context.Context, out io.Writer, dir string) []string {
+	var sites []api.Site
+	if s.sites != nil {
+		var err error
+		if sites, err = s.sites(ctx); err != nil {
+			fmt.Fprintf(out, "skills: could not read the projects of the server (%v), so only the packages in the store update\n", err)
+		}
+	}
+
+	return packageNames(skills.Held(dir), sites)
+}
+
+// updateSkills installs the newest skill package versions the store lacks and
+// prints one line for each package. A failure prints and changes nothing else.
+func (s selfUpdate) updateSkills(ctx context.Context, out io.Writer, u *updater, releases []update.Release) {
+	s.refreshSkills(ctx, out, u, releases, s.skillNames(ctx, out, u.dir))
+}
+
+func (s selfUpdate) refreshSkills(ctx context.Context, out io.Writer, u *updater, releases []update.Release, names []string) {
+	if len(names) > 0 {
+		printSkillResults(out, skills.Refresh(ctx, u.hc, u.dir, s.version, releases, names, map[string]string{}))
+	}
+}
+
+// runSkillsOnly updates the skill packages of a Homebrew install, which has no
+// CLI release to install by hand. It reads no releases when nothing needs an
+// update.
+func (s selfUpdate) runSkillsOnly(ctx context.Context, out io.Writer) {
+	dir, err := config.Dir()
+	if err == nil {
+		err = os.MkdirAll(dir, 0o700)
+	}
+	if err != nil {
+		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
+
+		return
+	}
+	u := newUpdater(slog.New(slog.DiscardHandler), s.version, dir, nil, nil)
+	if s.hc != nil {
+		u.hc = s.hc
+	}
+	names := s.skillNames(ctx, out, dir)
+	if len(names) == 0 {
+		return
+	}
+	releases, err := update.FetchReleases(ctx, u.hc, s.apiBase)
+	if err != nil {
+		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
+
+		return
+	}
+	s.refreshSkills(ctx, out, u, releases, names)
+}
+
+// printSkillResults prints one line for each skill package.
+func printSkillResults(out io.Writer, results []skills.Result) {
+	for _, r := range results {
+		fmt.Fprintln(out, skillLine(r))
+	}
+}
+
+// skillLine is one line about a skill package, for `loupe update`.
+func skillLine(r skills.Result) string {
+	line := "skills: " + r.Package
+	if r.Version != "" {
+		line += " " + r.Version
+	}
+	switch {
+	case r.State == skills.StateFailed:
+		line += " failed: " + r.Reason
+	case r.Installed != "":
+		line += " installed"
+	default:
+		line += " current"
+	}
+
+	return line
+}
+
 // runPanelOnly updates a setup that runs the shared binary. It installs the
 // Live review panel of the running version into the setup and leaves the
 // binary to the default setup.
@@ -521,6 +626,7 @@ func (s selfUpdate) runPanelOnly(ctx context.Context, out io.Writer, u *updater,
 	if err != nil {
 		return err
 	}
+	s.updateSkills(ctx, out, u, releases)
 	note, err := u.ensurePanel(ctx, releases)
 	if err != nil {
 		return err

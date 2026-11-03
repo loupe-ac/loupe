@@ -116,10 +116,11 @@ A setup other than the default never replaces a binary.
   checkout and the commit, and says to run `just cli-setup <folder>`. The bridge
   of the setup runs no update check and reports a build.
 - In a setup that runs the shared binary, `loupe -c <folder> update` installs only the
-  panel copy of the running version into the setup. It prints that the binary
+  panel copy of the running version and the newest skill packages into the setup. It prints that the binary
   updates from the default setup. It asks no running bridge, and it runs for a
-  Homebrew binary too. The bridge runs no update check and reports that updates
-  are off. A release of the shared binary outside the server range
+  Homebrew binary too. The bridge runs no CLI update check and reports that updates
+  are off. With `autoUpdate: true`, it still updates the skill packages of the setup
+  every hour. A release of the shared binary outside the server range
   [drains](../extending/cli-bridge.md#draining). To replace that binary, run
   `LOUPE_CONFIG= loupe update`, then start the bridge again.
 
@@ -134,12 +135,15 @@ The steps, in order:
 1. Sign in, when you are not signed in.
 2. Choose the project.
 3. Link the repository, as `loupe project link` does.
-4. Install the Loupe plugin in Claude Code, or declare `loupe mcp` to Codex.
+4. Install the Loupe plugins that the project needs in Claude Code, or declare `loupe mcp` to Codex.
 5. Write the rule file.
 6. Ask whether to turn on automatic updates.
 7. Start the bridge in the background.
 8. Install the Playwright browser, when the repository uses Playwright.
-9. Print the page to open next.
+9. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
+10. Report the accounts, and print what remains.
+
+Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent. The last lines come after the agent exits, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files, restarting Claude Code and starting discovery. The discovery step goes away after a run starts, and it comes back when the latest run failed. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
 
 | Flag | Purpose |
 |---|---|
@@ -150,6 +154,8 @@ The steps, in order:
 | `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
+| `--agent` | The agent that writes the profile: `claude` or `codex`. With both installed and a terminal, `loupe init` asks once |
+| `--review-profile` | Start the profile agent also when `.loupe/lifecycle.md` is complete, to review each value |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
@@ -433,6 +439,14 @@ The `Bridges:` line counts the running bridges and gives their login state, as i
 `1 running, login valid.` or `none running.`. It reads the bridges with no
 network call. No running bridge is reported and does not fail the check. A bridge
 with an expired login fails the check, and the line points to `loupe bridge status`.
+
+The `Skills:` lines give each skill package in the store with its highest usable
+version and its state. A usable version is one that the CLI can run and whose
+`requires` the store can meet. A running bridge from another setup can hold another
+version, and that version gets its own line that names the bridge. When the last
+update of a package failed on a running bridge, the line gives the version of that
+bridge and the reason and names the bridge, with one line for each such bridge. They
+are notes, and they never fail the check.
 
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.

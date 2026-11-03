@@ -70,14 +70,27 @@ type CheckSpec struct {
 	ConfigDir string
 	Env       []string
 	Projects  map[string]string
+	// Packages maps a project slug to the skill packages its workers need.
+	// A project with no entry needs none. LegacySkills says the user home
+	// still holds Loupe skill folders that the bridge has not moved, and they
+	// stand in for the plugins until it does.
+	Packages     map[string][]string
+	LegacySkills bool
+	// MissingPackages maps a project slug to the packages it names that the
+	// store cannot serve. Each one fails that project.
+	MissingPackages map[string][]string
 }
 
 // Problem is one thing that keeps an account from running. Reason is a short
-// fixed phrase that leaves the machine, so it names no path and no identity.
+// fixed phrase that leaves the machine, so it names no path, no identity and
+// no project.
 // Detail goes to the bridge log alone.
 type Problem struct {
 	Reason string
 	Detail string
+	// Project is the slug of the one project the problem keeps from running.
+	// It is empty for a problem of the whole account.
+	Project string
 }
 
 // Spec is one run. An empty Model, Effort, PermissionMode or Schema passes no
@@ -97,6 +110,14 @@ type Spec struct {
 	RunID string
 	// RunDir is the run directory, which holds the files of a worker.
 	RunDir string
+	// PluginDirs are the skill package folders a Claude Code worker loads,
+	// and MCPConfig is the inline JSON of the MCP servers it gets. Both are
+	// empty for a worker that gets neither, and Codex ignores them.
+	PluginDirs []string
+	MCPConfig  string
+	// HideSkills names the skills a Codex worker must not see, as
+	// <plugin>:<skill>. Claude Code ignores it, and an empty list hides none.
+	HideSkills []string
 }
 
 // Command is the argv after the program, and the environment of the process.

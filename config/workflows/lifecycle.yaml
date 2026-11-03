@@ -1,6 +1,8 @@
 key: lifecycle
-version: 40
+version: 41
 defaultType: feature
+skillPackages: [loupe, loupe-lifecycle]
+needsProfile: true
 epicBranch: 'epic/{number}'
 outcomes:
     - { key: merged, delivered: true }
@@ -140,7 +142,7 @@ rules:
               cancelOnly: open
               checks:
                   - An interactive session that the owner can join
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
                   - When the project has a user interface, a design system that an agent can read, such as design tokens, a component catalog, a styleguide page, or a Design System artifact on claude.ai that the agent instructions name as its home
                   - When the project has a user interface, a Design System artifact on claude.ai that holds or mirrors the design system, named in .loupe/lifecycle.md or the agent instructions
 
@@ -153,7 +155,7 @@ rules:
               role: design-revise
               document: { tag: product-design, status: changes-requested }
               checks:
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: product-design-review
       slot: product-design
@@ -174,7 +176,7 @@ rules:
               document: { tag: product-design, status: draft }
               checks:
                   - A bridge work entry for the design-review kind
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: product-design-review-fix
       slot: product-design
@@ -188,7 +190,7 @@ rules:
               limit: 6
               document: { tag: product-design, status: draft }
               checks:
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: product-design-review-publish
       slot: product-design
@@ -253,7 +255,7 @@ rules:
                   - An interactive session that the owner can join
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: tech-design-write
       slot: tech-design
@@ -270,7 +272,7 @@ rules:
               checks:
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: tech-design-revise
       slot: tech-design
@@ -283,7 +285,7 @@ rules:
               checks:
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: tech-design-review
       slot: tech-design
@@ -304,7 +306,7 @@ rules:
               document: { tag: tech-design, status: draft }
               checks:
                   - A bridge work entry for the design-review kind
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
                   - The agent can read the whole repository
 
     - id: tech-design-review-fix
@@ -321,7 +323,7 @@ rules:
               checks:
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: tech-design-review-publish
       slot: tech-design
@@ -359,7 +361,7 @@ rules:
               checks:
                   - The agent can read the whole repository
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
 
     - id: tech-design-approved
       slot: tech-design
@@ -502,7 +504,7 @@ rules:
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
                   - "Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules"
 
     - id: fix-agent-review
@@ -591,7 +593,7 @@ rules:
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
-                  - The Loupe plugin skills are installed for the agent
+                  - The loupe and loupe-lifecycle skill packages are installed for the agent
                   - "Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules"
 
     - id: fix-agent-review-in-review

@@ -17,7 +17,9 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Lists the caller's projects for the loupe CLI, which checks a token with it
  * and names the valid slugs when a rule file names an unknown project. Each
- * project says what the bridge collects from the tool calls of its runs.
+ * project says what the bridge collects from the tool calls of its runs,
+ * which skill packages its workers need, whether it needs a profile, and
+ * whether the owner still has to start discovery.
  *
  * Agent-scoped tokens only. The firewall grants this path to
  * ROLE_API_AGENT alone, so a project-bound widget token gets 403
@@ -73,6 +75,9 @@ final class ListSitesController extends AppController
                 'name' => $site->project->name,
                 'collectFullText' => $site->collectFullText,
                 'subcommandPrograms' => $site->subcommandPrograms,
+                'skillPackages' => $site->skillPackages,
+                'needsProfile' => $site->needsProfile,
+                'discoveryRemains' => $site->discoveryRemains,
             ],
             $view->sites,
         ))]);

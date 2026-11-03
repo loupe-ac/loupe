@@ -54,12 +54,8 @@ func newProjectLinkCmd() *cobra.Command {
 			"It asks also when your login covers one project. With no terminal to answer, it " +
 			"prints the list and stops, so pass --project <slug>.\n\n" +
 			"It refuses to replace an existing file unless you pass --force.\n\n" +
-			"It also writes " + profile.Path + " when the repository has none, also when " +
-			projectfile.Name + " exists already. The stage skills " +
-			"read that profile, and stop without it. The starter guesses the gate commands from " +
-			"the files it finds, marks each guess \"" + profile.Marker + "\", and marks each value it " +
-			"cannot know \"" + profile.OpenQuestion + "\". Commit the file " +
-			"after you read it. A profile that exists is never replaced.\n\n" +
+			"It writes no profile. `loupe init` starts an agent that writes " + profile.Path + " with you, " +
+			"and this command says so when the file is missing.\n\n" +
 			"It then checks how Claude Code starts the `" + mcpjson.ServerKey + "` MCP server, and " +
 			"offers to declare `loupe mcp` for every project when nothing does. One declaration " +
 			"serves every repository, because the working directory chooses the project.\n\n" +
@@ -71,7 +67,12 @@ func newProjectLinkCmd() *cobra.Command {
 			"that file, and asks you to approve the file once.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProjectLink(cmd, o)
+			err := runProjectLink(cmd, o)
+			if err == nil || errors.Is(err, errAlreadyLinked) {
+				adviseProfile(cmd)
+			}
+
+			return err
 		},
 	}
 	cmd.Flags().StringVar(&o.projectID, "project", "", "project id to write, instead of choosing from a list")
@@ -128,6 +129,22 @@ func loginSites(ctx context.Context) ([]api.Site, error) {
 	return apiClient(cfg).Sites(ctx)
 }
 
+// errAlreadyLinked refuses to replace a link. The folder stays linked, so the
+// command still gives its advice about the profile.
+var errAlreadyLinked = errors.New("pass --force to replace it")
+
+// adviseProfile names the next step for a linked folder with no profile. Only
+// the `project link` command calls it, because `loupe init` has its own step.
+func adviseProfile(cmd *cobra.Command) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	if status, err := profile.Check(dir); err == nil && status.Missing {
+		fmt.Fprintln(cmd.OutOrStdout(), "No profile yet. Run `loupe init` to write it with an agent.")
+	}
+}
+
 // runProjectLink links the current directory to a project. It reads and
 // writes through the streams and the context of cmd.
 func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
@@ -143,12 +160,8 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 	// Whether the file parses is beside the point. Replacing one
 	// somebody wrote is the thing that needs saying yes to.
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !o.force {
-		// A repository linked before the profile existed still needs one.
-		if err := writeProfile(cmd, dir); err != nil {
-			return err
-		}
 		if !o.writeMcp && !o.writeMcpJSON {
-			return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
+			return fmt.Errorf("%s already exists: %w", projectfile.Name, errAlreadyLinked)
 		}
 
 		// --mcp on a repository that already names its project asks for
@@ -185,10 +198,6 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s for project %s.\n", projectfile.Name, projectID)
 
-	if err := writeProfile(cmd, dir); err != nil {
-		return err
-	}
-
 	return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
 }
 
@@ -202,7 +211,7 @@ func runSetupProjectLink(cmd *cobra.Command, dir string, o projectLinkOptions) e
 		return err
 	}
 	if current != "" && !o.force {
-		return fmt.Errorf("the setup %s links this folder to project %s already: pass --force to replace the link", setup.Dir, current)
+		return fmt.Errorf("the setup %s links this folder to project %s already: %w", setup.Dir, current, errAlreadyLinked)
 	}
 
 	projectID := o.projectID
@@ -227,26 +236,6 @@ func runSetupProjectLink(cmd *cobra.Command, dir string, o projectLinkOptions) e
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "The setup %s links this folder to project %s. No file of the repository changed.\n", setup.Dir, projectID)
-
-	return nil
-}
-
-// writeProfile gives the repository its starter profile. The file is a guess
-// that only a commit makes real, so the message says so.
-func writeProfile(cmd *cobra.Command, dir string) error {
-	out := cmd.OutOrStdout()
-
-	result, err := profile.Write(dir)
-	if err != nil {
-		return fmt.Errorf("write %s: %w", profile.Path, err)
-	}
-	if profile.Existing == result {
-		fmt.Fprintf(out, "%s already exists, so it is kept.\n", profile.Path)
-
-		return nil
-	}
-
-	fmt.Fprintf(out, "Wrote %s. Each guess is marked %q. Read it and commit it, because a worker sees only what you push.\n", profile.Path, profile.Marker)
 
 	return nil
 }

@@ -56,6 +56,9 @@ type heartbeater struct {
 	// heartbeat. Either may be nil.
 	onRange func(string)
 	update  func() api.HeartbeatUpdate
+	// skills gives the state of each skill package for a heartbeat. It may be
+	// nil, and it may return nil.
+	skills func() []api.SkillReport
 	// onSent runs after each heartbeat the server accepted, and onReply gets
 	// its reply first, both on the goroutine of the lane. Either may be nil.
 	onSent  func()
@@ -389,6 +392,9 @@ func (h *heartbeater) dispatch() {
 		if u := h.update(); u.State != "" {
 			body.Update = &u
 		}
+	}
+	if h.skills != nil {
+		body.Skills = h.skills()
 	}
 
 	h.queue.SendLatest(heartbeatLane, func(ctx context.Context) error {

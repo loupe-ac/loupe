@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 const MAX_LENGTH = 200;
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const folders = ['plugins/loupe/skills', '.agents/skills'];
+const folders = [
+    'plugins/loupe/skills',
+    'plugins/loupe-lifecycle/skills',
+    '.agents/skills',
+];
 
 function descriptions() {
     const found = [];

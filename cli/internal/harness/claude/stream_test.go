@@ -498,6 +498,39 @@ func TestTheStartLineGivesTheClaudeAndLoupePluginVersions(t *testing.T) {
 	}
 }
 
+// A worker starts with several skill packages. Their versions join as
+// name-version pairs, in the order of the start line.
+func TestTheStartLineJoinsTheVersionsOfSeveralLoupePackages(t *testing.T) {
+	line := `{"type":"system","subtype":"init","claude_code_version":"2.1.301","plugins":[` +
+		`{"name":"honey","source":"honey@greenpt","version":"1.0.0"},` +
+		`{"name":"loupe","source":"loupe@inline","version":"1.4.0"},` +
+		`{"name":"loupe-lifecycle","source":"loupe-lifecycle@inline","version":"1.3.0"},` +
+		`{"name":"loupe-bare","source":"loupe-bare@inline"}]}` + "\n"
+	out, err := Read(strings.NewReader(line))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "loupe-1.4.0+loupe-lifecycle-1.3.0"; out.SkillVersion != want {
+		t.Fatalf("SkillVersion = %q, want %q", out.SkillVersion, want)
+	}
+}
+
+func TestTheJoinedSkillVersionFitsTheServerLimit(t *testing.T) {
+	var plugins []string
+	for _, n := range []string{"loupe-aaaaaaaaaaaaaaaaaaaa", "loupe-bbbbbbbbbbbbbbbbbbbb", "loupe-cccccccccccccccccccc", "loupe-dddddddddddddddddddd"} {
+		plugins = append(plugins, `{"name":"`+n+`","source":"`+n+`@inline","version":"10.20.30"}`)
+	}
+	line := `{"type":"system","subtype":"init","plugins":[` + strings.Join(plugins, ",") + `]}` + "\n"
+	out, err := Read(strings.NewReader(line))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "loupe-aaaaaaaaaaaaaaaaaaaa-10.20.30+loupe-bbbbbbbbbbbbbbbbbbbb-10.20.30"
+	if out.SkillVersion != want || len(out.SkillVersion) > 100 {
+		t.Fatalf("SkillVersion = %q (%d), want %q", out.SkillVersion, len(out.SkillVersion), want)
+	}
+}
+
 func TestARunWithoutAStartLineHasNoVersions(t *testing.T) {
 	out := readFixture(t, "peak_context.jsonl")
 	if out.HarnessVersion != "" || out.SkillVersion != "" {

@@ -170,6 +170,8 @@ type router struct {
 
 	// prices is the state of the OpenRouter price refresh.
 	prices priceState
+	// skills is the state of the read of the skill packages of each project.
+	skills skillState
 
 	mu sync.Mutex
 	// reloading is on while a reload builds its set. reloadKills holds each
@@ -1140,7 +1142,11 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 	spec := p.spec
 	spec.agent = r.agent
 	spec.credentials, spec.project = r.credentials, p.project
+	defer r.releasePackages(p.runID)
 	env, err := spec.accountEnv()
+	if err == nil {
+		err = r.givePackages(&spec, p)
+	}
 	if err != nil {
 		failed := workerResult{err: err, dir: beforeDir}
 		r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})

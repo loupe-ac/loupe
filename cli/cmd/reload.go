@@ -127,6 +127,9 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 
 		return reloadResult{Stage: stage, Problems: problems}
 	}
+	// The swap dispatches, and a new rule file can name a project the last read
+	// lacked. A failed read fails no reload.
+	r.loadSkills(buildCtx)
 	cancel()
 	// The checks have their own time, so a slow build turns off no account.
 	// A failing account fails no reload.
@@ -135,6 +138,7 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 		b.accounts = src.checkAccounts(checkCtx, b.set)
 		cancel()
 		b.set.SetAccountProblems(accountsOff(b.accounts))
+		b.set.SetProjectProblems(projectsOff(b.accounts))
 	}
 	if err := check(); err != nil {
 		done(false)
@@ -143,6 +147,9 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 	}
 	res := r.swap(b, seq)
 	done(res.OK)
+	if res.OK {
+		go r.syncCodexPlugins(r.workerContext())
+	}
 
 	return res
 }

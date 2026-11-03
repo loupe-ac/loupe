@@ -83,7 +83,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 1. The column that holds a pull request waiting for review is `in-review`. The app moves a card there when the required checks pass, and to `done` after the merge.
 2. No stage moves a card to `in-review` or `done`. A move that carries an approval is the app's, never an agent's.
 3. Never read the column list to find this slug. `board_columns` can be missing, which is why the slug is written here.
-4. The column that holds a card in product design is `product-design`. The column that holds a card in tech design is `tech-design`. The `/loupe:product-design` skill reads this slug.
+4. The column that holds a card in product design is `product-design`. The column that holds a card in tech design is `tech-design`. The `/loupe-lifecycle:product-design` skill reads this slug.
 5. The column that holds a card in implementation is `implementation`. The workflow moves a child there. A breakdown moves none.
 6. The default column is `backlog`, and the terminal column is `done`. The workflow moves a new child from `backlog` to `next`. A child in `backlog` is parked and never starts by itself.
 

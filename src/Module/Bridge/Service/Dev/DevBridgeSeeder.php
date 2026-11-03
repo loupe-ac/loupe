@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Uuid;
  * ago, with account usage on the Agents page and the live runs, and one that went
  * quiet. The quiet one carries the id that the 60 days of demo runs name, and the
  * metrics seeder deletes every run of that bridge it does not own.
+ *
+ * @phpstan-import-type AccountRow from Bridge
  */
 #[When('dev')]
 #[When('test')]
@@ -33,11 +35,17 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
 
     private const string CLI_VERSION = '1.4.0';
 
-    /** @var list<array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used: bool, kinds: list<string>, stopAt: int}> */
+    /** @var list<AccountRow> */
     private const array MAIN_ACCOUNTS = [
         ['name' => 'claude-main', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true, 'kinds' => ['implement', 'review'], 'stopAt' => 95],
         ['name' => 'codex-main', 'harness' => 'codex', 'state' => 'ready', 'reason' => null, 'used' => true, 'kinds' => ['review'], 'stopAt' => 90],
         ['name' => 'claude-spare', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'The login expired.', 'used' => false, 'kinds' => [], 'stopAt' => 95],
+    ];
+
+    /** @var list<array{package: string, version: string, state: string, reason: string|null}> */
+    private const array MAIN_SKILLS = [
+        ['package' => 'loupe', 'version' => '1.4.0', 'state' => 'current', 'reason' => null],
+        ['package' => 'loupe-lifecycle', 'version' => '1.3.0', 'state' => 'failed', 'reason' => 'loupe-lifecycle 1.4.0 needs loupe >=1.5.0, and the store holds no such version.'],
     ];
 
     /** @var array<string, array<string, float>> account => window => percent used */
@@ -83,8 +91,10 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
             $main->accounts = self::MAIN_ACCOUNTS;
             $this->em->persist($main);
         }
+        $main->accounts = self::mainAccounts($projectId);
         $main->lastSeenAt = $context->now;
         $main->accountsReportedAt = $context->now;
+        $main->skills = self::MAIN_SKILLS;
 
         $history = $this->bridges->findOneByOwnerAndId($owner, Uuid::fromString(self::HISTORY_BRIDGE));
         if (!$history instanceof Bridge) {
@@ -96,6 +106,23 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
         $this->em->flush();
 
         $this->seedReadings($context, $main);
+    }
+
+    /**
+     * The main accounts, with codex-main ready but failing for this project and one other. Claude Code still runs the
+     * review kind, so the failure shows on the page and holds back no dev work.
+     *
+     * @return list<AccountRow>
+     */
+    private static function mainAccounts(string $projectId): array
+    {
+        $accounts = self::MAIN_ACCOUNTS;
+        $accounts[1]['failedProjects'] = [
+            ['projectId' => $projectId, 'reason' => 'claude is not on PATH'],
+            ['projectId' => '01a19300-0000-7000-8000-00000000de99', 'reason' => 'claude is not on PATH'],
+        ];
+
+        return $accounts;
     }
 
     /** One reading per window and period. Each window resets later than the clock, so the bar shows its percentage. */

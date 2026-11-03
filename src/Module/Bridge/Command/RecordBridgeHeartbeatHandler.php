@@ -125,6 +125,10 @@ final readonly class RecordBridgeHeartbeatHandler
                 }
             }
 
+            if (null !== $command->skills) {
+                $bridge->skills = $command->skills;
+            }
+
             $bridge->updateState = $command->updateState;
             $bridge->updateVersion = $command->updateVersion;
             $bridge->installMethod = $command->installMethod;

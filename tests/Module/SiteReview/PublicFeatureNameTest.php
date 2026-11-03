@@ -14,9 +14,10 @@ final class PublicFeatureNameTest extends TestCase
     {
         yield 'marketplace' => ['.claude-plugin/marketplace.json'];
         yield 'plugin' => ['plugins/loupe/.claude-plugin/plugin.json'];
+        yield 'lifecycle plugin' => ['plugins/loupe-lifecycle/.claude-plugin/plugin.json'];
         yield 'docs readme' => ['website/README.md'];
         yield 'explainer' => ['public/landing/explainer.html'];
-        foreach (glob(dirname(__DIR__, 3).'/plugins/loupe/skills/*/SKILL.md') ?: [] as $skill) {
+        foreach (glob(dirname(__DIR__, 3).'/plugins/*/skills/*/SKILL.md') ?: [] as $skill) {
             $relative = substr($skill, strlen(dirname(__DIR__, 3)) + 1);
             yield $relative => [$relative];
         }

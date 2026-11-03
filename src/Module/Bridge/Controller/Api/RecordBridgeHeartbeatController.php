@@ -110,6 +110,7 @@ final class RecordBridgeHeartbeatController extends AppController
             accessTokenId: AuthenticatedCredential::of($this->tokenStorage->getToken())?->accessTokenId,
             accountReadings: $payload->accountReadings(),
             skipped: $payload->skipped(),
+            skills: $payload->skills(),
         ));
 
         return new JsonResponse([

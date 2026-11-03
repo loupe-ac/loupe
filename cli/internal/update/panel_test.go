@@ -164,8 +164,8 @@ func TestExtractPanelRejectsUnsafeArchives(t *testing.T) {
 			if err == nil || found {
 				t.Fatalf("found = %v, err = %v; want an error", found, err)
 			}
-			if !errors.Is(err, ErrPanelUnsafe) {
-				t.Fatalf("err = %v; want ErrPanelUnsafe", err)
+			if !errors.Is(err, ErrArchiveUnsafe) {
+				t.Fatalf("err = %v; want ErrArchiveUnsafe", err)
 			}
 			if _, err := os.Stat(filepath.Join(dest, PanelAppName)); err == nil {
 				t.Fatal("a rejected archive must leave no app")
@@ -183,7 +183,7 @@ func TestExtractPanelCapsTheUnpackedSize(t *testing.T) {
 	t.Cleanup(func() { maxPanelBytes = old })
 
 	_, err := ExtractPanel(buildTar(t, file("Live review.app/a", "123456", 0o644), file("Live review.app/b", "123456", 0o644)), t.TempDir())
-	if !errors.Is(err, ErrPanelTooBig) || errors.Is(err, ErrPanelUnsafe) {
+	if !errors.Is(err, ErrPanelTooBig) || errors.Is(err, ErrArchiveUnsafe) {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -200,7 +200,7 @@ func TestExtractPanelCapsTheEntryCount(t *testing.T) {
 }
 
 func TestExtractPanelRejectsAnArchiveThatIsNotGzip(t *testing.T) {
-	if _, err := ExtractPanel([]byte("nope"), t.TempDir()); err == nil || errors.Is(err, ErrPanelUnsafe) || !strings.Contains(err.Error(), "archive") {
+	if _, err := ExtractPanel([]byte("nope"), t.TempDir()); err == nil || errors.Is(err, ErrArchiveUnsafe) || !strings.Contains(err.Error(), "archive") {
 		t.Fatalf("err = %v", err)
 	}
 }

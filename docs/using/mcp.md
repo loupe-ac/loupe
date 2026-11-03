@@ -44,7 +44,7 @@ asks you which project to use.
 | Step | Claude Code | Codex |
 |---|---|---|
 | MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `loupe mcp` is declared to Codex with the project id |
-| Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of the Loupe skills in `~/.agents/skills/` |
+| Skills | The Claude Code plugins, see [below](#the-claude-code-plugins) | The Loupe plugins, installed in each Codex home |
 
 Codex gets the project id in its server declaration, and Claude Code reads it
 from `.loupe.yaml`. At the end, the agent tells you to restart it. The new
@@ -233,17 +233,21 @@ The machine step of the first-run wizard at `/welcome/connect` shows the
 install command, `loupe init --project <project id>` and the setup prompt, and
 it lists what Loupe sees of the machine, live.
 
-## The Claude Code plugin
+## The Claude Code plugins
 
-The plugin ships skills, and no MCP server. `loupe login` and `loupe init` set
+The two plugins ship skills, and no MCP server. `loupe login` and `loupe init` set
 the server up, so nothing here holds a credential and nothing asks you for one.
 
 ```bash
 claude plugin marketplace add loupe-ac/loupe
 claude plugin install loupe@loupe
+claude plugin install loupe-lifecycle@loupe
 ```
 
-It installs one skill for each part of working a Loupe project:
+`loupe` holds the core skills, and every project uses them. `loupe-lifecycle` holds
+the design sessions and the card stages, and only a project on the Lifecycle
+workflow uses them. Each plugin installs one skill for each part of working a
+Loupe project:
 
 | Skill | Covers |
 |---|---|
@@ -254,18 +258,18 @@ It installs one skill for each part of working a Loupe project:
 | `loupe:loupe-workers` | Reading worker runs and bridges, and stopping, resuming or cancelling a run |
 | `loupe:loupe-analysis` | Running an analysis: a cost report, or a comparison of the variants of an experiment, with proposals |
 | `loupe:loupe-discovery` | A read-only discovery run that writes the readiness report of a project |
-| `loupe:product-design` | An interactive product design session with the owner, from a card or a one-line idea |
-| `loupe:tech-design` | An interactive tech design session with the owner, from a card that has a product document or a card body |
-| `loupe:loupe-stage-product-design` | One review round on a product document |
-| `loupe:loupe-stage-tech-design` | A card entering the tech design column |
-| `loupe:loupe-stage-implementation` | Building an approved design into a pull request |
-| `loupe:loupe-stage-fix-round` | One round of review feedback, from a fix request or run by hand |
-| `loupe:loupe-stage-review` | Reviewing the pull request of a card at its head commit |
-| `loupe:loupe-stage-design-review` | Reviewing a draft product design or tech design |
-| `loupe:loupe-stage-merge` | Merging a ready pull request, or updating one that is behind its base |
-| `loupe:loupe-stage-repair` | Fixing the cause of failed work, after its retries run out |
+| `loupe-lifecycle:product-design` | An interactive product design session with the owner, from a card or a one-line idea |
+| `loupe-lifecycle:tech-design` | An interactive tech design session with the owner, from a card that has a product document or a card body |
+| `loupe-lifecycle:loupe-stage-product-design` | One review round on a product document |
+| `loupe-lifecycle:loupe-stage-tech-design` | A card entering the tech design column |
+| `loupe-lifecycle:loupe-stage-implementation` | Building an approved design into a pull request |
+| `loupe-lifecycle:loupe-stage-fix-round` | One round of review feedback, from a fix request or run by hand |
+| `loupe-lifecycle:loupe-stage-review` | Reviewing the pull request of a card at its head commit |
+| `loupe-lifecycle:loupe-stage-design-review` | Reviewing a draft product design or tech design |
+| `loupe-lifecycle:loupe-stage-merge` | Merging a ready pull request, or updating one that is behind its base |
+| `loupe-lifecycle:loupe-stage-repair` | Fixing the cause of failed work, after its retries run out |
 
-The plugin carried an MCP server until version 0.2.0, as an HTTP endpoint plus a
+The `loupe` plugin carried an MCP server until version 0.2.0, as an HTTP endpoint plus a
 project API token you typed at install. Two things were wrong with it. A plugin
 holds one set of config values per user, so that was one token across every
 project you work in, and an MCP credential binds to one project. And the token
@@ -365,7 +369,7 @@ Roughly in the order an agent uses them:
 | `bucket_rule_create` | Add a time bucket rule at the end of the list, with a `pattern` glob of at most 120 characters and a `bucket` name of 1 to 64 lower case letters, digits, underscores or hyphens. A bad pattern or bucket, or a project at its limit, gives a tool error. The answer is the list of rules |
 | `bucket_rule_move` | Move a rule one place `up` or `down`, by its `ruleId`. The first rule cannot move up and the last cannot move down, so those moves change nothing. An id of another project gives a tool error. The answer is the list of rules |
 | `bucket_rule_delete` | Delete a rule by its `ruleId`. An id of another project gives a tool error. The answer is the rules that remain |
-| `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, why a quiet bridge is quiet (`quietCause`: `login-expired`, `unknown`, or null for a live bridge), their pause, their worker pools, their account checks, their command entries, whether they add a proposed entry (`acceptsEntries`) and their open runs |
+| `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, why a quiet bridge is quiet (`quietCause`: `login-expired`, `unknown`, or null for a live bridge), their pause, their worker pools, their account checks, their skill packages with version, state and failure reason, their command entries, whether they add a proposed entry (`acceptsEntries`) and their open runs |
 | `worker_run_resume` | Ask the bridges to resume up to 50 ended worker runs, each resumed or refused on its own |
 | `worker_run_stop` | Ask the bridge to stop a queued or running worker run. The stop does not make the card unmanaged, so call `card_hold` for that |
 | `card_hold` | Make a card unmanaged, by `cardId` or `number`. The workflow makes no move and starts no work on the card, and no bridge starts a worker on it, until `card_release`. Loupe cancels the work requests of the card that no bridge took yet. A live run goes on |

@@ -8968,7 +8968,10 @@
                                 "slug",
                                 "name",
                                 "collectFullText",
-                                "subcommandPrograms"
+                                "subcommandPrograms",
+                                "skillPackages",
+                                "needsProfile",
+                                "discoveryRemains"
                             ],
                             "properties": {
                                 "id": {
@@ -8990,6 +8993,23 @@
                                     "items": {
                                         "type": "string"
                                     }
+                                },
+                                "skillPackages": {
+                                    "description": "The skill packages a worker of the project needs, or null when the stored template copy names none. A reader of null takes every package it holds.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "nullable": true
+                                },
+                                "needsProfile": {
+                                    "description": "Whether the project needs a repository profile, or null when the stored template copy says nothing. A reader of null takes true.",
+                                    "type": "boolean",
+                                    "nullable": true
+                                },
+                                "discoveryRemains": {
+                                    "description": "Whether the owner still has to start discovery. It is true when the project has no discovery run, or when its latest run failed. A reader with no value takes true.",
+                                    "type": "boolean"
                                 }
                             },
                             "type": "object"
@@ -10581,6 +10601,22 @@
                 },
                 "type": "object"
             },
+            "BridgeFailedProjectInput": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 200
+                    }
+                },
+                "type": "object"
+            },
             "BridgeAccountInput": {
                 "properties": {
                     "name": {
@@ -10637,6 +10673,20 @@
                         "nullable": true,
                         "default": null,
                         "maxItems": 8
+                    },
+                    "failedProjects": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeFailedProjectInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "appPrompts": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
                     }
                 },
                 "type": "object"
@@ -10825,6 +10875,38 @@
                 },
                 "type": "object"
             },
+            "BridgeSkillInput": {
+                "properties": {
+                    "package": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "version": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 50
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "current",
+                            "failed"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    }
+                },
+                "type": "object"
+            },
             "RecordBridgeHeartbeatRequest": {
                 "properties": {
                     "projects": {
@@ -11008,6 +11090,16 @@
                         "nullable": true,
                         "default": null,
                         "maxItems": 200
+                    },
+                    "skills": {
+                        "title": "The skill rows as the bridge row stores them. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeSkillInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
                     }
                 },
                 "type": "object"

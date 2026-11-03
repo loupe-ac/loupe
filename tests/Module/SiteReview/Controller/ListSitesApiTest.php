@@ -8,6 +8,9 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Insights\Entity\InsightsProjectSettings;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
+use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
+use App\Tests\Module\Readiness\DiscoveryScenario;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +21,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class ListSitesApiTest extends WebTestCase
 {
+    use DiscoveryScenario;
+
     public function test_lists_only_callers_sites(): void
     {
         $client = static::createClient();
@@ -134,6 +139,130 @@ final class ListSitesApiTest extends WebTestCase
         $programs = array_column($data['sites'], 'subcommandPrograms', 'slug');
         self::assertSame(['bazel', 'git'], $programs['own-programs']);
         self::assertSame(['just'], $programs['instance-programs']);
+    }
+
+    /** The CLI reads the packages and the profile need of the template copy of each project. */
+    public function test_each_site_carries_the_skill_packages_of_its_template(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-sites-packages@example.com');
+        $lifecycle = new Project($owner, 'Packages Lifecycle');
+        $simple = new Project($owner, 'Packages Simple');
+        $older = new Project($owner, 'Packages Older');
+        foreach ([$lifecycle, $simple, $older] as $project) {
+            $em->persist($project);
+        }
+        $em->flush();
+        $bind = static::getContainer()->get(BindWorkflowTemplateHandler::class);
+        self::assertInstanceOf(BindWorkflowTemplateHandler::class, $bind);
+        foreach ([$lifecycle, $simple, $older] as $project) {
+            $bind(new BindWorkflowTemplateCommand($project, 'simple', []));
+        }
+        $connection = $em->getConnection();
+        $connection->executeStatement("UPDATE workflow_bindings SET definition = definition || '{\"skillPackages\": [\"loupe\", \"loupe-lifecycle\"], \"needsProfile\": true}'::jsonb WHERE project_id = ?", [(string) $lifecycle->id]);
+        $connection->executeStatement("UPDATE workflow_bindings SET definition = definition - 'skillPackages' - 'needsProfile' WHERE project_id = ?", [(string) $older->id]);
+
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        $packages = array_column($data['sites'], 'skillPackages', 'slug');
+        $profile = array_column($data['sites'], 'needsProfile', 'slug');
+        self::assertSame(['loupe', 'loupe-lifecycle'], $packages['packages-lifecycle']);
+        self::assertTrue($profile['packages-lifecycle']);
+        self::assertSame(['loupe'], $packages['packages-simple']);
+        self::assertFalse($profile['packages-simple']);
+        self::assertNull($packages['packages-older']);
+        self::assertNull($profile['packages-older']);
+    }
+
+    /** A value that the template parser drops from a stored copy reaches the CLI as null, so the CLI takes its fallback. */
+    public function test_a_malformed_stored_skill_setting_reads_as_null(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+
+        $malformed = [
+            'malformed-empty' => '{"skillPackages": [], "needsProfile": "true"}',
+            'malformed-repeated' => '{"skillPackages": ["loupe", "loupe"], "needsProfile": 1}',
+            'malformed-case' => '{"skillPackages": ["Loupe"], "needsProfile": null}',
+            'malformed-path' => '{"skillPackages": ["../loupe"], "needsProfile": []}',
+            'malformed-type' => '{"skillPackages": ["loupe", 1], "needsProfile": "false"}',
+            'malformed-map' => '{"skillPackages": {"a": "loupe"}, "needsProfile": 0}',
+            'malformed-string' => '{"skillPackages": "loupe", "needsProfile": {}}',
+        ];
+        $owner = $this->user($em, 'list-sites-malformed@example.com');
+        $projects = [];
+        foreach (array_keys($malformed) as $slug) {
+            $projects[$slug] = new Project($owner, $slug);
+            $em->persist($projects[$slug]);
+        }
+        $valid = new Project($owner, 'malformed-valid');
+        $em->persist($valid);
+        $em->flush();
+        $bind = static::getContainer()->get(BindWorkflowTemplateHandler::class);
+        self::assertInstanceOf(BindWorkflowTemplateHandler::class, $bind);
+        $bind(new BindWorkflowTemplateCommand($valid, 'simple', []));
+        $connection = $em->getConnection();
+        foreach ($projects as $slug => $project) {
+            $bind(new BindWorkflowTemplateCommand($project, 'simple', []));
+            $connection->executeStatement('UPDATE workflow_bindings SET definition = definition || ?::jsonb WHERE project_id = ?', [$malformed[$slug], (string) $project->id]);
+        }
+
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        $packages = array_column($data['sites'], 'skillPackages', 'slug');
+        $profile = array_column($data['sites'], 'needsProfile', 'slug');
+        // Guard: a valid copy still reads, or the nulls below prove nothing.
+        self::assertSame(['loupe'], $packages['malformed-valid']);
+        self::assertFalse($profile['malformed-valid']);
+        foreach (array_keys($malformed) as $slug) {
+            self::assertArrayHasKey($slug, $packages);
+            self::assertNull($packages[$slug], $slug);
+            self::assertNull($profile[$slug], $slug);
+        }
+    }
+
+    /** `loupe init` names discovery in its last lines only while the owner still has to start it. */
+    public function test_each_site_says_whether_discovery_remains(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $started = $this->workflowProject('discovery-started');
+        $this->discoveryRun($this->discoveryCard($started));
+        $owner = $started->owner;
+        $owner->emailVerifiedAt = new \DateTimeImmutable();
+        AcceptedTerms::stamp($owner, static::getContainer());
+        $em = $this->em();
+        $untouched = new Project($owner, 'discovery-untouched');
+        $em->persist($untouched);
+        $em->flush();
+
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        $remains = array_column($data['sites'], 'discoveryRemains', 'id');
+        self::assertFalse($remains[(string) $started->id]);
+        self::assertTrue($remains[(string) $untouched->id]);
     }
 
     public function test_the_old_agent_path_is_gone(): void

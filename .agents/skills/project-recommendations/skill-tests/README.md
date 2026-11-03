@@ -14,7 +14,7 @@ These pages are not published on the documentation site. They hold the six cases
 
 3. Cases 5 and 6 use this prompt. `<checkout>` is the path of the checkout. These cases test the skill and the review checklist. They do not run the `loupe-stage-review` procedure, which needs a card and an open pull request.
 
-   > You are the reviewer of an agent review. Read `<checkout>`/plugins/loupe/skills/loupe-stage-review/references/checklist.md, then context.md and change.diff in the current folder. Report your findings, each with a severity (blocking, important or minor) and a title, or say no findings. Then give a one-line verdict. At most 150 words. Do not edit any file.
+   > You are the reviewer of an agent review. Read `<checkout>`/plugins/loupe-lifecycle/skills/loupe-stage-review/references/checklist.md, then context.md and change.diff in the current folder. Report your findings, each with a severity (blocking, important or minor) and a title, or say no findings. Then give a one-line verdict. At most 150 words. Do not edit any file.
 
 4. To test with the skill, start the prompt with: "First read `<checkout>`/.agents/skills/project-recommendations/SKILL.md and follow it."
 5. Run it with `printf "%s" "$PROMPT" | claude -p --permission-mode bypassPermissions` from the fixture folder. Run each case three times, because answers vary.

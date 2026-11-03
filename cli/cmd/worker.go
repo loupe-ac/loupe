@@ -23,6 +23,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/stream"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 	"github.com/loupe-ac/loupe/cli/internal/usage"
@@ -157,6 +158,13 @@ type workerSpec struct {
 	// machine.
 	credentials *credentialBroker
 	project     string
+	// packages are the skill packages the worker loads, and mcpConfig is the
+	// inline JSON of its loupe MCP server. Both are empty for a worker that
+	// gets neither.
+	packages  []skills.Pick
+	mcpConfig string
+	// hideSkills names the skills a Codex worker must not see.
+	hideSkills []string
 }
 
 // workerOps is the process surface the router drives. Tests replace run so the

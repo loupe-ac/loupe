@@ -40,7 +40,7 @@ final class ShippedKindPromptsTest extends TestCase
 
     public function test_a_merge_stage_prompt_asks_for_an_action_that_the_merge_skill_accepts(): void
     {
-        $skill = (string) file_get_contents(self::ROOT.'/plugins/loupe/skills/loupe-stage-merge/SKILL.md');
+        $skill = (string) file_get_contents(self::ROOT.'/plugins/loupe-lifecycle/skills/loupe-stage-merge/SKILL.md');
 
         $checked = 0;
         foreach ($this->lifecycleKinds() as $kind) {

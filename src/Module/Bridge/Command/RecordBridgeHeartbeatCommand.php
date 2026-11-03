@@ -16,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * @phpstan-import-type HookRow from Bridge
+ * @phpstan-import-type SkillRow from Bridge
  * @phpstan-import-type WorkerPoolRow from Bridge
  * @phpstan-import-type AccountRow from Bridge
  * @phpstan-import-type CommandEntryRow from Bridge
@@ -28,6 +29,7 @@ final readonly class RecordBridgeHeartbeatCommand
     /**
      * @param list<string>                 $projects            project ids as the bridge sent them, which may name projects the owner does not hold
      * @param list<HookRow>|null           $hooks               null keeps the stored rows, because a bridge that predates hooks sends none
+     * @param list<SkillRow>|null          $skills              null keeps the stored rows, because a bridge that predates skills sends none; an empty list clears them
      * @param list<WorkerPoolRow>|null     $workerPools         null keeps the stored rows, because a bridge that predates worker pools sends none
      * @param bool|null                    $paused              null keeps the stored value, because a bridge that predates the pause sends none
      * @param list<string>|null            $capabilities        null keeps the stored names, because a bridge that predates capabilities sends none
@@ -72,6 +74,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public ?string $accessTokenId = null,
         public array $accountReadings = [],
         public array $skipped = [],
+        public ?array $skills = null,
     ) {
     }
 }

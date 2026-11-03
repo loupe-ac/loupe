@@ -16,6 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * One heartbeat, as the bridge sends it.
  *
  * @phpstan-import-type HookRow from Bridge
+ * @phpstan-import-type SkillRow from Bridge
  * @phpstan-import-type WorkerPoolRow from Bridge
  * @phpstan-import-type AccountRow from Bridge
  * @phpstan-import-type CommandEntryRow from Bridge
@@ -30,6 +31,9 @@ final class RecordBridgeHeartbeatRequest
 
     /** Far above the hooks one bridge runs, and small enough to bound the JSON column. */
     public const int MAX_HOOKS = 100;
+
+    /** Far above the skill packages one project needs, and small enough to bound the JSON column. */
+    public const int MAX_SKILLS = 20;
 
     /** Far above the pools one bridge runs, and small enough to bound the JSON column. */
     public const int MAX_WORKER_POOLS = 50;
@@ -89,6 +93,7 @@ final class RecordBridgeHeartbeatRequest
      * @param list<BridgeSessionReadingInput>|null $interactiveSessions null from a bridge that predates session liveness
      * @param int|null                             $gitIdentitiesAge    the seconds since the bridge read $gitIdentities, null for a fresh read
      * @param list<BridgeSkippedWorkInput>|null    $skipped             the requests the bridge skipped since its last heartbeat, null from a bridge that predates them
+     * @param list<BridgeSkillInput>|null          $skills              null from a bridge that predates skills; an empty list clears the stored rows
      */
     public function __construct(
         #[Assert\All([new Assert\NotBlank(), new Assert\Uuid()])]
@@ -188,6 +193,12 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $skipped = null,
+
+        #[Assert\All([new Assert\Type(BridgeSkillInput::class)])]
+        #[Assert\Count(max: self::MAX_SKILLS)]
+        #[Assert\Type('list')]
+        #[Assert\Valid]
+        public ?array $skills = null,
     ) {
     }
 
@@ -253,6 +264,25 @@ final class RecordBridgeHeartbeatRequest
     public function workKinds(): array
     {
         return array_values(array_unique($this->workKinds ?? []));
+    }
+
+    /**
+     * The skill rows as the bridge row stores them. Null when the bridge sent no report.
+     *
+     * @return list<SkillRow>|null
+     */
+    public function skills(): ?array
+    {
+        if (null === $this->skills) {
+            return null;
+        }
+
+        return array_map(static fn (BridgeSkillInput $skill): array => [
+            'package' => trim($skill->package ?? ''),
+            'version' => trim($skill->version ?? ''),
+            'state' => BridgeSkillInput::STATE_FAILED === $skill->state ? 'failed' : 'current',
+            'reason' => '' === trim($skill->reason ?? '') ? null : trim($skill->reason ?? ''),
+        ], array_values($this->skills));
     }
 
     /**
@@ -325,6 +355,15 @@ final class RecordBridgeHeartbeatRequest
             }
             if (null !== $account->stopAt) {
                 $row['stopAt'] = $account->stopAt;
+            }
+            if (null !== $account->failedProjects && [] !== $account->failedProjects) {
+                $row['failedProjects'] = array_map(
+                    static fn (BridgeFailedProjectInput $project): array => ['projectId' => strtolower($project->projectId ?? ''), 'reason' => trim($project->reason ?? '')],
+                    array_values($account->failedProjects),
+                );
+            }
+            if (true === $account->appPrompts) {
+                $row['appPrompts'] = true;
             }
 
             return $row;

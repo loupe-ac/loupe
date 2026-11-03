@@ -104,10 +104,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 `
 
 // PermissionModes are the values claude 2.1.270 takes for --permission-mode.
@@ -394,6 +394,10 @@ type Set struct {
 	// accountsOff maps each account that failed its check to the reason. It
 	// is nil until a check ran, and mu guards it.
 	accountsOff map[string]string
+	// projectsOff maps an account to the projects it failed its check for,
+	// and each project to the reason. A failed project turns off the work of
+	// that project on the account, and no other work.
+	projectsOff map[string]map[string]string
 }
 
 // ErrMissing marks a rule file that does not exist.
@@ -808,10 +812,38 @@ func (s *Set) AccountsOff() map[string]string {
 	return maps.Clone(s.accountsOff)
 }
 
+// SetProjectProblems turns off the work of one project on an account, for each
+// project of m, which maps an account to its failed projects and their
+// reasons. A nil m turns none off.
+func (s *Set) SetProjectProblems(m map[string]map[string]string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.projectsOff = map[string]map[string]string{}
+	for account, projects := range m {
+		s.projectsOff[account] = maps.Clone(projects)
+	}
+}
+
+// ProjectsOff maps an account to the projects it failed its check for, and
+// each project slug to the reason. It is empty until SetProjectProblems ran.
+func (s *Set) ProjectsOff() map[string]map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := map[string]map[string]string{}
+	for account, projects := range s.projectsOff {
+		out[account] = maps.Clone(projects)
+	}
+
+	return out
+}
+
 // offLocked reports whether one of runs takes an account that failed its
-// check. The caller holds mu.
-func (s *Set) offLocked(runs []RunSettings) bool {
-	return slices.ContainsFunc(runs, func(r RunSettings) bool { return s.accountsOff[r.Account] != "" })
+// check, or failed it for the project slug. An empty slug asks about the
+// account alone. The caller holds mu.
+func (s *Set) offLocked(runs []RunSettings, slug string) bool {
+	return slices.ContainsFunc(runs, func(r RunSettings) bool {
+		return s.accountsOff[r.Account] != "" || slug != "" && s.projectsOff[r.Account][slug] != ""
+	})
 }
 
 // keyNode is the key node at path in the document root, or nil. A string

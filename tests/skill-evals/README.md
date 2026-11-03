@@ -1,6 +1,6 @@
 # Skill evals
 
-This suite tests the skills of the Loupe plugin (`plugins/loupe`) offline, with `claude plugin eval`. Each case gives Claude a prompt with only the plugin loaded, and graders check what Claude did. The `loupe` MCP tools are mocks, so a run never reaches a Loupe instance.
+This suite tests the skills of the Loupe plugins (`plugins/loupe` and `plugins/loupe-lifecycle`) offline, with `claude plugin eval`. Each case gives Claude a prompt with only the plugin loaded, and graders check what Claude did. The `loupe` MCP tools are mocks, so a run never reaches a Loupe instance.
 
 ## Run it
 
@@ -11,7 +11,7 @@ just skill-eval --tag insurance       # the cases with one tag
 just skill-eval --runs 1              # a quick, noisy pass
 ```
 
-The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder and adds these to the copy:
+The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder, adds the skills of `plugins/loupe-lifecycle`, and adds these to the copy:
 
 1. A `.mcp.json` that declares a server named `loupe`. A mock attaches only to a server that the plugin declares, and the real plugin declares none, because `loupe init` adds the server at user level. The run never starts this server, so its URL can point nowhere.
 2. The `evals/` folder of this suite.
@@ -68,6 +68,7 @@ The cases named `foreign-*` prove the skills on a repository that is not this on
 | Case | Skill | Decision point |
 |---|---|---|
 | `foreign-implementation-no-changelog` | `loupe-stage-implementation` | The run reaches the push and ends `waiting`. It never ends `blocked`, writes no changelog entry and runs no `just` command. |
+| `foreign-profile-agent` | `loupe-profile` | The repository has no profile, and it has the `.loupe.yaml` that `loupe init` leaves uncommitted. The run reads `workflow_get` and the repository, writes every required section with the gate command of `CONTRIBUTING.md`, and runs `git push`. It writes no guess marker. |
 | `foreign-merge-epic-preview-none` | `loupe-stage-merge` | The profile says `Epic preview: none`, so an epic preview request ends `STAGE RESULT: unchanged`. |
 | `foreign-merge-epic-preview-head` | `loupe-stage-merge` | The worker folder is a plain folder. The refresh needs `HEAD` to equal `origin/<epic branch>` and nothing else. |
 | `foreign-review-python` | `loupe-stage-review` | The review reads the change with git objects and never checks out the branch. It submits a finding on a division by zero at the full head commit. |
@@ -90,7 +91,8 @@ A foreign case does not cover these:
 
 1. A stop in a real `gh` command. The forge answers are text in the prompt.
 2. A Codex worker. The evals run Claude only.
-3. The real session test of the design sessions.
+3. What reaches the remote. A grader reads the tool calls, so it sees the `git push` command and not its result. `tests/skill-evals/profile-agent/run.sh <claude|codex>` runs the profile skill on the same repository, with the same prompt and the same `workflow_get` answer. It exits 1 unless `.loupe/lifecycle.md` and `.loupe.yaml` are on `main` in the bare remote. It costs one run of the agent. `tests/js/profile_agent_run.test.js` tests its verdict with a fake agent.
+4. The real session test of the design sessions.
 
 Run the cases against an older revision to see which of them catch a fix:
 
