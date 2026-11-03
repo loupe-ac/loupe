@@ -60,7 +60,7 @@ func newStatusCmd() *cobra.Command {
 			"in this directory: a permission default, a prompt source, or a project that maps this " +
 			"directory. A note never fails the check, and `loupe init` fixes it.\n\n" +
 			"The `Skills:` lines give the version of each skill package in the store, and say " +
-			"when the last update of a package failed and why. A note never fails the check.\n\n" +
+			"when the last update of a package failed, why, and on which bridge. A note never fails the check.\n\n" +
 			"The `Bridges:` line counts the running bridges and gives their login state. No running bridge " +
 			"is reported and does not fail the check. A bridge that waits for a new login fails it. " +
 			"`loupe bridge status` gives the detail.\n\n" +
@@ -218,20 +218,21 @@ func printStatusBridges(out io.Writer, reports []bridgeReport, err error) error 
 
 // noteSkills prints one line for each skill package: its version in the store
 // and its state. The store gives the version. A running bridge gives a failure
-// and its reason, which the store cannot know. It is a note only, so it never
-// fails the check.
+// and its reason, which the store cannot know, so each failure line names its
+// bridge. It is a note only, so it never fails the check.
 func noteSkills(out io.Writer, bridges []bridgeReport) {
 	dir, err := config.Dir()
 	if err != nil {
 		return
 	}
-	failed := map[string]string{}
+	type failure struct{ bridge, reason string }
+	failed := map[string][]failure{}
 	names := skills.Held(dir)
 	for _, b := range bridges {
 		for _, r := range b.status.Skills {
 			names = append(names, r.Package)
 			if r.State == skills.StateFailed {
-				failed[r.Package] = r.Reason
+				failed[r.Package] = append(failed[r.Package], failure{b.heading(), r.Reason})
 			}
 		}
 	}
@@ -244,10 +245,13 @@ func noteSkills(out io.Writer, bridges []bridgeReport) {
 	}
 	for _, name := range names {
 		res := skills.Status(dir, version, name)
-		if reason, ok := failed[name]; ok {
-			res.State, res.Reason = skills.StateFailed, reason
+		if len(failed[name]) == 0 {
+			fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(res), "skills: "))
 		}
-		fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(res), "skills: "))
+		for _, f := range failed[name] {
+			res.State, res.Reason = skills.StateFailed, f.reason
+			fmt.Fprintf(out, "Skills:      %s (bridge %s)\n", strings.TrimPrefix(skillLine(res), "skills: "), f.bridge)
+		}
 	}
 }
 

@@ -66,9 +66,9 @@ type skillState struct {
 	// of the session then keeps them. A prune takes mu for its whole length, so
 	// a pick never lands on a folder that the prune deletes.
 	holds map[string][]skills.Pick
-	// failed holds the reason of the last update that failed, for each package.
-	// An update that succeeds clears it.
-	failed map[string]string
+	// failed holds the result of the last update that failed, for each package.
+	// An update that succeeds clears it, and so does another version in the store.
+	failed map[string]skills.Result
 }
 
 // loadSkills reads the project list and keeps the answer, unless a read that
@@ -380,10 +380,10 @@ func (r *router) recordSkillResults(results []skills.Result) {
 	s := &r.skills
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.failed = map[string]string{}
+	s.failed = map[string]skills.Result{}
 	for _, res := range results {
 		if res.State == skills.StateFailed {
-			s.failed[res.Package] = res.Reason
+			s.failed[res.Package] = res
 		}
 	}
 }
@@ -399,8 +399,9 @@ const (
 
 // skillReports gives the heartbeat one row for each package. The version comes
 // from the store, so it is right after any install, `loupe update` included. A
-// package that the last update failed for is failed, with that reason. A
-// development build with an empty store reports nothing, because its workers use
+// package that the last update failed for is failed, with that reason, until the
+// store holds another version. Another process can install that version, so only
+// the store shows it. A development build with an empty store reports nothing, because its workers use
 // the plugin their account installed.
 func (r *router) skillReports() []api.SkillReport {
 	names := r.skillNames()
@@ -413,8 +414,8 @@ func (r *router) skillReports() []api.SkillReport {
 	reports := make([]api.SkillReport, 0, min(len(names), maxSkillReports))
 	for _, name := range names[:min(len(names), maxSkillReports)] {
 		res := skills.Status(s.dir, s.cliVersion, name)
-		if reason, ok := s.failed[name]; ok {
-			res.State, res.Reason = skills.StateFailed, reason
+		if failure, ok := s.failed[name]; ok && failure.Version == res.Version {
+			res.State, res.Reason = skills.StateFailed, failure.Reason
 		}
 		reports = append(reports, api.SkillReport{
 			Package: res.Package,

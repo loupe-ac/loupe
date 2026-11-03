@@ -1666,6 +1666,8 @@ the next worker of a project takes the new ones. The bridge logs
 The heartbeat carries one row for each package in `skills`. `version` is the
 highest version in the store that the CLI can use, and `none` when there is
 none. `state` is `current`, or `failed` with the `reason` of the last update.
+A failure ends when the store holds another version, whichever process installed
+it, so a manual `loupe update` clears it.
 The [agents page](#a-worker-account-with-its-own-plugins) shows the rows.
 `loupe status` prints them too.
 

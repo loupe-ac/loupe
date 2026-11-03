@@ -475,17 +475,25 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		return u.result(updateDev, "", "the bridge runs a development build")
 	}
 	if u.shared {
-		u.sharedSkills(ctx)
+		results, err := u.skillsAlone(ctx, force)
+		u.skillResult = results
+		if err != nil {
+			return u.result(outcomeFailed, "", err.Error())
+		}
 
 		return u.result(updateOff, "", "")
 	}
 	if cliRange == "" {
+		u.skillResult, _ = u.skillsAlone(ctx, force)
+
 		return u.result(outcomeFailed, "", "the server has not sent the CLI range yet")
 	}
 	u.log.Info("update_check", "from", u.version, "range", cliRange)
 	if update.Above(u.version, cliRange) {
 		// A release above the range is for a newer server. A downgrade would
 		// not fix it, so the bridge drains until the server catches up.
+		u.skillResult, _ = u.skillsAlone(ctx, force)
+
 		return u.result(outcomeFailed, "", "The running version is above the range this Loupe supports. Upgrade the server.")
 	}
 
@@ -570,19 +578,21 @@ func (u *updater) skillsDue(force bool) bool {
 	return u.skillNames != nil && (force || (u.autoUpdate != nil && u.autoUpdate()))
 }
 
-// sharedSkills updates the skill packages of a setup that runs the shared
-// binary. Its store is its own, and it never checks for a CLI release.
-func (u *updater) sharedSkills(ctx context.Context) {
-	if !u.skillsDue(false) {
-		return
+// skillsAlone updates the skill packages in a check that installs no CLI
+// release. A setup that runs the shared binary takes this path, and so does a
+// check whose CLI range rules out a release.
+func (u *updater) skillsAlone(ctx context.Context, force bool) ([]skills.Result, error) {
+	if !u.skillsDue(force) {
+		return nil, nil
 	}
 	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
 	if err != nil {
 		u.failed(ctx, err, "")
 
-		return
+		return nil, err
 	}
-	u.refreshSkills(ctx, releases, false)
+
+	return u.refreshSkills(ctx, releases, force), nil
 }
 
 // refreshSkills installs the newest skill package versions the store lacks,

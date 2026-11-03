@@ -241,6 +241,57 @@ func TestASharedSetupUpdatesItsOwnSkillsUnderAutoUpdate(t *testing.T) {
 	}
 }
 
+func TestAForcedCheckInASharedSetupUpdatesSkillsAndReturnsTheirResults(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0")
+	gh.publishGoodSkill(t, "loupe", "1.1.0", `{}`)
+	h, _ := skillUpdater(t, gh, "1.0.0", "loupe")
+	h.auto = false
+	h.u.shared = true
+	holdSkill(t, h.u.dir, "loupe", "1.0.0")
+	h.u.setRange("^1.0")
+
+	res := h.u.run(context.Background(), true)
+
+	if len(res.Skills) != 1 || res.Skills[0].Installed != "1.1.0" || res.Outcome != updateOff || !res.OK {
+		t.Fatalf("res = %+v", res)
+	}
+}
+
+func TestAForcedCheckInASharedSetupReportsAFailedReleaseList(t *testing.T) {
+	h, _ := skillUpdater(t, newFakeGitHub(t, "new binary", "cli/v1.0.0"), "1.0.0", "loupe")
+	h.auto = false
+	h.u.shared = true
+	h.u.apiBase = "http://127.0.0.1:1"
+	h.u.setRange("^1.0")
+
+	res := h.u.run(context.Background(), true)
+
+	if res.OK || res.Outcome != outcomeFailed || res.Problem == "" {
+		t.Fatalf("res = %+v", res)
+	}
+}
+
+func TestAForcedCheckUpdatesSkillsWhenTheRangeRulesOutARelease(t *testing.T) {
+	for name, cliRange := range map[string]string{"no range yet": "", "above the range": "^0.5"} {
+		t.Run(name, func(t *testing.T) {
+			gh := newFakeGitHub(t, "new binary", "cli/v1.0.0")
+			gh.publishGoodSkill(t, "loupe", "1.1.0", `{}`)
+			h, _ := skillUpdater(t, gh, "1.0.0", "loupe")
+			h.auto = false
+			holdSkill(t, h.u.dir, "loupe", "1.0.0")
+			if cliRange != "" {
+				h.u.setRange(cliRange)
+			}
+
+			res := h.u.run(context.Background(), true)
+
+			if len(res.Skills) != 1 || res.Skills[0].Installed != "1.1.0" || res.Outcome != outcomeFailed {
+				t.Fatalf("res = %+v", res)
+			}
+		})
+	}
+}
+
 func TestTheRouterNamesTheHeldPackagesAndThoseTheProjectsList(t *testing.T) {
 	r, _ := packageStore(t, api.Site{ID: "p", Slug: "p", SkillPackages: []string{"loupe", "extra"}})
 
@@ -252,7 +303,7 @@ func TestTheRouterNamesTheHeldPackagesAndThoseTheProjectsList(t *testing.T) {
 func TestTheHeartbeatCarriesTheStateOfEachSkillPackage(t *testing.T) {
 	r, dir := packageStore(t)
 	holdSkill(t, dir, "loupe", "1.2.0")
-	r.recordSkillResults([]skills.Result{{Package: "loupe-lifecycle", State: skills.StateFailed, Reason: "needs loupe 2.0.0 or later"}})
+	r.recordSkillResults([]skills.Result{{Package: "loupe-lifecycle", Version: "1.0.0", State: skills.StateFailed, Reason: "needs loupe 2.0.0 or later"}})
 	client := &fakeHeartbeats{}
 	startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.skills = r.skillReports })
 
@@ -298,7 +349,7 @@ func TestTheHeartbeatRowsStayInsideTheLimitsOfTheServer(t *testing.T) {
 	for i := range 25 {
 		holdSkill(t, dir, "extra-"+string(rune('a'+i)), "1.0.0")
 	}
-	r.recordSkillResults([]skills.Result{{Package: "extra-a", State: skills.StateFailed, Reason: strings.Repeat("é", 400)}})
+	r.recordSkillResults([]skills.Result{{Package: "extra-a", Version: "1.0.0", State: skills.StateFailed, Reason: strings.Repeat("é", 400)}})
 	if err := os.RemoveAll(filepath.Join(dir, "skills", "extra-b", "1.0.0")); err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +383,7 @@ func TestTheHeartbeatRowsStayInsideTheLimitsOfTheServer(t *testing.T) {
 
 func TestTheReportShowsAFailedPackageUntilAnUpdateClearsIt(t *testing.T) {
 	r, _ := packageStore(t)
-	r.recordSkillResults([]skills.Result{{Package: "loupe", State: skills.StateFailed, Reason: "bad"}})
+	r.recordSkillResults([]skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
 	if got := r.skillReports(); got[0].State != "failed" || got[0].Reason != "bad" || got[0].Version != "1.0.0" {
 		t.Fatalf("reports = %+v", got)
 	}
@@ -341,6 +392,36 @@ func TestTheReportShowsAFailedPackageUntilAnUpdateClearsIt(t *testing.T) {
 
 	if got := r.skillReports(); got[0].State != "current" || got[0].Reason != "" {
 		t.Fatalf("reports = %+v", got)
+	}
+}
+
+// `loupe update` on a Homebrew install writes the store from its own process, so
+// the bridge sees the update only in the store.
+func TestAVersionInstalledOutsideTheBridgeClearsItsOldFailure(t *testing.T) {
+	r, dir := packageStore(t)
+	r.recordSkillResults([]skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
+
+	holdSkill(t, dir, "loupe", "1.1.0")
+
+	if got := r.skillReports(); got[0].State != "current" || got[0].Reason != "" || got[0].Version != "1.1.0" {
+		t.Fatalf("reports = %+v", got)
+	}
+}
+
+func TestStatusNamesTheBridgeOfEachSkillFailure(t *testing.T) {
+	shortConfigHome(t)
+	holdSkill(t, mustConfigDir(t), "loupe", "1.0.0")
+	one, two, three := validStatus("one"), validStatus("two"), validStatus("three")
+	one.Skills = []api.SkillReport{{Package: "loupe", Version: "1.0.0", State: "failed", Reason: "first"}}
+	two.Skills = []api.SkillReport{{Package: "loupe", Version: "1.0.0", State: "current"}}
+	three.Skills = []api.SkillReport{{Package: "loupe", Version: "1.0.0", State: "failed", Reason: "second"}}
+
+	var out bytes.Buffer
+	noteSkills(&out, []bridgeReport{{status: one}, {status: two}, {status: three}})
+
+	want := "Skills:      loupe 1.0.0 failed: first (bridge one)\nSkills:      loupe 1.0.0 failed: second (bridge three)\n"
+	if out.String() != want {
+		t.Fatalf("out = %q, want %q", out.String(), want)
 	}
 }
 
@@ -356,7 +437,7 @@ func TestStatusPrintsEachSkillPackageWithItsVersionStateAndReason(t *testing.T) 
 	var out bytes.Buffer
 	noteSkills(&out, []bridgeReport{{sock: "s", status: bad}})
 
-	want := "Skills:      loupe 1.2.0 current\nSkills:      loupe-lifecycle 1.0.0 failed: no release of loupe-lifecycle exists\n"
+	want := "Skills:      loupe 1.2.0 current\nSkills:      loupe-lifecycle 1.0.0 failed: no release of loupe-lifecycle exists (bridge alpha)\n"
 	if out.String() != want {
 		t.Fatalf("out = %q, want %q", out.String(), want)
 	}
@@ -384,7 +465,7 @@ func TestStatusAsksTheRunningBridgeForItsSkillReports(t *testing.T) {
 	var out bytes.Buffer
 	noteSkills(&out, reports)
 
-	if err != nil || out.String() != "Skills:      loupe 1.0.0 failed: r\n" {
+	if err != nil || out.String() != "Skills:      loupe 1.0.0 failed: r (bridge alpha)\n" {
 		t.Fatalf("out = %q, err = %v", out.String(), err)
 	}
 }
