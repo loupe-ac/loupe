@@ -177,12 +177,13 @@ jobs:
       - name: Leave the app out of the archives
         if: needs.panel.result != 'success'
         run: yq -i 'del(.archives[].files[] | select(.src == "panel/Live review.app"))' cli/.goreleaser.yaml
-      # The binary embeds these folders as the starting copy of the skills.
-      - name: Bundle the skills
-        run: sh cli/scripts/bundle-skills.sh
+      # Before the bundle, because the tests expect a development build with no package.
       - name: Vet and test
         working-directory: cli
         run: go vet ./... && go test ./...
+      # The binary embeds these folders as the starting copy of the skills.
+      - name: Bundle the skills
+        run: sh cli/scripts/bundle-skills.sh
       # validate refuses a GORELEASER_CURRENT_TAG that git does not hold.
       - uses: goreleaser/goreleaser-action@v7
         with:
