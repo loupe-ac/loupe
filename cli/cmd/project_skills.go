@@ -401,8 +401,8 @@ const (
 // from the store, so it is right after any install, `loupe update` included. A
 // package that the last update failed for is failed, with that reason, until the
 // store holds another version. Another process can install that version, so only
-// the store shows it. A development build with an empty store reports nothing, because its workers use
-// the plugin their account installed.
+// the store shows it. A development build with an empty store reports nothing,
+// because its workers use the plugin their account installed.
 func (r *router) skillReports() []api.SkillReport {
 	names := r.skillNames()
 	s := &r.skills
