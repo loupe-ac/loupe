@@ -300,13 +300,20 @@ func (rd *reader) retry(raw []byte, subtype string) {
 	rd.retryNoStatus = l.Status == nil || *l.Status == 0
 }
 
-// init keeps the version of claude and of the Loupe plugin from the start line.
-// A plugin with no version, such as one served from a checkout, gives none.
+// maxSkillVersion bounds the skill version the server takes, in bytes.
+const maxSkillVersion = 100
+
+// init keeps the version of claude and of the Loupe plugins from the start line.
+// One Loupe plugin gives its bare version. Several, such as the packages a
+// worker starts with, give name-version pairs joined with "+", in the order of
+// the line and cut at a whole pair to fit the server. A plugin with no version,
+// such as one served from a checkout, gives none.
 func (rd *reader) init(raw []byte) {
 	var l struct {
 		Subtype string `json:"subtype"`
 		Version string `json:"claude_code_version"`
 		Plugins []struct {
+			Name    string `json:"name"`
 			Source  string `json:"source"`
 			Version string `json:"version"`
 		} `json:"plugins"`
@@ -315,13 +322,39 @@ func (rd *reader) init(raw []byte) {
 		return
 	}
 	rd.harness = l.Version
+	var pairs []string
+	var bare string
 	for _, p := range l.Plugins {
-		if strings.HasPrefix(p.Source, "loupe@") && p.Version != "" {
-			rd.skill = p.Version
+		name := p.Name
+		if name == "" {
+			name, _, _ = strings.Cut(p.Source, "@")
+		}
+		if p.Version == "" || !isLoupePackage(name) {
+			continue
+		}
+		pairs = append(pairs, name+"-"+p.Version)
+		bare = p.Version
+	}
+	if len(pairs) == 1 {
+		rd.skill = bare
 
+		return
+	}
+	for _, pair := range pairs {
+		next := pair
+		if rd.skill != "" {
+			next = rd.skill + "+" + pair
+		}
+		if len(next) > maxSkillVersion {
 			break
 		}
+		rd.skill = next
 	}
+}
+
+// isLoupePackage reports whether a plugin name is a Loupe skill package.
+func isLoupePackage(name string) bool {
+	return name == "loupe" || strings.HasPrefix(name, "loupe-")
 }
 
 func (rd *reader) output() stream.Output {

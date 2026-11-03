@@ -27,6 +27,8 @@ final class BridgeExporterTest extends TestCase
         $bridge->installMethod = CliInstallMethod::Homebrew;
         $hook = ['package' => 'github:acme/loupe-hooks', 'ref' => 'v1.2.0', 'event' => 'start', 'lastRunAt' => null, 'outcome' => 'never', 'error' => null];
         $bridge->hooks = [$hook];
+        $skill = ['package' => 'loupe-lifecycle', 'version' => '1.2.0', 'state' => 'failed', 'reason' => 'download failed'];
+        $bridge->skills = [$skill];
         $pool = ['name' => 'default', 'size' => 3, 'inUse' => 1, 'queued' => 0];
         $bridge->workerPools = [$pool];
         $bridge->workerPoolsReportedAt = new \DateTimeImmutable('2026-09-14T15:59:00+00:00');
@@ -66,6 +68,7 @@ final class BridgeExporterTest extends TestCase
             'updateVersion' => '1.3.0',
             'installMethod' => 'homebrew',
             'hooks' => [$hook],
+            'skills' => [$skill],
             'workerPools' => [$pool],
             'workerPoolsReportedAt' => '2026-09-14T15:59:00+00:00',
             'accounts' => [$account],

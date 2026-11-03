@@ -611,8 +611,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			case !validVersion(version):
 				hb.update = func() api.HeartbeatUpdate { return api.HeartbeatUpdate{State: updateOff} }
 			default:
-				updates = newUpdater(r.log, version, dir, nil, nil)
+				updates = newUpdater(r.log, version, dir, func() bool { return autoUpdateOn(r.rules(), r.assumeAutoUpdate) }, nil)
 				updates.shared = true
+				updates.skillNames = r.skillNames
 				updates.install = installMethod(updates.executable)
 				updates.onDrain = r.setDraining
 				updates.setState(updateOff, "")
@@ -633,8 +634,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			}
 			updates.install = installMethod(updates.executable)
 			updates.onDrain = r.setDraining
+			updates.skillNames = r.skillNames
 			hb.onRange, hb.update = updates.setRange, updates.state
 		}
+		hb.skills = r.skillReports
 		if r.update != nil {
 			hb.onSent = r.update.markBeat
 		}
@@ -842,6 +845,7 @@ func (r *router) status() statusResult {
 		LogFile:   r.logPath,
 		Login:     loginValid,
 		Workers:   []statusWorker{},
+		Skills:    r.skillReports(),
 	}
 	if g := currentBridgeGate(); g != nil && g.expired() {
 		res.Login = loginExpired

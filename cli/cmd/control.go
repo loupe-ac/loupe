@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -302,6 +303,8 @@ type statusResult struct {
 	LastHeartbeatAt *time.Time     `json:"lastHeartbeatAt,omitempty"`
 	LastError       *statusError   `json:"lastError,omitempty"`
 	Workers         []statusWorker `json:"workers"`
+	// Skills is the state of each skill package, as the heartbeat reports it.
+	Skills []api.SkillReport `json:"skills,omitempty"`
 	// Problems holds the refusal of a bridge that cannot answer the op.
 	Problems []string `json:"problems,omitempty"`
 }

@@ -590,6 +590,9 @@ pass. The bridge writes the package versions of each session to
 `<config dir>/skills/.records/`. When it cannot write that file, the run or the
 interactive session does not start, and the run shows the reason.
 
+A running bridge also [updates the skill packages](#skill-package-updates) by
+itself, and it never restarts a worker for that.
+
 A release of the bridge unpacks its starting copy of the packages when it starts.
 When the store then holds no package, a Claude Code run or interactive session
 does not start, and the run shows the reason. Fix that reason and restart the
@@ -996,6 +999,11 @@ that fails or takes no new work. A section that you open or close keeps that
 state while the page reloads during your visit. The summary line of a closed
 Accounts section names each account with its worst state, such as
 `claude near its limit · codex Unknown`.
+
+The Agents page also lists the skill packages of each connection in a Skills
+section. Each row shows the package, its version and its state, `Current` or
+`Failed`. A failed package also shows the reason. The section opens on its own
+when a package failed. A bridge that reports no skills shows no section.
 
 ### Migration and rollback
 
@@ -1602,7 +1610,8 @@ then shows "Update available" and the version, with the command that installs
 it. That command is `brew upgrade loupe` for a Homebrew install, and
 `curl -fsSL https://<your Loupe>/install.sh | sh` in all other cases.
 A bridge that runs a Homebrew binary acts as if updates are off, even with
-`autoUpdate: true`, because only `brew upgrade loupe` replaces that binary.
+`autoUpdate: true`, because only `brew upgrade loupe` replaces that binary. It
+still updates the [skill packages](#skill-package-updates).
 
 `loupe update auto on` or `loupe update auto off` sets the key. It adds the key
 when the file has none, and changes a plain `true` or `false` on its line. When
@@ -1619,6 +1628,66 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 `auto_update_migration_failed` with the line to add by hand. It then adds the
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
+
+### Skill package updates
+
+The skill packages have their own release tags, `skills/<package>/vX.Y.Z`, and
+their own version track. The bridge updates them in the same check as the CLI.
+It reads the releases list once, and the CLI and the packages both use that
+list. The check updates the packages when `autoUpdate: true` is set. The check
+that `loupe update` starts updates them whatever the key says.
+
+The bridge keeps every package that its store holds, and every package that the
+skill list of a project names. For each package, it picks the highest release
+that meets these conditions:
+
+- The release is not a draft or a prerelease.
+- The release has the archive `<package>_<version>.tar.gz` and `checksums.txt`.
+- The store does not hold the version, and no higher version.
+
+The bridge downloads the archive and compares its SHA-256 with `checksums.txt`.
+It refuses an archive that holds an absolute path, a `..` path, a link that
+leaves the package, a hard link, or more than 5000 entries or 50 MB. It
+unpacks the archive in a temporary folder next to its place in the store, and
+then renames the folder. So the store never holds a half-written version.
+
+The bridge leaves a version out, and tries the next lower release, in these
+cases:
+
+- The `minCli` of the version is above the running CLI. A development build
+  meets every `minCli`.
+- The store cannot meet the whole `requires` set of the version, which also
+  covers what those packages need in turn. The bridge tries again in the same
+  check, so a package that needs a package of the same check can install after
+  it.
+
+The store can already hold a version above the one a worker gets, such as one
+that a former CLI installed. That version stays out in the same way, and the
+package reads as failed with the reason.
+
+A failed update changes nothing else. The bridge logs
+`skill_package_update_failed` with the reason, keeps the versions in the store,
+and goes on with the CLI update. The result of the CLI update stays the same.
+A package name with no release at all fails with the reason. A version is not
+installed again once the store holds it, and a version that needs a newer CLI is
+not downloaded again until the bridge restarts.
+
+An update restarts nothing. A running worker keeps its package versions, and
+the next worker of a project takes the new ones. The bridge logs
+`skill_package_installed` for each version it adds.
+
+The heartbeat carries one row for each package in `skills`. `version` is the
+highest version in the store that the CLI can use, and `none` when there is
+none. `state` is `current`, or `failed` with the `reason` of the last update.
+The store keeps that failure, so a failure of a manual `loupe update` shows too,
+also when that command runs in its own process. A failure ends when an update
+of the package succeeds, or when the store holds another version.
+The [agents page](#a-worker-account-with-its-own-plugins) shows the rows.
+`loupe status` prints them too.
+
+`loupe update` updates the packages first, and then the CLI. It prints one line
+for each package, such as `skills: loupe 1.4.0 installed`. For a Homebrew install,
+it updates the packages and then prints the `brew upgrade loupe` line.
 
 ### At start
 

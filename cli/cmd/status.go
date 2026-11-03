@@ -21,6 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/setupbuild"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -58,6 +59,9 @@ func newStatusCmd() *cobra.Command {
 			"With no rule file, it checks no account. It also notes what the rule file lacks to run work " +
 			"in this directory: a permission default, a prompt source, or a project that maps this " +
 			"directory. A note never fails the check, and `loupe init` fixes it.\n\n" +
+			"The `Skills:` lines give the version of each skill package in the store. A line names a bridge " +
+			"when that bridge holds another version, or when its last update of the package failed, and says why. " +
+			"A note never fails the check.\n\n" +
 			"The `Bridges:` line counts the running bridges and gives their login state. No running bridge " +
 			"is reported and does not fail the check. A bridge that waits for a new login fails it. " +
 			"`loupe bridge status` gives the detail.\n\n" +
@@ -72,7 +76,9 @@ func newStatusCmd() *cobra.Command {
 			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))
-			err = errors.Join(err, checkStatusBridges(out))
+			bridges, listErr := collectBridges()
+			err = errors.Join(err, printStatusBridges(out, bridges, listErr))
+			noteSkills(out, bridges)
 			noteRuleGaps(out, rulesPath, current)
 			if err != nil {
 				fmt.Fprintln(out, statusFail)
@@ -200,6 +206,11 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 // fails.
 func checkStatusBridges(out io.Writer) error {
 	reports, err := collectBridges()
+
+	return printStatusBridges(out, reports, err)
+}
+
+func printStatusBridges(out io.Writer, reports []bridgeReport, err error) error {
 	if err != nil {
 		fmt.Fprintf(out, "Bridges:     could not list them: %v\n", err)
 
@@ -212,6 +223,61 @@ func checkStatusBridges(out io.Writer) error {
 	}
 
 	return nil
+}
+
+// noteSkills prints one line for each skill package: its version and its state.
+// The store gives the version and the last failure for this setup. A running
+// bridge can run another setup, so its report gives its own. A line from a report
+// names its bridge, and it replaces the line of the store when it names the same
+// failure. It is a note only, so it never fails the check.
+func noteSkills(out io.Writer, bridges []bridgeReport) {
+	dir, err := config.Dir()
+	if err != nil {
+		return
+	}
+	type report struct {
+		bridge string
+		res    skills.Result
+	}
+	reports := map[string][]report{}
+	names := skills.Held(dir)
+	for _, b := range bridges {
+		for _, r := range b.status.Skills {
+			names = append(names, r.Package)
+			v := r.Version
+			if v == noSkillVersion {
+				v = ""
+			}
+			reports[r.Package] = append(reports[r.Package], report{b.heading(), skills.Result{Package: r.Package, Version: v, State: r.State, Reason: r.Reason}})
+		}
+	}
+	slices.Sort(names)
+	names = slices.Compact(names)
+	if len(names) == 0 {
+		fmt.Fprintln(out, "Skills:      none in the store")
+
+		return
+	}
+	for _, name := range names {
+		local := skills.Report(dir, version, name)
+		failed := slices.ContainsFunc(reports[name], func(r report) bool { return r.res.State == skills.StateFailed })
+		var lines []string
+		for _, r := range reports[name] {
+			if r.res.State == skills.StateFailed || r.res.Version != local.Version {
+				lines = append(lines, fmt.Sprintf("%s (bridge %s)", strings.TrimPrefix(skillLine(r.res), "skills: "), r.bridge))
+			}
+		}
+		ownFailure := local.State == skills.StateFailed && local.Version != ""
+		sameFailure := slices.ContainsFunc(reports[name], func(r report) bool {
+			return r.res.State == skills.StateFailed && r.res.Version == local.Version
+		})
+		if (ownFailure && !sameFailure) || (!ownFailure && !failed && (len(lines) == 0 || local.State != skills.StateFailed)) {
+			fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(local), "skills: "))
+		}
+		for _, line := range lines {
+			fmt.Fprintf(out, "Skills:      %s\n", line)
+		}
+	}
 }
 
 // noteRuleGaps prints what the rule file lacks for this directory and its

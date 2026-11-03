@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 )
 
 // skillsInterval is the time between two reads of the project list.
@@ -340,4 +343,71 @@ func (r *router) projectPackages(handle string, held []string) []string {
 	site, _ := r.projectSite(handle)
 
 	return site.PackagesIn(held)
+}
+
+// packageNames lists the packages a bridge keeps: every package held, and every
+// package a project names. The list is sorted and has each name once. A folder
+// of the store that no package name fits, such as one a person made, is not a
+// package.
+func packageNames(held []string, sites []api.Site) []string {
+	names := slices.DeleteFunc(slices.Clone(held), func(name string) bool { return !skills.ValidName(name) })
+	for _, site := range sites {
+		names = append(names, site.PackagesIn(held)...)
+	}
+	slices.Sort(names)
+
+	return slices.Compact(names)
+}
+
+// skillNames lists the packages the updater keeps current. A router with no
+// store has none.
+func (r *router) skillNames() []string {
+	s := &r.skills
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dir == "" {
+		return nil
+	}
+
+	return packageNames(skills.Held(s.dir), s.sites)
+}
+
+// The server refuses a whole heartbeat that holds more rows than maxSkillReports,
+// a blank version, or a reason above maxSkillReason bytes. noSkillVersion stands
+// for a package with no usable version in the store.
+const (
+	maxSkillReports = 20
+	maxSkillReason  = 500
+	noSkillVersion  = "none"
+)
+
+// skillReports gives the heartbeat one row for each package. The version and
+// the failure of the last update come from the store, so they are right after
+// any update, `loupe update` in its own process included. A development build
+// with an empty store reports an empty list, because its workers use the plugin
+// their account installed, and that clears the rows of an earlier run. A router
+// with no store sends no list.
+func (r *router) skillReports() []api.SkillReport {
+	names := r.skillNames()
+	s := &r.skills
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dir == "" {
+		return nil
+	}
+	if s.cliVersion == "" && len(skills.Held(s.dir)) == 0 {
+		return []api.SkillReport{}
+	}
+	reports := make([]api.SkillReport, 0, min(len(names), maxSkillReports))
+	for _, name := range names[:min(len(names), maxSkillReports)] {
+		res := skills.Report(s.dir, s.cliVersion, name)
+		reports = append(reports, api.SkillReport{
+			Package: res.Package,
+			Version: cmp.Or(res.Version, noSkillVersion),
+			State:   res.State,
+			Reason:  stream.Cut(res.Reason, maxSkillReason),
+		})
+	}
+
+	return reports
 }
