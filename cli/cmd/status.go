@@ -172,10 +172,10 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 
 			continue
 		}
-		if a.used {
-			failing = append(failing, a.name)
-		}
 		if reason := a.reason(); reason != "" {
+			if a.used {
+				failing = append(failing, a.name)
+			}
 			fmt.Fprintf(out, "Account:     %s (%s): failing: %s\n", a.name, label, reason)
 		} else {
 			fmt.Fprintf(out, "Account:     %s (%s): ready, failing for some projects\n", a.name, label)
