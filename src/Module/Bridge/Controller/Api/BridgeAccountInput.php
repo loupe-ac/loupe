@@ -32,6 +32,7 @@ final class BridgeAccountInput
      * @param int|null                             $stopAt         the percentage of use at which the account takes no new work, null from a bridge that predates it
      * @param list<BridgeAccountReadingInput>|null $readings       the latest reading of each usage window, null from a bridge that predates them
      * @param list<BridgeFailedProjectInput>|null  $failedProjects the projects the account failed its check for, null from a bridge that predates them
+     * @param bool|null                            $appPrompts     whether the app prompts of the bridge run on the account, null from a bridge that predates it
      */
     public function __construct(
         #[Assert\NotBlank]
@@ -69,6 +70,7 @@ final class BridgeAccountInput
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $failedProjects = null,
+        public ?bool $appPrompts = null,
     ) {
     }
 }

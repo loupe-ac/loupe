@@ -389,6 +389,29 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         );
     }
 
+    public function test_the_account_of_the_app_prompts_is_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-app-prompts@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['appPrompts' => true]),
+            self::account(['name' => 'other', 'appPrompts' => false]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [
+                ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true, 'appPrompts' => true],
+                ['name' => 'other', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true],
+            ],
+            $this->bridge($owner, $bridgeId)->accounts,
+        );
+    }
+
     public function test_a_failed_project_with_a_bad_id_fails_the_heartbeat(): void
     {
         $client = static::createClient();

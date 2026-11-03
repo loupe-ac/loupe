@@ -715,6 +715,12 @@ func (s *Set) WorkKindsOn() []string {
 	return out
 }
 
+// RunsAppPrompts reports whether the app prompts of the set run on the named
+// account.
+func (s *Set) RunsAppPrompts(name string) bool {
+	return s.appPrompts && s.appRun.Account == name
+}
+
 // AccountKinds lists the kinds of the work map that can run on the named
 // account, through a work entry or a variant of an experiment, in name order.
 // A kind of another subject than card reads <subject>:<kind>. A set with its

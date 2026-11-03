@@ -1207,3 +1207,32 @@ func TestAFailedProjectTurnsOffThatProjectOnly(t *testing.T) {
 		t.Fatalf("a clean check kept the work off: %+v", m)
 	}
 }
+
+// A kind that no entry maps runs on the account of the app prompts, so a failed
+// project of that account skips the prompt too.
+func TestAFailedProjectTurnsOffTheAppPromptOfThatProject(t *testing.T) {
+	s := checked(t, "appPrompts: true\n"+workFile)
+	w := workRequest("review")
+	w.Prompt = "Review {cardNumber}."
+	if !s.RunsAppPrompts("claude") || s.RunsAppPrompts("other") {
+		t.Fatal("RunsAppPrompts names the wrong account")
+	}
+	if m := s.MatchWork(w); m.Skip != Run {
+		t.Fatalf("match = %+v, want Run", m)
+	}
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"loupe": "claude is not on PATH"}})
+	if m := s.MatchWork(w); m.Skip != NoRule {
+		t.Fatalf("match = %+v, want NoRule", m)
+	}
+	if !slices.Contains(s.Capabilities(), CapabilityAppPrompts) {
+		t.Fatal("a failed project took the app prompts capability away")
+	}
+}
+
+// A set that runs no app prompts names no account for them.
+func TestNoAppPromptsNameNoAccount(t *testing.T) {
+	if checked(t, workFile).RunsAppPrompts("claude") {
+		t.Fatal("RunsAppPrompts = true without appPrompts")
+	}
+}

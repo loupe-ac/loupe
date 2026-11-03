@@ -263,6 +263,20 @@ func TestTheHeartbeatReportsTheStopValueOfAnAccount(t *testing.T) {
 	}
 }
 
+// The heartbeat marks the account that runs the app prompts, and no other.
+func TestTheHeartbeatMarksTheAccountOfTheAppPrompts(t *testing.T) {
+	body := "appPrompts: true\naccounts:\n  claude:\n    harness: claude-code\n  spare:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\n"
+	set, err := rules.Parse([]byte(body), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.SetAccountProblems(map[string]string{})
+	rows := accountReports(set)
+	if len(rows) != 2 || rows[0].Name != "claude" || !rows[0].AppPrompts || rows[1].AppPrompts {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
 // A problem of one project fails that project alone: the account stays ready,
 // and the heartbeat names the project by id with a reason that names no slug.
 func TestAProjectProblemFailsOnlyThatProject(t *testing.T) {

@@ -172,7 +172,7 @@ func accountReports(set *rules.Set) []api.AccountReport {
 	used := set.UsedAccounts()
 	for _, name := range set.DeclaredAccounts() {
 		run, _ := set.Account(name, "")
-		row := api.AccountReport{Name: name, Harness: harnessNameOf(run), State: api.AccountReady, Used: slices.Contains(used, name), Kinds: nonNil(set.AccountKinds(name)), StopAt: set.StopAt(name)}
+		row := api.AccountReport{Name: name, Harness: harnessNameOf(run), State: api.AccountReady, Used: slices.Contains(used, name), Kinds: nonNil(set.AccountKinds(name)), StopAt: set.StopAt(name), AppPrompts: set.RunsAppPrompts(name)}
 		if reason := off[name]; reason != "" {
 			row.State, row.Reason = api.AccountFailing, cutReason(reason)
 		}

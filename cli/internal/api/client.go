@@ -745,6 +745,9 @@ type AccountReport struct {
 	// account with only these stays ready, and Loupe holds back the work of
 	// those projects on it.
 	FailedProjects []FailedProject `json:"failedProjects,omitempty"`
+	// AppPrompts marks the account that runs the app prompts, so Loupe can
+	// apply FailedProjects to a kind that no work entry maps.
+	AppPrompts bool `json:"appPrompts,omitempty"`
 	// Kinds are the work kinds that can run on the account, through a work
 	// entry or an experiment variant. StopAt is the use, in percent, at which
 	// Loupe stops new work on the account. Readings are the latest reading of

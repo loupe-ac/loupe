@@ -332,6 +332,9 @@ final class RecordBridgeHeartbeatRequest
                     array_values($account->failedProjects),
                 );
             }
+            if (true === $account->appPrompts) {
+                $row['appPrompts'] = true;
+            }
 
             return $row;
         }, array_values($this->accounts));

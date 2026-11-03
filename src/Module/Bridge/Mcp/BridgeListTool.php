@@ -99,7 +99,7 @@ final readonly class BridgeListTool
     private static function accountOf(array $account, AgentConnection $connection): array
     {
         $name = $account['name'];
-        unset($account['failedProjects']);
+        unset($account['failedProjects'], $account['appPrompts']);
 
         return $account + [
             'used' => true,
