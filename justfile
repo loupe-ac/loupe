@@ -605,9 +605,15 @@ tunnel:
 # The Amphetamine hook test fakes osascript, so it runs on Linux too.
 # The container installs git, because the worktree tests run it.
 cli-test:
-    docker run --rm -v "{{justfile_directory()}}/cli":/cli -w /cli -e GOTOOLCHAIN=local golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
+    docker run --rm -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}/plugins/loupe/hooks":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
+
+# Rewrite cli/internal/publicapi/operations_gen.go from openapi/public.json.
+# Run it after a change to the public API, then add a line to commands.go for a
+# new operation. `just cli-test` fails while the file is stale.
+cli-generate:
+    docker run --rm -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local golang:1.26-alpine go run ./internal/publicapi/gen/generate -spec /openapi/public.json -out internal/publicapi/operations_gen.go
 
 # Defaults to the dev's mac; override e.g. `just cli-build linux amd64`. The
 # full release matrix is goreleaser's job — see cli/.goreleaser.yaml.
