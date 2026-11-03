@@ -2018,7 +2018,7 @@ func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
 			}
 			for _, want := range []string{
 				"Account: broken (claude): failing for this project: no skills", "run loupe skills update",
-				"Account: elsewhere (claude): ready",
+				"Account: elsewhere (claude): failing for project other: no folder", "clone it",
 				"Account: spare (codex, unused): failing for this project: no plugins",
 				"Fix the account broken: no skills",
 			} {
@@ -2026,12 +2026,58 @@ func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
 					t.Errorf("output lacks %q:\n%s", want, out)
 				}
 			}
-			for _, unwanted := range []string{"clone it", "Fix the account elsewhere", "Fix the account spare"} {
+			for _, unwanted := range []string{"Account: elsewhere (claude): ready", "Fix the account elsewhere", "Fix the account spare"} {
 				if strings.Contains(out, unwanted) {
 					t.Errorf("output holds %q:\n%s", unwanted, out)
 				}
 			}
 		})
+	}
+}
+
+// A failure in another project shows in the report, and it asks nothing of this
+// run of init.
+func TestInitExitsWithSuccessWhenAnAccountFailsOnlyForAnotherProject(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.accounts = []accountResult{
+		{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+	}
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("err = %v, want success", err)
+	}
+	if !strings.Contains(out, "Account: elsewhere (claude): failing for project other: no folder\n         clone it\n") {
+		t.Errorf("output lacks the failure of the other project:\n%s", out)
+	}
+	if strings.Contains(out, "Fix the account") {
+		t.Errorf("the last lines ask for a fix of another project:\n%s", out)
+	}
+}
+
+// An account can fail in more than one way, and each problem keeps its own fix.
+func TestPrintAccountNamesEachProblemInAFixedOrder(t *testing.T) {
+	var out bytes.Buffer
+
+	printAccount(&out, accountResult{name: "main", harness: "claude", used: true, problems: []harn.Problem{
+		{Reason: "no folder", Detail: "clone z", Project: "z"},
+		{Reason: "no folder", Detail: "clone a", Project: "a"},
+		{Reason: "no skills", Detail: "run update", Project: "dev"},
+		{Reason: "not logged in", Detail: "run login"},
+	}}, "dev")
+
+	want := `Account: main (claude): failing: not logged in
+         run login
+Account: main (claude): failing for this project: no skills
+         run update
+Account: main (claude): failing for project a: no folder
+         clone a
+Account: main (claude): failing for project z: no folder
+         clone z
+`
+	if out.String() != want {
+		t.Errorf("output = %q, want %q", out.String(), want)
 	}
 }
 

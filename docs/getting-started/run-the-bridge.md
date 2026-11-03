@@ -35,12 +35,13 @@ loupe init
    profile and the file is missing or unfinished.
 10. It reports the state of each account, and prints what remains.
 
-The account report comes before the agent starts. A failing account does not
-stop the agent, and `loupe init` exits with an error when an account that a rule
-uses fails for this project. The last lines come after the agent exits. They
-name only the steps that remain, such as fixing an account, pushing
-`.loupe.yaml` and the profile, restarting Claude Code and starting discovery,
-and end with the link to the project page.
+The account report comes before the agent starts. It names each failure with its
+project, reason and fix. A failing account does not stop the agent, and
+`loupe init` exits with an error when an account that a rule uses fails for this
+project. A failure in another project does not change the exit status. The last
+lines come after the agent exits. They name only the steps that remain, such as
+fixing an account, pushing `.loupe.yaml` and the profile, restarting Claude Code
+and starting discovery, and end with the link to the project page.
 
 Each step skips itself when it is done already. A second run changes nothing,
 so run `loupe init` again to repair the setup. On a rule file that exists, it
