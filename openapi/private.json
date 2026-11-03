@@ -10596,6 +10596,22 @@
                 },
                 "type": "object"
             },
+            "BridgeFailedProjectInput": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 200
+                    }
+                },
+                "type": "object"
+            },
             "BridgeAccountInput": {
                 "properties": {
                     "name": {
@@ -10652,6 +10668,20 @@
                         "nullable": true,
                         "default": null,
                         "maxItems": 8
+                    },
+                    "failedProjects": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeFailedProjectInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 500
+                    },
+                    "appPrompts": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
                     }
                 },
                 "type": "object"
