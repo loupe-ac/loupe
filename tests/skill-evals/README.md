@@ -68,6 +68,7 @@ The cases named `foreign-*` prove the skills on a repository that is not this on
 | Case | Skill | Decision point |
 |---|---|---|
 | `foreign-implementation-no-changelog` | `loupe-stage-implementation` | The run reaches the push and ends `waiting`. It never ends `blocked`, writes no changelog entry and runs no `just` command. |
+| `foreign-profile-agent` | `loupe-profile` | The repository has no profile. The run reads `workflow_get` and the repository, and writes every required section with the gate command of `CONTRIBUTING.md`. It writes no guess marker. |
 | `foreign-merge-epic-preview-none` | `loupe-stage-merge` | The profile says `Epic preview: none`, so an epic preview request ends `STAGE RESULT: unchanged`. |
 | `foreign-merge-epic-preview-head` | `loupe-stage-merge` | The worker folder is a plain folder. The refresh needs `HEAD` to equal `origin/<epic branch>` and nothing else. |
 | `foreign-review-python` | `loupe-stage-review` | The review reads the change with git objects and never checks out the branch. It submits a finding on a division by zero at the full head commit. |
@@ -89,7 +90,7 @@ A run costs between $0.25 and $0.70. The ten cases cost about $5 for one run eac
 A foreign case does not cover these:
 
 1. A stop in a real `gh` command. The forge answers are text in the prompt.
-2. A Codex worker. The evals run Claude only.
+2. A Codex worker. The evals run Claude only. To try the profile skill on Codex, build the repository with `NO_PROFILE=1` and the `make_repo` function of `foreign-lib/repo.sh`, then run `codex` there with the prompt of `foreign-profile-agent`.
 3. The real session test of the design sessions.
 
 Run the cases against an older revision to see which of them catch a fix:

@@ -35,11 +35,11 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
      - A missing tool is a suggested finding. Propose a card that installs the tool, or that makes its browser start.
    - The repository profile, `.loupe/lifecycle.md`. Every stage reads it.
      - When the file is missing, or git does not track it, the check is a suggested finding. The owner then runs `loupe init` and commits the file.
-     - Otherwise search it for the text "detected, check it". `loupe init` writes that text after each value it guessed. Compare each marked value with the repository, the CI config, the agent instruction files and `workflow_get`.
-     - Also search it for the text "owner to fill in". `loupe init` writes that text where a stage needs a value that it cannot know. Each such line is a suggested finding with no card (step 10). The evidence names the section and the line, and asks the owner to write the value and commit it.
+     - Otherwise compare each value with the repository, the CI config, the agent instruction files and `workflow_get`.
+     - Also search it for the text "owner to fill in". The profile agent of `loupe init` writes that text where a stage needs a value that the owner has not given. Each such line is a suggested finding with no card (step 10). The evidence names the section and the line, and asks the owner to write the value and commit it.
      - A gate command that does not exist, or that CI does not run, is a wrong value. A check that CI runs before a merge and the gate lacks is a missing value, so propose it too.
-     - Write one proposal for each wrong value. The body names the section, the line, the value and the correct value. The proposal removes the marker from the line it fixes.
-     - A marked value that is right also loses its marker, so list it in the evidence and propose no card.
+     - Write one proposal for each wrong value. The body names the section, the line, the value and the correct value. The proposal fixes that line.
+     - A value that is right needs no card, so list it in the evidence.
    - Each setup step that an agent cannot do through the MCP. For example, only the owner can install the GitHub App in a browser, and no tool changes the workflow template.
 7. Apply each check of each kind against the repository. A kind can have an empty `checks` list. Write no finding for such a kind. Name it in the `summary` as a kind that only the generic checks cover.
    - Some checks start with a condition, such as "When the project has a user interface". Such a check gets no finding when the project does not meet the condition. Name it in the `summary` as skipped, with the reason.

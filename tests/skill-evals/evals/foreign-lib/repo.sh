@@ -7,7 +7,7 @@ export GIT_AUTHOR_NAME=eval GIT_AUTHOR_EMAIL=eval@example.test
 export GIT_COMMITTER_NAME=eval GIT_COMMITTER_EMAIL=eval@example.test
 export GIT_CONFIG_GLOBAL=/dev/null
 
-# make_repo [epics-line]: build the repository with the starter Epics line unless one is given.
+# make_repo [epics-line]: build the repository with a profile and the given Epics line. NO_PROFILE=1 builds it with no profile.
 make_repo() {
     git init -q -b main .
     mkdir -p tally tests .loupe
@@ -50,7 +50,7 @@ MD
 name = "tally"
 version = "0.1.0"
 TOML
-    write_profile "${1:-}"
+    if [ -z "${NO_PROFILE:-}" ]; then write_profile "${1:-}"; fi
     printf '.remote/\n__pycache__/\n' > .gitignore
     git add -A
     git commit -q -m "Start tally"
@@ -86,7 +86,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Instruction files
 
-1. Read \`CONTRIBUTING.md\`, and follow it (detected, check it).
+1. Read \`CONTRIBUTING.md\`, and follow it.
 
 ## Forge
 
@@ -94,17 +94,17 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Environment
 
-1. Folder check: none (detected, check it).
+1. Folder check: none.
 
 ## Gate
 
-1. Base branch: \`main\` (detected, check it: the remote names it).
-2. Run \`python3 -m unittest discover -s tests\` (detected, check it: CONTRIBUTING.md).
+1. Base branch: \`main\`.
+2. Run \`python3 -m unittest discover -s tests\`.
 3. Required checks: \`unit\`.
 
 ## Code review
 
-1. Review before the push: none (detected, check it).
+1. Review before the push: none.
 
 ## Pull request
 
