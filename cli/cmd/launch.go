@@ -268,6 +268,10 @@ func (r *router) runLaunch(l launch) {
 	if err == nil {
 		env, err = p.spec.accountEnv()
 	}
+	if err == nil {
+		err = r.givePackages(&p.spec, p)
+		defer r.releasePackages(p.runID)
+	}
 	path := ""
 	adapter := p.spec.adapter()
 	program := ""

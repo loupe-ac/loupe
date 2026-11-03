@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 )
 
 // A stand-in claude prints its result with the ceiling it got on stdout, and
@@ -359,5 +360,25 @@ func TestAdoptFindsTheResultLinePastOneMiB(t *testing.T) {
 	}
 	if res.timing.ToolTimeMs == nil || *res.timing.ToolTimeMs != 2000 {
 		t.Fatalf("timing = %+v", res.timing)
+	}
+}
+
+// A worker with packages gets the flags before the prompt.
+func TestRunWorkerPassesItsPackages(t *testing.T) {
+	fakeClaude(t, "echo \"$*\" > \"$PWD/args\"\necho '{\"type\":\"result\",\"structured_output\":{\"status\":\"finished\",\"summary\":\"x\"}}'\n")
+	shortConfigHome(t)
+	work := t.TempDir()
+	picks := []skills.Pick{{Package: "loupe", Version: "1.0.0", Dir: "/store/loupe/1.0.0"}}
+
+	res := runWorker(context.Background(), workerSpec{dir: work, sessionID: testSession, prompt: "go", packages: picks, mcpConfig: `{"mcpServers":{}}`}, nil)
+	if res.err != nil || !res.hasResult {
+		t.Fatalf("runWorker = %+v", res)
+	}
+	args, err := os.ReadFile(filepath.Join(work, "args"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(args), "--plugin-dir /store/loupe/1.0.0 --mcp-config {\"mcpServers\":{}} -p") {
+		t.Fatalf("args = %s", args)
 	}
 }

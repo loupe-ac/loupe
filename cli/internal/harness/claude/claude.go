@@ -63,8 +63,23 @@ func args(spec harness.Spec, session string) []string {
 	if spec.Schema != "" {
 		args = append(args, "--json-schema", spec.Schema)
 	}
+	args = append(args, packageArgs(spec)...)
 
 	return append(args, "-p", session, spec.SessionID, "--", spec.Prompt)
+}
+
+// packageArgs are the flags that give a worker its skill packages and the
+// loupe MCP server. They stand before --.
+func packageArgs(spec harness.Spec) []string {
+	var args []string
+	for _, dir := range spec.PluginDirs {
+		args = append(args, "--plugin-dir", dir)
+	}
+	if spec.MCPConfig != "" {
+		args = append(args, "--mcp-config", spec.MCPConfig)
+	}
+
+	return args
 }
 
 // env is claude's environment. A ceiling or a connect timeout the operator
@@ -120,6 +135,9 @@ func (Harness) Interactive(program string, spec harness.Spec) string {
 	}
 	if spec.PermissionMode != "" {
 		b.WriteString(" --permission-mode " + shellQuote(spec.PermissionMode))
+	}
+	for _, a := range packageArgs(spec) {
+		b.WriteString(" " + shellQuote(a))
 	}
 	b.WriteString(" -- " + shellQuote(spec.Prompt) + "\n")
 
