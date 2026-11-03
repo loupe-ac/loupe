@@ -1,6 +1,6 @@
 {
   "name": "loupe",
-  "version": "0.56.0",
+  "version": "0.57.0",
   "description": "Skills for working a Loupe project from Claude Code and Codex: documents, the board, the inbox, live review, the workers, the analyses and discovery.",
   "author": {
     "name": "Geoffrey Bachelet",
