@@ -529,8 +529,6 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	defer stop()
 	r.ctx = ctx
 	go r.priceLoop(ctx)
-	r.skills.list = apiClient(cfg).Sites
-	go r.skillLoop(ctx)
 	go r.itemSessions().run(ctx, projectDirs(r.rules()), itemSweepInterval)
 	startLoginGate(ctx, r.log, cfg)
 	defer setBridgeGate(nil)
@@ -584,6 +582,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.readHolds = apiClient(cfg).CardHolds
 	}
 	r.applyFlags(events)
+	// An adopted queue dispatches in restoreState, so the first read comes first.
+	r.skills.list = apiClient(cfg).Sites
+	r.loadSkills(ctx)
+	go r.skillLoop(ctx)
 	r.restoreState(events.Head)
 	var updates *updater
 	var watched <-chan struct{}

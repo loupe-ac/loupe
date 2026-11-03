@@ -27,22 +27,34 @@ type skillState struct {
 	mu      sync.Mutex
 	sites   []api.Site
 	failing bool
+	// started counts the reads begun, and kept names the newest read whose
+	// answer the state holds.
+	started, kept uint64
 }
 
-// loadSkills reads the project list and keeps the answer. A failed read keeps
-// the last answer, so a bridge that lost the network still starts its workers
-// with the packages it knew. It logs one failure for each streak.
+// loadSkills reads the project list and keeps the answer, unless a read that
+// began later already answered. A failed read keeps the last answer, so a bridge
+// that lost the network still starts its workers with the packages it knew. It
+// logs one failure for each streak.
 func (r *router) loadSkills(ctx context.Context) {
 	s := &r.skills
 	if s.list == nil {
 		return
 	}
+	s.mu.Lock()
+	s.started++
+	read := s.started
+	s.mu.Unlock()
+
 	ctx, cancel := context.WithTimeout(ctx, skillsTimeout)
 	defer cancel()
 	sites, err := s.list(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if read < s.kept {
+		return
+	}
 	if err != nil {
 		if !s.failing {
 			r.log.Warn("skill_packages_read_failed", "error", err.Error(), "kept", len(s.sites))
@@ -54,29 +66,23 @@ func (r *router) loadSkills(ctx context.Context) {
 	if s.failing {
 		r.log.Info("skill_packages_read", "projects", len(sites))
 	}
-	s.failing, s.sites = false, sites
+	s.failing, s.sites, s.kept = false, sites, read
 }
 
-// refreshSkills reads the project list off the calling goroutine. A reload
-// calls it, because a rule file can name a project the last read lacked.
-func (r *router) refreshSkills() {
-	go r.loadSkills(r.workerContext())
-}
-
-// skillLoop reads the project list at once and then each skillsInterval, until
-// ctx ends.
+// skillLoop reads the project list each skillsInterval, until ctx ends. The
+// start of the bridge makes the first read, before any work can dispatch.
 func (r *router) skillLoop(ctx context.Context) {
 	after := r.skills.after
 	if after == nil {
 		after = time.After
 	}
 	for {
-		r.loadSkills(ctx)
 		select {
 		case <-ctx.Done():
 			return
 		case <-after(skillsInterval):
 		}
+		r.loadSkills(ctx)
 	}
 }
 

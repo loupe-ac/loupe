@@ -1113,8 +1113,10 @@ lists the skill packages a worker of the project needs: `loupe` and
 `needsProfile` says whether the project needs a repository profile. The Simple
 template needs none.
 
-The bridge reads the list at start, at each reload and once an hour. When a read
-fails, the bridge keeps the last answer. An app that is older than this change,
+The bridge reads the list at start, at each reload and once an hour. The read at
+start and the read of a reload end before the bridge dispatches work. When reads
+overlap, the answer of the read that began last wins. When a read fails, the
+bridge keeps the last answer. An app that is older than this change,
 or a project whose stored template copy has no value, sends `null`. The bridge
 then gives that project every package it holds, and treats `needsProfile` as
 `true`.
