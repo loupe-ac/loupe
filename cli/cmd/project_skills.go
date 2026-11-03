@@ -66,6 +66,12 @@ type skillState struct {
 	// of the session then keeps them. A prune takes mu for its whole length, so
 	// a pick never lands on a folder that the prune deletes.
 	holds map[string][]skills.Pick
+	// homeHolds keeps the lock on the Codex home of each Codex run from its pick
+	// until its worker ends. codexHomes is the state of the plugins in each Codex
+	// home after the last pass. syncMu lets one pass run at a time.
+	homeHolds  map[string]*skills.HomeLock
+	codexHomes map[string]codexHomeReport
+	syncMu     sync.Mutex
 }
 
 // loadSkills reads the project list and keeps the answer, unless a read that
@@ -120,6 +126,7 @@ func (r *router) skillLoop(ctx context.Context) {
 		}
 		r.loadSkills(ctx)
 		r.pruneSkills(time.Now())
+		r.syncCodexPlugins(ctx)
 	}
 }
 
@@ -221,14 +228,17 @@ func (r *router) runningSessions() (map[string]bool, error) {
 }
 
 // givePackages picks the skill packages of a Claude Code worker and the loupe
-// MCP server it starts with. A resume uses the versions its session started
-// with while the store still holds them, and the current ones otherwise. It
-// fails when the project names a package the store cannot serve, when a release
-// build has an empty store, or when the record of the session cannot be written,
-// and the run then does not start. The caller calls releasePackages when the
-// worker ended.
+// MCP server it starts with. A Codex worker gets the list of skills to hide. A
+// resume uses the versions its session started with while the store still holds
+// them, and the current ones otherwise. It fails when the project names a package
+// the store cannot serve, when a release build has an empty store, or when the
+// record of the session cannot be written, and the run then does not start. The
+// caller calls releasePackages when the worker ended.
 func (r *router) givePackages(spec *workerSpec, p pending) error {
 	s := &r.skills
+	if spec.harnessName == rules.HarnessCodex {
+		return r.giveCodexSkills(spec, p)
+	}
 	if spec.harnessName != "" && spec.harnessName != rules.HarnessClaudeCode {
 		return nil
 	}
@@ -318,6 +328,8 @@ func (r *router) releasePackages(runID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.holds, runID)
+	s.homeHolds[runID].Release()
+	delete(s.homeHolds, runID)
 }
 
 // projectSite is the last answer of the app for the project that handle

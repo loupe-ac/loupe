@@ -62,6 +62,9 @@ func newStatusCmd() *cobra.Command {
 			"The `Skills:` lines give the version of each skill package in the store. A line names a bridge " +
 			"when that bridge holds another version, or when its last update of the package failed, and says why. " +
 			"A note never fails the check.\n\n" +
+			"The `Codex:` lines give the state of the Loupe plugins in each Codex home that a running bridge keeps. " +
+			"A home waits while a worker runs on it, and the bridge retries each hour. " +
+			"A note never fails the check.\n\n" +
 			"The `Bridges:` line counts the running bridges and gives their login state. No running bridge " +
 			"is reported and does not fail the check. A bridge that waits for a new login fails it. " +
 			"`loupe bridge status` gives the detail.\n\n" +
@@ -79,6 +82,7 @@ func newStatusCmd() *cobra.Command {
 			bridges, listErr := collectBridges()
 			err = errors.Join(err, printStatusBridges(out, bridges, listErr))
 			noteSkills(out, bridges)
+			noteCodexPlugins(out, bridges)
 			noteRuleGaps(out, rulesPath, current)
 			if err != nil {
 				fmt.Fprintln(out, statusFail)
@@ -276,6 +280,16 @@ func noteSkills(out io.Writer, bridges []bridgeReport) {
 		}
 		for _, line := range lines {
 			fmt.Fprintf(out, "Skills:      %s\n", line)
+		}
+	}
+}
+
+// noteCodexPlugins prints one line for each Codex home a bridge keeps the Loupe
+// plugins in: its state, and why it waits or failed. It is a note only.
+func noteCodexPlugins(out io.Writer, bridges []bridgeReport) {
+	for _, b := range bridges {
+		for _, rep := range b.status.CodexPlugins {
+			fmt.Fprintf(out, "Codex:       %s (bridge %s)\n", describePluginReport(rep), b.heading())
 		}
 	}
 }

@@ -719,6 +719,28 @@ CODEX_HOME=~/.codex codex mcp add loupe -- loupe mcp
 The [account check](#account-checks) fails when the server is missing. A worker
 without the Loupe tools cannot read its card.
 
+Codex gets the Loupe skills as plugins, one for each package. `loupe init`
+installs them in each Codex home of the rule file, from the copy in the CLI
+and with no network. The bridge keeps them current. It installs a new version
+in a home only when no worker runs on that home, and it tries again at the
+hourly check. `loupe status` shows a home that waits. A worker that starts during
+an install waits until the install ends. The bridge hides the skills of the
+packages that a project does not use, with `skills.config`. A resumed Codex run
+gets the newest version of each package.
+
+When a project names a package that the store cannot give to Codex, the
+[account check](#account-checks) fails that project with the fix `loupe update`,
+and the bridge refuses to start a worker of that project.
+
+A Codex home that `loupe init` set up before the plugins existed holds the
+Loupe skills in `~/.agents/skills/`. The bridge installs the plugins in each
+Codex home of the rule file. When no worker runs on any of those homes, it moves
+each folder that carries the name of a plugin skill to `skills/backup/<date>/` in
+the config folder. Codex would otherwise show each skill twice. Any other folder
+stays, also one whose name starts with `loupe-`. The
+[account check](#account-checks) accepts the old folders until then, and
+afterwards it fails for a missing plugin, with the fix `loupe init`.
+
 Codex starts an MCP server with a fixed set of environment variables, so
 `LOUPE_SESSION_ID` on the `codex` process does not reach `loupe mcp`. The bridge
 therefore passes the run id with `-c mcp_servers.loupe.env.LOUPE_SESSION_ID=<run id>`,

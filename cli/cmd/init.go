@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"net/url"
 	"os"
 	"os/exec"
@@ -26,6 +25,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -35,10 +35,6 @@ const (
 	pluginSpec        = "loupe@loupe"
 	lifecyclePlugin   = "loupe-lifecycle@loupe"
 	playwrightCommand = "npx playwright install chromium"
-
-	codexSkillsRepository = "https://github.com/loupe-ac/loupe"
-	codexSkillsPath       = "plugins/loupe/skills"
-	codexLifecyclePath    = "plugins/loupe-lifecycle/skills"
 )
 
 // The programs init runs, and the checks it makes, are variables so a test
@@ -56,6 +52,7 @@ var (
 		return c.CombinedOutput()
 	}
 	initStartBridge = startDaemon
+	initBusyHomes   = busyCodexHomes
 	initBridgeRuns  = func(rulesPath string) bool {
 		abs, err := filepath.Abs(rulesPath)
 		if err != nil {
@@ -129,8 +126,11 @@ func newInitCmd() *cobra.Command {
 			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
 			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for each " +
 			"Codex account of the rule file: in its profile file when that sets the mode, else in config.toml " +
-			"of its Codex home. Then copy the Loupe skills into ~/.agents/skills/. The Codex part runs " +
-			"after step 5, because it reads the Codex accounts of the rule file. " +
+			"of its Codex home. Then fill the skill store, build a local plugin marketplace from it, and " +
+			"install the Loupe plugins in the Codex home of each account. A home with a running worker " +
+			"is left to the bridge. After the last home, the Loupe skill folders in ~/.agents/skills/ move to " +
+			"the backup folder of the skill store, because Codex reads that folder for every home. The Codex " +
+			"part runs after step 5, because it reads the Codex accounts of the rule file. " +
 			"When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
@@ -737,7 +737,7 @@ func codexOnly() bool {
 // initCodex connects each Codex account of the rule file. For each account, it
 // declares `loupe mcp` as --mcp and --no-mcp say, in the Codex home and profile
 // of that account. Without --no-mcp, it approves the Loupe tools of a
-// declaration that starts `loupe mcp`. Then it installs the skills once.
+// declaration that starts `loupe mcp`. Then it installs the plugins.
 func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets []codexTarget) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
@@ -747,7 +747,7 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets 
 			initCodexApproval(cmd.OutOrStdout(), t)
 		}
 	}
-	initCodexSkills(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), dir)
+	initCodexPlugins(ctx, cmd.OutOrStdout(), targets)
 }
 
 // initCodexServer checks the declaration of one Codex account, and reports
@@ -1008,159 +1008,131 @@ func initCodexApproval(out io.Writer, t codexTarget) {
 	}
 }
 
-// initCodexSkills copies the Loupe skills into ~/.agents/skills, where Codex
-// finds them. It takes them from a sparse clone of the repository. It replaces
-// an installed skill that differs only when the user says yes.
-func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir string) {
-	byHand := "copy the folders of " + codexSkillsPath + "/ and " + codexLifecyclePath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
-	fail := func(err error, raw []byte) {
-		step(out, "Codex skills", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
-	}
-	home, err := os.UserHomeDir()
+// initCodexPlugins installs the Loupe plugins in the Codex home of each account.
+// It fills the store from the starting copy, builds the local marketplace, and
+// installs each plugin whose version differs. A home with a running worker waits
+// for the bridge. After the last home, it moves the old skill folders of the user
+// home away, because Codex reads that folder for every home.
+func initCodexPlugins(ctx context.Context, out io.Writer, targets []codexTarget) {
+	const name = "Codex plugins"
+	dir, err := config.Dir()
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", err.Error())
 
 		return
 	}
-	base, err := config.TempDir()
+	if _, err := skills.Install(dir); err != nil {
+		step(out, name, "failed", fmt.Sprintf("fill the skill store: %v; run `loupe update`", err))
+
+		return
+	}
+	picks, err := skills.BuildMarketplace(dir, version)
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", fmt.Sprintf("build the plugin marketplace: %v", err))
 
 		return
 	}
-	tmp, err := os.MkdirTemp(base, "loupe-skills-")
+	if len(picks) == 0 {
+		step(out, name, "skipped", "the skill store holds no package for Codex; run `loupe update`")
+
+		return
+	}
+	binary, err := initLookPath("codex")
 	if err != nil {
-		fail(err, nil)
+		step(out, name, "failed", err.Error())
 
 		return
 	}
-	defer os.RemoveAll(tmp)
-
-	clone := filepath.Join(tmp, "loupe")
-	if raw, err := initExec(ctx, dir, nil, "git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", codexSkillsRepository, clone); err != nil {
-		fail(err, raw)
-
-		return
-	}
-	if raw, err := initExec(ctx, dir, nil, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath, codexLifecyclePath); err != nil {
-		fail(err, raw)
-
-		return
-	}
-	replace := func(changed []string) bool {
-		return confirm(out, in, fmt.Sprintf("%d installed Loupe skills differ from the current version (%s). Replace them?", len(changed), strings.Join(changed, ", ")))
-	}
-	var copied, kept int
-	for _, path := range []string{codexSkillsPath, codexLifecyclePath} {
-		c, k, copyErr := copySkills(filepath.Join(clone, filepath.FromSlash(path)), filepath.Join(home, ".agents", "skills"), replace)
-		copied, kept = copied+c, kept+k
-		if copyErr != nil {
-			err = copyErr
-
-			break
-		}
-	}
-	switch {
-	case err != nil:
-		fail(err, nil)
-	case copied == 0 && kept == 0:
-		step(out, "Codex skills", "skipped", "the Loupe skills in ~/.agents/skills are current")
-	case copied == 0:
-		step(out, "Codex skills", "skipped", fmt.Sprintf("kept %d changed skills in ~/.agents/skills", kept))
-	case kept > 0:
-		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills, kept %d changed skills", copied, kept))
-	default:
-		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills", copied))
-	}
-}
-
-// copySkills copies each skill folder of src that dst lacks. It asks replace
-// once about the folders that dst holds with other contents, and replaces them
-// on yes. It reports how many folders it copied and how many changed ones it kept.
-func copySkills(src, dst string, replace func(changed []string) bool) (copied, kept int, err error) {
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return 0, 0, err
-	}
-	if !slices.ContainsFunc(entries, fs.DirEntry.IsDir) {
-		return 0, 0, errors.New("the clone holds no skills")
-	}
-	var missing, changed []string
-	for _, e := range entries {
-		if !e.IsDir() {
+	busy := initBusyHomes()
+	allDone := true
+	var done []string
+	for _, t := range targets {
+		home := filepath.Clean(t.codexHome())
+		if slices.Contains(done, home) {
 			continue
 		}
-		target := filepath.Join(dst, e.Name())
-		if _, err := os.Stat(target); errors.Is(err, fs.ErrNotExist) {
-			missing = append(missing, e.Name())
-
-			continue
+		done = append(done, home)
+		lock, free, err := reserveInitHome(dir, home, busy)
+		switch {
+		case err != nil:
+			allDone = false
+			step(out, name, "failed", err.Error())
+		case !free:
+			allDone = false
+			step(out, name, "skipped", "a worker runs on "+home+", the bridge installs it later")
+		default:
+			installed, err := codex.SyncPlugins(ctx, binary, codex.HomeEnv(os.Environ(), home), skills.MarketplaceDir(dir), picks)
+			lock.Release()
+			switch {
+			case err != nil:
+				allDone = false
+				step(out, name, "failed", fmt.Sprintf("%v; run `%s`", err, "CODEX_HOME="+home+" codex plugin list"))
+			case len(installed) == 0:
+				step(out, name, "skipped", "the Loupe plugins in "+home+" are current")
+			default:
+				step(out, name, "done", "installed "+strings.Join(installed, ", ")+" in "+home)
+			}
 		}
-		same, err := sameTree(filepath.Join(src, e.Name()), target)
+	}
+	if !allDone {
+		return
+	}
+	// A running worker can read the old folders, so the move waits for it.
+	for _, home := range done {
+		lock, free, err := reserveInitHome(dir, home, busy)
 		if err != nil {
-			return 0, 0, err
-		}
-		if !same {
-			changed = append(changed, e.Name())
-		}
-	}
-	if len(changed) > 0 && replace(changed) {
-		missing = append(missing, changed...)
-	} else {
-		kept = len(changed)
-	}
-	if len(missing) > 0 {
-		if err := os.MkdirAll(dst, 0o755); err != nil {
-			return 0, kept, err
-		}
-	}
-	for _, name := range missing {
-		target := filepath.Join(dst, name)
-		if err := os.RemoveAll(target); err != nil {
-			return copied, kept, err
-		}
-		if err := os.CopyFS(target, os.DirFS(filepath.Join(src, name))); err != nil {
-			return copied, kept, err
-		}
-		copied++
-	}
+			step(out, "Codex skills", "failed", err.Error())
 
-	return copied, kept, nil
+			return
+		}
+		if !free {
+			step(out, "Codex skills", "skipped", "a worker runs on "+home+", the bridge moves the old folders later")
+
+			return
+		}
+		defer lock.Release()
+	}
+	switch moved, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(dir), "backup"), skills.PickSkills(picks), time.Now()); {
+	case err != nil:
+		step(out, "Codex skills", "failed", err.Error())
+	case moved != "":
+		step(out, "Codex skills", "done", "moved the old Loupe skill folders of ~/.agents/skills to "+moved)
+	}
 }
 
-// sameTree reports whether two folders hold the same files with the same contents.
-func sameTree(a, b string) (bool, error) {
-	ta, err := readTree(a)
-	if err != nil {
-		return false, err
+// reserveInitHome takes the Codex home for an install, and reports false when a
+// worker or a session uses it. busy names the homes of the workers that a running
+// bridge reported. A worker that a bridge starts now waits for the lock.
+func reserveInitHome(dir, home string, busy map[string]bool) (*skills.HomeLock, bool, error) {
+	if busy[home] {
+		return nil, false, nil
 	}
-	tb, err := readTree(b)
-	if err != nil {
-		return false, err
+	lock, free, err := skills.ReserveHome(dir, home)
+	if err != nil || !free {
+		return nil, false, err
+	}
+	if used, _ := sessionOnHome(dir, home, listProcesses); used {
+		lock.Release()
+
+		return nil, false, nil
 	}
 
-	return maps.Equal(ta, tb), nil
+	return lock, true, nil
 }
 
-func readTree(root string) (map[string]string, error) {
-	tree := map[string]string{}
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == root {
-			return err
+// busyCodexHomes names the Codex homes that a running bridge has a worker on.
+func busyCodexHomes() map[string]bool {
+	reports, _ := collectBridges()
+	busy := map[string]bool{}
+	for _, b := range reports {
+		for _, w := range b.status.Workers {
+			if w.CodexHome != "" {
+				busy[w.CodexHome] = true
+			}
 		}
-		rel, _ := filepath.Rel(root, path)
-		if d.IsDir() {
-			tree[rel] = "\x00dir"
+	}
 
-			return nil
-		}
-		body, err := os.ReadFile(path)
-		tree[rel] = string(body)
-
-		return err
-	})
-
-	return tree, err
+	return busy
 }
 
 // indented formats the output of a failed command as a block after a message.

@@ -163,6 +163,8 @@ type workerSpec struct {
 	// gets neither.
 	packages  []skills.Pick
 	mcpConfig string
+	// hideSkills names the skills a Codex worker must not see.
+	hideSkills []string
 }
 
 // workerOps is the process surface the router drives. Tests replace run so the

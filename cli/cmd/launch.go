@@ -271,6 +271,9 @@ func (r *router) runLaunch(l launch) {
 	if err == nil {
 		err = r.givePackages(&p.spec, p)
 		defer r.releasePackages(p.runID)
+		if err == nil {
+			r.recordSessionHome(p.spec)
+		}
 	}
 	path := ""
 	adapter := p.spec.adapter()

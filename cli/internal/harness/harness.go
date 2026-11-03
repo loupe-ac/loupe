@@ -70,6 +70,15 @@ type CheckSpec struct {
 	ConfigDir string
 	Env       []string
 	Projects  map[string]string
+	// Packages maps a project slug to the skill packages its workers need.
+	// A project with no entry needs none. LegacySkills says the user home
+	// still holds Loupe skill folders that the bridge has not moved, and they
+	// stand in for the plugins until it does.
+	Packages     map[string][]string
+	LegacySkills bool
+	// MissingPackages maps a project slug to the packages it names that the
+	// store cannot serve. Each one fails that project.
+	MissingPackages map[string][]string
 }
 
 // Problem is one thing that keeps an account from running. Reason is a short
@@ -106,6 +115,9 @@ type Spec struct {
 	// empty for a worker that gets neither, and Codex ignores them.
 	PluginDirs []string
 	MCPConfig  string
+	// HideSkills names the skills a Codex worker must not see, as
+	// <plugin>:<skill>. Claude Code ignores it, and an empty list hides none.
+	HideSkills []string
 }
 
 // Command is the argv after the program, and the environment of the process.

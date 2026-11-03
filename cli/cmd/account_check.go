@@ -69,9 +69,17 @@ func (a accountResult) projectReasons() map[string]string {
 	return out
 }
 
-// checkAccounts checks each account that the set declares with its harness, in
-// every project of the set, with the environment a worker of the account gets.
+// checkAccounts checks the accounts of the set before the bridge knows the
+// project list, so a project needs every package the store holds.
 func checkAccounts(ctx context.Context, set *rules.Set) []accountResult {
+	return checkAccountsWith(ctx, set, nil)
+}
+
+// checkAccountsWith checks each account that the set declares with its harness,
+// in every project of the set, with the environment a worker of the account gets.
+// sites is the project list that tells a Codex check which plugins a project
+// needs.
+func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []accountResult {
 	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout)
 	defer cancel()
 	projects := map[string]string{}
@@ -80,13 +88,14 @@ func checkAccounts(ctx context.Context, set *rules.Set) []accountResult {
 	}
 	names := set.DeclaredAccounts()
 	used := set.UsedAccounts()
+	plugins := checkInputs(slices.Collect(maps.Keys(projects)), sites)
 	// Each account runs in its own goroutine, so a slow one cannot use up the
 	// time of the next.
 	out := make([]accountResult, len(names))
 	var wg sync.WaitGroup
 	for i, name := range names {
 		wg.Go(func() {
-			out[i] = checkAccount(ctx, set, name, projects)
+			out[i] = checkAccount(ctx, set, name, projects, plugins)
 			out[i].used = slices.Contains(used, name)
 		})
 	}
@@ -95,7 +104,7 @@ func checkAccounts(ctx context.Context, set *rules.Set) []accountResult {
 	return out
 }
 
-func checkAccount(ctx context.Context, set *rules.Set, name string, projects map[string]string) accountResult {
+func checkAccount(ctx context.Context, set *rules.Set, name string, projects map[string]string, plugins codexCheckInputs) accountResult {
 	run, _ := set.Account(name, "")
 	res := accountResult{name: name, harness: harnessNameOf(run)}
 	h, err := harnessByName(run.Harness, run.ConfigDir, run.Profile)
@@ -110,7 +119,7 @@ func checkAccount(ctx context.Context, set *rules.Set, name string, projects map
 
 		return res
 	}
-	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Projects: projects})
+	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Projects: projects, Packages: plugins.packages, MissingPackages: plugins.missing, LegacySkills: plugins.legacy})
 
 	return res
 }

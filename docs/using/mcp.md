@@ -44,7 +44,7 @@ asks you which project to use.
 | Step | Claude Code | Codex |
 |---|---|---|
 | MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `loupe mcp` is declared to Codex with the project id |
-| Skills | The Claude Code plugins, see [below](#the-claude-code-plugins) | A copy of the Loupe skills in `~/.agents/skills/` |
+| Skills | The Claude Code plugins, see [below](#the-claude-code-plugins) | The Loupe plugins, installed in each Codex home |
 
 Codex gets the project id in its server declaration, and Claude Code reads it
 from `.loupe.yaml`. At the end, the agent tells you to restart it. The new
