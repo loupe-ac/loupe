@@ -8968,7 +8968,9 @@
                                 "slug",
                                 "name",
                                 "collectFullText",
-                                "subcommandPrograms"
+                                "subcommandPrograms",
+                                "skillPackages",
+                                "needsProfile"
                             ],
                             "properties": {
                                 "id": {
@@ -8990,6 +8992,19 @@
                                     "items": {
                                         "type": "string"
                                     }
+                                },
+                                "skillPackages": {
+                                    "description": "The skill packages a worker of the project needs, or null when the stored template copy names none. A reader of null takes every package it holds.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "nullable": true
+                                },
+                                "needsProfile": {
+                                    "description": "Whether the project needs a repository profile, or null when the stored template copy says nothing. A reader of null takes true.",
+                                    "type": "boolean",
+                                    "nullable": true
                                 }
                             },
                             "type": "object"

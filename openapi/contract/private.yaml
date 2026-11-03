@@ -1901,6 +1901,8 @@ components:
             - name
             - collectFullText
             - subcommandPrograms
+            - skillPackages
+            - needsProfile
             properties:
               id:
                 type: string
@@ -1916,6 +1918,16 @@ components:
                 type: array
                 items:
                   type: string
+              skillPackages:
+                type: array
+                nullable: true
+                items:
+                  type: string
+                description: The skill packages a worker of the project needs, or null when the stored template copy names none. A reader of null takes every package it holds.
+              needsProfile:
+                type: boolean
+                nullable: true
+                description: Whether the project needs a repository profile, or null when the stored template copy says nothing. A reader of null takes true.
     ProjectColumns:
       type: object
       required:
