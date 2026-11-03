@@ -3,7 +3,7 @@ title: "Artifact tools"
 description: "The five loupe MCP tools that read and archive stored design artifacts, and how a worker uses them."
 ---
 
-An artifact is a set of prototype files that an interactive session stored in the
+An artifact is a set of prototype files that a session stored in the
 Artifacts library of a project. A worker of any harness reads an artifact
 through five MCP tools of the `loupe` server. The tools read through the same
 token and the same project binding as the document and card tools.
@@ -12,10 +12,13 @@ The tools exist only while the feature flag `artifacts.enabled` is on. It is
 off on a new install. While it is off, the tool list hides the five tools, and a
 direct call returns "Artifacts are switched off on this instance."
 
-A worker reads artifacts and does not store them. A person stores a new version
-from an interactive session with `loupe artifact push`, which compiles a Design
-canvas to a plain page first. See "Pushing a Design canvas" in
-`docs/using/artifacts.md`.
+A worker reads artifacts through these tools. It stores them with the `loupe`
+CLI, because any credential can store through the public API, a worker run
+included. Run `loupe artifact create` for a new artifact and
+`loupe artifact version create` for a new version. Both compile a Design canvas
+to a plain page first. See "Storing from the command line" and "Pushing a
+Design canvas" in `docs/using/artifacts.md`. The CLI that has these commands
+replaces `loupe artifact push`, which now only prints a refusal.
 
 ## The tools
 

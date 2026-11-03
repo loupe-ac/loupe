@@ -39,6 +39,10 @@ credential with no right to a route gets `403` with the code
 code `invalid_credentials`. An API key past its end date gets `401` with
 `api_key_expired`.
 
+The `loupe` CLI has a command for each operation, such as `loupe card get 42`.
+It reads `LOUPE_API_KEY` for a key. [Commands for the public
+API](../cli.md#commands-for-the-public-api) lists them.
+
 A CLI that signed in before the public API existed has no `public` scope. Run
 `loupe login` again to add it.
 
