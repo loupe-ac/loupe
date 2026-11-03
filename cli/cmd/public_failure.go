@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,8 @@ const (
 	maxRetryWait     = 120 * time.Second
 	defaultRetryWait = 60 * time.Second
 	codeNotAllowed   = "credential_not_allowed"
+
+	maxRetryAfterSecs = uint64(math.MaxInt64 / time.Second)
 )
 
 // apiFailure is a public API answer of status 400 or more, or a body that is
@@ -175,8 +178,9 @@ func (s *publicSession) send(ctx context.Context, r api.PublicRequest, o sendOpt
 // it assumes the one minute of the rate window.
 func retryAfter(h http.Header, now time.Time) time.Duration {
 	v := strings.TrimSpace(h.Get("Retry-After"))
-	if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
-		return time.Duration(secs) * time.Second
+	// ParseUint answers the largest value on overflow, so a huge wait stays huge.
+	if secs, err := strconv.ParseUint(v, 10, 64); err == nil || errors.Is(err, strconv.ErrRange) {
+		return time.Duration(min(secs, maxRetryAfterSecs)) * time.Second
 	}
 	if at, err := http.ParseTime(v); err == nil {
 		return max(at.Sub(now), 0)

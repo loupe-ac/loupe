@@ -221,6 +221,24 @@ func TestRetryAboveLimitFailsAtOnce(t *testing.T) {
 	}
 }
 
+func TestHugeRetryAfterFailsAtOnce(t *testing.T) {
+	far := time.Now().AddDate(1000, 0, 0).UTC().Format(http.TimeFormat)
+	for _, header := range []string{"9223372036", "9223372037", "18446744074", "99999999999999999999999", far} {
+		t.Run(header, func(t *testing.T) {
+			srv, calls := rateLimited(t, header, 1)
+			s := keySession(t, srv.URL)
+			o := sendOptions{retry: true, sleep: func(context.Context, time.Duration) error { t.Error("must not wait"); return nil }}
+			_, err := s.send(context.Background(), api.PublicRequest{Method: "GET", Path: "/api/v1/x"}, o)
+			if code, _ := ExitCode(err); code != exitRefused || calls.Load() != 1 {
+				t.Fatalf("exit = %d, calls = %d, err = %v", code, calls.Load(), err)
+			}
+			if !strings.Contains(err.Error(), "120 seconds") {
+				t.Fatalf("message must name the limit: %v", err)
+			}
+		})
+	}
+}
+
 func TestRetryAfterForms(t *testing.T) {
 	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
 	for header, want := range map[string]time.Duration{
