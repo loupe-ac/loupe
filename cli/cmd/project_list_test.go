@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 )
 
@@ -15,21 +16,36 @@ func twoSites() string {
 		`{"id":"` + secondProject + `","slug":"","name":"Beta"}`
 }
 
+// publicProjectsServer answers listProjects with the given project objects.
+func publicProjectsServer(t *testing.T, sites string) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/projects" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"items":[%s],"next":null}`, sites)
+	}))
+	t.Cleanup(server.Close)
+
+	return server
+}
+
 // runList runs `loupe project list` and gives stdout and stderr apart.
 func runList(t *testing.T) (string, string, error) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	cmd := newProjectListCmd()
-	cmd.SetOut(&out)
-	cmd.SetErr(&errOut)
-	cmd.SetArgs(nil)
-	err := cmd.Execute()
+	root := newRootCmd()
+	root.SetOut(&out)
+	root.SetErr(&errOut)
+	root.SetArgs([]string{"project", "list", "--format", "table"})
+	err := root.Execute()
 
 	return out.String(), errOut.String(), err
 }
 
 func TestProjectListPrintsOneRowForEachProject(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	inRepo(t, server.URL)
 
 	out, _, err := runList(t)
@@ -45,7 +61,7 @@ func TestProjectListPrintsOneRowForEachProject(t *testing.T) {
 }
 
 func TestProjectListMarksTheProjectOfTheProjectFile(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	dir := inRepo(t, server.URL)
 	if err := projectfile.Write(dir, secondProject); err != nil {
 		t.Fatal(err)
@@ -64,7 +80,7 @@ func TestProjectListMarksTheProjectOfTheProjectFile(t *testing.T) {
 }
 
 func TestProjectListSaysWhenTheProjectFileNamesAnUnlistedProject(t *testing.T) {
-	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	server := publicProjectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
 	dir := inRepo(t, server.URL)
 	if err := projectfile.Write(dir, secondProject); err != nil {
 		t.Fatal(err)
@@ -74,13 +90,13 @@ func TestProjectListSaysWhenTheProjectFileNamesAnUnlistedProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("project list: %v", err)
 	}
-	if strings.Contains(out, "* ") || !strings.HasSuffix(out, "\n.loupe.yaml names project "+secondProject+", which your login does not cover.\n") {
+	if strings.Contains(out, "* ") || !strings.HasSuffix(out, "\n.loupe.yaml names project "+secondProject+", which your credential does not reach.\n") {
 		t.Fatalf("output must mark nothing and say why:\n%s", out)
 	}
 }
 
 func TestProjectListStillListsWhenTheProjectFileIsBroken(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	dir := inRepo(t, server.URL)
 	writeFile(t, dir+"/"+projectfile.Name, "project: not-an-id\n")
 
@@ -97,14 +113,14 @@ func TestProjectListStillListsWhenTheProjectFileIsBroken(t *testing.T) {
 }
 
 func TestProjectListWithNoProjectSaysHowToCreateOne(t *testing.T) {
-	server := projectsServer(t, "")
+	server := publicProjectsServer(t, "")
 	inRepo(t, server.URL)
 
 	out, _, err := runList(t)
 	if err != nil {
 		t.Fatalf("project list: %v", err)
 	}
-	want := "Your login covers no project. Create one with `loupe init --name \"<name>\"`, or in the app.\n"
+	want := "This credential reaches no project. Create one with `loupe init --name \"<name>\"`, or in the app.\n"
 	if out != want {
 		t.Fatalf("output: got %q, want %q", out, want)
 	}
@@ -114,13 +130,13 @@ func TestProjectListWithNoLoginAsksForOne(t *testing.T) {
 	inRepo(t, "")
 
 	_, _, err := runList(t)
-	if !errors.Is(err, config.ErrNotLoggedIn) {
-		t.Fatalf("project list with no login: got %v, want ErrNotLoggedIn", err)
+	if code, ok := ExitCode(err); !ok || code != exitAuth {
+		t.Fatalf("project list with no login: got %v, want exit %d", err, exitAuth)
 	}
 }
 
 func TestProjectListInASecondSetupMarksTheProjectOfTheLink(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	dir, setupDir := secondSetup(t, server.URL)
 	if err := projectfile.WriteLink(setupDir, projectfile.LinkKey(dir), firstProject); err != nil {
 		t.Fatal(err)
@@ -139,7 +155,7 @@ func TestProjectListInASecondSetupMarksTheProjectOfTheLink(t *testing.T) {
 }
 
 func TestProjectListInASecondSetupFallsBackToTheProjectFile(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	secondSetup(t, server.URL)
 
 	out, _, err := runList(t)
@@ -152,7 +168,7 @@ func TestProjectListInASecondSetupFallsBackToTheProjectFile(t *testing.T) {
 }
 
 func TestProjectListInASecondSetupMarksNothingWhenTheLinkFileIsBroken(t *testing.T) {
-	server := projectsServer(t, twoSites())
+	server := publicProjectsServer(t, twoSites())
 	_, setupDir := secondSetup(t, server.URL)
 	writeFile(t, setupDir+"/"+projectfile.LinksName, "not json")
 
