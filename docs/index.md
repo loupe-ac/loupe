@@ -1,17 +1,18 @@
 ---
 title: "Introduction"
-description: "A document- and live-review tool for humans working with AI agents."
+description: "A software factory for coding agents: product design, tech design, code and review, in one workflow."
 ---
 
-Loupe is a document- and live-review tool for humans working with AI agents.
+Loupe is a software factory for coding agents. Product design, tech design, code
+and review run in one workflow.
 
-An agent (or a person) submits a Markdown **document**; humans review it inline —
-selecting text, leaving comments, and either approving it or requesting changes.
-A **Model Context Protocol (MCP)** endpoint lets AI coding agents create documents
-and hand back a review URL, so a long-form plan or spec gets considered human
-feedback instead of scrolling past in a terminal. A companion **live-review**
-widget brings the same select-and-comment
-flow to live web pages.
+You move a card on a board. The [workflow](using/workflows.md) asks your agents
+for the work at each stage, and it stops where a person must decide. A
+[bridge](extending/cli-bridge.md) on your machine starts the workers, so they run
+on your own subscriptions. A second agent reviews each design and each pull
+request. You review the [documents](using/documents.md) in the browser, and you
+leave notes on a running preview with the [live review](using/live-review.md)
+widget.
 
 ## Start here
 
