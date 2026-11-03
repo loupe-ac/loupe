@@ -86,10 +86,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           node: 'true'
       - run: just lint
+
+      # A plugin folder that changes without a new version never reaches a worker,
+      # because the store keeps one folder for each version. This runs in a
+      # required job, because a job the ruleset does not name can fail and still merge.
+      - name: Every changed plugin has a new version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: sh cli/scripts/plugin-version-check.sh "origin/$BASE_REF"
 
       # A matrix leg the ruleset does not name can fail and still merge.
       - name: Every e2e leg is a required check
@@ -221,20 +232,6 @@ jobs:
         working-directory: website
       - run: npm run check
         working-directory: website
-
-  # A plugin folder that changes without a new version never reaches a worker,
-  # because the store keeps one folder for each version.
-  plugin-version:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - run: sh cli/scripts/plugin-version-check.sh "origin/$BASE_REF"
-        env:
-          BASE_REF: ${{ github.base_ref }}
 
   # The Go CLI needs neither PHP nor the project's dependencies, so this leg
   # skips the setup action and takes just alone; the recipe brings its own
