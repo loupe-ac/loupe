@@ -15,6 +15,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -286,6 +287,79 @@ final class UpdateProjectHandlerTest extends KernelTestCase
 
         self::assertSame('my app', $project->name);
         self::assertSame('my-app', $project->slug);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, array<string, string>}> */
+    public static function refusedInputs(): iterable
+    {
+        yield 'blank name' => [['name' => '   '], ['name' => 'project.error.name_blank']];
+        yield 'long name' => [['name' => str_repeat('n', Project::MAX_NAME_LENGTH + 1)], ['name' => 'project.error.name_too_long']];
+        yield 'long domain' => [['domain' => str_repeat('d', Project::MAX_DOMAIN_LENGTH + 1)], ['domain' => 'project.error.domain_too_long']];
+        yield 'long description' => [['description' => str_repeat('x', Project::MAX_DESCRIPTION_LENGTH + 1)], ['description' => 'project.error.description_too_long']];
+        yield 'unknown language' => [['searchLanguage' => 'klingon'], ['searchLanguage' => 'project.error.search_language_unknown']];
+    }
+
+    /**
+     * @param array<string, mixed>  $input
+     * @param array<string, string> $errors
+     */
+    #[DataProvider('refusedInputs')]
+    public function test_an_input_the_project_cannot_hold_is_refused_and_changes_nothing(array $input, array $errors): void
+    {
+        $project = $this->project('update-project-refused-'.uniqid().'@example.com', 'Untouched');
+
+        try {
+            ($this->handler)(new UpdateProjectCommand(...[...['project' => $project, 'name' => null, 'domain' => null, 'searchLanguage' => null, 'actor' => ProjectEventType::ACTOR_AGENT], ...$input]));
+            self::fail('Expected DomainErrors.');
+        } catch (DomainErrors $e) {
+            self::assertSame($errors, $e->errors);
+        }
+
+        self::assertSame('Untouched', $project->name);
+        self::assertSame([], $this->audit->operations());
+    }
+
+    public function test_an_unknown_language_names_the_value_and_the_choices(): void
+    {
+        $project = $this->project('update-project-language@example.com', 'Language');
+
+        try {
+            ($this->handler)(new UpdateProjectCommand(project: $project, name: null, domain: null, searchLanguage: 'klingon', actor: ProjectEventType::ACTOR_AGENT));
+            self::fail('Expected DomainErrors.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['%language%' => 'klingon', '%languages%' => implode(', ', SearchLanguage::values())], $e->parameters['searchLanguage']);
+        }
+    }
+
+    public function test_an_omitted_input_keeps_its_value_and_an_empty_one_clears_it(): void
+    {
+        $project = $this->project('update-project-partial@example.com', 'Partial');
+        $project->description = 'Kept';
+        $project->domain = 'kept.example.com';
+        $project->searchLanguage = SearchLanguage::French;
+        $this->em->flush();
+
+        ($this->handler)(new UpdateProjectCommand(project: $project, name: null, domain: null, searchLanguage: null, actor: ProjectEventType::ACTOR_AGENT));
+        self::assertSame('Partial', $project->name);
+        self::assertSame('Kept', $project->description);
+        self::assertSame('kept.example.com', $project->domain);
+        self::assertSame(SearchLanguage::French, $project->searchLanguage);
+
+        ($this->handler)(new UpdateProjectCommand(project: $project, name: null, domain: ' ', searchLanguage: 'simple', actor: ProjectEventType::ACTOR_AGENT, description: ''));
+        self::assertNull($project->description);
+        self::assertNull($project->domain);
+        self::assertSame(SearchLanguage::Simple, $project->searchLanguage);
+    }
+
+    public function test_a_stored_description_over_the_limit_does_not_block_another_change(): void
+    {
+        $project = $this->project('update-project-legacy@example.com', 'Legacy');
+        $project->description = str_repeat('x', Project::MAX_DESCRIPTION_LENGTH + 100);
+        $this->em->flush();
+
+        ($this->handler)(new UpdateProjectCommand(project: $project, name: null, domain: null, searchLanguage: SearchLanguage::Simple, actor: ProjectEventType::ACTOR_AGENT));
+
+        self::assertSame(Project::MAX_DESCRIPTION_LENGTH + 100, mb_strlen($project->description ?? ''));
     }
 
     public function test_the_handler_keeps_no_logger_beside_the_auditor(): void

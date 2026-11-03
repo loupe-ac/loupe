@@ -15,6 +15,7 @@ use App\Module\Review\Service\AgentReviewSummary;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -30,6 +31,7 @@ final class ReviewExtension extends AbstractExtension
         private readonly FormFactoryInterface $formFactory,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly AgentReviewSummary $agentReviewSummary,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -38,10 +40,23 @@ final class ReviewExtension extends AbstractExtension
     {
         return [
             new TwigFunction('comment_reply_form', $this->commentReplyForm(...)),
+            new TwigFunction('comment_author_label', $this->commentAuthorLabel(...)),
             new TwigFunction('document_archive_form', $this->documentArchiveForm(...)),
             new TwigFunction('comment_recovery_form', $this->commentRecoveryForm(...)),
             new TwigFunction('agent_review_summary', $this->agentReviewSummary->forDocument(...)),
         ];
+    }
+
+    /** The author's name, or the key and its owner when a key wrote the comment. */
+    public function commentAuthorLabel(Comment $comment): string
+    {
+        if (null === $comment->apiKeyId) {
+            return $comment->author->fullName;
+        }
+
+        return null === $comment->apiKeyName
+            ? $this->translator->trans('review.document.comment.author_unnamed_api_key', ['%owner%' => $comment->author->fullName])
+            : $this->translator->trans('review.document.comment.author_api_key', ['%name%' => $comment->apiKeyName, '%owner%' => $comment->author->fullName]);
     }
 
     public function commentReplyForm(Comment $comment): FormView

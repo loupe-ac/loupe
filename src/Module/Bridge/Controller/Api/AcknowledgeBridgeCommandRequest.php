@@ -6,16 +6,22 @@ namespace App\Module\Bridge\Controller\Api;
 
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use OpenApi\Attributes as OA;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 /**
  * The answer of a bridge to one command. The fields carry no constraints and
  * accept any JSON value, because a validation failure answers without the
  * error code that the bridge reads. The methods check them instead.
  */
+#[OA\Schema(required: ['state'])]
 final class AcknowledgeBridgeCommandRequest
 {
     public function __construct(
+        #[OA\Property(type: 'string', enum: ['done', 'refused'])]
         public mixed $state = null,
+
+        #[OA\Property(description: 'Blank keeps the reason the person gave.', type: 'string', nullable: true, maxLength: 1000)]
         public mixed $reason = null,
     ) {
     }
@@ -28,6 +34,7 @@ final class AcknowledgeBridgeCommandRequest
         return \in_array($state, [BridgeCommandState::Done, BridgeCommandState::Refused], true) ? $state : null;
     }
 
+    #[Ignore]
     public function hasTextReason(): bool
     {
         return null === $this->reason || \is_string($this->reason);

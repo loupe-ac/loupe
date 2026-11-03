@@ -17,12 +17,12 @@ type CardRun struct {
 	Open     bool   `json:"openCardRun"`
 }
 
-// SessionCardRun reads GET /api/interactive-sessions/{sessionId}/card-run for
+// SessionCardRun reads GET /api/v1/bridge/interactive-sessions/{sessionId}/card-run for
 // the project. Any answer but 200 is an error, because the caller cannot tell
 // the state from it.
 func (c *Client) SessionCardRun(ctx context.Context, sessionID, projectID string) (CardRun, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		c.baseURL+"/api/interactive-sessions/"+url.PathEscape(sessionID)+"/card-run", nil)
+		c.baseURL+"/api/v1/bridge/interactive-sessions/"+url.PathEscape(sessionID)+"/card-run", nil)
 	if err != nil {
 		return CardRun{}, err
 	}

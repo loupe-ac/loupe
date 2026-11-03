@@ -7,9 +7,8 @@ namespace App\Module\Board\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\ListBoardColumnsCommand;
 use App\Module\Board\Command\ListBoardColumnsHandler;
-use App\Module\Board\Command\ReorderBoardColumnsCommand;
-use App\Module\Board\Command\ReorderBoardColumnsHandler;
-use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Command\ReorderBoardColumnsBySlugCommand;
+use App\Module\Board\Command\ReorderBoardColumnsBySlugHandler;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 
@@ -23,7 +22,7 @@ final readonly class ColumnReorderTool
 
     public function __construct(
         private BoardSubjectResolver $subjects,
-        private ReorderBoardColumnsHandler $reorderColumns,
+        private ReorderBoardColumnsBySlugHandler $reorderColumns,
         private ListBoardColumnsHandler $listColumns,
         private BoardColumnPayload $columns,
         private BoardToolErrorMessages $errorMessages,
@@ -42,34 +41,12 @@ final readonly class ColumnReorderTool
         try {
             $project = $this->subjects->requireProject();
 
-            $ids = [];
-            foreach (($this->listColumns)(new ListBoardColumnsCommand($project))->columns as $column) {
-                if (!$column->backlog) {
-                    $ids[$column->slug] = (string) $column->id;
-                }
-            }
-            $slugs = implode(', ', array_keys($ids));
-
-            $wanted = [];
-            foreach ($order as $slug) {
-                if (BoardColumn::BACKLOG_SLUG === $slug) {
-                    throw new ToolCallException('Backlog always comes first. Leave backlog out of order.');
-                }
-                if (!\is_string($slug) || !isset($ids[$slug])) {
-                    throw new ToolCallException(\sprintf('Unknown column "%s". Use one of: %s.', \is_string($slug) ? $slug : get_debug_type($slug), $slugs));
-                }
-                $wanted[] = $ids[$slug];
-            }
-            if (\count($wanted) !== \count($ids) || \count(array_unique($wanted)) !== \count($wanted)) {
-                throw new ToolCallException(\sprintf('Name each of these columns exactly once: %s.', $slugs));
-            }
-
-            ($this->reorderColumns)(new ReorderBoardColumnsCommand($project, implode(',', $wanted), implode(',', $ids)));
+            ($this->reorderColumns)(new ReorderBoardColumnsBySlugCommand($project, $order));
             $view = ($this->listColumns)(new ListBoardColumnsCommand($project));
 
             return ['columns' => $this->columns->forColumns($view->columns)];
         } catch (DomainErrors $e) {
-            throw $this->errorMessages->forAgent($e);
+            throw \in_array($e->errors['order'] ?? null, [ReorderBoardColumnsBySlugHandler::BACKLOG_FIRST, ReorderBoardColumnsBySlugHandler::UNKNOWN_SLUG, ReorderBoardColumnsBySlugHandler::EACH_ONCE], true) ? $this->errorMessages->sentencesForAgent($e) : $this->errorMessages->forAgent($e);
         } catch (ToolCallException $e) {
             throw $e;
         } catch (\Throwable $e) {

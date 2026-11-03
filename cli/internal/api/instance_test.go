@@ -43,7 +43,7 @@ func TestAJSONNotFoundStaysAnAnswerOfTheInstance(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, `{"error":"card_not_found"}`)
+		_, _ = io.WriteString(w, `{"code":"card_not_found"}`)
 	}))
 	defer server.Close()
 

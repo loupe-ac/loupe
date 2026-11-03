@@ -262,6 +262,18 @@ func (r *router) pause() {
 	r.mu.Unlock()
 }
 
+// setDraining holds back new work while the CLI version is outside the range
+// of the server, and starts dispatch again when it is back inside.
+func (r *router) setDraining(on bool) {
+	r.mu.Lock()
+	changed := r.draining != on
+	r.draining = on
+	r.mu.Unlock()
+	if changed && !on {
+		r.dispatch()
+	}
+}
+
 // resume starts dispatch again after a pause or a freeze. It first settles the
 // runs that finished while frozen, then handles the events held back, in order.
 func (r *router) resume() {

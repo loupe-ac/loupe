@@ -28,6 +28,10 @@ final readonly class ReplyToCommentAsAgentHandler
     {
         $parent = $command->parent;
 
+        if (null !== $command->document && $parent->version->document !== $command->document) {
+            throw new CommentNotInDocument();
+        }
+
         // There is no id to forward the reply to either: the old-to-new comment
         // mapping a revision builds is in memory and never stored.
         $currentVersion = $this->documentVersions->findLatest($parent->version->document);
@@ -39,6 +43,7 @@ final readonly class ReplyToCommentAsAgentHandler
             actor: $this->users->agent(),
             parent: $parent,
             body: $command->body,
+            apiKey: $command->apiKey,
         ));
     }
 }

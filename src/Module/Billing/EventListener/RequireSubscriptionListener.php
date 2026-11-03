@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Billing\EventListener;
 
+use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Service\PaywallExemptions;
 use App\Module\Billing\Service\PaywallGate;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -62,10 +62,13 @@ final readonly class RequireSubscriptionListener
         }
 
         $event->setResponse($isMachineRequest
-            ? new JsonResponse(
-                ['error' => 'subscription_required', 'subscribeUrl' => $this->urlGenerator->generate('app_billing_subscribe', referenceType: UrlGeneratorInterface::ABSOLUTE_URL)],
+            ? new ApiProblem(
                 Response::HTTP_PAYMENT_REQUIRED,
-            )
+                'subscription_required',
+                'Subscription required',
+                'This account needs an active subscription.',
+                extras: ['subscribeUrl' => $this->urlGenerator->generate('app_billing_subscribe', referenceType: UrlGeneratorInterface::ABSOLUTE_URL)],
+            )->toResponse($request->getPathInfo())
             : new RedirectResponse($this->urlGenerator->generate('app_billing_subscribe')));
     }
 }

@@ -78,7 +78,7 @@ func IsOutcome(state string) bool {
 }
 
 // RunStateReport is one state of a run, as PUT
-// /api/projects/{handle}/worker-runs/{runId} takes it. Every report carries the
+// /api/v1/bridge/projects/{handle}/worker-runs/{runId} takes it. Every report carries the
 // subject and the work request, so the first one the server reads can create
 // the run. A run of a rules: entry names no work request. A field that the state
 // does not use stays zero and is not sent.
@@ -179,7 +179,7 @@ func (r RunStateReport) MarshalJSON() ([]byte, error) {
 	}{plain(r), r.EndedAt, r.ExitCode, r.HasResult, r.FailureReason, r.Output})
 }
 
-// InventoryRun is one run the bridge holds, as PUT /api/bridges/{bridgeId}/runs
+// InventoryRun is one run the bridge holds, as PUT /api/v1/bridge/bridges/{bridgeId}/runs
 // takes it.
 type InventoryRun struct {
 	RunID     string `json:"runId"`
@@ -207,7 +207,7 @@ func (c *Client) ReportRunState(ctx context.Context, handle, runID string, repor
 	}
 
 	status, detail, err := c.putReport(ctx,
-		"/api/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID), body)
+		"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID), body)
 	if err != nil {
 		return false, fmt.Errorf("report the run state: %w", err)
 	}
@@ -235,7 +235,7 @@ func (c *Client) ReportRunInventory(ctx context.Context, bridgeID string, runs [
 		return fmt.Errorf("%w: encode the run inventory: %w", ErrReportRefused, err)
 	}
 
-	status, detail, err := c.putReport(ctx, "/api/bridges/"+url.PathEscape(bridgeID)+"/runs", body)
+	status, detail, err := c.putReport(ctx, "/api/v1/bridge/bridges/"+url.PathEscape(bridgeID)+"/runs", body)
 	if err != nil {
 		return fmt.Errorf("report the run inventory: %w", err)
 	}

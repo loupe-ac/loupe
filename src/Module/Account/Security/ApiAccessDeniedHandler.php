@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Security;
 
-use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Api\Problem\ApiProblem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -16,12 +16,19 @@ use Symfony\Component\Security\Http\Authorization\AccessDeniedHandlerInterface;
  * site-review endpoint — would otherwise get the framework's default HTML error page;
  * API clients (the embeddable widget included) need a machine-readable error code to tell
  * "wrong token type" apart from other 403s such as an unbound token.
+ *
+ * A /api/v1 path answers Problem JSON, and any other path keeps the flat error body.
  */
 final class ApiAccessDeniedHandler implements AccessDeniedHandlerInterface
 {
     #[\Override]
     public function handle(Request $request, AccessDeniedException $accessDeniedException): Response
     {
-        return new JsonResponse(['error' => 'insufficient_scope'], Response::HTTP_FORBIDDEN);
+        return new ApiProblem(
+            Response::HTTP_FORBIDDEN,
+            'credential_not_allowed',
+            'Credential not allowed',
+            'This credential cannot call this route.',
+        )->toResponse($request->getPathInfo());
     }
 }

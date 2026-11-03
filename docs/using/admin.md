@@ -111,6 +111,15 @@ it.
   erase.
 - The waitlist entry that has the email address of the account is deleted.
 
+## User pages
+
+`/admin/users/<id>` shows one account. Its API keys section lists each
+[API key](api-keys.md) of the account with its start, its state, its end date
+and its last use. The state is *Active*, *Expired* or *Revoked*. Select
+**Revoke** on an active key to stop it at once. The owner does not get a
+notice from the revoke, and the audit log records that an admin revoked the key.
+The page never shows a key value, because Loupe keeps only a hash.
+
 ## Waitlist
 
 When a registration cap is closed, `/waitlist` collects addresses and

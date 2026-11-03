@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
@@ -17,6 +19,7 @@ use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\ParentType\ParentType;
 use App\Module\SiteReview\ParentType\ParentTypeProviderInterface;
 use App\Module\SiteReview\SiteReviewDrawing;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -27,9 +30,35 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
  * every deployed widget, so it stays put even though it no longer serves a
  * review batch.
  */
+#[OA\Get(
+    operationId: 'showPendingComments',
+    summary: 'Read the pending notes the widget shows',
+    tags: ['Widget'],
+    parameters: [
+        new OA\Parameter(name: 'X-Loupe-Project', description: 'The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.', in: 'header', schema: new OA\Schema(type: 'string', format: 'uuid')),
+        new OA\Parameter(name: 'scope', description: 'A destination such as `card:<id>`. An absent scope lists the whole project. A scope nothing resolves lists nothing.', in: 'query', schema: new OA\Schema(type: 'string')),
+        new OA\Parameter(name: 'surface', description: 'It defaults to web.', in: 'query', schema: new OA\Schema(type: 'string', default: 'web', enum: ['web', 'ios-simulator'])),
+        new OA\Parameter(name: 'context', description: 'The marker of the preview card, or the target the widget stored.', in: 'query', schema: new OA\Schema(type: 'string')),
+    ],
+    responses: [
+        new OA\Response(response: 200, description: 'The notes and the widget settings.', content: new OA\JsonContent(ref: '#/components/schemas/PendingComments')),
+        new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 422, description: 'Refused: `surface_invalid`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new RateLimitedResponse(),
+    ],
+)]
+#[Route(
+    '/api/v1/live-review-widget/review',
+    name: 'api_site_review_pending_comments',
+    methods: ['GET'],
+)]
 #[Route(
     '/api/live-review/review',
-    name: 'api_site_review_pending_comments',
+    name: 'api_legacy_site_review_pending_comments',
     methods: ['GET'],
 )]
 final class ShowPendingCommentsController extends AppController
@@ -49,7 +78,7 @@ final class ShowPendingCommentsController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         // Only an absent scope keeps the project-wide list, because a browser
@@ -64,7 +93,7 @@ final class ShowPendingCommentsController extends AppController
             ? ReviewSurface::tryFrom((string) $request->query->get('surface'))
             : ReviewSurface::Web;
         if (null === $surface) {
-            return $this->json(['error' => 'surface_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'surface_invalid', 'The surface is not valid.');
         }
 
         $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds, $surface));

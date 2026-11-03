@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -413,7 +414,7 @@ func TestTheUpdaterWarnsOnceWhenNoReleaseFitsTheRange(t *testing.T) {
 	if h.events("update_unavailable") != 1 {
 		t.Fatalf("update_unavailable logged %d times: %s", h.events("update_unavailable"), h.log.String())
 	}
-	if got := h.u.state(); got != (api.HeartbeatUpdate{}) {
+	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "draining"}) {
 		t.Fatalf("state = %+v", got)
 	}
 }
@@ -555,5 +556,208 @@ func TestANudgeStartsOneCheckInTenMinutes(t *testing.T) {
 	u.nudge(now.Add(10 * time.Minute))
 	if len(u.kick) != 1 {
 		t.Fatal("a nudge after the window asks for no check")
+	}
+}
+
+func TestTheUpdaterDrainsWhileTheVersionIsOutsideTheRangeAndResumesInside(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "draining"}) {
+		t.Fatalf("state = %+v", got)
+	}
+	if h.events("bridge_draining") != 1 {
+		t.Fatalf("bridge_draining logged %d times: %s", h.events("bridge_draining"), h.log.String())
+	}
+
+	h.u.setRange("^1.0")
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State == "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(drains) == 0 || drains[0] != true || drains[len(drains)-1] != false {
+		t.Fatalf("drains = %v", drains)
+	}
+	if h.events("bridge_resumed") != 1 {
+		t.Fatalf("bridge_resumed logged %d times: %s", h.events("bridge_resumed"), h.log.String())
+	}
+}
+
+// The range drains and releases at once, and no check has run.
+func TestARangeChangeSettlesTheDrainBeforeACheck(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+
+	h.u.setRange("^2.0")
+
+	if got := h.u.state(); got.State != updateDraining {
+		t.Fatalf("state = %+v", got)
+	}
+	if !slices.Equal(drains, []bool{true}) {
+		t.Fatalf("drains = %v", drains)
+	}
+
+	h.u.setRange("^1.0")
+
+	if !slices.Equal(drains, []bool{true, false}) {
+		t.Fatalf("drains = %v", drains)
+	}
+	if releases, _ := gh.counts(); releases != 0 {
+		t.Fatalf("releases = %d", releases)
+	}
+}
+
+// A release that is still on its way never overrides the drain of a newer range.
+func TestANewRangeWaitsForTheReleaseInFlight(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	entered, release := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	var drains []bool
+	h.u.onDrain = func(on bool) {
+		if !on {
+			close(entered)
+			<-release
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		drains = append(drains, on)
+	}
+	h.u.setRange("^2.0")
+
+	released := make(chan struct{})
+	go func() {
+		defer close(released)
+		h.u.setRange("^1.0")
+	}()
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the new range released no drain")
+	}
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		h.u.setRange("^3.0")
+	}()
+	select {
+	case <-drained:
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	<-released
+	<-drained
+
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(drains, []bool{true, false, true}) {
+		t.Fatalf("drains = %v", drains)
+	}
+}
+
+func TestTheUpdaterDrainsWhenAutoUpdateIsOffOrTheBinaryIsBlocked(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.auto = false
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if _, downloads := gh.counts(); downloads != 0 {
+		t.Fatalf("downloads = %d", downloads)
+	}
+}
+
+func TestTheUpdaterNeverDrainsADevelopmentBuildOrAPrerelease(t *testing.T) {
+	for _, running := range []string{"", "abc1234", "1.0.0-rc.1"} {
+		gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+		h := newTestUpdater(t, gh, running)
+		called := false
+		h.u.onDrain = func(bool) { called = true }
+		h.u.setRange("^2.0")
+
+		h.u.check(context.Background())
+
+		if called || h.u.state().State == "draining" {
+			t.Fatalf("running %q drained: %+v", running, h.u.state())
+		}
+	}
+}
+
+func TestTheUpdaterDrainsAVersionAboveTheRangeWithoutDowngrading(t *testing.T) {
+	gh := newFakeGitHub(t, "old binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "3.0.0")
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(h.staged) != 0 {
+		t.Fatalf("hook calls = %v", h.staged)
+	}
+}
+
+func TestASharedSetupDrainsWithoutTouchingTheBinary(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v2.0.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.u.shared = true
+	h.u.setState(updateOff, "")
+	var drains []bool
+	h.u.onDrain = func(on bool) { drains = append(drains, on) }
+	h.u.setRange("^2.0")
+
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != "draining" {
+		t.Fatalf("state = %+v", got)
+	}
+	if releases, downloads := gh.counts(); releases != 0 || downloads != 0 {
+		t.Fatalf("releases = %d, downloads = %d", releases, downloads)
+	}
+	if !strings.Contains(h.log.String(), "Run: LOUPE_CONFIG= loupe update, then start this bridge again.") {
+		t.Fatalf("no working fix in the log: %s", h.log.String())
+	}
+
+	h.u.setRange("^1.0")
+	h.u.check(context.Background())
+
+	if got := h.u.state(); got.State != updateOff {
+		t.Fatalf("state = %+v", got)
+	}
+	if len(drains) != 2 || !drains[0] || drains[1] {
+		t.Fatalf("drains = %v", drains)
+	}
+}
+
+func TestTheDrainMessageNamesTheFixOfTheBinary(t *testing.T) {
+	cases := map[string]struct {
+		version, install string
+		want             string
+	}{
+		"plain":    {"1.0.0", "", "Run: loupe update"},
+		"homebrew": {"1.0.0", installHomebrew, "Run: brew upgrade loupe, then start this bridge again."},
+		"too new":  {"3.0.0", "", "Upgrade the server."},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := &updater{version: tc.version, install: tc.install}
+			if got := u.drainFix("^2.0"); got != tc.want {
+				t.Fatalf("drainFix = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

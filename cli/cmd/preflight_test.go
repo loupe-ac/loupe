@@ -63,7 +63,7 @@ func TestPreflightPassesWithGoodRules(t *testing.T) {
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 	if fake.eventsCalls != 1 {
-		t.Fatalf("GET /api/events ran %d times", fake.eventsCalls)
+		t.Fatalf("GET /api/v1/bridge/events ran %d times", fake.eventsCalls)
 	}
 }
 

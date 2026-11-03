@@ -40,6 +40,10 @@ final readonly class CreateCardCommand
         public ?CardSource $source = null,
         /** Null keeps the default, which is off. */
         public ?bool $requiresHumanReview = null,
+        /** Inherit or own, for a card under a parent whose tech design is approved. The handler runs it with the create. */
+        public ?string $childDesign = null,
+        /** Refuses a card under a parent that states no choice, where the owner would get a question. */
+        public bool $requireChildDesign = false,
     ) {
     }
 }

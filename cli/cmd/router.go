@@ -178,7 +178,7 @@ type router struct {
 	reloading   bool
 	reloadKills []event.Event
 	reloadGone  []goneMark
-	// fetchSeq orders the GET /api/events answers by arrival. setSeq is the
+	// fetchSeq orders the GET /api/v1/bridge/events answers by arrival. setSeq is the
 	// stamp of the answer the current set was checked against, and 0 at start.
 	fetchSeq uint64
 	setSeq   uint64
@@ -200,7 +200,7 @@ type router struct {
 	// stopped closes at shutdown, so a resume that waits wakes at once.
 	stopped chan struct{}
 	seq     uint64
-	// inbox is the inbox flag of the last GET /api/events. A worker that starts
+	// inbox is the inbox flag of the last GET /api/v1/bridge/events. A worker that starts
 	// while it is on reads both ids in its prompt.
 	inbox bool
 	// sessions maps each session the bridge ran to its key and card. An entry
@@ -240,9 +240,12 @@ type router struct {
 	// heartbeat reply wrote the cache. handled maps each command the bridge
 	// took to its expiry, and commanding counts the handlers in flight.
 	personPaused bool
-	pauseSynced  bool
-	handled      map[string]time.Time
-	commanding   int
+	// draining holds back new work while the CLI version is outside the range
+	// of the server. The runs that started go on, and the heartbeat goes on.
+	draining    bool
+	pauseSynced bool
+	handled     map[string]time.Time
+	commanding  int
 	// stops holds each run a person stopped until its stopped report goes out.
 	// cardHolds holds the cards the server states as held, because a person
 	// paused their agents. A held card starts no worker until the hold ends.
@@ -617,7 +620,7 @@ type goneMark struct {
 	seq uint64
 }
 
-// stampLocked gives the GET /api/events answer that just arrived its place in
+// stampLocked gives the GET /api/v1/bridge/events answer that just arrived its place in
 // arrival order. The caller holds mu.
 func (r *router) stampLocked() uint64 {
 	r.fetchSeq++
@@ -655,7 +658,7 @@ func (r *router) markGone(id string, seq uint64) ([]pending, bool) {
 	return r.dropDeadWorkLocked(), true
 }
 
-// applyFlags keeps the flags of one GET /api/events answer for the workers that
+// applyFlags keeps the flags of one GET /api/v1/bridge/events answer for the workers that
 // start after it, gives its heartbeat interval to the heartbeat, and starts or
 // stops the host sampler.
 func (r *router) applyFlags(events api.Events) {
@@ -685,7 +688,7 @@ func (r *router) useFlags() {
 	r.syncHostSampler()
 }
 
-// onRefresh applies the flags of a fresh GET /api/events. It logs, once for
+// onRefresh applies the flags of a fresh GET /api/v1/bridge/events. It logs, once for
 // each, a mapped project that the answer no longer lists, with the rules that
 // stop working.
 func (r *router) onRefresh(events api.Events) {
@@ -786,7 +789,7 @@ func (r *router) enqueue(p pending) {
 	if p.action == rules.ActionInteractive {
 		// A session opens at once, and a person's pause holds back new work, so
 		// a paused bridge leaves the offer to another bridge.
-		if p.isWork() && (r.personPaused || r.paused) {
+		if p.isWork() && (r.personPaused || r.paused || r.draining) {
 			r.log.Debug("work_request_skipped", append(about(p.event, p.rule), "reason", "paused")...)
 		} else if p.isWork() {
 			r.launching++
@@ -844,7 +847,7 @@ func (r *router) dispatchLocked() []pending {
 
 		return dropped
 	}
-	if r.paused || r.personPaused {
+	if r.paused || r.personPaused || r.draining {
 		return nil
 	}
 

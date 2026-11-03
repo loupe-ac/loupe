@@ -16,7 +16,7 @@ const (
 	minHostSampleSeconds      = 5
 )
 
-// hostSampleInterval reads the sampling interval from a GET /api/events answer.
+// hostSampleInterval reads the sampling interval from a GET /api/v1/bridge/events answer.
 func hostSampleInterval(events api.Events) time.Duration {
 	if seconds, ok := events.Seconds(api.HostSampleIntervalFlag); ok && seconds >= minHostSampleSeconds {
 		return time.Duration(seconds) * time.Second

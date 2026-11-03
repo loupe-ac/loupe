@@ -148,7 +148,7 @@ func newHeartbeater(ctx context.Context, queue outbound.Queue, client heartbeatS
 	}
 }
 
-// heartbeatInterval reads the interval from a GET /api/events answer, and falls
+// heartbeatInterval reads the interval from a GET /api/v1/bridge/events answer, and falls
 // back when the flag is missing or holds no whole number of at least ten.
 func heartbeatInterval(events api.Events) time.Duration {
 	if seconds, ok := events.Seconds(api.HeartbeatIntervalFlag); ok && seconds >= minHeartbeatSeconds {
@@ -168,7 +168,7 @@ func (h *heartbeater) wait() {
 	<-h.done
 }
 
-// setInterval applies the interval of a fresh GET /api/events. A change arms a
+// setInterval applies the interval of a fresh GET /api/v1/bridge/events. A change arms a
 // new timer at once, so a shorter interval does not wait out the old one.
 func (h *heartbeater) setInterval(d time.Duration) {
 	h.mu.Lock()

@@ -13,6 +13,7 @@ use App\Module\Project\Service\SiteOrigins;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Ubermuda\AuditBundle\AuditActorProviderInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -124,6 +125,42 @@ final class UpdateProjectAllowedOriginsHandlerTest extends KernelTestCase
 
         $this->expectException(DomainErrors::class);
         ($this->handler)(new UpdateProjectAllowedOriginsCommand($project, $lines));
+    }
+
+    public function test_a_list_of_entries_is_stored_like_the_same_lines(): void
+    {
+        $project = $this->project('origins-entries@example.com');
+
+        ($this->handler)(new UpdateProjectAllowedOriginsCommand($project, ['https://Shop.example.com/', 'http://localhost:3000']));
+
+        self::assertSame(['https://shop.example.com', 'http://localhost:3000'], $project->allowedOrigins);
+    }
+
+    /** @return iterable<string, array{string|list<mixed>, string}> */
+    public static function refusedOrigins(): iterable
+    {
+        yield 'entry with a line break' => [["https://a.example.com\nhttps://b.example.com"], 'project.allowed_origins.error.line_break'];
+        yield 'entry that is no string' => [[42], 'project.allowed_origins.error.not_a_string'];
+        yield 'list over the text limit' => [[str_repeat('a', SiteOrigins::MAX_TEXT_LENGTH + 1)], 'project.allowed_origins.error.too_long'];
+        yield 'text over the limit' => [str_repeat('a', SiteOrigins::MAX_TEXT_LENGTH + 1), 'project.allowed_origins.error.too_long'];
+    }
+
+    /** @param string|list<mixed> $origins */
+    #[DataProvider('refusedOrigins')]
+    public function test_an_input_the_list_cannot_hold_is_refused_and_keeps_the_stored_list(string|array $origins, string $key): void
+    {
+        $project = $this->project('origins-refused-'.uniqid().'@example.com');
+        $project->allowedOrigins = ['https://kept.example.com'];
+
+        try {
+            ($this->handler)(new UpdateProjectAllowedOriginsCommand($project, $origins));
+            self::fail('Expected DomainErrors.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['origins' => $key], $e->errors);
+        }
+
+        self::assertSame(['https://kept.example.com'], $project->allowedOrigins);
+        self::assertSame([], $this->audit->operations());
     }
 
     public function test_the_change_is_recorded_with_the_new_count(): void

@@ -44,6 +44,31 @@ final class CreateDocumentHandlerTest extends KernelTestCase
         self::assertStringContainsString('<h1 id="heading-auth">Auth</h1>', $doc->currentVersion()->renderedHtml);
     }
 
+    public function test_markdown_over_the_size_limit_is_refused_and_nothing_is_stored(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $user = new User(fullName: 'Agent', email: 'size-'.uniqid().'@example.com', password: 'hashed-placeholder');
+        $em->persist($user);
+        $project = new Project($user, 'p-'.uniqid());
+        $em->persist($project);
+        $em->flush();
+
+        $handler = self::getContainer()->get(CreateDocumentHandler::class);
+
+        try {
+            $handler(new CreateDocumentCommand(project: $project, title: 'Too big', markdown: str_repeat('a', Document::MAX_MARKDOWN_BYTES + 1)));
+            self::fail('markdown over the limit must be refused');
+        } catch (DomainErrors $e) {
+            self::assertSame(['markdown' => Document::MARKDOWN_TOO_LARGE], $e->errors);
+        }
+
+        self::assertSame(0, $em->getRepository(Document::class)->count(['project' => $project]));
+
+        $edge = $handler(new CreateDocumentCommand(project: $project, title: 'Exactly at the limit', markdown: str_repeat('a', Document::MAX_MARKDOWN_BYTES)));
+        self::assertNotNull($edge->id);
+    }
+
     public function test_a_created_document_announces_its_status_after_the_commit(): void
     {
         self::bootKernel();

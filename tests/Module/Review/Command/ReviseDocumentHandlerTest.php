@@ -610,6 +610,36 @@ final class ReviseDocumentHandlerTest extends KernelTestCase
         self::assertCount(1, $fresh->versions);
     }
 
+    public function test_markdown_over_the_size_limit_is_refused_and_adds_no_version(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+
+        $user = new User(fullName: 'Agent', email: 'size-revise@example.com', password: 'hashed');
+        $em->persist($user);
+        $project = new Project($user, 'p-'.uniqid());
+        $em->persist($project);
+        $em->flush();
+
+        /** @var CreateDocumentHandler $createHandler */
+        $createHandler = self::getContainer()->get(CreateDocumentHandler::class);
+        $doc = $createHandler(new CreateDocumentCommand($project, 'Sized', 'v1 content'));
+
+        /** @var ReviseDocumentHandler $reviseHandler */
+        $reviseHandler = self::getContainer()->get(ReviseDocumentHandler::class);
+
+        try {
+            $reviseHandler(new ReviseDocumentCommand($doc, str_repeat('a', Document::MAX_MARKDOWN_BYTES + 1), 'Too big'));
+            self::fail('markdown over the limit must be refused');
+        } catch (DomainErrors $e) {
+            self::assertSame(['markdown' => Document::MARKDOWN_TOO_LARGE], $e->errors);
+        }
+
+        self::assertCount(1, $doc->versions);
+        $summary = $reviseHandler(new ReviseDocumentCommand($doc, 'v2 content', 'Fits'));
+        self::assertSame(2, $summary['versionNumber']);
+    }
+
     public function test_the_stored_description_and_title_are_trimmed(): void
     {
         self::bootKernel();

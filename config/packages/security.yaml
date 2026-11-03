@@ -58,6 +58,7 @@ security:
             user_checker: App\Module\Account\Security\AccountStatusChecker
             custom_authenticators:
                 - App\Module\OAuth\Security\OAuthAccessTokenAuthenticator
+                - App\Module\OAuth\Security\ApiKeyAuthenticator
             access_denied_handler: App\Module\Account\Security\ApiAccessDeniedHandler
         # The OAuth token and device authorization endpoints and the discovery
         # documents serve machine clients. No session, remember-me or HTML
@@ -90,6 +91,9 @@ security:
                 always_remember_me: false
 
     access_control:
+        # The widget routes under their private prefix. Every widget route moved here;
+        # the old paths below stay for one release.
+        - { path: ^/api/v1/live-review-widget/, roles: ROLE_API_SITE_REVIEW }
         - { path: ^/api/live-review, roles: ROLE_API_SITE_REVIEW }
         # The site-review widget creates and lists board cards, so its token
         # reaches a Board path too. Stated here rather than folded under the
@@ -127,6 +131,45 @@ security:
         - { path: '^/api/bridges/[^/]+/runs$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/work-requests/[^/]+/claim$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/work-requests/[^/]+/result$', roles: ROLE_API_AGENT }
+        # The same surface under the versioned bridge prefix. Both paths stay until
+        # the old one is retired.
+        - { path: '^/api/v1/bridge/projects$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/columns$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/cards/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/events$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/events/replay$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/card-holds$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/close$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/card-run$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/output$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/interactive-runs/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/experiments/[^/]+/pins/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/inbox/asks/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/artifacts$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/preview-tokens$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/preview-tokens/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/git-token$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/heartbeat$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/commands/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/runs$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/work-requests/[^/]+/claim$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/bridges/[^/]+/work-requests/[^/]+/result$', roles: ROLE_API_AGENT }
+        # The version list and the public spec need no sign-in. Both spend from the
+        # budget of the client address, as ApplyApiBudgetOnRequest says.
+        - { path: '^/api/versions$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/v1/openapi\.json$', roles: PUBLIC_ACCESS }
+        # The public API. A route of it names the public scope, which an API key and a
+        # CLI sign-in carry. One rule per route shape, so a later route inherits no grant.
+        - { path: '^/api/v1/projects(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/board/columns(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/feedback(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/artifacts(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/artifacts/[^/]+/(versions|files/.+)$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/cards(/[1-9][0-9]{0,8}(/(events|hold|pause))?)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/documents(/[^/]+(/(publish|review|versions(/[^/]+)?|comments/[^/]+(/replies)?|decisions/[^/]+|verdicts(/[^/]+)?))?)?$', roles: ROLE_API_PUBLIC }
         # Deny-by-default for the rest of /api: every API-token user also carries
         # ROLE_USER, so without this a new /api/<endpoint> falls through to the ^/
         # catch-all and authorizes ANY scoped token. Add new scope rules ABOVE this

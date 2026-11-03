@@ -177,6 +177,19 @@ final class MarkSiteReviewCommentsAddressedHandlerTest extends KernelTestCase
         self::assertCount(3, $this->audit->records('site_review.comment_addressed'));
     }
 
+    public function test_a_row_deleted_before_the_write_is_not_found(): void
+    {
+        $comment = $this->comment();
+        $this->em->createQuery('DELETE FROM '.SiteReviewComment::class.' c WHERE c.id = :id')
+            ->setParameter('id', $comment->id, 'uuid')
+            ->execute();
+
+        $outcomes = ($this->handler)(new MarkSiteReviewCommentsAddressedCommand([$comment]));
+
+        self::assertSame([MarkSiteReviewCommentAddressedOutcome::NotFound], $outcomes);
+        self::assertSame(AuditOutcome::Failed, $this->audit->record('site_review.comment_addressed')->outcome);
+    }
+
     public function test_an_empty_batch_records_nothing(): void
     {
         ($this->handler)(new MarkSiteReviewCommentsAddressedCommand([]));

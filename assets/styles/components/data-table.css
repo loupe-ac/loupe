@@ -50,6 +50,10 @@
     .lp-data-table__row > .lp-data-table__cell--end {
         @apply font-mono text-xs;
     }
+    /* The end cell sets numbers in mono. A button in it keeps the font of a button. */
+    .lp-data-table__row > .lp-data-table__cell--end .lp-btn {
+        @apply font-sans;
+    }
     .lp-data-table .lp-status-chip {
         @apply ml-0 justify-self-start;
     }

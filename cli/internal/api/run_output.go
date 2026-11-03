@@ -16,7 +16,7 @@ type RunOutputAnswer struct {
 }
 
 // PutRunOutput sends one chunk of a run's output, as PUT
-// /api/projects/{handle}/worker-runs/{runId}/output takes it. The server
+// /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output takes it. The server
 // appends text only when offset equals the length it stores. Any other offset
 // stores nothing, and the answer holds the stored length.
 func (c *Client) PutRunOutput(ctx context.Context, handle, runID, bridgeID string, offset int64, text string) (RunOutputAnswer, error) {
@@ -31,7 +31,7 @@ func (c *Client) PutRunOutput(ctx context.Context, handle, runID, bridgeID strin
 	}
 
 	status, detail, err := c.putReport(ctx,
-		"/api/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID)+"/output", body)
+		"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/worker-runs/"+url.PathEscape(runID)+"/output", body)
 	if err != nil {
 		return answer, fmt.Errorf("send the run output: %w", err)
 	}

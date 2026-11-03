@@ -11,7 +11,6 @@ use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Command\ShowCardCommand;
 use App\Module\Board\Command\ShowCardHandler;
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSource;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Service\ChildDesignChoices;
@@ -37,8 +36,6 @@ final readonly class CardCreateTool
         private CardPayload $payload,
         private BoardToolErrorMessages $errorMessages,
         private AgentRunSource $runSource,
-        private ChildDesignDecision $childDesign,
-        private ChildDesignChoices $choices,
     ) {
     }
 
@@ -69,9 +66,8 @@ final readonly class CardCreateTool
             $project = $this->subjects->requireProject();
 
             $column = $this->subjects->optionalColumn($project, $status);
-            $choice = $this->childDesign->resolve($parentCardId, null, $childDesign, array_values($documentIds), null !== $status);
 
-            $create = fn (): Card => ($this->createCard)(new CreateCardCommand(
+            $card = ($this->createCard)(new CreateCardCommand(
                 project: $project,
                 title: $title,
                 body: $body,
@@ -90,8 +86,9 @@ final readonly class CardCreateTool
                 actor: Actor::Agent,
                 source: $this->runSource->forProject($project) ?? new CardSource(CardSourceKind::Agent),
                 requiresHumanReview: $requiresHumanReview,
+                childDesign: $childDesign,
+                requireChildDesign: true,
             ));
-            $card = null === $choice ? $create() : $this->choices->write($project, $create, $choice);
 
             $view = ($this->showCard)(new ShowCardCommand($card));
 

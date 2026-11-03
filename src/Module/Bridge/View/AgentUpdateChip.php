@@ -9,7 +9,7 @@ use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 
-/** The chip beside a bridge's CLI version. A version outside the range wins over the update state. */
+/** The chip beside a bridge's CLI version. A draining bridge or a version outside the range wins over the other update states. */
 final readonly class AgentUpdateChip
 {
     /**
@@ -26,7 +26,7 @@ final readonly class AgentUpdateChip
 
     public static function for(Bridge $bridge, bool $compatible, string $installScriptUrl): ?self
     {
-        if (!$compatible) {
+        if (!$compatible && CliUpdateState::Draining !== $bridge->updateState) {
             return new self('bridge.agents.update.incompatible', ['%range%' => CliCompatibility::RANGE], 'failed');
         }
 
@@ -45,6 +45,7 @@ final readonly class AgentUpdateChip
                     : 'curl -fsSL '.$installScriptUrl.' | sh',
             ),
             CliUpdateState::Dev, null => null,
+            CliUpdateState::Draining => new self('bridge.agents.update.draining', ['%range%' => CliCompatibility::RANGE], 'failed'),
         };
     }
 }

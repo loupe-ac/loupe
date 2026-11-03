@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\OpenApi\RateLimitedResponse;
+use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
@@ -12,6 +14,7 @@ use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,14 +23,33 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 /**
  * Creates a board card from the site-review widget.
  *
- * The path is a Board one on purpose, and `config/packages/security.yaml`
- * grants it to ROLE_API_SITE_REVIEW in its own line rather than folding it under
- * the ^/api/live-review prefix, so a reader of that file sees that a widget
- * token may write to the board.
+ * `config/packages/security.yaml` grants the widget prefix to ROLE_API_SITE_REVIEW,
+ * and the old Board path in its own line rather than folding it under the
+ * ^/api/live-review prefix, so a reader of that file sees that a widget token
+ * may write to the board.
  */
+#[OA\Post(operationId: 'createWidgetCard', summary: 'Create a card from the widget', requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object', additionalProperties: true)), tags: ['Widget'], parameters: [
+    new OA\Parameter(name: 'X-Loupe-Project', description: 'The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.', in: 'header', schema: new OA\Schema(type: 'string', format: 'uuid')),
+], responses: [
+    new OA\Response(response: 201, description: 'The new card.', content: new OA\JsonContent(ref: '#/components/schemas/WidgetCardCreated')),
+    new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 422, description: 'Refused: `unknown_type`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new RateLimitedResponse(),
+])]
+#[Route(
+    '/api/v1/live-review-widget/cards',
+    name: 'api_board_card_create',
+    methods: ['POST'],
+)]
 #[Route(
     '/api/board/cards',
-    name: 'api_board_card_create',
+    name: 'api_legacy_board_card_create',
     methods: ['POST'],
 )]
 final class CreateCardController extends AppController
@@ -44,7 +66,7 @@ final class CreateCardController extends AppController
     {
         $project = $this->projectResolver->resolveWidgetProject();
         if (null === $project) {
-            return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
+            throw ApiProblemException::refused(JsonResponse::HTTP_FORBIDDEN, 'token_not_bound_to_site', 'The token is not bound to a site.');
         }
 
         $title = trim($payload->title ?? '');
@@ -56,7 +78,7 @@ final class CreateCardController extends AppController
         $allowed = $payload->parent ? $types->withChildren() : $types->keys();
         $type = $payload->type ?? ($payload->parent ? ($allowed[0] ?? null) : $types->defaultKey);
         if (null === $type || !\in_array($type, $allowed, true)) {
-            return $this->json(['error' => 'unknown_type', 'types' => $allowed], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'unknown_type', 'The card type is not one this project takes.', ['types' => $allowed]);
         }
 
         $card = ($this->handler)(new CreateCardCommand(

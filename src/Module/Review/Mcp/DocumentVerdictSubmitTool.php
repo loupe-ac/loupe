@@ -14,9 +14,6 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\SecurityBundle\Security;
-use Ubermuda\AuditBundle\Auditor;
-use Ubermuda\AuditBundle\AuditOutcome;
-use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Records the verdict of the owner on the newest version of a document.
@@ -30,7 +27,6 @@ final readonly class DocumentVerdictSubmitTool
         private SubmitReviewHandler $handler,
         private DocumentToolErrors $errors,
         private Security $security,
-        private Auditor $auditor,
     ) {
     }
 
@@ -70,18 +66,6 @@ final readonly class DocumentVerdictSubmitTool
                 expectedReviewId: $expectedVerdictId,
                 throughAgent: true,
             ));
-
-            $this->auditor->record(
-                'review.document_verdict_submitted',
-                AuditOutcome::Success,
-                [
-                    'documentId' => (string) $document->id,
-                    'verdict' => $review->verdict->value,
-                    'reviewerId' => (string) $user->id,
-                    'throughAgent' => true,
-                ],
-                new AuditSubject('document', (string) $document->id),
-            );
 
             return ['verdictId' => (string) $review->id, 'verdict' => $review->verdict->value, 'documentStatus' => $document->status->value];
         } catch (DomainErrors $e) {

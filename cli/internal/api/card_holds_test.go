@@ -23,7 +23,7 @@ func TestCardHoldsReadsTheHeldCards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodGet || path != "/api/card-holds" || auth != "Bearer secret" {
+	if method != http.MethodGet || path != "/api/v1/bridge/card-holds" || auth != "Bearer secret" {
 		t.Fatalf("method = %q, path = %q, auth = %q", method, path, auth)
 	}
 	if want := []CardHold{{ProjectID: "p1", CardID: "c1"}, {ProjectID: "p2", CardID: "c2"}}; !slices.Equal(holds, want) {

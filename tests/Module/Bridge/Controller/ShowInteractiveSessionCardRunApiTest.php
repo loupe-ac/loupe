@@ -145,7 +145,7 @@ final class ShowInteractiveSessionCardRunApiTest extends WebTestCase
         $this->get($client, $sessionId, $raw, $foreign->requireId()->toRfc4122());
         self::assertResponseStatusCodeSame(404);
         $foreignBody = (string) $client->getResponse()->getContent();
-        self::assertSame(['error' => 'unknown_project'], json_decode($foreignBody, true));
+        self::assertSame('project_not_found', $this->reply($client)['code']);
 
         $this->get($client, $sessionId, $raw, Uuid::v4()->toRfc4122());
         self::assertResponseStatusCodeSame(404);
@@ -163,11 +163,11 @@ final class ShowInteractiveSessionCardRunApiTest extends WebTestCase
 
         $this->get($client, $sessionId, $raw, null);
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'project_header_required'], $this->reply($client));
+        self::assertSame('project_header_required', $this->reply($client)['code']);
 
         $this->get($client, $sessionId, $raw, '  ');
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'project_header_required'], $this->reply($client));
+        self::assertSame('project_header_required', $this->reply($client)['code']);
     }
 
     public function test_a_session_id_that_is_not_a_uuid_is_refused(): void
@@ -179,7 +179,7 @@ final class ShowInteractiveSessionCardRunApiTest extends WebTestCase
         $this->get($client, 'not-a-uuid', $this->agentToken($client, $owner), $project->requireId()->toRfc4122());
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'invalid_session_id'], $this->reply($client));
+        self::assertSame('invalid_session_id', $this->reply($client)['code']);
     }
 
     public function test_the_endpoint_needs_an_agent_token(): void
@@ -213,7 +213,7 @@ final class ShowInteractiveSessionCardRunApiTest extends WebTestCase
             $server['HTTP_'.strtoupper(str_replace('-', '_', AuthenticatedProjectResolver::PROJECT_HEADER))] = $handle;
         }
 
-        $client->request(Request::METHOD_GET, '/api/interactive-sessions/'.$sessionId.'/card-run', server: $server);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/interactive-sessions/'.$sessionId.'/card-run', server: $server);
     }
 
     /** @return array<string, mixed> */

@@ -119,7 +119,9 @@ A setup other than the default never replaces a binary.
   panel copy of the running version into the setup. It prints that the binary
   updates from the default setup. It asks no running bridge, and it runs for a
   Homebrew binary too. The bridge runs no update check and reports that updates
-  are off.
+  are off. A release of the shared binary outside the server range
+  [drains](../extending/cli-bridge.md#draining). To replace that binary, run
+  `LOUPE_CONFIG= loupe update`, then start the bridge again.
 
 ## `loupe init`
 

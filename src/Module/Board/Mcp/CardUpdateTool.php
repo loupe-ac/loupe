@@ -12,7 +12,6 @@ use App\Module\Board\Command\ShowCardCommand;
 use App\Module\Board\Command\ShowCardHandler;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Service\ChildDesignChoices;
 use App\Module\Workflow\Contract\Actor;
 use App\Security\McpBoundProjectVoter;
@@ -41,8 +40,6 @@ final readonly class CardUpdateTool
         private CardPayload $payload,
         private BoardToolErrorMessages $errorMessages,
         private AgentRunCause $runCause,
-        private ChildDesignDecision $childDesign,
-        private ChildDesignChoices $choices,
         private AgentRunSource $runSource,
     ) {
     }
@@ -76,13 +73,6 @@ final readonly class CardUpdateTool
     public function __invoke(?string $cardId = null, #[Schema(minimum: 1)] ?int $number = null, ?string $title = null, ?string $body = null, ?string $type = null, ?string $status = null, ?array $pullRequestUrls = null, ?array $documentIds = null, ?array $artifactIds = null, #[Schema(items: BoardSubjectResolver::RELATED_CARD_ITEM)] ?array $relatedCards = null, ?string $parentCardId = null, ?bool $clearParent = null, ?bool $laneEnabled = null, #[Schema(enum: ChildDesignChoices::CHOICES)] ?string $childDesign = null, ?bool $requiresHumanReview = null, #[Schema(type: 'object', additionalProperties: true)] ?array $values = null): array
     {
         try {
-            if (true === $clearParent) {
-                if (null !== $parentCardId && '' !== $parentCardId) {
-                    throw new ToolCallException('Pass clearParent or parentCardId, not both.');
-                }
-                $parentCardId = '';
-            }
-
             $card = $this->subjects->requireCardByIdOrNumber($cardId, $number, McpBoundProjectVoter::CARD_WRITE);
             $column = $this->subjects->optionalColumn($card->project, $status);
             $workerSession = null !== $this->runSource->forProject($card->project);
@@ -90,15 +80,7 @@ final readonly class CardUpdateTool
                 throw new ToolCallException(self::WORKER_LOWER_REFUSAL);
             }
 
-            $choice = $this->childDesign->resolve(
-                $parentCardId,
-                $card,
-                $childDesign,
-                null === $documentIds ? $this->linkedDocumentIds($card) : array_values($documentIds),
-                null !== $status,
-            );
-
-            $update = fn (): Card => ($this->updateCard)(new UpdateCardCommand(
+            $card = ($this->updateCard)(new UpdateCardCommand(
                 card: $card,
                 actor: Actor::Agent,
                 title: $title,
@@ -111,12 +93,14 @@ final readonly class CardUpdateTool
                 relatedCards: $this->subjects->optionalRelatedCards($relatedCards),
                 parentCardId: $parentCardId,
                 laneEnabled: $laneEnabled,
-                cause: null === $column ? null : $this->runCause->forCard($card),
+                cause: null === $column && null === $childDesign ? null : $this->runCause->forCard($card),
                 requiresHumanReview: $requiresHumanReview,
                 onlyRaiseHumanReview: $workerSession,
                 values: $values,
+                clearParent: true === $clearParent,
+                childDesign: $childDesign,
+                requireChildDesign: true,
             ))->card;
-            $card = null === $choice ? $update() : $this->choices->write($card->project, $update, $choice, $this->runCause->forCard($card), null === $parentCardId && null === $column ? $card : null);
 
             $view = ($this->showCard)(new ShowCardCommand($card));
 
@@ -131,17 +115,14 @@ final readonly class CardUpdateTool
             if (\in_array(UpdateCardHandler::HUMAN_REVIEW_RAISE_ONLY, $e->errors, true)) {
                 throw new ToolCallException(self::WORKER_LOWER_REFUSAL, previous: $e);
             }
+            if (\in_array(UpdateCardHandler::PARENT_CLEAR_CONFLICT, $e->errors, true)) {
+                throw new ToolCallException('Pass clearParent or parentCardId, not both.', previous: $e);
+            }
             throw $this->errorMessages->forAgent($e);
         } catch (ToolCallException $e) {
             throw $e;
         } catch (\Throwable $e) {
             throw new ToolCallException('The card could not be changed. The error has been logged.', previous: $e);
         }
-    }
-
-    /** @return list<string> */
-    private function linkedDocumentIds(Card $card): array
-    {
-        return array_values(array_map(static fn ($link): string => (string) $link->document->id, $card->documents->toArray()));
     }
 }

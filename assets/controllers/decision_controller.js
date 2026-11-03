@@ -39,6 +39,7 @@ export default class extends Controller {
         clearClass: String,
         errorMessage: String,
         agentMark: String,
+        apiKeyMark: String,
         summaryUrl: String,
         changedBy: String,
     };
@@ -190,11 +191,19 @@ export default class extends Controller {
 
     markAgent(block) {
         block.querySelector('[data-decision-agent-mark]')?.remove();
-        if (block.dataset.decisionThroughAgent === undefined) return;
+        const keyName = block.dataset.decisionApiKey;
+        if (
+            keyName === undefined &&
+            block.dataset.decisionThroughAgent === undefined
+        )
+            return;
         const mark = document.createElement('div');
         mark.className = 'lp-decision__agent-mark';
         mark.dataset.decisionAgentMark = '';
-        mark.dataset.label = this.agentMarkValue;
+        mark.dataset.label =
+            keyName === undefined
+                ? this.agentMarkValue
+                : this.apiKeyMarkValue.replace('%name%', keyName);
         block.append(mark);
     }
 
@@ -386,6 +395,7 @@ export default class extends Controller {
             block.dataset.decisionSavedIndexes = JSON.stringify(state.indexes);
             // A save from this page is the owner's own answer.
             delete block.dataset.decisionThroughAgent;
+            delete block.dataset.decisionApiKey;
             this.markAgent(block);
         } else {
             this.sentStates.delete(block);
@@ -451,7 +461,7 @@ export default class extends Controller {
 
     // A note with an unsaved edit stays. A focused note with no edit takes the
     // stored note, or its blur would save the old note over it.
-    apply(block, { indexes, note, throughAgent }) {
+    apply(block, { indexes, note, throughAgent, apiKeyName }) {
         const stored = note ?? '';
         const field = block.querySelector('[data-decision-note-field]');
         const edited =
@@ -461,6 +471,8 @@ export default class extends Controller {
         block.dataset.decisionNote = stored;
         if (throughAgent) block.dataset.decisionThroughAgent = '';
         else delete block.dataset.decisionThroughAgent;
+        if (apiKeyName) block.dataset.decisionApiKey = apiKeyName;
+        else delete block.dataset.decisionApiKey;
         this.markAgent(block);
         for (const input of block.querySelectorAll(
             'input[data-decision-option]',

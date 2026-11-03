@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Api\Problem;
+
+/** Thrown by an API controller or listener to refuse a request with a coded problem. */
+final class ApiProblemException extends \RuntimeException
+{
+    public function __construct(
+        public readonly ApiProblem $problem,
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct($problem->detail, $problem->status, $previous);
+    }
+
+    /**
+     * A refusal whose title reads off its code, as the contract names them.
+     *
+     * @param array<string, mixed> $extras
+     */
+    public static function refused(int $status, string $code, string $detail, array $extras = []): self
+    {
+        return new self(new ApiProblem($status, $code, ucfirst(str_replace('_', ' ', $code)), $detail, $extras));
+    }
+
+    public static function invalidCursor(string $detail): self
+    {
+        return new self(new ApiProblem(400, 'invalid_cursor', 'Invalid cursor', $detail));
+    }
+
+    /** The same answer for a project that does not exist and one the caller may not see. */
+    public static function projectNotFound(): self
+    {
+        return new self(new ApiProblem(404, 'project_not_found', 'Project not found', 'No project with this id or slug is reachable with this credential.'));
+    }
+
+    /** @param list<array{field: string, code: string, message: string}> $errors */
+    public static function validationFailed(array $errors): self
+    {
+        return new self(new ApiProblem(422, 'validation_failed', 'Validation failed', 'One or more fields were refused.', errors: $errors));
+    }
+
+    /** @param array<string, string> $headers */
+    public static function rateLimited(int $retryAfterSeconds, array $headers = []): self
+    {
+        return new self(new ApiProblem(
+            429,
+            'rate_limited',
+            'Rate limited',
+            'The request budget of this window is spent.',
+            headers: ['Retry-After' => (string) $retryAfterSeconds] + $headers,
+        ));
+    }
+}

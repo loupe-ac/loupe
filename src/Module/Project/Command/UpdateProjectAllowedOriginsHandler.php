@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Command;
 
-use App\Exception\DomainErrors;
-use App\Module\Project\Service\SiteOrigins;
+use App\Module\Project\Service\AllowedOriginsInput;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -21,15 +20,8 @@ final readonly class UpdateProjectAllowedOriginsHandler
 
     public function __invoke(UpdateProjectAllowedOriginsCommand $command): void
     {
-        $origins = SiteOrigins::normaliseList(preg_split('/\R/', $command->origins) ?: [])
-            ?? throw new DomainErrors(['origins' => 'project.allowed_origins.error.invalid']);
-
-        if (\count($origins) > SiteOrigins::MAX) {
-            throw new DomainErrors(['origins' => 'project.allowed_origins.error.too_many']);
-        }
-
         $project = $command->project;
-        $project->allowedOrigins = $origins;
+        $project->allowedOrigins = AllowedOriginsInput::normalise($command->origins);
         $this->em->flush();
 
         $this->auditor->record(

@@ -16,7 +16,6 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Entity\Document;
-use App\Module\Review\Mcp\DocumentCreateTool;
 use App\Module\Review\Mcp\DocumentReviseTool;
 use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
@@ -436,7 +435,7 @@ final class DocumentReviseToolTest extends KernelTestCase
         // rewritten into the catch-all's generic one.
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('markdown: The markdown content exceeds the maximum allowed size.');
-        ($this->tool)((string) $document->id, str_repeat('a', DocumentCreateTool::MAX_MARKDOWN_BYTES + 1), 'Too big.');
+        ($this->tool)((string) $document->id, str_repeat('a', Document::MAX_MARKDOWN_BYTES + 1), 'Too big.');
     }
 
     public function test_a_malformed_document_id_keeps_its_own_message(): void

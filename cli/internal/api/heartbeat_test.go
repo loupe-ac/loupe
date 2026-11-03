@@ -31,7 +31,7 @@ func TestHeartbeatPutsTheProjectsAndTheVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodPut || path != "/api/bridges/"+heartbeatBridgeID+"/heartbeat" || auth != "Bearer secret" || contentType != "application/json" {
+	if method != http.MethodPut || path != "/api/v1/bridge/bridges/"+heartbeatBridgeID+"/heartbeat" || auth != "Bearer secret" || contentType != "application/json" {
 		t.Fatalf("method = %q, path = %q, auth = %q, content type = %q", method, path, auth, contentType)
 	}
 	if body != `{"projects":["0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7"],"cliVersion":"b4e39aa7 (dirty)"}` {
@@ -156,9 +156,9 @@ func TestHeartbeatSortsEachAnswer(t *testing.T) {
 	}{
 		{status: http.StatusNoContent, ok: true},
 		{status: http.StatusNotFound, missing: true},
-		{status: http.StatusNotFound, body: `{"error":"something_else"}`, missing: true},
+		{status: http.StatusNotFound, body: `{"code":"something_else"}`, missing: true},
 		{status: http.StatusUnauthorized},
-		{status: http.StatusForbidden, body: `{"error":"insufficient_scope"}`},
+		{status: http.StatusForbidden, body: `{"code":"insufficient_scope"}`},
 		{status: http.StatusUnprocessableEntity},
 		{status: http.StatusTooManyRequests},
 		{status: http.StatusInternalServerError},

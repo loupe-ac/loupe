@@ -24,7 +24,7 @@ final class WidgetFileTest extends TestCase
         // when it lands: an SPA swap or a new choice can change it in between.
         self::assertStringContainsString('const asked = bootMarker();', $src);
         self::assertStringContainsString('encodeURIComponent(asked)', $src);
-        self::assertStringContainsString('/api/board/cards', $src);
+        self::assertStringContainsString('/api/v1/live-review-widget/cards', $src);
         // Raw hex is correct in this file, which carries its own palette. It is
         // wrong in the picker, which sits inside a themed shadow root: a
         // hardcoded white panel appeared inside the dark widget.
@@ -36,7 +36,7 @@ final class WidgetFileTest extends TestCase
         // A note goes to its card through the board, and the old save path
         // only tells a stale copy to reload.
         self::assertStringNotContainsString('{ context: CONTEXT }', $src);
-        self::assertStringContainsString("api('POST', '/api/board/feedback'", $src);
+        self::assertStringContainsString("'/api/v1/live-review-widget/feedback',", $src);
         self::assertStringNotContainsString("'/api/live-review/comments',", $src);
         // The widget saves as the reviewer writes; there is no send step to call.
         self::assertStringNotContainsString('/api/live-review/review/submit', $src);

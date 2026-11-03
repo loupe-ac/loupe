@@ -22,7 +22,7 @@ func inboxLine(session string) string {
 		"When you read the answers of your asks with inbox_list or inbox_get, pass your session id as readerSessionId."
 }
 
-// listed answers GET /api/events with both mapped projects, so a refresh kills
+// listed answers GET /api/v1/bridge/events with both mapped projects, so a refresh kills
 // no rule, and with the given flags.
 func listed(flags map[string]any) api.Events {
 	return api.Events{
@@ -113,7 +113,7 @@ func TestARefreshSwitchesTheInboxLine(t *testing.T) {
 	}
 }
 
-// The first GET /api/events, before the stream opens, already sets the flags.
+// The first GET /api/v1/bridge/events, before the stream opens, already sets the flags.
 func TestTheFlagsOfTheFirstEventsCallReachTheFirstWorker(t *testing.T) {
 	fake := &fakeLoupe{sse: "data: " + cardMoved(87) + "\n\n", flags: `{"inbox.enabled":true,"some.other":60}`}
 	server := httptest.NewServer(http.HandlerFunc(fake.serve))

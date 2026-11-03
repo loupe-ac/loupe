@@ -52,7 +52,7 @@ func TestPreviewTokenMintPrintsTheTokenAlone(t *testing.T) {
 func TestPreviewTokenMintFailsWhenTheServerRefuses(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusConflict)
-		fmt.Fprint(w, `{"error":"card_finished"}`)
+		fmt.Fprint(w, `{"code":"card_finished"}`)
 	}))
 	t.Cleanup(server.Close)
 

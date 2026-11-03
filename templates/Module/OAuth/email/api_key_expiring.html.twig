@@ -1,0 +1,13 @@
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'oauth.email.api_key_expiring.subject'|trans({'%name%': name}) }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'oauth.email.api_key_expiring.heading'|trans }}</h1>
+    <p class="body-text">{{ 'oauth.email.api_key_expiring.body'|trans({'%name%': name, '%start%': displayStart, '%date%': expiresAt|date('j M Y')}) }}</p>
+    <a href="{{ keysUrl }}" class="btn">{{ 'oauth.email.api_key_expiring.button_label'|trans }}</a>
+{% endblock %}
+
+{% block footer %}
+    {{ 'oauth.email.api_key_expiring.footer'|trans }} {{ keysUrl }}
+{% endblock %}

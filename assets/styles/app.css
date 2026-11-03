@@ -1210,7 +1210,8 @@
 
     /* Settings pages keep section navigation beside narrow paper panels. */
     .lp-redesign-settings .lp-danger-zone,
-    .lp-redesign-settings .lp-panel + .lp-panel {
+    .lp-redesign-settings .lp-panel + .lp-panel,
+    .lp-redesign-settings .lp-panel + div:has(> .lp-panel) {
         @apply mt-5;
     }
     .lp-redesign-settings .lp-btn {
@@ -4110,6 +4111,18 @@
     .lp-data-table--history .lp-data-table__row {
         @apply min-h-18 py-4.5;
     }
+    /* Name, Key, Expires, Last used, Actions. */
+    .lp-data-table--api-keys {
+        --lp-data-table-columns: minmax(0, 1.3fr) minmax(0, 1fr)
+            minmax(0, 1.1fr) minmax(0, 1fr) calc(var(--spacing) * 24);
+    }
+    /* The new key wraps, so that the whole key shows before the dialog closes. */
+    [data-api-key-once] .lp-code-dark__body {
+        @apply whitespace-pre-wrap break-all;
+    }
+    [data-api-key-once] .lp-form-actions {
+        @apply mt-6;
+    }
     /* Metric, Key, Type, What it reads. */
     .lp-data-table--metrics {
         --lp-data-table-columns: minmax(0, 2.4fr) minmax(0, 1.1fr)
@@ -4148,7 +4161,8 @@
     .lp-history__review-note {
         @apply m-0 basis-full max-w-prose whitespace-pre-wrap break-words;
     }
-    .lp-history__review-agent {
+    .lp-history__review-agent,
+    .lp-history__review-api-key {
         @apply m-0 flex basis-full items-center gap-1.5 text-xs text-fg-dim;
     }
     .lp-history__actions {
@@ -5057,7 +5071,8 @@
     .lp-verdict-chip__note {
         @apply m-0 whitespace-pre-wrap text-ink;
     }
-    .lp-verdict-chip__agent {
+    .lp-verdict-chip__agent,
+    .lp-verdict-chip__api-key {
         @apply m-0 flex items-center gap-1.5 text-xs text-fg-dim;
     }
     .lp-verdict-chip__actions {
@@ -6393,6 +6408,10 @@
     }
     .lp-home-tile__name {
         @apply font-display text-lg font-extrabold tracking-tight text-ink;
+    }
+    /* The name of a tile that links to a page of the docs. */
+    .lp-home-tile__link {
+        @apply text-ink underline underline-offset-2 transition-colors hover:text-fg-mute;
     }
     .lp-home-tile__text {
         @apply text-sm leading-normal text-fg-mute;

@@ -54,7 +54,7 @@ final class ColumnReorderToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('column-reorder-backlog'));
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Backlog always comes first. Leave backlog out of order.');
+        $this->expectExactMessage('Backlog always comes first. Leave backlog out of order.');
         ($this->tool)(['backlog', 'done', 'next', 'in-progress']);
     }
 
@@ -63,7 +63,7 @@ final class ColumnReorderToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('column-reorder-unknown'));
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Unknown column "review". Use one of: next, in-progress, done.');
+        $this->expectExactMessage('Unknown column "review". Use one of: next, in-progress, done.');
         ($this->tool)(['done', 'review', 'next', 'in-progress']);
     }
 
@@ -72,7 +72,7 @@ final class ColumnReorderToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('column-reorder-missing'));
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Name each of these columns exactly once: next, in-progress, done.');
+        $this->expectExactMessage('Name each of these columns exactly once: next, in-progress, done.');
         ($this->tool)(['done', 'next']);
     }
 
@@ -81,7 +81,7 @@ final class ColumnReorderToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->makeProject('column-reorder-twice'));
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Name each of these columns exactly once');
+        $this->expectExactMessage('Name each of these columns exactly once: next, in-progress, done.');
         ($this->tool)(['done', 'next', 'next', 'in-progress']);
     }
 
@@ -94,8 +94,13 @@ final class ColumnReorderToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Unknown column "parked"');
+        $this->expectExactMessage('Unknown column "parked". Use one of: next, in-progress, done.');
         ($this->tool)(['done', 'next', 'in-progress', 'parked']);
+    }
+
+    private function expectExactMessage(string $message): void
+    {
+        $this->expectExceptionMessageMatches('/\A'.preg_quote($message, '/').'\z/');
     }
 
     public function test_an_unbound_mcp_token_is_rejected(): void

@@ -47,6 +47,27 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         yield 'delete feedback' => [Request::METHOD_DELETE, '/api/board/feedback/'.$id];
     }
 
+    /**
+     * The same routes under the private widget prefix.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function widgetV1Paths(): iterable
+    {
+        $id = (string) Uuid::v7();
+        $base = '/api/v1/live-review-widget';
+
+        yield 'update comment' => [Request::METHOD_PATCH, $base.'/comments/'.$id];
+        yield 'resolve comment' => [Request::METHOD_POST, $base.'/comments/'.$id.'/resolve'];
+        yield 'pending comments' => [Request::METHOD_GET, $base.'/review'];
+        yield 'list cards' => [Request::METHOD_GET, $base.'/cards'];
+        yield 'create card' => [Request::METHOD_POST, $base.'/cards'];
+        yield 'show verdict' => [Request::METHOD_GET, $base.'/cards/'.$id.'/verdict'];
+        yield 'send verdict' => [Request::METHOD_POST, $base.'/cards/'.$id.'/verdicts'];
+        yield 'add feedback' => [Request::METHOD_POST, $base.'/feedback'];
+        yield 'delete feedback' => [Request::METHOD_DELETE, $base.'/feedback/'.$id];
+    }
+
     /** @return iterable<string, array{string, string}> */
     public static function agentPaths(): iterable
     {
@@ -69,6 +90,33 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         $status = $client->getResponse()->getStatusCode();
         self::assertNotSame(Response::HTTP_UNAUTHORIZED, $status, $method.' '.$path.' rejected the widget token');
         self::assertNotSame(Response::HTTP_FORBIDDEN, $status, $method.' '.$path.' rejected the widget token');
+    }
+
+    #[DataProvider('widgetV1Paths')]
+    public function test_a_widget_token_reaches_every_widget_path_under_the_private_prefix(string $method, string $path): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $raw = $this->widgetToken($client, 'widget-v1-surface@example.com', 'widget-v1-surface-site');
+
+        $this->call($client, $method, $path, $raw);
+
+        $status = $client->getResponse()->getStatusCode();
+        self::assertNotSame(Response::HTTP_UNAUTHORIZED, $status, $method.' '.$path.' rejected the widget token');
+        self::assertNotSame(Response::HTTP_FORBIDDEN, $status, $method.' '.$path.' rejected the widget token');
+        self::assertStringNotContainsString('route_not_found', (string) $client->getResponse()->getContent(), $method.' '.$path.' matched no route');
+    }
+
+    #[DataProvider('widgetV1Paths')]
+    public function test_an_agent_token_reaches_no_widget_path_under_the_private_prefix(string $method, string $path): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $raw = $this->agentToken($client, 'agent-on-widget-v1@example.com');
+
+        $this->call($client, $method, $path, $raw);
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     #[DataProvider('widgetPaths')]

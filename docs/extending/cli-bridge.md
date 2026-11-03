@@ -92,17 +92,17 @@ login` gets one through the OAuth device flow: it prints a link and a code, and
 you choose **Allow** on that page. The CLI then refreshes the access token by
 itself. There is no static token, so a machine where nobody can open a browser
 cannot run the bridge. See [Connected apps](../using/connected-apps.md) for the
-device flow. The token reaches `GET /api/projects`, `POST /api/projects`,
-`GET /api/events`,
-`GET /api/projects/{handle}/board/columns`,
-`GET /api/projects/{handle}/board/cards/{cardId}`,
-`PUT /api/projects/{handle}/worker-runs/{runId}`,
-`PUT /api/projects/{handle}/worker-runs/{runId}/tool-calls`,
-`PUT /api/projects/{handle}/interactive-runs/{sessionId}`,
-`PUT /api/bridges/{bridgeId}/runs`,
-`PUT /api/bridges/{bridgeId}/heartbeat`,
-`POST /api/bridges/{bridgeId}/work-requests/{workRequestId}/claim` and
-`PUT /api/bridges/{bridgeId}/work-requests/{workRequestId}/result`, and no
+device flow. The token reaches `GET /api/v1/bridge/projects`, `POST /api/v1/projects`,
+`GET /api/v1/bridge/events`,
+`GET /api/v1/bridge/projects/{handle}/columns`,
+`GET /api/v1/bridge/projects/{handle}/cards/{cardId}`,
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}`,
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls`,
+`PUT /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}`,
+`PUT /api/v1/bridge/bridges/{bridgeId}/runs`,
+`PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat`,
+`POST /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim` and
+`PUT /api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result`, and no
 other endpoint.
 The three run endpoints record the states and the tool calls of each worker
 run, and the states of each interactive session, and the
@@ -168,7 +168,7 @@ at all. A run that waits in the queue, or that the bridge sets aside, has no
 worker to write anything. The bridge is the only witness of those runs.
 
 The bridge gives each request it claims a new run id. It sends each state of the
-run to `PUT /api/projects/{handle}/worker-runs/{runId}` as the state happens.
+run to `PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}` as the state happens.
 One bridge follows several projects, so the handle is the id of the project of
 the request. Each log line below goes with the state the bridge reports:
 
@@ -337,7 +337,7 @@ whose totals go down or do not follow the start order. `cli/README.md` lists
 its flags and its output.
 
 Each time the bridge connects to the hub, it sends the runs it holds to
-`PUT /api/bridges/{bridgeId}/runs`. A held run is one whose last state is
+`PUT /api/v1/bridge/bridges/{bridgeId}/runs`. A held run is one whose last state is
 `queued`, `preparing`, `running` or `stopping`. Loupe marks `lost` each open or timed-out run
 of that bridge that the list does not name. The bridge keeps its id across restarts, so
 Loupe closes the open runs of a bridge that died when it next connects. The
@@ -377,7 +377,7 @@ seconds. It logs `report_dropped` with the count of the reports that miss the
 window. A missing record therefore means "unknown", and never "the worker did
 not run".
 
-The bridge sends a heartbeat to `/api/bridges/{bridgeId}/heartbeat` once at
+The bridge sends a heartbeat to `/api/v1/bridge/bridges/{bridgeId}/heartbeat` once at
 start and then at the interval that `bridge.heartbeat_interval_seconds` gives,
 60 seconds by default. The heartbeat names the projects the rule file maps and
 the version of the bridge, and the state of its [update](#updates). The server
@@ -1059,7 +1059,7 @@ The harness adapter of the bridge reads each tool call of a worker. For Claude
 Code, it reads the stream on claude's stdout. For Codex, it reads the session
 file of the run and the session file of each subagent, as
 [Codex metrics](#codex-metrics) says. When the worker ends, the bridge sends the calls after the final state of the
-run, to `PUT /api/projects/{handle}/worker-runs/{runId}/tool-calls`. One
+run, to `PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls`. One
 request holds at most 500 calls. The last request also holds the tool time and
 the idle time of the run, so a run with no call still sends one request.
 [Reporting the tool calls of a run](../reference/worker-runs.md#reporting-the-tool-calls-of-a-run)
@@ -1087,18 +1087,19 @@ The `insights.subcommand_programs` feature flag holds the subcommand list, as a
 comma list, and you change it at **`/admin/feature-flags`**. Its default is
 `git,just,npm,pnpm,yarn,cargo,go,docker,gh,composer,make,pip,uv`, and an empty
 value reads as the default. The flag is one list for the whole instance.
-`GET /api/projects` gives the list to the bridge as `subcommandPrograms` on
+`GET /api/v1/bridge/projects` gives the list to the bridge as `subcommandPrograms` on
 each project. The bridge keeps the answer for 10 minutes. When it cannot read
 it, the bridge uses the default list.
 
-`GET /api/projects` also gives `collectFullText` on each project. The bridge
+`GET /api/v1/bridge/projects` also gives `collectFullText` on each project. The bridge
 sends the full input text of a call only when that value is `true`. The
 project setting **Collect the full text of each tool call** turns it on, in the
 analysis settings on the
 [Reports](../using/analytics.md#reports) tab. It is off by default.
 
-A server with no tool call endpoint answers 404 with no error code, and so does
-a server with agent push switched off. The bridge then logs
+A server with no tool call endpoint answers 404 with no error code or with the
+code `route_not_found`. A server with agent push switched off answers 404 with
+the code `http_404`. The bridge then logs
 `tool_calls_unsupported` once. It drops that batch with no retry. The batches
 of later runs still try, so the calls come back when agent push comes back on. Set `collect: false` in `rules.yaml` to send no tool call and no
 timing at all.
@@ -1238,7 +1239,7 @@ on the machine of the bridge.
 |---|---|
 | A token | is managed |
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
-| 404 with no error code, from a server without the route | keeps the git setup of the machine |
+| 404 with no error code or with `route_not_found`, from a server without the route | keeps the git setup of the machine |
 | A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
 | Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, another SSH address of GitHub, or an address that a rule of your git configuration sends to SSH | is managed, and its credentials fail until the cause ends |
 
@@ -1529,7 +1530,7 @@ On macOS, an update also installs the Live review panel of the new version. See 
 
 ### The check
 
-The server declares the CLI versions it supports as a caret range, `^1.0` today,
+The server declares the CLI versions it supports as a caret range, `^2.0` today,
 and sends it in its answer to each [heartbeat](../reference/bridge-heartbeat.md).
 The bridge checks for a release after its first heartbeat, again when the range
 changes, and then every hour plus a random delay of up to 10 minutes. A server
@@ -1548,10 +1549,10 @@ conditions:
 - The release has the archive for this OS and CPU, and `checksums.txt`.
 
 The bridge installs that release when the running version is lower, or when the
-running version is outside the range. A bridge above the range therefore
-installs a lower version. When the running version is outside the range and no
-release fits, the bridge logs `update_unavailable` once and keeps running. The
-agents page then shows the chip "Needs ^1.0".
+running version is below the range. A bridge above the range installs nothing,
+because a lower version does not fit a newer server. When the running version is
+outside the range and no release fits, the bridge logs `update_unavailable`
+once and [drains](#draining).
 
 The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
@@ -1585,6 +1586,45 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
 
+### At start
+
+A bridge reads `GET /api/versions` before it starts. This route needs no
+sign-in, and it names the API versions and the CLI range of the server. A server
+without the route is too old for this CLI, and the bridge exits with a sentence
+that says to upgrade Loupe. A version outside the range gets one of these
+results:
+
+- A development build or a build of a checkout warns once on stderr and runs.
+- A release binary updates itself when `autoUpdate` is `true`, and then exits
+  with "start the bridge again". When it cannot, it exits with the reason. A
+  directory that takes no new file is named in that reason.
+- A release binary with `autoUpdate` off exits with "Run: loupe update".
+- A release binary in a setup that runs the shared binary exits with
+  "Run: LOUPE_CONFIG= loupe update". That command runs in the default setup, which
+  owns the shared binary. A plain `loupe update` with `LOUPE_CONFIG` set or `-c`
+  installs only the panel.
+- A Homebrew binary exits with "Run: brew upgrade loupe".
+- A binary above the range exits with "Upgrade the server".
+
+### Draining
+
+A running bridge that falls outside the range drains at once, and then tries the
+same update. It starts no new work, and the runs that already started go on. This
+also holds for a work offer in the heartbeat answer that states the new range.
+When the update hands over, the new version takes work. When the update cannot
+run, the drain goes on. The bridge keeps sending
+[heartbeats](../reference/bridge-heartbeat.md) with the update state `draining`,
+logs `bridge_draining` once, and checks again every hour. The agents page shows the chip "Draining: needs ^2.0". When the
+version is back inside the range, because the bridge updated or the server
+changed its range, the bridge logs `bridge_resumed` and takes work again. A
+development build and a prerelease never drain.
+
+A bridge in a setup that runs the shared binary, and a Homebrew binary, never
+install a release. They drain in the same way, and `bridge_draining` names the
+command that replaces the binary. They resume when the server changes its range.
+After the command, start the bridge again, because a running bridge cannot hand
+over to a binary that it did not install.
+
 ### Blocked
 
 The bridge must be able to write the directory that holds its binary, after it
@@ -1599,7 +1639,7 @@ The bridge replaces itself in the same process. These are the steps:
 
 1. The bridge runs the new binary as `loupe bridge preflight`, with a limit of
    30 seconds. The new binary reads the rule file, runs the start checks
-   against the server and calls `GET /api/events`.
+   against the server and calls `GET /api/v1/bridge/events`.
 2. The bridge pauses. It starts no worker, and new requests wait in the queue.
 3. The bridge waits up to 10 seconds for its run reports, its claims and its
    launches to go out. When they do not finish, the bridge resumes, logs
@@ -1994,7 +2034,7 @@ worker. A failure keeps the item open, with **Run again**.
 
 While the command runs, the bridge merges its standard output and standard error
 into one stream. About once a second it sends the new bytes to
-`PUT /api/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
 of the first byte. Loupe stores the text only when `offset` equals the number of
 bytes it holds, and answers with that number as `length`. The bridge sends again
 from `length` after a lost answer or a refused offset. The last piece goes out
@@ -2233,7 +2273,7 @@ Run `loupe bridge reload` after `install`, `remove` or `set`.
 
 ## Events endpoint
 
-`GET /api/events` returns what a client needs to follow the events of every
+`GET /api/v1/bridge/events` returns what a client needs to follow the events of every
 project the token's user owns:
 
 ```json
@@ -2252,15 +2292,16 @@ project the token's user owns:
     "bridge.host_sampling_enabled": false,
     "bridge.host_sample_interval_seconds": 60
   },
-  "cliRange": "^1.0",
+  "cliRange": "^2.0",
   "head": 4812
 }
 ```
 
 The request names the bridge in an `X-Loupe-Bridge` header. The server answers
-`426` with an `error` message when the header is missing or is not a UUID, when
-the user has no bridge with that id, or when the last heartbeat of the bridge
-does not list the `work-requests` capability. The bridge sends a heartbeat
+`426` with Problem JSON. The `code` is `no_bridge_id` when the header is missing
+or is not a UUID, `unknown_bridge` when the user has no bridge with that id, and
+`no_work_requests` when the last heartbeat of the bridge does not list the
+`work-requests` capability. The `detail` holds the message. The bridge sends a heartbeat
 before its first call, and it stops on a `426`. The replay route below applies
 the same check. Only the types `bridge.work_request`, `bridge.command`,
 `board.card_held`, `board.card_released` and `project.renamed` reach the hub
@@ -2311,7 +2352,7 @@ before the change calls the old route, gets `404`, and must be rebuilt.
 
 ### Replay
 
-`GET /api/events/replay?after=<sequence>` returns the events that a client
+`GET /api/v1/bridge/events/replay?after=<sequence>` returns the events that a client
 missed while it was stopped or reconnecting. It reads the outbox, which holds
 every event, so it does not depend on the history of the hub.
 
@@ -2325,7 +2366,7 @@ every event, so it does not depend on the history of the hub.
 }
 ```
 
-1. `after` is a required integer, `0` or higher. A missing, non-integer or negative value answers `400`.
+1. `after` is a required integer, `0` or higher. A missing, non-integer or negative value answers `400` with the code `invalid_query`.
 2. `id` is a string, the same text that the hub sends as the SSE id. It holds the outbox sequence, so parse it as a 64-bit integer.
 3. `data` is the stored payload string, byte for byte what the hub sends.
 4. The list holds the events of the projects that the user owns, in sequence order.
@@ -2380,9 +2421,11 @@ nothing.
 
 A person or an agent makes a card unmanaged, and Loupe then holds the card. A
 stop of a run holds nothing. Loupe writes a `board.card_held` event when a
-person selects **Make unmanaged** or an agent calls `card_hold`. It writes a
-`board.card_released` event when a person selects **Manage again** or an agent
-calls `card_release`. The two events have the same payload.
+person selects **Make unmanaged**, an agent calls `card_hold`, or a client calls
+`PUT /api/v1/projects/{project}/cards/{number}/hold`. It writes a
+`board.card_released` event when a person selects **Manage again**, an agent
+calls `card_release`, or a client calls `DELETE` on that path. The two events
+have the same payload.
 
 ```json
 {
@@ -2399,7 +2442,8 @@ calls `card_release`. The two events have the same payload.
 | `subject.type` | always `card` |
 | `subject.id` | the card whose agents the person or the agent paused or let run |
 | `projectId` | the project of the card |
-| `actor` | `human` for a person on the card page, `agent` for an MCP call |
+| `actor` | `human` for a person on the card page, `agent` for an MCP call or a CLI sign-in on the public API, `api-key` for an API key on the public API |
+| `apiKey` | only with the actor `api-key`: the `id` and the `name` of the key |
 
 The bridge keeps the hold, starts no worker on a held card, and starts the
 queued runs of the card on the release. A worker that runs when the hold starts
@@ -2408,7 +2452,7 @@ request of the card when the hold starts. It offers no request of a held card
 to a bridge, and it refuses a claim of one with `card_held`. It does not
 reopen a lapsed claim of a held card until the hold ends.
 
-`GET /api/card-holds` returns the held cards of every project that the user
+`GET /api/v1/bridge/card-holds` returns the held cards of every project that the user
 owns, in the order of the holds.
 
 ```json
@@ -2509,7 +2553,7 @@ A launch uses no worker slot, and does not wait for a worker on the same card.
 A paused bridge leaves an interactive request to another bridge.
 
 The bridge reports each launch to
-`PUT /api/projects/{handle}/interactive-runs/{sessionId}`. The report names the
+`PUT /api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}`. The report names the
 card as the subject, with `subjectType` `card`, `subjectId` and `cardNumber`. An
 interactive run is about a card, so the server answers 422 to any other subject
 type. A good launch opens an interactive run in the state `running`, with the
@@ -2644,7 +2688,7 @@ session as running.
 
 ## Columns endpoint
 
-`GET /api/projects/{handle}/board/columns` returns the columns of one board, so
+`GET /api/v1/bridge/projects/{handle}/columns` returns the columns of one board, so
 the bridge can resolve each project of its rule file at start. The handle is a
 project id or a project slug. A project name does not resolve, and a handle
 cannot hold a slash. The token's user must own the project.
@@ -2664,17 +2708,31 @@ but the list keeps it. `default` and `backlog` are
 both true on that row alone. A seeded label is translated, and a label a person
 typed comes back as typed. `project.slug` is the project's slug.
 
-| Status | Body | When |
+A refusal answers `application/problem+json`. The `code` names the cause, and the
+tables of this section and of the next two list each code. A git token refusal
+from GitHub adds `missing`.
+
+```json
+{
+  "type": "https://loupe.ac/docs/reference/api/errors#project_not_found",
+  "title": "Project not found",
+  "status": 404,
+  "code": "project_not_found",
+  "detail": "No project answers this request."
+}
+```
+
+| Status | `code` | When |
 |---|---|---|
-| 200 | the object above | the user owns the project |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 429 | | more than 60 reads in one minute from one token |
+| 200 | | the user owns the project, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 429 | `rate_limited` | more than 60 reads in one minute from one token |
 
 ## Card endpoint
 
-`GET /api/projects/{handle}/board/cards/{cardId}` returns the column a card is
+`GET /api/v1/bridge/projects/{handle}/cards/{cardId}` returns the column a card is
 in now, and whether a person paused the agents on it. The bridge calls it before
 a person's resume, and it refuses the resume when the read fails. The handle follows the same rules as the
 columns endpoint, and `cardId` is the card's uuid.
@@ -2690,18 +2748,18 @@ columns endpoint, and `cardId` is the card's uuid.
 | `column` | the slug of the card's column |
 | `held` | `true` when a person paused the agents on the card. A move of the card to another column by a person releases the hold. An older bridge ignores the key |
 
-| Status | Body | When |
+| Status | `code` | When |
 |---|---|---|
-| 200 | the object above | the user owns the project and the project holds the card |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 404 | `{"error":"card_not_found"}` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
-| 429 | | more than 60 reads in one minute from one token, counted together with the columns endpoint |
+| 200 | | the user owns the project and the project holds the card, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 404 | `card_not_found` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
+| 429 | `rate_limited` | more than 60 reads in one minute from one token, counted together with the columns endpoint |
 
 ## Git token endpoint
 
-`POST /api/projects/{handle}/git-token` returns a GitHub App token for one
+`POST /api/v1/bridge/projects/{handle}/git-token` returns a GitHub App token for one
 repository of one project. The token opens that repository and no other, with
 Contents and Pull requests write access, and Workflows write access when the
 installation grants it. GitHub ends it after one hour. The handle follows the
@@ -2723,20 +2781,20 @@ link several repositories, so each worker asks for the one it pushes to.
 A project holds the setting "Loupe manages the git identity of agents". It is on
 for every project. With the setting off, the endpoint hands out no token.
 
-| Status | Body | When |
+| Status | `code` | When |
 |---|---|---|
-| 201 | the object above | the user owns the project, the setting is on, and the installation grants the access |
-| 401 | | the request carries no token |
-| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
-| 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
-| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
-| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
-| 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
-| 422 | | the body names no repository, or a value that is not `owner/name` |
-| 409 | `{"error":"app_not_configured","missing":[]}` | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
-| 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
-| 429 | | more than 60 requests in one minute from one token |
-| 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
+| 201 | | the user owns the project, the setting is on, and the installation grants the access, and the body is the object above |
+| 401 | `invalid_credentials` | the request carries no token |
+| 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
+| 403 | `git_identity_not_managed` | the setting is off for the project |
+| 404 | `project_not_found` | the user has no project with that handle, another user's project counts as none, or the credential is bound to another project |
+| 409 | `no_installation`, with `missing` empty | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
+| 409 | `no_repository`, with `missing` empty | the project has installed repositories, and the named one is not among them |
+| 422 | `validation_failed` | the body names no repository, or a value that is not `owner/name` |
+| 409 | `app_not_configured`, with `missing` empty | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
+| 409 | `missing_grant`, with `missing` such as `["contents"]` | the installation lacks write access to the permissions that `missing` names |
+| 429 | `rate_limited` | more than 60 requests in one minute from one token |
+| 502 | `github_unavailable`, with `missing` empty | GitHub did not answer |
 
 The Connect page of the project shows the same cause under "Agents of this
 project cannot push", so the owner can install the App, grant the permission, or

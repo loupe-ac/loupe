@@ -25,18 +25,18 @@ var ErrGitTokenUnsupported = errors.New("the server has no git token endpoint")
 // code the server gave, with the permissions it lists as missing.
 func gitTokenError(status int, body []byte) error {
 	var payload struct {
-		Error   string   `json:"error"`
+		Code    string   `json:"code"`
 		Missing []string `json:"missing"`
 	}
 	_ = json.Unmarshal(body, &payload)
 
 	switch {
-	case status == http.StatusNotFound && payload.Error == "":
+	case status == http.StatusNotFound && routeMissing(payload.Code):
 		return ErrGitTokenUnsupported
-	case status == http.StatusForbidden && payload.Error == "git_identity_not_managed":
+	case status == http.StatusForbidden && payload.Code == "git_identity_not_managed":
 		return ErrGitIdentityNotManaged
-	case payload.Error != "":
-		cause := payload.Error
+	case payload.Code != "":
+		cause := payload.Code
 		if len(payload.Missing) > 0 {
 			cause += " (" + strings.Join(payload.Missing, ", ") + ")"
 		}
@@ -56,7 +56,7 @@ func (c *Client) IssueGitToken(ctx context.Context, handle, repository string) (
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/projects/"+url.PathEscape(handle)+"/git-token", bytes.NewReader(body))
+		c.baseURL+"/api/v1/bridge/projects/"+url.PathEscape(handle)+"/git-token", bytes.NewReader(body))
 	if err != nil {
 		return "", time.Time{}, err
 	}

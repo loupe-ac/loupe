@@ -20,9 +20,9 @@ func TestSiteReviewSendsTheProjectOnlyWhenGiven(t *testing.T) {
 		data, _ := io.ReadAll(r.Body)
 		gotBody = string(data)
 		switch r.URL.Path {
-		case "/api/board/cards":
+		case "/api/v1/live-review-widget/cards":
 			w.Write([]byte(`{"cards":[{"number":3}]}`))
-		case "/api/projects":
+		case "/api/v1/bridge/projects":
 			w.Write([]byte(`{"sites":[]}`))
 		default:
 			w.WriteHeader(http.StatusCreated)
@@ -73,8 +73,8 @@ func TestSiteReviewMapsRefusals(t *testing.T) {
 		body   string
 		want   error
 	}{
-		"not bound":    {http.StatusForbidden, `{"error":"token_not_bound_to_site"}`, ErrProjectNotCovered},
-		"other 403":    {http.StatusForbidden, `{"error":"insufficient_scope"}`, ErrScopeMissing},
+		"not bound":    {http.StatusForbidden, `{"code":"token_not_bound_to_site"}`, ErrProjectNotCovered},
+		"other 403":    {http.StatusForbidden, `{"code":"insufficient_scope"}`, ErrScopeMissing},
 		"unauthorized": {http.StatusUnauthorized, `{}`, ErrScopeMissing},
 	}
 	for name, tc := range cases {

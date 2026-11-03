@@ -23,11 +23,6 @@ final readonly class DocumentCreateTool
 {
     use ResolvesBoundProject;
 
-    /**
-     * Reject pathologically large documents before they are parsed and stored.
-     */
-    public const int MAX_MARKDOWN_BYTES = 1_048_575;
-
     public function __construct(
         private CreateDocumentHandler $createDocument,
         private AuthenticatedProjectResolver $projectResolver,
@@ -59,10 +54,6 @@ final readonly class DocumentCreateTool
     {
         try {
             $project = $this->requireBoundProject($this->projectResolver);
-
-            if (\strlen($markdown) > self::MAX_MARKDOWN_BYTES) {
-                throw $this->errorMessages->forArgument('markdown', 'The markdown content exceeds the maximum allowed size.');
-            }
 
             // A whitespace-only description means "none given", but "0" is a
             // description a caller actually sent — `?:` would discard it.

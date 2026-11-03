@@ -25,7 +25,7 @@ func TestMintPreviewTokenPostsTheLabelAndTheCard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token != "tok-1" || method != http.MethodPost || path != "/api/projects/p1/preview-tokens" || auth != "Bearer secret" {
+	if token != "tok-1" || method != http.MethodPost || path != "/api/v1/bridge/projects/p1/preview-tokens" || auth != "Bearer secret" {
 		t.Fatalf("token = %q, method = %q, path = %q, auth = %q", token, method, path, auth)
 	}
 	if body != `{"card":"c1","label":"card-707"}` {
@@ -59,8 +59,8 @@ func TestMintPreviewTokenNamesTheRefusal(t *testing.T) {
 		check  func(error) bool
 	}{
 		{"old server", http.StatusNotFound, ``, func(err error) bool { return errors.Is(err, ErrPreviewTokensUnsupported) }},
-		{"no project", http.StatusNotFound, `{"error":"project_not_found"}`, func(err error) bool { return errors.Is(err, ErrProjectNotFound) }},
-		{"finished card", http.StatusConflict, `{"error":"card_finished"}`, func(err error) bool { return err != nil && contains(err.Error(), "card_finished") }},
+		{"no project", http.StatusNotFound, `{"code":"project_not_found"}`, func(err error) bool { return errors.Is(err, ErrProjectNotFound) }},
+		{"finished card", http.StatusConflict, `{"code":"card_finished"}`, func(err error) bool { return err != nil && contains(err.Error(), "card_finished") }},
 		{"rejected", http.StatusUnauthorized, ``, func(err error) bool { return err != nil && contains(err.Error(), "loupe login") }},
 	}
 	for _, tc := range cases {
@@ -91,7 +91,7 @@ func TestRevokePreviewTokensEscapesTheLabelAndCountsTheRevoked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 0 || method != http.MethodDelete || path != "/api/projects/p1/preview-tokens/a%20b" {
+	if n != 0 || method != http.MethodDelete || path != "/api/v1/bridge/projects/p1/preview-tokens/a%20b" {
 		t.Fatalf("n = %d, method = %q, path = %q", n, method, path)
 	}
 }

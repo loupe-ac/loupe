@@ -16,6 +16,8 @@ use App\Module\Board\Command\DeleteBoardColumnCommand;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\PreviewBoardColumnRenameCommand;
 use App\Module\Board\Command\PreviewBoardColumnRenameHandler;
+use App\Module\Board\Command\ReorderBoardColumnsBySlugCommand;
+use App\Module\Board\Command\ReorderBoardColumnsBySlugHandler;
 use App\Module\Board\Command\ReorderBoardColumnsCommand;
 use App\Module\Board\Command\ReorderBoardColumnsHandler;
 use App\Module\Board\Command\UpdateCardCommand;
@@ -217,6 +219,48 @@ final class BoardColumnHandlersTest extends KernelTestCase
     public function test_a_reorder_that_moves_the_backlog_is_refused(): void
     {
         $this->assertRefused(['order' => BoardColumns::BACKLOG_LOCKED], fn () => $this->handler(ReorderBoardColumnsHandler::class)(new ReorderBoardColumnsCommand($this->project, $this->ids(['next', 'backlog', 'in-progress', 'done']), $this->ids(['next', 'in-progress', 'done']))));
+        self::assertSame(['backlog', 'next', 'in-progress', 'done'], $this->slugs());
+    }
+
+    public function test_a_reorder_by_slug_writes_the_order_given(): void
+    {
+        $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, ['done', 'next', 'in-progress']));
+
+        $this->em->clear();
+        self::assertSame(['backlog', 'done', 'next', 'in-progress'], $this->slugs());
+    }
+
+    public function test_a_reorder_by_slug_refuses_the_backlog(): void
+    {
+        $this->assertRefused(['order' => ReorderBoardColumnsBySlugHandler::BACKLOG_FIRST], fn () => $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, ['backlog', 'done', 'next', 'in-progress'])));
+        self::assertSame(['backlog', 'next', 'in-progress', 'done'], $this->slugs());
+    }
+
+    public function test_a_reorder_by_slug_refuses_an_unknown_slug_and_names_the_slugs_the_board_has(): void
+    {
+        try {
+            $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, ['done', 'review', 'next', 'in-progress']));
+            self::fail('The change was not refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['order' => ReorderBoardColumnsBySlugHandler::UNKNOWN_SLUG], $e->errors);
+            self::assertSame(['%slug%' => 'review', '%slugs%' => 'next, in-progress, done'], $e->parameters['order']);
+        }
+    }
+
+    public function test_a_reorder_by_slug_names_a_value_that_is_no_string_by_its_type(): void
+    {
+        try {
+            $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, [42, 'next', 'in-progress', 'done']));
+            self::fail('The change was not refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame('int', $e->parameters['order']['%slug%']);
+        }
+    }
+
+    public function test_a_reorder_by_slug_refuses_a_missing_or_repeated_slug(): void
+    {
+        $this->assertRefused(['order' => ReorderBoardColumnsBySlugHandler::EACH_ONCE], fn () => $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, ['done', 'next'])));
+        $this->assertRefused(['order' => ReorderBoardColumnsBySlugHandler::EACH_ONCE], fn () => $this->handler(ReorderBoardColumnsBySlugHandler::class)(new ReorderBoardColumnsBySlugCommand($this->project, ['done', 'next', 'next', 'in-progress'])));
         self::assertSame(['backlog', 'next', 'in-progress', 'done'], $this->slugs());
     }
 

@@ -110,6 +110,8 @@ final class ArtifactToolsTest extends KernelTestCase
         self::assertSame([null, 'Shorter greeting.'], array_column($result['versions'], 'notes'));
         self::assertSame(2, $result['selectedVersion']);
         self::assertSame([['path' => 'index.html', 'contentType' => 'text/html', 'size' => 9]], $result['files']);
+        self::assertArrayNotHasKey('url', $result);
+        self::assertSame(\sprintf('/projects/%s/artifacts/%s', $project->id, $artifact->id), $result['path']);
 
         $first = ($this->tool(ArtifactGetTool::class))((string) $artifact->id, 1);
         self::assertSame(1, $first['selectedVersion']);

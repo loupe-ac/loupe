@@ -64,7 +64,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertJsonStringEqualsJsonString('{"cliRange":"^1.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[],"watchSessions":[],"blockedAccounts":[]}', (string) $client->getResponse()->getContent());
+        self::assertJsonStringEqualsJsonString('{"cliRange":"^2.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[],"watchSessions":[],"blockedAccounts":[]}', (string) $client->getResponse()->getContent());
         $bridge = $this->bridge($owner, $bridgeId);
         self::assertSame([(string) $project->id], $bridge->projects);
         self::assertNull($bridge->pausedReported);
@@ -95,6 +95,20 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame(CliUpdateState::RolledBack, $bridge->updateState);
         self::assertSame('1.3.0', $bridge->updateVersion);
         self::assertNull($bridge->installMethod);
+    }
+
+    public function test_a_draining_report_is_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-draining@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => '1.2.0', 'update' => ['state' => 'draining']]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(CliUpdateState::Draining, $this->bridge($owner, $bridgeId)->updateState);
     }
 
     public function test_the_install_method_is_stored(): void

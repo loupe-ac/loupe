@@ -77,7 +77,7 @@ final readonly class MarkdownRenderer
      * YAML aliases expand without a budget, so `a: &a [*b, *b, *b, …]` repeated
      * per level multiplies by nine each time. Measured unguarded: 409 bytes of
      * source became 27 MB of HTML in 9.5 s, and each further level costs another
-     * 9x. Neither pre-existing guard helps — DocumentCreateTool::MAX_MARKDOWN_BYTES
+     * 9x. Neither pre-existing guard helps — Document::MAX_MARKDOWN_BYTES
      * caps the source and the growth is exponential in it, while the sanitizer's
      * own limit never sees this table, which is built outside it so that a
      * content table cannot carry a class. The parse is cheap (PHP shares the

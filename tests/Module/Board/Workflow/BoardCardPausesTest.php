@@ -106,8 +106,10 @@ final class BoardCardPausesTest extends KernelTestCase
     {
         $cards = self::getContainer()->get(\App\Module\Board\Repository\CardRepository::class);
         self::assertInstanceOf(\App\Module\Board\Repository\CardRepository::class, $cards);
+        $eventActor = self::getContainer()->get(\App\Module\Board\Service\CardEventActor::class);
+        self::assertInstanceOf(\App\Module\Board\Service\CardEventActor::class, $eventActor);
         $audit = $this->silentAuditor();
 
-        return new BoardCardPauses($cards, $this->pauseRepository(), $this->cardEventRepository(), $this->pauseHandler($audit), $this->releaseHandler($audit), $this->em);
+        return new BoardCardPauses($cards, $this->pauseRepository(), $this->cardEventRepository(), $this->pauseHandler($audit), $this->releaseHandler($audit), $this->em, $eventActor);
     }
 }

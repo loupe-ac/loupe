@@ -42,7 +42,7 @@ func TestLoginRunsTheDeviceFlow(t *testing.T) {
 			fmt.Fprint(w, `{"device_code":"dev-1","user_code":"BCDFGHJK","verification_uri":"https://loupe.test/oauth/device","verification_uri_complete":"https://loupe.test/oauth/device?user_code=BCDFGHJK","expires_in":600,"interval":1}`)
 		case "/oauth/token":
 			fmt.Fprint(w, `{"token_type":"Bearer","access_token":"eyJ.access","refresh_token":"refresh-1","expires_in":3600}`)
-		case "/api/projects":
+		case "/api/v1/bridge/projects":
 			apiAuth = r.Header.Get("Authorization")
 			fmt.Fprint(w, `{"sites":[]}`)
 		default:
@@ -71,7 +71,7 @@ func TestLoginRunsTheDeviceFlow(t *testing.T) {
 	if apiAuth != "Bearer eyJ.access" {
 		t.Fatalf("the check call sent %q", apiAuth)
 	}
-	for _, path := range []string{"/oauth/device-authorization", "/oauth/token", "/api/projects"} {
+	for _, path := range []string{"/oauth/device-authorization", "/oauth/token", "/api/v1/bridge/projects"} {
 		if agents[path] != userAgent() {
 			t.Fatalf("%s sent User-Agent %q, want %q", path, agents[path], userAgent())
 		}

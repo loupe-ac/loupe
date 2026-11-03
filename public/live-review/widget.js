@@ -453,11 +453,14 @@
             const error = new Error(`HTTP ${response.status}`);
             error.status = response.status;
             // The API's auth/authorization failures carry a machine-readable { error: code }
-            // body (unauthorized / insufficient_scope / token_not_bound_to_site); read it to
+            // body (code, or error on a flat answer: invalid_credentials / credential_not_allowed /
+            // token_not_bound_to_site, or their old names); read it to
             // tailor the fatal message. Guarded — a non-JSON body must never throw here.
             try {
                 const data = await response.json();
-                if (data && typeof data.error === 'string')
+                if (data && typeof data.code === 'string')
+                    error.code = data.code;
+                else if (data && typeof data.error === 'string')
                     error.code = data.error;
             } catch {
                 /* no JSON body — the status alone still classifies the failure */
@@ -515,7 +518,7 @@
         try {
             const payload = await api(
                 'GET',
-                '/api/live-review/review?scope=' +
+                '/api/v1/live-review-widget/review?scope=' +
                     encodeURIComponent(scope) +
                     (asked ? '&context=' + encodeURIComponent(asked) : ''),
             );
@@ -2683,13 +2686,20 @@
     // status fallback. Each case has its own fix, so one generic wording would
     // send the reader down the wrong path.
     const fatalDetail = ({ status, code }) => {
-        if ('insufficient_scope' === code) {
+        if (
+            'credential_not_allowed' === code ||
+            'insufficient_scope' === code
+        ) {
             return 'This sign-in does not cover live review. Sign in again, and allow the live-review access the page asks for.';
         }
         if (403 === status) {
             return 'This account cannot review this project. Sign in as a person the project allows.';
         }
-        if (401 === status || 'unauthorized' === code) {
+        if (
+            401 === status ||
+            'invalid_credentials' === code ||
+            'unauthorized' === code
+        ) {
             return 'This sign-in expired or was revoked. Sign in again to carry on.';
         }
         return 'The server refused this sign-in. Check that the embed names the right project, and that the project allows this page’s address.';
@@ -3951,7 +3961,7 @@
         try {
             const data = await api(
                 'GET',
-                `/api/board/cards/${encodeURIComponent(cardId)}/verdict`,
+                `/api/v1/live-review-widget/cards/${encodeURIComponent(cardId)}/verdict`,
             );
             if (generation !== verdictGeneration) return;
             verdict.data = {
@@ -4031,7 +4041,7 @@
         try {
             await api(
                 'POST',
-                `/api/board/cards/${encodeURIComponent(cardId)}/verdicts`,
+                `/api/v1/live-review-widget/cards/${encodeURIComponent(cardId)}/verdicts`,
                 {
                     kind,
                     pullRequestIds: verdict.ticked,
@@ -5057,7 +5067,9 @@
             if (query) parameters.set('q', query);
             if (pickerMode === 'epic') parameters.set('parent', '1');
             const search = parameters.toString();
-            const path = '/api/board/cards' + (search ? '?' + search : '');
+            const path =
+                '/api/v1/live-review-widget/cards' +
+                (search ? '?' + search : '');
             const answer = await api('GET', path);
             if (!current()) return;
             pickerCards = answer.cards || [];
@@ -5096,7 +5108,7 @@
         pickerError = null;
         sync();
         try {
-            const card = await api('POST', '/api/board/cards', {
+            const card = await api('POST', '/api/v1/live-review-widget/cards', {
                 title,
                 ...(mode === 'epic'
                     ? {
@@ -5262,7 +5274,7 @@
                     throw Object.assign(new Error('HTTP 404'), { status: 404 });
                 const updated = await api(
                     'PATCH',
-                    `/api/live-review/comments/${target.id}`,
+                    `/api/v1/live-review-widget/comments/${target.id}`,
                     { body },
                 );
                 target.body = body;
@@ -5329,10 +5341,14 @@
                     text: first ? first.text : '',
                     ...(lastSeenMarker ? { context: lastSeenMarker } : {}),
                 };
-                const saved = await api('POST', '/api/board/feedback', {
-                    ...comment,
-                    target,
-                });
+                const saved = await api(
+                    'POST',
+                    '/api/v1/live-review-widget/feedback',
+                    {
+                        ...comment,
+                        target,
+                    },
+                );
                 if (scopeAtSave === scopeGeneration) {
                     comments.push({
                         id: saved.commentId,
@@ -5407,7 +5423,10 @@
         sync();
         try {
             await ready;
-            await api('POST', `/api/live-review/comments/${target.id}/resolve`);
+            await api(
+                'POST',
+                `/api/v1/live-review-widget/comments/${target.id}/resolve`,
+            );
             // By id: the list can change while the request runs.
             comments = comments.filter((comment) => comment.id !== target.id);
             flashSaved('Marked resolved');
@@ -5434,7 +5453,10 @@
         sync(); // paint the disabled footer now, or the click below is silently dropped
         try {
             await ready; // don't let the boot refresh clobber an early delete
-            await api('DELETE', `/api/board/feedback/${target.id}`);
+            await api(
+                'DELETE',
+                `/api/v1/live-review-widget/feedback/${target.id}`,
+            );
             comments = comments.filter((comment) => comment.id !== target.id);
             flashSaved('Note deleted');
         } catch (error) {
@@ -5471,7 +5493,9 @@
             // them and restores rows that are about to disappear.
             const doomed = comments.map((comment) => comment.id);
             const results = await Promise.allSettled(
-                doomed.map((id) => api('DELETE', `/api/board/feedback/${id}`)),
+                doomed.map((id) =>
+                    api('DELETE', `/api/v1/live-review-widget/feedback/${id}`),
+                ),
             );
             const failure = results.find(
                 (result) => 'rejected' === result.status,

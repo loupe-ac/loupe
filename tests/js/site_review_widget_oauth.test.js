@@ -150,7 +150,7 @@ describe('an embed with a project and no token', () => {
             signedIn: false,
             respond: router({
                 '/oauth/token': () => tokens('access-1', 'refresh-1'),
-                '/api/live-review/review': () => ok({ comments: [] }),
+                '/api/v1/live-review-widget/review': () => ok({ comments: [] }),
             }),
         });
         await settle();
@@ -178,9 +178,9 @@ describe('an embed with a project and no token', () => {
             )[1].credentials,
         ).toBe('omit');
 
-        expect(bearerOf(fetchMock, '/api/live-review/review')).toEqual([
-            'Bearer access-1',
-        ]);
+        expect(
+            bearerOf(fetchMock, '/api/v1/live-review-widget/review'),
+        ).toEqual(['Bearer access-1']);
         expect(
             JSON.parse(window.sessionStorage.getItem(STORAGE_KEY)),
         ).toMatchObject({ accessToken: 'access-1', refreshToken: 'refresh-1' });
@@ -269,14 +269,14 @@ describe('a stored grant', () => {
             project: PROJECT,
             signedIn: false,
             respond: router({
-                '/api/live-review/review': () => ok({ comments: [] }),
+                '/api/v1/live-review-widget/review': () => ok({ comments: [] }),
             }),
         });
         await settle();
 
-        expect(bearerOf(fetchMock, '/api/live-review/review')).toEqual([
-            'Bearer stored',
-        ]);
+        expect(
+            bearerOf(fetchMock, '/api/v1/live-review-widget/review'),
+        ).toEqual(['Bearer stored']);
         expect(tokenCalls(fetchMock)).toEqual([]);
     });
 
@@ -291,7 +291,7 @@ describe('a stored grant', () => {
             signedIn: false,
             respond: router({
                 '/oauth/token': () => tokens('new', 'refresh-new'),
-                '/api/live-review/review': () => ok({ comments: [] }),
+                '/api/v1/live-review-widget/review': () => ok({ comments: [] }),
             }),
         });
         await settle();
@@ -300,9 +300,9 @@ describe('a stored grant', () => {
         const [refresh] = tokenCalls(fetchMock);
         expect(refresh.get('grant_type')).toBe('refresh_token');
         expect(refresh.get('refresh_token')).toBe('refresh-old');
-        expect(bearerOf(fetchMock, '/api/live-review/review')).toEqual([
-            'Bearer new',
-        ]);
+        expect(
+            bearerOf(fetchMock, '/api/v1/live-review-widget/review'),
+        ).toEqual(['Bearer new']);
     });
 
     it('is refreshed once and the call retried after a 401', async () => {
@@ -316,7 +316,7 @@ describe('a stored grant', () => {
             signedIn: false,
             respond: router({
                 '/oauth/token': () => tokens('fresh', 'refresh-2'),
-                '/api/live-review/review': (options) =>
+                '/api/v1/live-review-widget/review': (options) =>
                     options.headers.Authorization === 'Bearer fresh'
                         ? ok({ comments: [] })
                         : rejected(401, { error: 'unauthorized' }),
@@ -325,10 +325,9 @@ describe('a stored grant', () => {
         await settle();
         await settle();
 
-        expect(bearerOf(fetchMock, '/api/live-review/review')).toEqual([
-            'Bearer revoked',
-            'Bearer fresh',
-        ]);
+        expect(
+            bearerOf(fetchMock, '/api/v1/live-review-widget/review'),
+        ).toEqual(['Bearer revoked', 'Bearer fresh']);
         openPanel();
         expect(signInShown()).toBe(false);
     });
@@ -344,7 +343,7 @@ describe('a stored grant', () => {
             signedIn: false,
             respond: router({
                 '/oauth/token': () => rejected(400, { error: 'invalid_grant' }),
-                '/api/live-review/review': () =>
+                '/api/v1/live-review-widget/review': () =>
                     rejected(401, { error: 'unauthorized' }),
             }),
         });

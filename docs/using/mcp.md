@@ -203,16 +203,16 @@ For a self-hosted instance:
   that client. The fetch goes to public addresses only. An instance with no
   internet access cannot connect a new client, and every other feature works.
 
-## There is no static token
+## There is no static token for MCP
 
-Loupe issues no static API token. No page mints one, and the server accepts
-none. Every connection is an OAuth sign-in, and the client refreshes it by
-itself.
+`/mcp` accepts no static token. Every connection is an OAuth sign-in, and the
+client refreshes it by itself. An [API key](api-keys.md) exists for the public
+API, and `/mcp` refuses it with `401`.
 
 Each sign-in needs a person at a browser once. An MCP client opens the consent
 page. The Loupe CLI prints a device code for a page you open. A machine where
-nobody can open a browser cannot get a credential, so CI and scripts cannot
-reach `/mcp` or `/api`.
+nobody can open a browser cannot get a credential for `/mcp`. CI and scripts
+that call the public API use an [API key](api-keys.md).
 
 A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.
@@ -221,8 +221,10 @@ The `agent` scope reaches the CLI endpoints. A connection bound to one project s
 live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.
 
-`403 insufficient_scope` means the sign-in is valid and carries the wrong scope
-for that endpoint. Connect the client again with the scope the endpoint needs.
+`403 credential_not_allowed` on a `/api/v1` path means the sign-in is valid and
+carries the wrong scope for that endpoint. `/mcp` and an old `/api` path answer
+`403 insufficient_scope` for the same case. Connect the client again with the
+scope the endpoint needs.
 
 A project's Connect page leads with `loupe init --project <project id>` and
 lists the machines of the owner. It keeps the commands for the other ways on

@@ -92,6 +92,7 @@ final readonly class MarkCommentsAddressedHandler
                     'documentId' => (string) $comment->version->document->id,
                     // The enum is not backed, so the case name is the value.
                     'result' => $outcome->name,
+                    ...(null !== $command->apiKey ? ['apiKeyId' => (string) $command->apiKey->keyId, 'apiKeyName' => $command->apiKey->keyName] : []),
                 ],
                 new AuditSubject('comment', (string) $comment->id),
             );

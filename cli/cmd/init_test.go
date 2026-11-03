@@ -30,9 +30,9 @@ type initWorld struct {
 	server  *httptest.Server
 	sites   string
 	created atomic.Int32
-	// createBody is what the server received last on POST /api/projects.
+	// createBody is what the server received last on POST /api/v1/bridge/projects.
 	createBody atomic.Value
-	// createReply, when set, answers POST /api/projects with its status and
+	// createReply, when set, answers POST /api/v1/bridge/projects with its status and
 	// body instead of a 201 for the project "made".
 	createReply func(body map[string]any) (int, string)
 
@@ -65,9 +65,9 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			fmt.Fprint(rw, `{"device_code":"dev-1","user_code":"BCDFGHJK","verification_uri":"https://loupe.test/d","verification_uri_complete":"https://loupe.test/d?c=BCDFGHJK","expires_in":600,"interval":1}`)
 		case r.URL.Path == "/oauth/token":
 			fmt.Fprint(rw, `{"token_type":"Bearer","access_token":"eyJ.access","refresh_token":"refresh-1","expires_in":3600}`)
-		case r.URL.Path == "/api/projects" && r.Method == http.MethodGet:
+		case r.URL.Path == "/api/v1/bridge/projects" && r.Method == http.MethodGet:
 			fmt.Fprintf(rw, `{"sites":[%s]}`, w.sites)
-		case r.URL.Path == "/api/projects" && r.Method == http.MethodPost:
+		case r.URL.Path == "/api/v1/projects" && r.Method == http.MethodPost:
 			w.created.Add(1)
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
@@ -509,7 +509,7 @@ func TestInitSendsAndPrintsTheRemoteWithoutItsCredentials(t *testing.T) {
 					t.Errorf("the create request carries the token: %s", body)
 				}
 				rw.WriteHeader(http.StatusConflict)
-				fmt.Fprint(rw, `{"error":"name_taken"}`)
+				fmt.Fprint(rw, `{"code":"name_taken"}`)
 			}))
 			t.Cleanup(server.Close)
 			w := newInitWorld(t, "")
@@ -576,7 +576,7 @@ func TestInitReportsAServerRefusalToCreateAProject(t *testing.T) {
 			return
 		}
 		rw.WriteHeader(http.StatusConflict)
-		fmt.Fprint(rw, `{"error":"name_taken"}`)
+		fmt.Fprint(rw, `{"code":"name_taken"}`)
 	}))
 	t.Cleanup(server.Close)
 	w := newInitWorld(t, "")
@@ -1826,7 +1826,7 @@ func TestInitCreateRowAsksAgainWhenTheNameIsTaken(t *testing.T) {
 	w.execOut["git remote get-url origin"] = "git@github.com:acme/app.git\n"
 	w.createReply = func(body map[string]any) (int, string) {
 		if body["name"] == "Blog" {
-			return http.StatusConflict, `{"error":"name_taken","slug":"blog"}`
+			return http.StatusConflict, `{"code":"name_taken","slug":"blog"}`
 		}
 
 		return http.StatusCreated, madeReply
@@ -1898,7 +1898,7 @@ func TestInitRefusedOriginCreatesNothing(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
 	w.createReply = func(map[string]any) (int, string) {
-		return http.StatusUnprocessableEntity, `{"violations":[{"propertyPath":"origins[0]","title":"Use https."}]}`
+		return http.StatusUnprocessableEntity, `{"code":"validation_failed","errors":[{"field":"origins[0]","message":"Use https."}]}`
 	}
 
 	_, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Blog2", "--origin", "http://example.com")
@@ -1978,7 +1978,7 @@ func TestInitNameStopsWhenTheNameIsTaken(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
 	w.createReply = func(map[string]any) (int, string) {
-		return http.StatusConflict, `{"error":"name_taken","slug":"blog"}`
+		return http.StatusConflict, `{"code":"name_taken","slug":"blog"}`
 	}
 
 	_, err := runInitCmd(t, "n\n", "--no-mcp", "--name", "Blog")

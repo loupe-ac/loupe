@@ -159,6 +159,17 @@ func TestParseTheHoldEvents(t *testing.T) {
 	}
 }
 
+// A hold through an API key still holds the card, so the bridge must not drop
+// the event as malformed.
+func TestParseTheHoldEventsOfAnAPIKey(t *testing.T) {
+	for _, typ := range []string{CardHeldType, CardReleasedType} {
+		e := parseOK(t, `{"type":"`+typ+`","subject":{"type":"card","id":"0192f3a1-9999-7d3e-8f10-a2b3c4d5e6f7"},`+projectField+`,"actor":"api-key","apiKey":{"id":"0192f3a1-1111-7d3e-8f10-a2b3c4d5e6f7","name":"CI"}}`)
+		if e.Type != typ || e.Actor != ActorAPIKey {
+			t.Fatalf("%s: %+v", typ, e)
+		}
+	}
+}
+
 func TestParseRejectsAHoldEventWithABadField(t *testing.T) {
 	for _, typ := range []string{CardHeldType, CardReleasedType} {
 		for name, payload := range map[string]string{

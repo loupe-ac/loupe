@@ -1,6 +1,6 @@
 {% set native = link.comment.surface.value == 'ios-simulator' ? (link.comment.native ?? {}) : null %}
 {% set screenshotSize = screenshotSizes[link.comment.id ~ ''] ?? null %}
-<article class="lp-conversation-entry" data-site-feedback="{{ link.comment.id }}">
+<article class="lp-conversation-entry" id="feedback-{{ link.comment.id }}" data-site-feedback="{{ link.comment.id }}">
     <twig:Ds:Avatar :icon="native is null ? 'lucide:globe-2' : 'lucide:smartphone'" size="sm" shape="square" tone="tint" />
     <div>
         <div class="lp-card-feedback-list__head"><span>{{ (native is null ? 'site_review.source.widget' : 'site_review.source.ios_simulator')|trans }}</span><twig:Ds:StatusChip :modifier="link.comment.status.value" :dot="false">{{ ('site_review.comment.status.' ~ link.comment.status.value)|trans }}</twig:Ds:StatusChip></div>

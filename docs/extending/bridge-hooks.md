@@ -25,7 +25,7 @@ The bridge is busy while a worker runs, or while a request waits in its queue.
 The bridge starts idle.
 
 `stop` also runs when the bridge exits early after `start`, for example when
-`GET /api/events` fails. A bridge that stops before `start`, such as on a bad
+`GET /api/v1/bridge/events` fails. A bridge that stops before `start`, such as on a bad
 rule file, runs neither.
 
 After a shutdown starts, the bridge fires no new `busy` and no new `idle`. A package that

@@ -121,20 +121,31 @@ final readonly class CardHistoryEntry
 
     private static function actor(CardEvent $event): string|TranslatableMessage
     {
-        return self::actorLabel($event->actorKind, $event->actorUser);
+        return self::actorLabel($event->actorKind, $event->actorUser, $event->apiKeyName);
     }
 
-    /** How the app names who made a change: a person by name, an agent by its owner, the app and a reviewer by role. */
-    public static function actorLabel(Actor $kind, ?User $user): string|TranslatableMessage
+    /**
+     * How the app names who made a change: a person by name, an agent by its owner,
+     * an API key by its name and owner, the app and a reviewer by role.
+     */
+    public static function actorLabel(Actor $kind, ?User $user, ?string $apiKeyName = null): string|TranslatableMessage
     {
         return match ($kind) {
             Actor::System => new TranslatableMessage('board.card.history.actor.system'),
             Actor::Reviewer => new TranslatableMessage('board.card.history.actor.reviewer'),
             Actor::Human => $user->fullName ?? new TranslatableMessage('board.card.history.actor.deleted'),
+            Actor::ApiKey => null === $apiKeyName
+                ? new TranslatableMessage('board.card.history.actor.api_key_unnamed', ['%owner%' => self::ownerLabel($user)])
+                : new TranslatableMessage('board.card.history.actor.api_key', ['%name%' => $apiKeyName, '%owner%' => self::ownerLabel($user)]),
             Actor::Agent => null === $user
                 ? new TranslatableMessage('board.card.history.actor.deleted')
                 : new TranslatableMessage('board.card.history.actor.agent', ['%name%' => $user->fullName]),
         };
+    }
+
+    private static function ownerLabel(?User $user): string|TranslatableMessage
+    {
+        return $user->fullName ?? new TranslatableMessage('board.card.history.actor.deleted');
     }
 
     /** @param array<string, mixed> $detail */

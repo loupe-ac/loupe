@@ -26,7 +26,7 @@ func TestReadCardReadsTheColumn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if method != http.MethodGet || path != "/api/projects/"+checkProject+"/board/cards/"+readCardID || auth != "Bearer secret" {
+	if method != http.MethodGet || path != "/api/v1/bridge/projects/"+checkProject+"/cards/"+readCardID || auth != "Bearer secret" {
 		t.Fatalf("method = %q, path = %q, auth = %q", method, path, auth)
 	}
 	if card.Column != "implementation" || !card.Held {
@@ -55,7 +55,7 @@ func TestReadCardNamesEachFailure(t *testing.T) {
 		body   string
 		text   string
 	}{
-		"card not found": {http.StatusNotFound, `{"error":"card_not_found"}`, `HTTP 404): {"error":"card_not_found"}`},
+		"card not found": {http.StatusNotFound, `{"code":"card_not_found"}`, `HTTP 404): {"code":"card_not_found"}`},
 		"old server":     {http.StatusNotFound, ``, "HTTP 404"},
 		"server error":   {http.StatusInternalServerError, `boom`, "HTTP 500"},
 		"not json":       {http.StatusOK, `<html>`, "decode"},

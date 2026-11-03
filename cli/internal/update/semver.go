@@ -102,6 +102,21 @@ func Satisfies(version, rangeStr string) bool {
 	return Compare(v, low) >= 0 && Compare(v, high) < 0
 }
 
+// Above reports whether version lies above a caret range, such as 3.0.0 for
+// ^2.0. A version that does not parse, or a prerelease, is never above.
+func Above(version, rangeStr string) bool {
+	v, ok := ParseVersion(version)
+	if !ok || v.Pre != "" {
+		return false
+	}
+	_, high, ok := caretBounds(rangeStr)
+	if !ok {
+		return false
+	}
+
+	return Compare(v, high) >= 0
+}
+
 func caretBounds(rangeStr string) (Version, Version, bool) {
 	body, ok := strings.CutPrefix(rangeStr, "^")
 	if !ok {

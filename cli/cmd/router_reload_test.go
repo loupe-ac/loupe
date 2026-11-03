@@ -131,7 +131,7 @@ func TestAReloadThatFailsTheCheckKeepsTheSet(t *testing.T) {
 	}
 }
 
-// A project the server checks but GET /api/events does not list can send no
+// A project the server checks but GET /api/v1/bridge/events does not list can send no
 // event, so the reload fails at the server stage.
 func TestAReloadOfAProjectTheStreamMissesFails(t *testing.T) {
 	h := newHarness(t)

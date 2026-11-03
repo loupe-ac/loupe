@@ -89,6 +89,8 @@ COPY website/package.json website/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY website/ ./
 COPY assets/fonts /repo/assets/fonts
+# The API operations pages read the committed public spec, at ../openapi.
+COPY openapi/public.json /repo/openapi/public.json
 COPY --from=docs-changelog /repo/docs /repo/docs
 RUN npm run build && npm run check
 

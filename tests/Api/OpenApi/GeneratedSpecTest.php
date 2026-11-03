@@ -1,0 +1,415 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Api\OpenApi;
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Tester\ApplicationTester;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Keeps the committed specs under openapi/ equal to what the generator builds from
+ * the controllers, and keeps every built operation inside the reviewed contract.
+ *
+ * The contract files under openapi/contract/ hold the whole reviewed API. Each
+ * operation of a contract must be built, and each built operation must be in its
+ * contract, so the two sets are equal.
+ *
+ * Rebuild a committed file with `just openapi-dump`.
+ */
+final class GeneratedSpecTest extends KernelTestCase
+{
+    /** @return iterable<string, array{string}> */
+    public static function areas(): iterable
+    {
+        yield 'public' => ['public'];
+        yield 'private' => ['private'];
+    }
+
+    #[DataProvider('areas')]
+    public function test_the_committed_spec_equals_a_fresh_build(string $area): void
+    {
+        self::assertSame(
+            (string) file_get_contents(self::file($area.'.json')),
+            $this->dump($area),
+            sprintf('openapi/%s.json is stale. Run `just openapi-dump` and commit the result.', $area),
+        );
+    }
+
+    #[DataProvider('areas')]
+    public function test_every_built_operation_is_in_the_reviewed_contract(string $area): void
+    {
+        $built = $this->operations(json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR));
+        $contract = $this->operations(Yaml::parseFile(self::file('contract/'.$area.'.yaml')));
+        if ('public' === $area) {
+            self::assertNotEmpty($built, 'The public spec holds no operation, so this test would prove nothing.');
+        }
+
+        self::assertSame([], array_values(array_diff(array_keys($contract), array_keys($built))), 'These operations are in the reviewed contract and are not built.');
+        self::assertSame([], array_values(array_diff(array_keys($built), array_keys($contract))), 'These operations are built and are not in the reviewed contract.');
+
+        foreach ($built as $key => $operation) {
+            self::assertArrayHasKey($key, $contract, sprintf('%s is built but the reviewed contract has no such operation.', $key));
+            self::assertSame($contract[$key]['operationId'], $operation['operationId'], sprintf('%s has another operationId in the contract.', $key));
+
+            $extra = array_diff(array_keys($operation['responses']), array_keys($contract[$key]['responses']));
+            self::assertSame([], array_values($extra), sprintf('%s answers statuses that the contract does not list.', $key));
+            $missing = array_diff(array_keys($contract[$key]['responses']), array_keys($operation['responses']));
+            self::assertSame([], array_values($missing), sprintf('%s lacks statuses that the contract lists.', $key));
+        }
+    }
+
+    /**
+     * A built answer may add a property to its contract schema, as the heartbeat does. It
+     * may not drop one, or fall back to an open object, because a client reads its fields
+     * from the spec.
+     */
+    public function test_every_built_private_success_response_carries_its_contract_schema(): void
+    {
+        $builtSpec = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR);
+        $contractSpec = Yaml::parseFile(self::file('contract/private.yaml'));
+        $built = $this->operations($builtSpec);
+        $contract = $this->operations($contractSpec);
+        $compared = 0;
+
+        foreach ($built as $key => $operation) {
+            foreach ($contract[$key]['responses'] as $status => $response) {
+                $reference = $response['content']['application/json']['schema']['$ref'] ?? null;
+                if (!str_starts_with((string) $status, '2') || null === $reference) {
+                    continue;
+                }
+
+                self::assertSame($reference, $operation['responses'][$status]['content']['application/json']['schema']['$ref'] ?? null, sprintf('%s answers %s with another schema than the contract.', $key, $status));
+                $this->assertHoldsContractSchema($reference, $builtSpec, $contractSpec);
+                ++$compared;
+            }
+        }
+
+        self::assertGreaterThan(0, $compared, 'No response was compared, so this test would prove nothing.');
+    }
+
+    public function test_the_private_artifact_stored_schema_keeps_its_paths_and_the_public_one_holds_links(): void
+    {
+        $private = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas']['ArtifactStored'];
+        $public = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas']['ArtifactStored'];
+
+        self::assertArrayNotHasKey('url', $private['properties']);
+        self::assertContains('path', $private['required']);
+        self::assertContains('versionPath', $private['required']);
+        self::assertContains('url', $public['required']);
+        self::assertContains('versionUrl', $public['required']);
+        self::assertArrayNotHasKey('path', $public['properties']);
+    }
+
+    public function test_every_required_url_of_the_public_spec_is_a_uri(): void
+    {
+        $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
+        $checked = 0;
+        foreach (['Project', 'Card', 'CardRow', 'Document', 'DocumentRow', 'DocumentCreated', 'Artifact', 'ArtifactRow', 'ArtifactStored'] as $name) {
+            self::assertArrayHasKey($name, $schemas);
+            self::assertContains('url', $schemas[$name]['required'], $name);
+            self::assertSame('uri', $schemas[$name]['properties']['url']['format'] ?? null, $name);
+            self::assertNotEmpty($schemas[$name]['properties']['url']['description'] ?? '', $name);
+            ++$checked;
+        }
+
+        self::assertSame(9, $checked);
+    }
+
+    public function test_a_request_schema_requires_no_field_from_a_helper_method(): void
+    {
+        $schemas = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
+
+        self::assertSame(['state'], $schemas['AcknowledgeBridgeCommandRequest']['required']);
+        self::assertArrayNotHasKey('textReason', $schemas['AcknowledgeBridgeCommandRequest']['properties']);
+        self::assertSame(['claimToken', 'state'], $schemas['SettleWorkRequestRequest']['required']);
+        self::assertArrayNotHasKey('validReason', $schemas['SettleWorkRequestRequest']['properties']);
+        self::assertArrayNotHasKey('validCause', $schemas['SettleWorkRequestRequest']['properties']);
+    }
+
+    /**
+     * @param array<string, mixed> $builtSpec
+     * @param array<string, mixed> $contractSpec
+     */
+    private function assertHoldsContractSchema(string $reference, array $builtSpec, array $contractSpec): void
+    {
+        $name = substr($reference, \strlen('#/components/schemas/'));
+        $expected = $contractSpec['components']['schemas'][$name];
+        self::assertArrayHasKey($name, $builtSpec['components']['schemas'], sprintf('The built spec has no schema %s.', $name));
+        $actual = $builtSpec['components']['schemas'][$name];
+
+        self::assertSame([], array_values(array_diff($expected['required'] ?? [], $actual['required'] ?? [])), sprintf('The built schema %s requires less than the contract.', $name));
+        foreach ($expected['properties'] ?? [] as $property => $schema) {
+            self::assertEquals(self::withoutProse(self::withoutEmptyProperties($schema)), self::withoutProse($actual['properties'][$property] ?? []), sprintf('The built schema %s differs from the contract at %s.', $name, $property));
+        }
+
+        array_walk_recursive($expected, function (mixed $value, string|int $key) use ($builtSpec, $contractSpec): void {
+            if ('$ref' === $key && \is_string($value)) {
+                $this->assertHoldsContractSchema($value, $builtSpec, $contractSpec);
+            }
+        });
+    }
+
+    /**
+     * A description is prose for a reader, and a client reads no field from it.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private static function withoutProse(array $schema): array
+    {
+        unset($schema['description']);
+
+        return array_map(static fn (mixed $value): mixed => \is_array($value) ? self::withoutProse($value) : $value, $schema);
+    }
+
+    /**
+     * The generator leaves out an empty `properties` key.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private static function withoutEmptyProperties(array $schema): array
+    {
+        if ([] === ($schema['properties'] ?? null)) {
+            unset($schema['properties']);
+        }
+
+        return array_map(static fn (mixed $value): mixed => \is_array($value) ? self::withoutEmptyProperties($value) : $value, $schema);
+    }
+
+    #[DataProvider('areas')]
+    public function test_every_built_response_declares_the_headers_of_the_contract(string $area): void
+    {
+        $builtSpec = json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR);
+        $contractSpec = Yaml::parseFile(self::file('contract/'.$area.'.yaml'));
+        $contract = $this->operations($contractSpec);
+
+        foreach ($this->operations($builtSpec) as $key => $operation) {
+            foreach ($operation['responses'] as $status => $response) {
+                $expected = self::resolved($contractSpec, $contract[$key]['responses'][$status])['headers'] ?? [];
+                $missing = array_diff(array_keys($expected), array_keys(self::resolved($builtSpec, $response)['headers'] ?? []));
+                self::assertSame([], array_values($missing), sprintf('%s %s lacks headers of the contract.', $key, $status));
+            }
+        }
+    }
+
+    public function test_a_429_of_a_public_route_declares_retry_after(): void
+    {
+        $spec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertArrayHasKey('Retry-After', $spec['components']['headers']);
+
+        foreach ($this->operations($spec) as $key => $operation) {
+            self::assertArrayHasKey('Retry-After', $operation['responses']['429']['headers'] ?? [], $key);
+        }
+    }
+
+    /** The reference page promises both on each create, so an operation that lacks one makes the page false. */
+    public function test_every_public_create_declares_a_location_and_an_idempotency_key(): void
+    {
+        $spec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);
+        $checked = 0;
+
+        foreach ($spec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                if (!isset($operation['responses']['201'])) {
+                    continue;
+                }
+
+                $key = strtoupper((string) $method).' '.$path;
+                self::assertArrayHasKey('Location', self::resolved($spec, $operation['responses']['201'])['headers'] ?? [], $key);
+                $parameters = array_map(static fn (array $parameter): array => self::resolved($spec, $parameter), $operation['parameters'] ?? []);
+                self::assertContains('Idempotency-Key', array_column($parameters, 'name'), $key);
+                ++$checked;
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'No create was compared, so this test would prove nothing.');
+    }
+
+    public function test_every_public_request_schema_has_the_nullable_fields_and_the_required_fields_of_the_contract(): void
+    {
+        $builtSpec = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR);
+        $contractSpec = Yaml::parseFile(self::file('contract/public.yaml'));
+        $contract = $contractSpec['paths'];
+        $checked = 0;
+
+        foreach ($builtSpec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                foreach ($operation['requestBody']['content'] ?? [] as $mediaType => $content) {
+                    $built = self::resolved($builtSpec, $content['schema']);
+                    $expectedContent = $contract[$path][$method]['requestBody']['content'][$mediaType] ?? null;
+                    self::assertNotNull($expectedContent, strtoupper((string) $method).' '.$path.' takes a body type that the contract does not list.');
+                    $expected = self::resolved($contractSpec, $expectedContent['schema']);
+                    $key = strtoupper((string) $method).' '.$path.' '.$mediaType;
+
+                    self::assertEqualsCanonicalizing($expected['required'] ?? [], $built['required'] ?? [], $key);
+                    self::assertEqualsCanonicalizing(array_keys($expected['properties']), array_keys($built['properties']), $key);
+                    self::assertEquals($expectedContent['encoding'] ?? null, $content['encoding'] ?? null, $key);
+                    foreach ($built['properties'] as $name => $property) {
+                        $label = $key.' '.$name;
+                        self::assertSame($expected['properties'][$name]['nullable'] ?? false, $property['nullable'] ?? false, $label);
+                        self::assertSame($expected['properties'][$name]['maxLength'] ?? null, $property['maxLength'] ?? null, $label);
+                        self::assertSame($expected['properties'][$name]['minLength'] ?? null, $property['minLength'] ?? null, $label);
+                        self::assertSame($expected['properties'][$name]['format'] ?? null, $property['format'] ?? null, $label);
+                        self::assertArrayNotHasKey('oneOf', $property, $label);
+                        if (\array_key_exists('default', $property)) {
+                            self::assertNotNull($property['default'], $label);
+                        }
+                    }
+                    ++$checked;
+                }
+            }
+        }
+
+        self::assertGreaterThanOrEqual(5, $checked, 'The public spec holds too few request bodies, so this test would prove little.');
+    }
+
+    public function test_a_partial_change_has_no_required_field_no_marker_and_no_second_schema(): void
+    {
+        $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
+
+        foreach (['ProjectUpdate', 'ColumnUpdate', 'CardUpdate'] as $name) {
+            self::assertArrayNotHasKey('required', $schemas[$name], $name);
+            self::assertNotEmpty($schemas[$name]['properties'], $name);
+            self::assertArrayNotHasKey('x-partial-change', $schemas[$name], $name);
+        }
+        foreach (array_keys($schemas) as $name) {
+            self::assertStringEndsNotWith('Request', (string) $name);
+        }
+    }
+
+    #[DataProvider('areas')]
+    public function test_the_problem_schema_requires_every_standard_member(string $area): void
+    {
+        $specs = [
+            'built' => json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR),
+            'contract' => Yaml::parseFile(self::file('contract/'.$area.'.yaml')),
+        ];
+
+        foreach ($specs as $name => $spec) {
+            self::assertEqualsCanonicalizing(['type', 'title', 'status', 'code', 'detail'], $spec['components']['schemas']['Problem']['required'], $name);
+        }
+    }
+
+    public function test_the_public_spec_holds_no_bridge_or_widget_path_and_the_private_spec_holds_only_those(): void
+    {
+        $public = array_keys(json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['paths']);
+        $private = array_keys(json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)['paths']);
+
+        foreach ($public as $path) {
+            self::assertDoesNotMatchRegularExpression('#^/api/v1/(bridge|live-review-widget)(/|$)#', (string) $path);
+        }
+        foreach ($private as $path) {
+            self::assertMatchesRegularExpression('#^/api/v1/(bridge|live-review-widget)(/|$)#', (string) $path);
+        }
+    }
+
+    #[DataProvider('areas')]
+    public function test_every_built_refusal_names_the_codes_of_the_contract(string $area): void
+    {
+        $built = $this->operations(json_decode($this->dump($area), true, flags: \JSON_THROW_ON_ERROR));
+        $contractSpec = Yaml::parseFile(self::file('contract/'.$area.'.yaml'));
+        $contract = $this->operations($contractSpec);
+
+        foreach ($built as $key => $operation) {
+            foreach ($operation['responses'] as $status => $response) {
+                if ((int) $status < 400) {
+                    continue;
+                }
+
+                self::assertSame(
+                    self::resolved($contractSpec, $contract[$key]['responses'][$status])['description'] ?? null,
+                    $response['description'] ?? null,
+                    sprintf('%s answers %s with other refusal codes than the contract.', $key, $status),
+                );
+            }
+        }
+    }
+
+    public function test_every_literal_refusal_code_of_a_controller_is_in_its_built_responses(): void
+    {
+        $operations = [];
+        foreach ($this->operations(json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)) as $operation) {
+            $operations[$operation['operationId']] = $operation['responses'];
+        }
+
+        $checked = 0;
+        foreach (glob(self::bootKernel()->getProjectDir().'/src/Module/*/Controller/Api/*Controller.php') ?: [] as $controller) {
+            $source = (string) file_get_contents($controller);
+            if (1 !== preg_match("/operationId: '(\w+)'/", $source, $id) || !isset($operations[$id[1]])) {
+                continue;
+            }
+
+            preg_match_all("/refused\(\s*\w+::HTTP_\w+,\s*'(\w+)'/", $source, $codes);
+            foreach ($codes[1] as $code) {
+                ++$checked;
+                self::assertStringContainsString('`'.$code.'`', json_encode($operations[$id[1]], \JSON_THROW_ON_ERROR), sprintf('%s refuses with %s, and its spec does not list it.', basename($controller), $code));
+            }
+        }
+
+        self::assertNotSame(0, $checked, 'No controller holds a literal refusal code, so this test would prove nothing.');
+    }
+
+    /**
+     * @param array<string, mixed> $spec
+     *
+     * @return array<string, array{operationId: string, responses: array<string, mixed>}>
+     */
+    private function operations(array $spec): array
+    {
+        $operations = [];
+        foreach ($spec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                $operations[strtoupper((string) $method).' '.$path] = ['operationId' => $operation['operationId'], 'responses' => $operation['responses']];
+            }
+        }
+
+        return $operations;
+    }
+
+    /**
+     * Follows a `$ref` of the same document.
+     *
+     * @param array<string, mixed> $spec
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>
+     */
+    private static function resolved(array $spec, array $node): array
+    {
+        if (!isset($node['$ref'])) {
+            return $node;
+        }
+
+        $found = $spec;
+        foreach (\array_slice(explode('/', (string) $node['$ref']), 1) as $segment) {
+            $found = $found[$segment];
+        }
+
+        return $found;
+    }
+
+    private function dump(string $area): string
+    {
+        $kernel = self::bootKernel();
+        $application = new Application($kernel);
+        $application->setAutoExit(false);
+        $tester = new ApplicationTester($application);
+        $tester->run(['command' => 'nelmio:apidoc:dump', '--area' => $area, '--format' => 'json']);
+
+        self::assertSame(0, $tester->getStatusCode(), $tester->getDisplay());
+
+        return $tester->getDisplay();
+    }
+
+    private static function file(string $name): string
+    {
+        return dirname(__DIR__, 3).'/openapi/'.$name;
+    }
+}

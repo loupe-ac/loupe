@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Controller\Api;
 
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
+use OpenApi\Attributes as OA;
 
 /**
  * The variants a rule offers for one experiment, and the one it drew for the
@@ -13,6 +14,7 @@ use App\Module\Bridge\Entity\WorkerRun;
  * validation failure answers without the error code that the bridge reads.
  * choice() checks them instead.
  */
+#[OA\Schema(required: ['candidate', 'variants', 'baseline'])]
 final class ResolveExperimentPinRequest
 {
     public const int MAX_VARIANTS = 32;
@@ -30,12 +32,25 @@ final class ResolveExperimentPinRequest
     private const string METRIC_KEY_PATTERN = '/^[a-z][a-z0-9_:-]{0,127}$/D';
 
     public function __construct(
+        #[OA\Property(description: 'The variant drawn for the card. It must be one of `variants`.', type: 'string')]
         public mixed $candidate = null,
+
+        #[OA\Property(type: 'array', items: new OA\Items(type: 'string', pattern: '^[a-z0-9][a-z0-9_-]{0,63}$'), maxItems: 32, minItems: 1, uniqueItems: true)]
         public mixed $variants = null,
+
+        #[OA\Property(description: 'One weight for each variant, in order. A bad list never refuses the pin.', type: 'array', items: new OA\Items(type: 'integer', maximum: 1000000, minimum: 1), nullable: true)]
         public mixed $weights = null,
+
+        #[OA\Property(type: 'array', items: new OA\Items(type: 'string', pattern: '^[a-z][a-z0-9_:-]{0,127}$'), nullable: true, maxItems: 16)]
         public mixed $metrics = null,
+
+        #[OA\Property(ref: '#/components/schemas/ExperimentHeadline')]
         public mixed $headline = null,
+
+        #[OA\Property(description: 'The work kinds the experiment covers.', type: 'array', items: new OA\Items(type: 'string', pattern: '^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$'), nullable: true, maxItems: 32)]
         public mixed $covers = null,
+
+        #[OA\Property(description: 'The variant the others are compared against. It must be one of `variants`.', type: 'string')]
         public mixed $baseline = null,
     ) {
     }

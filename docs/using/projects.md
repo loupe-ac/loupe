@@ -44,14 +44,15 @@ When the project has no reported connections, Your crew links to connection setu
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
 
-## Create a project from the CLI
+## Create a project through the API
 
-A signed-in `loupe` CLI creates a project with `POST /api/projects`. Send a JSON body with a `name`, an optional `domain`, an optional `origins` list and an optional `remote`, the git URL of the repository.
+`POST /api/v1/projects` creates a project. A signed-in `loupe` CLI or an [API key](api-keys.md) can call it. Send a JSON body with a `name`, an optional `domain`, an optional `origins` list and an optional `remote`, the git URL of the repository.
 The old `website` field is gone. A request that sends it creates a project with no domain.
-The `origins` list sets the allowed origins of the site-review widget. The call accepts what the allowed-origins setting accepts, and at most 20 origins after duplicates go. A bad origin gets `422` with a `violations` list, and Loupe creates no project.
-A request with a `remote` and no `name` names the project after the repository. The new project gets the same board and workflow as a project made in the app.
-The response is `201` with the `id`, the `slug`, the `name`, the `domain` and the `allowedOrigins`. A name that the owner already uses gets `409` with `name_taken` and the `slug` of the project that clashes. Use that slug with `loupe init --project <slug>`.
-Only a token that carries the agent scope and covers every project of its owner can call it, as `loupe login` grants. Any other token, such as one bound to one project, gets `403` with `credential_not_owner_wide`. Each token can create 10 projects a minute.
+The `origins` list sets the allowed origins of the site-review widget. The call accepts what the allowed-origins setting accepts, and at most 20 origins after duplicates go. A bad origin gets `422` with the code `validation_failed` and an `errors` list, and Loupe creates no project.
+A request with a `remote` and no `name` names the project after the repository. A request with neither gets `422` with the code `name_required`. The new project gets the same board and workflow as a project made in the app.
+The response is `201` with the project, and the `Location` header holds its URL. A name that the owner already uses gets `409` with the code `name_taken` and the `slug` of the project that clashes. Use that slug with `loupe init --project <slug>`.
+Each refusal is Problem JSON, as the [API reference](../reference/api/index.md#errors) says.
+The credential must carry the public scope and cover every project of its owner. An API key does, and so does a token from a current `loupe login`. A token bound to one project gets `403` with `credential_not_owner_wide`. A CLI that signed in before the public API existed gets `403` with `credential_not_allowed`, so run `loupe login` again. Each credential can create 10 projects a minute.
 
 ## Agent readiness
 

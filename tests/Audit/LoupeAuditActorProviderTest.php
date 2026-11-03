@@ -81,6 +81,13 @@ final class LoupeAuditActorProviderTest extends TestCase
         self::assertSame(AuditChannel::Agent->value, $this->provider()->currentActor()->channel);
     }
 
+    public function test_a_public_scope_credential_is_the_api_channel(): void
+    {
+        $this->tokenStorage->setToken($this->securityTokenWithCredential(ApiScope::Public));
+
+        self::assertSame(AuditChannel::Api->value, $this->provider()->currentActor()->channel);
+    }
+
     /**
      * Registration, OAuth login, password reset and the install flow are all
      * anonymous writes. Detection reports what the security token says and

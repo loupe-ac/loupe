@@ -7,6 +7,7 @@ namespace App\Module\Board\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\ConfigureBoardColumnHandler;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
+use App\Module\Board\Command\ReorderBoardColumnsBySlugHandler;
 use App\Module\Board\Command\ReorderBoardColumnsHandler;
 use App\Module\Board\Command\SaveBoardAutomationSettingsHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
@@ -40,6 +41,19 @@ final readonly class BoardToolErrorMessages
         $lines = [];
         foreach ($errors->errors as $argument => $key) {
             $lines[] = \sprintf('%s: %s', $names[$argument] ?? $argument, self::sentence($key, $errors->parameters[$argument] ?? []));
+        }
+
+        return new ToolCallException(implode("\n", $lines), previous: $errors);
+    }
+
+    /**
+     * The sentences alone, for a tool whose refusal text has no field name in front.
+     */
+    public function sentencesForAgent(DomainErrors $errors): ToolCallException
+    {
+        $lines = [];
+        foreach ($errors->errors as $argument => $key) {
+            $lines[] = self::sentence($key, $errors->parameters[$argument] ?? []);
         }
 
         return new ToolCallException(implode("\n", $lines), previous: $errors);
@@ -80,6 +94,9 @@ final readonly class BoardToolErrorMessages
             BoardColumns::BACKLOG_LOCKED => 'Backlog is not a column. Nobody can rename, change, reorder or delete it.',
             BoardColumns::LABEL_RESERVED => 'The app uses this text internally. Choose another label.',
             'board.column.error.label_too_long' => \sprintf('A column label must be at most %d characters.', BoardColumn::MAX_LABEL_LENGTH),
+            ReorderBoardColumnsBySlugHandler::BACKLOG_FIRST => 'Backlog always comes first. Leave backlog out of order.',
+            ReorderBoardColumnsBySlugHandler::UNKNOWN_SLUG => \sprintf('Unknown column "%s". Use one of: %s.', $parameters['%slug%'] ?? '', $parameters['%slugs%'] ?? ''),
+            ReorderBoardColumnsBySlugHandler::EACH_ONCE => \sprintf('Name each of these columns exactly once: %s.', $parameters['%slugs%'] ?? ''),
             ConfigureBoardColumnHandler::GONE => 'That column no longer exists. Call board_columns and try again.',
             ConfigureBoardColumnHandler::LABEL_STALE, ConfigureBoardColumnHandler::TERMINAL_STALE, ReorderBoardColumnsHandler::ORDER_STALE => 'The columns changed while the call ran. Call board_columns and try again.',
             DeleteBoardColumnHandler::TARGET_REQUIRED => 'This column holds cards. Pass targetColumn, the slug of the column they move to.',

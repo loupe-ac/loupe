@@ -6,7 +6,7 @@ That limits the holder to a person the project allows. What the scope reaches di
 
 ## The board half
 
-A holder of the `site-review` scope lists every open card in its project and creates new ones. `GET /api/board/cards` returns the number, title and status of the open cards of the project, and `POST /api/board/cards` files a new one. Card titles are planning content. `POST /api/board/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/board/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
+A holder of the `site-review` scope lists every open card in its project and creates new ones. `GET /api/v1/live-review-widget/cards` returns the number, title and status of the open cards of the project, and `POST /api/v1/live-review-widget/cards` files a new one. Card titles are planning content. `POST /api/v1/live-review-widget/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/v1/live-review-widget/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
 
 This was decided, not inherited. The Loupe document 'Picking and creating cards from the site-review widget' records the choice, the alternatives and the cost of each. It also notes that the choice reverses the reasoning behind `/sites` refusing the widget's scope. Read it before you reopen this.
 
@@ -21,7 +21,7 @@ This was decided, not inherited. The Loupe document 'Picking and creating cards 
 
 ### What is accepted
 
-Any holder of the `site-review` scope can read, edit, resolve and delete every **pending** comment in the project of that grant, whoever wrote it. `GET /api/live-review/review` returns bodies, URLs, selectors and quoted page text for the whole project, not only the current page. `PATCH /api/live-review/comments/{id}`, `DELETE /api/board/feedback/{id}` and `POST /api/live-review/comments/{id}/resolve` accept any pending id.
+Any holder of the `site-review` scope can read, edit, resolve and delete every **pending** comment in the project of that grant, whoever wrote it. `GET /api/v1/live-review-widget/review` returns bodies, URLs, selectors and quoted page text for the whole project, not only the current page. `PATCH /api/v1/live-review-widget/comments/{id}`, `DELETE /api/v1/live-review-widget/feedback/{id}` and `POST /api/v1/live-review-widget/comments/{id}/resolve` accept any pending id.
 
 Resolve joined the list after delete, and it widens nothing in kind. A holder who can delete a comment outright can already do worse than sign it off. Resolve is also the only one of the four that a person can undo, from the Feedback tab of the comment's card. The acceptance covers the staging-and-preview-only deployment model and no further.
 
@@ -35,7 +35,7 @@ Policy comes first. `docs/using/live-review.md` and the Connect page document th
 
 - Only the owner of the project signs in, and the page's origin must be on the project's allowed sites.
 - `Addressed` and `Resolved` comments are immune.
-- `/api/projects` and `/api/events` need `ROLE_API_AGENT`, which the `site-review` scope does not carry. There is thus no project enumeration and no Mercure JWT.
+- `/api/v1/bridge/projects` and `/api/v1/bridge/events`, and their old paths for one server release, need `ROLE_API_AGENT`, which the `site-review` scope does not carry. There is thus no project enumeration and no Mercure JWT.
 - `RateLimitSiteReviewWrites` slows churn, but it does not slow a targeted delete.
 - The app's own instance ships `SITE_REVIEW_WIDGET_PROJECT` empty in `.env`. `templates/_site_review_widget.html.twig` gates the widget behind `site_review_widget_public or is_granted('ROLE_ADMIN')`.
 

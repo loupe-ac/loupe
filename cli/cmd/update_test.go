@@ -602,7 +602,7 @@ func TestReadServerRangeAsksGetEventsWithTheStoredLogin(t *testing.T) {
 	keyring.MockInit()
 	shortConfigHome(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/events" || r.Header.Get("Authorization") != "Bearer access-1" {
+		if r.URL.Path != "/api/v1/bridge/events" || r.Header.Get("Authorization") != "Bearer access-1" {
 			w.WriteHeader(http.StatusNotFound)
 
 			return

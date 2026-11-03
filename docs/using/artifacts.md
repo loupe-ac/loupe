@@ -40,7 +40,7 @@ Two files of one version cannot share a path.
 
 ## Storing a version
 
-Send a `POST` request to `/api/projects/{project}/artifacts`, where `{project}`
+Send a `POST` request to `/api/v1/bridge/projects/{project}/artifacts`, where `{project}`
 is the id or the slug of the project. The request is `multipart/form-data` with
 these fields.
 

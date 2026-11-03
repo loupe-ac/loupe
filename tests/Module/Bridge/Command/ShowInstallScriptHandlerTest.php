@@ -30,7 +30,7 @@ final class ShowInstallScriptHandlerTest extends TestCase
 
         $script = new ShowInstallScriptHandler($this->path)(new ShowInstallScriptCommand('https://loupe.example.com'));
 
-        self::assertSame("#!/bin/sh\nLOUPE_URL='https://loupe.example.com'\nLOUPE_CLI_MAJOR='1'\nset -eu\necho hi\n", $script);
+        self::assertSame("#!/bin/sh\nLOUPE_URL='https://loupe.example.com'\nLOUPE_CLI_MAJOR='2'\nset -eu\necho hi\n", $script);
     }
 
     public function test_a_quote_in_the_url_cannot_end_the_string(): void

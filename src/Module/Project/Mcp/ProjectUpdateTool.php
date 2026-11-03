@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Mcp;
 
-use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
 use App\Mcp\ResolvesBoundProject;
 use App\Module\Project\Command\UpdateProjectCommand;
 use App\Module\Project\Command\UpdateProjectHandler;
-use App\Module\Project\Entity\Project;
 use App\Module\Project\ProjectEventType;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Security\McpBoundProjectVoter;
@@ -48,32 +46,13 @@ final readonly class ProjectUpdateTool
                 throw new ToolCallException('This connection cannot change this project.');
             }
 
-            $newName = null === $name ? $project->name : trim($name);
-            if ('' === $newName) {
-                throw new ToolCallException('name: A project name must not be blank.');
-            }
-            if (null !== $name && mb_strlen($newName) > Project::MAX_NAME_LENGTH) {
-                throw new ToolCallException(\sprintf('name: A project name must be at most %d characters.', Project::MAX_NAME_LENGTH));
-            }
-            $newDomain = null === $domain ? $project->domain : self::cleared($domain);
-            if (null !== $domain && mb_strlen($newDomain ?? '') > Project::MAX_DOMAIN_LENGTH) {
-                throw new ToolCallException(\sprintf('domain: A domain must be at most %d characters.', Project::MAX_DOMAIN_LENGTH));
-            }
-            $newDescription = null === $description ? $project->description : self::cleared($description);
-            if (null !== $description && mb_strlen($newDescription ?? '') > Project::MAX_DESCRIPTION_LENGTH) {
-                throw new ToolCallException(\sprintf('description: A description must be at most %d characters.', Project::MAX_DESCRIPTION_LENGTH));
-            }
-            $newLanguage = null === $searchLanguage
-                ? $project->searchLanguage
-                : (SearchLanguage::tryFrom($searchLanguage) ?? throw new ToolCallException(\sprintf('searchLanguage: Unknown search language "%s". Use one of: %s.', $searchLanguage, implode(', ', SearchLanguage::values()))));
-
             $saved = ($this->updateProject)(new UpdateProjectCommand(
                 project: $project,
-                name: $newName,
-                domain: $newDomain,
-                searchLanguage: $newLanguage,
+                name: $name,
+                domain: $domain,
+                searchLanguage: $searchLanguage,
                 actor: ProjectEventType::ACTOR_AGENT,
-                description: $newDescription,
+                description: $description,
             ));
 
             return [
@@ -91,12 +70,5 @@ final readonly class ProjectUpdateTool
         } catch (\Throwable $e) {
             throw new ToolCallException('The project could not be changed. The error has been logged.', previous: $e);
         }
-    }
-
-    private static function cleared(string $value): ?string
-    {
-        $value = trim($value);
-
-        return '' === $value ? null : $value;
     }
 }
