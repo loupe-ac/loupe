@@ -254,6 +254,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	}
 	r.useFlags()
 	r.refreshPrices(set)
+	r.refreshSkills()
 
 	res := diffRules(old, set)
 	attrs := []any{"added", res.Added, "removed", res.Removed, "changed", res.Changed, "dirs", res.Dirs, "projects", res.Projects}

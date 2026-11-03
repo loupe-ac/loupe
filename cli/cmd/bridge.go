@@ -529,6 +529,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	defer stop()
 	r.ctx = ctx
 	go r.priceLoop(ctx)
+	r.skills.list = apiClient(cfg).Sites
+	go r.skillLoop(ctx)
 	go r.itemSessions().run(ctx, projectDirs(r.rules()), itemSweepInterval)
 	startLoginGate(ctx, r.log, cfg)
 	defer setBridgeGate(nil)

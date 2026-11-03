@@ -1,6 +1,8 @@
 key: simple
-version: 13
+version: 14
 defaultType: feature
+skillPackages: [loupe]
+needsProfile: false
 epicBranch: 'epic/{number}'
 outcomes:
     - { key: merged, delivered: true }

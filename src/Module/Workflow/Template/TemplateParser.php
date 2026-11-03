@@ -245,6 +245,9 @@ final readonly class TemplateParser
             ? self::approvalCoversConflictResolution($source['approvalCoversConflictResolution'], $lenient, $errors)
             : true;
 
+        $skillPackages = self::skillPackages($source['skillPackages'] ?? null, $lenient, $errors);
+        $needsProfile = self::needsProfile($source['needsProfile'] ?? null, $lenient, $errors);
+
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
         $values = \array_key_exists('values', $source)
@@ -297,7 +300,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile);
     }
 
     /**
@@ -1651,6 +1654,48 @@ final readonly class TemplateParser
             }
 
             return true;
+        }
+
+        return $value;
+    }
+
+    /**
+     * A stored copy from before the field has none, and so has one with a value that is no list of package names.
+     *
+     * @param list<string> $errors
+     *
+     * @return ?list<string>
+     */
+    private static function skillPackages(mixed $value, bool $lenient, array &$errors): ?array
+    {
+        if (null === $value) {
+            return null;
+        }
+        if (!\is_array($value) || !array_is_list($value) || [] === $value || !array_all($value, static fn (mixed $name): bool => \is_string($name) && 1 === preg_match(Template::SKILL_PACKAGE_RULE, $name)) || \count($value) !== \count(array_unique($value))) {
+            if (!$lenient) {
+                $errors[] = 'skillPackages: must be a list of one or more different package names';
+            }
+
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param list<string> $errors
+     */
+    private static function needsProfile(mixed $value, bool $lenient, array &$errors): ?bool
+    {
+        if (null === $value) {
+            return null;
+        }
+        if (!\is_bool($value)) {
+            if (!$lenient) {
+                $errors[] = 'needsProfile: must be true or false';
+            }
+
+            return null;
         }
 
         return $value;

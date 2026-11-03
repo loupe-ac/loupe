@@ -92,6 +92,14 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    public function test_each_template_names_its_skill_packages_and_its_profile_need(): void
+    {
+        self::assertSame(['loupe', 'loupe-lifecycle'], $this->template('lifecycle')->skillPackages);
+        self::assertTrue($this->template('lifecycle')->needsProfile);
+        self::assertSame(['loupe'], $this->template('simple')->skillPackages);
+        self::assertFalse($this->template('simple')->needsProfile);
+    }
+
     public function test_each_template_suggests_its_repository_settings(): void
     {
         self::assertEquals([

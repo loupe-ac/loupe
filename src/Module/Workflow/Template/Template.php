@@ -24,6 +24,9 @@ final readonly class Template
     /** A metric or an outcome key: lowercase words joined with hyphens, at most 64 characters. */
     public const string KEY_PATTERN = '/^(?=.{1,64}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/D';
 
+    /** A skill package name: lowercase words joined with hyphens, at most 64 characters. */
+    public const string SKILL_PACKAGE_RULE = '/^(?=.{1,64}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/D';
+
     private const string REQUEST_ACTION = 'request';
 
     private const string DESIGN_REVIEW_ROLE = 'design-review';
@@ -49,6 +52,8 @@ final readonly class Template
      * @param list<TemplateMetric>            $metrics                          the metrics the template declares, in template order
      * @param list<RepositorySuggestion>      $repositorySettings               the settings the template suggests for a connected repository, in template order
      * @param list<TemplateValueKey>          $values                           the value keys a card can hold, in template order
+     * @param ?list<string>                   $skillPackages                    the skill packages a worker of the project needs, or null when the stored copy names none
+     * @param ?bool                           $needsProfile                     whether the project needs a repository profile, or null when the stored copy says nothing
      */
     public function __construct(
         public string $key,
@@ -70,6 +75,8 @@ final readonly class Template
         public array $metrics = [],
         public array $repositorySettings = [],
         public array $values = [],
+        public ?array $skillPackages = null,
+        public ?bool $needsProfile = null,
     ) {
     }
 

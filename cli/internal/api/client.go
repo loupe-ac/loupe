@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,10 +33,33 @@ type Site struct {
 	// SubcommandPrograms are the programs whose subcommand a signature keeps.
 	// nil means the bridge's default list, and an empty list keeps none.
 	SubcommandPrograms []string `json:"subcommandPrograms"`
+	// SkillPackages names the skill packages a worker of the project needs.
+	// nil means the app sent none, as an older app does.
+	SkillPackages []string `json:"skillPackages"`
+	// NeedsProfile says whether the project needs a repository profile. nil
+	// means the app sent none, as an older app does.
+	NeedsProfile *bool `json:"needsProfile"`
 	// Domain and AllowedOrigins come back from the create call only. An
 	// instance that predates them leaves both empty.
 	Domain         string   `json:"domain"`
 	AllowedOrigins []string `json:"allowedOrigins"`
+}
+
+// PackagesIn returns the skill packages a worker of the site needs, from the
+// packages held. A site with no list gets every package held, which is what a
+// project gets before the app sends the list.
+func (s Site) PackagesIn(held []string) []string {
+	if s.SkillPackages == nil {
+		return slices.Clone(held)
+	}
+
+	return slices.Clone(s.SkillPackages)
+}
+
+// ProfileNeeded says whether the project needs a repository profile. A site
+// with no value needs one, as a project did before the app sent the value.
+func (s Site) ProfileNeeded() bool {
+	return s.NeedsProfile == nil || *s.NeedsProfile
 }
 
 // EventsProject is one project of GET /api/v1/bridge/events. Its events arrive on the

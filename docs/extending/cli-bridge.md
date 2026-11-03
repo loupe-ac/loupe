@@ -1104,6 +1104,21 @@ the code `http_404`. The bridge then logs
 of later runs still try, so the calls come back when agent push comes back on. Set `collect: false` in `rules.yaml` to send no tool call and no
 timing at all.
 
+## Skill packages of a project
+
+`GET /api/v1/bridge/projects` also gives `skillPackages` and `needsProfile` on each
+project. Both come from the workflow template of the project. `skillPackages`
+lists the skill packages a worker of the project needs: `loupe` and
+`loupe-lifecycle` for a Lifecycle project, and `loupe` for a Simple project.
+`needsProfile` says whether the project needs a repository profile. The Simple
+template needs none.
+
+The bridge reads the list at start, at each reload and once an hour. When a read
+fails, the bridge keeps the last answer. An app that is older than this change,
+or a project whose stored template copy has no value, sends `null`. The bridge
+then gives that project every package it holds, and treats `needsProfile` as
+`true`.
+
 ## Harness events
 
 The harness adapter also counts the events that the harness writes beside the
