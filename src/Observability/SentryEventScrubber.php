@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Observability;
 
+use App\Api\Problem\ApiPaths;
+use App\Api\Problem\ApiProblemException;
 use App\Service\BuildIdentity;
 use Sentry\Event;
 use Sentry\EventHint;
@@ -12,6 +14,7 @@ use Sentry\Stacktrace;
 use Sentry\Tracing\Span;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
@@ -22,7 +25,8 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
  * A URL in a message keeps only its origin. Headers are an allowlist,
  * because the SDK filters only a few and X-Probe-Token carries a secret.
  * An access denial on an anonymous web request is dropped, because the
- * firewall answers it by asking the client to sign in.
+ * firewall answers it by asking the client to sign in. A refusal with a 4xx
+ * status on an API path is dropped too, because the client got a correct answer.
  */
 final readonly class SentryEventScrubber
 {
@@ -55,6 +59,10 @@ final readonly class SentryEventScrubber
             return null;
         }
 
+        if ($this->isApiRefusal($hint?->exception)) {
+            return null;
+        }
+
         $this->scrubRequest($event);
         $this->scrubTrace($event);
         $this->scrubMessages($event);
@@ -69,6 +77,23 @@ final readonly class SentryEventScrubber
         }
 
         return $event;
+    }
+
+    /** True when an API path answers this exception with a 4xx status. */
+    private function isApiRefusal(?\Throwable $exception): bool
+    {
+        $status = match (true) {
+            $exception instanceof ApiProblemException => $exception->problem->status,
+            $exception instanceof HttpExceptionInterface => $exception->getStatusCode(),
+            default => null,
+        };
+        if (null === $status || $status < 400 || $status >= 500) {
+            return false;
+        }
+
+        $request = $this->requestStack->getMainRequest();
+
+        return null !== $request && ApiPaths::isApi($request->getPathInfo());
     }
 
     private function scrubRequest(Event $event): void

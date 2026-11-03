@@ -10,6 +10,10 @@ use App\Api\Problem\ApiProblemException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Sentry\ClientBuilder;
+use Sentry\Metrics\Types\Metric;
+use Sentry\SentrySdk;
+use Sentry\State\Hub;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
@@ -30,6 +34,79 @@ use Symfony\Component\Validator\Exception\ValidationFailedException;
 
 final class RenderApiProblemOnExceptionTest extends TestCase
 {
+    public function test_a_coded_refusal_is_counted_under_its_canonical_route(): void
+    {
+        $this->render('/api/projects', new ApiProblemException(new ApiProblem(404, 'card_not_found', 'Not found', 'No card.')), ['_route' => 'api_legacy_show_card']);
+
+        self::assertSame([['404', 'card_not_found', 'api_show_card']], $this->counted());
+    }
+
+    #[DataProvider('countedFrameworkRefusals')]
+    public function test_a_framework_refusal_is_counted_with_the_code_its_client_reads(\Throwable $exception, string $status, string $code, string $route): void
+    {
+        $this->render('/api/v1/things', $exception, '' === $route || 'none' === $route ? [] : ['_route' => $route]);
+
+        self::assertSame([[$status, $code, $route]], $this->counted());
+    }
+
+    /** @return iterable<string, array{\Throwable, string, string, string}> */
+    public static function countedFrameworkRefusals(): iterable
+    {
+        yield 'rate limit' => [new TooManyRequestsHttpException(30), '429', 'rate_limited', 'api_things'];
+        yield 'unmatched path' => [new NotFoundHttpException(), '404', 'route_not_found', 'none'];
+        yield 'other 4xx' => [new HttpException(418), '418', 'http_418', 'api_things'];
+    }
+
+    public function test_a_server_fault_is_not_counted(): void
+    {
+        $this->render('/api/v1/things', new ApiProblemException(new ApiProblem(502, 'github_unavailable', 'Unavailable', 'GitHub failed.')));
+        $this->render('/api/v1/things', new \RuntimeException('boom'));
+
+        self::assertSame([], $this->counted());
+    }
+
+    public function test_a_path_left_alone_is_not_counted(): void
+    {
+        $this->render('/api/projects', new NotFoundHttpException());
+        $this->render('/projects', new ApiProblemException(new ApiProblem(404, 'x', 'X', 'Y')));
+
+        self::assertSame([], $this->counted());
+    }
+
+    /** @return list<array{string, string, string}> */
+    private function counted(): array
+    {
+        \Sentry\traceMetrics()->flush();
+        $rows = [];
+        foreach ($this->metrics as $metric) {
+            if ('api.refusal' === $metric->getName()) {
+                $attributes = $metric->getAttributes()->toSimpleArray();
+                $rows[] = [(string) $attributes['status'], (string) $attributes['code'], (string) $attributes['route']];
+            }
+        }
+
+        return $rows;
+    }
+
+    /** @var list<Metric> */
+    private array $metrics = [];
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->metrics = [];
+        $client = ClientBuilder::create([
+            'dsn' => 'https://key@o0.ingest.sentry.io/1',
+            'default_integrations' => false,
+            'before_send_metric' => function (Metric $metric): null {
+                $this->metrics[] = $metric;
+
+                return null;
+            },
+        ])->getClient();
+        SentrySdk::setCurrentHub(new Hub($client));
+    }
+
     public function test_a_thrown_problem_is_rendered_as_problem_json_on_a_v1_path(): void
     {
         $response = $this->render('/api/v1/projects', new ApiProblemException(new ApiProblem(404, 'project_not_found', 'Project not found', 'No such project.', headers: ['X-Extra' => '1'])));

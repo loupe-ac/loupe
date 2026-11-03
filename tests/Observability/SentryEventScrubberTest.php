@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Observability;
 
+use App\Api\Problem\ApiProblem;
+use App\Api\Problem\ApiProblemException;
 use App\Observability\SentryEventScrubber;
 use App\Service\BuildIdentity;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -23,6 +25,8 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -412,6 +416,51 @@ final class SentryEventScrubberTest extends TestCase
         self::assertSame('from-options', $scrubbed->getRelease());
     }
 
+    #[DataProvider('droppedApiRefusals')]
+    public function test_a_4xx_refusal_on_an_api_path_is_dropped(\Throwable $exception, string $path): void
+    {
+        $hint = EventHint::fromArray(['exception' => $exception]);
+
+        self::assertNull($this->scrubber(requestStack: self::requestFor($path))(Event::createEvent(), $hint));
+    }
+
+    /** @return iterable<string, array{\Throwable, string}> */
+    public static function droppedApiRefusals(): iterable
+    {
+        yield 'coded 404 on a public route' => [new ApiProblemException(new ApiProblem(404, 'card_not_found', 'Card not found', 'No card.')), '/api/v1/projects/x/cards/9'];
+        yield 'coded 422 on a public route' => [ApiProblemException::validationFailed([]), '/api/v1/projects/x/cards'];
+        yield 'coded 4xx on a bridge route' => [new ApiProblemException(new ApiProblem(409, 'card_closed', 'Closed', 'Closed.')), '/api/v1/bridge/heartbeat'];
+        yield 'coded 4xx on an old path' => [new ApiProblemException(new ApiProblem(403, 'x', 'X', 'Y')), '/api/projects'];
+        yield 'framework rate limit' => [new TooManyRequestsHttpException(30), '/api/v1/bridge/heartbeat'];
+        yield 'framework refused body' => [new HttpException(422), '/api/v1/projects/x/cards'];
+    }
+
+    #[DataProvider('keptApiExceptions')]
+    public function test_a_server_fault_or_a_refusal_off_an_api_path_is_kept(\Throwable $exception, ?string $path): void
+    {
+        $hint = EventHint::fromArray(['exception' => $exception]);
+        $requestStack = null === $path ? new RequestStack() : self::requestFor($path);
+
+        self::assertNotNull($this->scrubber(requestStack: $requestStack)(Event::createEvent(), $hint));
+    }
+
+    /** @return iterable<string, array{\Throwable, ?string}> */
+    public static function keptApiExceptions(): iterable
+    {
+        yield 'coded 502 on an API path' => [new ApiProblemException(new ApiProblem(502, 'github_unavailable', 'Unavailable', 'GitHub failed.')), '/api/v1/bridge/git-token'];
+        yield 'framework 500 on an API path' => [new HttpException(500), '/api/v1/projects'];
+        yield 'plain exception on an API path' => [new \RuntimeException('Boom.'), '/api/v1/projects'];
+        yield 'coded 4xx off an API path' => [new ApiProblemException(new ApiProblem(404, 'x', 'X', 'Y')), '/admin/projects'];
+        yield 'coded 4xx with no request' => [new ApiProblemException(new ApiProblem(404, 'x', 'X', 'Y')), null];
+    }
+
+    public function test_an_access_denial_for_a_signed_in_user_on_an_api_path_is_kept(): void
+    {
+        $hint = EventHint::fromArray(['exception' => new AccessDeniedException()]);
+
+        self::assertNotNull($this->scrubber(self::signedIn(), self::requestFor('/api/v1/projects'))(Event::createEvent(), $hint));
+    }
+
     public function test_an_access_denial_for_an_anonymous_web_request_is_dropped(): void
     {
         $hint = EventHint::fromArray(['exception' => new AccessDeniedException()]);
@@ -486,8 +535,13 @@ final class SentryEventScrubberTest extends TestCase
 
     private static function webRequest(): RequestStack
     {
+        return self::requestFor('/projects');
+    }
+
+    private static function requestFor(string $path): RequestStack
+    {
         $requestStack = new RequestStack();
-        $requestStack->push(Request::create('/projects'));
+        $requestStack->push(Request::create($path));
 
         return $requestStack;
     }
