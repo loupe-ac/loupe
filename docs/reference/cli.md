@@ -436,9 +436,12 @@ network call. No running bridge is reported and does not fail the check. A bridg
 with an expired login fails the check, and the line points to `loupe bridge status`.
 
 The `Skills:` lines give each skill package in the store with its highest usable
-version and its state. When the last update of a package failed on a running
-bridge, the line gives the reason and names the bridge, with one line for each such
-bridge. They are notes, and they never fail the check.
+version and its state. A usable version is one that the CLI can run and whose
+`requires` the store can meet. A running bridge from another setup can hold another
+version, and that version gets its own line that names the bridge. When the last
+update of a package failed on a running bridge, the line gives the version of that
+bridge and the reason and names the bridge, with one line for each such bridge. They
+are notes, and they never fail the check.
 
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.

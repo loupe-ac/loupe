@@ -401,15 +401,19 @@ const (
 // from the store, so it is right after any install, `loupe update` included. A
 // package that the last update failed for is failed, with that reason, until the
 // store holds another version. Another process can install that version, so only
-// the store shows it. A development build with an empty store reports nothing,
-// because its workers use the plugin their account installed.
+// the store shows it. A development build with an empty store reports an empty
+// list, because its workers use the plugin their account installed, and that
+// clears the rows of an earlier run. A router with no store sends no list.
 func (r *router) skillReports() []api.SkillReport {
 	names := r.skillNames()
 	s := &r.skills
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.dir == "" || (s.cliVersion == "" && len(skills.Held(s.dir)) == 0) {
+	if s.dir == "" {
 		return nil
+	}
+	if s.cliVersion == "" && len(skills.Held(s.dir)) == 0 {
+		return []api.SkillReport{}
 	}
 	reports := make([]api.SkillReport, 0, min(len(names), maxSkillReports))
 	for _, name := range names[:min(len(names), maxSkillReports)] {

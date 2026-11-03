@@ -59,8 +59,9 @@ func newStatusCmd() *cobra.Command {
 			"With no rule file, it checks no account. It also notes what the rule file lacks to run work " +
 			"in this directory: a permission default, a prompt source, or a project that maps this " +
 			"directory. A note never fails the check, and `loupe init` fixes it.\n\n" +
-			"The `Skills:` lines give the version of each skill package in the store, and say " +
-			"when the last update of a package failed, why, and on which bridge. A note never fails the check.\n\n" +
+			"The `Skills:` lines give the version of each skill package in the store. A line names a bridge " +
+			"when that bridge holds another version, or when its last update of the package failed, and says why. " +
+			"A note never fails the check.\n\n" +
 			"The `Bridges:` line counts the running bridges and gives their login state. No running bridge " +
 			"is reported and does not fail the check. A bridge that waits for a new login fails it. " +
 			"`loupe bridge status` gives the detail.\n\n" +
@@ -216,24 +217,30 @@ func printStatusBridges(out io.Writer, reports []bridgeReport, err error) error 
 	return nil
 }
 
-// noteSkills prints one line for each skill package: its version in the store
-// and its state. The store gives the version. A running bridge gives a failure
-// and its reason, which the store cannot know, so each failure line names its
-// bridge. It is a note only, so it never fails the check.
+// noteSkills prints one line for each skill package: its version and its state.
+// The store gives the version for this setup. A running bridge can run another
+// setup, so its report gives its own version and any failure, which the store
+// cannot know. A line from a report names its bridge. It is a note only, so it
+// never fails the check.
 func noteSkills(out io.Writer, bridges []bridgeReport) {
 	dir, err := config.Dir()
 	if err != nil {
 		return
 	}
-	type failure struct{ bridge, reason string }
-	failed := map[string][]failure{}
+	type report struct {
+		bridge string
+		res    skills.Result
+	}
+	reports := map[string][]report{}
 	names := skills.Held(dir)
 	for _, b := range bridges {
 		for _, r := range b.status.Skills {
 			names = append(names, r.Package)
-			if r.State == skills.StateFailed {
-				failed[r.Package] = append(failed[r.Package], failure{b.heading(), r.Reason})
+			v := r.Version
+			if v == noSkillVersion {
+				v = ""
 			}
+			reports[r.Package] = append(reports[r.Package], report{b.heading(), skills.Result{Package: r.Package, Version: v, State: r.State, Reason: r.Reason}})
 		}
 	}
 	slices.Sort(names)
@@ -244,13 +251,19 @@ func noteSkills(out io.Writer, bridges []bridgeReport) {
 		return
 	}
 	for _, name := range names {
-		res := skills.Status(dir, version, name)
-		if len(failed[name]) == 0 {
-			fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(res), "skills: "))
+		local := skills.Status(dir, version, name)
+		failed := slices.ContainsFunc(reports[name], func(r report) bool { return r.res.State == skills.StateFailed })
+		var lines []string
+		for _, r := range reports[name] {
+			if r.res.State == skills.StateFailed || r.res.Version != local.Version {
+				lines = append(lines, fmt.Sprintf("%s (bridge %s)", strings.TrimPrefix(skillLine(r.res), "skills: "), r.bridge))
+			}
 		}
-		for _, f := range failed[name] {
-			res.State, res.Reason = skills.StateFailed, f.reason
-			fmt.Fprintf(out, "Skills:      %s (bridge %s)\n", strings.TrimPrefix(skillLine(res), "skills: "), f.bridge)
+		if !failed && (len(lines) == 0 || local.State != skills.StateFailed) {
+			fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(local), "skills: "))
+		}
+		for _, line := range lines {
+			fmt.Fprintf(out, "Skills:      %s\n", line)
 		}
 	}
 }

@@ -332,12 +332,12 @@ func TestTheHeartbeatSendsNoSkillsKeyWhenThereAreNone(t *testing.T) {
 		t.Fatal("a router with no store reports skills")
 	}
 	r.skills.dir = t.TempDir()
-	if r.skillReports() != nil {
-		t.Fatal("a development build with an empty store reports skills")
+	if got := r.skillReports(); got == nil || len(got) != 0 {
+		t.Fatalf("a development build with an empty store reports %#v, want an empty list that clears the stored rows", got)
 	}
 	r.skills.cliVersion = "1.0.0"
-	if got := r.skillReports(); len(got) != 0 {
-		t.Fatalf("reports = %+v", got)
+	if got := r.skillReports(); got == nil || len(got) != 0 {
+		t.Fatalf("reports = %#v", got)
 	}
 }
 
@@ -420,6 +420,31 @@ func TestStatusNamesTheBridgeOfEachSkillFailure(t *testing.T) {
 	noteSkills(&out, []bridgeReport{{status: one}, {status: two}, {status: three}})
 
 	want := "Skills:      loupe 1.0.0 failed: first (bridge one)\nSkills:      loupe 1.0.0 failed: second (bridge three)\n"
+	if out.String() != want {
+		t.Fatalf("out = %q, want %q", out.String(), want)
+	}
+}
+
+func TestStatusTakesTheVersionOfABridgeFromItsReport(t *testing.T) {
+	shortConfigHome(t)
+	holdSkill(t, mustConfigDir(t), "loupe", "1.0.0")
+	same, other, bad, gone := validStatus("same"), validStatus("other"), validStatus("bad"), validStatus("gone")
+	same.Skills = []api.SkillReport{{Package: "loupe", Version: "1.0.0", State: "current"}}
+	other.Skills = []api.SkillReport{
+		{Package: "loupe", Version: "2.0.0", State: "current"},
+		{Package: "extra", Version: "3.0.0", State: "current"},
+	}
+	bad.Skills = []api.SkillReport{{Package: "failing", Version: "4.0.0", State: "failed", Reason: "r"}}
+	gone.Skills = []api.SkillReport{{Package: "absent", Version: noSkillVersion, State: "failed", Reason: "r"}}
+
+	var out bytes.Buffer
+	noteSkills(&out, []bridgeReport{{status: same}, {status: other}, {status: bad}, {status: gone}})
+
+	want := "Skills:      absent failed: r (bridge gone)\n" +
+		"Skills:      extra 3.0.0 current (bridge other)\n" +
+		"Skills:      failing 4.0.0 failed: r (bridge bad)\n" +
+		"Skills:      loupe 1.0.0 current\n" +
+		"Skills:      loupe 2.0.0 current (bridge other)\n"
 	if out.String() != want {
 		t.Fatalf("out = %q, want %q", out.String(), want)
 	}

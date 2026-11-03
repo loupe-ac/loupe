@@ -620,8 +620,8 @@ type Heartbeat struct {
 	Update     *HeartbeatUpdate `json:"update,omitempty"`
 	Hooks      []HookReport     `json:"hooks,omitzero"`
 	// Skills holds one row for each skill package the bridge keeps. Nil sends
-	// no key.
-	Skills []SkillReport `json:"skills,omitempty"`
+	// no key, and an empty list sends [], which clears the stored rows.
+	Skills []SkillReport `json:"skills,omitzero"`
 	// WorkerPools is nil until the router reports its pools.
 	WorkerPools []WorkerPoolReport `json:"workerPools,omitzero"`
 	// Paused and Capabilities send no key when nil, which keeps what the

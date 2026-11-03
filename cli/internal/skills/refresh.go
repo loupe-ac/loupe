@@ -37,7 +37,8 @@ var packageName = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
 func ValidName(name string) bool { return len(name) <= 64 && packageName.MatchString(name) }
 
 // Result is what a refresh found for one package. Version is the highest
-// version the store holds that the CLI can use, and empty when there is none.
+// version the store holds that the CLI can use and whose requires the store can
+// meet, and empty when there is none.
 // Installed is the version this refresh wrote, if any.
 type Result struct {
 	Package   string `json:"package"`
@@ -50,13 +51,12 @@ type Result struct {
 // Status reads a package from the store alone. A package with no usable version
 // is failed.
 func Status(configDir, cliVersion, pkg string) Result {
-	s := solver{configDir: configDir, cliVersion: cliVersion}
-	list := s.candidates(pkg)
-	if len(list) == 0 {
-		return Result{Package: pkg, State: StateFailed, Reason: "the store holds no version of " + pkg + " that this CLI can use"}
+	chosen, err := solve(configDir, cliVersion, []string{pkg})
+	if err != nil {
+		return Result{Package: pkg, State: StateFailed, Reason: fmt.Sprintf("the store holds no version of %s that this CLI can use: %v", pkg, err)}
 	}
 
-	return Result{Package: pkg, Version: list[0].Version, State: StateCurrent}
+	return Result{Package: pkg, Version: chosen[pkg].Version, State: StateCurrent}
 }
 
 // release is one published version of a package.
@@ -107,12 +107,9 @@ func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion 
 		return Result{Package: pkg, State: StateFailed, Reason: fmt.Sprintf("%q is not a valid package name", pkg)}
 	}
 	s := solver{configDir: configDir, cliVersion: cliVersion}
-	have := ""
-	if list := s.candidates(pkg); len(list) > 0 {
-		have = list[0].Version
-	}
+	have := Status(configDir, cliVersion, pkg).Version
 	published := publishedVersions(releases, pkg)
-	if len(published) == 0 && have == "" {
+	if len(published) == 0 && len(versions(configDir, pkg)) == 0 {
 		return Result{Package: pkg, State: StateFailed, Reason: "no release of " + pkg + " exists"}
 	}
 
@@ -134,7 +131,7 @@ func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion 
 		var held heldBack
 		switch {
 		case err == nil:
-			have, installed = rel.version, rel.version
+			installed = rel.version
 		case errors.As(err, &held):
 			if held.permanent {
 				blocked[key] = held.Error()
@@ -148,7 +145,10 @@ func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion 
 
 		break
 	}
-	r := Result{Package: pkg, Version: have, State: StateCurrent, Installed: installed}
+	// An install checks only what the new version needs directly, so the store
+	// has the last word on what a worker can start with.
+	r := Status(configDir, cliVersion, pkg)
+	r.Installed = installed
 	if reason != "" {
 		r.State, r.Reason = StateFailed, reason
 	}

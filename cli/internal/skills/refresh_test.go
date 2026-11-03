@@ -339,6 +339,34 @@ func TestRefreshIgnoresDraftsPrereleasesAndOtherTags(t *testing.T) {
 	}
 }
 
+func TestStatusReportsOnlyAVersionWhoseRequiresTheStoreMeets(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe", "2.0.0", `{"requires":{"absent":"^1.0.0"}}`)
+	put(t, dir, "stuck", "1.0.0", `{"requires":{"loupe":"^3.0.0"}}`)
+
+	if got := Status(dir, "1.0.0", "loupe"); got.Version != "1.0.0" || got.State != StateCurrent {
+		t.Fatalf("loupe = %+v", got)
+	}
+	got := Status(dir, "1.0.0", "stuck")
+	if got.State != StateFailed || got.Version != "" || !strings.Contains(got.Reason, "loupe") {
+		t.Fatalf("stuck = %+v", got)
+	}
+}
+
+// A store version with an unmet requires gives the refresh no version to report
+// as current, also when no release can replace it.
+func TestRefreshFailsAPackageWhoseStoredVersionsCannotStart(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "stuck", "1.0.0", `{"requires":{"absent":"^1.0.0"}}`)
+
+	got := Refresh(context.Background(), http.DefaultClient, dir, "1.0.0", nil, []string{"stuck"}, map[string]string{})
+
+	if got[0].State != StateFailed || got[0].Version != "" || !strings.Contains(got[0].Reason, "absent") {
+		t.Fatalf("got %+v", got[0])
+	}
+}
+
 func TestStatusNamesAPackageWithNoUsableVersion(t *testing.T) {
 	dir := t.TempDir()
 	put(t, dir, "loupe", "1.0.0", `{"minCli":"9.0.0"}`)
