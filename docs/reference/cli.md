@@ -253,6 +253,14 @@ names the ways to choose. It never guesses.
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
 
+`loupe card list` filters by the state of a card with `--state` and
+`--state-code`: `loupe card list --state working` lists the cards with the
+working mark, and `--state-code run-open` narrows them to the running workers.
+`--state` takes `stuck`, `needs-you`, `working` or `waiting`. A card in a
+terminal column has no state. The flags need a CLI release after `cli/v2.0.1`
+and a server that has the filters. A server without them ignores the flags and
+answers every card.
+
 The verbs are the words of the MCP tools, so `document_revise` is
 `loupe document revise`. A flag is the API parameter in kebab-case:
 `includeArchived` is `--include-archived`. `loupe <group> <command> --help`

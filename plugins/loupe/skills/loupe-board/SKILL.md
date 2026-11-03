@@ -40,6 +40,8 @@ Read the board as summaries, then call `card_get` for the one card you want. A `
 
 `card_list` with `paused` reads the cards that a workflow pause holds. The `loupe-workers` skill says how to end a pause with `card_pause_release`.
 
+`card_list` with `state` (`stuck`, `needs-you`, `working` or `waiting`) reads only the cards that show that state. Add `stateCode` for one reason, such as `run-open`. A card in a terminal column has no state.
+
 The feedback items of a card are in `siteReviewComments`. The `loupe-site-review` skill carries the loop that fixes them and marks them addressed.
 
 ## Link documents, artifacts and cards

@@ -43,6 +43,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new OA\Parameter(name: 'parentCardId', description: 'Only the children of the card with this id.', in: 'query', schema: new OA\Schema(type: 'string', format: 'uuid')),
         new OA\Parameter(name: 'parent', description: 'Only the children of the card with this number. Do not pass it with `parentCardId`.', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1)),
         new OA\Parameter(name: 'paused', description: 'True for only the cards with an active pause, and false for only those with none.', in: 'query', schema: new OA\Schema(type: 'boolean')),
+        new OA\Parameter(name: 'state', description: 'Only cards whose state is of this kind. A card shows one state, the first of its reasons, and this filter reads that one. A card in a terminal column has no state, so `status=done&state=working` answers an empty list. A card that enters or leaves the state during a walk can be missed, as with `status` and `paused`. One kind per request.', in: 'query', schema: new OA\Schema(type: 'string', enum: ['stuck', 'needs-you', 'working', 'waiting'])),
+        new OA\Parameter(name: 'stateCode', description: 'Only cards whose state has this code, such as `run-open` for a running worker. The codes belong to the workflow of the project, so a code that no state has answers an empty list. Pass it with `state` to narrow a kind.', in: 'query', schema: new OA\Schema(type: 'string')),
         new FieldsParameter(CardResponse::FIELDS),
     ],
     responses: [
@@ -84,6 +86,8 @@ final class ListProjectCardsController extends AppController
             parentCardId: $query->parentCardId,
             parentNumber: $query->parentNumber,
             paused: $query->paused,
+            state: $query->state,
+            stateCode: $query->stateCode,
         ));
 
         // CardPayload reads each linked set of the whole page in one query, and reads only the sets the fields name.

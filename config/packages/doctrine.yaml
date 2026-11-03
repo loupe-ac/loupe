@@ -48,6 +48,10 @@ doctrine:
                 # websearch_to_tsquery/2 accepts. A string function for the same
                 # reason as the line above: it nests inside one.
                 CAST: MartinGeorgiev\Doctrine\ORM\Query\AST\Functions\Cast
+                # Read the main state of a card from its stored markers, in the card
+                # list filter. The jsonpath is a bound parameter.
+                JSONB_PATH_QUERY_FIRST: MartinGeorgiev\Doctrine\ORM\Query\AST\Functions\JsonbPathQueryFirst
+                JSON_GET_FIELD_AS_TEXT: MartinGeorgiev\Doctrine\ORM\Query\AST\Functions\JsonGetFieldAsText
         # The audit package holds an actor and a credential as interfaces so it
         # never learns what this application calls a user. Doctrine cannot load
         # metadata for an unresolved interface, so an audit_log association only

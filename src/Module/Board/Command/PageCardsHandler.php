@@ -12,11 +12,12 @@ use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use App\Module\Workflow\Contract\MarkerKind;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * Reads one keyset page of a project's cards, filtered by search words, column, type,
- * reporter, parent and pause. The walk order is the card number or the update time,
+ * reporter, parent, pause and state. The walk order is the card number or the update time,
  * so a card that moves between columns never moves a walk.
  */
 final readonly class PageCardsHandler
@@ -50,6 +51,11 @@ final readonly class PageCardsHandler
         if (null !== $command->reporter && null === $reporter) {
             $errors[] = ['field' => 'reporter', 'code' => 'reporter_invalid', 'message' => \sprintf('Use one of: %s.', implode(', ', Actor::values()))];
         }
+        $state = null === $command->state ? null : MarkerKind::tryFrom($command->state);
+        if (null !== $command->state && (null === $state || !\in_array($state, MarkerKind::states(), true))) {
+            $state = null;
+            $errors[] = ['field' => 'state', 'code' => 'state_invalid', 'message' => \sprintf('Use one of: %s.', implode(', ', array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::states())))];
+        }
         $parent = null;
         if (null !== $command->parentCardId || null !== $command->parentNumber) {
             if (null !== $command->parentCardId && null !== $command->parentNumber) {
@@ -79,6 +85,8 @@ final readonly class PageCardsHandler
             $parent,
             $command->paused,
             $command->query,
+            $state,
+            $command->stateCode,
         );
 
         return new PageCardsView(Page::fromRows($rows, $command->page, static fn (Card $card): Cursor => new Cursor(

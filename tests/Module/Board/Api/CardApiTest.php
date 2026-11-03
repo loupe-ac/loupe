@@ -564,6 +564,69 @@ final class CardApiTest extends WebTestCase
         self::assertSame([], $titles('paused=true'));
     }
 
+    public function test_the_state_filter_matches_the_state_each_row_shows(): void
+    {
+        $this->createCard('Runs');
+        $this->createCard('Held');
+        $this->createCard('Noted');
+        $this->createCard('Finished', ['status' => 'done']);
+        $this->createCard('Unread');
+        $this->setMarkers(1, [$this->marker('note', 'chip'), $this->marker('run-open', 'working')]);
+        $this->setMarkers(2, [$this->marker('paused', 'stuck'), $this->marker('run-open', 'working')]);
+        $this->setMarkers(3, [$this->marker('note', 'chip')]);
+        $this->setMarkers(4, [$this->marker('run-open', 'working')]);
+
+        $titles = fn (string $query): array => $this->titles($this->base().'?'.$query);
+
+        self::assertSame(['Runs'], $titles('state=working'));
+        self::assertSame(['Held'], $titles('state=stuck'));
+        self::assertSame([], $titles('state=waiting'));
+        self::assertSame([], $titles('status=done&state=working'));
+        self::assertSame(['Runs'], $titles('stateCode=run-open'));
+        self::assertSame(['Held'], $titles('state=stuck&stateCode=paused'));
+        self::assertSame([], $titles('state=stuck&stateCode=run-open'));
+        self::assertSame([], $titles('stateCode=nothing-has-this'));
+
+        $this->send(Request::METHOD_GET, $this->base());
+        $rows = $this->json()['items'];
+        foreach (['stuck', 'needs-you', 'working', 'waiting'] as $kind) {
+            $shown = array_column(array_filter($rows, static fn (array $row): bool => $kind === ($row['state']['kind'] ?? null)), 'title');
+            self::assertSame($shown, $titles('state='.$kind), $kind);
+        }
+    }
+
+    public function test_a_walk_keeps_its_state_filter_across_pages(): void
+    {
+        foreach (range(1, 3) as $i) {
+            $this->createCard('Card '.$i);
+            $this->setMarkers($i, [$this->marker('run-open', 'working')]);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'?state=working&limit=2');
+        self::assertCount(2, $this->json()['items']);
+        $next = $this->json()['next'];
+        self::assertIsString($next);
+
+        self::assertSame(['Card 3'], $this->titles($next));
+
+        $this->send(Request::METHOD_GET, str_replace('state=working', 'state=stuck', $next));
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame('invalid_cursor', $this->json()['code']);
+    }
+
+    public function test_a_state_that_is_not_a_state_answers_the_error_list(): void
+    {
+        foreach (['chip', 'running', ''] as $state) {
+            $this->send(Request::METHOD_GET, $this->base().'?state='.$state);
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame('state_invalid', $this->json()['errors'][0]['code'], $state);
+        }
+
+        $this->send(Request::METHOD_GET, $this->base().'?stateCode=');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('stateCode_invalid', $this->json()['errors'][0]['code']);
+    }
+
     public function test_the_children_of_a_card_are_filtered_by_its_id_or_its_number(): void
     {
         $epic = $this->createCard('The epic', ['type' => 'epic']);
@@ -840,6 +903,22 @@ final class CardApiTest extends WebTestCase
         } while (null !== $url && ++$guard < 10);
 
         return $numbers;
+    }
+
+    /** @return array{key: string, kind: string, label: string, remedy: null, params: array<never, never>, since: string} */
+    private function marker(string $key, string $kind): array
+    {
+        return ['key' => $key, 'kind' => $kind, 'label' => 'marker.'.$key, 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00'];
+    }
+
+    /** @param list<array{key: string, kind: string, label: string, remedy: null, params: array<never, never>, since: string}> $markers */
+    private function setMarkers(int $number, array $markers): void
+    {
+        $changed = $this->em->getConnection()->executeStatement(
+            'UPDATE board_cards SET workflow_markers = CAST(:markers AS jsonb) WHERE project_id = :project AND number = :number',
+            ['markers' => json_encode($markers, \JSON_THROW_ON_ERROR), 'project' => (string) $this->project->id, 'number' => $number],
+        );
+        self::assertSame(1, $changed);
     }
 
     /** @return list<string> */

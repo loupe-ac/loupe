@@ -30,6 +30,8 @@ final readonly class PageCardsCommand
         public ?string $parentCardId = null,
         public ?int $parentNumber = null,
         public ?bool $paused = null,
+        public ?string $state = null,
+        public ?string $stateCode = null,
     ) {
     }
 }

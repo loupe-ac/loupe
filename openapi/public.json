@@ -2277,6 +2277,28 @@
                         }
                     },
                     {
+                        "name": "state",
+                        "in": "query",
+                        "description": "Only cards whose state is of this kind. A card shows one state, the first of its reasons, and this filter reads that one. A card in a terminal column has no state, so `status=done&state=working` answers an empty list. A card that enters or leaves the state during a walk can be missed, as with `status` and `paused`. One kind per request.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "stuck",
+                                "needs-you",
+                                "working",
+                                "waiting"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "stateCode",
+                        "in": "query",
+                        "description": "Only cards whose state has this code, such as `run-open` for a running worker. The codes belong to the workflow of the project, so a code that no state has answers an empty list. Pass it with `state` to narrow a kind.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "name": "fields",
                         "in": "query",
                         "description": "The fields to return, as a comma list such as `number,title`. Each named field comes back whole, and nothing else does. `all` returns the whole resource and stands alone.",

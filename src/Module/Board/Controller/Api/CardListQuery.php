@@ -20,6 +20,8 @@ final readonly class CardListQuery
         public ?string $parentCardId,
         public ?int $parentNumber,
         public ?bool $paused,
+        public ?string $state,
+        public ?string $stateCode,
     ) {
     }
 
@@ -81,6 +83,8 @@ final readonly class CardListQuery
             $text('parentCardId'),
             $parentNumber,
             $flag('paused'),
+            $text('state'),
+            $text('stateCode'),
         );
         if ([] !== $errors) {
             throw ApiProblemException::validationFailed($errors);
@@ -105,6 +109,8 @@ final readonly class CardListQuery
             'parentCardId' => $this->parentCardId,
             'parent' => $this->parentNumber,
             'paused' => $this->paused,
+            'state' => $this->state,
+            'stateCode' => $this->stateCode,
         ];
     }
 }
