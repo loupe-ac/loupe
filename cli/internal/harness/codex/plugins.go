@@ -189,31 +189,33 @@ func lastLine(text string) string {
 	return text
 }
 
-// LegacySkillFolders lists the loupe-* folders in the skills folder of the user
-// home, where Codex read the Loupe skills before they became plugins.
-func LegacySkillFolders() []string {
+// LegacySkillFolders lists the folders in the skills folder of the user home,
+// where Codex read the Loupe skills before they became plugins, that carry one of
+// names. names holds the skills of the plugins. Any other folder stays out, also
+// one whose name starts with loupe-, because no plugin replaces it.
+func LegacySkillFolders(names []string) []string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil
 	}
 	dir := filepath.Join(home, ".agents", "skills")
-	entries, _ := os.ReadDir(dir)
 	var found []string
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "loupe-") && (e.IsDir() || e.Type()&os.ModeSymlink != 0) {
-			found = append(found, filepath.Join(dir, e.Name()))
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		if info, err := os.Lstat(path); err == nil && (info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+			found = append(found, path)
 		}
 	}
 
 	return found
 }
 
-// BackupLegacySkills moves each loupe-* folder of the user home out of the
-// skills folder Codex reads, into backupDir/<date>/. Codex reads that folder for
-// every home, so a folder that stays shows each skill twice. It returns the
-// folder it made, and "" when there was nothing to move.
-func BackupLegacySkills(backupRoot string, now time.Time) (string, error) {
-	folders := LegacySkillFolders()
+// BackupLegacySkills moves each folder of LegacySkillFolders out of the skills
+// folder Codex reads, into backupDir/<date>/. Codex reads that folder for every
+// home, so a folder that stays shows each skill twice. It returns the folder it
+// made, and "" when there was nothing to move.
+func BackupLegacySkills(backupRoot string, names []string, now time.Time) (string, error) {
+	folders := LegacySkillFolders(names)
 	if len(folders) == 0 {
 		return "", nil
 	}

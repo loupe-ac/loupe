@@ -62,6 +62,16 @@ func SkillNames(dir string) []string {
 	return names
 }
 
+// PickSkills lists the skills of the picks.
+func PickSkills(picks []Pick) []string {
+	var names []string
+	for _, p := range picks {
+		names = append(names, SkillNames(p.Dir)...)
+	}
+
+	return names
+}
+
 // HiddenSkills names, as <plugin>:<skill>, each skill of a package that is not
 // in keep. Codex takes this name to hide a skill. A name in keep also keeps the
 // packages it needs.

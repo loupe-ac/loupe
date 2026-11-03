@@ -120,7 +120,8 @@ func (r *router) syncCodexPlugins(ctx context.Context) {
 
 		return
 	}
-	legacy := len(codex.LegacySkillFolders()) > 0
+	skillNames := skills.PickSkills(picks)
+	legacy := len(codex.LegacySkillFolders(skillNames)) > 0
 
 	var reports []codexHomeReport
 	allCurrent := true
@@ -136,7 +137,7 @@ func (r *router) syncCodexPlugins(ctx context.Context) {
 	s.setCodexHomes(reports)
 
 	if legacy && allCurrent && len(reports) == len(homes) {
-		r.moveLegacySkills()
+		r.moveLegacySkills(homes, skillNames)
 	}
 }
 
@@ -168,9 +169,14 @@ func (r *router) syncHome(ctx context.Context, h pluginHome, picks []skills.Pick
 	if len(todo) == 0 {
 		return &codexHomeReport{Home: h.home, State: pluginsCurrent}
 	}
-	if busy := r.homeBusy(h.home); busy != "" {
+	lock, busy, err := r.reserveHome(h.home)
+	if err != nil {
+		return &codexHomeReport{Home: h.home, State: pluginsFailed, Reason: stream.Cut(err.Error(), maxPluginReason)}
+	}
+	if busy != "" {
 		return &codexHomeReport{Home: h.home, State: pluginsWaiting, Reason: busy}
 	}
+	defer lock.Release()
 	installed, err := codex.InstallPlugins(ctx, binary, h.env, skills.MarketplaceDir(r.skills.dir), todo)
 	if err != nil {
 		return &codexHomeReport{Home: h.home, State: pluginsFailed, Reason: stream.Cut(err.Error(), maxPluginReason)}
@@ -221,9 +227,24 @@ func (r *router) codexHomeReports() []codexHomeReport {
 }
 
 // moveLegacySkills moves the old skill folders out of the user home, after the
-// plugins are in every Codex home.
-func (r *router) moveLegacySkills() {
-	dest, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(r.skills.dir), "backup"), time.Now())
+// plugins are in every Codex home. A running worker can read those folders, so
+// the move waits for a pass with no worker on any home.
+func (r *router) moveLegacySkills(homes []pluginHome, names []string) {
+	for _, h := range homes {
+		lock, busy, err := r.reserveHome(h.home)
+		if err != nil {
+			r.log.Warn("codex_legacy_skills_not_moved", "error", err.Error())
+
+			return
+		}
+		if busy != "" {
+			r.log.Info("codex_legacy_skills_waiting", "reason", busy)
+
+			return
+		}
+		defer lock.Release()
+	}
+	dest, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(r.skills.dir), "backup"), names, time.Now())
 	if err != nil {
 		r.log.Warn("codex_legacy_skills_not_moved", "error", err.Error())
 
@@ -234,14 +255,31 @@ func (r *router) moveLegacySkills() {
 	}
 }
 
-// homeBusy says why a worker uses the Codex home, and is "" when none does.
-// Three things count: a live run on the home, a run that is about to start on it,
-// and an interactive session that the bridge launched on it. The session counts
-// for launchGrace after the launch, because a launcher can return before the
-// terminal starts the program, and then while a process names its id. A pass
-// that cannot list the processes counts an older session as busy.
-func (r *router) homeBusy(home string) string {
+// reserveHome takes the Codex home for an install. It returns the lock, or the
+// reason the home is busy. The lock makes a worker start wait, so no worker starts
+// between the check and the install.
+func (r *router) reserveHome(home string) (*skills.HomeLock, string, error) {
 	reason := "waiting for a worker on " + home + " to end"
+	lock, ok, err := skills.ReserveHome(r.skills.dir, home)
+	if err != nil {
+		return nil, "", fmt.Errorf("reserve the Codex home: %w", err)
+	}
+	if !ok {
+		return nil, reason, nil
+	}
+	if r.homeBusy(home) {
+		lock.Release()
+
+		return nil, reason, nil
+	}
+
+	return lock, "", nil
+}
+
+// homeBusy says whether a run or a session uses the Codex home with no lock on
+// it: a live run that a former image started, or an interactive session that the
+// bridge launched.
+func (r *router) homeBusy(home string) bool {
 	s := &r.skills
 
 	r.mu.Lock()
@@ -249,50 +287,52 @@ func (r *router) homeBusy(home string) string {
 		if run.p.spec.harnessName == rules.HarnessCodex && resolveCodexHome(run.p.spec.configDir) == home {
 			r.mu.Unlock()
 
-			return reason
+			return true
 		}
 	}
 	r.mu.Unlock()
 
-	s.mu.Lock()
-	for _, held := range s.homeHolds {
-		if held == home {
-			s.mu.Unlock()
-
-			return reason
-		}
+	list := s.processes
+	if list == nil {
+		list = listProcesses
 	}
-	s.mu.Unlock()
+	used, err := sessionOnHome(s.dir, home, list)
+	if err != nil {
+		r.log.Warn("codex_plugins_processes_unlisted", "error", err.Error())
+	}
 
+	return used
+}
+
+// sessionOnHome says whether an interactive session that a bridge launched uses
+// the Codex home. The session counts for launchGrace after the launch, because a
+// launcher can return before the terminal starts the program, and then while a
+// process names its id. A failure to list the processes counts an older session
+// as busy, and it comes back with the error.
+func sessionOnHome(dir, home string, list func(context.Context) (string, error)) (bool, error) {
 	var processes string
 	listed := false
 	now := time.Now()
-	for session, sh := range skills.Homes(s.dir) {
-		if filepath.Clean(sh.Home) != home {
+	for session, sh := range skills.Homes(dir) {
+		if filepath.Clean(sh.Home) != filepath.Clean(home) {
 			continue
 		}
 		if now.Sub(sh.At) < launchGrace {
-			return reason
+			return true, nil
 		}
 		if !listed {
-			list := s.processes
-			if list == nil {
-				list = listProcesses
-			}
 			out, err := list(context.Background())
 			if err != nil {
-				r.log.Warn("codex_plugins_processes_unlisted", "error", err.Error())
-
-				return reason
+				return true, err
 			}
 			processes, listed = out, true
 		}
 		if strings.Contains(processes, session) {
-			return reason
+			return true, nil
 		}
 	}
 
-	return ""
+	return false, nil
 }
 
 // recordSessionHome keeps the Codex home of an interactive session, so the
@@ -307,42 +347,69 @@ func (r *router) recordSessionHome(spec workerSpec) {
 }
 
 // giveCodexSkills hides the skills of the packages the project does not use, and
-// holds the Codex home of the run until its worker ends. A store that cannot
-// serve the project's list hides nothing, and the worker then sees every skill.
-func (r *router) giveCodexSkills(spec *workerSpec, p pending) {
+// holds the Codex home of the run until its worker ends. It waits while an install
+// holds the home. It fails when the project names a package the store cannot serve.
+func (r *router) giveCodexSkills(spec *workerSpec, p pending) error {
 	s := &r.skills
 	if s.dir == "" {
-		return
+		return nil
+	}
+	servable := codexPackageNames(s.dir, s.cliVersion)
+	needed, missing := splitPackages(r.projectPackages(p.project, servable), servable, s.cliVersion)
+	if len(missing) > 0 {
+		return fmt.Errorf("project %s needs package %s, and the skill store holds no Codex version of it; run `loupe update`", p.project, strings.Join(missing, ", "))
+	}
+	lock, err := skills.HoldHome(r.workerContext(), s.dir, resolveCodexHome(spec.configDir))
+	if err != nil {
+		return fmt.Errorf("hold the Codex home: %w", err)
 	}
 	s.mu.Lock()
 	if s.homeHolds == nil {
-		s.homeHolds = map[string]string{}
+		s.homeHolds = map[string]*skills.HomeLock{}
 	}
-	s.homeHolds[p.runID] = resolveCodexHome(spec.configDir)
+	s.homeHolds[p.runID] = lock
 	s.mu.Unlock()
 
-	held := skills.Held(s.dir)
-	if len(held) == 0 {
-		return
-	}
-	spec.hideSkills = skills.HiddenSkills(s.dir, s.cliVersion, r.projectPackages(p.project, held))
+	spec.hideSkills = skills.HiddenSkills(s.dir, s.cliVersion, needed)
+
+	return nil
 }
 
-// codexPackages maps each project slug to the packages Codex needs for it: the
-// packages of the project that the store can serve to Codex. A project the app
-// has not listed gets every package. A store with none gives an empty map.
-func codexPackages(dir string, slugs []string, sites []api.Site) map[string][]string {
+// codexPackageNames lists the packages the store can serve to Codex.
+func codexPackageNames(dir, cliVersion string) []string {
+	var names []string
+	for _, p := range skills.CodexPicks(dir, cliVersion) {
+		names = append(names, p.Package)
+	}
+
+	return names
+}
+
+// splitPackages splits the packages a project names into the ones the store can
+// serve and the ones it cannot. A development build with an empty store has no
+// starting copy, so it misses nothing, and the account's own plugins serve it.
+func splitPackages(wanted, servable []string, cliVersion string) (needed, missing []string) {
+	for _, name := range wanted {
+		switch {
+		case slices.Contains(servable, name):
+			needed = append(needed, name)
+		case len(servable) > 0 || cliVersion != "":
+			missing = append(missing, name)
+		}
+	}
+
+	return needed, missing
+}
+
+// codexPackages maps each project slug to the packages Codex needs for it that
+// the store can serve, and to the ones it cannot. A project the app has not listed
+// gets every package the store can serve. No store gives two nil maps.
+func codexPackages(dir string, slugs []string, sites []api.Site) (needed, missing map[string][]string) {
 	if dir == "" {
-		return nil
+		return nil, nil
 	}
-	var held []string
-	for _, p := range skills.CodexPicks(dir, version) {
-		held = append(held, p.Package)
-	}
-	if len(held) == 0 {
-		return nil
-	}
-	out := make(map[string][]string, len(slugs))
+	servable := codexPackageNames(dir, version)
+	needed, missing = make(map[string][]string, len(slugs)), map[string][]string{}
 	for _, slug := range slugs {
 		site := api.Site{}
 		for _, candidate := range sites {
@@ -352,20 +419,34 @@ func codexPackages(dir string, slugs []string, sites []api.Site) map[string][]st
 				break
 			}
 		}
-		out[slug] = slices.DeleteFunc(site.PackagesIn(held), func(name string) bool { return !slices.Contains(held, name) })
+		have, lacks := splitPackages(site.PackagesIn(servable), servable, version)
+		needed[slug] = have
+		if len(lacks) > 0 {
+			missing[slug] = lacks
+		}
 	}
 
-	return out
+	return needed, missing
 }
 
-// checkInputs is what an account check reads about the Loupe plugins.
-func checkInputs(slugs []string, sites []api.Site) (map[string][]string, bool) {
+// codexCheckInputs is what an account check reads about the Loupe plugins.
+type codexCheckInputs struct {
+	packages map[string][]string
+	missing  map[string][]string
+	legacy   bool
+}
+
+// checkInputs reads the store and the user home for an account check.
+func checkInputs(slugs []string, sites []api.Site) codexCheckInputs {
 	dir, err := config.Dir()
 	if err != nil {
-		return nil, false
+		return codexCheckInputs{}
 	}
+	in := codexCheckInputs{}
+	in.packages, in.missing = codexPackages(dir, slugs, sites)
+	in.legacy = len(codex.LegacySkillFolders(skills.PickSkills(skills.CodexPicks(dir, version)))) > 0
 
-	return codexPackages(dir, slugs, sites), len(codex.LegacySkillFolders()) > 0
+	return in
 }
 
 // checkAccounts checks the accounts of the router's rule set with the projects

@@ -76,6 +76,9 @@ type CheckSpec struct {
 	// stand in for the plugins until it does.
 	Packages     map[string][]string
 	LegacySkills bool
+	// MissingPackages maps a project slug to the packages it names that the
+	// store cannot serve. Each one fails that project.
+	MissingPackages map[string][]string
 }
 
 // Problem is one thing that keeps an account from running. Reason is a short

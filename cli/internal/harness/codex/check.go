@@ -257,6 +257,7 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 		if slug == "" {
 			continue
 		}
+		problems = append(problems, missingPackageProblems(slug, spec.MissingPackages[slug])...)
 		if found, err := envfile.LookPath(h.Program(), env, spec.Projects[slug]); err == nil {
 			problems = append(problems, pluginProblems(slug, spec.Packages[slug], plugins, pluginErr)...)
 			problems = append(problems, h.mcpProblems(ctx, found, home, slug, spec.Projects[slug], mcpEnv)...)
@@ -275,6 +276,17 @@ func (h Harness) readPlugins(ctx context.Context, binary string, env []string, s
 	}
 
 	return ListPlugins(ctx, binary, env)
+}
+
+// missingPackageProblems reports each package a project names that the store
+// cannot give to Codex. The old skill folders do not stand in for it.
+func missingPackageProblems(slug string, missing []string) []harness.Problem {
+	problems := make([]harness.Problem, 0, len(missing))
+	for _, name := range missing {
+		problems = append(problems, harness.Problem{Reason: "the skill store holds no Codex version of package " + name, Project: slug, Detail: "run `loupe update`"})
+	}
+
+	return problems
 }
 
 // pluginProblems checks that the home has installed and enabled each plugin the

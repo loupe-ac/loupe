@@ -1,7 +1,9 @@
 package skills
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -189,5 +191,42 @@ func TestHomesKeepTheHomeOfASessionUntilItIsOld(t *testing.T) {
 	Prune(dir, time.Now().Add(KeepAfterReplace+time.Hour), func(string) bool { return false }, nil)
 	if len(Homes(dir)) != 0 {
 		t.Fatal("an old home file stays")
+	}
+}
+
+func TestAHomeLockLetsWorkersShareAndAnInstallStandAlone(t *testing.T) {
+	store, home := t.TempDir(), "/codex/home"
+
+	first, err := HoldHome(context.Background(), store, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := HoldHome(context.Background(), store, home+"/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, free, err := ReserveHome(store, home); err != nil || free {
+		t.Fatalf("an install got a held home: %v, %v", free, err)
+	}
+	if other, free, err := ReserveHome(store, "/codex/other"); err != nil || !free {
+		t.Fatalf("another home was busy: %v, %v", free, err)
+	} else {
+		other.Release()
+	}
+	first.Release()
+	if _, free, _ := ReserveHome(store, home); free {
+		t.Fatal("an install got a home that one worker still holds")
+	}
+	second.Release()
+
+	install, free, err := ReserveHome(store, home)
+	if err != nil || !free {
+		t.Fatalf("a free home was busy: %v, %v", free, err)
+	}
+	defer install.Release()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*homeHoldPoll)
+	defer cancel()
+	if _, err := HoldHome(ctx, store, home); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("a worker went past an install: %v", err)
 	}
 }

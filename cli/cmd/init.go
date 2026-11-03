@@ -1047,17 +1047,22 @@ func initCodexPlugins(ctx context.Context, out io.Writer, targets []codexTarget)
 	allDone := true
 	var done []string
 	for _, t := range targets {
-		home := t.codexHome()
+		home := filepath.Clean(t.codexHome())
 		if slices.Contains(done, home) {
 			continue
 		}
 		done = append(done, home)
+		lock, free, err := reserveInitHome(dir, home, busy)
 		switch {
-		case busy[home]:
+		case err != nil:
+			allDone = false
+			step(out, name, "failed", err.Error())
+		case !free:
 			allDone = false
 			step(out, name, "skipped", "a worker runs on "+home+", the bridge installs it later")
 		default:
 			installed, err := codex.SyncPlugins(ctx, binary, codex.HomeEnv(os.Environ(), home), skills.MarketplaceDir(dir), picks)
+			lock.Release()
 			switch {
 			case err != nil:
 				allDone = false
@@ -1072,12 +1077,47 @@ func initCodexPlugins(ctx context.Context, out io.Writer, targets []codexTarget)
 	if !allDone {
 		return
 	}
-	switch moved, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(dir), "backup"), time.Now()); {
+	// A running worker can read the old folders, so the move waits for it.
+	for _, home := range done {
+		lock, free, err := reserveInitHome(dir, home, busy)
+		if err != nil {
+			step(out, "Codex skills", "failed", err.Error())
+
+			return
+		}
+		if !free {
+			step(out, "Codex skills", "skipped", "a worker runs on "+home+", the bridge moves the old folders later")
+
+			return
+		}
+		defer lock.Release()
+	}
+	switch moved, err := codex.BackupLegacySkills(filepath.Join(skills.StoreDir(dir), "backup"), skills.PickSkills(picks), time.Now()); {
 	case err != nil:
 		step(out, "Codex skills", "failed", err.Error())
 	case moved != "":
 		step(out, "Codex skills", "done", "moved the old Loupe skill folders of ~/.agents/skills to "+moved)
 	}
+}
+
+// reserveInitHome takes the Codex home for an install, and reports false when a
+// worker or a session uses it. busy names the homes of the workers that a running
+// bridge reported. A worker that a bridge starts now waits for the lock.
+func reserveInitHome(dir, home string, busy map[string]bool) (*skills.HomeLock, bool, error) {
+	if busy[home] {
+		return nil, false, nil
+	}
+	lock, free, err := skills.ReserveHome(dir, home)
+	if err != nil || !free {
+		return nil, false, err
+	}
+	if used, _ := sessionOnHome(dir, home, listProcesses); used {
+		lock.Release()
+
+		return nil, false, nil
+	}
+
+	return lock, true, nil
 }
 
 // busyCodexHomes names the Codex homes that a running bridge has a worker on.

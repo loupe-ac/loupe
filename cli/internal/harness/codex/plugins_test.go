@@ -204,6 +204,23 @@ func TestSyncPluginsTimesOut(t *testing.T) {
 	}
 }
 
+func TestCheckFailsAProjectThatNamesAPackageTheStoreCannotServe(t *testing.T) {
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(approveCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := fakeCodexPlugins(t, installedJSON(pluginJSON("loupe", "1.0.0", true)), marketsJSON(""))
+	got := New(home, "", "").Check(context.Background(), harness.CheckSpec{
+		ConfigDir: home, Env: f.env, Projects: map[string]string{"loupe": f.project},
+		Packages:        map[string][]string{"loupe": {"loupe"}},
+		MissingPackages: map[string][]string{"loupe": {"elsewhere"}},
+		LegacySkills:    true,
+	})
+	if len(got) != 1 || got[0].Project != "loupe" || !strings.Contains(got[0].Reason, "elsewhere") || got[0].Detail != "run `loupe update`" {
+		t.Fatalf("problems = %+v", got)
+	}
+}
+
 func TestCheckRequiresTheInstalledPluginsOfTheProject(t *testing.T) {
 	home := t.TempDir()
 	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(approveCfg), 0o600); err != nil {
@@ -277,11 +294,12 @@ func TestCheckRequiresTheInstalledPluginsOfTheProject(t *testing.T) {
 	})
 }
 
-func TestBackupLegacySkillsMovesOnlyLoupeFolders(t *testing.T) {
+func TestBackupLegacySkillsMovesOnlyTheSkillsOfThePlugins(t *testing.T) {
 	user := t.TempDir()
 	t.Setenv("HOME", user)
 	skillsDir := filepath.Join(user, ".agents", "skills")
-	for _, name := range []string{"loupe-board", "loupe-stage-merge", "mine"} {
+	plugin := []string{"loupe-board", "loupe-stage-merge", "loupe-gone"}
+	for _, name := range []string{"loupe-board", "loupe-stage-merge", "loupe-design-rebuild", "mine"} {
 		if err := os.MkdirAll(filepath.Join(skillsDir, name), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -292,10 +310,10 @@ func TestBackupLegacySkillsMovesOnlyLoupeFolders(t *testing.T) {
 	backup := filepath.Join(t.TempDir(), "backup")
 	now := time.Date(2026, 11, 3, 9, 30, 0, 0, time.UTC)
 
-	if got := LegacySkillFolders(); len(got) != 2 {
+	if got := LegacySkillFolders(plugin); len(got) != 2 {
 		t.Fatalf("legacy = %v", got)
 	}
-	dest, err := BackupLegacySkills(backup, now)
+	dest, err := BackupLegacySkills(backup, plugin, now)
 	if err != nil || dest != filepath.Join(backup, "2026-11-03") {
 		t.Fatalf("backup = %q, %v", dest, err)
 	}
@@ -307,10 +325,12 @@ func TestBackupLegacySkillsMovesOnlyLoupeFolders(t *testing.T) {
 			t.Fatalf("%s stays: %v", name, err)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(skillsDir, "mine")); err != nil {
-		t.Fatalf("a user folder moved: %v", err)
+	for _, name := range []string{"mine", "loupe-design-rebuild"} {
+		if _, err := os.Stat(filepath.Join(skillsDir, name)); err != nil {
+			t.Fatalf("%s moved, and no plugin replaces it: %v", name, err)
+		}
 	}
-	if again, err := BackupLegacySkills(backup, now); err != nil || again != "" {
+	if again, err := BackupLegacySkills(backup, plugin, now); err != nil || again != "" {
 		t.Fatalf("a second move = %q, %v", again, err)
 	}
 }

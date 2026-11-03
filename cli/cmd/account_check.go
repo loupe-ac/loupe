@@ -88,14 +88,14 @@ func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []
 	}
 	names := set.DeclaredAccounts()
 	used := set.UsedAccounts()
-	packages, legacy := checkInputs(slices.Collect(maps.Keys(projects)), sites)
+	plugins := checkInputs(slices.Collect(maps.Keys(projects)), sites)
 	// Each account runs in its own goroutine, so a slow one cannot use up the
 	// time of the next.
 	out := make([]accountResult, len(names))
 	var wg sync.WaitGroup
 	for i, name := range names {
 		wg.Go(func() {
-			out[i] = checkAccount(ctx, set, name, projects, packages, legacy)
+			out[i] = checkAccount(ctx, set, name, projects, plugins)
 			out[i].used = slices.Contains(used, name)
 		})
 	}
@@ -104,7 +104,7 @@ func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []
 	return out
 }
 
-func checkAccount(ctx context.Context, set *rules.Set, name string, projects map[string]string, packages map[string][]string, legacy bool) accountResult {
+func checkAccount(ctx context.Context, set *rules.Set, name string, projects map[string]string, plugins codexCheckInputs) accountResult {
 	run, _ := set.Account(name, "")
 	res := accountResult{name: name, harness: harnessNameOf(run)}
 	h, err := harnessByName(run.Harness, run.ConfigDir, run.Profile)
@@ -119,7 +119,7 @@ func checkAccount(ctx context.Context, set *rules.Set, name string, projects map
 
 		return res
 	}
-	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Projects: projects, Packages: packages, LegacySkills: legacy})
+	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Projects: projects, Packages: plugins.packages, MissingPackages: plugins.missing, LegacySkills: plugins.legacy})
 
 	return res
 }

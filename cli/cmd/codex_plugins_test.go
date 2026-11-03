@@ -141,6 +141,7 @@ func newSyncWorld(t *testing.T, legacy bool, plugins string, homes ...string) *s
 			w.legacy = append(w.legacy, filepath.Join(w.user, ".agents", "skills", name))
 		}
 		writeFile(t, filepath.Join(w.user, ".agents", "skills", "mine", "SKILL.md"), "# mine\n")
+		writeFile(t, filepath.Join(w.user, ".agents", "skills", "loupe-design-rebuild", "SKILL.md"), "# repo\n")
 	}
 	w.codex = newFakeCodexBin(t, plugins)
 	w.r, w.log = skillRouter(nil)
@@ -372,13 +373,15 @@ func TestGivePackagesHidesTheSkillsOfPackagesTheProjectDoesNotUse(t *testing.T) 
 	if !slices.Equal(spec.harnessSpec(nil).HideSkills, spec.hideSkills) {
 		t.Fatal("the harness spec lacks the hidden skills")
 	}
-	if r.skills.homeHolds["r1"] != home {
-		t.Fatalf("homeHolds = %v", r.skills.homeHolds)
+	if _, free, err := skills.ReserveHome(store, home); err != nil || free {
+		t.Fatalf("a held home was free: %v, %v", free, err)
 	}
 	r.releasePackages("r1")
-	if len(r.skills.homeHolds) != 0 {
-		t.Fatalf("homeHolds = %v", r.skills.homeHolds)
+	lock, free, err := skills.ReserveHome(store, home)
+	if err != nil || !free {
+		t.Fatalf("a released home was busy: %v, %v", free, err)
 	}
+	lock.Release()
 
 	life := workerSpec{harnessName: rules.HarnessCodex, configDir: home}
 	if err := r.givePackages(&life, pending{project: "life", runID: "r2"}); err != nil || len(life.hideSkills) != 0 {
@@ -386,6 +389,77 @@ func TestGivePackagesHidesTheSkillsOfPackagesTheProjectDoesNotUse(t *testing.T) 
 	}
 	if life.packages != nil || life.mcpConfig != "" {
 		t.Fatal("a Codex worker got Claude plugin folders")
+	}
+}
+
+func TestGivePackagesRefusesACodexWorkerWhoseProjectNamesAMissingPackage(t *testing.T) {
+	store := t.TempDir()
+	putPackage(t, store, "loupe", "1.0.0", "loupe-board")
+	r, _ := skillRouter(func(context.Context) ([]api.Site, error) {
+		return []api.Site{{ID: "p1", Slug: "plain", SkillPackages: []string{"loupe", "elsewhere"}}}, nil
+	})
+	r.loadSkills(context.Background())
+	r.skills.dir = store
+	home := t.TempDir()
+
+	spec := workerSpec{harnessName: rules.HarnessCodex, configDir: home}
+	err := r.givePackages(&spec, pending{project: "plain", runID: "r1"})
+	if err == nil || !strings.Contains(err.Error(), "elsewhere") || !strings.Contains(err.Error(), "loupe update") {
+		t.Fatalf("err = %v", err)
+	}
+	lock, free, err := skills.ReserveHome(store, home)
+	if err != nil || !free {
+		t.Fatalf("a refused worker holds the home: %v, %v", free, err)
+	}
+	lock.Release()
+}
+
+func TestAStartingCodexWorkerWaitsForAnInstallOnItsHome(t *testing.T) {
+	home := t.TempDir()
+	w := newSyncWorld(t, false, installedList(), home)
+	install, free, err := skills.ReserveHome(w.store, home)
+	if err != nil || !free {
+		t.Fatalf("reserve: %v, %v", free, err)
+	}
+	started := make(chan error, 1)
+	go func() {
+		spec := workerSpec{harnessName: rules.HarnessCodex, configDir: home}
+		started <- w.r.givePackages(&spec, pending{project: "x", runID: "r1"})
+	}()
+
+	select {
+	case err := <-started:
+		t.Fatalf("the worker started during the install: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	install.Release()
+	if err := <-started; err != nil {
+		t.Fatal(err)
+	}
+	w.r.releasePackages("r1")
+}
+
+func TestSyncKeepsTheOldFoldersWhileAWorkerRunsOnACurrentHome(t *testing.T) {
+	home := t.TempDir()
+	w := newSyncWorld(t, true, installedList(installedPlugin("loupe", "1.0.0"), installedPlugin("loupe-lifecycle", "0.3.0")), home)
+	spec := workerSpec{harnessName: rules.HarnessCodex, configDir: home}
+	if err := w.r.givePackages(&spec, pending{project: "x", runID: "r1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	w.r.syncCodexPlugins(context.Background())
+	if w.legacyLeft() != 2 {
+		t.Fatal("the old folders moved under a running worker")
+	}
+
+	w.r.releasePackages("r1")
+	w.r.syncCodexPlugins(context.Background())
+	if w.legacyLeft() != 0 {
+		t.Fatal("the old folders stay after the worker ended")
+	}
+	kept := filepath.Join(w.user, ".agents", "skills", "loupe-design-rebuild", "SKILL.md")
+	if _, err := os.Stat(kept); err != nil {
+		t.Fatalf("a folder that no plugin replaces moved: %v", err)
 	}
 }
 
@@ -408,19 +482,27 @@ func TestAHeldCodexRunKeepsTheHomeBusy(t *testing.T) {
 	}
 }
 
-func TestCodexPackagesNameTheServableOnesOfEachProject(t *testing.T) {
+func TestCodexPackagesSplitWhatEachProjectNames(t *testing.T) {
 	store := t.TempDir()
 	putPackage(t, store, "loupe", "1.0.0")
 	putPackage(t, store, "loupe-lifecycle", "0.3.0")
 	sites := []api.Site{{ID: "p1", Slug: "plain", SkillPackages: []string{"loupe", "elsewhere"}}}
 
-	got := codexPackages(store, []string{"plain", "unlisted"}, sites)
+	got, missing := codexPackages(store, []string{"plain", "unlisted"}, sites)
 
 	if !slices.Equal(got["plain"], []string{"loupe"}) || !slices.Equal(got["unlisted"], []string{"loupe", "loupe-lifecycle"}) {
 		t.Fatalf("packages = %v", got)
 	}
-	if got := codexPackages(t.TempDir(), []string{"plain"}, sites); got != nil {
-		t.Fatalf("an empty store gave %v", got)
+	if !slices.Equal(missing["plain"], []string{"elsewhere"}) || len(missing["unlisted"]) != 0 {
+		t.Fatalf("missing = %v", missing)
+	}
+	setCLIVersion(t, "")
+	if got, missing := codexPackages(t.TempDir(), []string{"plain"}, sites); len(got["plain"]) != 0 || len(missing) != 0 {
+		t.Fatalf("an empty store of a dev build gave %v, %v", got, missing)
+	}
+	setCLIVersion(t, "1.40.0")
+	if _, missing := codexPackages(t.TempDir(), []string{"plain"}, sites); !slices.Equal(missing["plain"], []string{"loupe", "elsewhere"}) {
+		t.Fatalf("an empty store of a release gave missing = %v", missing)
 	}
 }
 
@@ -545,6 +627,64 @@ func TestInitLeavesABusyCodexHomeToTheBridgeAndKeepsTheOldFolders(t *testing.T) 
 	}
 	if adds := fake.adds(t); len(adds) != 0 || !anyExists(legacy) {
 		t.Errorf("adds = %v, legacy left = %v", adds, anyExists(legacy))
+	}
+}
+
+func TestInitLeavesAHomeThatAWorkerHoldsToTheBridge(t *testing.T) {
+	w, fake, legacy := initPluginWorld(t, installedList())
+	dir, _ := config.Dir()
+	lock, err := skills.HoldHome(context.Background(), dir, w.codexHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Release()
+
+	out, err := runInitCmd(t, "1\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	if !strings.Contains(out, "Codex plugins: skipped, a worker runs on "+w.codexHome) {
+		t.Errorf("output:\n%s", out)
+	}
+	if adds := fake.adds(t); len(adds) != 0 || !anyExists(legacy) {
+		t.Errorf("adds = %v, legacy left = %v", adds, anyExists(legacy))
+	}
+}
+
+func TestInitLeavesAHomeWithALaunchedSessionToTheBridge(t *testing.T) {
+	w, fake, legacy := initPluginWorld(t, installedList())
+	dir, _ := config.Dir()
+	if err := skills.WriteHome(dir, "sess-1", w.codexHome); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInitCmd(t, "1\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	if !strings.Contains(out, "Codex plugins: skipped, a worker runs on "+w.codexHome) {
+		t.Errorf("output:\n%s", out)
+	}
+	if adds := fake.adds(t); len(adds) != 0 || !anyExists(legacy) {
+		t.Errorf("adds = %v, legacy left = %v", adds, anyExists(legacy))
+	}
+}
+
+func TestInitKeepsTheFoldersThatNoPluginReplaces(t *testing.T) {
+	_, _, _ = initPluginWorld(t, installedList())
+	user, _ := os.UserHomeDir()
+	kept := filepath.Join(user, ".agents", "skills", "loupe-design-rebuild", "SKILL.md")
+	writeFile(t, kept, "# repo\n")
+
+	out, err := runInitCmd(t, "1\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	if _, err := os.Stat(kept); err != nil {
+		t.Errorf("the folder moved: %v\n%s", err, out)
 	}
 }
 
