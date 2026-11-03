@@ -19,6 +19,10 @@ var Commands = []Command{
 	{Path: []string{"document", "version", "get"}, Op: "getDocumentVersion", LongText: "markdown"},
 	{Path: []string{"artifact", "list"}, Op: "listArtifacts", Columns: []string{"artifactId", "name", "selectedVersion", "archived", "createdAt"}},
 	{Path: []string{"artifact", "get"}, Op: "getArtifact"},
+	{Path: []string{"artifact", "update"}, Op: "updateArtifact"},
+	{Path: []string{"artifact", "create"}, Op: "createArtifact"},
+	{Path: []string{"artifact", "version", "create"}, Op: "createArtifactVersion"},
+	{Path: []string{"artifact", "read"}, Op: "readArtifactFile"},
 	{Path: []string{"project", "create"}, Op: "createProject"},
 	{Path: []string{"project", "update"}, Op: "updateProject"},
 	{Path: []string{"column", "create"}, Op: "createBoardColumn"},
@@ -43,14 +47,8 @@ var Commands = []Command{
 	{Path: []string{"document", "address"}, Op: "markDocumentCommentAddressed"},
 }
 
-const nextChild = "the next child builds it"
-
 // Exceptions names each operation that has no command, with the reason.
 var Exceptions = []Exception{
 	{Op: "getOpenApiDocument", Reason: "needs no sign-in, use curl"},
 	{Op: "listApiVersions", Reason: "needs no sign-in, use curl"},
-	{Op: "createArtifact", Reason: nextChild},
-	{Op: "createArtifactVersion", Reason: nextChild},
-	{Op: "updateArtifact", Reason: nextChild},
-	{Op: "readArtifactFile", Reason: nextChild},
 }

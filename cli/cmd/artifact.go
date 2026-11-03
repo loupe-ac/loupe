@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,22 +11,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
 	_ "github.com/loupe-ac/loupe/cli/internal/claudedesign"
-	"github.com/loupe-ac/loupe/cli/internal/config"
-	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/spf13/cobra"
 )
 
 // maxArtifactBytes is the request size the web server of Loupe accepts. A
 // bigger push fails there, so the command refuses it before it reads on.
 const maxArtifactBytes = 8 << 20
-
-// artifactPushTimeout bounds one push, files included.
-const artifactPushTimeout = 2 * time.Minute
 
 func newArtifactCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -39,113 +32,21 @@ func newArtifactCmd() *cobra.Command {
 	return cmd
 }
 
-// artifactPushOptions are the flags of `loupe artifact push`.
-type artifactPushOptions struct {
-	name, artifact, card, sourceLink, notes, project, out, index string
-}
-
+// newArtifactPushCmd stays hidden so an old plugin gets a clear message. The
+// upload moved to `artifact create` and `artifact version create`.
 func newArtifactPushCmd() *cobra.Command {
-	var o artifactPushOptions
-
-	cmd := &cobra.Command{
-		Use:   "push <file-or-folder>",
-		Short: "Store a file or a folder as an artifact, or as a new version of one",
-		Long: "Uploads a file, or every file of a folder, to the artifact library of a project. " +
-			"With --name it makes a new artifact. With --artifact it adds a new version to an " +
-			"existing one, and Loupe keeps the old versions.\n\n" +
-			"A file is stored under its base name. A folder is stored with the path of each file " +
-			"relative to the folder, and the command skips a .git folder. It refuses an empty " +
-			"folder, a file that is not a regular file, and a push of more than 8 MiB.\n\n" +
-			"Only an interactive session stores an artifact. The command sends the id of the " +
-			"session that runs it, from LOUPE_SESSION_ID, CLAUDE_CODE_SESSION_ID or " +
-			"CODEX_THREAD_ID, and Loupe refuses a store from a worker run.\n\n" +
-			"A folder with a Design canvas, a .dc.html file from a Claude Design artifact or an older Claude Design project, is compiled to plain pages " +
-			"before it is stored. One canvas becomes index.html. With several canvases, --index " +
-			"names the one that becomes index.html, by its path with or without .dc.html, or by " +
-			"its base name. The others become <name>.html. Blob files stay in the folder as " +
-			"_blob/<id>.<ext>.\n\n" +
-			"--card links the artifact to a card, by its number or its id. The project comes from " +
-			"--project, else from " + projectfile.Name + " in this directory, else from the single " +
-			"project your login covers.\n\n" +
-			"It prints the artifact id, the version number, and the stable link and the link of " +
-			"this version. Run `loupe login` first.",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return pushArtifact(cmd, args[0], o)
+	return &cobra.Command{
+		Use:                "push",
+		Hidden:             true,
+		DisableFlagParsing: true,
+		Args:               cobra.ArbitraryArgs,
+		RunE: func(*cobra.Command, []string) error {
+			return &exitError{exitUsage, errors.New("`loupe artifact push` is gone. " +
+				"Use `loupe artifact create <path> --name <name>` for a new artifact, " +
+				"or `loupe artifact version create <artifact> <path>` for a new version. " +
+				"Update the plugin if it still calls push")}
 		},
 	}
-	cmd.Flags().StringVar(&o.name, "name", "", "the name of a new artifact")
-	cmd.Flags().StringVar(&o.artifact, "artifact", "", "the `id` of an existing artifact, to store a new version of it")
-	cmd.Flags().StringVar(&o.card, "card", "", "link the artifact to this card, by `number` or id")
-	cmd.Flags().StringVar(&o.sourceLink, "source-link", "", "where the files came from, such as a design canvas link")
-	cmd.Flags().StringVar(&o.notes, "notes", "", "what changed in this version")
-	cmd.Flags().StringVar(&o.out, "out", "", "write the compiled files to this empty or new `folder` and store nothing")
-	cmd.Flags().StringVar(&o.index, "index", "", "the `artboard` that becomes index.html when the folder holds several canvases")
-	cmd.Flags().StringVar(&o.project, "project", "", "project id to store in (else "+projectfile.Name+" in this directory)")
-
-	return cmd
-}
-
-func pushArtifact(cmd *cobra.Command, path string, o artifactPushOptions) error {
-	if o.out == "" && (o.name == "") == (o.artifact == "") {
-		return errors.New("pass --name for a new artifact, or --artifact for a new version of an existing one, and not both")
-	}
-	if o.out != "" {
-		if err := checkOutFolder(o.out); err != nil {
-			return err
-		}
-	}
-	files, err := collectArtifactFiles(path)
-	if err != nil {
-		return err
-	}
-	compiled, err := artifactcompile.Run(files, artifactcompile.Options{Index: o.index})
-	if err != nil {
-		return err
-	}
-	files = compiled.Files
-	if o.out != "" {
-		return writeCompiled(cmd, o.out, compiled)
-	}
-	if len(compiled.Gaps) > 0 {
-		return gapError(compiled.Gaps)
-	}
-	if name := fileWithGapMarker(files); name != "" {
-		return fmt.Errorf("%s still holds a loupe:gap comment. Finish that gap and remove the comment, then push again", name)
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	client := apiClient(cfg)
-
-	ctx, cancel := context.WithTimeout(cmd.Context(), artifactPushTimeout)
-	defer cancel()
-
-	handle, err := artifactProject(ctx, client, o.project, cmd.ErrOrStderr())
-	if err != nil {
-		return err
-	}
-	stored, err := client.PushArtifact(ctx, handle, api.ArtifactPush{
-		Name:       o.name,
-		ArtifactID: o.artifact,
-		SourceLink: o.sourceLink,
-		Notes:      o.notes,
-		Card:       strings.TrimPrefix(o.card, "#"),
-		Session:    mcpSession(),
-		Files:      files,
-	})
-	if err != nil {
-		return err
-	}
-
-	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Stored version %d of artifact %s (%d %s)\n", stored.VersionNumber, stored.ArtifactID, len(files), plural(len(files), "file", "files"))
-	fmt.Fprintf(out, "Link:         %s\n", artifactLink(cfg.BaseURL, stored.Path))
-	fmt.Fprintf(out, "Version link: %s\n", artifactLink(cfg.BaseURL, stored.VersionPath))
-
-	return nil
 }
 
 func plural(n int, one, many string) string {
@@ -223,33 +124,6 @@ func writeCompiled(cmd *cobra.Command, dir string, res artifactcompile.Result) e
 	}
 
 	return fmt.Errorf("%d %s marked with a loupe:gap comment in %s. Finish each by hand, then push the folder", len(res.Gaps), plural(len(res.Gaps), "gap", "gaps"), dir)
-}
-
-// artifactLink joins the instance address and a path the server answered.
-func artifactLink(base, path string) string {
-	return strings.TrimRight(base, "/") + path
-}
-
-// artifactProject gives the project to store in: the flag, else the project
-// file, else the one project the login covers.
-func artifactProject(ctx context.Context, client *api.Client, flag string, notes io.Writer) (string, error) {
-	project, err := mcpProject(flag, notes)
-	if err != nil {
-		return "", err
-	}
-	if id := project(); id != "" {
-		return id, nil
-	}
-
-	sites, err := client.Sites(ctx)
-	if err != nil {
-		return "", fmt.Errorf("list your projects: %w", err)
-	}
-	if len(sites) != 1 {
-		return "", fmt.Errorf("your login covers %d projects, so name one with --project or write %s with `loupe project link`", len(sites), projectfile.Name)
-	}
-
-	return sites[0].ID, nil
 }
 
 // collectArtifactFiles reads the file, or the regular files of the folder.
