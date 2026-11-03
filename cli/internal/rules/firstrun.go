@@ -21,10 +21,10 @@ const ProductDesignKind = "product-design"
 const TechDesignSessionKind = "tech-design-session"
 
 // techDesignSessionPrompt is the prompt of that entry.
-const techDesignSessionPrompt = "/loupe:tech-design {cardNumber}"
+const techDesignSessionPrompt = "/loupe-lifecycle:tech-design {cardNumber}"
 
 // productDesignPrompt is the prompt of that entry.
-const productDesignPrompt = "/loupe:product-design {cardNumber}"
+const productDesignPrompt = "/loupe-lifecycle:product-design {cardNumber}"
 
 // terminals lists the Linux terminals first-run looks for, in order, each with
 // the argv that runs a script in a new window.

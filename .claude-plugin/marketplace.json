@@ -4,15 +4,13 @@
     "name": "Geoffrey Bachelet",
     "url": "https://github.com/loupe-ac"
   },
-  "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
-  "version": "0.48.0",
+  "description": "The Loupe plugins for Claude Code and Codex: a core package for every project, and a Lifecycle package for projects that use the Lifecycle workflow.",
   "plugins": [
     {
       "name": "loupe",
       "displayName": "Loupe",
       "source": "./plugins/loupe",
-      "version": "0.48.0",
-      "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
+      "description": "Skills for working a Loupe project from Claude Code and Codex: documents, the board, the inbox, live review, the workers, the analyses and discovery.",
       "author": {
         "name": "Geoffrey Bachelet",
         "url": "https://github.com/loupe-ac"
@@ -26,6 +24,25 @@
         "board",
         "inbox",
         "live-review"
+      ]
+    },
+    {
+      "name": "loupe-lifecycle",
+      "displayName": "Loupe Lifecycle",
+      "source": "./plugins/loupe-lifecycle",
+      "description": "Skills for a Loupe project on the Lifecycle workflow: the product design and tech design sessions, and the card stages from design to merge.",
+      "author": {
+        "name": "Geoffrey Bachelet",
+        "url": "https://github.com/loupe-ac"
+      },
+      "homepage": "https://github.com/loupe-ac/loupe",
+      "license": "AGPL-3.0-or-later",
+      "category": "development",
+      "keywords": [
+        "lifecycle",
+        "design",
+        "implementation",
+        "review"
       ]
     }
   ]

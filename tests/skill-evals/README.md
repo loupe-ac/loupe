@@ -1,6 +1,6 @@
 # Skill evals
 
-This suite tests the skills of the Loupe plugin (`plugins/loupe`) offline, with `claude plugin eval`. Each case gives Claude a prompt with only the plugin loaded, and graders check what Claude did. The `loupe` MCP tools are mocks, so a run never reaches a Loupe instance.
+This suite tests the skills of the Loupe plugins (`plugins/loupe` and `plugins/loupe-lifecycle`) offline, with `claude plugin eval`. Each case gives Claude a prompt with only the plugin loaded, and graders check what Claude did. The `loupe` MCP tools are mocks, so a run never reaches a Loupe instance.
 
 ## Run it
 
@@ -11,7 +11,7 @@ just skill-eval --tag insurance       # the cases with one tag
 just skill-eval --runs 1              # a quick, noisy pass
 ```
 
-The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder and adds these to the copy:
+The recipe runs on the host, because it calls `claude`. It copies `plugins/loupe` into a temporary folder, adds the skills of `plugins/loupe-lifecycle`, and adds these to the copy:
 
 1. A `.mcp.json` that declares a server named `loupe`. A mock attaches only to a server that the plugin declares, and the real plugin declares none, because `loupe init` adds the server at user level. The run never starts this server, so its URL can point nowhere.
 2. The `evals/` folder of this suite.

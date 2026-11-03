@@ -139,10 +139,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 `
 	if string(data) != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", data, want)

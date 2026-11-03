@@ -121,7 +121,7 @@ final class WorkerRunListItemTest extends TestCase
             subjectType: WorkSubject::CARD,
             subjectId: Uuid::v7(),
             cardNumber: 7,
-            workKind: 'loupe:product-design',
+            workKind: 'loupe-lifecycle:product-design',
             state: $state,
             startedAt: new \DateTimeImmutable('2026-09-23 10:00:00'),
             kind: WorkerRunKind::Interactive,

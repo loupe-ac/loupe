@@ -66,7 +66,7 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
         $owner = $this->user($em, 'card-fragment-close-viewer@example.com');
         $project = $this->project($em, $owner, 'Fragment close viewer');
         $cardId = Uuid::v7();
-        $open = $this->seedRun($em, $project, workKind: 'loupe:product-design', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $open = $this->seedRun($em, $project, workKind: 'loupe-lifecycle:product-design', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
 
         $projectId = (string) $project->id;
         $openId = (string) $open->id;
@@ -88,8 +88,8 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
         $owner = $this->user($em, 'card-fragment-close@example.com');
         $project = $this->project($em, $owner, 'Fragment close');
         $cardId = Uuid::v7();
-        $open = $this->seedRun($em, $project, workKind: 'loupe:product-design', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
-        $closed = $this->seedRun($em, $project, workKind: 'loupe:tech-design', cardId: $cardId, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $open = $this->seedRun($em, $project, workKind: 'loupe-lifecycle:product-design', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $closed = $this->seedRun($em, $project, workKind: 'loupe-lifecycle:tech-design', cardId: $cardId, state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
         $worker = $this->seedRun($em, $project, workKind: 'plan', cardId: $cardId, state: WorkerRunState::Running);
 
         $projectId = (string) $project->id;
@@ -110,7 +110,7 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
 
         $openRow = $crawler->filter('[data-card-run-row="'.$openId.'"]');
         self::assertCount(1, $openRow->filter('form[data-worker-run-control="close"]'));
-        self::assertStringContainsString('loupe:product-design', $openRow->text());
+        self::assertStringContainsString('loupe-lifecycle:product-design', $openRow->text());
         self::assertStringContainsString('Interactive session', $openRow->text());
         self::assertStringContainsString('running for', $openRow->text());
 

@@ -172,6 +172,7 @@ cpSync(join(repoRoot, 'plugins/loupe'), pluginCopy, {
     recursive: true,
     filter: (p) => !p.includes('/hooks'),
 });
+const lifecyclePlugin = join(repoRoot, 'plugins/loupe-lifecycle');
 
 const work = join(out, 'repo');
 rmSync(work, { recursive: true, force: true });
@@ -216,7 +217,7 @@ writeFileSync(
 );
 
 const command =
-    kind === 'product' ? '/loupe:product-design' : '/loupe:tech-design';
+    kind === 'product' ? '/loupe-lifecycle:product-design' : '/loupe-lifecycle:tech-design';
 const first = `${command} 7`;
 const replies = [
     'Use the brainstorming skill to lead the interview, not the Loupe method. Owners add free-text tags to a note, many per note. The note list filters by one tag. Keep it small.',
@@ -258,6 +259,8 @@ for (let turn = 0; turn < maxTurns; turn++) {
         maxCost,
         '--plugin-dir',
         pluginCopy,
+        '--plugin-dir',
+        lifecyclePlugin,
         '--plugin-dir',
         skillPlugin,
         '--mcp-config',

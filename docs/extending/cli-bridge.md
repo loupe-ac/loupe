@@ -207,7 +207,7 @@ the run ended. The stage skills set it from the `[reason: <code>]` tag that ends
 their `STAGE RESULT:` line. The bridge sends it as `resultReason`. The app keeps
 a code it knows, stores `other` for a code it does not know, and stores nothing
 when the field is absent. The worker run drawer shows the code. The reason
-table in `plugins/loupe/skills/loupe-stage-product-design/references/stage-contract.md`
+table in `plugins/loupe-lifecycle/skills/loupe-stage-product-design/references/stage-contract.md`
 lists each code.
 
 The core schema also takes an optional `title` and an optional list
@@ -2121,10 +2121,10 @@ work:
     prompt: Implement card {cardNumber} in project {project}.
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
   review:
     model: opus
     prompt: Run the loupe-stage-review skill for card {cardNumber} in project {project}.
@@ -2470,7 +2470,7 @@ and allows 60 calls per minute per token. An older server answers `404`.
 
 An entry with `action: interactive` opens an interactive Claude Code or Codex
 session in a terminal window, on the bridge's machine, as its account says. It is for Product design and for Tech design, so the
-owner does not type `/loupe:product-design` or `/loupe:tech-design` by hand.
+owner does not type `/loupe-lifecycle:product-design` or `/loupe-lifecycle:tech-design` by hand.
 An entry without `action` is a worker entry.
 
 ```yaml
@@ -2480,10 +2480,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 ```
 
 The kind `tech-design-session` is asked for when the card has its "Interactive
@@ -2561,7 +2561,7 @@ work kind and the bridge id. The report can also carry `harness`, `account`,
 `model` and `harnessSessionId`, with the rules of the
 [run state report](../reference/worker-runs.md#reporting-a-run-state). A retry
 of the launch report fills these fields on the run it finds.
-The session's `/loupe:product-design` skill calls `card_run_open` with the same
+The session's `/loupe-lifecycle:product-design` skill calls `card_run_open` with the same
 session id, and takes over that run. So the
 [Runs tab](../using/worker-runs.md#interactive-sessions) of the Activity page
 shows one row. The run ends as `closed` when the skill calls `card_run_close`,

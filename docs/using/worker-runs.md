@@ -423,7 +423,7 @@ The **Estimated** and **n runs have no usage** marks show only on the
 ## Interactive sessions
 
 An interactive session that a person runs on a card calls the MCP tool
-`card_run_open`. An example is `/loupe:product-design` in Claude Code. Loupe then records
+`card_run_open`. An example is `/loupe-lifecycle:product-design` in Claude Code. Loupe then records
 an interactive run on the card, with the state **Running** and the skill name
 as its rule. No bridge holds this run, so it has no exit code and no output.
 The heartbeat timeout never touches it.

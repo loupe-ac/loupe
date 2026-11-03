@@ -1,6 +1,6 @@
 ---
 name: tech-design
-description: "Use when the owner runs an interactive tech design session for a Loupe card, or when a prompt names /loupe:tech-design."
+description: "Use when the owner runs an interactive tech design session for a Loupe card, or when a prompt names /loupe-lifecycle:tech-design."
 ---
 
 # Interactive tech design
@@ -29,9 +29,9 @@ Never move the card. The workflow asked for this session, and the owner's approv
 Put each item in its section of the tech design, as "The design sections" of `tech-document.md` lists them.
 
 - Each question and its answer go in "Decided", with the reason, the option that lost and the cost that the choice accepts.
-- A decision that the owner defers becomes an open decision section with a decision fence (Q8). The section has the worked example and the "How each option works" list of `../loupe-documents/references/design-structure.md` "Decisions". A question in chat gets no example.
+- A decision that the owner defers becomes an open decision section with a decision fence (Q8). The section has the worked example and the "How each option works" list of `references/design-structure.md` of the `loupe-documents` skill "Decisions". A question in chat gets no example.
 - A fact you checked in the code goes in the "Checked in the code" line of its section. Never state an unchecked fact (Q1).
-- The whole design follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
+- The whole design follows the reader rule of `references/design-structure.md` of the `loupe-documents` skill "Write for a reader who knows the product".
 
 ## T6: write and link
 

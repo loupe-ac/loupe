@@ -27,7 +27,7 @@ const {
     storedLink,
     verify,
     walk,
-} = require('../../plugins/loupe/skills/loupe-product-design/references/canvas-fidelity.js');
+} = require('../../plugins/loupe-lifecycle/skills/loupe-product-design/references/canvas-fidelity.js');
 
 const SVG = 'http://www.w3.org/2000/svg';
 const folders = [];

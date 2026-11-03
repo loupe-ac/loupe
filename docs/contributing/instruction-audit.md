@@ -57,7 +57,7 @@ script, the hook or the check that the passage names. A second review by a
 different model, such as a Codex review, finds claims that the first read
 accepted too easily.
 
-To test a cut in a skill under `plugins/loupe`, run `just skill-eval` before
+To test a cut in a skill under `plugins/loupe` or `plugins/loupe-lifecycle`, run `just skill-eval` before
 and after the change. `tests/skill-evals/README.md` describes the cases and the
 flags.
 

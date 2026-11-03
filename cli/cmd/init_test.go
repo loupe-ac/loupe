@@ -127,6 +127,7 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			for _, skill := range []string{"loupe-board", "loupe-inbox"} {
 				writeFile(t, filepath.Join(args[1], "plugins", "loupe", "skills", skill, "SKILL.md"), "# "+skill+"\n")
 			}
+			writeFile(t, filepath.Join(args[1], "plugins", "loupe-lifecycle", "skills", "loupe-stage-merge", "SKILL.md"), "# loupe-stage-merge\n")
 		}
 
 		return []byte(out), nil
@@ -611,13 +612,28 @@ func TestInitSkipsThePluginWhenClaudeHasIt(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.claude = true
 	inRepo(t, w.server.URL)
-	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\n"
+	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\nloupe-lifecycle@loupe 0.1.0 enabled\n"
 
 	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
 	if w.called("claude plugin install") || !strings.Contains(out, "Plugin: skipped") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitInstallsOnlyTheLifecyclePluginWhenClaudeHasTheCoreOne(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execOut["claude plugin list"] = "loupe@loupe 1.2.3 enabled\n"
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("claude plugin install loupe-lifecycle@loupe") || w.called("claude plugin install loupe@loupe") {
 		t.Errorf("calls = %v\n%s", w.execCalls, out)
 	}
 }
@@ -1240,7 +1256,7 @@ func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
 	if !w.called("codex mcp add loupe -- loupe mcp") {
 		t.Errorf("init did not declare the server to Codex: %v", w.execCalls)
 	}
-	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", "Codex approval: done", "Codex skills: done, installed 2 skills"} {
+	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", "Codex approval: done", "Codex skills: done, installed 3 skills"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
@@ -1702,9 +1718,9 @@ func TestInitAsksBeforeItReplacesAChangedCodexSkill(t *testing.T) {
 			if !strings.Contains(out, "1 installed Loupe skills differ from the current version (loupe-board). Replace them?") {
 				t.Errorf("init did not ask:\n%s", out)
 			}
-			want, msg := "# loupe-board\n", "Codex skills: done, installed 2 skills"
+			want, msg := "# loupe-board\n", "Codex skills: done, installed 3 skills"
 			if answer == "n" {
-				want, msg = "# my edit\n", "Codex skills: done, installed 1 skills in ~/.agents/skills, kept 1 changed skills"
+				want, msg = "# my edit\n", "Codex skills: done, installed 2 skills in ~/.agents/skills, kept 1 changed skills"
 			}
 			if body := readOrEmpty(t, board); body != want {
 				t.Errorf("loupe-board holds %q, want %q", body, want)
@@ -1725,7 +1741,7 @@ func TestInitSkipsCodexSkillsThatAreCurrent(t *testing.T) {
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
 	inRepo(t, w.server.URL)
 	home, _ := os.UserHomeDir()
-	for _, skill := range []string{"loupe-board", "loupe-inbox"} {
+	for _, skill := range []string{"loupe-board", "loupe-inbox", "loupe-stage-merge"} {
 		writeFile(t, filepath.Join(home, ".agents", "skills", skill, "SKILL.md"), "# "+skill+"\n")
 	}
 

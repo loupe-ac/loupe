@@ -1,6 +1,6 @@
 ---
 name: product-design
-description: "Use when the owner runs an interactive product design session for a Loupe card or a one-line idea, or when a prompt names /loupe:product-design."
+description: "Use when the owner runs an interactive product design session for a Loupe card or a one-line idea, or when a prompt names /loupe-lifecycle:product-design."
 ---
 
 # Interactive product design
@@ -41,8 +41,8 @@ Put each item in its section of the product document.
 - Each question and its answer go in "Decisions log" (A5).
 - Each conflict of P12 and its outcome go in "Decisions log".
 - A decision that the owner defers goes in "Open questions" (Q8).
-- A deferred decision in "Open questions" gets the worked example of `../loupe-documents/references/design-structure.md` "Decisions", and no "How each option works" list. A question in chat gets no example.
-- The whole product document follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
+- A deferred decision in "Open questions" gets the worked example of `references/design-structure.md` of the `loupe-documents` skill "Decisions", and no "How each option works" list. A question in chat gets no example.
+- The whole product document follows the reader rule of `references/design-structure.md` of the `loupe-documents` skill "Write for a reader who knows the product".
 - The answer of the P7 human review question goes in "Decisions log". The session sets the switch with `card_update`.
 - The answer of the P13 tech design question goes in "Decisions log". The session sets the key with `card_update` `values`.
 - The P8 scenarios go in "Scenarios".

@@ -704,7 +704,7 @@ When you withdraw the approval of a design, the card goes back to that design. S
 ### Work a card in a session
 
 A session that does the work of a card itself follows one flow on a Lifecycle
-board. The Loupe plugin ships it as the `loupe-lifecycle-session` skill. A project
+board. The `loupe-lifecycle` plugin ships it as the `loupe-lifecycle-session` skill. A project
 with no plugin can copy these steps into its own instructions. The
 Lifecycle template allows the move of step 3 from Backlog or Next. An instance
 with an older template refuses it, and the card takes step 5:

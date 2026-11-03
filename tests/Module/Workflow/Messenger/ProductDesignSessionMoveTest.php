@@ -30,7 +30,7 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
     use ActionScenario;
     use McpTokenScenario;
 
-    private const string SKILL = 'loupe:product-design';
+    private const string SKILL = 'loupe-lifecycle:product-design';
 
     public function test_a_session_that_opens_with_the_move_gets_no_second_session(): void
     {
