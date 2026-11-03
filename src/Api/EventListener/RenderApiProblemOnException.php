@@ -60,7 +60,22 @@ final readonly class RenderApiProblemOnException
             return;
         }
 
+        $this->countRefusal($problem, $request);
         $event->setResponse($problem->toResponse($path));
+    }
+
+    /** Counts a refusal that no Sentry issue reports, by status, code and canonical route. */
+    private function countRefusal(ApiProblem $problem, Request $request): void
+    {
+        if ($problem->status >= 500) {
+            return;
+        }
+
+        \Sentry\traceMetrics()->count('api.refusal', 1, [
+            'status' => $problem->status,
+            'code' => $problem->code,
+            'route' => ApiPaths::canonicalRoute($request->attributes->get('_route')) ?? 'none',
+        ]);
     }
 
     private function problemFor(\Throwable $exception, Request $request, bool $problemJson): ?ApiProblem

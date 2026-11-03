@@ -128,6 +128,12 @@ The *Sentry in the browser* row on `/admin/status` reports a malformed
   command, except a 404 or 405 response. An access denial on a web request
   with no signed-in user is also left out, because Loupe answers it with a
   redirect to the login page or a 401 response.
+- No refusal of the API. A request to a path under `/api/` that Loupe answers
+  with a 4xx status, such as a missing card or a body that fails validation,
+  opens no issue, because the client got a correct answer. This covers the
+  public, widget and bridge routes. A 5xx answer still reaches Sentry, and so
+  does a 403 access denial for a signed-in caller. The
+  [API refusal metric](#api-refusal-metric) counts the refusals instead.
 - The errors of scheduled tasks. Scheduled tasks send no traces.
 - The queue metrics of [Queue metrics](#queue-metrics).
 
@@ -151,6 +157,20 @@ Create two metric monitors in Sentry once the first points arrive:
 
 1. **Stuck queue.** Monitor `max(messenger.queue.oldest_age)` with the filter `queue_name:!failed`. Alert when it stays above 60 seconds for 5 minutes. The `failed` queue is left out, because its oldest age grows until somebody clears it.
 2. **Failed messages.** Monitor `max(messenger.queue.pending)` with the filter `queue_name:failed`. Alert when it is above 0. [Failed messages](failed-messages.md) says how to retry or remove them.
+
+## API refusal metric
+
+Each API refusal with a 4xx status adds 1 to the counter `api.refusal`, so a burst of wrong calls still shows on a graph. With no usable `SENTRY_DSN`, nothing is sent.
+
+| Attribute | Meaning |
+|---|---|
+| `status` | The HTTP status of the answer, such as `404`. |
+| `code` | The `code` of the answer that the client reads, such as `card_not_found`, `rate_limited` or `validation_failed`. |
+| `route` | The route name, or `none` when no route matched the path. |
+
+Some refusals have no count. These are a framework refusal on an old `/api/` path that is not under `/api/v1`, an access denial, and a refused credential.
+
+Create one metric monitor in Sentry once the first points arrive. Monitor `sum(api.refusal)` and group it by `route` and `code`. Alert at a limit that suits your traffic, such as 100 in 5 minutes.
 
 ## What Sentry never receives
 
