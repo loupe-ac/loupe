@@ -520,6 +520,103 @@ func TestProjectLinkKeepsAProfileThatExists(t *testing.T) {
 	}
 }
 
+const noProfileAdvice = "No profile yet. Run `loupe init` to write it with an agent."
+
+func TestProjectLinkAdvisesInitWhenTheProfileIsMissing(t *testing.T) {
+	for name, linked := range map[string]bool{"new link": false, "existing file": true} {
+		for _, args := range [][]string{{"--no-mcp"}, {"--mcp-json", "--mcp"}} {
+			t.Run(name+" "+strings.Join(args, " "), func(t *testing.T) {
+				dir := inRepo(t, "")
+				if linked {
+					if err := projectfile.Write(dir, firstProject); err != nil {
+						t.Fatalf("Write: %v", err)
+					}
+				} else {
+					args = append(args, "--project", firstProject)
+				}
+
+				out, err := runLink(t, "", args...)
+				refused := linked && args[0] == "--no-mcp"
+				if refused != (err != nil) {
+					t.Fatalf("project link %v: got %v, want refused %v", args, err, refused)
+				}
+				if !strings.Contains(out, noProfileAdvice) {
+					t.Fatalf("output must name loupe init, got %q", out)
+				}
+				if _, err := os.Stat(filepath.Join(dir, profile.Path)); !os.IsNotExist(err) {
+					t.Fatalf("project link must write no profile, got %v", err)
+				}
+			})
+		}
+	}
+}
+
+func TestProjectLinkInASecondSetupAdvisesInitWhenTheProfileIsMissing(t *testing.T) {
+	_, _ = secondSetup(t, "")
+
+	out, err := runLink(t, "", "--project", firstProject)
+	if err != nil {
+		t.Fatalf("project link: %v", err)
+	}
+	if !strings.Contains(out, noProfileAdvice) {
+		t.Fatalf("output must name loupe init, got %q", out)
+	}
+
+	out, err = runLink(t, "", "--project", secondProject)
+	if err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("a second link: got %v, want the --force refusal", err)
+	}
+	if !strings.Contains(out, noProfileAdvice) {
+		t.Fatalf("a refused link must still name loupe init, got %q", out)
+	}
+}
+
+func TestProjectLinkGivesNoAdviceWhenTheProfileExists(t *testing.T) {
+	dir := inRepo(t, "")
+	path := filepath.Join(dir, profile.Path)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runLink(t, "", "--no-mcp", "--project", firstProject)
+	if err != nil {
+		t.Fatalf("project link: %v", err)
+	}
+	if strings.Contains(out, "No profile yet") {
+		t.Fatalf("output must give no advice, got %q", out)
+	}
+}
+
+func TestProjectLinkGivesNoAdviceWhenTheLinkFails(t *testing.T) {
+	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	inRepo(t, server.URL)
+
+	out, err := runLink(t, "9\n")
+	if err == nil {
+		t.Fatal("an answer that is not on the list: got no error")
+	}
+	if strings.Contains(out, "No profile yet") {
+		t.Fatalf("a failed link must give no advice, got %q", out)
+	}
+}
+
+func TestInitGivesNoLinkAdviceBecauseItHasAProfileStep(t *testing.T) {
+	cmd := newProjectLinkCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	inRepo(t, "")
+
+	if err := runProjectLink(cmd, projectLinkOptions{projectID: firstProject, skipMcp: true}); err != nil {
+		t.Fatalf("runProjectLink: %v", err)
+	}
+	if strings.Contains(out.String(), "No profile yet") {
+		t.Fatalf("the link step of init must give no advice, got %q", out.String())
+	}
+}
+
 func TestProjectLinkIsRegisteredUnderProject(t *testing.T) {
 	found, _, err := newRootCmd().Find([]string{"project", "link"})
 	if err != nil || found.Name() != "link" {
