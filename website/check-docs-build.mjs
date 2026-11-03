@@ -1,13 +1,16 @@
 // Checks the built docs in dist/ (or the folder in argument 1). A page fails
 // when it has a next page and no pagination-links element, or when it lacks
 // one of the three chrome markers. The source pages in docs/ fail when a relative
-// link names a .md file that does not exist, because the build keeps such a link.
+// link names a .md file that does not exist, because the build keeps such a link. `--built-only` skips
+// that check for the image build, whose context lacks the files outside docs/. CI runs it.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FOOTER_MARKER, MENU_MARKER, NAV_MARKER } from './src/chrome-markers.mjs';
 
-const root = path.resolve(process.argv[2] ?? fileURLToPath(new URL('./dist', import.meta.url)));
+const args = process.argv.slice(2);
+const folder = args.find((arg) => !arg.startsWith('--'));
+const root = path.resolve(folder ?? fileURLToPath(new URL('./dist', import.meta.url)));
 
 const pages = [];
 const walk = (directory) => {
@@ -58,7 +61,7 @@ const checkLinks = (file) => {
     }
   }
 };
-walkSources(docsRoot);
+if (!args.includes('--built-only')) walkSources(docsRoot);
 if (problems.length > 0) {
   console.error(problems.join('\n'));
   process.exit(1);

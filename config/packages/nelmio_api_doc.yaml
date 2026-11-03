@@ -1,7 +1,8 @@
-# The generator of the committed API specs under openapi/. The bundle loads in dev and
-# test alone, so production needs neither it nor swagger-php. The routes read the
-# committed files. `bin/console nelmio:apidoc:dump --area=<area> --format=json`
-# rebuilds one, and a test compares the committed file with a fresh build.
+# Generates the committed API specs under openapi/. The bundle loads in dev and test
+# alone, so production reads the committed files. Production still installs this
+# package and swagger-php, because Symfony instantiates controller attributes per request.
+# `bin/console nelmio:apidoc:dump --area=<area> --format=json` rebuilds one, and a test
+# compares the committed file with a fresh build.
 when@dev: &generator
     services:
         App\Api\OpenApi\PartialChangeSchemaProcessor:

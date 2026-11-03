@@ -13,8 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Serves the committed public spec as it is. The route reads a file, so it needs
- * neither the generator nor swagger-php at run time. Needs no sign-in.
+ * Serves the committed public spec as it is. The route reads a file, so it needs no
+ * generator at run time. Needs no sign-in.
  */
 #[OA\Get(operationId: 'getOpenApiDocument', description: 'No sign-in is needed.', summary: 'Read this OpenAPI document', security: [], tags: ['Meta'], responses: [
     new OA\Response(response: 200, description: 'The public v1 specification, as JSON.', content: new OA\JsonContent(type: 'object', additionalProperties: true)),
