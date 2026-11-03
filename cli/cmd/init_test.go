@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -2163,6 +2164,103 @@ Account: main (claude): failing for project z: no folder
 `
 	if out.String() != want {
 		t.Errorf("output = %q, want %q", out.String(), want)
+	}
+}
+
+// A worker reads only the upstream tree, so a setup file counts as pushed only
+// when that tree holds the same content.
+func TestFilesNotPushedReadsTheUpstreamTree(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+	const yaml, lifecycle = projectfile.Name, profile.Path
+	both := []string{yaml, lifecycle}
+
+	for _, tc := range []struct {
+		name  string
+		setup func(git func(...string), write func(file, text string))
+		want  []string
+	}{
+		{"both files pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+			git("push")
+		}, nil},
+		{"both files ignored", func(_ func(...string), write func(string, string)) {
+			write(".gitignore", ".loupe.yaml\n.loupe/\n")
+			write(yaml, "a")
+			write(lifecycle, "b")
+		}, both},
+		{"one file ignored", func(git func(...string), write func(string, string)) {
+			write(".git/info/exclude", ".loupe/\n")
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("push")
+		}, []string{lifecycle}},
+		{"files ignored after they were pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+			git("push")
+			write(".git/info/exclude", ".loupe.yaml\n.loupe/\n")
+		}, nil},
+		{"files committed and not pushed", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			write(lifecycle, "b")
+			git("add", yaml, lifecycle)
+			git("commit", "-m", "setup")
+		}, both},
+		{"a file edited after the push", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("push")
+			write(yaml, "changed")
+		}, []string{yaml}},
+		{"no upstream", func(git func(...string), write func(string, string)) {
+			write(yaml, "a")
+			git("add", yaml)
+			git("commit", "-m", "setup")
+			git("branch", "--unset-upstream")
+		}, []string{yaml}},
+		{"no setup file", func(func(...string), func(string, string)) {}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "work")
+			run := func(cwd string, args ...string) {
+				t.Helper()
+				c := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.test"}, args...)...)
+				c.Dir = cwd
+				if out, err := c.CombinedOutput(); err != nil {
+					t.Fatalf("git %v: %v\n%s", args, err, out)
+				}
+			}
+			run(root, "init", "--bare", "-b", "main", "origin.git")
+			run(root, "init", "-b", "main", "work")
+			run(dir, "remote", "add", "origin", filepath.Join(root, "origin.git"))
+			run(dir, "commit", "--allow-empty", "-m", "start")
+			run(dir, "push", "-u", "origin", "main")
+
+			tc.setup(func(args ...string) { t.Helper(); run(dir, args...) }, func(file, text string) {
+				t.Helper()
+				path := filepath.Join(dir, file)
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			})
+
+			if got := filesNotPushed(dir, api.Site{}); !slices.Equal(got, tc.want) {
+				t.Errorf("filesNotPushed = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

@@ -139,7 +139,8 @@ func reportAccountsStep(ctx context.Context, out io.Writer, path string, site ap
 // filesNotPushed lists the files of the setup that the remote lacks. The files
 // are .loupe.yaml, and the profile when the project needs one. A file that
 // does not exist is the job of another step. A repository with no upstream
-// counts as not pushed, because nothing can prove it.
+// counts as not pushed, because nothing can prove it. An ignored file looks
+// clean to git status and git diff, so pushed also reads the upstream tree.
 func filesNotPushed(dir string, site api.Site) []string {
 	names := []string{projectfile.Name}
 	if site.ProfileNeeded() {
@@ -167,6 +168,9 @@ func pushed(dir, file string) bool {
 	}
 	ref, err := initGit(dir, "rev-parse", "--abbrev-ref", "@{upstream}")
 	if err != nil || ref == "" {
+		return false
+	}
+	if _, err := initGit(dir, "cat-file", "-e", ref+":./"+file); err != nil {
 		return false
 	}
 	_, err = initGit(dir, "diff", "--quiet", ref, "--", file)
