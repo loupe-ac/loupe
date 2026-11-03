@@ -24,13 +24,14 @@ import (
 
 // groupShort is the help line of each command group the builder makes.
 var groupShort = map[string]string{
-	"project":  "Read and change the projects of an account",
-	"column":   "Read and change the columns of a board",
-	"card":     "Read and change the cards of a project",
-	"feedback": "Read and answer the feedback of a project",
-	"document": "Read and change the documents of a project",
-	"version":  "Read the versions of a document",
-	"artifact": "Read and store the artifacts of a project",
+	"project":          "Read and change the projects of an account",
+	"column":           "Read and change the columns of a board",
+	"card":             "Read and change the cards of a project",
+	"feedback":         "Read and answer the feedback of a project",
+	"document":         "Read and change the documents of a project",
+	"document version": "Read the versions of a document",
+	"artifact":         "Read and store the artifacts of a project",
+	"artifact version": "Store a new version of an artifact",
 }
 
 const betaNote = "This command is in beta. Its name, its flags and its output can change in a minor release."
@@ -44,17 +45,30 @@ func addPublicCommands(root *cobra.Command) {
 			continue
 		}
 		parent := root
-		for _, name := range c.Path[:len(c.Path)-1] {
-			parent = publicGroup(parent, name)
+		for i, name := range c.Path[:len(c.Path)-1] {
+			parent = publicGroup(parent, name, strings.Join(c.Path[:i+1], " "))
 		}
-		parent.AddCommand(newPublicLeaf(c, op))
+		build := newPublicLeaf
+		if custom := leafBuilders[op.ID]; custom != nil {
+			build = custom
+		}
+		parent.AddCommand(build(c, op))
 	}
 }
 
-// publicGroup finds the group called name under parent, or makes it. A group
+// leafBuilders replace the generic builder for an operation whose request or
+// answer is no JSON.
+var leafBuilders = map[string]func(publicapi.Command, publicapi.Operation) *cobra.Command{
+	"createArtifact":        newArtifactUploadLeaf,
+	"createArtifactVersion": newArtifactUploadLeaf,
+	"readArtifactFile":      newArtifactReadLeaf,
+}
+
+// publicGroup finds the group called name under parent, or makes it. key is the
+// whole path of the group, which picks its help line. A group
 // answers an unknown word with exit 2. Without a RunE, Cobra prints the help
 // and exits 0.
-func publicGroup(parent *cobra.Command, name string) *cobra.Command {
+func publicGroup(parent *cobra.Command, name, key string) *cobra.Command {
 	var group *cobra.Command
 	for _, sub := range parent.Commands() {
 		if sub.Name() == name {
@@ -64,7 +78,7 @@ func publicGroup(parent *cobra.Command, name string) *cobra.Command {
 		}
 	}
 	if group == nil {
-		short := groupShort[name]
+		short := groupShort[key]
 		if short == "" {
 			short = "Work with " + name
 		}
@@ -356,19 +370,24 @@ func runPublic(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 		return err
 	}
 
+	return printResult(cmd, c, op, f, format, resp.Body)
+}
+
+// printResult prints the answer of a request in the chosen format.
+func printResult(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, f *publicFlags, format output.Format, respBody []byte) error {
 	out := cmd.OutOrStdout()
 	if isWrite(op) {
 		if f.format == "" && len(f.fields) == 0 {
-			writeShort(cmd, op, resp.Body)
+			writeShort(cmd, op, respBody)
 
 			return nil
 		}
-		if len(bytes.TrimSpace(resp.Body)) == 0 {
+		if len(bytes.TrimSpace(respBody)) == 0 {
 			return nil
 		}
 	}
 	if hook := renderHooks[op.ID]; hook != nil {
-		handled, err := hook(cmd, format, resp.Body, len(f.fields) > 0)
+		handled, err := hook(cmd, format, respBody, len(f.fields) > 0)
 		if handled || err != nil {
 			return err
 		}
@@ -380,14 +399,14 @@ func runPublic(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 		TimeFields: op.TimeFields,
 		Width:      terminalWidth(out),
 	}
-	if err := output.Write(out, format, resp.Body, opts); err != nil {
+	if err := output.Write(out, format, respBody, opts); err != nil {
 		return &exitError{1, err}
 	}
-	if format == output.Table && isTerminalWriter(out) && output.IsEmptyList(resp.Body) {
+	if format == output.Table && isTerminalWriter(out) && output.IsEmptyList(respBody) {
 		fmt.Fprintln(cmd.ErrOrStderr(), emptyListNote)
 	}
 	if format == output.Table || format == output.TSV {
-		noteNextPage(cmd.ErrOrStderr(), resp.Body)
+		noteNextPage(cmd.ErrOrStderr(), respBody)
 	}
 
 	return nil
