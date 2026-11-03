@@ -574,10 +574,27 @@ account with its own `configDir` logs in once. Run
 `CLAUDE_CONFIG_DIR=~/.claude-work claude` with the folder of the account. Then
 type `/login` in that session.
 
-Claude Code also reads its MCP servers and its skills from the config folder.
-Add the `loupe` MCP server to each config folder. A worker of that account
-cannot reach Loupe without it. A config folder needs its own copy of the Loupe
-skills only when the project does not ship them in `.claude/skills`.
+A Claude Code worker needs no `loupe` MCP server and no Loupe skills in its
+config folder. The bridge passes the skill packages of the project with
+`--plugin-dir`, and the `loupe` server with `--mcp-config`, when it starts the
+worker. The server that the bridge passes wins over an entry of the same name in
+the config folder or the repository. A resumed worker keeps the package
+versions it started with, while the store still holds them. The bridge picks
+the highest version of each package that meets `minCli` and whose `requires` the
+store can meet, and a lower version when a higher one does not fit. The bridge
+deletes a version 30 days after a newer one replaced it, unless a running worker
+or an interactive session started with it, or a new worker of a project would
+still get it. The bridge finds a running session in the process list of the
+machine. When it cannot read that list, it deletes nothing until the next hourly
+pass. The bridge writes the package versions of each session to
+`<config dir>/skills/.records/`. When it cannot write that file, the run or the
+interactive session does not start, and the run shows the reason.
+
+A release of the bridge unpacks its starting copy of the packages when it starts.
+When the store then holds no package, a Claude Code run or interactive session
+does not start, and the run shows the reason. Fix that reason and restart the
+bridge. A development build has no starting copy, so its worker uses the plugins
+of its account.
 
 ### A worker account with its own plugins
 
@@ -598,21 +615,18 @@ The steps below use the account name `claude-worker` and the folder
    with `claude plugin marketplace add <marketplace>`. Then run
    `claude plugin install <plugin>@<marketplace>` for each plugin. Editing
    `enabledPlugins` by hand does not install the plugin files.
-3. Add the Loupe MCP server. Run
-   `CLAUDE_CONFIG_DIR=~/.claude-worker claude mcp add -s user loupe -- loupe mcp`.
-   A plugin that ships its own MCP server needs no entry.
-4. Copy the other settings you want from `~/.claude/settings.json` into
+3. Copy the other settings you want from `~/.claude/settings.json` into
    `~/.claude-worker/settings.json`, such as `model` and the `env` block. Leave
    out display keys such as `statusLine`. The `env` block can hold tokens, so
    keep the folder readable by you only.
-5. Give the folder your personal instructions without a second copy. Make
+4. Give the folder your personal instructions without a second copy. Make
    `~/.claude-worker/CLAUDE.md` hold one line, `@~/.claude/CLAUDE.md`. Then link
    the two folders: `ln -s ~/.claude/rules ~/.claude-worker/rules` and
    `ln -s ~/.claude/skills ~/.claude-worker/skills`. A later edit of the main
-   file then reaches workers at once. Step 7 checks both links. When the
+   file then reaches workers at once. Step 6 checks both links. When the
    `rules/` link does not load, import each rule file with its own line in
    `CLAUDE.md`. When the `skills/` link does not load, copy the folder.
-6. Edit the rule file. Add the account, and make it the default:
+5. Edit the rule file. Add the account, and make it the default:
 
    ```yaml
    accounts:
@@ -628,16 +642,14 @@ The steps below use the account name `claude-worker` and the folder
    Add `account: claude` to each interactive entry that names no account, so
    your sessions keep every plugin. Entries on a `codex` account do not change.
    Then run `loupe bridge reload`.
-7. Check the setup:
+6. Check the setup:
    1. `loupe status` shows `claude-worker` as passing.
    2. `CLAUDE_CONFIG_DIR=~/.claude-worker claude plugin list` lists only the
       plugins you chose.
    3. The next worker run loads no unwanted plugin block and can call a Loupe
       tool such as `card_get`.
    4. A session on the account can name a rule from `rules/`.
-   5. The same session lists a skill from `~/.claude/skills`. The skills check
-      of `loupe status` does not prove this, because it finds the skills of the
-      project.
+   5. The same session lists a skill from `~/.claude/skills`.
 
 Run history records the account of each run, so runs before the switch show
 `claude` and runs after it show `claude-worker`. A resume keeps the account of
@@ -841,7 +853,7 @@ Limits of this release:
 
 The bridge checks each account that the `accounts` block of `rules.yaml`
 declares, when it starts and on each `loupe bridge reload`. It also checks an
-account that no rule uses. A check of a Claude Code account asks three
+account that no rule uses. A check of a Claude Code account asks two
 questions:
 
 1. Is `claude` on the `PATH` of the account, which an env file can set? A
@@ -850,15 +862,10 @@ questions:
 2. Does `claude auth status` pass with the environment of the account? That
    environment is the env files of the account and its `CLAUDE_CONFIG_DIR`. A
    key such as `ANTHROPIC_API_KEY` in an env file also passes.
-3. Does Claude Code see the `loupe` MCP server and the Loupe skills in each
-   project folder? The server is seen when the project or the account's
-   `.claude.json` declares it as `loupe mcp`, or, when neither declares it, an
-   enabled plugin serves it. A declared entry that starts another command
-   fails, because Claude Code prefers it to a plugin. A declared entry also
-   fails when `loupe` is not on the `PATH` of the account. The skills are seen
-   when a `loupe-*` folder with a `SKILL.md` is in `.claude/skills` of the
-   project or in `skills` of the config folder, or when an enabled `loupe@`
-   plugin is installed.
+
+The check does not look for the `loupe` MCP server or the Loupe skills. The
+bridge gives each Claude Code worker the skill packages of its project and the
+`loupe` MCP server when the worker starts, so a worker account needs neither.
 
 A check of a Codex account asks these questions:
 

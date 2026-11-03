@@ -97,6 +97,11 @@ type Spec struct {
 	RunID string
 	// RunDir is the run directory, which holds the files of a worker.
 	RunDir string
+	// PluginDirs are the skill package folders a Claude Code worker loads,
+	// and MCPConfig is the inline JSON of the MCP servers it gets. Both are
+	// empty for a worker that gets neither, and Codex ignores them.
+	PluginDirs []string
+	MCPConfig  string
 }
 
 // Command is the argv after the program, and the environment of the process.
