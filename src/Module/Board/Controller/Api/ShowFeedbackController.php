@@ -9,6 +9,7 @@ use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Module\Board\Command\ShowFeedbackCommand;
 use App\Module\Board\Command\ShowFeedbackHandler;
@@ -48,6 +49,7 @@ final class ShowFeedbackController extends AppController
     public function __construct(
         private readonly ShowFeedbackHandler $showFeedback,
         private readonly FeedbackApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -56,6 +58,6 @@ final class ShowFeedbackController extends AppController
         $fields = FieldSelection::fromRequest($request, FeedbackResponse::FIELDS);
         $view = ($this->showFeedback)(new ShowFeedbackCommand($project, $feedback)) ?? throw $this->problems->feedbackNotFound();
 
-        return new JsonResponse($fields->keepObject(FeedbackResponse::fromView($view)));
+        return new JsonResponse($fields->keepObject(FeedbackResponse::fromView($view, $this->links)));
     }
 }

@@ -9,6 +9,7 @@ use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\CreatedSort;
 use App\Api\Pagination\PageRequest;
 use App\Api\Problem\ApiProblemException;
@@ -55,6 +56,7 @@ final class ListProjectArtifactsController extends AppController
 {
     public function __construct(
         private readonly PageArtifactsHandler $pageArtifacts,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -83,8 +85,8 @@ final class ListProjectArtifactsController extends AppController
             ),
         ));
 
-        return $page->toResponse($request, static function (PagedArtifact $paged) use ($fields): array {
-            $row = ArtifactRowResponse::fromPaged($paged);
+        return $page->toResponse($request, function (PagedArtifact $paged) use ($fields, $project): array {
+            $row = ArtifactRowResponse::fromPaged($paged, $this->links->artifact((string) $project->id, (string) $paged->artifact->id));
 
             return $fields->keep(!$fields->isDefault() && $fields->has('pageLink') ? $row->withPageLink($paged->pageLink) : get_object_vars($row));
         });

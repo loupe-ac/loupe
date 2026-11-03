@@ -696,7 +696,7 @@ A script can read and write documents with the public API. Send an
 | Method | Path | What it does |
 |---|---|---|
 | `GET` | `/documents` | List the documents. |
-| `POST` | `/documents` | Create a document. The answer also holds `reviewUrl`. |
+| `POST` | `/documents` | Create a document. The answer holds `url`, the review page in the app. |
 | `GET` | `/documents/{document}` | Read a document with the Markdown of its current version. |
 | `PATCH` | `/documents/{document}` | Change the title, tags, references, series or archive state. |
 | `POST` | `/documents/{document}/publish` | Send a draft to review. |

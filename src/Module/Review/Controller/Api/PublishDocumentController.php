@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPost;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\PublishDocumentCommand;
@@ -43,6 +44,7 @@ final class PublishDocumentController extends AppController
     public function __construct(
         private readonly PublishDocumentHandler $publishDocument,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -54,6 +56,6 @@ final class PublishDocumentController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse(new DocumentPublishResponse((string) $document->id, $document->status, $published));
+        return new JsonResponse(new DocumentPublishResponse((string) $document->id, $this->links->document((string) $document->project->id, (string) $document->id), $document->status, $published));
     }
 }

@@ -17,14 +17,14 @@ use OpenApi\Attributes as OA;
  *
  * @phpstan-import-type DocumentPayload from ShowDocumentDataHandler
  */
-#[OA\Schema(required: ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
+#[OA\Schema(required: ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class DocumentResponse
 {
     /** The name of the partial component of this resource. */
     public const string PARTIAL = 'PartialDocument';
 
     /** The top-level names of a document, in the order of its row. */
-    public const array FIELDS = ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'];
+    public const array FIELDS = ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'];
 
     /** The names a document list refuses: its Markdown can hold a megabyte, so a list never reads it. */
     public const array REFUSED_IN_LIST = ['markdown', 'all'];
@@ -37,6 +37,9 @@ final readonly class DocumentResponse
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $documentId,
+
+        #[OA\Property(description: 'The review page of the document in the app, at the latest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(maxLength: Document::MAX_TITLE_LENGTH)]
         public string $title,
@@ -83,12 +86,13 @@ final readonly class DocumentResponse
     }
 
     /** @param DocumentPayload $payload */
-    public static function fromPayload(array $payload, Document $document): self
+    public static function fromPayload(array $payload, Document $document, string $url): self
     {
         $link = static fn (array $row): DocumentLinkResponse => new DocumentLinkResponse($row['documentId'], $row['title'], $row['archived']);
 
         return new self(
             documentId: $payload['documentId'],
+            url: $url,
             title: $payload['title'],
             language: $document->searchLanguage,
             status: $document->status,

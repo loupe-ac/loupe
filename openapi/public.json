@@ -138,7 +138,7 @@
                                     "archivedAt",
                                     "sourceLink",
                                     "createdAt",
-                                    "path",
+                                    "url",
                                     "versions",
                                     "selectedVersion",
                                     "pageLink",
@@ -1171,7 +1171,7 @@
                                     "archivedAt",
                                     "sourceLink",
                                     "createdAt",
-                                    "path",
+                                    "url",
                                     "versions",
                                     "selectedVersion",
                                     "pageLink",
@@ -2289,6 +2289,7 @@
                                 "type": "string",
                                 "enum": [
                                     "cardId",
+                                    "url",
                                     "number",
                                     "title",
                                     "body",
@@ -4261,6 +4262,7 @@
                                 "enum": [
                                     "id",
                                     "url",
+                                    "pageUrl",
                                     "surface",
                                     "native",
                                     "screenshot",
@@ -4520,6 +4522,7 @@
                                 "enum": [
                                     "id",
                                     "url",
+                                    "pageUrl",
                                     "surface",
                                     "native",
                                     "screenshot",
@@ -5542,6 +5545,7 @@
                                 "type": "string",
                                 "enum": [
                                     "cardId",
+                                    "url",
                                     "number",
                                     "title",
                                     "body",
@@ -6131,6 +6135,7 @@
                                 "type": "string",
                                 "enum": [
                                     "id",
+                                    "url",
                                     "slug",
                                     "name",
                                     "description",
@@ -6642,6 +6647,7 @@
                                 "type": "string",
                                 "enum": [
                                     "id",
+                                    "url",
                                     "slug",
                                     "name",
                                     "description",
@@ -7743,6 +7749,7 @@
                                 "type": "string",
                                 "enum": [
                                     "documentId",
+                                    "url",
                                     "title",
                                     "language",
                                     "status",
@@ -7964,7 +7971,7 @@
                     "Documents"
                 ],
                 "summary": "Create a document",
-                "description": "Unlike a read, the answer also holds `reviewUrl`, the review page in the app. `Location` names the new document.",
+                "description": "`url` is the review page in the app. `Location` names the new document.",
                 "operationId": "createDocument",
                 "parameters": [
                     {
@@ -9640,6 +9647,7 @@
                                 "type": "string",
                                 "enum": [
                                     "documentId",
+                                    "url",
                                     "title",
                                     "language",
                                     "status",
@@ -11176,6 +11184,7 @@
             "Project": {
                 "required": [
                     "id",
+                    "url",
                     "slug",
                     "name",
                     "description",
@@ -11188,6 +11197,11 @@
                     "id": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The home page of the project in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "slug": {
                         "description": "Null on a project created before the slug existed, so quote the id.",
@@ -11538,6 +11552,7 @@
                 "required": [
                     "id",
                     "url",
+                    "pageUrl",
                     "surface",
                     "native",
                     "screenshot",
@@ -11557,7 +11572,13 @@
                         "format": "uuid"
                     },
                     "url": {
-                        "description": "The page of a web note, or null for a native note.",
+                        "description": "The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
                         "type": "string",
                         "nullable": true
                     },
@@ -11647,6 +11668,7 @@
                 "required": [
                     "id",
                     "url",
+                    "pageUrl",
                     "surface",
                     "screenshot",
                     "hasDrawing",
@@ -11663,7 +11685,13 @@
                         "format": "uuid"
                     },
                     "url": {
-                        "description": "The page of a web note, or null for a native note.",
+                        "description": "The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
                         "type": "string",
                         "nullable": true
                     },
@@ -11894,7 +11922,7 @@
                     "archivedAt",
                     "sourceLink",
                     "createdAt",
-                    "path",
+                    "url",
                     "versions",
                     "selectedVersion",
                     "pageLink",
@@ -11925,9 +11953,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "path": {
-                        "description": "The path of the artifact page in the app.",
-                        "type": "string"
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version. It needs a sign-in. `pageLink` needs none.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "versions": {
                         "type": "array",
@@ -11963,7 +11992,7 @@
                     "archivedAt",
                     "sourceLink",
                     "createdAt",
-                    "path",
+                    "url",
                     "versions",
                     "selectedVersion",
                     "files"
@@ -11993,9 +12022,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "path": {
-                        "description": "The path of the artifact page in the app.",
-                        "type": "string"
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "versions": {
                         "description": "Each version as its number and the time it was stored. Name `versions` in `fields` for the notes, the counts and the sizes.",
@@ -12054,8 +12084,8 @@
                 "required": [
                     "artifactId",
                     "versionNumber",
-                    "path",
-                    "versionPath"
+                    "url",
+                    "versionUrl"
                 ],
                 "properties": {
                     "artifactId": {
@@ -12065,13 +12095,15 @@
                     "versionNumber": {
                         "type": "integer"
                     },
-                    "path": {
-                        "description": "The path of the artifact page in the app.",
-                        "type": "string"
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version.",
+                        "type": "string",
+                        "format": "uri"
                     },
-                    "versionPath": {
-                        "description": "The path of this version in the app.",
-                        "type": "string"
+                    "versionUrl": {
+                        "description": "The page of this version in the app.",
+                        "type": "string",
+                        "format": "uri"
                     }
                 },
                 "type": "object"
@@ -12207,21 +12239,27 @@
             "FeedbackRef": {
                 "required": [
                     "id",
-                    "status",
-                    "url"
+                    "url",
+                    "pageUrl",
+                    "status"
                 ],
                 "properties": {
                     "id": {
                         "type": "string",
                         "format": "uuid"
                     },
-                    "status": {
-                        "type": "string"
-                    },
                     "url": {
-                        "description": "The page of a web note, or null for a native note.",
+                        "description": "The Feedback tab of the card in the app, scrolled to the note.",
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
                         "type": "string",
                         "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -12229,6 +12267,7 @@
             "Card": {
                 "required": [
                     "cardId",
+                    "url",
                     "number",
                     "title",
                     "body",
@@ -12257,6 +12296,11 @@
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "number": {
                         "description": "The short label that counts from 1 inside this project.",
@@ -12357,6 +12401,7 @@
                         "items": {
                             "required": [
                                 "documentId",
+                                "url",
                                 "title",
                                 "status"
                             ],
@@ -12364,6 +12409,11 @@
                                 "documentId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The review page of the document in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "title": {
                                     "type": "string"
@@ -12380,15 +12430,20 @@
                         "items": {
                             "required": [
                                 "artifactId",
+                                "url",
                                 "name",
                                 "versionNumber",
-                                "archived",
-                                "path"
+                                "archived"
                             ],
                             "properties": {
                                 "artifactId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The artifact page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "name": {
                                     "type": "string"
@@ -12398,17 +12453,13 @@
                                 },
                                 "archived": {
                                     "type": "boolean"
-                                },
-                                "path": {
-                                    "description": "The path of the artifact page in the app.",
-                                    "type": "string"
                                 }
                             },
                             "type": "object"
                         }
                     },
                     "siteReviewComments": {
-                        "description": "The feedback items of the card: id, url, surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.",
+                        "description": "The feedback items of the card: id, url (the Feedback tab at the note), pageUrl (the reviewed site page), surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.",
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -12420,6 +12471,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status",
@@ -12429,6 +12481,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -12457,6 +12514,7 @@
                     "parent": {
                         "required": [
                             "cardId",
+                            "url",
                             "number",
                             "title",
                             "status"
@@ -12465,6 +12523,11 @@
                             "cardId": {
                                 "type": "string",
                                 "format": "uuid"
+                            },
+                            "url": {
+                                "description": "The card page in the app.",
+                                "type": "string",
+                                "format": "uri"
                             },
                             "number": {
                                 "type": "integer"
@@ -12533,6 +12596,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status"
@@ -12541,6 +12605,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -12659,6 +12728,7 @@
             "CardRow": {
                 "required": [
                     "cardId",
+                    "url",
                     "number",
                     "title",
                     "type",
@@ -12686,6 +12756,11 @@
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "number": {
                         "description": "The short label that counts from 1 inside this project.",
@@ -12742,6 +12817,7 @@
                         "items": {
                             "required": [
                                 "documentId",
+                                "url",
                                 "title",
                                 "status"
                             ],
@@ -12749,6 +12825,11 @@
                                 "documentId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The review page of the document in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "title": {
                                     "type": "string"
@@ -12765,15 +12846,20 @@
                         "items": {
                             "required": [
                                 "artifactId",
+                                "url",
                                 "name",
                                 "versionNumber",
-                                "archived",
-                                "path"
+                                "archived"
                             ],
                             "properties": {
                                 "artifactId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The artifact page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "name": {
                                     "type": "string"
@@ -12783,10 +12869,6 @@
                                 },
                                 "archived": {
                                     "type": "boolean"
-                                },
-                                "path": {
-                                    "description": "The path of the artifact page in the app.",
-                                    "type": "string"
                                 }
                             },
                             "type": "object"
@@ -12804,6 +12886,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status",
@@ -12813,6 +12896,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -12841,6 +12929,7 @@
                     "parent": {
                         "required": [
                             "cardId",
+                            "url",
                             "number",
                             "title",
                             "status"
@@ -12849,6 +12938,11 @@
                             "cardId": {
                                 "type": "string",
                                 "format": "uuid"
+                            },
+                            "url": {
+                                "description": "The card page in the app.",
+                                "type": "string",
+                                "format": "uri"
                             },
                             "number": {
                                 "type": "integer"
@@ -12917,6 +13011,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status"
@@ -12925,6 +13020,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -13451,12 +13551,18 @@
             "CardHoldResult": {
                 "required": [
                     "cardId",
+                    "url",
                     "outcome"
                 ],
                 "properties": {
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "outcome": {
                         "type": "string",
@@ -13471,12 +13577,18 @@
             "CardReleaseResult": {
                 "required": [
                     "cardId",
+                    "url",
                     "outcome"
                 ],
                 "properties": {
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "outcome": {
                         "type": "string",
@@ -13491,6 +13603,7 @@
             "CardPauseReleaseResult": {
                 "required": [
                     "cardId",
+                    "url",
                     "outcome",
                     "kind",
                     "reason",
@@ -13500,6 +13613,11 @@
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "outcome": {
                         "type": "string",
@@ -13559,6 +13677,7 @@
             "DocumentRow": {
                 "required": [
                     "documentId",
+                    "url",
                     "title",
                     "language",
                     "status",
@@ -13577,6 +13696,11 @@
                     "documentId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app, at the latest version.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "title": {
                         "type": "string",
@@ -13670,6 +13794,7 @@
             "Document": {
                 "required": [
                     "documentId",
+                    "url",
                     "title",
                     "language",
                     "status",
@@ -13689,6 +13814,11 @@
                     "documentId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app, at the latest version.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "title": {
                         "type": "string",
@@ -13758,7 +13888,7 @@
             "DocumentCreated": {
                 "required": [
                     "documentId",
-                    "reviewUrl",
+                    "url",
                     "tags",
                     "series",
                     "seriesOrdinal",
@@ -13770,8 +13900,8 @@
                         "type": "string",
                         "format": "uuid"
                     },
-                    "reviewUrl": {
-                        "description": "The review page in the app.",
+                    "url": {
+                        "description": "The review page of the document in the app, at the latest version.",
                         "type": "string",
                         "format": "uri"
                     },
@@ -13801,6 +13931,7 @@
             "DocumentPublishResult": {
                 "required": [
                     "documentId",
+                    "url",
                     "status",
                     "published"
                 ],
@@ -13808,6 +13939,11 @@
                     "documentId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DocumentStatus"
@@ -13908,11 +14044,17 @@
             },
             "DocumentRevision": {
                 "required": [
+                    "url",
                     "versionNumber",
                     "carried",
                     "orphaned"
                 ],
                 "properties": {
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
                     "versionNumber": {
                         "description": "The number of the new version.",
                         "type": "integer"
@@ -14470,12 +14612,18 @@
             "CommentStatusResult": {
                 "required": [
                     "id",
+                    "url",
                     "status"
                 ],
                 "properties": {
                     "id": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "status": {
                         "type": "string",
@@ -14501,12 +14649,18 @@
             },
             "CommentReplyCreated": {
                 "required": [
-                    "id"
+                    "id",
+                    "url"
                 ],
                 "properties": {
                     "id": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     }
                 },
                 "type": "object"
@@ -14544,12 +14698,18 @@
             "DecisionResult": {
                 "required": [
                     "decisionId",
+                    "url",
                     "changed",
                     "cleared"
                 ],
                 "properties": {
                     "decisionId": {
                         "type": "string"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "changed": {
                         "type": "boolean"
@@ -14596,6 +14756,7 @@
             "VerdictResult": {
                 "required": [
                     "verdictId",
+                    "url",
                     "verdict",
                     "documentStatus"
                 ],
@@ -14603,6 +14764,11 @@
                     "verdictId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "verdict": {
                         "type": "string",
@@ -14626,6 +14792,7 @@
             "VerdictWithdrawResult": {
                 "required": [
                     "verdictId",
+                    "url",
                     "documentStatus"
                 ],
                 "properties": {
@@ -14633,6 +14800,11 @@
                         "description": "The id of the withdrawal entry.",
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "documentStatus": {
                         "type": "string",
@@ -14892,6 +15064,11 @@
                         "type": "string",
                         "format": "uuid"
                     },
+                    "url": {
+                        "description": "The home page of the project in the app.",
+                        "type": "string",
+                        "format": "uri"
+                    },
                     "slug": {
                         "description": "Null on a project created before the slug existed, so quote the id.",
                         "type": "string",
@@ -14965,7 +15142,13 @@
                         "format": "uuid"
                     },
                     "url": {
-                        "description": "The page of a web note, or null for a native note.",
+                        "description": "The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "pageUrl": {
+                        "description": "The page of the reviewed site where a web note was left, or null for a native note.",
                         "type": "string",
                         "nullable": true
                     },
@@ -15077,9 +15260,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "path": {
-                        "description": "The path of the artifact page in the app.",
-                        "type": "string"
+                    "url": {
+                        "description": "The artifact page in the app, at the newest version. It needs a sign-in. `pageLink` needs none.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "versions": {
                         "type": "array",
@@ -15113,6 +15297,11 @@
                     "cardId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The card page in the app.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "number": {
                         "description": "The short label that counts from 1 inside this project.",
@@ -15213,6 +15402,7 @@
                         "items": {
                             "required": [
                                 "documentId",
+                                "url",
                                 "title",
                                 "status"
                             ],
@@ -15220,6 +15410,11 @@
                                 "documentId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The review page of the document in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "title": {
                                     "type": "string"
@@ -15236,15 +15431,20 @@
                         "items": {
                             "required": [
                                 "artifactId",
+                                "url",
                                 "name",
                                 "versionNumber",
-                                "archived",
-                                "path"
+                                "archived"
                             ],
                             "properties": {
                                 "artifactId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The artifact page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "name": {
                                     "type": "string"
@@ -15254,17 +15454,13 @@
                                 },
                                 "archived": {
                                     "type": "boolean"
-                                },
-                                "path": {
-                                    "description": "The path of the artifact page in the app.",
-                                    "type": "string"
                                 }
                             },
                             "type": "object"
                         }
                     },
                     "siteReviewComments": {
-                        "description": "The feedback items of the card: id, url, surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.",
+                        "description": "The feedback items of the card: id, url (the Feedback tab at the note), pageUrl (the reviewed site page), surface, native, screenshot, anchors, body, hasDrawing, status, context and createdAt.",
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -15276,6 +15472,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status",
@@ -15285,6 +15482,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -15313,6 +15515,7 @@
                     "parent": {
                         "required": [
                             "cardId",
+                            "url",
                             "number",
                             "title",
                             "status"
@@ -15321,6 +15524,11 @@
                             "cardId": {
                                 "type": "string",
                                 "format": "uuid"
+                            },
+                            "url": {
+                                "description": "The card page in the app.",
+                                "type": "string",
+                                "format": "uri"
                             },
                             "number": {
                                 "type": "integer"
@@ -15389,6 +15597,7 @@
                         "items": {
                             "required": [
                                 "cardId",
+                                "url",
                                 "number",
                                 "title",
                                 "status"
@@ -15397,6 +15606,11 @@
                                 "cardId": {
                                     "type": "string",
                                     "format": "uuid"
+                                },
+                                "url": {
+                                    "description": "The card page in the app.",
+                                    "type": "string",
+                                    "format": "uri"
                                 },
                                 "number": {
                                     "type": "integer"
@@ -15659,6 +15873,11 @@
                     "documentId": {
                         "type": "string",
                         "format": "uuid"
+                    },
+                    "url": {
+                        "description": "The review page of the document in the app, at the latest version.",
+                        "type": "string",
+                        "format": "uri"
                     },
                     "title": {
                         "type": "string",

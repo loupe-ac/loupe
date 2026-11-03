@@ -21,6 +21,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use App\Tests\Support\PublicSpec;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -32,8 +33,8 @@ final class CardApiTest extends WebTestCase
 {
     use BoardColumnFixtures;
 
-    private const array WHOLE_KEYS = ['cardId', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
-    private const array LIGHT_KEYS = ['cardId', 'number', 'title', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
+    private const array WHOLE_KEYS = ['cardId', 'url', 'number', 'title', 'body', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
+    private const array LIGHT_KEYS = ['cardId', 'url', 'number', 'title', 'type', 'status', 'reporter', 'position', 'completedAt', 'createdAt', 'updatedAt', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'];
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -161,7 +162,7 @@ final class CardApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame('Readable', $body['title']);
-        foreach (['cardId', 'number', 'body', 'position', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'] as $key) {
+        foreach (['cardId', 'url', 'number', 'body', 'position', 'pullRequests', 'documents', 'artifacts', 'siteReviewComments', 'relatedCards', 'parent', 'laneEnabled', 'requiresHumanReview', 'values', 'children', 'progress', 'pause', 'state'] as $key) {
             self::assertArrayHasKey($key, $body);
         }
     }
@@ -207,6 +208,54 @@ final class CardApiTest extends WebTestCase
         self::assertSame(1, $body['items'][0]['number']);
         self::assertSame(0, $body['items'][0]['position']);
         self::assertNull($body['next']);
+        $this->assertCardLink($body['items'][0]['cardId'], $body['items'][0]['url']);
+    }
+
+    public function test_the_whole_card_and_each_short_entry_link_to_their_app_pages(): void
+    {
+        $other = $this->createCard('Other');
+        $created = $this->createCard('Whole', ['relatedCards' => [['cardId' => $other['cardId'], 'kind' => 'relates-to']]]);
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$created['number']);
+
+        $body = $this->json();
+        self::assertSame($body['url'], $created['url']);
+        $this->assertCardLink($body['cardId'], $body['url']);
+        self::assertCount(1, $body['relatedCards']);
+        $this->assertCardLink($other['cardId'], $body['relatedCards'][0]['url']);
+        self::assertArrayNotHasKey('path', $body);
+    }
+
+    public function test_a_list_of_whole_cards_links_each_card(): void
+    {
+        $this->createCard('Whole');
+
+        $this->send(Request::METHOD_GET, $this->base().'?full=true');
+
+        $item = $this->json()['items'][0];
+        $this->assertCardLink($item['cardId'], $item['url']);
+    }
+
+    public function test_the_parent_and_children_of_a_card_hold_their_links(): void
+    {
+        $parent = $this->createCard('Epic', ['type' => 'epic']);
+        $child = $this->createCard('Child', ['parentCardId' => $parent['cardId']]);
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$child['number']);
+        $this->assertCardLink($parent['cardId'], $this->json()['parent']['url']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/'.$parent['number']);
+        $children = $this->json()['children'];
+        self::assertCount(1, $children);
+        $this->assertCardLink($child['cardId'], $children[0]['url']);
+    }
+
+    private function assertCardLink(string $cardId, string $url): void
+    {
+        $matched = PageLink::match(static::getContainer(), $url);
+        self::assertSame('app_board_card', $matched['_route']);
+        self::assertSame($cardId, $matched['cardId']);
+        self::assertSame((string) $this->project->id, $matched['projectId']);
     }
 
     public function test_the_light_row_holds_refs_for_pull_requests_and_feedback(): void
@@ -221,8 +270,31 @@ final class CardApiTest extends WebTestCase
         self::assertSame(['pullRequestId', 'url', 'forge', 'repository', 'number'], array_keys($row['pullRequests'][0]));
         self::assertSame('https://github.com/loupe-ac/loupe/pull/7', $row['pullRequests'][0]['url']);
         self::assertSame(7, $row['pullRequests'][0]['number']);
-        self::assertSame(['id', 'status', 'url'], array_keys($row['siteReviewComments'][0]));
+        self::assertSame(['id', 'url', 'pageUrl', 'status'], array_keys($row['siteReviewComments'][0]));
         self::assertSame('pending', $row['siteReviewComments'][0]['status']);
+        self::assertSame('https://app.example/page', $row['siteReviewComments'][0]['pageUrl']);
+        $this->assertCardLink($row['cardId'], $row['siteReviewComments'][0]['url']);
+        self::assertStringEndsWith('?tab=feedback#feedback-'.$row['siteReviewComments'][0]['id'], $row['siteReviewComments'][0]['url']);
+    }
+
+    public function test_fields_can_name_the_link_alone_and_another_name_leaves_it_out(): void
+    {
+        $card = $this->createCard('Linked');
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=url');
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->json()['items'][0];
+        self::assertSame(['url'], array_keys($row));
+        $this->assertCardLink($card['cardId'], $row['url']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1?fields=url');
+        self::assertSame($row, $this->json());
+
+        $this->send(Request::METHOD_GET, $this->base().'?fields=title');
+        self::assertSame([['title' => 'Linked']], $this->json()['items']);
+
+        $this->send(Request::METHOD_GET, $this->base().'/1?fields=title');
+        self::assertSame(['title' => 'Linked'], $this->json());
     }
 
     public function test_fields_all_makes_each_item_a_whole_card(): void
@@ -595,7 +667,8 @@ final class CardApiTest extends WebTestCase
 
         $this->send(Request::METHOD_PUT, $this->base().'/1/hold');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['cardId' => $card['cardId'], 'outcome' => 'held'], $this->json());
+        self::assertSame(['cardId' => $card['cardId'], 'url' => $this->json()['url'], 'outcome' => 'held'], $this->json());
+        $this->assertCardLink($card['cardId'], $this->json()['url']);
 
         $this->send(Request::METHOD_PUT, $this->base().'/1/hold');
         self::assertResponseStatusCodeSame(409);
@@ -603,7 +676,8 @@ final class CardApiTest extends WebTestCase
 
         $this->send(Request::METHOD_DELETE, $this->base().'/1/hold');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['cardId' => $card['cardId'], 'outcome' => 'released'], $this->json());
+        self::assertSame(['cardId' => $card['cardId'], 'url' => $this->json()['url'], 'outcome' => 'released'], $this->json());
+        $this->assertCardLink($card['cardId'], $this->json()['url']);
 
         $this->send(Request::METHOD_DELETE, $this->base().'/1/hold');
         self::assertResponseStatusCodeSame(409);
@@ -682,7 +756,8 @@ final class CardApiTest extends WebTestCase
 
         $this->send(Request::METHOD_DELETE, $this->base().'/1/pause?pauseId='.$pause->id);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['cardId' => $created['cardId'], 'outcome' => 'released', 'kind' => 'retries', 'reason' => 'work-failed', 'ruleId' => 'rule-one'], $this->json());
+        self::assertSame(['cardId' => $created['cardId'], 'url' => $this->json()['url'], 'outcome' => 'released', 'kind' => 'retries', 'reason' => 'work-failed', 'ruleId' => 'rule-one'], $this->json());
+        $this->assertCardLink($created['cardId'], $this->json()['url']);
 
         $this->send(Request::METHOD_DELETE, $this->base().'/1/pause');
         self::assertResponseStatusCodeSame(409);

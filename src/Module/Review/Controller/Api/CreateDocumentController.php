@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPost;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Project\Entity\Project;
@@ -29,7 +30,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     operationId: 'createDocument',
     summary: 'Create a document',
     tags: ['Documents'],
-    description: 'Unlike a read, the answer also holds `reviewUrl`, the review page in the app. `Location` names the new document.',
+    description: '`url` is the review page in the app. `Location` names the new document.',
     parameters: [
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'Idempotency-Key', description: 'A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.', in: 'header', schema: new OA\Schema(type: 'string', maxLength: 255)),
@@ -55,6 +56,7 @@ final class CreateDocumentController extends AppController
         private readonly CreateDocumentHandler $createDocument,
         private readonly DocumentReferenceResolver $references,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -77,10 +79,8 @@ final class CreateDocumentController extends AppController
             throw $this->problems->from($e);
         }
 
-        $reviewUrl = $this->generateUrl('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $document->id], UrlGeneratorInterface::ABSOLUTE_URL);
-
         return new JsonResponse(
-            DocumentCreatedResponse::fromDocument($document, $reviewUrl),
+            DocumentCreatedResponse::fromDocument($document, $this->links->document((string) $project->id, (string) $document->id)),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_document_show', ['project' => (string) $project->id, 'document' => (string) $document->id], UrlGeneratorInterface::ABSOLUTE_URL)],
         );

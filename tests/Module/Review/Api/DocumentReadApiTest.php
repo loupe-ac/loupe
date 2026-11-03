@@ -33,8 +33,10 @@ final class DocumentReadApiTest extends WebTestCase
         $body = $this->json();
         self::assertSame(['First', 'Second'], array_column($body['items'], 'title'));
         self::assertNull($body['next']);
+        $this->assertReviewLink($first, $body['items'][0]['url']);
         self::assertSame([
             'documentId' => (string) $first->id,
+            'url' => $body['items'][0]['url'],
             'title' => 'First',
             'language' => 'english',
             'status' => 'in-review',
@@ -235,9 +237,10 @@ final class DocumentReadApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame(
-            ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'],
+            ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'markdown', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'],
             array_keys($body),
         );
+        $this->assertReviewLink($source, $body['url']);
         self::assertSame('# Source text', $body['markdown']);
         self::assertSame('v1', $body['versionDescription']);
         self::assertSame('english', $body['language']);

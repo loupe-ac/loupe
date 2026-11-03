@@ -10,19 +10,22 @@ use App\Module\Project\Entity\Project;
 use OpenApi\Attributes as OA;
 
 /** A project, as the public API shows it. */
-#[OA\Schema(required: ['id', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
+#[OA\Schema(required: ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class ProjectResponse
 {
     /** The name of the partial component of this resource. */
     public const string PARTIAL = 'PartialProject';
 
     /** The top-level names of a project, in the order of its row. */
-    public const array FIELDS = ['id', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'];
+    public const array FIELDS = ['id', 'url', 'slug', 'name', 'description', 'domain', 'searchLanguage', 'allowedOrigins', 'createdAt'];
 
     /** @param list<string> $allowedOrigins */
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $id,
+
+        #[OA\Property(description: 'The home page of the project in the app.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(description: 'Null on a project created before the slug existed, so quote the id.', nullable: true)]
         public ?string $slug,
@@ -47,10 +50,11 @@ final readonly class ProjectResponse
     ) {
     }
 
-    public static function fromProject(Project $project): self
+    public static function fromProject(Project $project, string $url): self
     {
         return new self(
             id: (string) $project->id,
+            url: $url,
             slug: $project->slug,
             name: $project->name,
             description: $project->description,

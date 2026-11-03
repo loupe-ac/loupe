@@ -14,6 +14,7 @@ use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Board\Command\PageCardsCommand;
 use App\Module\Board\Command\PageCardsHandler;
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Mcp\CardPayload;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
@@ -61,6 +62,7 @@ final class ListProjectCardsController extends AppController
     public function __construct(
         private readonly PageCardsHandler $pageCards,
         private readonly CardPayload $payload,
+        private readonly PublicCardAnswer $answer,
     ) {
     }
 
@@ -85,7 +87,16 @@ final class ListProjectCardsController extends AppController
         ));
 
         // CardPayload reads each linked set of the whole page in one query, and reads only the sets the fields name.
-        $rows = new Page($this->payload->forFields($view->page->items, $fields), $view->page->next);
+        $cards = $view->page->items;
+        $projectId = (string) $project->id;
+        $rows = new Page(
+            array_map(
+                fn (Card $card, array $row): array => $fields->keep($this->answer->row($row, $projectId, (string) $card->id)),
+                $cards,
+                $this->payload->forFields($cards, $fields),
+            ),
+            $view->page->next,
+        );
 
         return $rows->toResponse($request, static fn (array $row): array => $row);
     }

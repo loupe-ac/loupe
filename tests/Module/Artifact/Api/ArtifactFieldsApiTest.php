@@ -48,7 +48,7 @@ final class ArtifactFieldsApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         $row = $this->json()['items'][0];
-        self::assertSame(['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'files'], array_keys($row));
+        self::assertSame(['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'files'], array_keys($row));
         self::assertSame((string) $artifact->id, $row['artifactId']);
         self::assertSame([1, 2], array_column($row['versions'], 'number'));
         self::assertSame(['number', 'storedAt'], array_keys($row['versions'][0]));
@@ -98,7 +98,7 @@ final class ArtifactFieldsApiTest extends WebTestCase
         PublicSpec::assertMatches('ArtifactList', $this->json());
         PublicSpec::assertMatches('Artifact', $this->json()['items'][0]);
 
-        foreach (['name,path', 'versions', 'files', 'pageLink'] as $fields) {
+        foreach (['name,url', 'versions', 'files', 'pageLink'] as $fields) {
             $this->get($this->base().'?fields='.$fields);
             PublicSpec::assertMatches('ArtifactList', $this->json(), $fields);
             PublicSpec::assertMatches('PartialArtifact', $this->json()['items'][0], $fields);

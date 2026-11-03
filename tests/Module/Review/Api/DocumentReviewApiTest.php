@@ -115,7 +115,8 @@ final class DocumentReviewApiTest extends WebTestCase
 
         $this->sendJson(Request::METHOD_PATCH, $url, ['status' => 'addressed']);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['id' => (string) $root->id, 'status' => 'addressed'], $this->json());
+        self::assertSame(['id' => (string) $root->id, 'url' => $this->json()['url'], 'status' => 'addressed'], $this->json());
+        $this->assertReviewLink($document, $this->json()['url']);
 
         $this->sendJson(Request::METHOD_PATCH, $url, ['status' => 'addressed']);
         self::assertResponseStatusCodeSame(200);
@@ -171,6 +172,7 @@ final class DocumentReviewApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $id = $this->json()['id'];
+        $this->assertReviewLink($document, $this->json()['url']);
         self::assertStringEndsWith('/documents/'.$document->id.'/review', (string) $this->client->getResponse()->headers->get('Location'));
         $reply = $this->em()->find(Comment::class, Uuid::fromString($id));
         self::assertNotNull($reply);
@@ -230,7 +232,8 @@ final class DocumentReviewApiTest extends WebTestCase
 
         $this->sendJson(Request::METHOD_PUT, $url, ['versionNumber' => 1, 'optionIndexes' => [1], 'note' => 'Go live.']);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['decisionId' => 'target', 'changed' => true, 'cleared' => false], $this->json());
+        self::assertSame(['decisionId' => 'target', 'url' => $this->json()['url'], 'changed' => true, 'cleared' => false], $this->json());
+        $this->assertReviewLink($document, $this->json()['url']);
 
         $this->sendJson(Request::METHOD_PUT, $url, ['versionNumber' => 1, 'optionIndexes' => [1], 'note' => 'Go live.']);
         self::assertSame(false, $this->json()['changed']);
@@ -245,7 +248,8 @@ final class DocumentReviewApiTest extends WebTestCase
 
         $this->send(Request::METHOD_DELETE, $url.'?versionNumber=1');
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['decisionId' => 'target', 'changed' => true, 'cleared' => true], $this->json());
+        self::assertSame(['decisionId' => 'target', 'url' => $this->json()['url'], 'changed' => true, 'cleared' => true], $this->json());
+        $this->assertReviewLink($document, $this->json()['url']);
 
         $this->send(Request::METHOD_GET, $this->url($document, '/review'));
         self::assertNull($this->json()['decisions'][0]['selected']);
@@ -310,6 +314,7 @@ final class DocumentReviewApiTest extends WebTestCase
         $body = $this->json();
         self::assertSame('approved', $body['verdict']);
         self::assertSame('approved', $body['documentStatus']);
+        $this->assertReviewLink($document, $body['url']);
         self::assertSame($body['verdictId'], $this->verdictId($document));
         self::assertTrue($this->json()['verdictThroughApiKey']);
         self::assertFalse($this->json()['verdictThroughAgent']);
@@ -376,6 +381,7 @@ final class DocumentReviewApiTest extends WebTestCase
         $this->send(Request::METHOD_DELETE, $this->url($document, '/verdicts/'.$verdictId.'?versionNumber=1'));
         self::assertResponseStatusCodeSame(200);
         self::assertSame('in-review', $this->json()['documentStatus']);
+        $this->assertReviewLink($document, $this->json()['url']);
         $withdrawal = $this->json()['verdictId'];
 
         $this->send(Request::METHOD_GET, $this->url($document, '/review'));

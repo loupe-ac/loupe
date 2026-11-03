@@ -10,14 +10,14 @@ use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 
 /** One artifact with its versions and the files of one version. DescribeArtifactHandler builds the real body. */
-#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
+#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'pageLink', 'files'], x: [FieldsSchemaProcessor::MARKER => self::PARTIAL])]
 final readonly class ArtifactResponse
 {
     /** The name of the partial component of this resource. */
     public const string PARTIAL = 'PartialArtifact';
 
     /** The top-level names of an artifact, in the order of its row. */
-    public const array FIELDS = ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'pageLink', 'files'];
+    public const array FIELDS = ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'pageLink', 'files'];
 
     /**
      * @param list<ArtifactVersionResponse> $versions
@@ -40,8 +40,8 @@ final readonly class ArtifactResponse
         #[OA\Property(format: 'date-time')]
         public string $createdAt,
 
-        #[OA\Property(description: 'The path of the artifact page in the app.')]
-        public string $path,
+        #[OA\Property(description: 'The artifact page in the app, at the newest version. It needs a sign-in. `pageLink` needs none.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(type: 'array', items: new OA\Items(ref: new Model(type: ArtifactVersionResponse::class)))]
         public array $versions,

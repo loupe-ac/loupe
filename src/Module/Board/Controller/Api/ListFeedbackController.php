@@ -9,6 +9,7 @@ use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\CreatedSort;
 use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
@@ -58,6 +59,7 @@ final class ListFeedbackController extends AppController
     public function __construct(
         private readonly PageFeedbackHandler $pageFeedback,
         private readonly FeedbackApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -86,8 +88,8 @@ final class ListFeedbackController extends AppController
             $request,
             fn (SiteReviewComment $comment): array => $fields->keepObject(
                 $whole
-                    ? FeedbackResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null)
-                    : FeedbackRowResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null),
+                    ? FeedbackResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null, $this->links)
+                    : FeedbackRowResponse::of($comment, $view->links[(string) $comment->id] ?? null, $view->sizes[(string) $comment->id] ?? null, $this->links),
             ),
         );
     }

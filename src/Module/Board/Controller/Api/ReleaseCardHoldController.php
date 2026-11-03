@@ -7,6 +7,7 @@ namespace App\Module\Board\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicDelete;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -54,6 +55,7 @@ final class ReleaseCardHoldController extends AppController
         private readonly ReleaseCardAgentsHandler $release,
         private readonly CardApiProblems $problems,
         private readonly CurrentApiKeyActor $currentKey,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -68,6 +70,6 @@ final class ReleaseCardHoldController extends AppController
             throw $this->problems->fromHold($e);
         }
 
-        return new JsonResponse(new CardReleaseResponse((string) $cardId));
+        return new JsonResponse(new CardReleaseResponse((string) $cardId, $this->links->card((string) $project->id, (string) $cardId)));
     }
 }

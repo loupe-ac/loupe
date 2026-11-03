@@ -50,6 +50,7 @@ final class ShowProjectArtifactController extends AppController
     public function __construct(
         private readonly DescribeArtifactHandler $describeArtifact,
         private readonly ArtifactApiProblems $problems,
+        private readonly PublicArtifactAnswer $answer,
     ) {
     }
 
@@ -58,9 +59,11 @@ final class ShowProjectArtifactController extends AppController
         $fields = FieldSelection::fromRequest($request, ArtifactResponse::FIELDS);
 
         try {
-            return new JsonResponse($fields->keep(($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request)))));
+            $payload = ($this->describeArtifact)(new DescribeArtifactCommand($artifact, VersionNumber::fromRequest($request)));
         } catch (DomainErrors) {
             throw $this->problems->versionNotFound();
         }
+
+        return new JsonResponse($fields->keep($this->answer->of($payload, (string) $artifact->project->id)));
     }
 }

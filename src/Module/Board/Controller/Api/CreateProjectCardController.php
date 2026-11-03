@@ -62,6 +62,7 @@ final class CreateProjectCardController extends AppController
         private readonly CreateCardHandler $createCard,
         private readonly ShowCardHandler $showCard,
         private readonly CardPayload $payload,
+        private readonly PublicCardAnswer $answer,
         private readonly CardApiFields $fields,
         private readonly CardApiProblems $problems,
         private readonly CurrentApiKeyActor $currentKey,
@@ -98,7 +99,7 @@ final class CreateProjectCardController extends AppController
         }
 
         return new JsonResponse(
-            $this->payload->forCard(($this->showCard)(new ShowCardCommand($card))),
+            $this->answer->card($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))), (string) $project->id),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_card_show', ['project' => (string) $project->id, 'number' => $card->number], UrlGeneratorInterface::ABSOLUTE_URL)],
         );

@@ -9,6 +9,7 @@ use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Module\Review\Command\ShowDocumentDataCommand;
 use App\Module\Review\Command\ShowDocumentDataHandler;
@@ -42,6 +43,7 @@ final class ShowDocumentController extends AppController
 {
     public function __construct(
         private readonly ShowDocumentDataHandler $showDocumentData,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -49,6 +51,6 @@ final class ShowDocumentController extends AppController
     {
         $fields = FieldSelection::fromRequest($request, DocumentResponse::FIELDS);
 
-        return new JsonResponse($fields->keepObject(DocumentResponse::fromPayload(($this->showDocumentData)(new ShowDocumentDataCommand($document)), $document)));
+        return new JsonResponse($fields->keepObject(DocumentResponse::fromPayload(($this->showDocumentData)(new ShowDocumentDataCommand($document)), $document, $this->links->document((string) $document->project->id, (string) $document->id))));
     }
 }

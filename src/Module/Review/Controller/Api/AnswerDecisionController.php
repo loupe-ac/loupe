@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPut;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
@@ -55,6 +56,7 @@ final class AnswerDecisionController extends AppController
         private readonly ReviewWriteGuard $guard,
         private readonly CurrentApiKeyActor $apiKeys,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -82,6 +84,6 @@ final class AnswerDecisionController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse(new DecisionResultResponse($decision, $result->changed, $result->cleared));
+        return new JsonResponse(new DecisionResultResponse($decision, $this->links->document((string) $document->project->id, (string) $document->id), $result->changed, $result->cleared));
     }
 }

@@ -13,6 +13,7 @@ use App\Module\Review\Command\SetDocumentTagsHandler;
 use App\Module\Review\Entity\Document;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\Uid\Uuid;
@@ -88,6 +89,14 @@ trait DocumentApiFixtures
     private function place(Document $document, string $series, int $ordinal): void
     {
         (static::getContainer()->get(SetDocumentSeriesHandler::class))(new SetDocumentSeriesCommand($document, $series, $ordinal));
+    }
+
+    private function assertReviewLink(Document $document, string $url): void
+    {
+        $matched = PageLink::match(static::getContainer(), $url);
+        self::assertSame('app_document_review', $matched['_route']);
+        self::assertSame((string) $document->id, $matched['documentId']);
+        self::assertSame((string) $document->project->id, $matched['projectId']);
     }
 
     private function base(?Project $project = null): string

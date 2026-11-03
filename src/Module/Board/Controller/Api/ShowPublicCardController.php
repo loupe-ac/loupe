@@ -54,6 +54,7 @@ final class ShowPublicCardController extends AppController
         private readonly ShowCardHandler $showCard,
         private readonly CardPayload $payload,
         private readonly CardApiProblems $problems,
+        private readonly PublicCardAnswer $answer,
     ) {
     }
 
@@ -62,6 +63,6 @@ final class ShowPublicCardController extends AppController
         $fields = FieldSelection::fromRequest($request, CardResponse::FIELDS);
         $card = ($this->findCard)(new FindCardByNumberCommand($project, $number)) ?? throw $this->problems->cardNotFound();
 
-        return new JsonResponse($fields->keep($this->payload->forCard(($this->showCard)(new ShowCardCommand($card)))));
+        return new JsonResponse($fields->keep($this->answer->card($this->payload->forCard(($this->showCard)(new ShowCardCommand($card))), (string) $project->id)));
     }
 }

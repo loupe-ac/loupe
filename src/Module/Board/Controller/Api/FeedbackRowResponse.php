@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Controller\Api;
 
+use App\Api\PageLinks;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use OpenApi\Attributes as OA;
 
 /** A note of a feedback list with no `fields`: the facts of the note, and never its body, anchors or device facts. */
-#[OA\Schema(description: 'A note of a list, without its body, its anchors and its device facts.', required: ['id', 'url', 'surface', 'screenshot', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
+#[OA\Schema(description: 'A note of a list, without its body, its anchors and its device facts.', required: ['id', 'url', 'pageUrl', 'surface', 'screenshot', 'hasDrawing', 'status', 'context', 'createdAt', 'cardId', 'number', 'title'])]
 final readonly class FeedbackRowResponse
 {
     /**
@@ -19,8 +20,11 @@ final readonly class FeedbackRowResponse
         #[OA\Property(format: 'uuid')]
         public string $id,
 
-        #[OA\Property(description: 'The page of a web note, or null for a native note.', nullable: true)]
+        #[OA\Property(description: 'The Feedback tab of its card in the app, scrolled to the note. Null when the note has no card.', format: 'uri', nullable: true)]
         public ?string $url,
+
+        #[OA\Property(description: 'The page of the reviewed site where a web note was left, or null for a native note.', nullable: true)]
+        public ?string $pageUrl,
 
         #[OA\Property(enum: ['web', 'ios-simulator'])]
         public string $surface,
@@ -52,11 +56,12 @@ final readonly class FeedbackRowResponse
     }
 
     /** @param ?array{width: int, height: int} $screenshot */
-    public static function of(SiteReviewComment $comment, ?CardSiteReviewComment $link, ?array $screenshot): self
+    public static function of(SiteReviewComment $comment, ?CardSiteReviewComment $link, ?array $screenshot, PageLinks $links): self
     {
         return new self(
             id: (string) $comment->id,
-            url: $comment->url,
+            url: null === $link ? null : $links->feedback((string) $link->card->project->id, (string) $link->card->id, (string) $comment->id),
+            pageUrl: $comment->url,
             surface: $comment->surface->value,
             screenshot: $screenshot,
             hasDrawing: [] !== ($comment->strokes ?? []),

@@ -13,6 +13,7 @@ use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\PageLink;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -68,10 +69,10 @@ final class ArtifactApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json();
         self::assertSame(['First', 'Second'], array_column($body['items'], 'name'));
-        self::assertSame(['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'files'], array_keys($body['items'][0]));
+        self::assertSame(['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'files'], array_keys($body['items'][0]));
         self::assertSame(2, $body['items'][0]['selectedVersion']);
         self::assertSame(1, $body['items'][1]['selectedVersion']);
-        self::assertSame(\sprintf('/projects/%s/artifacts/%s', $this->project->id, $first->id), $body['items'][0]['path']);
+        $this->assertArtifactLink($first->id, $body['items'][0]['url']);
         self::assertNull($body['next']);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
     }
@@ -143,6 +144,19 @@ final class ArtifactApiTest extends WebTestCase
         self::assertSame(['css/app.css', 'index.html'], array_column($body['files'], 'path'));
         self::assertSame(['path', 'contentType', 'size'], array_keys($body['files'][0]));
         self::assertIsString($body['pageLink']);
+        $this->assertArtifactLink($artifact->id, $body['url']);
+        self::assertArrayNotHasKey('path', $body);
+    }
+
+    private function assertArtifactLink(?Uuid $artifactId, string $url, ?int $versionNumber = null): void
+    {
+        $matched = PageLink::match(static::getContainer(), $url);
+        self::assertSame(null === $versionNumber ? 'app_project_artifact' : 'app_project_artifact_version', $matched['_route']);
+        self::assertSame((string) $artifactId, $matched['artifactId']);
+        self::assertSame((string) $this->project->id, $matched['id']);
+        if (null !== $versionNumber) {
+            self::assertSame((string) $versionNumber, (string) $matched['number']);
+        }
     }
 
     public function test_a_version_number_picks_the_files_of_that_version(): void
@@ -192,6 +206,7 @@ final class ArtifactApiTest extends WebTestCase
         self::assertTrue($this->json()['archived']);
         self::assertIsString($this->json()['archivedAt']);
         $stamp = $this->json()['archivedAt'];
+        $this->assertArtifactLink($artifact->id, $this->json()['url']);
         self::assertNotNull($this->stored($artifact)->archivedAt);
 
         $this->send(Request::METHOD_PATCH, $this->base().'/'.$artifact->id, '{"archived":true}');
@@ -287,10 +302,10 @@ final class ArtifactApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $body = $this->json();
-        $stable = \sprintf('/projects/%s/artifacts/%s', $this->project->id, $body['artifactId']);
         self::assertSame(1, $body['versionNumber']);
-        self::assertSame($stable, $body['path']);
-        self::assertSame($stable.'/versions/1', $body['versionPath']);
+        self::assertSame(['artifactId', 'versionNumber', 'url', 'versionUrl'], array_keys($body));
+        $this->assertArtifactLink(Uuid::fromString($body['artifactId']), $body['url']);
+        $this->assertArtifactLink(Uuid::fromString($body['artifactId']), $body['versionUrl'], 1);
         self::assertStringEndsWith($this->base().'/'.$body['artifactId'], (string) $this->client->getResponse()->headers->get('Location'));
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
 
@@ -429,6 +444,8 @@ final class ArtifactApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame(2, $this->json()['versionNumber']);
         self::assertSame((string) $artifact->id, $this->json()['artifactId']);
+        $this->assertArtifactLink($artifact->id, $this->json()['url']);
+        $this->assertArtifactLink($artifact->id, $this->json()['versionUrl'], 2);
         self::assertStringEndsWith($this->base().'/'.$artifact->id.'?versionNumber=2', (string) $this->client->getResponse()->headers->get('Location'));
         $stored = $this->stored($artifact);
         self::assertSame('Bigger hero', $this->versionNumbered($stored, 2)->notes);

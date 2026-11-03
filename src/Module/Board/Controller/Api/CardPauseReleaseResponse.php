@@ -7,12 +7,15 @@ namespace App\Module\Board\Controller\Api;
 use OpenApi\Attributes as OA;
 
 /** The answer of the end of a workflow pause. */
-#[OA\Schema(required: ['cardId', 'outcome', 'kind', 'reason', 'ruleId'])]
+#[OA\Schema(required: ['cardId', 'url', 'outcome', 'kind', 'reason', 'ruleId'])]
 final readonly class CardPauseReleaseResponse
 {
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $cardId,
+
+        #[OA\Property(description: 'The card page in the app.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(enum: ['released'])]
         public string $outcome,

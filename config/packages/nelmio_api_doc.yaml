@@ -225,7 +225,7 @@ when@dev: &generator
                 - { alias: Artifact, type: App\Module\Artifact\Controller\Api\ArtifactResponse }
                 - { alias: ArtifactRow, type: App\Module\Artifact\Controller\Api\ArtifactRowResponse }
                 - { alias: ArtifactList, type: App\Module\Artifact\Controller\Api\ArtifactListResponse }
-                - { alias: ArtifactStored, type: App\Module\Artifact\Controller\Api\ArtifactStoredResponse }
+                - { alias: ArtifactStored, type: App\Module\Artifact\Controller\Api\ArtifactStoredResponse, areas: [public] }
                 - { alias: ArtifactCreateUpload, type: App\Module\Artifact\Controller\Api\ArtifactUploadRequest }
                 - { alias: ArtifactVersionUpload, type: App\Module\Artifact\Controller\Api\ArtifactVersionUploadRequest }
                 - { alias: ArtifactUpdate, type: App\Module\Artifact\Controller\Api\UpdateArtifactRequest }

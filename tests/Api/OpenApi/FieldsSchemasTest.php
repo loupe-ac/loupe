@@ -92,7 +92,7 @@ final class FieldsSchemasTest extends TestCase
     public function test_a_ref_component_is_a_short_form_of_the_whole_value(): void
     {
         self::assertSame(['pullRequestId', 'url', 'forge', 'repository', 'number'], PublicSpec::schema('PullRequestRef')['required']);
-        self::assertSame(['id', 'status', 'url'], PublicSpec::schema('FeedbackRef')['required']);
+        self::assertSame(['id', 'url', 'pageUrl', 'status'], PublicSpec::schema('FeedbackRef')['required']);
         self::assertSame(['number', 'storedAt'], PublicSpec::schema('ArtifactVersionRef')['required']);
         self::assertSame(['path'], PublicSpec::schema('ArtifactFileRef')['required']);
         self::assertSame('#/components/schemas/PullRequestRef', PublicSpec::schema('CardRow')['properties']['pullRequests']['items']['$ref']);

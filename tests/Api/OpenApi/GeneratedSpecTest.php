@@ -91,6 +91,34 @@ final class GeneratedSpecTest extends KernelTestCase
         self::assertGreaterThan(0, $compared, 'No response was compared, so this test would prove nothing.');
     }
 
+    public function test_the_private_artifact_stored_schema_keeps_its_paths_and_the_public_one_holds_links(): void
+    {
+        $private = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas']['ArtifactStored'];
+        $public = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas']['ArtifactStored'];
+
+        self::assertArrayNotHasKey('url', $private['properties']);
+        self::assertContains('path', $private['required']);
+        self::assertContains('versionPath', $private['required']);
+        self::assertContains('url', $public['required']);
+        self::assertContains('versionUrl', $public['required']);
+        self::assertArrayNotHasKey('path', $public['properties']);
+    }
+
+    public function test_every_required_url_of_the_public_spec_is_a_uri(): void
+    {
+        $schemas = json_decode($this->dump('public'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];
+        $checked = 0;
+        foreach (['Project', 'Card', 'CardRow', 'Document', 'DocumentRow', 'DocumentCreated', 'Artifact', 'ArtifactRow', 'ArtifactStored'] as $name) {
+            self::assertArrayHasKey($name, $schemas);
+            self::assertContains('url', $schemas[$name]['required'], $name);
+            self::assertSame('uri', $schemas[$name]['properties']['url']['format'] ?? null, $name);
+            self::assertNotEmpty($schemas[$name]['properties']['url']['description'] ?? '', $name);
+            ++$checked;
+        }
+
+        self::assertSame(9, $checked);
+    }
+
     public function test_a_request_schema_requires_no_field_from_a_helper_method(): void
     {
         $schemas = json_decode($this->dump('private'), true, flags: \JSON_THROW_ON_ERROR)['components']['schemas'];

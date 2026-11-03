@@ -50,6 +50,7 @@ final class UpdateProjectArtifactController extends AppController
     public function __construct(
         private readonly SetArtifactArchivedHandler $setArchived,
         private readonly DescribeArtifactHandler $describeArtifact,
+        private readonly PublicArtifactAnswer $answer,
     ) {
     }
 
@@ -57,6 +58,6 @@ final class UpdateProjectArtifactController extends AppController
     {
         ($this->setArchived)(new SetArtifactArchivedCommand($artifact, $payload->archived ?? throw new \LogicException('archived required after validation')));
 
-        return new JsonResponse(($this->describeArtifact)(new DescribeArtifactCommand($artifact, null)));
+        return new JsonResponse($this->answer->of(($this->describeArtifact)(new DescribeArtifactCommand($artifact, null)), (string) $artifact->project->id));
     }
 }

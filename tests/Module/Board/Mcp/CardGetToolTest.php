@@ -73,6 +73,18 @@ final class CardGetToolTest extends KernelTestCase
         self::assertSame(7, $card['pullRequests'][0]['number']);
     }
 
+    public function test_a_card_answer_holds_no_app_link_and_keeps_the_path_of_its_artifacts(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-get-no-url'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+
+        $card = $this->call($created['cardId']);
+
+        self::assertArrayNotHasKey('url', $card);
+        self::assertArrayHasKey('siteReviewComments', $card);
+        self::assertSame([], $card['artifacts']);
+    }
+
     public function test_a_card_reads_its_active_pause_and_null_once_released(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-get-pause'));

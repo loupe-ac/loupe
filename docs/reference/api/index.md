@@ -51,6 +51,30 @@ review name an API key as the actor, such as "API key 'CI' (Ada)".
 the project is renamed. A script that must survive a rename uses the id. A card
 goes by its number in the project, such as `/projects/loupe/cards/42`.
 
+## Links to the app
+
+Each project, card, document and artifact in an answer has a `url`. The `url` is
+the full address of its page in the app, such as
+`https://app.example.com/projects/<id>/board/cards/<id>`. A person who follows it
+sees the resource.
+
+1. The address starts with the public address of the instance, the `DEFAULT_URI`
+   setting. It does not depend on the `Host` header of the request.
+2. A card, a document and an artifact in a list, and in the short entries of a
+   card, have their own `url`. The short entries are the documents, artifacts,
+   related cards, parent and children.
+3. The `url` of a document opens the latest version. The `url` of an artifact
+   opens the newest version. `versionUrl` in the answer of a store opens the
+   version that the call made.
+4. A feedback note has a `url` that opens the Feedback tab of its card at the
+   note. A note with no card has `null`. `pageUrl` is the page of the reviewed
+   site where the reviewer left a web note. A native note has `null` in
+   `pageUrl`.
+5. A column has no `url`.
+6. A write that answers with a short body, such as a hold, a publish, a verdict,
+   a reply or a decision, holds the `url` of the card or the document that it
+   changed.
+
 ## Requests
 
 1. A request with a body sends `Content-Type: application/json`. Any other type
@@ -116,7 +140,8 @@ GET /api/v1/projects/loupe/cards?fields=number,title,body
    request with its URL and no check state.
 3. A request with `fields` gets the named fields and no other field. Each named field
    comes back whole. A named `pullRequests` holds the check state and the review of
-   each pull request.
+   each pull request. `url` is a field too, so `fields=title` leaves it out, and
+   `fields=title,url` holds both.
 4. `fields=all` returns the whole resource. It stands alone, so `fields=all,title`
    is refused.
 5. The answer keeps the order of the resource. The order of the names in the request

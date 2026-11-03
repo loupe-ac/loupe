@@ -13,7 +13,7 @@ use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 
 /** One document of a list: the whole document without its Markdown, which a list never reads. */
-#[OA\Schema(required: ['documentId', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
+#[OA\Schema(required: ['documentId', 'url', 'title', 'language', 'status', 'archived', 'archiveReason', 'version', 'versionDescription', 'tags', 'series', 'seriesOrdinal', 'references', 'referencedBy', 'createdAt'])]
 final readonly class DocumentRowResponse
 {
     /**
@@ -24,6 +24,9 @@ final readonly class DocumentRowResponse
     public function __construct(
         #[OA\Property(format: 'uuid')]
         public string $documentId,
+
+        #[OA\Property(description: 'The review page of the document in the app, at the latest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(maxLength: Document::MAX_TITLE_LENGTH)]
         public string $title,
@@ -66,12 +69,13 @@ final readonly class DocumentRowResponse
     ) {
     }
 
-    public static function fromItem(DocumentPageItem $item): self
+    public static function fromItem(DocumentPageItem $item, string $url): self
     {
         $document = $item->document;
 
         return new self(
             documentId: (string) $document->id,
+            url: $url,
             title: $document->title,
             language: $document->searchLanguage,
             status: $document->status,

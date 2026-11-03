@@ -7,6 +7,7 @@ namespace App\Module\Board\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPatch;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\MarkFeedbackAddressedCommand;
@@ -56,6 +57,7 @@ final class MarkFeedbackAddressedController extends AppController
     public function __construct(
         private readonly MarkFeedbackAddressedHandler $markAddressed,
         private readonly FeedbackApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -67,6 +69,6 @@ final class MarkFeedbackAddressedController extends AppController
             throw $this->problems->from($e);
         }
 
-        return new JsonResponse(FeedbackResponse::fromView($view));
+        return new JsonResponse(FeedbackResponse::fromView($view, $this->links));
     }
 }

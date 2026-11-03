@@ -9,6 +9,7 @@ use App\Api\OpenApi\FieldsParameter;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicGet;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Project\Entity\Project;
@@ -56,6 +57,7 @@ final class ListDocumentsController extends AppController
 {
     public function __construct(
         private readonly PageDocumentsHandler $pageDocuments,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -70,6 +72,6 @@ final class ListDocumentsController extends AppController
             links: $fields->isDefault() || $fields->has('references') || $fields->has('referencedBy'),
         ));
 
-        return $page->toResponse($request, static fn (DocumentPageItem $item): array => $fields->keepObject(DocumentRowResponse::fromItem($item)));
+        return $page->toResponse($request, fn (DocumentPageItem $item): array => $fields->keepObject(DocumentRowResponse::fromItem($item, $this->links->document((string) $project->id, (string) $item->document->id))));
     }
 }

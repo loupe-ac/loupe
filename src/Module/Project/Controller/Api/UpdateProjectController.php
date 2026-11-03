@@ -7,6 +7,7 @@ namespace App\Module\Project\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPatch;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Project\Command\UpdateProjectCommand;
@@ -50,6 +51,7 @@ final class UpdateProjectController extends AppController
     public function __construct(
         private readonly UpdateProjectHandler $updateProject,
         private readonly ProjectApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -69,6 +71,6 @@ final class UpdateProjectController extends AppController
             throw $this->problems->forUpdate($e, $project->owner, $payload->name ?? null);
         }
 
-        return new JsonResponse(ProjectResponse::fromProject($saved));
+        return new JsonResponse(ProjectResponse::fromProject($saved, $this->links->project((string) $saved->id)));
     }
 }

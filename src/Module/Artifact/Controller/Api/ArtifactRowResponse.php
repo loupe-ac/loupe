@@ -13,7 +13,7 @@ use OpenApi\Attributes as OA;
  * An artifact in a list, as the public API shows it with no `fields`: the artifact with a short
  * form of its versions and of the files of the latest version, and without the signed page link.
  */
-#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'path', 'versions', 'selectedVersion', 'files'])]
+#[OA\Schema(required: ['artifactId', 'name', 'archived', 'archivedAt', 'sourceLink', 'createdAt', 'url', 'versions', 'selectedVersion', 'files'])]
 final readonly class ArtifactRowResponse
 {
     /**
@@ -37,8 +37,8 @@ final readonly class ArtifactRowResponse
         #[OA\Property(format: 'date-time')]
         public string $createdAt,
 
-        #[OA\Property(description: 'The path of the artifact page in the app.')]
-        public string $path,
+        #[OA\Property(description: 'The artifact page in the app, at the newest version.', format: 'uri')]
+        public string $url,
 
         #[OA\Property(description: 'Each version as its number and the time it was stored. Name `versions` in `fields` for the notes, the counts and the sizes.', type: 'array', items: new OA\Items(ref: new Model(type: ArtifactVersionRefResponse::class)))]
         public array $versions,
@@ -51,7 +51,7 @@ final readonly class ArtifactRowResponse
     ) {
     }
 
-    public static function fromPaged(PagedArtifact $paged): self
+    public static function fromPaged(PagedArtifact $paged, string $url): self
     {
         $artifact = $paged->artifact;
 
@@ -62,7 +62,7 @@ final readonly class ArtifactRowResponse
             archivedAt: $artifact->archivedAt?->format(\DATE_ATOM),
             sourceLink: $artifact->sourceLink,
             createdAt: $artifact->createdAt->format(\DATE_ATOM),
-            path: \sprintf('/projects/%s/artifacts/%s', $artifact->project->id, $artifact->id),
+            url: $url,
             versions: $paged->versions,
             selectedVersion: $paged->selectedVersion,
             files: $paged->files,

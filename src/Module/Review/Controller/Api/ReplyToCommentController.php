@@ -7,6 +7,7 @@ namespace App\Module\Review\Controller\Api;
 use App\Api\OpenApi\ProblemResponse;
 use App\Api\OpenApi\PublicPost;
 use App\Api\OpenApi\SuccessResponse;
+use App\Api\PageLinks;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\ReplyToCommentAsAgentCommand;
@@ -60,6 +61,7 @@ final class ReplyToCommentController extends AppController
         private readonly ReplyToCommentAsAgentHandler $replyAsAgent,
         private readonly CurrentApiKeyActor $apiKeys,
         private readonly DocumentApiProblems $problems,
+        private readonly PageLinks $links,
     ) {
     }
 
@@ -79,7 +81,7 @@ final class ReplyToCommentController extends AppController
         }
 
         return new JsonResponse(
-            new CommentReplyResponse((string) $reply->id),
+            new CommentReplyResponse((string) $reply->id, $this->links->document((string) $document->project->id, (string) $document->id)),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_document_review_show', ['project' => (string) $document->project->id, 'document' => (string) $document->id], UrlGeneratorInterface::ABSOLUTE_URL)],
         );
