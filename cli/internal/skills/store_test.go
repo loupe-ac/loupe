@@ -209,9 +209,29 @@ func TestPruneDeletesAnOldRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Prune(dir, time.Now(), nil)
+	Prune(dir, time.Now(), nil, nil)
 	if ReadRecord(dir, "old") != nil || ReadRecord(dir, "new") == nil {
 		t.Fatalf("old = %v, new = %v", ReadRecord(dir, "old"), ReadRecord(dir, "new"))
+	}
+}
+
+func TestPruneKeepsTheOldRecordOfALiveSession(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteRecord(dir, "live", []Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+		t.Fatal(err)
+	}
+	long := time.Now().Add(-KeepAfterReplace)
+	if err := os.Chtimes(filepath.Join(StoreDir(dir), recordsDir, "live.json"), long, long); err != nil {
+		t.Fatal(err)
+	}
+
+	Prune(dir, time.Now(), func(session string) bool { return session == "live" }, nil)
+	if ReadRecord(dir, "live") == nil {
+		t.Fatal("the record of a live session was deleted")
+	}
+	Prune(dir, time.Now(), func(string) bool { return false }, nil)
+	if ReadRecord(dir, "live") != nil {
+		t.Fatal("the record stayed after its session ended")
 	}
 }
 
@@ -228,7 +248,7 @@ func TestPruneKeepsAVersionForThirtyDaysAfterItsReplacement(t *testing.T) {
 		}
 	}
 
-	removed := Prune(dir, now, nil)
+	removed := Prune(dir, now, nil, nil)
 	if len(removed) != 1 || removed[0] != "loupe/1.0.0" {
 		t.Fatalf("removed = %v, want only 1.0.0", removed)
 	}
@@ -251,7 +271,7 @@ func TestPruneKeepsAVersionALiveRunHolds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if removed := Prune(dir, time.Now(), func(pkg, v string) bool { return pkg == "loupe" && v == "1.0.0" }); len(removed) != 0 {
+	if removed := Prune(dir, time.Now(), nil, func(pkg, v string) bool { return pkg == "loupe" && v == "1.0.0" }); len(removed) != 0 {
 		t.Fatalf("removed = %v, want nothing", removed)
 	}
 }

@@ -327,9 +327,22 @@ func packageStore(t *testing.T, sites ...api.Site) (*router, string) {
 	r, _ := skillRouter(func(context.Context) ([]api.Site, error) { return sites, nil })
 	r.skills.dir = dir
 	r.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	r.skills.processes = noSessions
 	r.loadSkills(context.Background())
 
 	return r, dir
+}
+
+// noSessions is a process list that names no session.
+func noSessions(context.Context) (string, error) { return "1 /sbin/init\n", nil }
+
+// ageRecord makes the record of a session look written that long ago.
+func ageRecord(t *testing.T, dir, session string, age time.Duration) {
+	t.Helper()
+	at := time.Now().Add(-age)
+	if err := os.Chtimes(filepath.Join(dir, "skills", ".records", session+".json"), at, at); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestAClaudeWorkerGetsThePackagesOfItsProject(t *testing.T) {
@@ -442,7 +455,8 @@ func replaceLoupe(t *testing.T, dir, version, meta string) {
 }
 
 // A worker that a former image started has only its record, because the
-// handover carries no packages.
+// handover carries no packages. The record stays as long as the worker, so a
+// later prune still finds the version.
 func TestThePruneKeepsTheVersionsThatTheRecordOfALiveRunNames(t *testing.T) {
 	r, dir := packageStore(t)
 	old := filepath.Join(dir, "skills", "loupe", "1.0.0")
@@ -450,16 +464,125 @@ func TestThePruneKeepsTheVersionsThatTheRecordOfALiveRunNames(t *testing.T) {
 	if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
 		t.Fatal(err)
 	}
+	ageRecord(t, dir, "s", 2*skills.KeepAfterReplace)
 	r.live = map[string]liveRun{"a": {p: pending{spec: workerSpec{sessionID: "s"}}}}
 
-	r.pruneSkills(time.Now())
-	if !exists(old) {
-		t.Fatal("a live run's version was deleted")
+	for range 2 {
+		r.pruneSkills(time.Now())
+		if !exists(old) {
+			t.Fatal("a live run's version was deleted")
+		}
+	}
+	if skills.ReadRecord(dir, "s") == nil {
+		t.Fatal("the record of a live run was deleted")
 	}
 	r.live = nil
 	r.pruneSkills(time.Now())
 	if exists(old) {
 		t.Fatal("the version stayed after its run ended")
+	}
+	if skills.ReadRecord(dir, "s") != nil {
+		t.Fatal("the old record stayed after its run ended")
+	}
+}
+
+// An interactive session is in no live run, and can outlive the bridge that
+// launched it, so a process that names it is what keeps its versions.
+func TestThePruneKeepsTheVersionsOfASessionThatAProcessNames(t *testing.T) {
+	for _, flag := range []string{"--session-id s", "--session-id=s", "--resume s"} {
+		r, dir := packageStore(t)
+		old := filepath.Join(dir, "skills", "loupe", "1.0.0")
+		replaceLoupe(t, dir, "2.0.0", "{}")
+		if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+			t.Fatal(err)
+		}
+		ageRecord(t, dir, "s", 2*skills.KeepAfterReplace)
+		r.skills.processes = func(context.Context) (string, error) { return "1 /sbin/init\n2 claude " + flag + "\n", nil }
+
+		for range 2 {
+			r.pruneSkills(time.Now())
+			if !exists(old) || skills.ReadRecord(dir, "s") == nil {
+				t.Fatalf("%s: the version or the record of a running session was deleted", flag)
+			}
+		}
+	}
+}
+
+// The launcher of an interactive session returns while the session runs on.
+func TestThePruneKeepsTheVersionsOfASessionAfterItsLauncherReturned(t *testing.T) {
+	h, _ := launchHarness(t, `[sh, -c, 'exit 0', sh, '{script}']`)
+	store := t.TempDir()
+	old := filepath.Join(store, "skills", "loupe", "1.0.0")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h.router.skills.dir = store
+	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	processes := "1 claude --session-id " + testSession + "\n"
+	h.router.skills.processes = func(context.Context) (string, error) { return processes, nil }
+
+	h.send(movedPayload(87, "backlog", "next", "agent"))
+	h.only(t, "session_launched")
+	eventually(t, "the end of the launch hold", func() bool {
+		h.router.skills.mu.Lock()
+		defer h.router.skills.mu.Unlock()
+
+		return len(h.router.skills.holds) == 0
+	})
+	replaceLoupe(t, store, "2.0.0", "{}")
+	ageRecord(t, store, testSession, 2*skills.KeepAfterReplace)
+
+	h.router.pruneSkills(time.Now())
+	if !exists(old) {
+		t.Fatal("the version of an open session was deleted after its launcher returned")
+	}
+
+	processes = "1 /sbin/init\n"
+	h.router.pruneSkills(time.Now())
+	if exists(old) {
+		t.Fatal("the version stayed after the session ended")
+	}
+}
+
+// A launcher can return before the terminal starts the program.
+func TestThePruneKeepsTheVersionsOfANewRecordWithNoProcess(t *testing.T) {
+	r, dir := packageStore(t)
+	old := filepath.Join(dir, "skills", "loupe", "1.0.0")
+	replaceLoupe(t, dir, "2.0.0", "{}")
+	if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	r.pruneSkills(time.Now())
+	if !exists(old) {
+		t.Fatal("the version of a session that is still starting was deleted")
+	}
+	ageRecord(t, dir, "s", launchGrace)
+	r.pruneSkills(time.Now())
+	if exists(old) {
+		t.Fatal("the version stayed after the grace ended")
+	}
+}
+
+// With no process list, the prune cannot tell which session runs.
+func TestAPruneThatCannotListTheProcessesDeletesNothing(t *testing.T) {
+	for name, list := range map[string]func(context.Context) (string, error){
+		"failed": func(context.Context) (string, error) { return "", errors.New("ps failed") },
+		"empty":  func(context.Context) (string, error) { return " \n", nil },
+	} {
+		r, dir := packageStore(t)
+		old := filepath.Join(dir, "skills", "loupe", "1.0.0")
+		replaceLoupe(t, dir, "2.0.0", "{}")
+		if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+			t.Fatal(err)
+		}
+		ageRecord(t, dir, "s", 2*skills.KeepAfterReplace)
+		r.skills.processes = list
+
+		r.pruneSkills(time.Now())
+		if !exists(old) || skills.ReadRecord(dir, "s") == nil {
+			t.Fatalf("%s: the prune deleted the version or the record", name)
+		}
 	}
 }
 
@@ -472,6 +595,7 @@ func TestThePruneKeepsTheVersionsOfARunThatStartedThroughTheRouter(t *testing.T)
 	}
 	h.router.skills.dir = store
 	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	h.router.skills.processes = noSessions
 	started, release := make(chan workerSpec), make(chan struct{})
 	h.router.worker.run = func(_ context.Context, spec workerSpec, onStart func(workerProc)) workerResult {
 		onStart(workerProc{})

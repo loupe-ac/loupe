@@ -582,8 +582,11 @@ the config folder or the repository. A resumed worker keeps the package
 versions it started with, while the store still holds them. The bridge picks
 the highest version of each package that meets `minCli` and whose `requires` the
 store can meet, and a lower version when a higher one does not fit. The bridge
-deletes a version 30 days after a newer one replaced it, unless a live run holds
-it or a new worker of a project would still get it.
+deletes a version 30 days after a newer one replaced it, unless a running worker
+or an interactive session started with it, or a new worker of a project would
+still get it. The bridge finds a running session in the process list of the
+machine. When it cannot read that list, it deletes nothing until the next hourly
+pass.
 
 ### A worker account with its own plugins
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -21,6 +22,10 @@ const skillsInterval = time.Hour
 // skillsTimeout bounds one read of the project list.
 const skillsTimeout = 30 * time.Second
 
+// launchGrace is how long a new record counts as live with no process that names
+// its session. A launcher can return before the terminal starts the program.
+const launchGrace = time.Hour
+
 // skillState is what the router keeps about the skill packages of each
 // project. mu guards every field.
 type skillState struct {
@@ -38,6 +43,9 @@ type skillState struct {
 	exe func() (string, error)
 	// after stands in for time.After in a test. A nil one uses the real one.
 	after func(time.Duration) <-chan time.Time
+	// processes lists the command lines of all processes. A nil one reads the
+	// real list.
+	processes func(context.Context) (string, error)
 
 	mu      sync.Mutex
 	sites   []api.Site
@@ -46,8 +54,9 @@ type skillState struct {
 	// answer the state holds.
 	started, kept uint64
 	// holds names the packages of each run from its pick until its worker
-	// ends. A prune takes mu for its whole length, so a pick never lands on a
-	// folder that the prune deletes.
+	// ends, or until the launcher of an interactive session returns. The record
+	// of the session then keeps them. A prune takes mu for its whole length, so
+	// a pick never lands on a folder that the prune deletes.
 	holds map[string][]skills.Pick
 }
 
@@ -123,20 +132,22 @@ func (r *router) startSkills(dir string) {
 }
 
 // pruneSkills deletes the versions that a newer one replaced long ago. It keeps
-// the versions of each run in holds, each version the record of a live worker
-// names, and each version a new worker of a project would get. Only the record
-// reaches a worker that a former image started.
+// the versions of each run in holds, each version a new worker of a project would
+// get, and each version the record of a live session names. Only the record
+// reaches an interactive session, which outlives its launcher and can outlive the
+// bridge, and a worker that a former image started. A process that names the
+// session makes it live, so a pass that cannot list the processes deletes nothing.
 func (r *router) pruneSkills(now time.Time) {
 	s := &r.skills
 	if s.dir == "" {
 		return
 	}
-	r.mu.Lock()
-	sessions := make([]string, 0, len(r.live))
-	for _, run := range r.live {
-		sessions = append(sessions, run.p.spec.sessionID)
+	running, err := r.runningSessions()
+	if err != nil {
+		r.log.Warn("skill_prune_skipped", "error", err.Error())
+
+		return
 	}
-	r.mu.Unlock()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -151,14 +162,48 @@ func (r *router) pruneSkills(now time.Time) {
 			keep[pick.Package+"/"+pick.Version] = true
 		}
 	}
-	for _, session := range sessions {
+	for session, at := range skills.Records(s.dir) {
+		if !running[session] && now.Sub(at) >= launchGrace {
+			continue
+		}
 		for pkg, version := range skills.ReadRecord(s.dir, session) {
 			keep[pkg+"/"+version] = true
 		}
 	}
-	for _, gone := range skills.Prune(s.dir, now, func(pkg, version string) bool { return keep[pkg+"/"+version] }) {
-		r.log.Info("skill_version_deleted", "version", gone)
+	gone := skills.Prune(s.dir, now, func(session string) bool { return running[session] }, func(pkg, version string) bool { return keep[pkg+"/"+version] })
+	for _, version := range gone {
+		r.log.Info("skill_version_deleted", "version", version)
 	}
+}
+
+// runningSessions names each session of a live run and each session that a
+// process names. An empty process list is an error, because it says nothing about
+// what runs.
+func (r *router) runningSessions() (map[string]bool, error) {
+	list := r.skills.processes
+	if list == nil {
+		list = listProcesses
+	}
+	out, err := list(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("list the processes: %w", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		return nil, errors.New("the process list is empty")
+	}
+	running := map[string]bool{}
+	for _, line := range strings.Split(out, "\n") {
+		for _, session := range sessionsOf(line) {
+			running[session] = true
+		}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, run := range r.live {
+		running[run.p.spec.sessionID] = true
+	}
+
+	return running, nil
 }
 
 // givePackages picks the skill packages of a Claude Code worker and the loupe
@@ -200,8 +245,9 @@ func (r *router) givePackages(spec *workerSpec, p pending) error {
 }
 
 // pickPackages chooses the versions of one worker, holds them for the run and
-// records them for the session. A record that fails to write only makes a
-// resume take the current versions, so the run starts.
+// records them for the session. A run starts when its record fails to write. A
+// resume then takes the current versions, and the prune can no longer see the
+// versions of an interactive session after its launcher returns.
 func (r *router) pickPackages(spec workerSpec, runID string, wanted []string) ([]skills.Pick, error) {
 	s := &r.skills
 	s.mu.Lock()
@@ -231,7 +277,8 @@ func (r *router) pickPackages(spec workerSpec, runID string, wanted []string) ([
 	return picks, nil
 }
 
-// releasePackages ends the hold of a run.
+// releasePackages ends the hold of a run. The record of an interactive session
+// keeps its versions after that.
 func (r *router) releasePackages(runID string) {
 	s := &r.skills
 	s.mu.Lock()

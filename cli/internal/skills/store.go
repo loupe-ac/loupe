@@ -280,24 +280,39 @@ func ReadRecord(configDir, session string) map[string]string {
 	return recorded
 }
 
-// pruneRecords deletes each record older than KeepAfterReplace. A later resume
-// of that session takes the current versions.
-func pruneRecords(configDir string, now time.Time) {
-	dir := filepath.Join(StoreDir(configDir), recordsDir)
-	entries, _ := os.ReadDir(dir)
+// Records gives the time each session's record was last written.
+func Records(configDir string) map[string]time.Time {
+	entries, _ := os.ReadDir(filepath.Join(StoreDir(configDir), recordsDir))
+	records := make(map[string]time.Time, len(entries))
 	for _, e := range entries {
-		if info, err := e.Info(); err == nil && now.Sub(info.ModTime()) >= KeepAfterReplace {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
+		session, isRecord := strings.CutSuffix(e.Name(), ".json")
+		if info, err := e.Info(); isRecord && err == nil {
+			records[session] = info.ModTime()
 		}
+	}
+
+	return records
+}
+
+// pruneRecords deletes each record older than KeepAfterReplace, unless live
+// says its session still runs. A later resume of a deleted record's session
+// takes the current versions.
+func pruneRecords(configDir string, now time.Time, live func(session string) bool) {
+	for session, at := range Records(configDir) {
+		if now.Sub(at) < KeepAfterReplace || (live != nil && live(session)) {
+			continue
+		}
+		_ = os.Remove(filepath.Join(StoreDir(configDir), recordsDir, session+".json"))
 	}
 }
 
 // Prune deletes each version that a newer one replaced at least KeepAfterReplace
-// ago, unless inUse says something still uses it, and each old record. The time
-// of the replacement is the time the next higher version reached the store. It
-// returns the versions it deleted, as package/version.
-func Prune(configDir string, now time.Time, inUse func(pkg, version string) bool) []string {
-	pruneRecords(configDir, now)
+// ago, unless inUse says something still uses it, and each old record of a
+// session that live does not name. The time of the replacement is the time the
+// next higher version reached the store. It returns the versions it deleted, as
+// package/version.
+func Prune(configDir string, now time.Time, live func(session string) bool, inUse func(pkg, version string) bool) []string {
+	pruneRecords(configDir, now, live)
 	var removed []string
 	for _, pkg := range Held(configDir) {
 		list := versions(configDir, pkg)

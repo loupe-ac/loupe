@@ -81,19 +81,25 @@ func (l sessionLiveness) readings(ctx context.Context, ids []string) []api.Inter
 // namesSession reports whether a command line carries a session flag with
 // exactly this id, as "--session-id <id>" or "--session-id=<id>".
 func namesSession(line, id string) bool {
+	return slices.Contains(sessionsOf(line), id)
+}
+
+// sessionsOf lists the ids that the session flags of a command line name.
+func sessionsOf(line string) []string {
+	var ids []string
 	fields := strings.Fields(line)
 	for i, f := range fields {
 		for _, flag := range sessionFlags {
-			if f == flag && i+1 < len(fields) && fields[i+1] == id {
-				return true
+			if f == flag && i+1 < len(fields) {
+				ids = append(ids, fields[i+1])
 			}
-			if f == flag+"="+id {
-				return true
+			if id, ok := strings.CutPrefix(f, flag+"="); ok {
+				ids = append(ids, id)
 			}
 		}
 	}
 
-	return false
+	return ids
 }
 
 // listProcesses runs ps once. "-axo pid=,args=" works the same on macOS and
