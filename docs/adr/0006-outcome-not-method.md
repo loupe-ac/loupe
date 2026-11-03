@@ -19,7 +19,7 @@ The same shape appears wherever a method has several valid forms, such as how to
 
 ## Decision
 
-Loupe text states the outcome that Loupe needs. The rules of the repository decide how an agent reaches it. An agent asks nobody about a method that those rules cover, and a Loupe design specifies no such method.
+Loupe text states the outcome that Loupe needs. The rules of the repository decide how an agent reaches it. Loupe text adds no question about a method that those rules cover, and a Loupe design specifies no such method. When a rule of the repository requires a question or an approval, the agent follows that rule too.
 
 The test for each sentence: does Loupe read this result or act on it? When it does, state the result. When the sentence only describes one way to reach a result, leave it out.
 
@@ -27,9 +27,9 @@ The rule in detail:
 
 - Scope. The rule covers all Loupe text that an agent in another repository reads, and the designs that produce that text.
 - State an outcome that somebody can check. Say what must be true, in terms of what Loupe reads or does. A vague outcome forces each agent to guess. A repository that uses another method must still be able to meet it. "Workers can read the profile" meets this. "The change is pushed" names a step, and the step can succeed while the outcome stays false.
-- The repository owns the method. The agent reads the instruction files and the skills of the repository, and follows them.
+- The repository owns the method. The agent reads the instruction files and the skills of the repository, and follows them. This includes a question or an approval that they require.
 - A repository with no rule. The agent uses its usual default, and tells the owner what it did. It does not stop to ask, and Loupe supplies no default.
-- A real blocker goes to the owner. The agent asks when the rules of the repository contradict each other, when they contradict the outcome, or when only a person can act.
+- Questions to the owner. The agent asks when a rule of the repository requires it. It also asks when the rules of the repository contradict each other, when they contradict the outcome, or when only a person can act.
 - The surface of the product stays named. Loupe text names its own tools, commands, files and profile sections. It also names a step when the product reads that step. A stage skill opens a pull request because the workflow reads the pull request, and it calls `loupe env refresh` because the bridge runs the command behind it.
 - The profile holds values, as ADR 0002 says. A stage reads a value from the profile when it must run a repository's command. This rule does not add a profile section for each method, because the instruction files already hold them.
 
@@ -38,7 +38,7 @@ Apply this rule when you write or change Loupe text or design a Loupe feature. W
 ## Rejected options
 
 - Give a default method, and let the profile override it: this is the most helpful text for a repository that has no rules, and it costs little to write. But the default records the habits of this repository, and an agent in another repository may follow it over a rule that it did not read.
-- Ask the owner each time: the answer is always correct, and no agent guesses. But the owner has often written the rule down already, each question costs them attention, and an unattended worker cannot ask.
+- Ask the owner each time: the answer is always correct, and no agent guesses. But the owner has often written the rule down already, each question costs them attention, and an unattended worker waits for each answer.
 - Extend ADR 0002: the two records share a root. But ADR 0002 decides who owns an environment, and it covers stage skills only. A wider rule in it would hide both decisions.
 - Keep the rule in agent memory: this needs no record, and it already exists there. But only the sessions that load that memory see it, and it gives a reader no reasons or limits.
 
