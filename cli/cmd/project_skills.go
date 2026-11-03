@@ -382,10 +382,11 @@ const (
 )
 
 // skillReports gives the heartbeat one row for each package. The version and
-// the failure of the last update come from the store, so they are right after any
-// update, `loupe update` in its own process included. A development build with an empty store reports an empty
-// list, because its workers use the plugin their account installed, and that
-// clears the rows of an earlier run. A router with no store sends no list.
+// the failure of the last update come from the store, so they are right after
+// any update, `loupe update` in its own process included. A development build
+// with an empty store reports an empty list, because its workers use the plugin
+// their account installed, and that clears the rows of an earlier run. A router
+// with no store sends no list.
 func (r *router) skillReports() []api.SkillReport {
 	names := r.skillNames()
 	s := &r.skills
