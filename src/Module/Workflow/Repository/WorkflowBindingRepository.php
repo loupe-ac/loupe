@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Workflow\Repository;
 
 use App\Module\Workflow\Entity\WorkflowBinding;
+use App\Module\Workflow\Template\Template;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
@@ -43,7 +44,7 @@ class WorkflowBindingRepository extends ServiceEntityRepository
     }
 
     /**
-     * The skill packages and the profile need that the stored copy of each project names, in one read. A copy from before the fields has null for both.
+     * The skill packages and the profile need that the stored copy of each project names, in one read. A copy from before the fields has null for both, and so has a value that the template parser would drop from a stored copy.
      *
      * @param list<Uuid> $projectIds
      *
@@ -66,7 +67,7 @@ class WorkflowBindingRepository extends ServiceEntityRepository
             $packages = \is_string($row['skill_packages']) ? json_decode($row['skill_packages'], true, 512, \JSON_THROW_ON_ERROR) : null;
             $needsProfile = \is_string($row['needs_profile']) ? json_decode($row['needs_profile'], true, 512, \JSON_THROW_ON_ERROR) : null;
             $settings[Uuid::fromString((string) $row['project_id'])->toRfc4122()] = [
-                'skillPackages' => \is_array($packages) && array_is_list($packages) && array_all($packages, static fn (mixed $name): bool => \is_string($name)) ? $packages : null,
+                'skillPackages' => Template::isSkillPackageList($packages) ? $packages : null,
                 'needsProfile' => \is_bool($needsProfile) ? $needsProfile : null,
             ];
         }

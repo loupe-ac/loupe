@@ -80,6 +80,20 @@ final readonly class Template
     ) {
     }
 
+    /**
+     * A list of one or more different package names.
+     *
+     * @phpstan-assert-if-true list<string> $value
+     */
+    public static function isSkillPackageList(mixed $value): bool
+    {
+        return \is_array($value)
+            && array_is_list($value)
+            && [] !== $value
+            && array_all($value, static fn (mixed $name): bool => \is_string($name) && 1 === preg_match(self::SKILL_PACKAGE_RULE, $name))
+            && \count($value) === \count(array_unique($value));
+    }
+
     public function epicBranchOf(int $number): ?string
     {
         return null === $this->epicBranch ? null : str_replace(self::EPIC_BRANCH_NUMBER, (string) $number, $this->epicBranch);

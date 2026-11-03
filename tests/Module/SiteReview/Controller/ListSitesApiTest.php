@@ -180,6 +180,60 @@ final class ListSitesApiTest extends WebTestCase
         self::assertNull($profile['packages-older']);
     }
 
+    /** A value that the template parser drops from a stored copy reaches the CLI as null, so the CLI takes its fallback. */
+    public function test_a_malformed_stored_skill_setting_reads_as_null(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+
+        $malformed = [
+            'malformed-empty' => '{"skillPackages": [], "needsProfile": "true"}',
+            'malformed-repeated' => '{"skillPackages": ["loupe", "loupe"], "needsProfile": 1}',
+            'malformed-case' => '{"skillPackages": ["Loupe"], "needsProfile": null}',
+            'malformed-path' => '{"skillPackages": ["../loupe"], "needsProfile": []}',
+            'malformed-type' => '{"skillPackages": ["loupe", 1], "needsProfile": "false"}',
+            'malformed-map' => '{"skillPackages": {"a": "loupe"}, "needsProfile": 0}',
+            'malformed-string' => '{"skillPackages": "loupe", "needsProfile": {}}',
+        ];
+        $owner = $this->user($em, 'list-sites-malformed@example.com');
+        $projects = [];
+        foreach (array_keys($malformed) as $slug) {
+            $projects[$slug] = new Project($owner, $slug);
+            $em->persist($projects[$slug]);
+        }
+        $valid = new Project($owner, 'malformed-valid');
+        $em->persist($valid);
+        $em->flush();
+        $bind = static::getContainer()->get(BindWorkflowTemplateHandler::class);
+        self::assertInstanceOf(BindWorkflowTemplateHandler::class, $bind);
+        $bind(new BindWorkflowTemplateCommand($valid, 'simple', []));
+        $connection = $em->getConnection();
+        foreach ($projects as $slug => $project) {
+            $bind(new BindWorkflowTemplateCommand($project, 'simple', []));
+            $connection->executeStatement('UPDATE workflow_bindings SET definition = definition || ?::jsonb WHERE project_id = ?', [$malformed[$slug], (string) $project->id]);
+        }
+
+        $raw = AgentCredential::agentToken(static::getContainer(), $owner);
+        $client->request(Request::METHOD_GET, '/api/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertIsArray($data['sites']);
+        $packages = array_column($data['sites'], 'skillPackages', 'slug');
+        $profile = array_column($data['sites'], 'needsProfile', 'slug');
+        // Guard: a valid copy still reads, or the nulls below prove nothing.
+        self::assertSame(['loupe'], $packages['malformed-valid']);
+        self::assertFalse($profile['malformed-valid']);
+        foreach (array_keys($malformed) as $slug) {
+            self::assertArrayHasKey($slug, $packages);
+            self::assertNull($packages[$slug], $slug);
+            self::assertNull($profile[$slug], $slug);
+        }
+    }
+
     public function test_the_old_agent_path_is_gone(): void
     {
         $client = static::createClient();

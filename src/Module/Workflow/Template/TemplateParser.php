@@ -1671,7 +1671,7 @@ final readonly class TemplateParser
         if (null === $value) {
             return null;
         }
-        if (!\is_array($value) || !array_is_list($value) || [] === $value || !array_all($value, static fn (mixed $name): bool => \is_string($name) && 1 === preg_match(Template::SKILL_PACKAGE_RULE, $name)) || \count($value) !== \count(array_unique($value))) {
+        if (!Template::isSkillPackageList($value)) {
             if (!$lenient) {
                 $errors[] = 'skillPackages: must be a list of one or more different package names';
             }

@@ -1117,9 +1117,11 @@ The bridge reads the list at start, at each reload and once an hour. The read at
 start and the read of a reload end before the bridge dispatches work. When reads
 overlap, the answer of the read that began last wins. When a read fails, the
 bridge keeps the last answer. An app that is older than this change,
-or a project whose stored template copy has no value, sends `null`. The bridge
-then gives that project every package it holds, and treats `needsProfile` as
-`true`.
+or a project whose stored template copy has no valid value, sends `null`. The
+bridge then gives that project every package it holds, and treats `needsProfile`
+as `true`. A list counts as valid when it holds one or more different package
+names. The bridge also gives every package it holds when it reads a list that
+is not valid.
 
 ## Harness events
 
