@@ -521,7 +521,7 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         self::assertSame([$entry], $row['commandEntries']);
         self::assertSame([['name' => 'default', 'size' => 2, 'inUse' => 1, 'queued' => 0]], $row['workerPools']);
         self::assertSame('2026-09-30T11:00:00+00:00', $row['workerPoolsReportedAt']);
-        self::assertSame([['name' => 'work', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'not logged in', 'used' => true]], $row['accounts']);
+        self::assertSame([['name' => 'work', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'not logged in', 'used' => true, 'projectFailure' => null, 'otherFailedProjects' => 0]], $row['accounts']);
         self::assertSame('2026-09-30T10:59:00+00:00', $row['accountsReportedAt']);
         self::assertNull($bridges[$quiet->id->toRfc4122()]['accounts']);
         self::assertNull($bridges[$quiet->id->toRfc4122()]['accountsReportedAt']);

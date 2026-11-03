@@ -55,7 +55,7 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 	}
 	for _, slug := range slugs {
 		if _, ok := binaries[slug]; !ok {
-			problems = append(problems, harness.Problem{Reason: "claude is not on PATH for project " + slug, Detail: "no claude on the PATH of the account from " + spec.Projects[slug]})
+			problems = append(problems, harness.Problem{Reason: "claude is not on PATH", Project: slug, Detail: "no claude on the PATH of the account from " + spec.Projects[slug]})
 		}
 	}
 

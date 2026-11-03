@@ -262,3 +262,42 @@ func TestTheHeartbeatReportsTheStopValueOfAnAccount(t *testing.T) {
 		t.Fatalf("rows = %+v", rows)
 	}
 }
+
+// The heartbeat marks the account that runs the app prompts, and no other.
+func TestTheHeartbeatMarksTheAccountOfTheAppPrompts(t *testing.T) {
+	body := "appPrompts: true\naccounts:\n  claude:\n    harness: claude-code\n  spare:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\n"
+	set, err := rules.Parse([]byte(body), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.SetAccountProblems(map[string]string{})
+	rows := accountReports(set)
+	if len(rows) != 2 || rows[0].Name != "claude" || !rows[0].AppPrompts || rows[1].AppPrompts {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+// A problem of one project fails that project alone: the account stays ready,
+// and the heartbeat names the project by id with a reason that names no slug.
+func TestAProjectProblemFailsOnlyThatProject(t *testing.T) {
+	results := []accountResult{{name: "a", harness: "claude-code", used: true, problems: []harn.Problem{
+		{Reason: "claude is not on PATH", Project: "other", Detail: "no claude"},
+	}}}
+	if off := accountsOff(results); len(off) != 0 {
+		t.Fatalf("accountsOff = %v, want none", off)
+	}
+	if got, want := projectsOff(results), map[string]map[string]string{"a": {"other": "claude is not on PATH"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("projectsOff = %v, want %v", got, want)
+	}
+	if reason := results[0].reason(); reason != "" {
+		t.Fatalf("reason = %q, want none", reason)
+	}
+
+	mixed := accountResult{name: "a", problems: []harn.Problem{
+		{Reason: "not logged in"},
+		{Reason: "claude is not on PATH", Project: "other"},
+	}}
+	if got := mixed.reason(); got != "not logged in" {
+		t.Fatalf("reason = %q, want the account problem alone", got)
+	}
+}

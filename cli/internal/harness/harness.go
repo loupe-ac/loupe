@@ -73,11 +73,15 @@ type CheckSpec struct {
 }
 
 // Problem is one thing that keeps an account from running. Reason is a short
-// fixed phrase that leaves the machine, so it names no path and no identity.
+// fixed phrase that leaves the machine, so it names no path, no identity and
+// no project.
 // Detail goes to the bridge log alone.
 type Problem struct {
 	Reason string
 	Detail string
+	// Project is the slug of the one project the problem keeps from running.
+	// It is empty for a problem of the whole account.
+	Project string
 }
 
 // Spec is one run. An empty Model, Effort, PermissionMode or Schema passes no

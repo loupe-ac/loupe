@@ -17,6 +17,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
+use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -171,6 +172,71 @@ final class WorkTakersTest extends KernelTestCase
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
 
         self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
+    }
+
+    public function test_a_bridge_with_an_account_that_failed_the_project_for_the_kind_is_no_taker(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-project');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($bridge, ['one', 'two'], [], (string) $project->id);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+
+        $this->failedAccounts($bridge, ['one', 'two'], ['one'], (string) $project->id);
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state, 'the bridge skips the kind when one variant account failed');
+    }
+
+    public function test_a_failed_app_prompt_account_waits_on_the_no_capable_marker(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-app-prompt', prompt: 'Build {cardId}.');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->failedAppPromptAccount($bridge, (string) Uuid::v7());
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+
+        $this->failedAppPromptAccount($bridge, (string) $project->id);
+
+        $reading = $this->read($project, $request);
+        self::assertSame([WorkTakerState::NotCapable, false], [$reading->state, $reading->appPromptsMissing]);
+        self::assertSame($reading, new WorkTakerFacts(['implement' => $reading])->notCapable());
+    }
+
+    public function test_a_failed_app_prompt_account_holds_back_no_kind_that_another_entry_runs(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-app-prompt-mapped', prompt: 'Build {cardId}.');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->failedAppPromptAccount($bridge, (string) $project->id);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state, 'a command entry runs the kind on no account');
+    }
+
+    public function test_capable_for_counts_no_bridge_whose_account_failed_the_project(): void
+    {
+        [$project, , $owner] = $this->scenario('capable-for-failed');
+        $mapped = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['discovery']);
+        $mapped->accounts = [['name' => 'one', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['discovery'], 'failedProjects' => [['projectId' => (string) $project->id, 'reason' => 'claude is not on PATH']]]];
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', true)->state);
+
+        $prompts = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->failedAppPromptAccount($prompts, (string) Uuid::v7());
+
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
+
+        $this->failedAppPromptAccount($prompts, (string) $project->id);
+
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', true)->state);
+    }
+
+    public function test_a_failure_of_another_project_keeps_the_bridge_a_taker(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-other-project');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($bridge, ['one'], ['one'], (string) Uuid::v7());
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
     }
 
     public function test_a_bridge_that_reports_no_kinds_is_no_taker(): void
@@ -714,6 +780,32 @@ final class WorkTakersTest extends KernelTestCase
     private function accounts(Bridge $bridge, array $kinds): void
     {
         $bridge->accounts = array_map(static fn (string $name, array $runs): array => ['name' => $name, 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => $runs], array_keys($kinds), array_values($kinds));
+        $this->em()->flush();
+    }
+
+    /**
+     * @param list<string> $names  the accounts that run the implement kind
+     * @param list<string> $failed the accounts that failed their check for the project
+     */
+    private function failedAccounts(Bridge $bridge, array $names, array $failed, string $projectId): void
+    {
+        $bridge->accounts = array_map(
+            static fn (string $name): array => [
+                'name' => $name,
+                'harness' => 'claude',
+                'state' => 'ready',
+                'reason' => null,
+                'kinds' => ['implement'],
+                'failedProjects' => \in_array($name, $failed, true) ? [['projectId' => $projectId, 'reason' => 'claude is not on PATH']] : [],
+            ],
+            $names,
+        );
+        $this->em()->flush();
+    }
+
+    private function failedAppPromptAccount(Bridge $bridge, string $projectId): void
+    {
+        $bridge->accounts = [['name' => 'one', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => [], 'appPrompts' => true, 'failedProjects' => [['projectId' => $projectId, 'reason' => 'claude is not on PATH']]]];
         $this->em()->flush();
     }
 

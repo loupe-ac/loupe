@@ -741,6 +741,13 @@ type AccountReport struct {
 	Reason  string `json:"reason,omitempty"`
 	// Used is false for an account no rule runs on.
 	Used bool `json:"used"`
+	// FailedProjects lists the projects the account failed its check for. An
+	// account with only these stays ready, and Loupe holds back the work of
+	// those projects on it.
+	FailedProjects []FailedProject `json:"failedProjects,omitempty"`
+	// AppPrompts marks the account that runs the app prompts, so Loupe can
+	// apply FailedProjects to a kind that no work entry maps.
+	AppPrompts bool `json:"appPrompts,omitempty"`
 	// Kinds are the work kinds that can run on the account, through a work
 	// entry or an experiment variant. StopAt is the use, in percent, at which
 	// Loupe stops new work on the account. Readings are the latest reading of
@@ -750,6 +757,13 @@ type AccountReport struct {
 	Kinds    []string        `json:"kinds"`
 	StopAt   int             `json:"stopAt,omitempty"`
 	Readings []usage.Reading `json:"readings,omitempty"`
+}
+
+// FailedProject is a project an account failed its check for. Reason is a short
+// fixed phrase, and names no path and no identity.
+type FailedProject struct {
+	ProjectID string `json:"projectId"`
+	Reason    string `json:"reason"`
 }
 
 // MaxHostSamples caps the samples the bridge keeps. HostSamplesPerHeartbeat

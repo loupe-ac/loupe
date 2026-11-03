@@ -29,7 +29,35 @@ final readonly class AgentConnection
         public ?AgentRefusalChip $refusalChip = null,
         /** @var list<RefusedRequest> the open requests of the project that the server refused to this bridge */
         public array $refusals = [],
+        /** The RFC 4122 id of the project the page shows, the only project whose failure it names. */
+        public string $projectId = '',
     ) {
+    }
+
+    /** The reason the account failed its check for the project of the page, or null. */
+    public function projectFailure(string $account): ?string
+    {
+        foreach ($this->failedProjects($account) as $failed) {
+            if ($failed['projectId'] === $this->projectId) {
+                return $failed['reason'];
+            }
+        }
+
+        return null;
+    }
+
+    /** How many other projects the account failed its check for. The page names none of them. */
+    public function otherFailedProjects(string $account): int
+    {
+        return \count(array_filter($this->failedProjects($account), fn (array $failed): bool => $failed['projectId'] !== $this->projectId));
+    }
+
+    /** @return list<array{projectId: string, reason: string}> */
+    private function failedProjects(string $account): array
+    {
+        $row = array_find($this->bridge->accounts ?? [], static fn (array $candidate): bool => $candidate['name'] === $account);
+
+        return $row['failedProjects'] ?? [];
     }
 
     /**
@@ -131,7 +159,7 @@ final readonly class AgentConnection
     {
         $statuses = [];
         foreach ($this->bridge->accounts ?? [] as $account) {
-            $statuses[] = ['name' => $account['name'], 'status' => $this->statusOf($account['name'], 'failing' === $account['state'])];
+            $statuses[] = ['name' => $account['name'], 'status' => $this->statusOf($account['name'], 'failing' === $account['state'] || null !== $this->projectFailure($account['name']))];
         }
 
         return $statuses;

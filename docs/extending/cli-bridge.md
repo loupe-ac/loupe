@@ -904,6 +904,14 @@ or a key never leaves the machine. The bridge checks again only on a reload,
 so run `loupe bridge reload` after you fix an account. `loupe status` runs the
 same checks.
 
+A problem in one project fails only that project. The account stays ready for
+its other projects, and the log line is `project_failed`. An entry is off for
+that project when its account, or the account of a variant of an experiment that
+covers it, fails the project. An app prompt is off when the default account
+fails the project. A request for that work waits with no capable bridge. The
+Agents page and `bridge_list` name the failed project that the viewer can read,
+and they count the others.
+
 The Agents page and `loupe status` mark an account that no rule uses as unused.
 A failing unused account turns off no rule. Only a failing account that a rule
 uses makes `loupe status` exit with a non-zero code.

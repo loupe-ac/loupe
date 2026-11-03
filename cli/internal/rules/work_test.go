@@ -1176,3 +1176,63 @@ func TestMatchWorkSkipsAnInteractiveRequestWithoutAnInteractiveEntry(t *testing.
 		})
 	}
 }
+
+// A project that an account failed for turns off the work of that project on
+// the account, and keeps the kinds and the capabilities the bridge offers.
+func TestAFailedProjectTurnsOffThatProjectOnly(t *testing.T) {
+	s := checked(t, workFile)
+	kinds, capabilities := s.WorkKindsOn(), s.Capabilities()
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"other": "claude is not on PATH"}})
+	if m := s.MatchWork(workRequest("implement")); m.Skip != Run {
+		t.Fatalf("a failure of another project stopped the work: %+v", m)
+	}
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"loupe": "claude is not on PATH"}})
+	if m := s.MatchWork(workRequest("implement")); m.Skip != NoRule || m.Project != "loupe" {
+		t.Fatalf("match = %+v, want NoRule for loupe", m)
+	}
+	if got := s.WorkKindsOn(); !slices.Equal(got, kinds) {
+		t.Fatalf("WorkKindsOn = %v, want %v", got, kinds)
+	}
+	if got := s.Capabilities(); !slices.Equal(got, capabilities) {
+		t.Fatalf("Capabilities = %v, want %v", got, capabilities)
+	}
+	if off := s.AccountsOff(); len(off) != 0 {
+		t.Fatalf("AccountsOff = %v, want none", off)
+	}
+
+	s.SetProjectProblems(nil)
+	if m := s.MatchWork(workRequest("implement")); m.Skip != Run {
+		t.Fatalf("a clean check kept the work off: %+v", m)
+	}
+}
+
+// A kind that no entry maps runs on the account of the app prompts, so a failed
+// project of that account skips the prompt too.
+func TestAFailedProjectTurnsOffTheAppPromptOfThatProject(t *testing.T) {
+	s := checked(t, "appPrompts: true\n"+workFile)
+	w := workRequest("review")
+	w.Prompt = "Review {cardNumber}."
+	if !s.RunsAppPrompts("claude") || s.RunsAppPrompts("other") {
+		t.Fatal("RunsAppPrompts names the wrong account")
+	}
+	if m := s.MatchWork(w); m.Skip != Run {
+		t.Fatalf("match = %+v, want Run", m)
+	}
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"loupe": "claude is not on PATH"}})
+	if m := s.MatchWork(w); m.Skip != NoRule {
+		t.Fatalf("match = %+v, want NoRule", m)
+	}
+	if !slices.Contains(s.Capabilities(), CapabilityAppPrompts) {
+		t.Fatal("a failed project took the app prompts capability away")
+	}
+}
+
+// A set that runs no app prompts names no account for them.
+func TestNoAppPromptsNameNoAccount(t *testing.T) {
+	if checked(t, workFile).RunsAppPrompts("claude") {
+		t.Fatal("RunsAppPrompts = true without appPrompts")
+	}
+}
