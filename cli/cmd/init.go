@@ -100,6 +100,9 @@ type initOptions struct {
 	name      string
 	domain    string
 	origins   []string
+
+	agent         string
+	reviewProfile bool
 }
 
 func newInitCmd() *cobra.Command {
@@ -120,8 +123,7 @@ func newInitCmd() *cobra.Command {
 			"The server checks every value first, and a bad value creates no project. " +
 			"--name cannot go with --project, and it needs --force when " + projectfile.Name + " names a project already. " +
 			"When your login covers no project, the command creates one from the `origin` remote of this repository.\n" +
-			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + " and " +
-			profile.Path + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
+			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
 			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
 			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
@@ -141,7 +143,11 @@ func newInitCmd() *cobra.Command {
 			"8. Install the Playwright browser, when the package.json of the repository root or of one of " +
 			"its direct subfolders lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
-			"9. Print the wizard page to open next.\n\n" +
+			"9. Write the repository profile with an agent, when the workflow of the project needs one and " +
+			profile.Path + " is missing, lacks a section or holds a value marked \"" + profile.OpenQuestion + "\". " +
+			"--review-profile starts the agent also for a complete file. --agent picks claude or codex; with both on the PATH " +
+			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
+			"10. Print the wizard page to open next.\n\n" +
 			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
 			"A bridge that fails to start makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
@@ -158,6 +164,8 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
 	cmd.Flags().BoolVar(&o.link.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
+	cmd.Flags().StringVar(&o.agent, "agent", "", "agent that writes the repository profile: claude or codex; else init asks when both are on the PATH")
+	cmd.Flags().BoolVar(&o.reviewProfile, "review-profile", false, "start the profile agent also when "+profile.Path+" is complete, to review each value")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
 	cmd.MarkFlagsMutuallyExclusive("name", "project")
@@ -219,6 +227,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	} else {
 		initPlaywright(cmd, dir)
 	}
+	initProfile(cmd, dir, site, o)
 	initNext(cmd, cfg.BaseURL)
 
 	return bridgeErr
@@ -637,9 +646,6 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !link.force {
-		if err := writeProfile(cmd, dir); err != nil {
-			return err
-		}
 		if err := offerServer(cmd, dir, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
 			return err
 		}

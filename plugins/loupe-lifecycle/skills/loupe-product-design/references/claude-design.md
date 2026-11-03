@@ -20,8 +20,10 @@ Each rule has a stable ID, so a comment can cite it.
    - When no Design System artifact exists, say so once. Build the canvas from the real strings, icons and compiled stylesheet of the project.
    - Show a needed component change as a change to that component.
 8. C8: Store each validated prototype in the artifact library. A headless worker cannot read a claude.ai artifact, but it reads the library through `artifact_get` and `artifact_read`.
-   - After the owner validates a prototype, write the files of the artifact to a folder outside the checkout, as the `Artifact` tool reads them. Run `loupe artifact push <folder> --name "<name>" --card <card number> --source-link <link of the canvas>`. The command prints the stable link and the version link. Put the stable link in the product document, and link the artifact to the card.
-   - After the owner changes a picked frame, read the files again, empty the folder, and write the new files to it. The command stores what is on disk, so a stale file goes into the new version otherwise. Then run `loupe artifact push <folder> --artifact <artifact id>`, so the library holds the new version.
+   - After the owner validates a prototype, write the files of the artifact to a folder outside the checkout, as the `Artifact` tool reads them. Run `loupe artifact create <folder> --name "<name>" --card <card number> --source-link <link of the canvas> --format json`. Read `artifactId`, `versionNumber`, `url` and `versionUrl` from the answer. With no `--format`, the command prints only `url`. Put the stable link `url` in the product document, and link the artifact to the card.
+   - Pass `--format json` each time you store files under this rule, also when you push an output folder. Read `versionNumber` from each answer, because the fidelity check needs it.
+   - After the owner changes a picked frame, read the files again, empty the folder, and write the new files to it. The command stores what is on disk, so a stale file goes into the new version otherwise. Then run `loupe artifact version create <artifact id> <folder> --format json`, so the library holds the new version.
+   - These commands need a CLI release that has `loupe artifact create`. An older CLI has only `loupe artifact push`, and a newer CLI refuses `push`. When `loupe artifact create --help` fails, ask the owner to run `loupe update`. The plugin and the CLI update separately.
    - The push compiles a Design canvas, the `project/canvas.json` index with its pages, to plain pages. It leaves out the canvas file, `support.js` and `canvas.json`.
    - When the push refuses with a gap, run it again with `--out <output folder>`. The output folder is a new or empty folder outside the checkout. The push refuses an output folder that holds files, so never pass the folder of the artifact files. It writes the compiled pages to the output folder with a `<!-- loupe:gap -->` comment at each gap, and stores nothing. Finish each gap by hand in the output folder, remove its comment, and push the output folder.
    - A folder with several canvases needs `--index <artboard>`, which names the canvas that becomes `index.html`. Each other canvas becomes `<Name>.html`.
@@ -35,7 +37,7 @@ Each rule has a stable ID, so a comment can cite it.
      3. Before it saves a page, it marks the chosen `<option>` of each `<select>`, and unwraps `sc-for` and `sc-if`. It also turns each `<span>` inside an `<svg>` into plain text. It copies the stylesheets and fonts of the Design System to the out folder.
      4. It points each `/_blob/<id>` link of a page or a stylesheet at the file `_blob/<id>.<ext>` of the canvas folder, as a relative link. It copies no bare `_blob/<id>` file next to it. So write each blob file with its extension, as for the push. A `/_blob/` path with no such file stays as it is, and the stored page cannot load it.
      5. Push the out folder.
-   - Fidelity check. After each `loupe artifact push` of a canvas, also a new version, dispatch one subagent with the Agent tool and `subagent_type` `general-purpose`, which holds every tool. The subagent proves that the stored version matches the canvas, fixes each difference on the canvas, and pushes again. Wait for its report. Show the report to the owner in one message before P10 ends.
+   - Fidelity check. After each `loupe artifact create` or `loupe artifact version create` of a canvas, dispatch one subagent with the Agent tool and `subagent_type` `general-purpose`, which holds every tool. The subagent proves that the stored version matches the canvas, fixes each difference on the canvas, and pushes again. Wait for its report. Show the report to the owner in one message before P10 ends.
 
      The subagent prompt holds these items:
      - the canvas link, the artifact id, the version number and the `--index` value;
@@ -48,7 +50,7 @@ Each rule has a stable ID, so a comment can cite it.
      The subagent runs these steps, and stops after three fix rounds:
      1. Source identity. Read each canvas file with the `Artifact` tool, write it to a new input folder, and run `canvas-fidelity.js manifest` on it. Compare each hash with the file as the `Artifact` tool returned it. Copy again each file that differs or is missing.
      2. Stored version. Make the expected output from the input folder.
-        - For a plain canvas with no gap, it is `loupe artifact push <input folder> --out <new folder>` with the same `--index`.
+        - For a plain canvas with no gap, it is `loupe artifact create <input folder> --out <new folder>` with the same `--index`.
         - For a plain canvas with a gap, it is the repaired `--out` folder that you pushed. Make a fresh `--out` baseline, and run `manifest` on both folders. Both folders must hold the same paths. A file with no gap comment in the baseline must have the same hash in both. A file that differs must hold a gap comment in the baseline and none in the repaired folder, and each change must replace a gap. Any other difference is a hand edit outside a gap, and counts as a mismatch.
         - For a canvas of Design System components, it is the `render` folder that you pushed.
         - Run `manifest` on the expected output. List the stored version with `artifact_get`, and compare the path lists.
@@ -60,7 +62,7 @@ Each rule has a stable ID, so a comment can cite it.
         - Pass the `pageLink` from `artifact_get` as the stored page link. Never write the `pageLink` to a file, the card or a log.
         - `shoot` refuses a link that is not absolute. It also refuses a page map where a companion file uses the output path of an artboard. A collision is a difference. Rename the companion file or the artboard on the canvas, and change each link to it.
         - Read both images of each pair. A missing or extra element, a changed label or value, a changed box and a missing icon are differences. Font hinting is not.
-     5. Fix loop. Fix the canvas first with the `Artifact` tool, and make the expected output again. Push with `loupe artifact push <folder> --artifact <artifact id>` and notes that say what changed. Check the new version from step 1. Never push the baseline.
+     5. Fix loop. Fix the canvas first with the `Artifact` tool, and make the expected output again. Push with `loupe artifact version create <artifact id> <folder> --format json` and notes that say what changed. Read `versionNumber` from the answer, and check that version from step 1. Never push the baseline.
         - When the `Artifact` tool fails in the subagent, it returns the edit it wants. You apply the edit and dispatch it again.
      6. Report. The first line is `pass`, `fail` or `skipped`.
         - `pass` means the last version has no hash mismatch, no hand edit outside a gap, no collision, an empty scan and no difference in any pair.

@@ -103,9 +103,13 @@ A bare `cd .worktrees/<name> && just worktree-up` can leave a persistent shell i
 - Invoke the `project-deploy` skill before you deploy, run `terraform apply`, or report what version is live. It carries the trap that a `terraform apply` deployment does not re-pull the fixed `prod` tag, so the spec change ships and the code does not, and it names `/healthz` with `X-Probe-Token` as the only reliable way to read the running version.
 - Invoke the `project-worktrees` skill before you provision, debug, tear down or write tooling for a worktree, or stop a process inside a container. Never run bare `docker compose` from a worktree.
 
-## Planning and shipping a feature
+## What a feature must not forget
 
-Decide two things at planning time, and say in the plan which of them the change needs.
+This one list serves the planning, the design and the build of a feature. Walk it before you plan, design or build. Each check fails silently when you skip it.
+
+### Decide at planning time
+
+Say in the plan which of the checks below the change needs.
 
 **Documentation.** Ask whether the change alters what a user or an operator does, sees or configures. If it does, name the page that covers it under `docs/`: `docs/using/` for product behaviour, `docs/reference/` for commands and environment variables, `docs/operating/` for deployment and running, `docs/getting-started/` for a user's first steps, `docs/operating/install/` for installing an instance, and `docs/extending/` for the plugin and MCP surface. A feature that ships with no doc change claims that nothing observable changed, so make that claim deliberately.
 
@@ -113,7 +117,7 @@ Decide two things at planning time, and say in the plan which of them the change
 
 The third check is the changelog entry. Write it on the same branch, in `changelog.d/<pull request number>.md`, and never in `docs/CHANGELOG.md`. `working-with-prs` and `changelog.d/README.md` carry the format.
 
-### What a new entity or feature must also register
+### Register what the feature adds
 
 Each row below fails silently. Nothing errors, no test goes red, and the miss surfaces later as wrong behaviour. Walk the table when a feature adds an entity, a route, an external call or a flag.
 
@@ -131,12 +135,17 @@ Each row below fails silently. Nothing errors, no test goes red, and the miss su
 
 Two of those carry an extra rule. A purger must read `$user->id` as a scalar, because the entity may be detached, and its `deletionOrder()` must run after `ProjectAccountPurger`. A flag-gated MCP tool must re-check its flag inside `__invoke`: the tag only filters `tools/list`, so a tool that skips the self-check is hidden and still fully callable.
 
-Four more that no registry covers:
+Four checks that no registry covers:
 
 1. **A new flag does not reach an instance that is already installed.** `SeedFlagsController` seeds the flags at `/install`, and that page runs once. An instance that upgrades therefore holds no row for the new flag, so `FeatureFlagService::isEnabled()` falls back to the coded default and the feature ships invisible. No console command seeds a production flag. Ship a per-flag migration instead, because `docker/prod/release.sh` runs migrations. `migrations/Version20260906142530.php` is the worked example. `bin/console app:dev:seed` switches on only the flags of `DevFeatureFlagSeeder` and tags their rows `dev-seed`. `--keep-flag-defaults` skips them. Every other flag reads its coded default in dev.
 2. **A new messenger transport or schedule name must reach the worker command in three files**, `docker/prod/worker-supervisord.conf` (which both `worker_command` in `terraform/main.tf` and the `worker` service in `docker/compose/prod.yaml` run), plus the dev `worker` service in `compose.yaml`. Otherwise the transport fills and nothing drains it. A message class missing from `config/packages/messenger.yaml` is handled inside the web request instead, which works and is in the wrong process.
 3. **CSP is enforced in prod and empty in dev and test.** A feature that loads a new script, font, image or XHR origin works locally, passes e2e, and is blocked in production. Declare the origin in `config/packages/nelmio_security.yaml` with the `%env(default:app.default_csp_origin:VAR)%` shape, so an unset variable resolves to `'self'`.
 4. **Navigation is hand-written in three places**: the app sidebar in `templates/base.html.twig`, the docs sidebar in `website/astro.config.mjs`, and the tool order in `Project/Mcp/AdvertisedTools`. A page that is not listed is reachable only by typing its URL. A tool that is not listed is still advertised, at the end of the list.
+
+Two more apply when the feature touches the public API or the CLI:
+
+5. **A new public API route needs a CLI command.** The command table of the `publicapi` package in `cli/internal/` must list every operation of `openapi/public.json`. A CI test names the operation that has none. Add one line to `commands.go` and run the `just cli-generate` recipe. Document the route in `docs/reference/api/index.md`, and the command in `docs/reference/cli.md`.
+6. **A new CLI command needs the matching docs and plugin text.** Update `docs/reference/cli.md`, `cli/README.md` and the plugin files that name the command. Say which CLI version the command needs, because the plugin and the CLI update separately.
 
 Security surfaces that fail loudly need no checklist entry. A new `/api/` route with no rule above `allow_if: 'false'` in `config/packages/security.yaml` is denied, and a missing `ApiTokenScope` case is a PHP error. Rate limiting is the exception: `config/packages/rate_limiter.yaml` is hand-declared, so a new token-authenticated write endpoint has none by default.
 

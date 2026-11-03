@@ -410,7 +410,9 @@ the id to `loupe init --project <id>` or `loupe project link --project <id>`.
 loupe project list
 ```
 
-A star marks the project of the current directory. In a setup other than the
+The command reads the public API, so it takes `--format`, `--fields`, `--limit`,
+`--cursor`, `--sort` and `--retry`, and `LOUPE_API_KEY` works. A star marks the
+project of the current directory on a terminal. In a setup other than the
 default, the link of the setup names it first, then `.loupe.yaml`. When that
 project is not in the list, the command says so. A `.loupe.yaml` that does not
 parse gives a note on stderr, and the list still prints. With no project, the
@@ -516,22 +518,66 @@ refuses a project your login does not cover rather than ignoring the header.
 endpoints and the MCP endpoint, and it covers every project you own, including
 ones you create later.
 
-## `loupe artifact push`
+## Commands for the public API
 
-Stores a file, or every file of a folder, as an artifact of a project.
+The `project`, `column`, `card`, `feedback`, `document` and `artifact` groups
+call the public API, one command for each operation. They are in beta. A test
+fails when an operation has no command. `docs/reference/cli.md` "Commands for
+the public API" holds the full reference: sign-in, project choice, output
+formats, writes, exit codes and environment variables. This section is the
+short form.
 
 ```bash
-loupe artifact push page.html --name "Review page" --card 611
-loupe artifact push prototype/ --artifact <artifact id>
+loupe card list --status next --format json
+loupe card get 42 --fields url
+loupe card update 42 --status done
+loupe document revise <id> --body-file draft.md --description "Answered the review"
+LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
-`--name` makes a new artifact, and `--artifact` adds a version to an existing
-one. `--card` links it to a card, `--source-link` records where the files came
-from, and `--project` names the project, as for `loupe status`. The command sends
-the session id from `LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or
-`CODEX_THREAD_ID`, and Loupe refuses a store from a worker run. It prints the
-stable link and the link of the new version. The
+1. **Credential.** `LOUPE_API_KEY` wins over the login, and `LOUPE_URL` names the
+   instance. The CLI never stores a key. Bridge commands ignore the key.
+2. **Project.** `--project`, then `LOUPE_PROJECT`, then the project link of the
+   setup or `.loupe.yaml`, then the one project of the credential. Else the
+   command exits 2.
+3. **Output.** `--format table|tsv|json|toon`. A terminal gets a table, and a
+   pipe gets tsv. `--fields` picks fields. A list returns one page, with
+   `--limit` and `--cursor`.
+4. **Writes.** A write prints the link of the item. `--input` reads a JSON
+   body, `--body-file` reads long text, and a flag wins over `--input`.
+   `--idempotency-key` and `LOUPE_IDEMPOTENCY_SEED` make a create safe to retry.
+   `loupe column delete` asks first, and `--yes` skips the question.
+5. **Exit codes.** 0 success, 1 other failure, 2 bad usage, 4 sign-in,
+   5 not found, 6 refused. The code of the API starts the message on stderr.
+
+The generated table of operations lives in `internal/publicapi`. A new API
+route adds one line to `commands.go`, and `just cli-generate` rewrites
+`operations_gen.go`.
+
+## `loupe artifact create` and `loupe artifact version create`
+
+Store a file, or every file of a folder, as an artifact of a project.
+
+```bash
+loupe artifact create page.html --name "Review page" --card 611
+loupe artifact version create <artifact id> prototype/
+```
+
+`create` makes a new artifact and needs `--name`. `version create` adds a
+version to an existing one. `--card` links the artifact to a card,
+`--source-link` records where the files came from, `--notes` says what changed,
+and `--project` names the project. Any credential can store, a worker run
+included, and the commands send no session id. They print the link of the
+artifact. `--format json` prints the ids and both links. A Design canvas is
+compiled to a plain page first, as `--index` and `--out` control. The
 [artifacts page](../docs/using/artifacts.md) has the rules for paths and sizes.
+
+`loupe artifact read <artifact> <path>` prints one file as exact bytes.
+`--output <file>` writes it to a file, and `--clobber` replaces a file that
+exists. A file that is not text refuses on a terminal.
+
+`loupe artifact push` is gone. It stays as a hidden command that exits 2 and
+names the commands above.
 
 ## `loupe status`
 

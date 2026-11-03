@@ -81,27 +81,6 @@ func TestAPushOverTheRequestCapIsRefused(t *testing.T) {
 	}
 }
 
-func TestAPushNeedsExactlyOneOfNameAndArtifact(t *testing.T) {
-	for name, args := range map[string][]string{
-		"neither": {"push", "x"},
-		"both":    {"push", "x", "--name", "N", "--artifact", "A"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			root := newRootCmd()
-			root.SetArgs(append([]string{"artifact"}, args...))
-			if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "--name") {
-				t.Fatalf("err = %v", err)
-			}
-		})
-	}
-}
-
-func TestTheLinkJoinsTheInstanceAndThePath(t *testing.T) {
-	if got := artifactLink("https://app.loupe.ac/", "/projects/p/artifacts/a"); got != "https://app.loupe.ac/projects/p/artifacts/a" {
-		t.Fatalf("link = %q", got)
-	}
-}
-
 func TestAFileFarOverTheCapIsRefusedWithoutReadingItAll(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "huge.bin")
 	f, err := os.Create(file)
@@ -139,7 +118,7 @@ func runArtifact(t *testing.T, args ...string) (stdout string, err error) {
 	root := newRootCmd()
 	var buf strings.Builder
 	root.SetOut(&buf)
-	root.SetArgs(append([]string{"artifact", "push"}, args...))
+	root.SetArgs(append([]string{"artifact", "create"}, args...))
 	err = root.Execute()
 
 	return buf.String(), err

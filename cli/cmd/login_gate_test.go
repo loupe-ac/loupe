@@ -57,22 +57,16 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 
 	src := &flakySource{}
 	ticks := make(chan time.Time)
-	var arms atomic.Int32
+	var probes atomic.Int32
 	var notices atomic.Int32
 	g := newLoginGate(ctx, newBridgeLogger(&out), cfgPath, func(ctx context.Context) error {
+		probes.Add(1)
 		_, err := src.Token(ctx)
 
 		return err
 	})
 	g.notice = func(context.Context) { notices.Add(1) }
-	g.after = func(d time.Duration) <-chan time.Time {
-		if d != loginPollInterval {
-			return nil
-		}
-		arms.Add(1)
-
-		return ticks
-	}
+	g.after = pollTicks(ticks)
 	gated := gatedSource{inner: src, gate: g}
 
 	type result struct {
@@ -93,24 +87,19 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
+	// The ticks channel has no buffer, so a send lands only when the watcher
+	// finished the tick before it.
 	// The first tick probes, and the expired login keeps the gate closed.
-	callsBefore := src.calls.Load()
 	ticks <- time.Now()
-	for arms.Load() < 2 {
-		time.Sleep(time.Millisecond)
-	}
-	if src.calls.Load() != callsBefore+1 {
-		t.Fatal("the first tick did not probe")
+	ticks <- time.Now()
+	if n := probes.Load(); n != 1 {
+		t.Fatalf("probes after the first tick = %d, want 1", n)
 	}
 
 	// An unchanged file earns no probe.
-	callsBefore = src.calls.Load()
 	ticks <- time.Now()
-	for arms.Load() < 3 {
-		time.Sleep(time.Millisecond)
-	}
-	if src.calls.Load() != callsBefore {
-		t.Fatal("the gate probed an unchanged config file")
+	if n := probes.Load(); n != 1 {
+		t.Fatalf("the gate probed an unchanged config file: probes = %d, want 1", n)
 	}
 
 	// A new login: the file changes and the source accepts it.
@@ -118,15 +107,19 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ticks <- time.Now()
 
-	for range 3 {
+	// The tick still in the watcher can see the new file and open the gate, and
+	// the watcher then takes no other tick.
+	deadline := time.After(2 * time.Second)
+	for resumed := 0; resumed < 3; {
 		select {
+		case ticks <- time.Now():
 		case r := <-done:
 			if r.err != nil || r.token != "new" {
 				t.Fatalf("result = %+v, want the new token", r)
 			}
-		case <-time.After(2 * time.Second):
+			resumed++
+		case <-deadline:
 			t.Fatal("a waiting call did not resume")
 		}
 	}

@@ -62,6 +62,10 @@ func ExitCode(err error) (int, bool) {
 	if errors.As(err, &e) {
 		return e.code, true
 	}
+	var f *apiFailure
+	if errors.As(err, &f) {
+		return f.exit, true
+	}
 
 	return 0, false
 }

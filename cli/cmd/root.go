@@ -137,6 +137,7 @@ func newRootCmd() *cobra.Command {
 	// already carries, and it spans two lines.
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.AddCommand(newLoginCmd(), newInitCmd(), newProjectCmd(), newMcpCmd(), newStatusCmd(), newBridgeCmd(), newAgentAccountCmd(), newCredentialCmd(), newPreviewTokenCmd(), newUsageCmd(), newArtifactCmd(), newEnvCmd(), newUpdateCmd(), newVersionCmd(), newReviewCmd(), newSessionCmd(), newSetupProbeCmd())
+	addPublicCommands(root)
 
 	return root
 }
