@@ -14,6 +14,7 @@ use Sentry\ClientBuilder;
 use Sentry\Metrics\Types\Metric;
 use Sentry\SentrySdk;
 use Sentry\State\Hub;
+use Sentry\State\HubInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
@@ -105,9 +106,12 @@ final class RenderApiProblemOnExceptionTest extends TestCase
     /** @var list<Metric> */
     private array $metrics = [];
 
+    private HubInterface $hub;
+
     #[\Override]
     protected function setUp(): void
     {
+        $this->hub = SentrySdk::getCurrentHub();
         $this->metrics = [];
         $client = ClientBuilder::create([
             'dsn' => 'https://key@o0.ingest.sentry.io/1',
@@ -119,6 +123,13 @@ final class RenderApiProblemOnExceptionTest extends TestCase
             },
         ])->getClient();
         SentrySdk::setCurrentHub(new Hub($client));
+    }
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        SentrySdk::setCurrentHub($this->hub);
+        parent::tearDown();
     }
 
     public function test_a_thrown_problem_is_rendered_as_problem_json_on_a_v1_path(): void
