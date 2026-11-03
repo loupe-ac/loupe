@@ -40,6 +40,12 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
         ['name' => 'claude-spare', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'The login expired.', 'used' => false, 'kinds' => [], 'stopAt' => 95],
     ];
 
+    /** @var list<array{package: string, version: string, state: string, reason: string|null}> */
+    private const array MAIN_SKILLS = [
+        ['package' => 'loupe', 'version' => '1.4.0', 'state' => 'current', 'reason' => null],
+        ['package' => 'loupe-lifecycle', 'version' => '1.3.0', 'state' => 'failed', 'reason' => 'loupe-lifecycle 1.4.0 needs loupe >=1.5.0, and the store holds no such version.'],
+    ];
+
     /** @var array<string, array<string, float>> account => window => percent used */
     private const array USAGE = [
         'claude-main' => ['session' => 42.0, 'week' => 71.0],
@@ -85,6 +91,7 @@ final readonly class DevBridgeSeeder implements DevSeederInterface
         }
         $main->lastSeenAt = $context->now;
         $main->accountsReportedAt = $context->now;
+        $main->skills = self::MAIN_SKILLS;
 
         $history = $this->bridges->findOneByOwnerAndId($owner, Uuid::fromString(self::HISTORY_BRIDGE));
         if (!$history instanceof Bridge) {
