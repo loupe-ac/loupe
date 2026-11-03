@@ -61,6 +61,11 @@ TOML
     use_real_git
 }
 
+# write_project_file: the file that `loupe init` leaves in the folder, not yet committed, when the profile agent starts.
+write_project_file() {
+    printf 'project: p1\n' > .loupe.yaml
+}
+
 # On macOS, /usr/bin/git can be a shim that fails in the sandbox of a run, because it cannot
 # write its cache. The wrapper .bin/git runs the real binary. A prompt tells the run to use
 # ./.bin/git in place of git, and the recipe grants that command.

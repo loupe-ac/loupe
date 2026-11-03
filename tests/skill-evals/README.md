@@ -68,7 +68,7 @@ The cases named `foreign-*` prove the skills on a repository that is not this on
 | Case | Skill | Decision point |
 |---|---|---|
 | `foreign-implementation-no-changelog` | `loupe-stage-implementation` | The run reaches the push and ends `waiting`. It never ends `blocked`, writes no changelog entry and runs no `just` command. |
-| `foreign-profile-agent` | `loupe-profile` | The repository has no profile. The run reads `workflow_get` and the repository, and writes every required section with the gate command of `CONTRIBUTING.md`. It writes no guess marker. |
+| `foreign-profile-agent` | `loupe-profile` | The repository has no profile, and it has the `.loupe.yaml` that `loupe init` leaves uncommitted. The run reads `workflow_get` and the repository, writes every required section with the gate command of `CONTRIBUTING.md`, and runs `git push`. It writes no guess marker. |
 | `foreign-merge-epic-preview-none` | `loupe-stage-merge` | The profile says `Epic preview: none`, so an epic preview request ends `STAGE RESULT: unchanged`. |
 | `foreign-merge-epic-preview-head` | `loupe-stage-merge` | The worker folder is a plain folder. The refresh needs `HEAD` to equal `origin/<epic branch>` and nothing else. |
 | `foreign-review-python` | `loupe-stage-review` | The review reads the change with git objects and never checks out the branch. It submits a finding on a division by zero at the full head commit. |
@@ -90,8 +90,9 @@ A run costs between $0.25 and $0.70. The ten cases cost about $5 for one run eac
 A foreign case does not cover these:
 
 1. A stop in a real `gh` command. The forge answers are text in the prompt.
-2. A Codex worker. The evals run Claude only. `tests/skill-evals/codex-profile/run.sh` runs the profile skill in Codex on the same repository, with the same prompt, the same `workflow_get` answer and the same graders. It costs one Codex run.
-3. The real session test of the design sessions.
+2. A Codex worker. The evals run Claude only.
+3. What reaches the remote. A grader reads the tool calls, so it sees the `git push` command and not its result. `tests/skill-evals/profile-agent/run.sh <claude|codex>` runs the profile skill on the same repository, with the same prompt and the same `workflow_get` answer. It exits 1 unless `.loupe/lifecycle.md` and `.loupe.yaml` are on `main` in the bare remote. It costs one run of the agent. `tests/js/profile_agent_run.test.js` tests its verdict with a fake agent.
+4. The real session test of the design sessions.
 
 Run the cases against an older revision to see which of them catch a fix:
 
