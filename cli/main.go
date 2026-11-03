@@ -4,7 +4,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/loupe-ac/loupe/cli/cmd"
@@ -12,7 +11,7 @@ import (
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		cmd.PrintError(os.Stderr, err)
 		if code, ok := cmd.ExitCode(err); ok {
 			os.Exit(code)
 		}

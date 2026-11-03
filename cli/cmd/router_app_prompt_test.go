@@ -211,6 +211,9 @@ func TestAHeartbeatWithANewRangeAndAnOfferStartsNoWork(t *testing.T) {
 
 	client.mu.Lock()
 	client.cliRange = "^1.0"
+	// The bridge holds the offer in its queue. An offer in this answer too could
+	// start a second worker after the first settled, and the count would miss 1.
+	client.work = nil
 	client.mu.Unlock()
 	hh.tick(t, time.Minute)
 

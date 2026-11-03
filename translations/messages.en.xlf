@@ -5404,7 +5404,7 @@
             </trans-unit>
             <trans-unit id="landing.works_with.api.text">
                 <source>landing.works_with.api.text</source>
-                <target>Call Loupe from a script or CI job with an API key. The API is in beta and has a public OpenAPI spec.</target>
+                <target>Call Loupe from a script or CI job with an API key, or with the loupe command-line tool. The API is in beta and has a public OpenAPI spec.</target>
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.name">
                 <source>landing.works_with.claude_design.name</source>
