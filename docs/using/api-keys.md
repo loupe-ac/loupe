@@ -50,6 +50,17 @@ Send the key in the `Authorization` header of each request:
 curl -H "Authorization: Bearer loupe_key_<your key>" https://<host>/api/v1/<endpoint>
 ```
 
+The [`loupe` CLI](../reference/cli.md#commands-for-the-public-api) sends the key
+for you. Set `LOUPE_API_KEY` to the key, `LOUPE_URL` to the instance, and
+`LOUPE_PROJECT` to the project, then run a command such as `loupe card list`.
+The CLI never stores the key. It needs a CLI release that has these commands.
+
+```sh
+export LOUPE_API_KEY=loupe_key_<your key>
+export LOUPE_URL=https://<host>
+loupe card list --format json
+```
+
 A request with a wrong, revoked or unknown key gets `401`. A key past its end
 date gets `401` with the code `api_key_expired`. A key stops working at once
 when you suspend or delete the account that owns it.
