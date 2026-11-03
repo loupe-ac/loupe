@@ -90,7 +90,7 @@ A run costs between $0.25 and $0.70. The ten cases cost about $5 for one run eac
 A foreign case does not cover these:
 
 1. A stop in a real `gh` command. The forge answers are text in the prompt.
-2. A Codex worker. The evals run Claude only. To try the profile skill on Codex, build the repository with `NO_PROFILE=1` and the `make_repo` function of `foreign-lib/repo.sh`, then run `codex` there with the prompt of `foreign-profile-agent`.
+2. A Codex worker. The evals run Claude only. `tests/skill-evals/codex-profile/run.sh` runs the profile skill in Codex on the same repository, with the same prompt, the same `workflow_get` answer and the same graders. It costs one Codex run.
 3. The real session test of the design sessions.
 
 Run the cases against an older revision to see which of them catch a fix:
