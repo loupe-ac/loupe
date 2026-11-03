@@ -32,8 +32,10 @@ import (
 
 const (
 	pluginMarketplace = "loupe-ac/loupe"
-	pluginSpec        = "loupe@loupe"
-	lifecyclePlugin   = "loupe-lifecycle@loupe"
+	pluginPackage     = "loupe"
+	lifecyclePackage  = "loupe-lifecycle"
+	pluginSpec        = pluginPackage + "@loupe"
+	lifecyclePlugin   = lifecyclePackage + "@loupe"
 	playwrightCommand = "npx playwright install chromium"
 )
 
@@ -122,8 +124,8 @@ func newInitCmd() *cobra.Command {
 			"When your login covers no project, the command creates one from the `origin` remote of this repository.\n" +
 			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
-			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
-			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
+			"4. Install the Loupe plugins that this project needs in Claude Code, when `claude` is on your PATH " +
+			"and lacks one: `loupe`, and `loupe-lifecycle` when the workflow of the project uses it. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
 			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for each " +
 			"Codex account of the rule file: in its profile file when that sets the mode, else in config.toml " +
 			"of its Codex home. Then fill the skill store, build a local plugin marketplace from it, and " +
@@ -209,7 +211,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if inSecondSetup() {
 		skipSharedStep(cmd, "Plugin")
 	} else {
-		left.restart = initPlugin(cmd, dir)
+		left.restart = initPlugin(cmd, dir, site)
 	}
 
 	path, err := rulesPathOr(o.rulesPath)
@@ -693,17 +695,14 @@ func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
 	return nil
 }
 
-// initPlugin installs the Loupe plugins in Claude Code. It never fails: what it
-// cannot do, it prints for you to run. It reports whether it installed a plugin.
-func initPlugin(cmd *cobra.Command, dir string) bool {
+// initPlugin installs the plugins of handPlugins in Claude Code. It never fails:
+// what it cannot do, it prints for you to run. It reports whether it installed one.
+func initPlugin(cmd *cobra.Command, dir string, site api.Site) bool {
 	out := cmd.OutOrStdout()
-	add := "claude plugin marketplace add " + pluginMarketplace
-	install := "claude plugin install " + pluginSpec
-	installLifecycle := "claude plugin install " + lifecyclePlugin
-	byHand := fmt.Sprintf("run `%s`, then `%s` and `%s`", add, install, installLifecycle)
+	specs := handPlugins(site)
 
 	if _, err := initLookPath("claude"); err != nil {
-		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+byHand)
+		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+pluginCommands(specs))
 
 		return false
 	}
@@ -711,9 +710,15 @@ func initPlugin(cmd *cobra.Command, dir string) bool {
 	defer cancel()
 
 	listed, listErr := initExec(ctx, dir, nil, "claude", "plugin", "list")
-	hasCore := listErr == nil && strings.Contains(string(listed), "loupe@")
-	hasLifecycle := listErr == nil && strings.Contains(string(listed), "loupe-lifecycle@")
-	if hasCore && hasLifecycle {
+	missing := specs
+	if listErr == nil {
+		missing = slices.DeleteFunc(slices.Clone(specs), func(spec string) bool {
+			name, _, _ := strings.Cut(spec, "@")
+
+			return strings.Contains(string(listed), name+"@")
+		})
+	}
+	if len(missing) == 0 {
 		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugins")
 
 		return false
@@ -723,20 +728,38 @@ func initPlugin(cmd *cobra.Command, dir string) bool {
 	// install still works, so only the install decides.
 	_, _ = initExec(ctx, dir, nil, "claude", "plugin", "marketplace", "add", pluginMarketplace)
 	var installed []string
-	for _, spec := range []string{pluginSpec, lifecyclePlugin} {
-		if (spec == pluginSpec && hasCore) || (spec == lifecyclePlugin && hasLifecycle) {
-			continue
-		}
+	for i, spec := range missing {
 		if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", spec); err != nil {
-			step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
+			step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), pluginCommands(missing[i:])))
 
-			return false
+			return len(installed) > 0
 		}
 		installed = append(installed, spec)
 	}
 	step(out, "Plugin", "done", "installed "+strings.Join(installed, " and ")+". Restart Claude Code to load it")
 
 	return true
+}
+
+// handPlugins names the plugins for a hand session: the core plugin, and the
+// Lifecycle plugin when PackagesIn lists it for the site.
+func handPlugins(site api.Site) []string {
+	specs := []string{pluginSpec}
+	if slices.Contains(site.PackagesIn([]string{pluginPackage, lifecyclePackage}), lifecyclePackage) {
+		specs = append(specs, lifecyclePlugin)
+	}
+
+	return specs
+}
+
+// pluginCommands says how to install these plugins by hand.
+func pluginCommands(specs []string) string {
+	installs := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		installs = append(installs, "`claude plugin install "+spec+"`")
+	}
+
+	return "run `claude plugin marketplace add " + pluginMarketplace + "`, then " + strings.Join(installs, " and ")
 }
 
 // codexOnly reports whether Codex is on the PATH and Claude Code is not, which

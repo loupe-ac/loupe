@@ -135,7 +135,7 @@ The steps, in order:
 1. Sign in, when you are not signed in.
 2. Choose the project.
 3. Link the repository, as `loupe project link` does.
-4. Install the Loupe plugin in Claude Code, or declare `loupe mcp` to Codex.
+4. Install the Loupe plugins that the project needs in Claude Code, or declare `loupe mcp` to Codex.
 5. Write the rule file.
 6. Ask whether to turn on automatic updates.
 7. Start the bridge in the background.

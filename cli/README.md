@@ -311,9 +311,9 @@ loupe init --reset               # write the first-run rules again
    remote of the repository. With no remote, it stops and asks for `--project`
    or `--name`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
-   The step also writes `.loupe/lifecycle.md`.
-4. Install the `loupe` and `loupe-lifecycle` plugins in Claude Code, when `claude`
-   is on your `PATH` and `claude plugin list` does not show them. A failed command is printed for
+4. Install in Claude Code the plugins that this project needs, when `claude` is on
+   your `PATH` and `claude plugin list` does not show them: `loupe`, and
+   `loupe-lifecycle` when the workflow of the project uses it. A failed command is printed for
    you to run, and never fails the step. When only `codex` is on your `PATH`,
    the step declares `loupe mcp` to Codex instead, sets
    `default_tools_approval_mode = "approve"` for each Codex account of the rule

@@ -671,6 +671,97 @@ func TestInitPrintsThePluginCommandsAndGoesOnWhenInstallFails(t *testing.T) {
 	}
 }
 
+func simpleSite() string {
+	return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project","skillPackages":["loupe"],"needsProfile":false}`
+}
+
+func lifecycleSite() string {
+	return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project","skillPackages":["loupe","loupe-lifecycle"],"needsProfile":false}`
+}
+
+func TestInitInstallsTheLifecyclePluginOnlyWhenTheProjectNeedsIt(t *testing.T) {
+	tests := map[string]struct {
+		site      string
+		listed    string
+		core      bool
+		lifecycle bool
+		line      string
+	}{
+		"a Simple project gets the core plugin":         {simpleSite(), "", true, false, "Plugin: done, installed loupe@loupe."},
+		"a Simple project with the core plugin is done": {simpleSite(), "loupe@loupe 1.2.3 enabled\n", false, false, "Plugin: skipped, Claude Code has the Loupe plugins"},
+		"a Lifecycle project gets both":                 {lifecycleSite(), "", true, true, "Plugin: done, installed loupe@loupe and loupe-lifecycle@loupe."},
+		"a project with no list gets both":              {devSite(), "", true, true, "Plugin: done, installed loupe@loupe and loupe-lifecycle@loupe."},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			w := newInitWorld(t, tt.site)
+			w.claude = true
+			inRepo(t, w.server.URL)
+			w.execOut["claude plugin list"] = tt.listed
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+			if err != nil {
+				t.Fatalf("init: %v\n%s", err, out)
+			}
+			if got := w.called("claude plugin install loupe@loupe"); got != tt.core {
+				t.Errorf("core install = %v, calls = %v", got, w.execCalls)
+			}
+			if got := w.called("claude plugin install loupe-lifecycle@loupe"); got != tt.lifecycle {
+				t.Errorf("lifecycle install = %v, calls = %v", got, w.execCalls)
+			}
+			if !strings.Contains(out, tt.line) {
+				t.Errorf("output lacks %q:\n%s", tt.line, out)
+			}
+		})
+	}
+}
+
+func TestInitNamesOnlyThePluginsTheProjectNeedsWhenClaudeIsMissing(t *testing.T) {
+	w := newInitWorld(t, simpleSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "claude plugin install loupe@loupe") || strings.Contains(out, "claude plugin install loupe-lifecycle@loupe") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestInitAsksForARestartAfterAPartialPluginInstall(t *testing.T) {
+	w := newInitWorld(t, lifecycleSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execFail["claude plugin install loupe-lifecycle@loupe"] = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Plugin: failed") || !strings.Contains(out, "Restart Claude Code") {
+		t.Errorf("output:\n%s", out)
+	}
+	if strings.Contains(out, "`claude plugin install loupe@loupe`") || !strings.Contains(out, "`claude plugin install loupe-lifecycle@loupe`") {
+		t.Errorf("the commands must name only the plugin that is left:\n%s", out)
+	}
+}
+
+func TestInitAsksForNoRestartWhenNoPluginInstalled(t *testing.T) {
+	w := newInitWorld(t, lifecycleSite())
+	w.claude = true
+	inRepo(t, w.server.URL)
+	w.execFail["claude plugin install"] = true
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Restart Claude Code") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
 func TestInitPrintsThePluginCommandsWhenClaudeIsMissing(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
