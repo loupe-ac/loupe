@@ -249,8 +249,15 @@ func TestOutputWritesTheFileAndRefusesAnExistingOneWithoutClobber(t *testing.T) 
 	dir := t.TempDir()
 	target := filepath.Join(dir, "pic.png")
 
-	if _, _, err := runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "--output", target); err != nil {
+	stdout, stderr, err := runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "--output", target)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout must stay empty, got %q", stdout)
+	}
+	if !strings.Contains(stderr, target) {
+		t.Fatalf("stderr must name the saved file, got %q", stderr)
 	}
 	if got, _ := os.ReadFile(target); string(got) != "\x89PNG\x00" {
 		t.Fatalf("file = %q", got)
@@ -263,9 +270,12 @@ func TestOutputWritesTheFileAndRefusesAnExistingOneWithoutClobber(t *testing.T) 
 	if err := os.WriteFile(target, []byte("mine"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err := runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "-o", target)
+	stdout, stderr, err = runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "-o", target)
 	if exitOf(err) != 2 {
 		t.Fatalf("err = %v", err)
+	}
+	if stdout != "" || strings.Contains(stderr, "Saved") {
+		t.Fatalf("a refused write must report no saved file: stdout = %q, stderr = %q", stdout, stderr)
 	}
 	if got, _ := os.ReadFile(target); string(got) != "mine" {
 		t.Fatalf("the target must stay as it was, got %q", got)
@@ -274,8 +284,12 @@ func TestOutputWritesTheFileAndRefusesAnExistingOneWithoutClobber(t *testing.T) 
 		t.Fatalf("temporary files left: %v", left)
 	}
 
-	if _, _, err := runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "-o", target, "--clobber"); err != nil {
+	stdout, stderr, err = runPublicCmd(t, srv, "artifact", "read", "a1", "pic.png", "--project", "p1", "-o", target, "--clobber")
+	if err != nil {
 		t.Fatal(err)
+	}
+	if stdout != "" || !strings.Contains(stderr, target) {
+		t.Fatalf("clobber must also name the file on stderr only: stdout = %q, stderr = %q", stdout, stderr)
 	}
 	if got, _ := os.ReadFile(target); string(got) != "\x89PNG\x00" {
 		t.Fatalf("clobber must replace the file, got %q", got)

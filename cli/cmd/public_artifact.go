@@ -351,7 +351,9 @@ func runArtifactRead(cmd *cobra.Command, op publicapi.Operation, args []string, 
 	case f.output == "-":
 		_, err = out.Write(resp.Body)
 	case f.output != "":
-		err = writeFileOnce(f.output, resp.Body, f.clobber)
+		if err = writeFileOnce(f.output, resp.Body, f.clobber); err == nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Saved %s.\n", f.output)
+		}
 	case isTerminalWriter(out) && !isPlainText(resp.Body):
 		return &exitError{exitUsage, errors.New("the file is not plain text, and a terminal would show it as it is: write it with --output <path>, or print it anyway with --output -")}
 	default:
