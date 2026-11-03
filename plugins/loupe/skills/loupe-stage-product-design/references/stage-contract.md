@@ -77,7 +77,7 @@ A design links a prototype as a stored artifact, a claude.ai artifact, a Design 
 
 1. Read a stored artifact first. `card_get` lists the artifacts of the card. Call `artifact_get` for the files, and `artifact_read` for each file you need. The unattended run notes say which tool reads each other kind of link.
 2. When the stage needs the prototype and no tool reads any link, stop with `STAGE RESULT: blocked: prototype unreadable: <tool> missing`. Name the missing tool, such as `Artifact`.
-3. The first sentence after it is "Store the prototype in the artifact library with `loupe artifact push`, then resume this run."
+3. The first sentence after it is "Store the prototype in the artifact library with `loupe artifact create`, then resume this run." The command needs a CLI release that has it. Older CLIs have `loupe artifact push`.
 4. Never name sharing as the cause, unless a tool for that link answered that access is denied.
 
 ## Final reply

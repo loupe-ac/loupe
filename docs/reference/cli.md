@@ -1,6 +1,6 @@
 ---
 title: "CLI commands"
-description: "The commands of the loupe binary that set up a repository and run the bridge: setups, init, project link, project list, bridge run and stop, status, credential and agent-account."
+description: "The commands of the loupe binary: setups, init, project link, the commands that read and change projects, cards, documents, feedback and artifacts through the public API, bridge run and stop, status, credential and agent-account."
 ---
 
 The `loupe` binary runs on your machine. [Installing the CLI](../getting-started/cli.md)
@@ -184,10 +184,178 @@ the name of one project. Give the id to `loupe init --project <id>` or to
 * marks the project that .loupe.yaml names.
 ```
 
-A star marks the project of the current directory. In a setup other than the
+A star marks the project of the current directory on a terminal. In a setup other than the
 default, the link of the setup names that project first, then `.loupe.yaml`. A
 dash shows a project with no slug. When your login covers no project, the
-command says so and exits with status 0. The command has no flags.
+command says so and exits with status 0.
+
+The command reads the public API, so it takes the shared flags of
+[the public API commands](#commands-for-the-public-api): `--format`, `--fields`,
+`--limit`, `--cursor`, `--sort` and `--retry`. In a pipe, tsv holds no star.
+`LOUPE_API_KEY` works here too. The next section covers the other
+`loupe project` commands, `get`, `create` and `update`.
+
+## Commands for the public API
+
+The commands below call the [public API](api/index.md). Each one matches one
+operation, and a test in CI fails when an operation has no command. A person
+types them at a terminal, and a script or an agent runs them with an API key.
+
+These commands are in beta, as the public API is. A command, a flag, a field
+set or an exit code can change in a minor release until the beta ends. The
+changelog names each change. `--help` on each group says "beta". After the
+beta, no rename or removal comes without a new major version of the CLI.
+
+The commands need a CLI release that holds them, and a Loupe server that has
+the public API, the `fields` parameter and the `url` field. Run
+`loupe card get --help` to see whether your CLI has them. A plugin and the CLI
+update separately, so update both.
+
+### Sign in and instance
+
+A public command reads its credential in this order:
+
+1. `LOUPE_API_KEY`, an [API key](../using/api-keys.md). The CLI never stores it.
+   `LOUPE_URL` names the instance, else `https://app.loupe.ac`. A command with
+   a key touches no config file.
+2. The login of `loupe login`. A login from before the public API existed needs
+   a new `loupe login`.
+
+`loupe bridge`, `loupe mcp` and the other bridge commands ignore
+`LOUPE_API_KEY` and use the login, because a key cannot reach a bridge route.
+
+### Project
+
+A command that needs a project finds it in this order:
+
+1. `--project`, by id or slug
+2. `LOUPE_PROJECT`
+3. The project link of the setup, then `.loupe.yaml`
+4. The one project that the credential reaches
+
+When several projects are possible and none is named, the command exits 2 and
+names the ways to choose. It never guesses.
+
+### Groups
+
+| Command | Operations |
+|---|---|
+| `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
+| `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
+| `loupe card` | `list`, `get`, `history`, `create`, `update`, `hold`, `release`, `pause-release` |
+| `loupe feedback` | `list`, `get`, `address` |
+| `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
+| `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
+
+The verbs are the words of the MCP tools, so `document_revise` is
+`loupe document revise`. A flag is the API parameter in kebab-case:
+`includeArchived` is `--include-archived`. `loupe <group> <command> --help`
+lists them. The OpenAPI file and the list of API versions have no command,
+because they need no sign-in. Use curl for them.
+
+### Output
+
+| Flag | Purpose |
+|---|---|
+| `--format` | `table`, `tsv`, `json` or `toon`. TOON is a compact text format for agents. A terminal gets a table, and a pipe gets tsv with no header. |
+| `--fields` | The fields to print, as a comma list. `all` prints every field. On a read, the CLI sends the API parameter `fields`. |
+| `--project` | The project, as above |
+| `--retry` | Wait for `Retry-After` on a 429 answer and send the request once more. It waits at most 120 seconds. |
+
+1. **A list returns one page.** `--limit` and `--cursor` work as the API
+   parameters do, and `--cursor` takes a cursor or the whole `next` address.
+   json and toon print `items` and `next`. A table and tsv write the next
+   cursor to stderr. A list never walks pages by itself.
+2. **An empty list succeeds.** It exits 0 and prints nothing in tsv.
+3. **tsv.** A list prints one row per item, with the columns of `--fields` in
+   the order you named them. Without `--fields`, it prints the default columns
+   of the command. After the beta, a change to a tsv column counts as a
+   breaking change. A tab, a newline and a backslash in a value are written as
+   `\t`, `\n` and `\\`. A null is empty.
+4. **One item.** It prints as `name` and value lines. Plain fields come first and
+   long text such as `body` comes last. In tsv, one named field prints the bare
+   value, so `loupe card get 42 --fields url` prints only the link.
+5. **A table.** It shows short times such as "2h ago" and cuts wide values.
+   json, toon and tsv hold the exact values.
+
+### Writes
+
+1. **Values.** Each field has a flag. `--body-file` reads long text, with `-` for
+   stdin. `--input` reads a whole JSON body from a file or stdin. When both name
+   a field, the flag wins. A list field such as `relatedCards` is replaced whole.
+   The word `null` sets a nullable field to null. A real value of `null` in such
+   a field needs `--input`.
+2. **Output.** A write prints a note on stderr and the app link of the item on
+   stdout. `--format` replaces the link with the answer. `--fields` picks fields
+   of the answer. A name that the answer does not hold exits 2 before the CLI
+   sends the write. A write on an item with no page, such as a column, prints no
+   link.
+3. **Retry.** `--idempotency-key <key>` sends that key on a create. When
+   `LOUPE_IDEMPOTENCY_SEED` is set, the CLI derives a key for each create from
+   the seed, the command, the project and the body. A rerun then repeats each
+   answer, and two different creates stay different. The flag wins. With
+   neither, the CLI sends no key.
+4. **A missing value.** The command never prompts for it. It exits 2 and names
+   the flag.
+5. **`column delete`.** It is the only command that asks. A terminal gets a
+   prompt, and `--yes` skips it. With no terminal and no `--yes`, it exits 2
+   and changes nothing. A column that holds cards also needs
+   `--target-column`. `--yes` never chooses a target. Without one, the API
+   answers `column_target_required`, and the command exits 6.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Any other failure, such as a 5xx, no network, or a 404 that is not an answer of the API |
+| `2` | Bad usage, such as an unknown flag or a missing value |
+| `4` | Sign-in: a 401, or a 403 with `credential_not_allowed` |
+| `5` | Not found: a 404 from the API |
+| `6` | Refused: any other 4xx, such as 409, 422 and 429 |
+
+stdout stays empty on a failure. stderr starts with the code of the API, as in
+`error: card_not_found: This project has no card with this number.` With
+`--format json`, stderr holds the Problem JSON that the API sent. A 429 exits 6
+at once and names the wait, unless you pass `--retry`.
+
+### Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `LOUPE_API_KEY` | The API key of a public command. The CLI never stores it. |
+| `LOUPE_URL` | The Loupe instance, else `https://app.loupe.ac` |
+| `LOUPE_PROJECT` | The project of a command that has no `--project` |
+| `LOUPE_IDEMPOTENCY_SEED` | Turns on a derived idempotency key for each create |
+| `LOUPE_CONFIG` | The setup folder, as above |
+
+### Artifacts
+
+`loupe artifact create <path> --name <name>` stores a new artifact, and
+`loupe artifact version create <artifact> <path>` adds a version. They replace
+`loupe artifact push`, which stays as a hidden command that exits 2 and names
+them. Any credential can store, a worker run included, and the commands send no
+session id. [Storing from the command line](../using/artifacts.md#storing-from-the-command-line)
+has the flags.
+
+`loupe artifact read <artifact> <path>` gives the exact bytes of one file. Use
+`--version-number` for an older version.
+
+1. **Default.** stdout holds the bytes and nothing else, so
+   `loupe artifact read <id> logo.png > logo.png` gives a correct file.
+2. **A terminal.** A text file prints. A file that is not text exits 2, prints
+   nothing and names `--output`. A file is text when it is valid UTF-8 and holds
+   no control character except tab, newline and carriage return.
+3. **`--output <file>`.** It writes the bytes to that file and leaves stdout
+   empty. It exits 2 when the file exists, unless you pass `--clobber`. A failed
+   read creates no file and changes no existing file. `--output -` writes to
+   stdout, also on a terminal.
+4. **No `--format` and no `--fields`.** The answer is a file, so each flag exits 2.
+   `loupe artifact get` lists the files with their content type and size.
+
+The shell empties the target of `>` before the command starts. A failed read
+with `> logo.png` therefore leaves an empty file. Use `--output <file>
+--clobber` to keep an existing file on a failure.
 
 ## `loupe bridge run` and `loupe bridge stop`
 

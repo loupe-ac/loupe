@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -173,6 +174,37 @@ func TestArtifactPushIsHiddenAndExitsTwoWithTheNewCommands(t *testing.T) {
 				t.Fatal("push must be hidden")
 			}
 		}
+	}
+}
+
+func TestArtifactStoreFormatJSONPrintsTheIdsAndBothLinks(t *testing.T) {
+	answer := `{"artifactId":"a1","versionNumber":2,"url":"https://app/a1","versionUrl":"https://app/a1/v2"}`
+	for name, args := range map[string][]string{
+		"create":         {"artifact", "create", "--name", "Mock"},
+		"version create": {"artifact", "version", "create", "a1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv, _ := uploadServer(t, 201, answer)
+			dir := t.TempDir()
+			write(t, filepath.Join(dir, "index.html"), "<h1>Hi</h1>")
+
+			out, _, err := runPublicCmd(t, srv, append(args, dir, "--project", "p1", "--format", "json")...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				ArtifactID    string `json:"artifactId"`
+				VersionNumber int    `json:"versionNumber"`
+				URL           string `json:"url"`
+				VersionURL    string `json:"versionUrl"`
+			}
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("stdout = %q: %v", out, err)
+			}
+			if got.ArtifactID != "a1" || got.VersionNumber != 2 || got.URL != "https://app/a1" || got.VersionURL != "https://app/a1/v2" {
+				t.Fatalf("stdout = %q", out)
+			}
+		})
 	}
 }
 
