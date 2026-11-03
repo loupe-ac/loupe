@@ -228,7 +228,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	} else {
 		initPlaywright(cmd, dir)
 	}
-	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site)
+	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, apiClient(cfg).Sites)
 	left.profile = initProfile(cmd, dir, site, o)
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 

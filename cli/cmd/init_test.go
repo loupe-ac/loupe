@@ -100,7 +100,7 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 		initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload
 		initCheckAccounts, initGit = oldCheck, oldGit
 	})
-	initCheckAccounts = func(context.Context, *rules.Set, api.Site) []accountResult { return w.accounts }
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult { return w.accounts }
 	initGit = func(_ string, args ...string) (string, error) {
 		if !w.gitClean {
 			return "?? file", nil
@@ -2053,6 +2053,112 @@ func TestInitExitsWithSuccessWhenAnAccountFailsOnlyForAnotherProject(t *testing.
 	}
 	if strings.Contains(out, "Fix the account") {
 		t.Errorf("the last lines ask for a fix of another project:\n%s", out)
+	}
+}
+
+// reportWorld is a rule file with a Simple and a Lifecycle project, and a real
+// check of a Codex home that holds only the loupe plugin.
+func reportWorld(t *testing.T) string {
+	t.Helper()
+	inRepo(t, "")
+	t.Setenv("HOME", t.TempDir())
+	store, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	putPackage(t, store, "loupe", "1.0.0")
+	putPackage(t, store, "loupe-lifecycle", "0.3.0")
+	bin := t.TempDir()
+	programs := map[string]string{"loupe": "#!/bin/sh\nexit 0\n", "codex": `#!/bin/sh
+case "$*" in
+"login status") exit 0 ;;
+"plugin list --json") echo '` + installedList(installedPlugin("loupe", "1.0.0")) + `'; exit 0 ;;
+"mcp get loupe --json") echo '{"enabled":true,"transport":{"type":"stdio","command":"loupe","args":["mcp"]}}'; exit 0 ;;
+esac
+exit 2
+`}
+	for name, script := range programs {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
+	path := filepath.Join(t.TempDir(), "rules.yaml")
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\ndefaults:\n  account: cdx\n"+
+		"projects:\n  simple:\n    dir: "+t.TempDir()+"\n  flow:\n    dir: "+t.TempDir()+"\nwork:\n  plan:\n    prompt: go\n")
+
+	return path
+}
+
+// Each project is checked against its own packages, so an account with only the
+// core plugin is ready for a Simple project and fails for a Lifecycle one.
+func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
+	path := reportWorld(t)
+	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
+	flow := api.Site{ID: "p2", Slug: "flow", SkillPackages: []string{"loupe", "loupe-lifecycle"}}
+	list := func(context.Context) ([]api.Site, error) { return []api.Site{simple, flow}, nil }
+
+	var out strings.Builder
+	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
+		t.Errorf("failing for the Simple project = %v\n%s", failing, out.String())
+	}
+	if want := "failing for project flow: loupe plugin loupe-lifecycle is not installed"; !strings.Contains(out.String(), want) {
+		t.Errorf("output lacks %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "failing for this project") {
+		t.Errorf("the Simple project fails:\n%s", out.String())
+	}
+
+	out.Reset()
+	failing := reportAccounts(context.Background(), &out, path, flow, list)
+	if len(failing) != 1 || !strings.Contains(failing[0], "loupe-lifecycle is not installed") {
+		t.Errorf("failing for the Lifecycle project = %v\n%s", failing, out.String())
+	}
+	if strings.Contains(out.String(), "failing for project simple") {
+		t.Errorf("the report blames the Simple project:\n%s", out.String())
+	}
+}
+
+// With no project list the other projects need every package, so the report
+// leaves them out and says so. This project keeps its own packages.
+func TestReportAccountsCoversOnlyThisProjectWithNoProjectList(t *testing.T) {
+	path := reportWorld(t)
+	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
+	list := func(context.Context) ([]api.Site, error) { return nil, errors.New("server down") }
+
+	var out strings.Builder
+	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
+		t.Errorf("failing = %v\n%s", failing, out.String())
+	}
+	if want := "covers only this project, because the project list does not read: server down"; !strings.Contains(out.String(), want) {
+		t.Errorf("output lacks %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "project flow") {
+		t.Errorf("the report blames another project:\n%s", out.String())
+	}
+}
+
+// A project that the list does not hold yet keeps the values init read for it.
+func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
+	path := reportWorld(t)
+	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
+	old := initCheckAccounts
+	t.Cleanup(func() { initCheckAccounts = old })
+	var got []api.Site
+	initCheckAccounts = func(_ context.Context, _ *rules.Set, sites []api.Site) []accountResult {
+		got = sites
+
+		return nil
+	}
+
+	reportAccounts(context.Background(), io.Discard, path, simple, func(context.Context) ([]api.Site, error) {
+		return []api.Site{{ID: "p2", Slug: "flow"}}, nil
+	})
+
+	if len(got) != 2 || got[0].ID != "p2" || got[1].ID != "p1" {
+		t.Errorf("sites = %+v", got)
 	}
 }
 

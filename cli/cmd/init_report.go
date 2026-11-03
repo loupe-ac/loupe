@@ -19,11 +19,9 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
-// initCheckAccounts checks the accounts of the rule file for the project. A
-// test replaces it.
-var initCheckAccounts = func(ctx context.Context, set *rules.Set, site api.Site) []accountResult {
-	return checkAccountsWith(ctx, set, []api.Site{site})
-}
+// initCheckAccounts checks the accounts of the rule file against the projects of
+// the server. A test replaces it.
+var initCheckAccounts = checkAccountsWith
 
 // initGit runs git in dir. A test replaces it.
 var initGit = func(dir string, args ...string) (string, error) {
@@ -48,7 +46,10 @@ type initLeft struct {
 // project of the file, and returns the lines of the used accounts that fail for
 // this project. A failure in another project, and an account that no rule uses,
 // never count. It runs before the profile agent, which needs no account.
-func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site) []string {
+//
+// A project that the list does not name needs every package, so a report with
+// no list holds only this project, or it would blame the others falsely.
+func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, listSites func(context.Context) ([]api.Site, error)) []string {
 	set, err := rules.Load(path, rules.Defaults{})
 	if err != nil {
 		fmt.Fprintf(out, "Accounts: failed, cannot read %s: %v.\n", path, err)
@@ -57,8 +58,23 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 	}
 	slug := siteRuleSlug(site)
 
+	listCtx, cancel := context.WithTimeout(ctx, skillsTimeout)
+	sites, listErr := listSites(listCtx)
+	cancel()
+	if listErr != nil {
+		fmt.Fprintf(out, "Accounts: this report covers only this project, because the project list does not read: %v.\n", listErr)
+	}
+	if !slices.ContainsFunc(sites, func(s api.Site) bool { return strings.EqualFold(s.ID, site.ID) }) {
+		sites = append(slices.Clone(sites), site)
+	}
+
 	var failing []string
-	for _, a := range initCheckAccounts(ctx, set, site) {
+	for _, a := range initCheckAccounts(ctx, set, sites) {
+		if listErr != nil {
+			a.problems = slices.DeleteFunc(slices.Clone(a.problems), func(p harn.Problem) bool {
+				return p.Project != "" && p.Project != slug
+			})
+		}
 		printAccount(out, a, slug)
 		if !a.used {
 			continue
@@ -124,12 +140,13 @@ func nonEmpty(values ...string) []string {
 	return out
 }
 
-// reportAccountsStep runs the account check with the bound of the checks.
-func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site) []string {
-	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout+10*time.Second)
+// reportAccountsStep runs the account check with the bound of the list and the
+// checks.
+func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site, listSites func(context.Context) ([]api.Site, error)) []string {
+	ctx, cancel := context.WithTimeout(ctx, skillsTimeout+accountCheckTimeout+10*time.Second)
 	defer cancel()
 
-	return reportAccounts(ctx, out, path, site)
+	return reportAccounts(ctx, out, path, site, listSites)
 }
 
 // filesNotPushed lists the files of the setup that the remote lacks. The files
