@@ -842,6 +842,7 @@ when@dev: &generator
                                             - subcommandPrograms
                                             - skillPackages
                                             - needsProfile
+                                            - discoveryRemains
                                             properties:
                                                 id:
                                                     type: string
@@ -867,6 +868,9 @@ when@dev: &generator
                                                     type: boolean
                                                     nullable: true
                                                     description: Whether the project needs a repository profile, or null when the stored template copy says nothing. A reader of null takes true.
+                                                discoveryRemains:
+                                                    type: boolean
+                                                    description: Whether the owner still has to start discovery. It is true when the project has no discovery run, or when its latest run failed. A reader with no value takes true.
                             ArtifactStored:
                                 type: object
                                 required:

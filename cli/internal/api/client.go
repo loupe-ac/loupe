@@ -40,6 +40,9 @@ type Site struct {
 	// NeedsProfile says whether the project needs a repository profile. nil
 	// means the app sent none, as an older app does.
 	NeedsProfile *bool `json:"needsProfile"`
+	// DiscoveryRemains says whether the owner still has to start discovery. nil
+	// means the app sent none, as an older app or the create call does.
+	DiscoveryRemains *bool `json:"discoveryRemains"`
 	// Domain and AllowedOrigins come back from the create call only. An
 	// instance that predates them leaves both empty.
 	Domain         string   `json:"domain"`
@@ -81,6 +84,12 @@ func validPackages(names []string) bool {
 // with no value needs one, as a project did before the app sent the value.
 func (s Site) ProfileNeeded() bool {
 	return s.NeedsProfile == nil || *s.NeedsProfile
+}
+
+// DiscoveryToStart says whether the owner still has to start discovery. A site
+// with no value counts as yes, because nothing proves that a run started.
+func (s Site) DiscoveryToStart() bool {
+	return s.DiscoveryRemains == nil || *s.DiscoveryRemains
 }
 
 // EventsProject is one project of GET /api/v1/bridge/events. Its events arrive on the

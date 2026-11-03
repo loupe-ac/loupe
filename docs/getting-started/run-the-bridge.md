@@ -41,7 +41,8 @@ project, reason and fix. A failing account does not stop the agent, and
 project. A failure in another project does not change the exit status. The last
 lines come after the agent exits. They name only the steps that remain, such as
 fixing an account, pushing `.loupe.yaml` and the profile, restarting Claude Code
-and starting discovery, and end with the link to the project page.
+and starting discovery, and end with the link to the project page. The discovery
+step goes away after a run starts, and it comes back when the latest run failed.
 
 Each step skips itself when it is done already. A second run changes nothing,
 so run `loupe init` again to repair the setup. On a rule file that exists, it

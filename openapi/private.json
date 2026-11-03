@@ -8970,7 +8970,8 @@
                                 "collectFullText",
                                 "subcommandPrograms",
                                 "skillPackages",
-                                "needsProfile"
+                                "needsProfile",
+                                "discoveryRemains"
                             ],
                             "properties": {
                                 "id": {
@@ -9005,6 +9006,10 @@
                                     "description": "Whether the project needs a repository profile, or null when the stored template copy says nothing. A reader of null takes true.",
                                     "type": "boolean",
                                     "nullable": true
+                                },
+                                "discoveryRemains": {
+                                    "description": "Whether the owner still has to start discovery. It is true when the project has no discovery run, or when its latest run failed. A reader with no value takes true.",
+                                    "type": "boolean"
                                 }
                             },
                             "type": "object"

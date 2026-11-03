@@ -355,7 +355,9 @@ loupe init --reset               # write the first-run rules again
    never stops the agent. After the agent exits, the last lines name only the steps that remain:
    fixing a failing account, finishing the profile, pushing `.loupe.yaml` and
    the profile, restarting Claude Code after a plugin install, and starting
-   discovery. The last line is the link to `/projects/<id>` on your instance.
+   discovery. The discovery step goes away after a run starts, and it comes
+   back when the latest run failed. The last line is the link to
+   `/projects/<id>` on your instance.
    The command exits with an error when an account that a rule uses fails for
    this project. A failure in another project and an account that no rule uses
    never change the exit status.

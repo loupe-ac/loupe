@@ -143,7 +143,7 @@ The steps, in order:
 9. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
 10. Report the accounts, and print what remains.
 
-Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent. The last lines come after the agent exits, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files, restarting Claude Code and starting discovery. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
+Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent. The last lines come after the agent exits, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files, restarting Claude Code and starting discovery. The discovery step goes away after a run starts, and it comes back when the latest run failed. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
 
 | Flag | Purpose |
 |---|---|

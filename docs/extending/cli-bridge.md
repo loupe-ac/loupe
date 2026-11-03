@@ -1158,6 +1158,10 @@ lists the skill packages a worker of the project needs: `loupe` and
 `needsProfile` says whether the project needs a repository profile. The Simple
 template needs none.
 
+The route also gives `discoveryRemains`. It is `true` when the project has no
+discovery run, or when its latest run failed. `loupe init` then names discovery
+in its last lines. An app that sends no value counts as `true`.
+
 The bridge reads the list at start, at each reload and once an hour. The read at
 start and the read of a reload end before the bridge dispatches work. When reads
 overlap, the answer of the read that began last wins. When a read fails, the

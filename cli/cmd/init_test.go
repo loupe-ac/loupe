@@ -2101,6 +2101,49 @@ func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
 	}
 }
 
+func TestInitLastLinesNameDiscoveryOnlyWhileItRemains(t *testing.T) {
+	site := func(remains string) string {
+		return `{"id":"` + firstProject + `","slug":"dev","name":"Dev Project"` + remains + `}`
+	}
+	for _, tc := range []struct {
+		name, site string
+		want       bool
+	}{
+		{"an older app sends no value", site(""), true},
+		{"no run started", site(`,"discoveryRemains":true`), true},
+		{"a run started", site(`,"discoveryRemains":false`), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newInitWorld(t, tc.site)
+			inRepo(t, w.server.URL)
+			w.gitClean = true
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+			if err != nil {
+				t.Fatalf("init: %v\n%s", err, out)
+			}
+
+			if got := strings.Contains(out, "Start discovery"); got != tc.want {
+				t.Errorf("names discovery = %v, want %v:\n%s", got, tc.want, out)
+			}
+			if !strings.Contains(out, "Open "+w.server.URL+"/projects/"+firstProject) {
+				t.Errorf("output lacks the link:\n%s", out)
+			}
+		})
+	}
+}
+
+func TestInitNextPrintsNoHeadingWhenNothingRemains(t *testing.T) {
+	remains := false
+	var out strings.Builder
+
+	initNext(&out, "https://app.example", t.TempDir(), api.Site{ID: "p1", DiscoveryRemains: &remains}, initLeft{})
+
+	if got, want := out.String(), "\nOpen https://app.example/projects/p1\n"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
 func TestInitRestartLineFollowsAPluginInstall(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.claude = true

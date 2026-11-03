@@ -186,10 +186,14 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 	if left.restart {
 		todo = append(todo, "Restart Claude Code to load the Loupe plugins.")
 	}
-	todo = append(todo, "Start discovery with Run discovery on the project page, so an agent checks the profile against the repository.")
+	if site.DiscoveryToStart() {
+		todo = append(todo, "Start discovery with Run discovery on the project page, so an agent checks the profile against the repository.")
+	}
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "What remains:")
+	if len(todo) > 0 {
+		fmt.Fprintln(out, "What remains:")
+	}
 	for i, t := range todo {
 		fmt.Fprintf(out, "%d. %s\n", i+1, t)
 	}
