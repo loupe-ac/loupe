@@ -222,6 +222,20 @@ jobs:
       - run: npm run check
         working-directory: website
 
+  # A plugin folder that changes without a new version never reaches a worker,
+  # because the store keeps one folder for each version.
+  plugin-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: sh cli/scripts/plugin-version-check.sh "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
   # The Go CLI needs neither PHP nor the project's dependencies, so this leg
   # skips the setup action and takes just alone; the recipe brings its own
   # toolchain in a container.

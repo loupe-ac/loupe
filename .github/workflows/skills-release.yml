@@ -1,0 +1,67 @@
+name: Skills release
+
+# Each skill package has its own version track, with tags such as
+# `skills/loupe/v1.2.0`. A person runs this workflow after the app is live, so
+# a tool reaches production before the skill that names it.
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: The package folder under plugins/
+        required: true
+        type: choice
+        options: [loupe, loupe-lifecycle]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Read the version
+        id: version
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          version=$(jq -r .version "plugins/$PACKAGE/.claude-plugin/plugin.json")
+          codex=$(jq -r .version "plugins/$PACKAGE/.codex-plugin/plugin.json")
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$version is not a version such as 1.2.3."
+            exit 1
+          fi
+          if [ "$version" != "$codex" ]; then
+            echo "::error::The Claude Code manifest says $version and the Codex manifest says $codex."
+            exit 1
+          fi
+          tag="skills/$PACKAGE/v$version"
+          if git rev-parse --verify --quiet "refs/tags/$tag" > /dev/null; then
+            echo "::error::The tag $tag exists. Bump the version in plugin.json first."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Pack the package
+        env:
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          archive="dist/${PACKAGE}_${VERSION}.tar.gz"
+          # The folder is the root of the archive, with loupe-package.json inside it.
+          tar -czf "$archive" -C "plugins/$PACKAGE" .
+          (cd dist && sha256sum "${PACKAGE}_${VERSION}.tar.gz" > checksums.txt)
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE: ${{ inputs.package }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The server's update check reads /releases/latest, so "Latest" stays a server release.
+          gh release create "$TAG" --target "$GITHUB_SHA" --latest=false \
+            --title "$PACKAGE $VERSION" --notes "The $PACKAGE skill package, version $VERSION." \
+            dist/*.tar.gz dist/checksums.txt

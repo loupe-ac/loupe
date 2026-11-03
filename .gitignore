@@ -107,3 +107,5 @@ e2e/.step-ca-root.crt
 
 # Output of `just skill-eval`.
 /tests/skill-evals/results/
+/cli/internal/skills/bundle/*
+!/cli/internal/skills/bundle/.placeholder
