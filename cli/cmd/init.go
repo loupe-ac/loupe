@@ -1157,11 +1157,17 @@ func indented(raw []byte) string {
 	return ":\n  " + strings.ReplaceAll(text, "\n", "\n  ") + "\n"
 }
 
+// siteRuleSlug is the key of the project in the projects map that initRules
+// writes. A project with no slug yet goes by its id.
+func siteRuleSlug(site api.Site) string {
+	return cmp.Or(site.Slug, site.ID)
+}
+
 // initRules writes the first-run rule file, or adds to the one that exists. It
 // reports whether it changed a file that existed.
 func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
 	out := cmd.OutOrStdout()
-	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
+	opts := rules.FirstRunOptions{Slug: siteRuleSlug(site), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)

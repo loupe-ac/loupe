@@ -52,12 +52,7 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 
 		return nil
 	}
-	slug := ""
-	for _, s := range set.Projects() {
-		if set.ProjectID(s) == site.ID {
-			slug = s
-		}
-	}
+	slug := siteRuleSlug(site)
 
 	var failing []string
 	for _, a := range initCheckAccounts(ctx, set, site) {

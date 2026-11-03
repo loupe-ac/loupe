@@ -1993,6 +1993,48 @@ func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T
 	}
 }
 
+func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
+	cases := map[string]struct{ site, key string }{
+		"a project with a slug":  {devSite(), "dev"},
+		"a project with no slug": {`{"id":"` + firstProject + `","name":"Dev Project"}`, firstProject},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			w := newInitWorld(t, c.site)
+			inRepo(t, w.server.URL)
+			w.accounts = []accountResult{
+				{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
+				{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+				{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Project: c.key}}},
+			}
+
+			out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+
+			if err == nil || !strings.Contains(err.Error(), "broken: no skills") {
+				t.Fatalf("err = %v, want the account that fails for this project", err)
+			}
+			if strings.Contains(err.Error(), "elsewhere") || strings.Contains(err.Error(), "spare") {
+				t.Errorf("err = %v, names an account that does not count", err)
+			}
+			for _, want := range []string{
+				"Account: broken (claude): failing for this project: no skills", "run loupe skills update",
+				"Account: elsewhere (claude): ready",
+				"Account: spare (codex, unused): failing for this project: no plugins",
+				"Fix the account broken: no skills",
+			} {
+				if !strings.Contains(out, want) {
+					t.Errorf("output lacks %q:\n%s", want, out)
+				}
+			}
+			for _, unwanted := range []string{"clone it", "Fix the account elsewhere", "Fix the account spare"} {
+				if strings.Contains(out, unwanted) {
+					t.Errorf("output holds %q:\n%s", unwanted, out)
+				}
+			}
+		})
+	}
+}
+
 func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	inRepo(t, w.server.URL)
