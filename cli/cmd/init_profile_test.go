@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,8 +28,9 @@ func newProfileWorld(t *testing.T) (*profileWorld, string) {
 	t.Helper()
 	t.Setenv(config.EnvVar, t.TempDir())
 	w := &profileWorld{agents: map[string]bool{agentClaude: true}}
-	oldAgent, oldLook := initAgent, initLookPath
-	t.Cleanup(func() { initAgent, initLookPath = oldAgent, oldLook })
+	oldAgent, oldLook, oldExe := initAgent, initLookPath, initExecutable
+	t.Cleanup(func() { initAgent, initLookPath, initExecutable = oldAgent, oldLook, oldExe })
+	initExecutable = func() (string, error) { return "/opt/bin/loupe", nil }
 	initLookPath = func(name string) (string, error) {
 		if w.agents[name] {
 			return "/bin/" + name, nil
@@ -150,6 +152,52 @@ func TestInitProfileRunsClaudeWithThePackageFolders(t *testing.T) {
 		t.Errorf("call = %v", call)
 	}
 	if !strings.Contains(out, "Profile: done") {
+		t.Errorf("out = %s", out)
+	}
+}
+
+// The folder declares no server, as after `loupe init --no-mcp`, so the agent
+// has the Loupe tools only through the flag.
+func TestInitProfileGivesClaudeTheLoupeServerWhenNoneIsDeclared(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	store := os.Getenv(config.EnvVar)
+	writeFile(t, filepath.Join(store, "skills", "loupe-lifecycle", "1.0.0", "skills", "loupe-profile", "SKILL.md"), "x")
+
+	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 1 {
+		t.Fatalf("calls = %v\n%s", w.calls, out)
+	}
+	call := w.calls[0]
+	at, end := slices.Index(call, "--mcp-config"), slices.Index(call, "--")
+	if at < 0 || end < at+2 {
+		t.Fatalf("--mcp-config must stand before --: %v", call)
+	}
+	var config struct {
+		McpServers map[string]struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal([]byte(call[at+1]), &config); err != nil {
+		t.Fatalf("--mcp-config value %q: %v", call[at+1], err)
+	}
+	server := config.McpServers["loupe"]
+	if server.Command != "/opt/bin/loupe" || !slices.Equal(server.Args, []string{"mcp"}) {
+		t.Errorf("server = %+v", server)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenItCannotFindLoupe(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	initExecutable = func() (string, error) { return "", os.ErrNotExist }
+	store := os.Getenv(config.EnvVar)
+	writeFile(t, filepath.Join(store, "skills", "loupe-lifecycle", "1.0.0", "skills", "loupe-profile", "SKILL.md"), "x")
+
+	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 0 {
+		t.Errorf("an agent started with no server: %v", w.calls)
+	}
+	if !strings.Contains(out, "Profile: failed") || !strings.Contains(out, "Paste this prompt") || strings.Contains(out, "Profile: started") {
 		t.Errorf("out = %s", out)
 	}
 }

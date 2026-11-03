@@ -13,6 +13,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/spf13/cobra"
@@ -36,6 +37,9 @@ var initAgent = func(dir string, in io.Reader, out io.Writer, name string, args 
 
 	return c.Run()
 }
+
+// initExecutable finds this binary. A test replaces it.
+var initExecutable = os.Executable
 
 // initProfile starts the agent that writes the repository profile with the
 // owner. It runs only for a project whose workflow needs a profile, and only
@@ -77,15 +81,23 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 		return
 	}
 
-	step(out, "Profile", "started", status.Reason()+". The "+agent+" agent writes it with you")
 	args := []string{prompt}
 	if agent == agentClaude {
+		mcpConfig, err := profileMcpConfig()
+		if err != nil {
+			step(out, "Profile", "failed", "find loupe for the MCP server: "+err.Error()+". Paste this prompt into an agent in this folder:")
+			fmt.Fprintln(out)
+			fmt.Fprintln(out, prompt)
+
+			return
+		}
 		args = []string{}
 		for _, p := range packages {
 			args = append(args, "--plugin-dir", paths[p])
 		}
-		args = append(args, "--", prompt)
+		args = append(args, "--mcp-config", mcpConfig, "--", prompt)
 	}
+	step(out, "Profile", "started", status.Reason()+". The "+agent+" agent writes it with you")
 	if err := initAgent(dir, cmd.InOrStdin(), out, agent, args...); err != nil {
 		step(out, "Profile", "failed", agent+" stopped: "+err.Error()+". Paste this prompt into an agent in this folder:")
 		fmt.Fprintln(out)
@@ -103,6 +115,22 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 	default:
 		step(out, "Profile", "open", after.Reason()+". Run `loupe init --review-profile` to go on")
 	}
+}
+
+// profileMcpConfig is the value of --mcp-config. It names the installed path of
+// loupe, because the setup can declare no server, such as with --no-mcp.
+func profileMcpConfig() (string, error) {
+	path, err := initExecutable()
+	if err != nil {
+		return "", err
+	}
+	entry := map[string]any{"mcpServers": map[string]any{mcpjson.ServerKey: mcpjson.Entry{Command: path, Args: []string{"mcp"}}}}
+	config, err := json.Marshal(entry)
+	if err != nil {
+		return "", err
+	}
+
+	return string(config), nil
 }
 
 // pickProfileAgent chooses the agent. It returns an empty name and the reason
