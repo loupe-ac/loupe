@@ -92,7 +92,7 @@ COPY assets/fonts /repo/assets/fonts
 # The API operations pages read the committed public spec, at ../openapi.
 COPY openapi/public.json /repo/openapi/public.json
 COPY --from=docs-changelog /repo/docs /repo/docs
-RUN npm run build && npm run check
+RUN npm run build && npm run check -- --built-only
 
 # Everything below this line runs at build time only. Nothing here reaches the
 # final image except the files the runtime stage copies, so a tool installed

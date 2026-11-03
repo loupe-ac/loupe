@@ -7,8 +7,8 @@ namespace App\Api\Command;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Reads the committed public spec as it is. It reads a file, so it needs neither the
- * generator nor swagger-php at run time.
+ * Reads the committed public spec as it is. It reads a file, so it needs no generator
+ * at run time.
  */
 final readonly class ShowOpenApiDocumentHandler
 {
