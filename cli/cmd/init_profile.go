@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -108,10 +109,14 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 // when init must print the prompt instead.
 func pickProfileAgent(cmd *cobra.Command, flag string, haveSkill bool) (string, string) {
 	if !haveSkill {
-		return "", "this build of loupe holds no copy of the " + profilePackage + " skills"
+		return "", "this loupe holds no copy of the " + profilePackage + " skills that it can run. Run `loupe update`"
 	}
 	if flag != "" && flag != agentClaude && flag != agentCodex {
 		return "", "--agent takes " + agentClaude + " or " + agentCodex
+	}
+	in := cmd.InOrStdin()
+	if !isTerminal(in) {
+		return "", "no terminal to run an agent on"
 	}
 	var found []string
 	for _, name := range []string{agentClaude, agentCodex} {
@@ -126,12 +131,9 @@ func pickProfileAgent(cmd *cobra.Command, flag string, haveSkill bool) (string, 
 
 		return flag, ""
 	}
-	in := cmd.InOrStdin()
 	switch {
 	case len(found) == 0:
 		return "", "no agent is on your PATH"
-	case !isTerminal(in):
-		return "", "no terminal to run an agent on"
 	case len(found) == 1:
 		return found[0], ""
 	}
@@ -169,24 +171,24 @@ func profilePrompt(site api.Site, skillPath string, review bool) string {
 }
 
 // profilePackageDirs unpacks the starting copy into the store, and returns the
-// newest folder of each package that the project uses, with the package names
-// in the order of use. A package the store lacks is left out.
+// current folder of each package that the project uses, with the package names
+// in the order of use. A package with no version this CLI can run is left out.
 func profilePackageDirs(site api.Site) (map[string]string, []string) {
-	store := config.Current().Dir
-	_, _ = skills.Install(store)
+	store := filepath.Join(config.Current().Dir, "skills")
+	_, _ = skills.Install(config.Current().Dir)
 
-	held, _ := os.ReadDir(filepath.Join(store, "skills"))
+	held, _ := os.ReadDir(store)
 	var names []string
 	for _, e := range held {
-		if e.IsDir() && e.Name() != "backup" {
+		if e.IsDir() && e.Name() != "backup" && !strings.HasPrefix(e.Name(), ".") {
 			names = append(names, e.Name())
 		}
 	}
 	dirs := map[string]string{}
 	var used []string
 	for _, name := range site.PackagesIn(names) {
-		if dir := newestVersionDir(filepath.Join(store, "skills", name)); dir != "" {
-			dirs[name] = dir
+		if v := currentVersion(store, name, map[string]bool{}); v != "" {
+			dirs[name] = filepath.Join(store, name, v)
 			used = append(used, name)
 		}
 	}
@@ -194,28 +196,79 @@ func profilePackageDirs(site api.Site) (map[string]string, []string) {
 	return dirs, used
 }
 
-// newestVersionDir returns the folder with the highest version under root.
-func newestVersionDir(root string) string {
-	entries, err := os.ReadDir(root)
-	if err != nil {
+// currentVersion returns the highest version of a package that meets minCli and
+// whose requires the store can meet. A package that visiting holds is part of a
+// cycle, and has no version.
+func currentVersion(store, name string, visiting map[string]bool) string {
+	if visiting[name] {
 		return ""
 	}
-	best := ""
+	visiting[name] = true
+	defer delete(visiting, name)
+
+	entries, _ := os.ReadDir(filepath.Join(store, name))
+	var list []string
 	for _, e := range entries {
-		if e.IsDir() && (best == "" || versionLess(best, e.Name())) {
-			best = e.Name()
+		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+			list = append(list, e.Name())
 		}
 	}
-	if best == "" {
-		return ""
+	slices.SortFunc(list, func(a, b string) int {
+		switch {
+		case versionLess(a, b):
+			return 1
+		case versionLess(b, a):
+			return -1
+		}
+
+		return 0
+	})
+	for _, v := range list {
+		if versionUsable(store, name, v, visiting) {
+			return v
+		}
 	}
 
-	return filepath.Join(root, best)
+	return ""
+}
+
+// versionUsable reads the loupe-package.json of one version. A development
+// build has an empty version, and meets every minCli.
+func versionUsable(store, name, v string, visiting map[string]bool) bool {
+	var meta struct {
+		MinCli   string            `json:"minCli"`
+		Requires map[string]string `json:"requires"`
+	}
+	if data, err := os.ReadFile(filepath.Join(store, name, v, "loupe-package.json")); err == nil {
+		_ = json.Unmarshal(data, &meta)
+	}
+	if version != "" && meta.MinCli != "" && versionLess(version, meta.MinCli) {
+		return false
+	}
+	for dep, want := range meta.Requires {
+		have := currentVersion(store, dep, visiting)
+		if have == "" || !meetsRequire(have, want) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// meetsRequire reads a requirement such as ">=1.2.0". A form it cannot read
+// fails, so an unknown form never starts a package that may not fit.
+func meetsRequire(have, want string) bool {
+	low, ok := strings.CutPrefix(strings.TrimSpace(want), ">=")
+	if !ok || strings.ContainsAny(low, " ,<>=") {
+		return false
+	}
+
+	return !versionLess(have, low)
 }
 
 // versionLess compares two dotted versions by their numbers.
 func versionLess(a, b string) bool {
-	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	pa, pb := strings.Split(strings.TrimPrefix(a, "v"), "."), strings.Split(strings.TrimPrefix(b, "v"), ".")
 	for i := 0; i < max(len(pa), len(pb)); i++ {
 		var x, y int
 		if i < len(pa) {

@@ -51,13 +51,36 @@ func newProfileWorld(t *testing.T) (*profileWorld, string) {
 
 func runProfileStep(t *testing.T, dir string, site api.Site, o initOptions) string {
 	t.Helper()
+
+	return runProfileStepOn(t, strings.NewReader(""), dir, site, o)
+}
+
+func runProfileStepOn(t *testing.T, in io.Reader, dir string, site api.Site, o initOptions) string {
+	t.Helper()
 	var out strings.Builder
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
-	cmd.SetIn(strings.NewReader(""))
+	cmd.SetIn(in)
 	initProfile(cmd, dir, site, o)
 
 	return out.String()
+}
+
+// putProfilePackage writes one package version to the store.
+func putProfilePackage(t *testing.T, pkg, v, meta string) string {
+	t.Helper()
+	dir := filepath.Join(os.Getenv(config.EnvVar), "skills", pkg, v)
+	writeFile(t, filepath.Join(dir, "loupe-package.json"), meta)
+	writeFile(t, filepath.Join(dir, "skills", "loupe-profile", "SKILL.md"), "x")
+
+	return dir
+}
+
+func setCLIVersion(t *testing.T, v string) {
+	t.Helper()
+	old := version
+	version = v
+	t.Cleanup(func() { version = old })
 }
 
 func yes() *bool { v := true; return &v }
@@ -170,6 +193,88 @@ func TestInitProfileAgentFailureFallsBackToThePrompt(t *testing.T) {
 	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
 	if !strings.Contains(out, "Profile: failed") || !strings.Contains(out, "Paste this prompt") {
 		t.Fatalf("out = %s", out)
+	}
+}
+
+func TestInitProfileAgentFlagPrintsThePromptWithNoTerminal(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devNull.Close()
+
+	for _, agent := range []string{"", agentClaude, agentCodex} {
+		w, dir := newProfileWorld(t)
+		w.agents = map[string]bool{agentClaude: true, agentCodex: true}
+		putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+
+		out := runProfileStepOn(t, devNull, dir, api.Site{ID: "p"}, initOptions{agent: agent})
+		if len(w.calls) != 0 {
+			t.Errorf("agent %q ran with no terminal: %v", agent, w.calls)
+		}
+		if !strings.Contains(out, "no terminal") || !strings.Contains(out, "Paste this prompt") {
+			t.Errorf("agent %q: out = %s", agent, out)
+		}
+	}
+}
+
+func TestInitProfileTakesTheHighestVersionThisCLICanRun(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	setCLIVersion(t, "1.35.0")
+	loupe := putProfilePackage(t, "loupe", "1.0.0", `{"minCli":"1.35.0"}`)
+	putProfilePackage(t, "loupe", "2.0.0", `{"minCli":"9.0.0"}`)
+	lifecycle := putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{"minCli":"1.0.0","requires":{"loupe":">=1.0.0"}}`)
+	putProfilePackage(t, "loupe-lifecycle", "1.1.0", `{"minCli":"1.0.0","requires":{"loupe":">=2.0.0"}}`)
+	putProfilePackage(t, "loupe-lifecycle", "2.0.0", `{"minCli":"9.0.0"}`)
+
+	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 1 {
+		t.Fatalf("calls = %v\n%s", w.calls, out)
+	}
+	call := w.calls[0]
+	for _, want := range []string{loupe, lifecycle} {
+		if !slices.Contains(call, want) {
+			t.Errorf("call lacks %q: %v", want, call)
+		}
+	}
+	if prompt := call[len(call)-1]; !strings.Contains(prompt, filepath.Join(lifecycle, "skills", "loupe-profile", "SKILL.md")) {
+		t.Errorf("prompt names another skill path: %s", prompt)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenNoVersionFits(t *testing.T) {
+	for name, meta := range map[string]string{
+		"minCli":             `{"minCli":"9.0.0"}`,
+		"missing dependency": `{"requires":{"loupe":">=1.0.0"}}`,
+		"low dependency":     `{"requires":{"loupe-core":">=5.0.0"}}`,
+		"unknown form":       `{"requires":{"loupe-core":"~1.0.0"}}`,
+		"cycle":              `{"requires":{"loupe-lifecycle":">=1.0.0"}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			w, dir := newProfileWorld(t)
+			setCLIVersion(t, "1.35.0")
+			putProfilePackage(t, "loupe-core", "1.0.0", `{}`)
+			putProfilePackage(t, "loupe-lifecycle", "1.0.0", meta)
+
+			out := runProfileStep(t, dir, api.Site{ID: "p", SkillPackages: []string{"loupe-lifecycle"}}, initOptions{agent: agentClaude})
+			if len(w.calls) != 0 {
+				t.Errorf("agent ran: %v", w.calls)
+			}
+			if !strings.Contains(out, "loupe update") || !strings.Contains(out, "Paste this prompt") {
+				t.Errorf("out = %s", out)
+			}
+		})
+	}
+}
+
+func TestInitProfileDevelopmentBuildMeetsEveryMinCli(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	setCLIVersion(t, "")
+	putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{"minCli":"9.0.0"}`)
+
+	runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 1 {
+		t.Fatalf("calls = %v", w.calls)
 	}
 }
 
