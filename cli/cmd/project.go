@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
@@ -37,7 +36,7 @@ func newProjectCmd() *cobra.Command {
 		Use:   "project",
 		Short: "Work with the Loupe project of this repository",
 	}
-	cmd.AddCommand(newProjectLinkCmd(), newProjectListCmd())
+	cmd.AddCommand(newProjectLinkCmd())
 
 	return cmd
 }
@@ -84,62 +83,6 @@ func newProjectLinkCmd() *cobra.Command {
 	cmd.MarkFlagsMutuallyExclusive("mcp-json", "no-mcp")
 
 	return cmd
-}
-
-func newProjectListCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "list",
-		Short: "List the projects your login covers",
-		Long: "Prints the id, the slug and the name of each project your login covers. " +
-			"Pass the id to `loupe init --project <id>` or `loupe project link --project <id>`.\n\n" +
-			"A star marks the project of the current directory. In a setup other than the default, " +
-			"the project link of the setup names it first, then " + projectfile.Name + ". " +
-			"In the default setup, " + projectfile.Name + " names it.",
-		Args: cobra.NoArgs,
-		RunE: runProjectList,
-	}
-}
-
-func runProjectList(cmd *cobra.Command, _ []string) error {
-	out := cmd.OutOrStdout()
-	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
-	defer cancel()
-	sites, err := loginSites(ctx)
-	if err != nil {
-		return err
-	}
-	if len(sites) == 0 {
-		fmt.Fprintln(out, "Your login covers no project. Create one with `loupe init --name \"<name>\"`, or in the app.")
-
-		return nil
-	}
-
-	current, source := listedProject(cmd.ErrOrStderr())
-	marked := false
-	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "  ID\tSLUG\tNAME")
-	for _, s := range sites {
-		mark := " "
-		if current != "" && strings.EqualFold(s.ID, current) {
-			mark, marked = "*", true
-		}
-		slug := s.Slug
-		if slug == "" {
-			slug = "-"
-		}
-		fmt.Fprintf(w, "%s %s\t%s\t%s\n", mark, s.ID, slug, s.Name)
-	}
-	if err := w.Flush(); err != nil {
-		return err
-	}
-	switch {
-	case marked:
-		fmt.Fprintf(out, "\n* marks the project that %s names.\n", source)
-	case current != "":
-		fmt.Fprintf(out, "\n%s names project %s, which your login does not cover.\n", source, current)
-	}
-
-	return nil
 }
 
 // listedProject gives the project of the working directory and the words

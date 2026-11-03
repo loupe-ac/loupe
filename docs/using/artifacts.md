@@ -58,42 +58,51 @@ Send `name` for a new artifact, or `artifactId` for a new version. The request
 needs an agent token of the project owner. The `X-Loupe-Session` header may
 carry the session id of the agent.
 
-An agent session that runs as a worker cannot store. Only an interactive session
-stores a version. A worker gets a 422 answer that says so.
+This route refuses an agent session that runs as a worker, with a 422 answer
+that says so. The [public API](../reference/api/index.md) stores through
+`createArtifact` and `createArtifactVersion` instead. Those routes accept any
+credential, a worker run included, and they read no session id. The `loupe`
+commands below use them.
 
 The answer is a 201 with `artifactId`, `versionNumber`, `path` and
 `versionPath`.
 
 ## Storing from the command line
 
-Run `loupe artifact push` to store files from disk. The command sends the files
-itself, so an agent writes only the command and not the content of each file.
+Run `loupe artifact create` to make a new artifact, and
+`loupe artifact version create` to add a version to an existing one. The
+command sends the files itself, so an agent writes only the command and not the
+content of each file. Any credential can store: a signed-in CLI, an
+[API key](api-keys.md) in `LOUPE_API_KEY`, and a worker run. The commands send no
+session id.
 
 ```bash
-loupe artifact push review-page.html --name "Review page" --card 611
-loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 --notes "Moved the prices into a table"
+loupe artifact create review-page.html --name "Review page" --card 611
+loupe artifact version create 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 prototype/ --notes "Moved the prices into a table"
 ```
 
 | Flag | Meaning |
 |---|---|
-| `--name` | The name of a new artifact |
-| `--artifact` | The id of an existing artifact, to store a new version of it |
+| `--name` | The name of a new artifact. Only `artifact create` takes it, and it needs it. |
 | `--card` | Link the artifact to a card, by its number or its id |
-| `--source-link` | Where the files came from, such as a design canvas link |
+| `--source-link` | Where the files came from, such as a design canvas link. Only `artifact create` takes it. |
 | `--notes` | What changed in this version |
 | `--index` | The artboard that becomes `index.html` when the folder holds several canvases. See "Pushing a Design canvas". |
 | `--out` | Write the compiled files to an empty or new folder, and store nothing. See "Pushing a Design canvas". |
-| `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
+| `--idempotency-key` | A key of your choice. A retry with the same key and files answers as the first request did. |
+| `--project` | The project id or slug. Without it the command reads `LOUPE_PROJECT`, the project link, `.loupe.yaml`, then the one project your credential covers. |
 
-Pass `--name` or `--artifact`, never both. A file is stored under its base name.
-A folder is stored with the path of each file relative to the folder, and the
-command skips a `.git` folder. The command refuses an empty folder, a file that
-is not a regular file, and a push of more than 8 MiB.
+A file is stored under its base name. A folder is stored with the path of each
+file relative to the folder, and the command skips a `.git` folder. The command
+refuses an empty folder, a file that is not a regular file, and a push of more
+than 8 MiB. It prints the link of the artifact on stdout. `--format json` prints
+the whole answer, which holds `artifactId`, `versionNumber`, `url` and
+`versionUrl`.
 
-The command sends the id of the session that runs it, read from
-`LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`. A worker run
-cannot store, so run the command from an interactive session. It prints the
-artifact id, the version number, the stable link and the link of that version.
+`loupe artifact push` no longer exists. It stays as a hidden command that exits
+2 and names the two commands above. A Loupe plugin that still calls it needs an
+update. [The CLI reference](../reference/cli.md#artifacts) has the other
+artifact commands, such as `loupe artifact read`.
 
 ## Pushing a Design canvas
 
