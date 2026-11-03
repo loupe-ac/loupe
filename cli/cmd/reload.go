@@ -147,6 +147,9 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 	}
 	res := r.swap(b, seq)
 	done(res.OK)
+	if res.OK {
+		go r.syncCodexPlugins(r.workerContext())
+	}
 
 	return res
 }

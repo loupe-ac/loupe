@@ -593,6 +593,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.startSkills(dir)
 	}
 	r.loadSkills(ctx)
+	if r.source.checkAccounts != nil {
+		r.source.checkAccounts = r.checkAccounts
+	}
+	go r.syncCodexPlugins(ctx)
 	go r.skillLoop(ctx)
 	r.restoreState(events.Head)
 	var updates *updater
@@ -846,6 +850,8 @@ func (r *router) status() statusResult {
 		Login:     loginValid,
 		Workers:   []statusWorker{},
 		Skills:    r.skillReports(),
+
+		CodexPlugins: r.codexHomeReports(),
 	}
 	if g := currentBridgeGate(); g != nil && g.expired() {
 		res.Login = loginExpired
@@ -864,6 +870,9 @@ func (r *router) status() statusResult {
 		}
 		if w.Kind == "" {
 			w.Kind = run.p.rule
+		}
+		if run.p.spec.harnessName == rules.HarnessCodex {
+			w.CodexHome = resolveCodexHome(run.p.spec.configDir)
 		}
 		res.Workers = append(res.Workers, w)
 	}

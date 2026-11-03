@@ -317,8 +317,8 @@ loupe init --reset               # write the first-run rules again
    you to run, and never fails the step. When only `codex` is on your `PATH`,
    the step declares `loupe mcp` to Codex instead, sets
    `default_tools_approval_mode = "approve"` for each Codex account of the rule
-   file, and copies the Loupe skills into `~/.agents/skills/`. The Codex part
-   runs after step 5, because it reads the Codex accounts of the rule file.
+   file, and installs the Loupe plugins in each Codex home of the rule file. The
+   Codex part runs after step 5, because it reads the Codex accounts of the rule file.
 5. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
    terminal, a product-design entry. With no known terminal, the step says

@@ -313,6 +313,7 @@ func pruneRecords(configDir string, now time.Time, live func(session string) boo
 // package/version.
 func Prune(configDir string, now time.Time, live func(session string) bool, inUse func(pkg, version string) bool) []string {
 	pruneRecords(configDir, now, live)
+	pruneHomes(configDir, now, live)
 	var removed []string
 	for _, pkg := range Held(configDir) {
 		list := versions(configDir, pkg)

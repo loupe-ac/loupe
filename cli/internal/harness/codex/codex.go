@@ -90,6 +90,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	}
 	args = append(args, sandboxArgs(spec, resume)...)
 	args = append(args, sessionArgs(spec)...)
+	args = append(args, hideArgs(spec)...)
 	args = append(args, h.connectArgs()...)
 	header, source := h.sessionHeaderArgs(spec.RunID)
 	args = append(args, header...)
@@ -207,6 +208,20 @@ func sessionArgs(spec harness.Spec) []string {
 	return args
 }
 
+// hideArgs turns off each skill the spec hides. The full name of a skill,
+// <plugin>:<skill>, is the selector Codex matches.
+func hideArgs(spec harness.Spec) []string {
+	if len(spec.HideSkills) == 0 {
+		return nil
+	}
+	entries := make([]string, len(spec.HideSkills))
+	for i, name := range spec.HideSkills {
+		entries[i] = "{name=" + tomlString(name) + ",enabled=false}"
+	}
+
+	return []string{"-c", "skills.config=[" + strings.Join(entries, ",") + "]"}
+}
+
 // gitRoots is the git common directory of dir when it lies outside dir, and
 // nothing when dir is no repository or the folder is inside dir.
 func gitRoots(dir string) []string {
@@ -283,7 +298,7 @@ func (h Harness) Interactive(program string, spec harness.Spec) string {
 	}
 	// An interactive session keeps its list price, so the cost source is unused.
 	header, _ := h.sessionHeaderArgs(spec.RunID)
-	for _, arg := range slices.Concat(sandboxArgs(spec, false), sessionArgs(spec), header) {
+	for _, arg := range slices.Concat(sandboxArgs(spec, false), sessionArgs(spec), hideArgs(spec), header) {
 		b.WriteString(" " + shellQuote(arg))
 	}
 	if spec.Prompt != "" {

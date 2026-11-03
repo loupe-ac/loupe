@@ -977,3 +977,35 @@ func TestALaunchedRunReportsWhenItsSessionFileLastChanged(t *testing.T) {
 		t.Fatal("a run id with a path counts as launched")
 	}
 }
+
+func TestHideSkillsAddOneConfigOverride(t *testing.T) {
+	const want = `skills.config=[{name="loupe-lifecycle:loupe-stage-merge",enabled=false},{name="loupe-lifecycle:loupe-profile",enabled=false}]`
+	spec := harness.Spec{
+		Dir: t.TempDir(), SessionID: runID, Prompt: "x",
+		HideSkills: []string{"loupe-lifecycle:loupe-stage-merge", "loupe-lifecycle:loupe-profile"},
+	}
+	h := New("", "", "")
+
+	for name, args := range map[string][]string{"worker": h.Worker(spec).Args, "resume": h.Resume(spec).Args} {
+		i := slices.Index(args, want)
+		if i < 1 || args[i-1] != "-c" {
+			t.Fatalf("%s args lack the override: %q", name, args)
+		}
+		if sub := slices.Index(args, "resume"); name == "resume" && sub < i {
+			t.Fatalf("the override comes after the subcommand: %q", args)
+		}
+	}
+	if body := h.Interactive("/bin/codex", spec); !strings.Contains(body, " '-c' '"+want+"'") {
+		t.Fatalf("interactive script lacks the override:\n%s", body)
+	}
+}
+
+func TestNoHiddenSkillsAddNoOverride(t *testing.T) {
+	spec := harness.Spec{Dir: t.TempDir(), SessionID: runID, Prompt: "x"}
+	h := New("", "", "")
+	for _, args := range [][]string{h.Worker(spec).Args, h.Resume(spec).Args, {h.Interactive("/bin/codex", spec)}} {
+		if strings.Contains(strings.Join(args, " "), "skills.config") {
+			t.Fatalf("args = %q", args)
+		}
+	}
+}

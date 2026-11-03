@@ -305,6 +305,9 @@ type statusResult struct {
 	Workers         []statusWorker `json:"workers"`
 	// Skills is the state of each skill package, as the heartbeat reports it.
 	Skills []api.SkillReport `json:"skills,omitempty"`
+	// CodexPlugins is the state of the Loupe plugins in each Codex home of the
+	// rule file that the bridge keeps.
+	CodexPlugins []codexHomeReport `json:"codexPlugins,omitempty"`
 	// Problems holds the refusal of a bridge that cannot answer the op.
 	Problems []string `json:"problems,omitempty"`
 }
@@ -321,6 +324,8 @@ type statusWorker struct {
 	Card      int       `json:"card,omitempty"`
 	Kind      string    `json:"kind"`
 	StartedAt time.Time `json:"startedAt"`
+	// CodexHome is the Codex home of a Codex worker.
+	CodexHome string `json:"codexHome,omitempty"`
 }
 
 const (

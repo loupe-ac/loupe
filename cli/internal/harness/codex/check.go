@@ -251,13 +251,49 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 		return append(problems, found...)
 	}
 
-	mcpEnv := envfile.Overlay(env, []string{"CODEX_HOME=" + home})
+	mcpEnv := HomeEnv(env, home)
+	plugins, pluginErr := h.readPlugins(ctx, binary, mcpEnv, spec)
 	for _, slug := range slugs {
 		if slug == "" {
 			continue
 		}
 		if found, err := envfile.LookPath(h.Program(), env, spec.Projects[slug]); err == nil {
+			problems = append(problems, pluginProblems(slug, spec.Packages[slug], plugins, pluginErr)...)
 			problems = append(problems, h.mcpProblems(ctx, found, home, slug, spec.Projects[slug], mcpEnv)...)
+		}
+	}
+
+	return problems
+}
+
+// readPlugins reads the plugins of the home once for all projects. It reads
+// nothing when no project needs a package, or when the Loupe skill folders of the
+// user home stand in for the plugins.
+func (h Harness) readPlugins(ctx context.Context, binary string, env []string, spec harness.CheckSpec) (map[string]Plugin, error) {
+	if spec.LegacySkills || !slices.ContainsFunc(slices.Collect(maps.Values(spec.Packages)), func(p []string) bool { return len(p) > 0 }) {
+		return nil, nil
+	}
+
+	return ListPlugins(ctx, binary, env)
+}
+
+// pluginProblems checks that the home has installed and enabled each plugin the
+// project needs. A nil have with no error means the check was not needed.
+func pluginProblems(slug string, packages []string, have map[string]Plugin, listErr error) []harness.Problem {
+	const fix = "run `loupe init`"
+	if len(packages) == 0 || (have == nil && listErr == nil) {
+		return nil
+	}
+	if listErr != nil {
+		return []harness.Problem{{Reason: "codex plugins could not be read", Project: slug, Detail: listErr.Error() + "; " + fix}}
+	}
+	var problems []harness.Problem
+	for _, name := range packages {
+		switch plugin, ok := have[name]; {
+		case !ok:
+			problems = append(problems, harness.Problem{Reason: "loupe plugin " + name + " is not installed", Project: slug, Detail: fix})
+		case !plugin.Enabled:
+			problems = append(problems, harness.Problem{Reason: "loupe plugin " + name + " is disabled", Project: slug, Detail: "enable it in Codex, or " + fix})
 		}
 	}
 
