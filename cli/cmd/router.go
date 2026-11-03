@@ -1143,6 +1143,9 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 	spec.agent = r.agent
 	spec.credentials, spec.project = r.credentials, p.project
 	env, err := spec.accountEnv()
+	if err == nil {
+		err = r.givePackages(&spec, p)
+	}
 	if err != nil {
 		failed := workerResult{err: err, dir: beforeDir}
 		r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})

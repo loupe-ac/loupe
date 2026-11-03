@@ -584,6 +584,12 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	r.applyFlags(events)
 	// An adopted queue dispatches in restoreState, so the first read comes first.
 	r.skills.list = apiClient(cfg).Sites
+	r.skills.cliVersion = version
+	if dir, err := config.Dir(); err != nil {
+		r.log.Warn("skill_store_skipped", "reason", err.Error())
+	} else {
+		r.startSkills(dir)
+	}
 	r.loadSkills(ctx)
 	go r.skillLoop(ctx)
 	r.restoreState(events.Head)

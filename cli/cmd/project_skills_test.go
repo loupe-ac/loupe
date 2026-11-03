@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -15,7 +17,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 )
 
 func skillRouter(list func(context.Context) ([]api.Site, error)) (*router, *bytes.Buffer) {
@@ -308,5 +312,146 @@ func TestARouterWithNoListReadsNothing(t *testing.T) {
 
 	if _, listed := r.projectSite("any"); listed {
 		t.Fatal("a router with no list knows a project")
+	}
+}
+
+// packageStore makes a store with the two packages at one version each and a
+// router that reads it.
+func packageStore(t *testing.T, sites ...api.Site) (*router, string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, pkg := range []string{"loupe", "loupe-lifecycle"} {
+		if err := os.MkdirAll(filepath.Join(dir, "skills", pkg, "1.0.0"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, _ := skillRouter(func(context.Context) ([]api.Site, error) { return sites, nil })
+	r.skills.dir = dir
+	r.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	r.loadSkills(context.Background())
+
+	return r, dir
+}
+
+func TestAClaudeWorkerGetsThePackagesOfItsProject(t *testing.T) {
+	r, dir := packageStore(t, api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}})
+	spec := workerSpec{}
+
+	if err := r.givePackages(&spec, pending{project: "simple"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.packages) != 1 || spec.packages[0].Dir != filepath.Join(dir, "skills", "loupe", "1.0.0") {
+		t.Fatalf("packages = %+v, want loupe alone", spec.packages)
+	}
+	if !strings.Contains(spec.mcpConfig, `"command":"/bin/loupe"`) || !strings.Contains(spec.mcpConfig, `"args":["mcp"]`) {
+		t.Fatalf("mcpConfig = %s", spec.mcpConfig)
+	}
+	h := spec.harnessSpec(nil)
+	if len(h.PluginDirs) != 1 || h.MCPConfig != spec.mcpConfig {
+		t.Fatalf("harness spec = %+v", h)
+	}
+}
+
+func TestAProjectWithNoListGetsEveryPackageHeld(t *testing.T) {
+	r, _ := packageStore(t)
+	spec := workerSpec{}
+
+	if err := r.givePackages(&spec, pending{project: "unlisted"}); err != nil || len(spec.packages) != 2 {
+		t.Fatalf("packages = %+v, err = %v, want both", spec.packages, err)
+	}
+}
+
+func TestAProjectThatNamesAMissingPackageFailsWithTheFix(t *testing.T) {
+	r, _ := packageStore(t, api.Site{ID: "p1", Slug: "x", SkillPackages: []string{"loupe", "market-x"}})
+	spec := workerSpec{}
+
+	err := r.givePackages(&spec, pending{project: "x"})
+	if err == nil || !strings.Contains(err.Error(), "market-x") || !strings.Contains(err.Error(), "loupe update") {
+		t.Fatalf("err = %v, want the package and the fix", err)
+	}
+	if spec.packages != nil {
+		t.Fatalf("packages = %+v, want none", spec.packages)
+	}
+}
+
+func TestACodexWorkerAndAnEmptyStoreGetNoPackages(t *testing.T) {
+	r, _ := packageStore(t)
+	spec := workerSpec{harnessName: rules.HarnessCodex}
+	if err := r.givePackages(&spec, pending{project: "x"}); err != nil || spec.packages != nil || spec.mcpConfig != "" {
+		t.Fatalf("a Codex worker got %+v, %q, %v", spec.packages, spec.mcpConfig, err)
+	}
+
+	empty, _ := skillRouter(nil)
+	empty.skills.dir = t.TempDir()
+	spec = workerSpec{}
+	if err := empty.givePackages(&spec, pending{project: "x"}); err != nil || spec.packages != nil {
+		t.Fatalf("an empty store gave %+v, %v, want the account's plugin", spec.packages, err)
+	}
+	none, _ := skillRouter(nil)
+	if err := none.givePackages(&spec, pending{project: "x"}); err != nil || spec.packages != nil {
+		t.Fatalf("a router with no store gave %+v, %v", spec.packages, err)
+	}
+}
+
+func TestAResumeKeepsTheVersionsItsRunStartedWith(t *testing.T) {
+	r, dir := packageStore(t)
+	t.Setenv("LOUPE_CONFIG", t.TempDir())
+	runs, err := config.RunsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "skills", "loupe", "0.9.0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(runs, "run-1"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := skills.WriteRecord(filepath.Join(runs, "run-1"), []skills.Pick{{Package: "loupe", Version: "0.9.0"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	spec := workerSpec{resume: true, sessionID: "s"}
+	if err := r.givePackages(&spec, pending{project: "x", continues: "run-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.packages) != 1 || spec.packages[0].Version != "0.9.0" {
+		t.Fatalf("packages = %+v, want loupe 0.9.0", spec.packages)
+	}
+
+	// With the folder gone the resume takes the current version and says so.
+	if err := os.RemoveAll(filepath.Join(dir, "skills", "loupe", "0.9.0")); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	r.log = debugLogger(&buf)
+	spec = workerSpec{resume: true, sessionID: "s"}
+	if err := r.givePackages(&spec, pending{project: "x", continues: "run-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.packages) != 2 || !strings.Contains(buf.String(), "skill_packages_current_on_resume") {
+		t.Fatalf("packages = %+v, log = %s", spec.packages, buf.String())
+	}
+}
+
+func TestThePruneKeepsTheVersionsOfALiveRun(t *testing.T) {
+	r, dir := packageStore(t)
+	old := filepath.Join(dir, "skills", "loupe", "0.5.0")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	long := time.Now().Add(-90 * 24 * time.Hour)
+	if err := os.Chtimes(filepath.Join(dir, "skills", "loupe", "1.0.0"), long, long); err != nil {
+		t.Fatal(err)
+	}
+	r.live = map[string]liveRun{"a": {p: pending{spec: workerSpec{packages: []skills.Pick{{Package: "loupe", Version: "0.5.0"}}}}}}
+
+	r.pruneSkills(time.Now())
+	if _, err := os.Stat(old); err != nil {
+		t.Fatalf("a live run's version was deleted: %v", err)
+	}
+	r.live = nil
+	r.pruneSkills(time.Now())
+	if _, err := os.Stat(old); err == nil {
+		t.Fatal("the version stayed after its run ended")
 	}
 }

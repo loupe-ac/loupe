@@ -23,6 +23,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/stream"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 	"github.com/loupe-ac/loupe/cli/internal/usage"
@@ -157,6 +158,11 @@ type workerSpec struct {
 	// machine.
 	credentials *credentialBroker
 	project     string
+	// packages are the skill packages the worker loads, and mcpConfig is the
+	// inline JSON of its loupe MCP server. Both are empty for a worker that
+	// gets neither.
+	packages  []skills.Pick
+	mcpConfig string
 }
 
 // workerOps is the process surface the router drives. Tests replace run so the
@@ -430,6 +436,11 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		return nil, "", nil, fmt.Errorf("create run directory: %w", err)
 	}
 	spec.runDir = dir
+	if len(spec.packages) > 0 {
+		// A record that fails to write only makes a resume take the current
+		// versions, so the run starts.
+		_ = skills.WriteRecord(dir, spec.packages)
+	}
 
 	// Each stream has its own file, so stdout holds claude's JSON alone. The
 	// shell holds its own copies once it starts.
