@@ -21,7 +21,7 @@ Find why the work of one workflow rule failed on a card, and fix the cause. The 
 
 ## Procedure
 
-1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. The repair prompt names no column, so skip the column check.
+1. Read `../loupe-stage-product-design/references/stage-contract.md` "Run notes and profile" and "First steps", and follow them. The repair prompt names no column, so skip the column check.
 2. Load the `loupe-workers` instruction.
 3. Read the profile `Repair` section. When it is missing, stop with `STAGE RESULT: blocked: no Repair in .loupe/lifecycle.md`. Load the profile `Instruction files`.
 4. Read the prompt line `Rule <ruleId> failed with <reason>.` When the line is missing, stop with `STAGE RESULT: blocked: no rule in the prompt`. An older server can leave `<reason>` empty. Then match the run by the rule id alone.

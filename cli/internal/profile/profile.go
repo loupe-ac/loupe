@@ -89,7 +89,7 @@ func Render(d Detection) string {
 	b.WriteString("## Epics\n\n")
 	b.WriteString("1. The epic branch of epic card `<n>` is `epic/<n>` (" + Marker + "). It must match the `epicBranch` value that `workflow_get` returns.\n")
 	b.WriteString("2. The merge method of an epic child: " + OpenQuestion + ". Write a method that the epic branch allows.\n")
-	b.WriteString("3. This profile names no epic preview, no preview link form and no shape for a value from a pull request body (" + Marker + "), so a refresh of the epic preview stops blocked. Describe them here when this repository serves an epic branch.\n\n")
+	b.WriteString("3. Epic preview: none (" + OpenQuestion + "). With none, a refresh of the epic preview finishes with no change. Name the preview, its link form and the shape of a value from a pull request body here when this repository serves an epic branch.\n\n")
 
 	b.WriteString("## Repair\n\n")
 	b.WriteString("1. Before each action, `git status --porcelain` must print nothing (" + Marker + "). Otherwise stop blocked.\n")

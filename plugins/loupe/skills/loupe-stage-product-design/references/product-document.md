@@ -4,7 +4,7 @@ Read this before you write or revise a product document. The `loupe-documents` r
 
 Use the sections below, in this order, as `##` headings. Write each section as a numbered list, so a reviewer can cite an entry (rule 2). Open each entry with a short lead sentence (rule 4). Follow `loupe-documents` `references/design-structure.md` for the reader rule, At a glance, the decisions and the tables (rule 15). The reader rule is its section "Write for a reader who knows the product".
 
-A Light session skips Priorities and How others do it, and its At a glance is two sentences. It uses these sections: At a glance, Problem, Current behaviour, Proposed behaviour, Out of scope, Assumptions, Decisions log, Design system, For tech design, Scenarios, Open questions, and Docs and landing page impact. A Full session uses every section. Leave out a section with nothing real to say. Problem, Proposed behaviour, Decisions log, Scenarios, and Docs and landing page impact always stay.
+A Light session skips Priorities and How others do it, and its At a glance is two sentences. It uses these sections: At a glance, Problem, Current behaviour, Proposed behaviour, Out of scope, Assumptions, Decisions log, Design system, For tech design, Scenarios, Open questions, and Documentation impact. A Full session uses every section. Leave out a section with nothing real to say. Problem, Proposed behaviour, Decisions log, Scenarios, and Documentation impact always stay.
 
 ## At a glance
 
@@ -79,9 +79,10 @@ Put each open choice in its own decision fence (rule 12). Read `loupe-documents`
 
 When a revision folds an answer in, keep the fence and add a `**Decided:**` line under it (rule 6).
 
-## Docs and landing page impact
+## Documentation impact
 
-Answer the documentation and landing page checks that the `Instruction files` section of the repository profile names.
+Answer only the checks that the `Instruction files` section of the repository profile names. When the profile names none, or is missing, write "No documentation check".
 
-1. Documentation. Say whether the change alters what a user or an operator does, sees or configures. Name the documentation page that covers it. When no page changes, say so and give the reason.
-2. Landing page. Say whether the change adds, removes or alters a capability that the landing page of the product claims.
+For a documentation check, say whether the change alters what a user or an operator does, sees or configures. Name the page that covers it. When no page changes, say so and give the reason.
+
+For a check on a marketing page, say whether the change adds, removes or alters a capability that the page claims.

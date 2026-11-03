@@ -30,9 +30,10 @@ skills, writes the rule file and starts the bridge. The agent asks you when a
 step needs you, such as the browser approval of the sign-in. It never writes a
 token or a password.
 
-An agent that reads the public site also finds these steps. The home page
-shows the full `/setup.md` address in its text, and `/llms.txt` on the site
-host links it.
+The Connect step of the first-run wizard shows the same prompt.
+
+An agent that reads the public site also finds these steps. The head of the home
+page links `/setup.md`, and `/llms.txt` on the site host links it.
 
 The `project` parameter fills the project id into the `loupe init` command. The
 page accepts only a UUID and ignores any other value. With no valid id, `loupe init`
@@ -229,8 +230,8 @@ A project's Connect page leads with `loupe init --project <project id>` and
 lists the machines of the owner. It keeps the commands for the other ways on
 this page in the "Other ways to connect" block, and links to the tools below.
 The machine step of the first-run wizard at `/welcome/connect` shows the
-install command and `loupe init --project <project id>`, and it lists what
-Loupe sees of the machine, live.
+install command, `loupe init --project <project id>` and the setup prompt, and
+it lists what Loupe sees of the machine, live.
 
 ## The Claude Code plugin
 
@@ -255,7 +256,6 @@ It installs one skill for each part of working a Loupe project:
 | `loupe:loupe-discovery` | A read-only discovery run that writes the readiness report of a project |
 | `loupe:product-design` | An interactive product design session with the owner, from a card or a one-line idea |
 | `loupe:tech-design` | An interactive tech design session with the owner, from a card that has a product document or a card body |
-| `loupe:loupe-recommendations` | Choosing and reviewing a solution: a correct fix beats a patch, and effort alone never ranks a patch higher |
 | `loupe:loupe-stage-product-design` | One review round on a product document |
 | `loupe:loupe-stage-tech-design` | A card entering the tech design column |
 | `loupe:loupe-stage-implementation` | Building an approved design into a pull request |

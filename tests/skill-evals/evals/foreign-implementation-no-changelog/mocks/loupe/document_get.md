@@ -1,0 +1,1 @@
+{"documentId":"01doc000-0000-7000-8000-000000000042","title":"Tech design: distinct words","status":"approved","version":1,"tags":["tech-design"],"content":"## At a glance\n\nAdd `unique_words` to `tally/counter.py`. It returns the number of distinct words of a text.\n\n## Testing\n\nA unit test counts the words of `a b a`.\n"}

@@ -26,6 +26,9 @@
                 :copiedLabel="'project.connect.copied'|trans"
                 testid="wizard-init-command" />
             <twig:Ds:Hint>{{ 'project.wizard.connect.init.hint'|trans }}</twig:Ds:Hint>
+            <span class="lp-wizard-machine__label">{{ 'project.wizard.connect.prompt.heading'|trans }}</span>
+            {% include '@Project/_setup_prompt.html.twig' with {projectId: wizardProject.id, testid: 'wizard-setup-prompt'} only %}
+            <twig:Ds:Hint>{{ 'project.wizard.connect.prompt.hint'|trans }}</twig:Ds:Hint>
         </div>
         <div class="lp-wizard-machine__sees">
             <div class="lp-wizard-machine__sees-header">

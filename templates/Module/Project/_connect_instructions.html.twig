@@ -2,11 +2,6 @@
     wire it up by hand, and the two agent skills. Props: mcpServerName (string),
     projectId (string). -#}
 {%- set mcpUrl = url('_mcp_endpoint') -%}
-{%- set setupPrompt = [
-    'Set up Loupe for this repository. Run',
-    'curl -fsSL "' ~ url('app_setup_instructions', {project: projectId}) ~ '"',
-    'and follow the steps it prints, in order. Use curl, not a web fetch tool.'
-]|join("\n") -%}
 {%- set claudeCommand = [
     'claude mcp add --transport http ' ~ mcpServerName ~ ' ' ~ mcpUrl,
     'claude mcp login ' ~ mcpServerName
@@ -51,12 +46,7 @@
         <p class="lp-eyebrow">{{ 'project.connect.setup_prompt.heading'|trans }}</p>
     </div>
     <p class="lp-connect-hint">{{ 'project.connect.setup_prompt.hint'|trans }}</p>
-    <twig:Ds:CodeBlock
-        :label="'project.connect.setup_prompt.label'|trans"
-        :text="setupPrompt"
-        :copyLabel="'project.connect.copy'|trans"
-        :copiedLabel="'project.connect.copied'|trans"
-        testid="setup-prompt" />
+    {% include '@Project/_setup_prompt.html.twig' with {projectId: projectId, testid: 'setup-prompt'} only %}
 </div>
 
 {# ── MCP endpoint (global; a request names the project it acts on) ── #}

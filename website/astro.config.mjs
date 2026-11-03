@@ -76,7 +76,7 @@ export default defineConfig({
         PageFrame: './src/components/SitePageFrame.astro',
         Sidebar: './src/components/SiteSidebar.astro',
       },
-      description: 'A document- and live-review tool for humans working with AI agents.',
+      description: 'A software factory for coding agents: product design, tech design, code and review, in one workflow.',
       editLink: {
         baseUrl: 'https://github.com/loupe-ac/loupe/edit/main/docs/',
       },
@@ -211,6 +211,7 @@ export default defineConfig({
             { slug: 'adr/0003-replace-dont-keep' },
             { slug: 'adr/0004-workflow-concerns-stay-in-workflow' },
             { slug: 'adr/0005-live-ui' },
+            { slug: 'adr/0006-outcome-not-method' },
           ],
         },
         { label: 'What runs in production', slug: 'architecture' },

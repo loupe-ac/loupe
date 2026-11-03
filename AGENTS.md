@@ -34,6 +34,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `loupe-analysis` | Running an analysis of a project's worker runs through the `loupe` MCP: `analysis_get`, `metric_query`, `analysis_report`, the cost report and its proposals |
 | `loupe-product-design` | An interactive product design session with the owner through the `loupe` MCP, from a card or a one-line idea: `/loupe:product-design` |
 | `loupe-tech-design` | An interactive tech design session with the owner through the `loupe` MCP: `/loupe:tech-design` |
+| `loupe-interviewing` | The question rules, the recap and the stop rule that both design sessions load, and the interview method when no installed skill leads |
 | `loupe-stage-product-design` | One review round on a card's product document, or a prompt that names the skill |
 | `loupe-stage-tech-design` | A card entering the Tech design column, or a prompt that names the skill: write or revise the tech design |
 | `loupe-stage-implementation` | A card entering the Implementation column, or a prompt that names the skill: build the approved tech design into a ready pull request, or break an epic down into child cards |
@@ -47,7 +48,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `project-comments` | Writing or reviewing code comments and docblocks anywhere in `src/`, `assets/` or `tests/` |
 | `project-mutation-and-coverage` | Mutation testing, code coverage, fetching a weekly report artifact, or a test that asserts on elapsed time |
 | `holding-a-merge-queue` | One session holds the merge queue, watches several pull requests, or verifies and merges branches that other sessions push |
-| `loupe-recommendations` | Recommending, choosing or reviewing a solution: a design decision, a fix, a plan, a review finding, a patch against a correct fix |
+| `project-recommendations` | Recommending, choosing or reviewing a solution: a design decision, a fix, a plan, a review finding, a patch against a correct fix |
 | `working-with-prs` | Opening, gating, reviewing or merging a pull request |
 
 A subagent does not inherit the skills you have loaded. When you delegate PHP, entity, migration or command work, state the relevant skill conventions in the prompt, or tell the subagent to invoke the skill first. A convention that lives only in a skill is silently missed otherwise.
@@ -58,7 +59,7 @@ Submit a document that the user reads at their own pace to the Loupe app with `d
 
 ## Tracking open work
 
-The project board in the Loupe app holds open work that has an addressee. Invoke the `loupe-board` skill before you write a card. It says what earns a card, where an observation goes instead, and that the board is public text.
+The project board in the Loupe app holds open work that has an addressee. Invoke the `loupe-board` skill before you write a card. It says what earns a card, and that the board is public text. An observation gets no card. A lesson goes into the skill that covers its area. A fact about how the system behaves goes into `docs/`, or into the skill. A record of what happened goes into the commit message or the pull request body.
 
 Fix a problem in the code your branch touches in that branch, even when the fix adds new content after an approval. Never card it under an epic. Fix a failing check in the branch, wherever its cause lies.
 
@@ -174,7 +175,7 @@ An existing file keeps its old prose until a rewrite touches it. The `compressin
 
 The owner ranks the priorities `correctness > simplicity > performance > shipping speed`. `docs/contributing/architectural-priorities.md` says which one yields in each of the six collisions, and when to escalate rather than apply the ranking. Read it before you call a trade-off. The records in `docs/adr/` apply that ranking to recurring questions. Read them before you design a new stage, a workflow rule or an automation.
 
-Invoke the `loupe-recommendations` skill before you recommend, choose or review a solution. It says that effort alone never ranks a patch above a correct fix.
+Invoke the `project-recommendations` skill before you recommend, choose or review a solution. It is a repository skill, not part of the Loupe plugin. It says that effort alone never ranks a patch above a correct fix.
 
 ### The owner sets the bar, not the agent
 

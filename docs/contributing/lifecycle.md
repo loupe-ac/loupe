@@ -416,7 +416,7 @@ that change from one setup to the next.
 1. The repository profile, `.loupe/lifecycle.md`, belongs to the repository. Its
    sections are `Instruction files`, `Environment`, `Gate`, `Code review`,
    `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. It can also hold the optional
-   `Forge`, `Decision records`, `Visual check` and `Epics` sections. The profile of this repository names
+   `Forge`, `Visual check` and `Epics` sections. The profile of this repository names
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.
@@ -427,14 +427,14 @@ that change from one setup to the next.
    that is wrong, and asks the owner for each open value. Its conflict check also
    compares a hand-written profile and the rest of the repository with the checks
    of `workflow_get`.
-2. A harness adapter maps the steps of a worker to the tools of one agent
-   harness: connect to Loupe, load an instruction, run a long command,
-   dispatch a sub-agent, and write and run the build notes. The generic adapter is
-   `.agents/skills/loupe-stage-implementation/references/harnesses/generic.md`.
-   The compatibility adapter for Claude Code is
-   `.agents/skills/loupe-stage-implementation/references/harnesses/claude-code.md`.
-   The adapter for Codex is
-   `.agents/skills/loupe-stage-implementation/references/harnesses/codex.md`.
+2. The unattended run notes cover what differs when a worker runs with no
+   person: connect to Loupe, run a long command, read a linked prototype, and
+   keep the final reply short. The generic notes are
+   `.agents/skills/loupe-stage-implementation/references/unattended/generic.md`.
+   The notes for Claude Code are
+   `.agents/skills/loupe-stage-implementation/references/unattended/claude-code.md`.
+   The notes for Codex are
+   `.agents/skills/loupe-stage-implementation/references/unattended/codex.md`.
 3. A forge adapter maps the pull request operations to the commands of one
    forge. The adapter for GitHub is
    `.agents/skills/loupe-stage-implementation/references/forges/github.md`.
@@ -448,7 +448,7 @@ that change from one setup to the next.
 
 When the profile, one of its sections, or a forge adapter is missing, the
 worker stops with a `STAGE RESULT: blocked:` line that names it. A harness with
-no dedicated adapter uses the generic adapter.
+no dedicated notes uses the generic notes.
 
 ## Run the bridge
 

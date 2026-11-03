@@ -7,20 +7,20 @@ description: "Use when the owner runs an interactive product design session for 
 
 Run a product design session with the owner. Write the product document, link it to the card, and stop. The owner's approval of the document moves the card to Tech design.
 
-This skill is not a stage skill. It loads no `stage-contract.md` and no harness adapter, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1).
+This skill is not a stage skill. It loads no `stage-contract.md` and no unattended run notes, and it asks the owner questions. Run it in the main session, because AskUserQuestion does not work in a subagent. You can send a subagent to find facts (Q1 of `loupe-interviewing`).
 
 Move the card only in P0. Never move it when you stop, and never move it after P0. This rule overrides the move table of `loupe-board`.
 
 P0 opens an interactive run on the card with `card_run_open`. Close the run with `card_run_close` in P10. When you stop at any other point after P0, call `card_run_close` before you stop.
 
-`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Design canvas rules C1 to C9. `../loupe-stage-product-design/references/design-principles.md` holds the design principles D1 to D3.
+`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `../loupe-interviewing/SKILL.md` holds the question rules Q1, Q2, Q3, Q7 and Q8, the options shape, the intake prompt, the recap loop and the stop rule. `references/question-rules.md` holds the rules Q5 and Q6 and the coverage checklist of P6. `references/claude-design.md` holds the Design canvas rules C1 to C9. `../loupe-stage-product-design/references/design-principles.md` holds the design principles D1 to D3.
 
 ## Procedure
 
-1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions.
-2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask the owner about docs in P6.
+1. Load the `loupe-board`, `loupe-documents` and `loupe-interviewing` instructions.
+2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the documentation checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask no documentation check.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
-4. Read `references/session-flow.md`, `references/question-rules.md`, `references/claude-design.md` and `../loupe-stage-product-design/references/design-principles.md`. Follow them for the whole session.
+4. Read `references/session-flow.md`, `references/question-rules.md`, `references/claude-design.md` and `../loupe-stage-product-design/references/design-principles.md`. Read `../loupe-interviewing/references/delegation.md` too. Follow them for the whole session. The design principles D1 to D3 are the principles that Q2 of `loupe-interviewing` uses.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the product design tag, or a title that starts `Product design`. Read the tag as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
    - With an approved product document, stop and tell the owner.
    - An unapproved product document is the existing document that P1 reads.
@@ -28,7 +28,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
      - When the owner says yes, link the row to the card with `card_update`, and send the existing `documentIds` plus its id. Then apply the two rules above. An approved row does not move the card, so tell the owner to move it by hand.
      - When the owner says no for every row, go on with no existing document.
 6. Run P0 to get the card into the Product design column and open the run, as `session-flow.md` says.
-7. Run the phases of the level that P2 sets. Ask each question as `question-rules.md` says. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing.
+7. After P0, pick the interview method as `delegation.md` says. With an installed skill, P4 to P6 do not run. Run the coverage checklist once, after that skill, and ask only about open areas. Otherwise, run the phases of the level that P2 sets. Ask each question as `loupe-interviewing` and `question-rules.md` say. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing.
 8. Read `../loupe-stage-product-design/references/product-document.md` before P10. It is the template, and it lists the sections a Light document keeps.
 9. Run P13 when it has not run, then P12, P11, then P8 to P10, when the questions end. Ask for no confirmation after P11, because the document is the full readback (P9).
 
@@ -37,7 +37,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 Put each item in its section of the product document.
 
 - A technical choice that Q6 parks goes in "For tech design".
-- A guess that no code, doc, command or board history can check goes in "Assumptions" (A4). Check every other guess first, as Q1 of `question-rules.md` says.
+- A guess that no code, doc, command or board history can check goes in "Assumptions" (A4). Check every other guess first, as Q1 of `loupe-interviewing` says.
 - Each question and its answer go in "Decisions log" (A5).
 - Each conflict of P12 and its outcome go in "Decisions log".
 - A decision that the owner defers goes in "Open questions" (Q8).

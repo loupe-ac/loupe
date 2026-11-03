@@ -1,5 +1,5 @@
 <section id="requirements" class="lp-home-section lp-home-section--raised">
-    <div class="lp-home-container lp-home-requirements">
+    <div class="lp-home-container lp-home-requirements" data-landing-requirements>
         <div class="lp-home-card lp-home-card--needs">
             <div class="lp-home-card__head">
                 <h2 class="lp-home-card__title">{{ 'landing.requirements.need.title'|trans }}</h2>
@@ -17,8 +17,6 @@
                 {% endfor %}
             </ul>
             <p class="lp-home-card__lead">{{ 'landing.requirements.need.usage_limit'|trans }}</p>
-            {% set setupUrl = app_url('app_setup_instructions') %}
-            <p class="lp-home-card__lead" data-agent-setup>{{ 'landing.requirements.need.agent_setup'|trans }} <a href="{{ setupUrl }}" class="lp-home-card__link">{{ setupUrl }}</a>.</p>
             <twig:Ds:Button variant="primary" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="requirements-ready" class="lp-home-card__action">{{ 'landing.requirements.need.action'|trans }}</twig:Ds:Button>
         </div>
         <div class="lp-home-card lp-home-card--extras">

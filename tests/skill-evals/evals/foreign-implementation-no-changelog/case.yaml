@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: foreign-implementation-no-changelog
+context:
+  scaffold_script: scaffold.sh

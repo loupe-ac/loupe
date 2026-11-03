@@ -1,0 +1,12 @@
+{#- The prompt that a person pastes into a coding agent. Props: projectId (string), testid (string). -#}
+{%- set setupPrompt = [
+    'Set up Loupe for this repository. Run',
+    'curl -fsSL "' ~ url('app_setup_instructions', {project: projectId}) ~ '"',
+    'and follow the steps it prints, in order. Use curl, not a web fetch tool.'
+]|join("\n") -%}
+<twig:Ds:CodeBlock
+    :label="'project.connect.setup_prompt.label'|trans"
+    :text="setupPrompt"
+    :copyLabel="'project.connect.copy'|trans"
+    :copiedLabel="'project.connect.copied'|trans"
+    :testid="testid" />

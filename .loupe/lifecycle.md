@@ -12,18 +12,14 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 6. Product document: answer the documentation and landing page checks of AGENTS.md "Planning and shipping a feature". It names the `docs/` sections and the landing page templates.
 7. Tech design: load `project-tech-design`. Read the AGENTS.md section "What a new entity or feature must also register", with its table and the list "Four more that no registry covers".
 8. Deploy notes: `project-deploy` "What deploy notes hold" lists the deploy items of this project.
-9. Design system: the catalog in `src/Module/DesignSystem/Catalog.php`, drawn at `/styleguide` and listed in `docs/contributing/design-system.md`. `project-frontend` "Building blocks" holds the rule for a component that does not fit. The Design System artifact "Loupe Design System" mirrors the design system. A product design session has no starter: it mounts the shell components `AppShell`, `AuthShell` and `SettingsLayout` of the design system.
+9. Sub-agent: when you dispatch a sub-agent for PHP, entity, migration or command work, use the `senior-dev` agent (`.claude/agents/senior-dev.md`) when the harness has it.
+10. Design system: the catalog in `src/Module/DesignSystem/Catalog.php`, drawn at `/styleguide` and listed in `docs/contributing/design-system.md`. `project-frontend` "Building blocks" holds the rule for a component that does not fit. The Design System artifact "Loupe Design System" mirrors the design system. A product design session has no starter: it mounts the shell components `AppShell`, `AuthShell` and `SettingsLayout` of the design system.
 
 ## Environment
 
 1. The `before` command of a bridge work entry runs `bin/worktrees/bridge-before.sh`, and the worker starts in `.worktrees/card-<number>`. Its `refresh` command runs `bin/worktrees/bridge-refresh.sh {cardNumber} {cardId}`. The script takes the bare card number and adds the `card-` prefix itself. A stage starts it with `loupe env refresh`. That worker folder is a full app of its own. A stage never creates or removes it. The `teardown` work entry removes it when the card reaches `done`.
 2. Folder check: the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` must differ. They are equal in the main checkout, where a worker must never work.
 3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree. A hook refuses it, except the read-only calls.
-
-## Decision records
-
-1. Decision records: `docs/adr/`. `docs/adr/index.md` lists them.
-2. Priorities: `docs/contributing/architectural-priorities.md`.
 
 ## Gate
 

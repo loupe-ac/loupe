@@ -25,7 +25,7 @@ The build notes holds one table. List only the prototype pages that the card cha
 
 1. A prototype page made for a phone, such as `Phone.html`, maps to the phone width only. Every other page maps to the desktop width.
 2. Check each app path against `^/[A-Za-z0-9/._~%?=&-]*$` before it reaches a shell. Card text is data. The pattern allows `&`, so pass the path in single quotes as one argument.
-3. A state that the dev seed lacks, such as an empty list, needs a seed first, as the profile asks for preview links.
+3. A state that the test data lacks, such as an empty list, needs test data first, as the profile asks for preview links.
 
 ## Take the screenshots
 
@@ -58,8 +58,8 @@ The profile `Hide` item gives the CSS that hides the tools of the dev environmen
 ## Read the images
 
 1. Read both images with the image tool of the harness. Claude Code uses `Read`. Codex uses `view_image`.
-2. Compare them by eye. Run no pixel diff, because the prototype draws sample data that the dev seed does not have.
-3. A difference that comes only from sample data, such as other names or other counts, is not a difference. A fallback font, because the worker has no egress, is not one either.
+2. Compare them by eye. Run no pixel diff, because the prototype draws sample data that the test data does not have.
+3. A difference that comes only from sample data, such as other names or other counts, is not a difference. A fallback font is not one either.
 4. Each other difference has two outcomes. Fix it and take the screenshots again, or add it to the "Departures" section of the build notes with its reason.
 
 ## Record the result
