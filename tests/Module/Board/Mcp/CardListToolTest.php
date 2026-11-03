@@ -482,6 +482,46 @@ final class CardListToolTest extends KernelTestCase
         self::assertSame(3, ($this->tool)()['total']);
     }
 
+    public function test_a_state_filter_matches_the_state_the_row_shows(): void
+    {
+        $this->boardWith('card-list-state-filter');
+        ($this->createTool)('Fourth', 'Body', 'feature');
+        ($this->createTool)('Finished', 'Body', 'docs', status: 'done');
+        $this->setMarkers('First', [$this->marker('note', 'chip'), $this->marker('run-open', 'working')]);
+        $this->setMarkers('Second', [$this->marker('paused', 'stuck'), $this->marker('run-open', 'working')]);
+        $this->setMarkers('Third', [$this->marker('note', 'chip')]);
+        $this->setMarkers('Finished', [$this->marker('run-open', 'working')]);
+
+        self::assertSame(['First'], array_column(($this->tool)(state: 'working')['cards'], 'title'));
+        self::assertSame(['Second'], array_column(($this->tool)(state: 'stuck')['cards'], 'title'));
+        self::assertSame([], ($this->tool)(state: 'waiting')['cards']);
+        self::assertSame(1, ($this->tool)(state: 'working')['total']);
+        self::assertSame([], ($this->tool)('done', state: 'working')['cards']);
+        self::assertSame(['First'], array_column(($this->tool)(stateCode: 'run-open')['cards'], 'title'));
+        self::assertSame(['First'], array_column(($this->tool)(state: 'working', stateCode: 'run-open')['cards'], 'title'));
+        self::assertSame([], ($this->tool)(state: 'stuck', stateCode: 'run-open')['cards']);
+        self::assertSame([], ($this->tool)(stateCode: 'nothing-has-this')['cards']);
+
+        foreach (['stuck', 'needs-you', 'working', 'waiting'] as $kind) {
+            $shown = array_column(array_filter(($this->tool)()['cards'], static fn (array $row): bool => $kind === ($row['state']['kind'] ?? null)), 'title');
+            self::assertSame($shown, array_column(($this->tool)(state: $kind)['cards'], 'title'), $kind);
+        }
+    }
+
+    public function test_a_state_that_is_not_a_state_is_refused(): void
+    {
+        $this->boardWith('card-list-state-refused');
+
+        foreach (['chip', 'running'] as $state) {
+            try {
+                ($this->tool)(state: $state);
+                self::fail('The state "'.$state.'" must be refused.');
+            } catch (ToolCallException $e) {
+                self::assertSame(\sprintf('Unknown state "%s". Use one of: stuck, needs-you, working, waiting.', $state), $e->getMessage());
+            }
+        }
+    }
+
     public function test_a_page_is_cut_from_the_board_and_total_counts_the_whole_set(): void
     {
         $this->boardWith('card-list-paging');
@@ -618,6 +658,23 @@ final class CardListToolTest extends KernelTestCase
         ($this->createTool)('Third', 'Body', 'bug');
 
         return $project;
+    }
+
+    /** @return array{key: string, kind: string, label: string, remedy: null, params: array<never, never>, since: string} */
+    private function marker(string $key, string $kind): array
+    {
+        return ['key' => $key, 'kind' => $kind, 'label' => 'marker.'.$key, 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00'];
+    }
+
+    /** @param list<array{key: string, kind: string, label: string, remedy: null, params: array<never, never>, since: string}> $markers */
+    private function setMarkers(string $title, array $markers): void
+    {
+        $cards = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        $card = $cards->findOneBy(['title' => $title]);
+        self::assertInstanceOf(Card::class, $card);
+        $card->markers = $markers;
+        $this->em->flush();
     }
 
     private function pauseCard(Project $project, string $title): CardPause

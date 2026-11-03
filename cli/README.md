@@ -544,6 +544,7 @@ short form.
 
 ```bash
 loupe card list --status next --format json
+loupe card list --state working
 loupe card get 42 --fields url
 loupe card update 42 --status done
 loupe document revise <id> --body-file draft.md --description "Answered the review"

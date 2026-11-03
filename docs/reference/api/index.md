@@ -127,6 +127,31 @@ reads the documents by their position in the series. `q` puts the documents with
 every word in the title first, and each group reads oldest first. `q` does not
 change the order of cards.
 
+### Filter the cards by state
+
+`GET /api/v1/projects/{project}/cards` takes two filters on the state of a card.
+The state is the mark the board shows, and each row holds it in `state`.
+
+1. `state` takes one kind: `stuck`, `needs-you`, `working` or `waiting`. Any
+   other value, `chip` included, gets `422` with the error code `state_invalid`.
+2. `stateCode` takes a code, such as `run-open` for a running worker. The codes
+   belong to the workflow of the project, so the API does not list them. A code
+   that no state has answers an empty list.
+3. A card shows one state, the first of its reasons. The filters read that one
+   state. A card that shows `stuck` is not in the list of `state=working`, even
+   when a worker runs on it.
+4. A card in a terminal column has no state. `status=done&state=working` answers
+   an empty list, and no error.
+5. A card that enters or leaves the state during a walk can be missed. This is
+   true of `status` and `paused` too. No row repeats, and no error comes.
+6. A server that does not have the filters ignores the parameters and answers
+   every card. A script can check the `state` field of the rows.
+
+```bash
+curl -H "Authorization: Bearer $LOUPE_API_KEY" \
+  "https://app.example.com/api/v1/projects/loupe/cards?state=working&fields=number,title,state"
+```
+
 ## Choose the fields of a read
 
 A read takes the `fields` query parameter. It names the fields of the answer, as a

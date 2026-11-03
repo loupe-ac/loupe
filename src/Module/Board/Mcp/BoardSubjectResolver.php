@@ -15,6 +15,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use App\Module\Workflow\Contract\MarkerKind;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
@@ -190,6 +191,19 @@ final readonly class BoardSubjectResolver
      * @var list<Actor>
      */
     private const array CLAIMABLE_REPORTERS = [Actor::Human, Actor::Agent];
+
+    public function optionalState(?string $state): ?MarkerKind
+    {
+        if (null === $state) {
+            return null;
+        }
+        $parsed = MarkerKind::tryFrom($state);
+        if (null === $parsed || !\in_array($parsed, MarkerKind::states(), true)) {
+            throw new ToolCallException(\sprintf('Unknown state "%s". Use one of: %s.', $state, implode(', ', array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::states()))));
+        }
+
+        return $parsed;
+    }
 
     /** Narrower than requireReporter(): a write claims a reporter, a filter only matches one. */
     public function requireClaimedReporter(string $reporter): Actor

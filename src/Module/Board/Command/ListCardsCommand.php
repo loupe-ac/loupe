@@ -8,6 +8,7 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\MarkerKind;
 
 /**
  * One filtered, paginated read of a project's board.
@@ -29,6 +30,10 @@ final readonly class ListCardsCommand
         public ?Card $parent = null,
         /** True reads the cards with an active pause, false those with none. Null reads both. */
         public ?bool $paused = null,
+        /** Reads only the cards whose main state is of this kind. A card in a terminal column has none. */
+        public ?MarkerKind $state = null,
+        /** Reads only the cards whose main state has this code. */
+        public ?string $stateCode = null,
     ) {
     }
 }

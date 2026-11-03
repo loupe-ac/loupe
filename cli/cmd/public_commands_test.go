@@ -117,6 +117,17 @@ func TestListSendsTheDefaultColumnsOnlyForTableAndTsv(t *testing.T) {
 	}
 }
 
+func TestCardListSendsTheStateFilters(t *testing.T) {
+	srv, seen := publicServer(t, `{"items":[],"next":null}`)
+
+	if _, _, err := runPublicCmd(t, srv, "card", "list", "--project", "p", "--format", "json", "--state", "working", "--state-code", "run-open"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := (*seen)[0].query, "state=working&stateCode=run-open"; got != want {
+		t.Errorf("query = %q, want %q", got, want)
+	}
+}
+
 func TestListWithFieldsAllAsksForAndPrintsEveryField(t *testing.T) {
 	srv, seen := publicServer(t, `{"items":[{"number":1,"title":"T","body":"text"}],"next":null}`)
 

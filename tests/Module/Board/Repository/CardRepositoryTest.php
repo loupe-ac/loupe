@@ -9,8 +9,12 @@ use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
+use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
@@ -243,6 +247,64 @@ final class CardRepositoryTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-18T09:00:00+00:00'), $marks['stuck']->since);
         self::assertSame($late->number, $marks['working']->number);
         self::assertSame([], $this->cards->childMarksOf($early));
+    }
+
+    public function test_the_state_filters_find_the_cards_whose_stored_markers_show_that_state(): void
+    {
+        $project = $this->makeProject('repo-main-state');
+        $since = '2026-10-18T09:00:00+00:00';
+        $markers = [
+            'Chip first' => ['in-progress', [self::marker('chip', $since), self::marker('working', $since)]],
+            'Only a chip' => ['in-progress', [self::marker('chip', $since)]],
+            'Empty set' => ['in-progress', []],
+            'Null markers' => ['in-progress', null],
+            'Two kinds' => ['in-progress', [self::marker('stuck', $since), self::marker('working', $since)]],
+            'Asks a person' => ['in-progress', [self::marker('needs-you', $since)]],
+            'Waits' => ['backlog', [self::marker('waiting', $since)]],
+            'Stale in a terminal column' => ['done', [self::marker('working', $since)]],
+        ];
+        $cards = [];
+        foreach ($markers as $title => [$slug, $stored]) {
+            $card = $this->epicIn($project, $title, $slug, 0, 'feature');
+            $card->markers = $stored;
+            $cards[] = $card;
+        }
+        $this->em->flush();
+
+        $columns = self::getContainer()->get(BoardColumnRepository::class);
+        self::assertInstanceOf(BoardColumnRepository::class, $columns);
+        $board = $columns->findForProject($project);
+
+        $titles = static function (array $found): array {
+            $titles = array_map(static fn (Card $card): string => $card->title, $found);
+            sort($titles);
+
+            return $titles;
+        };
+        $shown = static fn (\Closure $matches): array => $titles(array_values(array_filter(
+            $cards,
+            static fn (Card $card): bool => !$card->column->terminal && null !== ($state = StoredCardMarkers::of($card)->state()) && $matches($state),
+        )));
+        $page = fn (?MarkerKind $state, ?string $code): array => $titles($this->cards->findPageForProject($project, 'number', false, 50, null, null, null, null, null, null, null, $state, $code));
+        $boardRead = fn (?MarkerKind $state, ?string $code): array => $titles($this->cards->findForBoard($board, state: $state, stateCode: $code));
+
+        foreach (MarkerKind::states() as $kind) {
+            $expected = $shown(static fn (StoredMarker $state): bool => $kind === $state->kind);
+            self::assertSame($expected, $page($kind, null), 'page, '.$kind->value);
+            self::assertSame($expected, $boardRead($kind, null), 'board, '.$kind->value);
+
+            $code = $kind->value.'-marker';
+            $expected = $shown(static fn (StoredMarker $state): bool => $code === $state->key);
+            self::assertSame($expected, $page(null, $code), 'page, '.$code);
+            self::assertSame($expected, $boardRead(null, $code), 'board, '.$code);
+        }
+
+        // Guard: the comparison above also holds when both sides are empty, and the stale card must have a state to leave out.
+        self::assertSame(['Chip first'], $page(MarkerKind::Working, null));
+        self::assertSame(['Two kinds'], $page(MarkerKind::Stuck, null));
+        self::assertSame(['Asks a person'], $page(MarkerKind::NeedsYou, null));
+        self::assertSame(['Waits'], $page(MarkerKind::Waiting, null));
+        self::assertSame(MarkerKind::Working, StoredCardMarkers::of($cards[7])->state()?->kind);
     }
 
     /** @param list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string}> $markers */

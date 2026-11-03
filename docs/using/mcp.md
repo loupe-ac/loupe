@@ -322,7 +322,7 @@ Roughly in the order an agent uses them:
 | `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running worker of the card with the `design-review` role can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |
 | `document_review_answer` | Answer each finding of the latest agent review that the card got for a draft design document as `fixed`, `not-changed` with a reason, or `to-owner`. Only a running worker of the card with the `design-revise` role can call it, once for each review, with one answer for every finding |
 | `card_create` | Put a card on the project board (off with the board, see below) |
-| `card_list` | Read a page of the board, filtered by status, type, reporter or parent, with the board's columns |
+| `card_list` | Read a page of the board, filtered by status, type, reporter, parent, pause or state, with the board's columns |
 | `board_columns` | List the board's columns, each with its slug, label, terminal flag, default flag and backlog flag, and the card types of the project |
 | `card_search` | Search every card's title and body by part of a word, finished ones included |
 | `card_get` | Read one card, with the pull requests and their stored state, the latest agent review of each pull request as `agentReview`, and the feedback linked to it. The `carriedTo` list of `agentReview` names each later head that Loupe made a carried check for. Its `postedAt` is null while that check is not posted yet |
@@ -636,6 +636,10 @@ marker. The codes `session-open`, `waiting-on-checks` and `nothing-happened`
 are new. A chip such as **Unmanaged** is not in `state`, so a card with only a
 chip has a null `state`. The full card adds `reason` and
 `others` to `state`. [The board](board.md#the-mcp-tools) lists the codes.
+`card_list` takes `state` and `stateCode` as filters. `state` keeps the cards
+whose `state.kind` is the value, and `stateCode` keeps the cards whose
+`state.code` is the value. A card in a terminal column has no state, so it never
+matches.
 
 A card has a `type`. The workflow template of the project declares the types,
 so each project can have its own. `board_columns` returns them in `types`, and

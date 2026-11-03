@@ -34,6 +34,9 @@ use Symfony\Component\Uid\Uuid;
  */
 class CardRepository extends ServiceEntityRepository
 {
+    /** The jsonpath of the main state: the first stored marker that is not a chip. */
+    private const string MAIN_STATE_PATH = '$[*] ? (@.kind != "chip")';
+
     /** Joins the card's column as k, and its parent as p with the parent's column as pk. */
     private const string SHOWN_JOINS = 'JOIN board_columns k ON k.id = c.column_id
         LEFT JOIN board_cards p ON p.id = c.parent_card_id
@@ -381,12 +384,14 @@ class CardRepository extends ServiceEntityRepository
      * the id as tie-break. A search narrows the walk and does not rank it.
      *
      * @param 'number'|'updatedAt'     $sort
-     * @param array{string, Uuid}|null $after  the sort value and the id of the last row of the previous page
-     * @param ?bool                    $paused true reads cards with an active pause, false those with none
+     * @param array{string, Uuid}|null $after     the sort value and the id of the last row of the previous page
+     * @param ?bool                    $paused    true reads cards with an active pause, false those with none
+     * @param ?MarkerKind              $state     only the cards whose main state is of this kind; a card in a terminal column has none
+     * @param ?string                  $stateCode only the cards whose main state has this code
      *
      * @return list<Card>
      */
-    public function findPageForProject(Project $project, string $sort, bool $descending, int $limit, ?array $after, ?BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?string $query): array
+    public function findPageForProject(Project $project, string $sort, bool $descending, int $limit, ?array $after, ?BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?string $query, ?MarkerKind $state = null, ?string $stateCode = null): array
     {
         $qb = $this->createQueryBuilder('c')
             ->join('c.column', 'k')
@@ -394,6 +399,11 @@ class CardRepository extends ServiceEntityRepository
             ->andWhere('c.project = :project')
             ->setParameter('project', $project)
             ->setMaxResults($limit);
+
+        if (null !== $state || null !== $stateCode) {
+            $qb->andWhere('k.terminal = false');
+            $this->andMainState($qb, $state, $stateCode);
+        }
 
         if (null !== $column) {
             $qb->andWhere('c.column = :column')->setParameter('column', $column);
@@ -437,6 +447,24 @@ class CardRepository extends ServiceEntityRepository
         }
 
         return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
+     * Narrows card alias c to the cards whose main state has this kind and this code. The main
+     * state is the first stored marker that is not a chip, as StoredCardMarkers::state() reads it.
+     * The caller leaves out the cards of terminal columns, which have no state.
+     */
+    private function andMainState(QueryBuilder $qb, ?MarkerKind $state, ?string $stateCode): void
+    {
+        $qb->setParameter('mainStatePath', self::MAIN_STATE_PATH);
+        if (null !== $state) {
+            $qb->andWhere("JSON_GET_FIELD_AS_TEXT(JSONB_PATH_QUERY_FIRST(c.markers, :mainStatePath), 'kind') = :mainStateKind")
+                ->setParameter('mainStateKind', $state->value);
+        }
+        if (null !== $stateCode) {
+            $qb->andWhere("JSON_GET_FIELD_AS_TEXT(JSONB_PATH_QUERY_FIRST(c.markers, :mainStatePath), 'key') = :mainStateCode")
+                ->setParameter('mainStateCode', $stateCode);
+        }
     }
 
     /**
@@ -1794,17 +1822,21 @@ class CardRepository extends ServiceEntityRepository
      *
      * @return list<Card>
      */
-    public function findForBoard(array $columns, ?string $type = null, ?Actor $reporter = null, ?Card $parent = null, ?bool $paused = null): array
+    public function findForBoard(array $columns, ?string $type = null, ?Actor $reporter = null, ?Card $parent = null, ?bool $paused = null, ?MarkerKind $state = null, ?string $stateCode = null): array
     {
+        if (null !== $state || null !== $stateCode) {
+            // A card in a terminal column has no state, so no state filter matches it.
+            $columns = array_values(array_filter($columns, static fn (BoardColumn $column): bool => !$column->terminal));
+        }
         $open = array_values(array_filter($columns, static fn (BoardColumn $column): bool => !$column->terminal));
         $byColumn = [];
-        foreach ($this->findOpenColumns($open, $type, $reporter, $parent, $paused) as $card) {
+        foreach ($this->findOpenColumns($open, $type, $reporter, $parent, $paused, $state, $stateCode) as $card) {
             $byColumn[(string) $card->column->id][] = $card;
         }
 
         $cards = [];
         foreach ($columns as $column) {
-            $cards = [...$cards, ...($column->terminal ? $this->findColumn($column, $type, $reporter, $parent, $paused) : ($byColumn[(string) $column->id] ?? []))];
+            $cards = [...$cards, ...($column->terminal ? $this->findColumn($column, $type, $reporter, $parent, $paused, $state, $stateCode) : ($byColumn[(string) $column->id] ?? []))];
         }
 
         return $cards;
@@ -1871,7 +1903,7 @@ class CardRepository extends ServiceEntityRepository
      *
      * @return list<Card>
      */
-    private function findOpenColumns(array $columns, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): array
+    private function findOpenColumns(array $columns, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?MarkerKind $state, ?string $stateCode): array
     {
         if ([] === $columns) {
             return [];
@@ -1882,7 +1914,7 @@ class CardRepository extends ServiceEntityRepository
             ->addSelect('k')
             ->andWhere('c.column IN (:columns)')
             ->setParameter('columns', $columns);
-        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused);
+        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused, $state, $stateCode);
         $qb->orderBy('c.position', 'ASC')
             ->addOrderBy('c.createdAt', 'ASC')
             ->addOrderBy('c.id', 'ASC');
@@ -1891,12 +1923,12 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /** @return list<Card> */
-    private function findColumn(BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): array
+    private function findColumn(BoardColumn $column, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?MarkerKind $state, ?string $stateCode): array
     {
         $qb = $this->createQueryBuilder('c')
             ->andWhere('c.column = :column')
             ->setParameter('column', $column);
-        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused);
+        $this->applyBoardFilters($qb, $type, $reporter, $parent, $paused, $state, $stateCode);
 
         // The tie-break runs with its column, not after both branches. A
         // terminal column sorts newest first and completed_at holds whole
@@ -1915,8 +1947,11 @@ class CardRepository extends ServiceEntityRepository
         return array_values($this->withPullRequests($qb)->getQuery()->getResult());
     }
 
-    private function applyBoardFilters(QueryBuilder $qb, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused): void
+    private function applyBoardFilters(QueryBuilder $qb, ?string $type, ?Actor $reporter, ?Card $parent, ?bool $paused, ?MarkerKind $state, ?string $stateCode): void
     {
+        if (null !== $state || null !== $stateCode) {
+            $this->andMainState($qb, $state, $stateCode);
+        }
         if (null !== $type) {
             $qb->andWhere('c.type = :type')->setParameter('type', $type);
         }
