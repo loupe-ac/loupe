@@ -544,7 +544,7 @@ func TestCheckFindsClaudeOnARelativePathFromEachProject(t *testing.T) {
 	spec := harness.CheckSpec{Account: "a", Env: []string{"PATH=bin:/bin:/usr/bin"}, Projects: map[string]string{"a": with, "b": without}}
 
 	got := New("").Check(context.Background(), spec)
-	if len(got) != 1 || got[0].Reason != "claude is not on PATH for project b" {
+	if len(got) != 1 || got[0].Reason != "claude is not on PATH" || got[0].Project != "b" {
 		t.Fatalf("Check = %+v, want claude missing for project b alone", got)
 	}
 }

@@ -25,7 +25,8 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type HookRow array{package: string, ref: string, event: string, lastRunAt: ?string, outcome: string, error: ?string}
  * @phpstan-type SkillRow array{package: string, version: string, state: 'current'|'failed', reason: ?string}
  * @phpstan-type WorkerPoolRow array{name: string, size: int, inUse: int, queued: int}
- * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int}
+ * @phpstan-type FailedProjectRow array{projectId: string, reason: string}
+ * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int, failedProjects?: list<FailedProjectRow>, appPrompts?: bool}
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
  * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
@@ -359,6 +360,21 @@ class Bridge
         }
 
         return array_all($this->accounts, fn ($row) => !(!isset($row['kinds']) || \in_array($workKind, $row['kinds'], true)));
+    }
+
+    /**
+     * Whether an account that runs the work kind failed its check for the project, so the bridge skips that work of
+     * the project. One failed variant of an experiment holds back the whole kind, as the bridge matches its entry. A
+     * kind that the bridge does not map runs on the account of its app prompts.
+     */
+    public function failsProjectFor(string $projectId, string $workKind): bool
+    {
+        $runs = array_filter($this->accounts ?? [], static fn (array $row): bool => \in_array($workKind, $row['kinds'] ?? [], true));
+        if ([] === $runs && !\in_array($workKind, $this->workKinds, true)) {
+            $runs = array_filter($this->accounts ?? [], static fn (array $row): bool => $row['appPrompts'] ?? false);
+        }
+
+        return array_any($runs, static fn (array $row): bool => array_any($row['failedProjects'] ?? [], static fn (array $failed): bool => $failed['projectId'] === $projectId));
     }
 
     public function nameClashes(): bool

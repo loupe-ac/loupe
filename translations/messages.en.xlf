@@ -8643,6 +8643,8 @@
             <trans-unit id="bridge.agents.usage.not_reported"><source>bridge.agents.usage.not_reported</source><target>Use not reported</target></trans-unit>
             <trans-unit id="bridge.agents.usage.unknown"><source>bridge.agents.usage.unknown</source><target>Unknown</target></trans-unit>
             <trans-unit id="bridge.agents.usage.read"><source>bridge.agents.usage.read</source><target>Read %age%</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.project_failed"><source>bridge.agents.accounts.project_failed</source><target>This account fails for this project: %reason%. The work of this project waits on it. Other projects are not affected.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.other_projects_failed"><source>bridge.agents.accounts.other_projects_failed</source><target>Projects you cannot see here that also fail on this account: %count%.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.failing_hint"><source>bridge.agents.accounts.failing_hint</source><target>The rules that use this account stay off until the account passes its check and the bridge reloads.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.action"><source>bridge.agents.accounts.try_now.action</source><target>Try now</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.trying"><source>bridge.agents.accounts.try_now.trying</source><target>Trying now</target></trans-unit>
@@ -10258,7 +10260,7 @@
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
             <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>
-            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old. If every account that runs it fails the check for this project, open Agents and fix that account, then run `loupe bridge reload`.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.usage_limit"><source>marker.usage_limit</source><target>Work waits for the usage of an account to reset.</target></trans-unit>

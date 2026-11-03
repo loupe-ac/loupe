@@ -135,6 +135,8 @@ Each row of `accounts` holds these fields:
 | `kinds` | optional. The work kinds that can run on the account, with the same rule as `workKinds`, at most 50. The server keeps each kind once. A missing value stores no `kinds` for the row |
 | `stopAt` | optional. The percentage of use at which the account takes no new work, an integer from 1 to 100. A missing value stores no `stopAt` for the row, and the server reads 95 |
 | `readings` | optional. A list of at most 8 rows, the latest reading of each usage window of the account. A missing or `null` value stores no reading |
+| `failedProjects` | optional. The projects that the account failed its check for, each with a `projectId` and a `reason` of at most 200 characters. The account stays `ready` for its other projects. A kind that runs on the account then has no taker on this bridge for that project |
+| `appPrompts` | optional. `true` on the account that runs the app prompts of the bridge. A prompt of a kind that the rule file does not map runs on this account, so its `failedProjects` hold that work back too |
 
 Each row of `readings` holds these fields:
 

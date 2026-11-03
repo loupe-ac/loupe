@@ -292,6 +292,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	// A failing account turns off its entries, and never stops the start.
 	accounts := checkAccounts(cmd.Context(), set)
 	set.SetAccountProblems(accountsOff(accounts))
+	set.SetProjectProblems(projectsOff(accounts))
 
 	r := &router{
 		log:          bl.log,

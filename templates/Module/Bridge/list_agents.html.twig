@@ -180,6 +180,14 @@
                         {% endif %}
                         <p class="lp-agent-card__account-hint">{{ ((account.used ?? true) ? 'bridge.agents.accounts.failing_hint' : 'bridge.agents.accounts.unused_hint')|trans }}</p>
                         {% endif %}
+                        {% set projectFailure = connection.projectFailure(account.name) %}
+                        {% if projectFailure is not null %}
+                        <p class="lp-agent-card__account-hint" data-agent-account-project-failure>{{ 'bridge.agents.accounts.project_failed'|trans({'%reason%': projectFailure}) }}</p>
+                        {% endif %}
+                        {% set otherFailures = connection.otherFailedProjects(account.name) %}
+                        {% if otherFailures > 0 %}
+                        <p class="lp-agent-card__account-hint" data-agent-account-other-projects>{{ 'bridge.agents.accounts.other_projects_failed'|trans({'%count%': otherFailures}) }}</p>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </details>

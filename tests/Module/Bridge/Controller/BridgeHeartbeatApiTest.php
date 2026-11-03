@@ -401,6 +401,63 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertNotNull($bridge->accountsReportedAt);
     }
 
+    public function test_the_failed_projects_of_a_ready_account_are_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-failed-projects@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = (string) Uuid::v7();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['failedProjects' => [['projectId' => strtoupper($projectId), 'reason' => ' claude is not on PATH ']]]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true, 'failedProjects' => [['projectId' => $projectId, 'reason' => 'claude is not on PATH']]]],
+            $this->bridge($owner, $bridgeId)->accounts,
+        );
+    }
+
+    public function test_the_account_of_the_app_prompts_is_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-app-prompts@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['appPrompts' => true]),
+            self::account(['name' => 'other', 'appPrompts' => false]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [
+                ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true, 'appPrompts' => true],
+                ['name' => 'other', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'used' => true],
+            ],
+            $this->bridge($owner, $bridgeId)->accounts,
+        );
+    }
+
+    public function test_a_failed_project_with_a_bad_id_fails_the_heartbeat(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-failed-projects-bad@example.com');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, (string) Uuid::v4(), $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [
+            self::account(['failedProjects' => [['projectId' => 'not-an-id', 'reason' => 'x']]]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
     /** A reason belongs to a failing account alone, so a ready account drops it rather than failing the heartbeat. */
     public function test_a_ready_account_drops_its_reason(): void
     {

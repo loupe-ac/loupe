@@ -247,6 +247,45 @@ func TestStatusFailsWhenAnAccountFails(t *testing.T) {
 	}
 }
 
+// An account that fails one project stays ready for the others, so it prints
+// that project and fails nothing. The relative PATH entry finds claude in the
+// project loupe alone.
+func TestStatusPassesWhenAnAccountFailsOnlyOneProject(t *testing.T) {
+	passingStatus(t)
+	claudeDir := filepath.SplitList(os.Getenv("PATH"))[0]
+	ready := readyProject(t)
+	if err := os.Mkdir(filepath.Join(ready, "bin"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(claudeDir, "claude"), filepath.Join(ready, "bin", "claude")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "bin:/bin:/usr/bin")
+	config := t.TempDir()
+	if err := os.WriteFile(filepath.Join(config, "in"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "accounts:\n  in:\n    harness: claude-code\n    configDir: " + config + "\n" +
+		"defaults:\n  account: in\nprojects:\n  loupe:\n    dir: " + ready + "\n  other:\n    dir: " + t.TempDir() + "\nwork:\n  plan:\n    prompt: go\n"
+	path := filepath.Join(t.TempDir(), "rules.yaml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	if err != nil || lastLine(out) != statusPass {
+		t.Fatalf("status: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"Account:     in (claude-code): ready, failing for some projects\n",
+		"             project other: no claude on the PATH of the account from ",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output must contain %q, got:\n%s", want, out)
+		}
+	}
+}
+
 func TestStatusFailsOnARuleFileThatDoesNotLoad(t *testing.T) {
 	passingStatus(t)
 	path := filepath.Join(t.TempDir(), "rules.yaml")

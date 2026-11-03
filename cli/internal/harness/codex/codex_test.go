@@ -628,8 +628,8 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 	}
 	one := func(t *testing.T, got []harness.Problem, reason, detail string) {
 		t.Helper()
-		if len(got) != 1 || got[0].Reason != reason || !strings.Contains(got[0].Detail, detail) {
-			t.Fatalf("problems = %+v, want %q with %q", got, reason, detail)
+		if len(got) != 1 || got[0].Reason != reason || got[0].Project != "loupe" || !strings.Contains(got[0].Detail, detail) {
+			t.Fatalf("problems = %+v, want %q for project loupe with %q", got, reason, detail)
 		}
 	}
 
@@ -648,52 +648,52 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 	t.Run("the server is not declared", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		got := check(t, h, home, fakeCodexMcp(t, "exit 1", true))
-		one(t, got, "loupe MCP server not declared for project loupe", "run CODEX_HOME="+home+" codex mcp add loupe -- loupe mcp")
+		one(t, got, "loupe MCP server not declared", "run CODEX_HOME="+home+" codex mcp add loupe -- loupe mcp")
 	})
 	t.Run("the server is not loupe mcp", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		got := check(t, h, home, fakeCodexMcp(t, `echo '{"enabled":true,"transport":{"type":"stdio","command":"npx","args":["-y","x","--token","SECRET"]}}'`, true))
-		one(t, got, "loupe MCP server is not loupe mcp for project loupe", "command npx")
+		one(t, got, "loupe MCP server is not loupe mcp", "command npx")
 		if strings.Contains(got[0].Detail, "SECRET") {
 			t.Fatalf("detail leaks an argument: %q", got[0].Detail)
 		}
 		got = check(t, h, home, fakeCodexMcp(t, `echo '{"enabled":true,"transport":{"type":"streamable_http","url":"https://x/?token=SECRET"}}'`, true))
-		one(t, got, "loupe MCP server is not loupe mcp for project loupe", "type streamable_http")
+		one(t, got, "loupe MCP server is not loupe mcp", "type streamable_http")
 		if strings.Contains(got[0].Detail, "SECRET") {
 			t.Fatalf("detail leaks a secret: %q", got[0].Detail)
 		}
 		got = check(t, h, home, fakeCodexMcp(t, `echo '{"enabled":true,"transport":{"type":"stdio","command":"loupe","args":["other"]}}'`, true))
-		one(t, got, "loupe MCP server is not loupe mcp for project loupe", "codex mcp add loupe -- loupe mcp")
+		one(t, got, "loupe MCP server is not loupe mcp", "codex mcp add loupe -- loupe mcp")
 	})
 	t.Run("the server is disabled", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		got := check(t, h, home, fakeCodexMcp(t, `echo '{"enabled":false,"transport":{"type":"stdio","command":"loupe","args":["mcp"]}}'`, true))
-		one(t, got, "loupe MCP server is disabled for project loupe", "config.toml")
+		one(t, got, "loupe MCP server is disabled", "config.toml")
 	})
 	t.Run("a configured loupe path that does not exist fails", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		got := check(t, h, home, fakeCodexMcp(t, `echo '{"enabled":true,"transport":{"type":"stdio","command":"/nonexistent/loupe","args":["mcp"]}}'`, true))
-		one(t, got, "loupe is not on PATH for project loupe", "/nonexistent/loupe")
+		one(t, got, "loupe is not on PATH", "/nonexistent/loupe")
 	})
 	t.Run("loupe is not on PATH", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
-		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, false)), "loupe is not on PATH for project loupe", "")
+		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, false)), "loupe is not on PATH", "")
 	})
 	t.Run("the check times out", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		old := checkTimeout
 		checkTimeout = 50 * time.Millisecond
 		defer func() { checkTimeout = old }()
-		one(t, check(t, h, home, fakeCodexMcp(t, "sleep 5", true)), "MCP check timed out for project loupe", "codex mcp get did not answer in")
+		one(t, check(t, h, home, fakeCodexMcp(t, "sleep 5", true)), "MCP check timed out", "codex mcp get did not answer in")
 	})
 	t.Run("tools need approval", func(t *testing.T) {
 		h, home := plain(t, "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
 		want := `add default_tools_approval_mode = "approve" under [mcp_servers.loupe] in ` + filepath.Join(home, "config.toml")
-		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "loupe MCP tools need approval for project loupe", want)
+		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "loupe MCP tools need approval", want)
 	})
 	t.Run("a mode other than approve fails", func(t *testing.T) {
 		h, home := plain(t, "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"prompt\"\n")
-		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "loupe MCP tools need approval for project loupe", "config.toml")
+		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "loupe MCP tools need approval", "config.toml")
 	})
 	t.Run("the project file does not count", func(t *testing.T) {
 		h, home := plain(t, "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"prompt\"\n")
@@ -704,11 +704,11 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(f.project, ".codex", "config.toml"), []byte(approveCfg), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		one(t, check(t, h, home, f), "loupe MCP tools need approval for project loupe", "config.toml")
+		one(t, check(t, h, home, f), "loupe MCP tools need approval", "config.toml")
 	})
 	t.Run("a config file that does not parse fails", func(t *testing.T) {
 		h, home := plain(t, "[mcp_servers.loupe\n")
-		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "codex config does not parse for project loupe", "config.toml")
+		one(t, check(t, h, home, fakeCodexMcp(t, stdioLoupe, true)), "codex config does not parse", "config.toml")
 	})
 	t.Run("a profile account runs the check with -p and reads the profile file", func(t *testing.T) {
 		h := newHarness(t, "openrouter")
@@ -716,7 +716,7 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 		env := append(f.env, "OPENROUTER_API_KEY=k")
 		spec := harness.CheckSpec{ConfigDir: h.home, Env: env, Projects: map[string]string{"loupe": f.project}}
 		file := profileFile(h.home, "openrouter")
-		one(t, h.Check(ctx, spec), "loupe MCP tools need approval for project loupe", file)
+		one(t, h.Check(ctx, spec), "loupe MCP tools need approval", file)
 		body, _ := os.ReadFile(file)
 		if err := os.WriteFile(file, append(body, []byte("\n"+approveCfg)...), 0o600); err != nil {
 			t.Fatal(err)

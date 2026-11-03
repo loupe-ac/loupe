@@ -138,6 +138,7 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 		b.accounts = src.checkAccounts(checkCtx, b.set)
 		cancel()
 		b.set.SetAccountProblems(accountsOff(b.accounts))
+		b.set.SetProjectProblems(projectsOff(b.accounts))
 	}
 	if err := check(); err != nil {
 		done(false)
