@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,14 +24,26 @@ type profileWorld struct {
 	fail   error
 	onRun  func(dir string)
 	agents map[string]bool
+	// codexServer is what `codex mcp get loupe --json` prints. Empty means Codex
+	// declares no such server.
+	codexServer string
 }
+
+const loupeMcpDeclaration = `{"name":"loupe","enabled":true,"transport":{"type":"stdio","command":"loupe","args":["mcp"]}}`
 
 func newProfileWorld(t *testing.T) (*profileWorld, string) {
 	t.Helper()
 	t.Setenv(config.EnvVar, t.TempDir())
-	w := &profileWorld{agents: map[string]bool{agentClaude: true}}
-	oldAgent, oldLook, oldExe := initAgent, initLookPath, initExecutable
-	t.Cleanup(func() { initAgent, initLookPath, initExecutable = oldAgent, oldLook, oldExe })
+	w := &profileWorld{agents: map[string]bool{agentClaude: true, "loupe": true}, codexServer: loupeMcpDeclaration}
+	oldAgent, oldLook, oldExe, oldExec := initAgent, initLookPath, initExecutable, initExec
+	t.Cleanup(func() { initAgent, initLookPath, initExecutable, initExec = oldAgent, oldLook, oldExe, oldExec })
+	initExec = func(_ context.Context, _ string, _ []string, name string, args ...string) ([]byte, error) {
+		if name == agentCodex && slices.Equal(args, []string{"mcp", "get", "loupe", "--json"}) && w.codexServer != "" {
+			return []byte(w.codexServer), nil
+		}
+
+		return nil, errors.New("exit status 1")
+	}
 	initExecutable = func() (string, error) { return "/opt/bin/loupe", nil }
 	initLookPath = func(name string) (string, error) {
 		if w.agents[name] {
@@ -61,6 +75,7 @@ func runProfileStepOn(t *testing.T, in io.Reader, dir string, site api.Site, o i
 	t.Helper()
 	var out strings.Builder
 	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
 	cmd.SetOut(&out)
 	cmd.SetIn(in)
 	initProfile(cmd, dir, site, o)
@@ -204,7 +219,7 @@ func TestInitProfilePrintsThePromptWhenItCannotFindLoupe(t *testing.T) {
 
 func TestInitProfileRunsCodexWithThePromptAlone(t *testing.T) {
 	w, dir := newProfileWorld(t)
-	w.agents = map[string]bool{agentCodex: true}
+	w.agents = map[string]bool{agentCodex: true, "loupe": true}
 	store := os.Getenv(config.EnvVar)
 	writeFile(t, filepath.Join(store, "skills", "loupe-lifecycle", "1.0.0", "skills", "loupe-profile", "SKILL.md"), "x")
 
@@ -217,6 +232,85 @@ func TestInitProfileRunsCodexWithThePromptAlone(t *testing.T) {
 	}
 	if !strings.Contains(out, "Profile: open") {
 		t.Errorf("an agent that left the file missing must report open: %s", out)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenCodexHasNoLoupeTools(t *testing.T) {
+	cases := map[string]struct {
+		server string
+		noPath bool
+		want   string
+	}{
+		"no server": {want: "codex mcp add loupe -- loupe mcp"},
+		"disabled": {
+			server: `{"enabled":false,"transport":{"type":"stdio","command":"loupe","args":["mcp"]}}`,
+			want:   "is disabled",
+		},
+		"another command": {
+			server: `{"enabled":true,"transport":{"type":"stdio","command":"npx","args":["other"]}}`,
+			want:   "as command npx",
+		},
+		"remote": {
+			server: `{"enabled":true,"transport":{"type":"streamable_http","url":"https://example.invalid/mcp"}}`,
+			want:   "as type streamable_http",
+		},
+		"unreadable":          {server: "not json", want: "cannot read"},
+		"loupe not on a path": {server: loupeMcpDeclaration, noPath: true, want: "not on your PATH"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			w, dir := newProfileWorld(t)
+			w.agents = map[string]bool{agentCodex: true, "loupe": !c.noPath}
+			w.codexServer = c.server
+			putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+
+			out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentCodex})
+			if len(w.calls) != 0 {
+				t.Errorf("Codex started with no Loupe tools: %v", w.calls)
+			}
+			for _, want := range []string{"Profile: skipped", c.want, "paste this prompt", "loupe-profile"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("out lacks %q: %s", want, out)
+				}
+			}
+			if strings.Contains(out, "Profile: started") {
+				t.Errorf("out = %s", out)
+			}
+		})
+	}
+}
+
+// The two ways that a setup leaves Codex with no server: --no-mcp and a declined
+// offer. The Codex step and the profile step must agree.
+func TestInitProfileAfterTheCodexStepLeavesNoServer(t *testing.T) {
+	cases := map[string]struct {
+		link projectLinkOptions
+		in   string
+	}{
+		"--no-mcp":       {link: projectLinkOptions{skipMcp: true}},
+		"declined offer": {in: "n\n"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			w, dir := newProfileWorld(t)
+			w.agents = map[string]bool{agentCodex: true, "loupe": true}
+			w.codexServer = ""
+			putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+
+			var setup strings.Builder
+			cmd := &cobra.Command{}
+			cmd.SetContext(context.Background())
+			cmd.SetOut(&setup)
+			cmd.SetIn(strings.NewReader(c.in))
+			if initCodexServer(cmd.Context(), cmd, dir, c.link, codexTarget{}) {
+				t.Fatalf("the Codex step declared a server: %s", setup.String())
+			}
+
+			out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentCodex})
+			if len(w.calls) != 0 || !strings.Contains(out, "paste this prompt") {
+				t.Errorf("calls = %v, out = %s", w.calls, out)
+			}
+		})
 	}
 }
 

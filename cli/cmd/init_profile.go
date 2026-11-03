@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +11,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
@@ -81,6 +84,16 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) {
 		return
 	}
 
+	if agent == agentCodex {
+		if why := codexServerProblem(cmd, dir); why != "" {
+			step(out, "Profile", "skipped", why+". Then run `loupe init` again, or paste this prompt into a Codex agent that has the Loupe tools:")
+			fmt.Fprintln(out)
+			fmt.Fprintln(out, prompt)
+
+			return
+		}
+	}
+
 	args := []string{prompt}
 	if agent == agentClaude {
 		mcpConfig, err := profileMcpConfig()
@@ -131,6 +144,35 @@ func profileMcpConfig() (string, error) {
 	}
 
 	return string(config), nil
+}
+
+// codexServerProblem says why a Codex agent started here has no Loupe tools, or
+// returns an empty string when it has them. The profile skill calls
+// `workflow_get` first, and Codex takes the server only from its own config.
+func codexServerProblem(cmd *cobra.Command, dir string) string {
+	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
+	defer cancel()
+
+	t := codexTarget{}
+	add := t.command("mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp")
+	raw, err := t.run(ctx, dir, "mcp", "get", mcpjson.ServerKey, "--json")
+	if err != nil {
+		return "Codex reports no `" + mcpjson.ServerKey + "` MCP server. Run `" + add + "`"
+	}
+	decl, err := codex.ParseDeclaration(raw)
+	switch {
+	case err != nil:
+		return "cannot read the `" + mcpjson.ServerKey + "` MCP server of Codex: " + err.Error()
+	case !decl.StartsLoupeMcp():
+		return "Codex runs the `" + mcpjson.ServerKey + "` MCP server as " + decl.Summary() + ", not `loupe mcp`. Change it to `loupe mcp`"
+	case !decl.Enabled:
+		return "the `" + mcpjson.ServerKey + "` MCP server of Codex is disabled. Set enabled = true under [mcp_servers." + mcpjson.ServerKey + "] in " + t.configFile()
+	}
+	if _, err := initLookPath(decl.Transport.Command); err != nil {
+		return "Codex starts the `" + mcpjson.ServerKey + "` MCP server with `" + decl.Transport.Command + "`, which is not on your PATH"
+	}
+
+	return ""
 }
 
 // pickProfileAgent chooses the agent. It returns an empty name and the reason
