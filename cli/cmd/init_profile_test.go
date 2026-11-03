@@ -14,6 +14,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/spf13/cobra"
 )
 
@@ -390,7 +391,6 @@ func TestInitProfilePrintsThePromptWhenNoVersionFits(t *testing.T) {
 		"missing dependency": `{"requires":{"loupe":">=1.0.0"}}`,
 		"low dependency":     `{"requires":{"loupe-core":">=5.0.0"}}`,
 		"unknown form":       `{"requires":{"loupe-core":"~1.0.0"}}`,
-		"cycle":              `{"requires":{"loupe-lifecycle":">=1.0.0"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			w, dir := newProfileWorld(t)
@@ -409,6 +409,31 @@ func TestInitProfilePrintsThePromptWhenNoVersionFits(t *testing.T) {
 	}
 }
 
+func TestInitProfilePicksTheVersionsTheBridgePicks(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	setCLIVersion(t, "1.35.0")
+	putProfilePackage(t, "loupe-core", "1.5.0", `{}`)
+	lifecycle := putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{"requires":{"loupe-core":">=1.0.0 <2.0.0"}}`)
+
+	site := api.Site{ID: "p", SkillPackages: []string{"loupe-lifecycle", "loupe-core"}}
+	picks, err := skills.Resolve(os.Getenv(config.EnvVar), version, site.SkillPackages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := runProfileStep(t, dir, site, initOptions{agent: agentClaude})
+	if len(w.calls) != 1 {
+		t.Fatalf("calls = %v\n%s", w.calls, out)
+	}
+	for _, pick := range picks {
+		if !slices.Contains(w.calls[0], pick.Dir) {
+			t.Errorf("call lacks %q: %v", pick.Dir, w.calls[0])
+		}
+	}
+	if !slices.Contains(w.calls[0], lifecycle) {
+		t.Errorf("call lacks %q: %v", lifecycle, w.calls[0])
+	}
+}
+
 func TestInitProfileDevelopmentBuildMeetsEveryMinCli(t *testing.T) {
 	w, dir := newProfileWorld(t)
 	setCLIVersion(t, "")
@@ -417,11 +442,5 @@ func TestInitProfileDevelopmentBuildMeetsEveryMinCli(t *testing.T) {
 	runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
 	if len(w.calls) != 1 {
 		t.Fatalf("calls = %v", w.calls)
-	}
-}
-
-func TestVersionLess(t *testing.T) {
-	if !versionLess("1.2.0", "1.10.0") || versionLess("1.10.0", "1.2.0") || versionLess("1.0.0", "1.0.0") {
-		t.Fatal("versionLess compares text, not numbers")
 	}
 }

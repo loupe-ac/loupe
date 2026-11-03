@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -242,115 +241,22 @@ func profilePrompt(site api.Site, skillPath string, review bool) string {
 
 // profilePackageDirs unpacks the starting copy into the store, and returns the
 // current folder of each package that the project uses, with the package names
-// in the order of use. A package with no version this CLI can run is left out.
+// in the order of use. It returns nothing when the store cannot serve the list,
+// as the bridge starts no worker then.
 func profilePackageDirs(site api.Site) (map[string]string, []string) {
-	store := filepath.Join(config.Current().Dir, "skills")
-	_, _ = skills.Install(config.Current().Dir)
+	dir := config.Current().Dir
+	_, _ = skills.Install(dir)
 
-	held, _ := os.ReadDir(store)
-	var names []string
-	for _, e := range held {
-		if e.IsDir() && e.Name() != "backup" && !strings.HasPrefix(e.Name(), ".") {
-			names = append(names, e.Name())
-		}
+	picks, err := skills.Resolve(dir, version, site.PackagesIn(skills.Held(dir)))
+	if err != nil {
+		return nil, nil
 	}
 	dirs := map[string]string{}
 	var used []string
-	for _, name := range site.PackagesIn(names) {
-		if v := currentVersion(store, name, map[string]bool{}); v != "" {
-			dirs[name] = filepath.Join(store, name, v)
-			used = append(used, name)
-		}
+	for _, pick := range picks {
+		dirs[pick.Package] = pick.Dir
+		used = append(used, pick.Package)
 	}
 
 	return dirs, used
-}
-
-// currentVersion returns the highest version of a package that meets minCli and
-// whose requires the store can meet. A package that visiting holds is part of a
-// cycle, and has no version.
-func currentVersion(store, name string, visiting map[string]bool) string {
-	if visiting[name] {
-		return ""
-	}
-	visiting[name] = true
-	defer delete(visiting, name)
-
-	entries, _ := os.ReadDir(filepath.Join(store, name))
-	var list []string
-	for _, e := range entries {
-		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
-			list = append(list, e.Name())
-		}
-	}
-	slices.SortFunc(list, func(a, b string) int {
-		switch {
-		case versionLess(a, b):
-			return 1
-		case versionLess(b, a):
-			return -1
-		}
-
-		return 0
-	})
-	for _, v := range list {
-		if versionUsable(store, name, v, visiting) {
-			return v
-		}
-	}
-
-	return ""
-}
-
-// versionUsable reads the loupe-package.json of one version. A development
-// build has an empty version, and meets every minCli.
-func versionUsable(store, name, v string, visiting map[string]bool) bool {
-	var meta struct {
-		MinCli   string            `json:"minCli"`
-		Requires map[string]string `json:"requires"`
-	}
-	if data, err := os.ReadFile(filepath.Join(store, name, v, "loupe-package.json")); err == nil {
-		_ = json.Unmarshal(data, &meta)
-	}
-	if version != "" && meta.MinCli != "" && versionLess(version, meta.MinCli) {
-		return false
-	}
-	for dep, want := range meta.Requires {
-		have := currentVersion(store, dep, visiting)
-		if have == "" || !meetsRequire(have, want) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// meetsRequire reads a requirement such as ">=1.2.0". A form it cannot read
-// fails, so an unknown form never starts a package that may not fit.
-func meetsRequire(have, want string) bool {
-	low, ok := strings.CutPrefix(strings.TrimSpace(want), ">=")
-	if !ok || strings.ContainsAny(low, " ,<>=") {
-		return false
-	}
-
-	return !versionLess(have, low)
-}
-
-// versionLess compares two dotted versions by their numbers.
-func versionLess(a, b string) bool {
-	pa, pb := strings.Split(strings.TrimPrefix(a, "v"), "."), strings.Split(strings.TrimPrefix(b, "v"), ".")
-	for i := 0; i < max(len(pa), len(pb)); i++ {
-		var x, y int
-		if i < len(pa) {
-			x, _ = strconv.Atoi(strings.SplitN(pa[i], "-", 2)[0])
-		}
-		if i < len(pb) {
-			y, _ = strconv.Atoi(strings.SplitN(pb[i], "-", 2)[0])
-		}
-		if x != y {
-			return x < y
-		}
-	}
-
-	return false
 }
