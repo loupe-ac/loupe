@@ -24,3 +24,4 @@ A record has these sections:
 - [0003: Replace the old shape when a requirement changes it, and keep no legacy path](0003-replace-dont-keep.md)
 - [0004: Keep workflow decisions in the workflow template, not in app code](0004-workflow-concerns-stay-in-workflow.md)
 - [0005: Update the UI live whenever the instance can](0005-live-ui.md)
+- [0006: State the outcome that Loupe needs, and leave the method to the repository](0006-outcome-not-method.md)

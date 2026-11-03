@@ -195,6 +195,7 @@ export default defineConfig({
             { slug: 'adr/0003-replace-dont-keep' },
             { slug: 'adr/0004-workflow-concerns-stay-in-workflow' },
             { slug: 'adr/0005-live-ui' },
+            { slug: 'adr/0006-outcome-not-method' },
           ],
         },
         { label: 'What runs in production', slug: 'architecture' },
