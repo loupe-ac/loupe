@@ -192,7 +192,13 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	site, err := initProject(cmd, cfg, dir, o)
+	listCtx, cancelList := context.WithTimeout(cmd.Context(), 30*time.Second)
+	sites, err := apiClient(cfg).Sites(listCtx)
+	cancelList()
+	if err != nil {
+		return err
+	}
+	site, err := initProject(cmd, cfg, dir, o, sites)
 	if err != nil {
 		return err
 	}
@@ -228,7 +234,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	} else {
 		initPlaywright(cmd, dir)
 	}
-	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, apiClient(cfg).Sites)
+	left.accounts = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
 	left.profile = initProfile(cmd, dir, site, o)
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 
@@ -303,16 +309,12 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 
 // initProject chooses the project of this repository. The returned site holds
 // the slug when the server lists the project.
-func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOptions) (api.Site, error) {
+func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOptions, sites []api.Site) (api.Site, error) {
 	out := cmd.OutOrStdout()
 	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 	defer cancel()
 
 	client := apiClient(cfg)
-	sites, err := client.Sites(ctx)
-	if err != nil {
-		return api.Site{}, err
-	}
 	// find takes an id or a slug, because the first-run command names the
 	// project by its slug. A handle that no listed project has stays as given.
 	find := func(handle string) (api.Site, bool) {

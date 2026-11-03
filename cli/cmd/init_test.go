@@ -2098,7 +2098,7 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	path := reportWorld(t)
 	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
 	flow := api.Site{ID: "p2", Slug: "flow", SkillPackages: []string{"loupe", "loupe-lifecycle"}}
-	list := func(context.Context) ([]api.Site, error) { return []api.Site{simple, flow}, nil }
+	list := []api.Site{simple, flow}
 
 	var out strings.Builder
 	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
@@ -2121,25 +2121,6 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	}
 }
 
-// With no project list the other projects need every package, so the report
-// leaves them out and says so. This project keeps its own packages.
-func TestReportAccountsCoversOnlyThisProjectWithNoProjectList(t *testing.T) {
-	path := reportWorld(t)
-	simple := api.Site{ID: "p1", Slug: "simple", SkillPackages: []string{"loupe"}}
-	list := func(context.Context) ([]api.Site, error) { return nil, errors.New("server down") }
-
-	var out strings.Builder
-	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
-		t.Errorf("failing = %v\n%s", failing, out.String())
-	}
-	if want := "covers only this project, because the project list does not read: server down"; !strings.Contains(out.String(), want) {
-		t.Errorf("output lacks %q:\n%s", want, out.String())
-	}
-	if strings.Contains(out.String(), "project flow") {
-		t.Errorf("the report blames another project:\n%s", out.String())
-	}
-}
-
 // A project that the list does not hold yet keeps the values init read for it.
 func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
 	path := reportWorld(t)
@@ -2153,9 +2134,7 @@ func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
 		return nil
 	}
 
-	reportAccounts(context.Background(), io.Discard, path, simple, func(context.Context) ([]api.Site, error) {
-		return []api.Site{{ID: "p2", Slug: "flow"}}, nil
-	})
+	reportAccounts(context.Background(), io.Discard, path, simple, []api.Site{{ID: "p2", Slug: "flow"}})
 
 	if len(got) != 2 || got[0].ID != "p2" || got[1].ID != "p1" {
 		t.Errorf("sites = %+v", got)
