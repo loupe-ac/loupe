@@ -38,10 +38,7 @@ jobs:
             exit 1
           fi
           tag="skills/$PACKAGE/v$version"
-          if git rev-parse --verify --quiet "refs/tags/$tag" > /dev/null; then
-            echo "::error::The tag $tag exists. Bump the version in plugin.json first."
-            exit 1
-          fi
+          sh cli/scripts/skills-tag-check.sh "$PACKAGE" "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Pack the package
