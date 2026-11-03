@@ -144,7 +144,7 @@ Four checks that no registry covers:
 
 Two more apply when the feature touches the public API or the CLI:
 
-5. **A new public API route needs a CLI command.** The command table of `cli/internal/publicapi` must list every operation of `openapi/public.json`. A CI test names the operation that has none. Add one line to `commands.go` and run `just cli-generate`. Document the route in `docs/reference/api/index.md`, and the command in `docs/reference/cli.md`.
+5. **A new public API route needs a CLI command.** The command table of the `publicapi` package in `cli/internal/` must list every operation of `openapi/public.json`. A CI test names the operation that has none. Add one line to `commands.go` and run the `just cli-generate` recipe. Document the route in `docs/reference/api/index.md`, and the command in `docs/reference/cli.md`.
 6. **A new CLI command needs the matching docs and plugin text.** Update `docs/reference/cli.md`, `cli/README.md` and the plugin files that name the command. Say which CLI version the command needs, because the plugin and the CLI update separately.
 
 Security surfaces that fail loudly need no checklist entry. A new `/api/` route with no rule above `allow_if: 'false'` in `config/packages/security.yaml` is denied, and a missing `ApiTokenScope` case is a PHP error. Rate limiting is the exception: `config/packages/rate_limiter.yaml` is hand-declared, so a new token-authenticated write endpoint has none by default.

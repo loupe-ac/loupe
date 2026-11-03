@@ -9,7 +9,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 3. Load `working-with-prs` before the gate, a push or a pull request.
 4. Load `project-worktrees` before you refresh the worker folder or debug it.
 5. Writing style: AGENTS.md "Writing style", which is ASD-STE100.
-6. Product document: answer the documentation and landing page checks of AGENTS.md "What a feature must not forget", the subsection "Decide at planning time". It names the `docs/` sections and the landing page templates.
+6. Product document: read the whole AGENTS.md section "What a feature must not forget". Answer the documentation and landing page checks of its subsection "Decide at planning time", and every other check that the feature touches. The section names the `docs/` sections and the landing page templates.
 7. Tech design: load `project-tech-design`. Read the whole AGENTS.md section "What a feature must not forget", with its table and its numbered list of checks.
 8. Deploy notes: `project-deploy` "What deploy notes hold" lists the deploy items of this project.
 9. Sub-agent: when you dispatch a sub-agent for PHP, entity, migration or command work, use the `senior-dev` agent (`.claude/agents/senior-dev.md`) when the harness has it.
