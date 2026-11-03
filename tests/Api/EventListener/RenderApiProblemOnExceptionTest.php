@@ -25,6 +25,7 @@ use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnsupportedMediaTypeHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -42,19 +43,32 @@ final class RenderApiProblemOnExceptionTest extends TestCase
     }
 
     #[DataProvider('countedFrameworkRefusals')]
-    public function test_a_framework_refusal_is_counted_with_the_code_its_client_reads(\Throwable $exception, string $status, string $code, string $route): void
+    public function test_a_framework_refusal_is_counted_with_the_code_its_client_reads(string $path, \Throwable $exception, string $status, string $code, string $route): void
     {
-        $this->render('/api/v1/things', $exception, '' === $route || 'none' === $route ? [] : ['_route' => $route]);
+        $this->render($path, $exception, 'none' === $route ? [] : ['_route' => $route]);
 
         self::assertSame([[$status, $code, $route]], $this->counted());
     }
 
-    /** @return iterable<string, array{\Throwable, string, string, string}> */
+    /** @return iterable<string, array{string, \Throwable, string, string, string}> */
     public static function countedFrameworkRefusals(): iterable
     {
-        yield 'rate limit' => [new TooManyRequestsHttpException(30), '429', 'rate_limited', 'api_things'];
-        yield 'unmatched path' => [new NotFoundHttpException(), '404', 'route_not_found', 'none'];
-        yield 'other 4xx' => [new HttpException(418), '418', 'http_418', 'api_things'];
+        yield 'rate limit' => ['/api/v1/things', new TooManyRequestsHttpException(30), '429', 'rate_limited', 'api_things'];
+        yield 'refused body' => ['/api/v1/things', new HttpException(422, 'invalid', new ValidationFailedException(null, new ConstraintViolationList())), '422', 'validation_failed', 'api_things'];
+        yield 'bad json' => ['/api/v1/things', new BadRequestHttpException('bad', new NotEncodableValueException('syntax')), '400', 'invalid_json', 'api_things'];
+        yield 'media type' => ['/api/v1/things', new UnsupportedMediaTypeHttpException(), '415', 'unsupported_media_type', 'api_things'];
+        yield 'unmatched path' => ['/api/v1/things', new NotFoundHttpException(), '404', 'route_not_found', 'none'];
+        yield 'wrong method' => ['/api/v1/things', new MethodNotAllowedHttpException(['GET']), '405', 'method_not_allowed', 'none'];
+        yield 'unserved version' => ['/api/v2/things', new NotFoundHttpException(), '404', 'api_version_unsupported', 'none'];
+        yield 'other 4xx' => ['/api/v1/things', new HttpException(418), '418', 'http_418', 'api_things'];
+    }
+
+    public function test_a_refusal_of_the_security_listener_is_not_counted(): void
+    {
+        self::assertNull($this->render('/api/v1/things', new AccessDeniedException(), ['_route' => 'api_things']));
+        self::assertNull($this->render('/api/v1/things', new AuthenticationException(), ['_route' => 'api_things']));
+
+        self::assertSame([], $this->counted());
     }
 
     public function test_a_server_fault_is_not_counted(): void
