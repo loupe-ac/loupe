@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 // The bundle folder holds one plugin folder for each package. A development
@@ -20,6 +21,10 @@ var bundle embed.FS
 
 // manifestPath is the plugin manifest that names the version of a package.
 const manifestPath = ".claude-plugin/plugin.json"
+
+// executablesPath lists the executable files of a package, relative to it.
+// bundle-skills.sh writes it, because embed.FS reports every file as 0444.
+const executablesPath = ".loupe-executables"
 
 // Install unpacks each embedded package into the store under configDir, as
 // <configDir>/skills/<package>/<version>. It skips a version that the store
@@ -88,11 +93,23 @@ func unpack(fsys fs.FS, src, dest string) error {
 	}
 	defer os.RemoveAll(tmp)
 
+	list, err := fs.ReadFile(fsys, path.Join(src, executablesPath))
+	if err != nil {
+		return err
+	}
+	executable := make(map[string]bool)
+	for _, line := range strings.Split(string(list), "\n") {
+		executable[line] = true
+	}
+
 	err = fs.WalkDir(fsys, src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		rel := p[len(src):]
+		rel := strings.TrimPrefix(p[len(src):], "/")
+		if rel == executablesPath {
+			return nil
+		}
 		target := filepath.Join(tmp, filepath.FromSlash(rel))
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
@@ -102,7 +119,7 @@ func unpack(fsys fs.FS, src, dest string) error {
 			return err
 		}
 		mode := os.FileMode(0o644)
-		if info, err := d.Info(); err == nil && info.Mode()&0o111 != 0 {
+		if executable[rel] {
 			mode = 0o755
 		}
 

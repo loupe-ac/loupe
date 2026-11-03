@@ -11,9 +11,11 @@ func fakeBundle() fstest.MapFS {
 	return fstest.MapFS{
 		"bundle/.placeholder":                               {Data: []byte("x")},
 		"bundle/loupe/.claude-plugin/plugin.json":           {Data: []byte(`{"version":"1.2.0"}`)},
+		"bundle/loupe/" + executablesPath:                   {Data: []byte("hooks/run.sh\n")},
 		"bundle/loupe/skills/loupe-board/SKILL.md":          {Data: []byte("board")},
-		"bundle/loupe/hooks/run.sh":                         {Data: []byte("#!/bin/sh"), Mode: 0o755},
+		"bundle/loupe/hooks/run.sh":                         {Data: []byte("#!/bin/sh")},
 		"bundle/loupe-lifecycle/.claude-plugin/plugin.json": {Data: []byte(`{"version":"0.3.0"}`)},
+		"bundle/loupe-lifecycle/" + executablesPath:         {Data: []byte("")},
 	}
 }
 
