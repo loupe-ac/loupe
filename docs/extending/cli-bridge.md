@@ -1656,9 +1656,14 @@ cases:
 
 - The `minCli` of the version is above the running CLI. A development build
   meets every `minCli`.
-- The `requires` of the version names a package that the store does not hold at
-  a fitting version. The bridge tries again in the same check, so a package
-  that needs a package of the same check can install after it.
+- The store cannot meet the whole `requires` set of the version, which also
+  covers what those packages need in turn. The bridge tries again in the same
+  check, so a package that needs a package of the same check can install after
+  it.
+
+The store can already hold a version above the one a worker gets, such as one
+that a former CLI installed. That version stays out in the same way, and the
+package reads as failed with the reason.
 
 A failed update changes nothing else. The bridge logs
 `skill_package_update_failed` with the reason, keeps the versions in the store,
@@ -1674,8 +1679,9 @@ the next worker of a project takes the new ones. The bridge logs
 The heartbeat carries one row for each package in `skills`. `version` is the
 highest version in the store that the CLI can use, and `none` when there is
 none. `state` is `current`, or `failed` with the `reason` of the last update.
-A failure ends when the store holds another version, whichever process installed
-it, so a manual `loupe update` clears it.
+The store keeps that failure, so a failure of a manual `loupe update` shows too,
+also when that command runs in its own process. A failure ends when an update
+of the package succeeds, or when the store holds another version.
 The [agents page](#a-worker-account-with-its-own-plugins) shows the rows.
 `loupe status` prints them too.
 

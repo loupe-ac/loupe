@@ -28,6 +28,10 @@ const tagPrefix = "skills/"
 // checksumsName is the checksums asset of a release.
 const checksumsName = "checksums.txt"
 
+// failuresDir is the folder in the store that holds one file for each package
+// whose last update failed.
+const failuresDir = ".failures"
+
 // packageName is what the app accepts as a package name. The name becomes a
 // folder in the store, so nothing else gets through.
 var packageName = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
@@ -59,6 +63,91 @@ func Status(configDir, cliVersion, pkg string) Result {
 	return Result{Package: pkg, Version: chosen[pkg].Version, State: StateCurrent}
 }
 
+// Report reads a package as a bridge and `loupe status` show it: the store, and
+// the failure of the last update. Any process can run that update, so the store
+// keeps the failure. It ends when the store holds another version.
+func Report(configDir, cliVersion, pkg string) Result {
+	r := Status(configDir, cliVersion, pkg)
+	if failure, ok := readFailure(configDir, pkg); ok && failure.Version == r.Version {
+		r.State, r.Reason = StateFailed, failure.Reason
+	}
+
+	return r
+}
+
+// failurePath is the file that holds the last failed update of a package, and
+// false for a name that cannot be a file of the store.
+func failurePath(configDir, pkg string) (string, bool) {
+	if !ValidName(pkg) {
+		return "", false
+	}
+
+	return filepath.Join(StoreDir(configDir), failuresDir, pkg+".json"), true
+}
+
+func readFailure(configDir, pkg string) (Result, bool) {
+	path, ok := failurePath(configDir, pkg)
+	if !ok {
+		return Result{}, false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Result{}, false
+	}
+	var failure Result
+	if json.Unmarshal(data, &failure) != nil {
+		return Result{}, false
+	}
+
+	return failure, true
+}
+
+// RecordResults keeps each failed update for Report, and ends the failure of each
+// package that did not fail. A store that takes no file refuses the record of a
+// session too, which stops the run with the reason, so a failed write here is
+// not reported again.
+func RecordResults(configDir string, results []Result) {
+	for _, r := range results {
+		path, ok := failurePath(configDir, r.Package)
+		if !ok {
+			continue
+		}
+		if r.State != StateFailed {
+			_ = os.Remove(path)
+
+			continue
+		}
+		_ = writeFailure(path, r)
+	}
+}
+
+// writeFailure renames the file into place, so a reader in another process never
+// sees half of it.
+func writeFailure(path string, failure Result) error {
+	data, err := json.Marshal(failure)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".write-")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmp.Name(), path)
+}
+
 // release is one published version of a package.
 type release struct {
 	version            string
@@ -70,8 +159,9 @@ type release struct {
 // the releases list. It never removes a version, and it changes nothing when a
 // step fails: a version is unpacked in a temporary folder beside its place and
 // renamed into it at the end. A version whose minCli the CLI does not meet, and a
-// version whose requires the store cannot meet, stay out and give a reason. A
-// dev build, whose cliVersion is empty, meets every minCli.
+// version whose whole set of requires the store cannot meet, stay out and give a
+// reason. A dev build, whose cliVersion is empty, meets every minCli. Report reads
+// the failures after this, unless ctx ended, which says nothing about a package.
 //
 // blocked remembers the versions that the CLI cannot use, so no later call
 // downloads them again. The caller keeps it for the life of the process.
@@ -97,6 +187,9 @@ func Refresh(ctx context.Context, hc *http.Client, configDir, cliVersion string,
 		if !progress {
 			break
 		}
+	}
+	if ctx.Err() == nil {
+		RecordResults(configDir, results)
 	}
 
 	return results
@@ -145,15 +238,51 @@ func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion 
 
 		break
 	}
-	// An install checks only what the new version needs directly, so the store
-	// has the last word on what a worker can start with.
+	// The store has the last word on what a worker can start with. A stored
+	// version above that one cannot start, and the store can hold one from
+	// another CLI, or after its dependency went.
 	r := Status(configDir, cliVersion, pkg)
 	r.Installed = installed
+	if reason == "" && r.State == StateCurrent {
+		reason = s.unusableAbove(pkg, r.Version)
+	}
 	if reason != "" {
 		r.State, r.Reason = StateFailed, reason
 	}
 
 	return r
+}
+
+// unusableAbove says why the highest stored version above have stays out, and
+// gives "" when the store holds none.
+func (s solver) unusableAbove(pkg, have string) string {
+	for _, v := range versions(s.configDir, pkg) {
+		if compareVersions(v, have) <= 0 {
+			break
+		}
+		if err := s.unfit(pkg, v, filepath.Join(StoreDir(s.configDir), pkg, v)); err != nil {
+			return err.Error()
+		}
+	}
+
+	return ""
+}
+
+// unfit returns a heldBack error when the version in dir does not fit this CLI,
+// or when the store cannot meet its whole set of requires, also what those
+// packages need in turn. dir need not be in the store yet.
+func (s solver) unfit(pkg, version, dir string) error {
+	meta := readPackage(dir)
+	if meta.MinCli != "" && s.cliVersion != "" && compareVersions(s.cliVersion, meta.MinCli) < 0 {
+		return heldBack{reason: fmt.Sprintf("%s %s needs CLI %s or later, and this CLI is %s", pkg, version, meta.MinCli, s.cliVersion), permanent: true}
+	}
+	search := solver{configDir: s.configDir, cliVersion: s.cliVersion}
+	chosen := map[string]candidate{pkg: {Pick{Package: pkg, Version: version, Dir: dir}, meta}}
+	if !search.search(slices.Sorted(maps.Keys(meta.Requires)), chosen) {
+		return heldBack{reason: fmt.Sprintf("%s %s stays out: %v", pkg, version, search.failure)}
+	}
+
+	return nil
 }
 
 // cmpReason keeps the first reason, which belongs to the newest version.
@@ -256,15 +385,8 @@ func installRelease(ctx context.Context, hc *http.Client, s *solver, pkg string,
 		return fmt.Errorf("the archive holds version %s, and its tag says %s", got, rel.version)
 	}
 
-	meta := readPackage(tmp)
-	if meta.MinCli != "" && s.cliVersion != "" && compareVersions(s.cliVersion, meta.MinCli) < 0 {
-		return heldBack{reason: fmt.Sprintf("%s %s needs CLI %s or later, and this CLI is %s", pkg, rel.version, meta.MinCli, s.cliVersion), permanent: true}
-	}
-	for _, dep := range slices.Sorted(maps.Keys(meta.Requires)) {
-		want := meta.Requires[dep]
-		if !slices.ContainsFunc(s.candidates(dep), func(c candidate) bool { return satisfies(c.Version, want) }) {
-			return heldBack{reason: fmt.Sprintf("%s %s needs %s %s, and the store holds no such version", pkg, rel.version, dep, want)}
-		}
+	if err := s.unfit(pkg, rel.version, tmp); err != nil {
+		return err
 	}
 
 	dest := filepath.Join(parent, rel.version)

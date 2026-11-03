@@ -226,10 +226,10 @@ func printStatusBridges(out io.Writer, reports []bridgeReport, err error) error 
 }
 
 // noteSkills prints one line for each skill package: its version and its state.
-// The store gives the version for this setup. A running bridge can run another
-// setup, so its report gives its own version and any failure, which the store
-// cannot know. A line from a report names its bridge. It is a note only, so it
-// never fails the check.
+// The store gives the version and the last failure for this setup. A running
+// bridge can run another setup, so its report gives its own. A line from a report
+// names its bridge, and it replaces the line of the store when it names the same
+// failure. It is a note only, so it never fails the check.
 func noteSkills(out io.Writer, bridges []bridgeReport) {
 	dir, err := config.Dir()
 	if err != nil {
@@ -259,7 +259,7 @@ func noteSkills(out io.Writer, bridges []bridgeReport) {
 		return
 	}
 	for _, name := range names {
-		local := skills.Status(dir, version, name)
+		local := skills.Report(dir, version, name)
 		failed := slices.ContainsFunc(reports[name], func(r report) bool { return r.res.State == skills.StateFailed })
 		var lines []string
 		for _, r := range reports[name] {
@@ -267,7 +267,11 @@ func noteSkills(out io.Writer, bridges []bridgeReport) {
 				lines = append(lines, fmt.Sprintf("%s (bridge %s)", strings.TrimPrefix(skillLine(r.res), "skills: "), r.bridge))
 			}
 		}
-		if !failed && (len(lines) == 0 || local.State != skills.StateFailed) {
+		ownFailure := local.State == skills.StateFailed && local.Version != ""
+		sameFailure := slices.ContainsFunc(reports[name], func(r report) bool {
+			return r.res.State == skills.StateFailed && r.res.Version == local.Version
+		})
+		if (ownFailure && !sameFailure) || (!ownFailure && !failed && (len(lines) == 0 || local.State != skills.StateFailed)) {
 			fmt.Fprintf(out, "Skills:      %s\n", strings.TrimPrefix(skillLine(local), "skills: "))
 		}
 		for _, line := range lines {

@@ -66,9 +66,6 @@ type skillState struct {
 	// of the session then keeps them. A prune takes mu for its whole length, so
 	// a pick never lands on a folder that the prune deletes.
 	holds map[string][]skills.Pick
-	// failed holds the result of the last update that failed, for each package.
-	// An update that succeeds clears it, and so does another version in the store.
-	failed map[string]skills.Result
 }
 
 // loadSkills reads the project list and keeps the answer, unless a read that
@@ -375,19 +372,6 @@ func (r *router) skillNames() []string {
 	return packageNames(skills.Held(s.dir), s.sites)
 }
 
-// recordSkillResults keeps the reason of each package that failed to update.
-func (r *router) recordSkillResults(results []skills.Result) {
-	s := &r.skills
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.failed = map[string]skills.Result{}
-	for _, res := range results {
-		if res.State == skills.StateFailed {
-			s.failed[res.Package] = res
-		}
-	}
-}
-
 // The server refuses a whole heartbeat that holds more rows than maxSkillReports,
 // a blank version, or a reason above maxSkillReason bytes. noSkillVersion stands
 // for a package with no usable version in the store.
@@ -397,11 +381,9 @@ const (
 	noSkillVersion  = "none"
 )
 
-// skillReports gives the heartbeat one row for each package. The version comes
-// from the store, so it is right after any install, `loupe update` included. A
-// package that the last update failed for is failed, with that reason, until the
-// store holds another version. Another process can install that version, so only
-// the store shows it. A development build with an empty store reports an empty
+// skillReports gives the heartbeat one row for each package. The version and
+// the failure of the last update come from the store, so they are right after any
+// update, `loupe update` in its own process included. A development build with an empty store reports an empty
 // list, because its workers use the plugin their account installed, and that
 // clears the rows of an earlier run. A router with no store sends no list.
 func (r *router) skillReports() []api.SkillReport {
@@ -417,10 +399,7 @@ func (r *router) skillReports() []api.SkillReport {
 	}
 	reports := make([]api.SkillReport, 0, min(len(names), maxSkillReports))
 	for _, name := range names[:min(len(names), maxSkillReports)] {
-		res := skills.Status(s.dir, s.cliVersion, name)
-		if failure, ok := s.failed[name]; ok && failure.Version == res.Version {
-			res.State, res.Reason = skills.StateFailed, failure.Reason
-		}
+		res := skills.Report(s.dir, s.cliVersion, name)
 		reports = append(reports, api.SkillReport{
 			Package: res.Package,
 			Version: cmp.Or(res.Version, noSkillVersion),

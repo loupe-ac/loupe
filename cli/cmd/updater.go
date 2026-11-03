@@ -151,11 +151,9 @@ type updater struct {
 	// token reads or writes it.
 	logged map[string]bool
 
-	// skillNames lists the skill packages to keep current, and skillsDone gets
-	// the result of each update. Both may be nil, and the updater then leaves
-	// the skill packages alone.
+	// skillNames lists the skill packages to keep current. A nil one leaves the
+	// skill packages alone.
 	skillNames func() []string
-	skillsDone func([]skills.Result)
 	// blocked holds the package versions this CLI cannot use. skillResult is the
 	// last skills update of the check that runs. Only the holder of token reads
 	// or writes them.
@@ -617,9 +615,6 @@ func (u *updater) refreshSkills(ctx context.Context, releases []update.Release, 
 		if r.State == skills.StateFailed && u.once("skills|"+r.Package+"|"+r.Reason) {
 			u.log.Warn("skill_package_update_failed", "package", r.Package, "version", r.Version, "reason", r.Reason)
 		}
-	}
-	if u.skillsDone != nil {
-		u.skillsDone(results)
 	}
 
 	return results

@@ -125,6 +125,9 @@ func storeEntries(t *testing.T, dir string) []string {
 	_ = filepath.WalkDir(StoreDir(dir), func(p string, d os.DirEntry, err error) error {
 		if err == nil && p != StoreDir(dir) {
 			rel, _ := filepath.Rel(StoreDir(dir), p)
+			if rel == failuresDir || strings.HasPrefix(rel, failuresDir+string(filepath.Separator)) {
+				return nil
+			}
 			out = append(out, rel)
 		}
 
@@ -283,6 +286,152 @@ func TestRefreshLeavesOutAVersionWhoseRequiresTheStoreCannotMeet(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(StoreDir(dir), "loupe-lifecycle", "0.2.0")); err == nil {
 		t.Fatal("the version was installed")
+	}
+}
+
+func TestRefreshLeavesOutAVersionWhoseDependencyNeedsAMissingPackage(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "app", "1.0.0", "")
+	put(t, dir, "middle", "1.0.0", `{"requires":{"absent":">=1.0.0 <2.0.0"}}`)
+	f.publish("app", "2.0.0", goodArchive(t, "2.0.0", `{"requires":{"middle":">=1.0.0 <2.0.0"}}`))
+
+	got := refresh(t, f, dir, "1.0.0", nil, "app")
+
+	if got[0].Version != "1.0.0" || got[0].State != StateFailed || !strings.Contains(got[0].Reason, "absent") {
+		t.Fatalf("got %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), "app", "2.0.0")); err == nil {
+		t.Fatal("the version was installed")
+	}
+}
+
+// The requires of two packages conflict, though each has a fitting version alone.
+func TestRefreshLeavesOutAVersionWhoseDependenciesConflict(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "app", "1.0.0", "")
+	put(t, dir, "left", "1.0.0", `{"requires":{"base":">=1.0.0 <2.0.0"}}`)
+	put(t, dir, "right", "1.0.0", `{"requires":{"base":">=2.0.0 <3.0.0"}}`)
+	put(t, dir, "base", "1.0.0", "")
+	put(t, dir, "base", "2.0.0", "")
+	f.publish("app", "2.0.0", goodArchive(t, "2.0.0", `{"requires":{"left":">=1.0.0 <2.0.0","right":">=1.0.0 <2.0.0"}}`))
+
+	got := refresh(t, f, dir, "1.0.0", nil, "app")
+
+	if got[0].Version != "1.0.0" || got[0].State != StateFailed || !strings.Contains(got[0].Reason, "base") {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestRefreshInstallsAVersionWhoseWholeDependencySetFits(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "app", "1.0.0", "")
+	put(t, dir, "middle", "1.0.0", `{"requires":{"base":">=1.0.0 <2.0.0"}}`)
+	put(t, dir, "base", "1.0.0", "")
+	f.publish("app", "2.0.0", goodArchive(t, "2.0.0", `{"requires":{"middle":">=1.0.0 <2.0.0"}}`))
+
+	got := refresh(t, f, dir, "1.0.0", nil, "app")
+
+	if got[0].Version != "2.0.0" || got[0].State != StateCurrent || got[0].Installed != "2.0.0" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// The store can hold such a version from another CLI, and a later check skips a
+// version the store holds, so only this reason says why the package stays behind.
+func TestRefreshFailsWithTheReasonOfAStoredVersionThatCannotStart(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe", "2.0.0", `{"requires":{"absent":"^1.0.0"}}`)
+	f.publish("loupe", "2.0.0", goodArchive(t, "2.0.0", `{"requires":{"absent":"^1.0.0"}}`))
+
+	got := refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got[0].Version != "1.0.0" || got[0].State != StateFailed || !strings.Contains(got[0].Reason, "loupe 2.0.0") || !strings.Contains(got[0].Reason, "absent") {
+		t.Fatalf("got %+v", got)
+	}
+	if f.downloads() != 0 {
+		t.Fatalf("%d downloads, want none", f.downloads())
+	}
+}
+
+func TestRefreshNamesAStoredVersionThatNeedsANewerCLI(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe", "2.0.0", `{"minCli":"9.0.0"}`)
+
+	got := Refresh(context.Background(), http.DefaultClient, dir, "1.0.0", nil, []string{"loupe"}, map[string]string{})
+
+	if got[0].Version != "1.0.0" || got[0].State != StateFailed || !strings.Contains(got[0].Reason, "needs CLI 9.0.0") {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestReportKeepsTheFailureOfARefreshInAnotherProcess(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "loupe", "1.0.0", "")
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{"minCli":"9.0.0"}`))
+
+	failed := refresh(t, f, dir, "1.0.0", nil, "loupe")[0]
+
+	if got := Report(dir, "1.0.0", "loupe"); got.State != StateFailed || got.Reason != failed.Reason || got.Version != "1.0.0" {
+		t.Fatalf("report = %+v", got)
+	}
+	if got := Status(dir, "1.0.0", "loupe"); got.State != StateCurrent {
+		t.Fatalf("status = %+v, want the store alone", got)
+	}
+}
+
+func TestReportEndsTheFailureWhenARefreshSucceeds(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "loupe", "1.0.0", "")
+	RecordResults(dir, []Result{{Package: "loupe", Version: "1.0.0", State: StateFailed, Reason: "bad"}})
+
+	refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got := Report(dir, "1.0.0", "loupe"); got.State != StateCurrent || got.Reason != "" {
+		t.Fatalf("report = %+v", got)
+	}
+}
+
+func TestReportEndsTheFailureWhenTheStoreHoldsAnotherVersion(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	RecordResults(dir, []Result{{Package: "loupe", Version: "1.0.0", State: StateFailed, Reason: "bad"}})
+
+	put(t, dir, "loupe", "1.1.0", "")
+
+	if got := Report(dir, "1.0.0", "loupe"); got.State != StateCurrent || got.Version != "1.1.0" {
+		t.Fatalf("report = %+v", got)
+	}
+}
+
+func TestACancelledRefreshKeepsTheLastFailure(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "loupe", "1.0.0", "")
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	Refresh(ctx, f.server.Client(), dir, "1.0.0", f.releases, []string{"loupe"}, map[string]string{})
+
+	if got := Report(dir, "1.0.0", "loupe"); got.State != StateCurrent {
+		t.Fatalf("report = %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), failuresDir)); err == nil {
+		t.Fatal("a cancelled refresh recorded a failure")
+	}
+}
+
+func TestAnInvalidPackageNameWritesNoFailureFile(t *testing.T) {
+	dir := t.TempDir()
+
+	RecordResults(dir, []Result{{Package: "../../escape", State: StateFailed, Reason: "bad"}})
+
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), failuresDir)); err == nil {
+		t.Fatal("the store holds a failure for an invalid name")
+	}
+	if got := Report(dir, "1.0.0", "../../escape"); got.Reason == "bad" {
+		t.Fatalf("report = %+v", got)
 	}
 }
 

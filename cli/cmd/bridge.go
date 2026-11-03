@@ -613,7 +613,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			default:
 				updates = newUpdater(r.log, version, dir, func() bool { return autoUpdateOn(r.rules(), r.assumeAutoUpdate) }, nil)
 				updates.shared = true
-				updates.skillNames, updates.skillsDone = r.skillNames, r.recordSkillResults
+				updates.skillNames = r.skillNames
 				updates.install = installMethod(updates.executable)
 				updates.onDrain = r.setDraining
 				updates.setState(updateOff, "")
@@ -634,7 +634,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			}
 			updates.install = installMethod(updates.executable)
 			updates.onDrain = r.setDraining
-			updates.skillNames, updates.skillsDone = r.skillNames, r.recordSkillResults
+			updates.skillNames = r.skillNames
 			hb.onRange, hb.update = updates.setRange, updates.state
 		}
 		hb.skills = r.skillReports

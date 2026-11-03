@@ -2128,7 +2128,8 @@ The command updates the skill packages too, before the CLI. It installs the
 newest release of each package that the store holds or that a project names,
 and it prints one line for each package, such as `skills: loupe 1.4.0 installed`.
 It restarts no worker. A failed package update prints its reason and changes
-neither the store nor the CLI update. See
+neither the packages in the store nor the CLI update. The store keeps the
+reason, so `loupe status` and the agents page show it. See
 [Skill package updates](../docs/extending/cli-bridge.md#skill-package-updates).
 
 When a bridge runs, the command asks it to check and install at once, through

@@ -86,15 +86,14 @@ func heldVersion(dir, pkg string) string {
 	return skills.Status(dir, "", pkg).Version
 }
 
-// skillUpdater is an updater whose router-side hooks record what they get.
+// skillUpdater is an updater that keeps the named packages, with the results of
+// its last check.
 func skillUpdater(t *testing.T, gh *fakeGitHub, running string, names ...string) (*updaterHarness, *[]skills.Result) {
 	t.Helper()
 	h := newTestUpdater(t, gh, running)
-	var got []skills.Result
 	h.u.skillNames = func() []string { return names }
-	h.u.skillsDone = func(r []skills.Result) { got = r }
 
-	return h, &got
+	return h, &h.u.skillResult
 }
 
 func TestTheHourlyCheckInstallsANewSkillVersionFromTheOneReleasesList(t *testing.T) {
@@ -303,7 +302,7 @@ func TestTheRouterNamesTheHeldPackagesAndThoseTheProjectsList(t *testing.T) {
 func TestTheHeartbeatCarriesTheStateOfEachSkillPackage(t *testing.T) {
 	r, dir := packageStore(t)
 	holdSkill(t, dir, "loupe", "1.2.0")
-	r.recordSkillResults([]skills.Result{{Package: "loupe-lifecycle", Version: "1.0.0", State: skills.StateFailed, Reason: "needs loupe 2.0.0 or later"}})
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe-lifecycle", Version: "1.0.0", State: skills.StateFailed, Reason: "needs loupe 2.0.0 or later"}})
 	client := &fakeHeartbeats{}
 	startHeartbeater(t, client, time.Minute, func(h *heartbeater) { h.skills = r.skillReports })
 
@@ -349,7 +348,7 @@ func TestTheHeartbeatRowsStayInsideTheLimitsOfTheServer(t *testing.T) {
 	for i := range 25 {
 		holdSkill(t, dir, "extra-"+string(rune('a'+i)), "1.0.0")
 	}
-	r.recordSkillResults([]skills.Result{{Package: "extra-a", Version: "1.0.0", State: skills.StateFailed, Reason: strings.Repeat("é", 400)}})
+	skills.RecordResults(dir, []skills.Result{{Package: "extra-a", Version: "1.0.0", State: skills.StateFailed, Reason: strings.Repeat("é", 400)}})
 	if err := os.RemoveAll(filepath.Join(dir, "skills", "extra-b", "1.0.0")); err != nil {
 		t.Fatal(err)
 	}
@@ -382,13 +381,13 @@ func TestTheHeartbeatRowsStayInsideTheLimitsOfTheServer(t *testing.T) {
 }
 
 func TestTheReportShowsAFailedPackageUntilAnUpdateClearsIt(t *testing.T) {
-	r, _ := packageStore(t)
-	r.recordSkillResults([]skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
+	r, dir := packageStore(t)
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
 	if got := r.skillReports(); got[0].State != "failed" || got[0].Reason != "bad" || got[0].Version != "1.0.0" {
 		t.Fatalf("reports = %+v", got)
 	}
 
-	r.recordSkillResults([]skills.Result{{Package: "loupe", State: skills.StateCurrent}})
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe", State: skills.StateCurrent}})
 
 	if got := r.skillReports(); got[0].State != "current" || got[0].Reason != "" {
 		t.Fatalf("reports = %+v", got)
@@ -399,12 +398,95 @@ func TestTheReportShowsAFailedPackageUntilAnUpdateClearsIt(t *testing.T) {
 // the bridge sees the update only in the store.
 func TestAVersionInstalledOutsideTheBridgeClearsItsOldFailure(t *testing.T) {
 	r, dir := packageStore(t)
-	r.recordSkillResults([]skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
 
 	holdSkill(t, dir, "loupe", "1.1.0")
 
 	if got := r.skillReports(); got[0].State != "current" || got[0].Reason != "" || got[0].Version != "1.1.0" {
 		t.Fatalf("reports = %+v", got)
+	}
+}
+
+// A store the bridge reads from shows the failure of an update that another
+// process ran, on each path of `loupe update` that writes the store itself.
+func TestAFailedManualUpdateReachesTheBridgeAndStatus(t *testing.T) {
+	for name, prepare := range map[string]func(t *testing.T, self selfUpdate) selfUpdate{
+		"no bridge": func(_ *testing.T, self selfUpdate) selfUpdate { return self },
+		"homebrew": func(t *testing.T, self selfUpdate) selfUpdate {
+			_, link := homebrewBinary(t)
+			self.executable = func() (string, error) { return link, nil }
+
+			return self
+		},
+		"shared setup": func(t *testing.T, self selfUpdate) selfUpdate {
+			t.Setenv("LOUPE_CONFIG", t.TempDir())
+
+			return self
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			shortConfigHome(t)
+			gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+			gh.publishSkill("loupe", "1.1.0", skillArchive(t, "1.1.0", `{}`), []byte("other"))
+			self, _ := selfUpdateAgainst(t, gh, "1.0.0")
+			self = withServerRange(prepare(t, self), "^1.0")
+			dir := mustConfigDir(t)
+			holdSkill(t, dir, "loupe", "1.0.0")
+
+			out, _ := updateCmd(t, self)
+			if !strings.Contains(out, "skills: loupe 1.0.0 failed:") {
+				t.Fatalf("out = %q", out)
+			}
+
+			r, _ := packageStore(t)
+			r.skills.dir = dir
+			if got := r.skillReports(); len(got) != 1 || got[0].State != "failed" || got[0].Version != "1.0.0" || !strings.Contains(got[0].Reason, "checksum") {
+				t.Fatalf("reports = %+v", got)
+			}
+			var status bytes.Buffer
+			noteSkills(&status, nil)
+			if !strings.Contains(status.String(), "Skills:      loupe 1.0.0 failed:") {
+				t.Fatalf("status = %q", status.String())
+			}
+		})
+	}
+}
+
+// A bridge of another setup holds another version, and says nothing about the
+// failure of this store.
+func TestStatusKeepsTheFailureOfTheStoreBesideABridgeOfAnotherVersion(t *testing.T) {
+	shortConfigHome(t)
+	dir := mustConfigDir(t)
+	holdSkill(t, dir, "loupe", "1.0.0")
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
+	other := validStatus("other")
+	other.Skills = []api.SkillReport{{Package: "loupe", Version: "2.0.0", State: "current"}}
+
+	var out bytes.Buffer
+	noteSkills(&out, []bridgeReport{{status: other}})
+
+	want := "Skills:      loupe 1.0.0 failed: bad\nSkills:      loupe 2.0.0 current (bridge other)\n"
+	if out.String() != want {
+		t.Fatalf("out = %q, want %q", out.String(), want)
+	}
+}
+
+// A bridge that reads this store reports the same failure, and only its line
+// prints.
+func TestStatusPrintsAFailureOnceWhenABridgeReportsIt(t *testing.T) {
+	shortConfigHome(t)
+	dir := mustConfigDir(t)
+	holdSkill(t, dir, "loupe", "1.0.0")
+	skills.RecordResults(dir, []skills.Result{{Package: "loupe", Version: "1.0.0", State: skills.StateFailed, Reason: "bad"}})
+	same := validStatus("same")
+	same.Skills = []api.SkillReport{{Package: "loupe", Version: "1.0.0", State: "failed", Reason: "bad"}}
+
+	var out bytes.Buffer
+	noteSkills(&out, []bridgeReport{{status: same}})
+
+	want := "Skills:      loupe 1.0.0 failed: bad (bridge same)\n"
+	if out.String() != want {
+		t.Fatalf("out = %q, want %q", out.String(), want)
 	}
 }
 
@@ -515,7 +597,7 @@ func TestUpdateWithNoBridgeUpdatesSkillsBeforeTheBinary(t *testing.T) {
 	for _, want := range []string{
 		"skills: ghost failed: no release of ghost exists\n",
 		"skills: loupe 1.1.0 installed\n",
-		"skills: loupe-lifecycle 0.9.0 failed: loupe-lifecycle 1.0.0 needs loupe >=2.0.0",
+		"skills: loupe-lifecycle 0.9.0 failed: loupe-lifecycle 1.0.0 stays out: skill package is not in the store: loupe-lifecycle needs loupe >=2.0.0",
 		"installed 1.2.0 over " + exe,
 	} {
 		if !strings.Contains(out, want) {
