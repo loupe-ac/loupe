@@ -1059,8 +1059,8 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $owner = $this->user($em, 'interactive-owner@example.com');
         $project = $this->project($em, $owner, 'Interactive');
         $this->seedRun($em, $project, cardNumber: 11);
-        $closed = $this->seedRun($em, $project, cardNumber: 22, exitCode: null, workKind: 'loupe:product-design', state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
-        $open = $this->seedRun($em, $project, cardNumber: 33, exitCode: null, workKind: 'loupe:tech-design', state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $closed = $this->seedRun($em, $project, cardNumber: 22, exitCode: null, workKind: 'loupe-lifecycle:product-design', state: WorkerRunState::Closed, kind: WorkerRunKind::Interactive);
+        $open = $this->seedRun($em, $project, cardNumber: 33, exitCode: null, workKind: 'loupe-lifecycle:tech-design', state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
 
         $projectId = (string) $project->id;
         $closedId = (string) $closed->id;
@@ -1078,7 +1078,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertSame('Interactive session', $closedRow->filter('.lp-data-table__primary .lp-tag')->text());
         self::assertStringNotContainsString('Bridge', $closedRow->filter('.lp-run-drawer__metadata')->text());
         self::assertSame(
-            ['#22 View attempt Interactive session', 'loupe:product-design', '5m 0s'],
+            ['#22 View attempt Interactive session', 'loupe-lifecycle:product-design', '5m 0s'],
             array_slice($crawler->filter('[data-worker-run-id="'.$closedId.'"] > .lp-data-table__cell')->each(static fn (Crawler $cell): string => trim($cell->text())), 0, 3),
         );
         self::assertStringNotContainsString('bridge does not report', $closedRow->filter('dialog')->text());

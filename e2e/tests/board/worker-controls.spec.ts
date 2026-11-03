@@ -190,7 +190,7 @@ test('the owner closes an interactive session from the Runs list, and the Open r
         const answer = await call('card_run_open', {
             cardId: card.cardId,
             sessionId: crypto.randomUUID(),
-            name: 'loupe:product-design',
+            name: 'loupe-lifecycle:product-design',
         });
         return (answer.run as { runId: string }).runId;
     };

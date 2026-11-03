@@ -56,7 +56,7 @@ own task. The review stage fails a part of the prototype that the build leaves
 out with no recorded reason, or with a reason that the card, its designs and the
 card that the reason names do not support.
 
-The owner can run `/loupe:product-design` by hand in Claude Code, from a card or
+The owner can run `/loupe-lifecycle:product-design` by hand in Claude Code, from a card or
 from a one-line idea. The session creates the card in Product design, or moves
 an existing card there from an earlier column, such as Backlog or Next. Then it
 writes the product document with the owner. The session takes its intake from
@@ -72,7 +72,7 @@ person requests changes on the document, the workflow asks for
 
 The `product-design` work entry opens the session for you. When a card enters
 Product design, the bridge opens a terminal window on its machine that runs
-`/loupe:product-design <number>`. The request needs the `interactive`
+`/loupe-lifecycle:product-design <number>`. The request needs the `interactive`
 capability, so only a bridge with that entry takes it. Put the entry on one
 machine only. `cli/README.md` describes the entry and the `launch` block it
 needs.
@@ -118,7 +118,7 @@ epic` when such an entry has no `Follow-up.` marker, or when a child entry waits
 for a follow-up. A card with no parent and a `follow-up-of` link is a follow-up
 for the implementation worker. It builds its own approved design, or matches a
 `Follow-up.` entry of a linked design and asks the owner when the match is unsure.
-`plugins/loupe/skills/loupe-stage-implementation/references/breakdown.md` holds
+`plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/breakdown.md` holds
 the full format.
 
 The implementation worker picks one of three modes after it finds the tech
@@ -209,7 +209,7 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
 
   product-design-revise:
     permissions: workspace
@@ -491,7 +491,7 @@ The final reply of each worker starts with `STAGE RESULT:`. The bridge does not
 read that line. It asks each worker for a structured result, with a `status` of
 `finished`, `blocked`, `unfinished` or `waiting` and a one-sentence `summary`. The worker
 sets `status` from its `STAGE RESULT:` form, as the table in
-`plugins/loupe/skills/loupe-stage-product-design/references/stage-contract.md`
+`plugins/loupe-lifecycle/skills/loupe-stage-product-design/references/stage-contract.md`
 says. The **Runs** tab of the Activity page, at `/projects/{id}/worker-runs`,
 shows the status and the summary.
 
@@ -519,7 +519,7 @@ comment in place when the block clears.
 5. Check that `rules.yaml` starts with `maxWorkers: 1`, then start the bridge
    with `loupe bridge run`.
 6. Do one acceptance run with a small card. Start it with
-   `/loupe:product-design`, then take it through an approval, Tech design, an
+   `/loupe-lifecycle:product-design`, then take it through an approval, Tech design, an
    approval and Implementation. Request changes on one design document, and
    check that a revise worker starts. Check that the implementation worker
    reports `waiting` once its pull request is open, and that the workflow moves

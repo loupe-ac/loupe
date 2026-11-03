@@ -6,7 +6,7 @@ Each phase has a stable ID, so a comment can cite it. The workflow starts this s
 
 1. T0: Start. Open an interactive run on the card.
    - Read your session id with a shell command: `echo "${LOUPE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$CODEX_THREAD_ID}}"`. It is the first set value of `$LOUPE_SESSION_ID`, `$CLAUDE_CODE_SESSION_ID` and `$CODEX_THREAD_ID`.
-   - Call `card_run_open` with the card, `sessionId` set to your session id, and `name` set to `loupe:tech-design`. Send no `status`, so the card stays in its column.
+   - Call `card_run_open` with the card, `sessionId` set to your session id, and `name` set to `loupe-lifecycle:tech-design`. Send no `status`, so the card stays in its column.
    - With no card, ask the owner for the card number. This skill needs a card, because the design is linked to it.
    - When the MCP has no `card_run_open`, skip it and every `card_run_close` call.
    - When you stop at any point after T0, call `card_run_close` before you stop.

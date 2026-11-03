@@ -33,10 +33,12 @@ import (
 const (
 	pluginMarketplace = "loupe-ac/loupe"
 	pluginSpec        = "loupe@loupe"
+	lifecyclePlugin   = "loupe-lifecycle@loupe"
 	playwrightCommand = "npx playwright install chromium"
 
 	codexSkillsRepository = "https://github.com/loupe-ac/loupe"
 	codexSkillsPath       = "plugins/loupe/skills"
+	codexLifecyclePath    = "plugins/loupe-lifecycle/skills"
 )
 
 // The programs init runs, and the checks it makes, are variables so a test
@@ -682,7 +684,8 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	out := cmd.OutOrStdout()
 	add := "claude plugin marketplace add " + pluginMarketplace
 	install := "claude plugin install " + pluginSpec
-	byHand := fmt.Sprintf("run `%s`, then `%s`", add, install)
+	installLifecycle := "claude plugin install " + lifecyclePlugin
+	byHand := fmt.Sprintf("run `%s`, then `%s` and `%s`", add, install, installLifecycle)
 
 	if _, err := initLookPath("claude"); err != nil {
 		step(out, "Plugin", "skipped", "Claude Code is not on your PATH; to install the plugin later, "+byHand)
@@ -692,8 +695,11 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
-	if listed, err := initExec(ctx, dir, nil, "claude", "plugin", "list"); err == nil && strings.Contains(string(listed), "loupe@") {
-		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugin")
+	listed, listErr := initExec(ctx, dir, nil, "claude", "plugin", "list")
+	hasCore := listErr == nil && strings.Contains(string(listed), "loupe@")
+	hasLifecycle := listErr == nil && strings.Contains(string(listed), "loupe-lifecycle@")
+	if hasCore && hasLifecycle {
+		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugins")
 
 		return
 	}
@@ -701,12 +707,19 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	// A marketplace that is added already can make this command fail while the
 	// install still works, so only the install decides.
 	_, _ = initExec(ctx, dir, nil, "claude", "plugin", "marketplace", "add", pluginMarketplace)
-	if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", pluginSpec); err != nil {
-		step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
+	var installed []string
+	for _, spec := range []string{pluginSpec, lifecyclePlugin} {
+		if (spec == pluginSpec && hasCore) || (spec == lifecyclePlugin && hasLifecycle) {
+			continue
+		}
+		if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", spec); err != nil {
+			step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
 
-		return
+			return
+		}
+		installed = append(installed, spec)
 	}
-	step(out, "Plugin", "done", "installed "+pluginSpec+". Restart Claude Code to load it")
+	step(out, "Plugin", "done", "installed "+strings.Join(installed, " and ")+". Restart Claude Code to load it")
 }
 
 // codexOnly reports whether Codex is on the PATH and Claude Code is not, which
@@ -993,7 +1006,7 @@ func initCodexApproval(out io.Writer, t codexTarget) {
 // finds them. It takes them from a sparse clone of the repository. It replaces
 // an installed skill that differs only when the user says yes.
 func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir string) {
-	byHand := "copy the folders of " + codexSkillsPath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
+	byHand := "copy the folders of " + codexSkillsPath + "/ and " + codexLifecyclePath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
 	fail := func(err error, raw []byte) {
 		step(out, "Codex skills", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
 	}
@@ -1023,7 +1036,7 @@ func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir strin
 
 		return
 	}
-	if raw, err := initExec(ctx, dir, nil, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath); err != nil {
+	if raw, err := initExec(ctx, dir, nil, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath, codexLifecyclePath); err != nil {
 		fail(err, raw)
 
 		return
@@ -1031,7 +1044,16 @@ func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir strin
 	replace := func(changed []string) bool {
 		return confirm(out, in, fmt.Sprintf("%d installed Loupe skills differ from the current version (%s). Replace them?", len(changed), strings.Join(changed, ", ")))
 	}
-	copied, kept, err := copySkills(filepath.Join(clone, filepath.FromSlash(codexSkillsPath)), filepath.Join(home, ".agents", "skills"), replace)
+	var copied, kept int
+	for _, path := range []string{codexSkillsPath, codexLifecyclePath} {
+		c, k, copyErr := copySkills(filepath.Join(clone, filepath.FromSlash(path)), filepath.Join(home, ".agents", "skills"), replace)
+		copied, kept = copied+c, kept+k
+		if copyErr != nil {
+			err = copyErr
+
+			break
+		}
+	}
 	switch {
 	case err != nil:
 		fail(err, nil)

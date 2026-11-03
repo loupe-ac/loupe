@@ -32,7 +32,7 @@ final class CardRunToolsTest extends KernelTestCase
     use BoardToolScenario;
     use McpTokenScenario;
 
-    private const string SKILL = 'loupe:product-design';
+    private const string SKILL = 'loupe-lifecycle:product-design';
 
     private EntityManagerInterface $em;
     private CardRunOpenTool $open;
@@ -182,7 +182,7 @@ final class CardRunToolsTest extends KernelTestCase
     /** @return iterable<string, array{string, string}> */
     public static function badNames(): iterable
     {
-        yield 'blank' => ['   ', 'name: Pass the name of the skill that runs the session, such as loupe:product-design.'];
+        yield 'blank' => ['   ', 'name: Pass the name of the skill that runs the session, such as loupe-lifecycle:product-design.'];
         yield 'too long' => [str_repeat('a', WorkerRun::MAX_WORK_KIND_LENGTH + 1), \sprintf('name: A run name must be at most %d characters.', WorkerRun::MAX_WORK_KIND_LENGTH)];
     }
 

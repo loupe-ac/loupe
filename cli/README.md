@@ -662,10 +662,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 ```
 
 The bridge prints this example when it finds no file, or an empty one.
@@ -814,7 +814,7 @@ or after it is ignored, and a second one with content stops the bridge.
 An entry with `action: interactive` opens an interactive Claude Code session in
 a terminal window on this machine, when the workflow asks for that kind of
 work. Use it for Product design, so that you do not type
-`/loupe:product-design <n>` by hand:
+`/loupe-lifecycle:product-design <n>` by hand:
 
 ```yaml
 launch:
@@ -823,10 +823,10 @@ launch:
 work:
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   tech-design-session:
     action: interactive
-    prompt: /loupe:tech-design {cardNumber}
+    prompt: /loupe-lifecycle:tech-design {cardNumber}
 ```
 
 The top-level `launch` block names the terminal command. `command` is an argv
@@ -872,7 +872,7 @@ work request of kind `session`. The `session` entry must have
 work:
   session:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
 ```
 
 The bridge reports the capability `session` for this entry, and the app offers
@@ -936,7 +936,7 @@ work:
       run: ["bin/worktree-up.sh", "{cardNumber}"]
   product-design:
     action: interactive
-    prompt: /loupe:product-design {cardNumber}
+    prompt: /loupe-lifecycle:product-design {cardNumber}
   teardown:
     action: command
     run: ["bin/teardown.sh", "{cardNumber}"]
