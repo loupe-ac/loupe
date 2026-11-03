@@ -619,6 +619,7 @@ cli-build goos="darwin" goarch="arm64":
     set -euo pipefail
     # The container mounts cli/ alone, so it has no .git and no git binary. The
     # host reads both values here. Outside a repository the commit is unknown.
+    sh cli/scripts/bundle-skills.sh
     commit="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
     dirty=""
     [ -z "$(git status --porcelain 2>/dev/null)" ] || dirty=true
