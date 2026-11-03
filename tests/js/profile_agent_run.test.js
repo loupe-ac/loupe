@@ -51,6 +51,10 @@ describe.each(['claude', 'codex'])('the profile evaluation of %s', (agent) => {
         mkdirSync(join(dir, 'bin'));
         writeFileSync(join(dir, 'bin', agent), fakeAgent);
         chmodSync(join(dir, 'bin', agent), 0o755);
+        writeFileSync(
+            join(dir, 'gitconfig'),
+            '[user]\n\tuseConfigOnly = true\n',
+        );
     });
 
     afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -61,6 +65,15 @@ describe.each(['claude', 'codex'])('the profile evaluation of %s', (agent) => {
             env: {
                 ...process.env,
                 FAKE_PUSH: push,
+                // A machine with no git identity, as CI is: only the fixture can give one.
+                EMAIL: undefined,
+                GIT_AUTHOR_EMAIL: undefined,
+                GIT_AUTHOR_NAME: undefined,
+                GIT_COMMITTER_EMAIL: undefined,
+                GIT_COMMITTER_NAME: undefined,
+                GIT_CONFIG_SYSTEM: join(dir, 'gitconfig'),
+                HOME: dir,
+                XDG_CONFIG_HOME: dir,
                 PATH: `${join(dir, 'bin')}${delimiter}${process.env.PATH}`,
                 TMPDIR: dir,
             },

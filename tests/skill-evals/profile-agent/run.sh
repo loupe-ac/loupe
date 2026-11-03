@@ -23,7 +23,9 @@ mock=$case_dir/mocks/loupe/workflow_get.md
 run=$(mktemp -d "${TMPDIR:-/tmp}/profile-agent-$agent-XXXXXX")
 mkdir "$run/repo"
 
-(cd "$run/repo" && source "$root/tests/skill-evals/evals/foreign-lib/repo.sh" && NO_PROFILE=1 make_repo && write_project_file)
+# In this shell, so that the git identity and config of the fixture reach the agent too.
+source "$root/tests/skill-evals/evals/foreign-lib/repo.sh"
+(cd "$run/repo" && NO_PROFILE=1 make_repo && write_project_file)
 
 # The prompt of the case, after its front matter.
 prompt=$(awk 'seen >= 2; /^---$/ { seen++ }' "$case_dir/prompt.md")
