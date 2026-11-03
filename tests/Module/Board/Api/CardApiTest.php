@@ -16,6 +16,7 @@ use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
@@ -27,6 +28,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Yaml\Yaml;
 
 /** The card routes of the public API under /api/v1/projects/{project}/cards. */
 final class CardApiTest extends WebTestCase
@@ -625,6 +627,19 @@ final class CardApiTest extends WebTestCase
         $this->send(Request::METHOD_GET, $this->base().'?stateCode=');
         self::assertResponseStatusCodeSame(422);
         self::assertSame('stateCode_invalid', $this->json()['errors'][0]['code']);
+    }
+
+    public function test_the_public_spec_lists_the_kinds_of_a_state_as_the_values_of_the_state_filter(): void
+    {
+        $kinds = array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::states());
+        $root = \dirname(__DIR__, 4).'/openapi/';
+
+        $spec = json_decode((string) file_get_contents($root.'public.json'), true, flags: \JSON_THROW_ON_ERROR);
+        $parameters = array_column($spec['paths']['/api/v1/projects/{project}/cards']['get']['parameters'], null, 'name');
+        self::assertSame($kinds, $parameters['state']['schema']['enum']);
+
+        $contract = Yaml::parseFile($root.'contract/public.yaml');
+        self::assertSame($kinds, $contract['components']['parameters']['CardState']['schema']['enum']);
     }
 
     public function test_the_children_of_a_card_are_filtered_by_its_id_or_its_number(): void
