@@ -256,3 +256,24 @@ func TestCutKeepsAPIKeyOrder(t *testing.T) {
 		})
 	}
 }
+
+func TestIsEmptyList(t *testing.T) {
+	for body, want := range map[string]bool{
+		`{"items":[],"next":null}`: true,
+		`{"items":[{"id":1}]}`:     false,
+		`{"id":1}`:                 false,
+		`{"items":null}`:           false,
+		`not json`:                 false,
+	} {
+		if got := IsEmptyList([]byte(body)); got != want {
+			t.Errorf("IsEmptyList(%s) = %v, want %v", body, got, want)
+		}
+	}
+}
+
+func TestTableLinesCleansHeaderAndCells(t *testing.T) {
+	got := TableLines([]string{"A\x1b"}, [][]string{{"b\x1b[31m"}}, 0)
+	if strings.Contains(strings.Join(got, ""), "\x1b") {
+		t.Fatalf("control character kept: %q", got)
+	}
+}

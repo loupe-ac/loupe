@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/loupe-ac/loupe/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -31,28 +30,37 @@ func renderProjectList(cmd *cobra.Command, format output.Format, body []byte, fi
 
 	out := cmd.OutOrStdout()
 	if len(list.Items) == 0 {
-		fmt.Fprintln(out, "This credential reaches no project. Create one with `loupe init --name \"<name>\"`, or in the app.")
+		if isTerminalWriter(out) {
+			fmt.Fprintln(cmd.ErrOrStderr(), "This credential reaches no project. Create one with `loupe init --name \"<name>\"`, or in the app.")
+		}
+		noteNextPage(cmd.ErrOrStderr(), body)
 
 		return true, nil
 	}
 
 	current, source := listedProject(cmd.ErrOrStderr())
 	marked := false
-	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "  ID\tSLUG\tNAME")
-	for _, p := range list.Items {
-		mark := " "
+	marks := make([]string, len(list.Items))
+	rows := make([][]string, len(list.Items))
+	for i, p := range list.Items {
+		marks[i] = " "
 		if current != "" && strings.EqualFold(p.ID, current) {
-			mark, marked = "*", true
+			marks[i], marked = "*", true
 		}
 		slug := p.Slug
 		if slug == "" {
 			slug = "-"
 		}
-		fmt.Fprintf(w, "%s %s\t%s\t%s\n", mark, p.ID, slug, p.Name)
+		rows[i] = []string{p.ID, slug, p.Name}
 	}
-	if err := w.Flush(); err != nil {
-		return true, err
+	width := terminalWidth(out)
+	if width > 0 {
+		width = max(width-len("* "), 1)
+	}
+	lines := output.TableLines([]string{"ID", "SLUG", "NAME"}, rows, width)
+	fmt.Fprintln(out, "  "+lines[0])
+	for i, line := range lines[1:] {
+		fmt.Fprintln(out, marks[i]+" "+line)
 	}
 	switch {
 	case marked:

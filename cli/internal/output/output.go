@@ -135,6 +135,20 @@ func listItems(obj toon.Object) ([]any, bool) {
 	return items, ok
 }
 
+// IsEmptyList reports whether the answer is a list with no rows.
+func IsEmptyList(body []byte) bool {
+	v, err := decode(body)
+	if err != nil {
+		return false
+	}
+	obj, ok := asObject(v)
+	if !ok {
+		return false
+	}
+	items, ok := listItems(obj)
+	return ok && len(items) == 0
+}
+
 func writeJSON(w io.Writer, body []byte, o Options) error {
 	names := o.names()
 	if len(names) == 0 {
@@ -399,11 +413,7 @@ func tableList(out *bytes.Buffer, items []any, cols []string, o Options) {
 	if len(items) == 0 {
 		return
 	}
-	header := make([]string, len(cols))
-	for i, c := range cols {
-		header[i] = clean(strings.ToUpper(c), false)
-	}
-	rows := [][]string{header}
+	rows := make([][]string, 0, len(items))
 	for _, row := range items {
 		obj, _ := asObject(row)
 		cells := make([]string, len(cols))
@@ -413,25 +423,44 @@ func tableList(out *bytes.Buffer, items []any, cols []string, o Options) {
 		}
 		rows = append(rows, cells)
 	}
-	widths := make([]int, len(cols))
-	for _, r := range rows {
-		for i, c := range r {
-			widths[i] = max(widths[i], cells(c))
+	header := make([]string, len(cols))
+	for i, c := range cols {
+		header[i] = strings.ToUpper(c)
+	}
+	for _, line := range TableLines(header, rows, o.Width) {
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+}
+
+// TableLines lays out a header and its rows, with each control character
+// replaced and each line cut to width. Zero means no cut. The first line is
+// the header.
+func TableLines(header []string, rows [][]string, width int) []string {
+	all := append([][]string{header}, rows...)
+	widths := make([]int, len(header))
+	lines := make([]string, len(all))
+	cleaned := make([][]string, len(all))
+	for r, row := range all {
+		cleaned[r] = make([]string, len(row))
+		for i, c := range row {
+			cleaned[r][i] = clean(c, false)
+			widths[i] = max(widths[i], cells(cleaned[r][i]))
 		}
 	}
-	fit(widths, o.Width)
-	for _, r := range rows {
+	fit(widths, width)
+	for r, row := range cleaned {
 		var line strings.Builder
-		for i, c := range r {
+		for i, c := range row {
 			c = truncate(c, widths[i])
-			if i < len(r)-1 {
+			if i < len(row)-1 {
 				c = pad(c, widths[i]) + strings.Repeat(" ", columnGap)
 			}
 			line.WriteString(c)
 		}
-		out.WriteString(truncate(strings.TrimRight(line.String(), " "), o.Width))
-		out.WriteByte('\n')
+		lines[r] = truncate(strings.TrimRight(line.String(), " "), width)
 	}
+	return lines
 }
 
 // fit narrows the widest column until the row fits the width. A width with no

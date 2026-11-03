@@ -217,13 +217,15 @@ func cursorValue(v string) (string, error) {
 	return cursor, nil
 }
 
-func isTerminalWriter(w io.Writer) bool {
+// isTerminalWriter and terminalWidth are variables, so a test can stand in for
+// a terminal.
+var isTerminalWriter = func(w io.Writer) bool {
 	f, ok := w.(*os.File)
 
 	return ok && term.IsTerminal(int(f.Fd()))
 }
 
-func terminalWidth(w io.Writer) int {
+var terminalWidth = func(w io.Writer) int {
 	f, ok := w.(*os.File)
 	if !ok {
 		return 0
@@ -334,12 +336,17 @@ func runPublic(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 	if err := output.Write(out, format, resp.Body, opts); err != nil {
 		return &exitError{1, err}
 	}
+	if format == output.Table && isTerminalWriter(out) && output.IsEmptyList(resp.Body) {
+		fmt.Fprintln(cmd.ErrOrStderr(), emptyListNote)
+	}
 	if format == output.Table || format == output.TSV {
 		noteNextPage(cmd.ErrOrStderr(), resp.Body)
 	}
 
 	return nil
 }
+
+const emptyListNote = "This list has no items."
 
 // noteNextPage tells on stderr how to ask for the next page of a list.
 func noteNextPage(w io.Writer, body []byte) {

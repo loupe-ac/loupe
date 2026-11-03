@@ -3,10 +3,12 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 )
@@ -112,17 +114,96 @@ func TestProjectListStillListsWhenTheProjectFileIsBroken(t *testing.T) {
 	}
 }
 
-func TestProjectListWithNoProjectSaysHowToCreateOne(t *testing.T) {
+// onTerminal makes the commands of the test see a terminal of the given width
+// on stdout.
+func onTerminal(t *testing.T, width int) {
+	t.Helper()
+	isTerminal, widthOf := isTerminalWriter, terminalWidth
+	isTerminalWriter = func(io.Writer) bool { return true }
+	terminalWidth = func(io.Writer) int { return width }
+	t.Cleanup(func() { isTerminalWriter, terminalWidth = isTerminal, widthOf })
+}
+
+func TestProjectListWithNoProjectNotesOnStderrOfATerminal(t *testing.T) {
 	server := publicProjectsServer(t, "")
 	inRepo(t, server.URL)
+	onTerminal(t, 80)
+
+	out, errOut, err := runList(t)
+	if err != nil {
+		t.Fatalf("project list: %v", err)
+	}
+	if out != "" {
+		t.Fatalf("stdout must stay empty, got %q", out)
+	}
+	want := "This credential reaches no project. Create one with `loupe init --name \"<name>\"`, or in the app.\n"
+	if errOut != want {
+		t.Fatalf("stderr: got %q, want %q", errOut, want)
+	}
+}
+
+func TestProjectListWithNoProjectPrintsNothingInAPipe(t *testing.T) {
+	server := publicProjectsServer(t, "")
+	inRepo(t, server.URL)
+
+	out, errOut, err := runList(t)
+	if err != nil {
+		t.Fatalf("project list: %v", err)
+	}
+	if out != "" || errOut != "" {
+		t.Fatalf("a pipe must get nothing, got stdout %q and stderr %q", out, errOut)
+	}
+}
+
+func TestProjectListCleansAndCutsValuesAndKeepsTheStar(t *testing.T) {
+	long := strings.Repeat("long name ", 20)
+	server := publicProjectsServer(t, `{"id":"`+firstProject+`","slug":"ev\u001b[2Jil","name":"Ev\u001b[31mil"},`+
+		`{"id":"`+secondProject+`","slug":"beta","name":"`+long+`"}`)
+	dir := inRepo(t, server.URL)
+	if err := projectfile.Write(dir, secondProject); err != nil {
+		t.Fatal(err)
+	}
+	const width = 60
+	onTerminal(t, width)
 
 	out, _, err := runList(t)
 	if err != nil {
 		t.Fatalf("project list: %v", err)
 	}
-	want := "This credential reaches no project. Create one with `loupe init --name \"<name>\"`, or in the app.\n"
-	if out != want {
-		t.Fatalf("output: got %q, want %q", out, want)
+	if strings.Contains(out, "\x1b") {
+		t.Fatalf("a stored escape sequence must not reach the terminal:\n%q", out)
+	}
+	table, _, _ := strings.Cut(out, "\n\n")
+	lines := strings.Split(table, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("want a header and two rows:\n%s", out)
+	}
+	for _, line := range lines {
+		if n := utf8.RuneCountInString(line); n > width {
+			t.Fatalf("line of %d cells passes the width %d: %q", n, width, line)
+		}
+	}
+	if !strings.HasPrefix(lines[0], "  ") || !strings.HasPrefix(lines[1], "  ") || !strings.HasPrefix(lines[2], "* ") {
+		t.Fatalf("the star must mark the second project only:\n%s", out)
+	}
+	if !strings.HasSuffix(lines[2], "…") {
+		t.Fatalf("the long name must be cut:\n%s", out)
+	}
+}
+
+func TestProjectListOnANarrowTerminalCutsEachRow(t *testing.T) {
+	server := publicProjectsServer(t, twoSites())
+	inRepo(t, server.URL)
+	onTerminal(t, 2)
+
+	out, _, err := runList(t)
+	if err != nil {
+		t.Fatalf("project list: %v", err)
+	}
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+		if n := utf8.RuneCountInString(line); n > 3 {
+			t.Fatalf("a narrow terminal must still cut each row, got %q", line)
+		}
 	}
 }
 

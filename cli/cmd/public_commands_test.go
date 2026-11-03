@@ -210,3 +210,51 @@ func TestAProjectIsFoundOnlyForACommandThatNeedsOne(t *testing.T) {
 		t.Fatalf("card list must look up the single project first: %+v", *seen)
 	}
 }
+
+func TestEmptyListNotesOnStderrOfATerminalOnly(t *testing.T) {
+	const empty = `{"items":[],"next":null}`
+	base := []string{"card", "list", "--project", "my-project"}
+
+	t.Run("table on a terminal", func(t *testing.T) {
+		srv, _ := publicServer(t, empty)
+		onTerminal(t, 80)
+		out, errOut, err := runPublicCmd(t, srv, base...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != "" || errOut != emptyListNote+"\n" {
+			t.Fatalf("stdout %q, stderr %q", out, errOut)
+		}
+	})
+	t.Run("table in a pipe", func(t *testing.T) {
+		srv, _ := publicServer(t, empty)
+		out, errOut, err := runPublicCmd(t, srv, append(base, "--format", "table")...)
+		if err != nil || out != "" || errOut != "" {
+			t.Fatalf("stdout %q, stderr %q, err %v", out, errOut, err)
+		}
+	})
+	t.Run("tsv on a terminal", func(t *testing.T) {
+		srv, _ := publicServer(t, empty)
+		onTerminal(t, 80)
+		out, errOut, err := runPublicCmd(t, srv, append(base, "--format", "tsv")...)
+		if err != nil || out != "" || errOut != "" {
+			t.Fatalf("stdout %q, stderr %q, err %v", out, errOut, err)
+		}
+	})
+	t.Run("json on a terminal", func(t *testing.T) {
+		srv, _ := publicServer(t, empty)
+		onTerminal(t, 80)
+		out, errOut, err := runPublicCmd(t, srv, append(base, "--format", "json")...)
+		if err != nil || !strings.Contains(out, `"items":[]`) || errOut != "" {
+			t.Fatalf("stdout %q, stderr %q, err %v", out, errOut, err)
+		}
+	})
+	t.Run("a list with rows", func(t *testing.T) {
+		srv, _ := publicServer(t, `{"items":[{"number":1}],"next":null}`)
+		onTerminal(t, 80)
+		_, errOut, err := runPublicCmd(t, srv, base...)
+		if err != nil || errOut != "" {
+			t.Fatalf("stderr %q, err %v", errOut, err)
+		}
+	})
+}
