@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Module\OAuth\Service\ApiKeyEmailSender;
+use App\Tests\Support\BillingScenario;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -49,6 +50,25 @@ final class ApiKeysPageTest extends WebTestCase
         self::assertSelectorTextContains('.lp-empty-state', 'Create a key to call the Loupe API from a script or a CI job.');
         self::assertSelectorTextContains('.lp-settings-nav', 'API keys');
         self::assertSelectorNotExists('[data-api-key]');
+    }
+
+    public function test_the_page_leaves_out_the_billing_summary_that_another_settings_page_shows(): void
+    {
+        $billing = new BillingScenario(static::getContainer());
+        $billing->enableBilling();
+        $user = $billing->verifiedUser('api-keys-billing');
+        $billing->profile($user, new \DateTimeImmutable('+3 days'));
+
+        $this->client->loginUser($user);
+        $this->client->request(Request::METHOD_GET, '/account/data');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-testid="billing-section"]');
+
+        $this->client->request(Request::METHOD_GET, self::PAGE);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.lp-empty-state', 'No API keys yet');
+        self::assertSelectorNotExists('[data-testid="billing-section"]');
+        self::assertSelectorTextContains('.lp-settings-nav', 'Billing');
     }
 
     public function test_a_row_shows_the_name_the_start_the_expiry_and_the_last_use(): void

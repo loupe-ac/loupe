@@ -14,7 +14,7 @@
 
 {% block body %}
 {% set section = block('settings_section') %}
-{% set settingsContent %}{% if 'billing' != section %}<twig:BillingSummary />{% endif %}{% block settings_content %}{% endblock %}{% endset %}
+{% set settingsContent %}{% if section not in ['billing', 'api-keys'] %}<twig:BillingSummary />{% endif %}{% block settings_content %}{% endblock %}{% endset %}
 {% set items = [
     {label: 'account.settings.nav.profile'|trans, url: path('app_account_profile'), icon: 'lucide:users', active: 'profile' == section},
     {label: 'account.settings.nav.notifications'|trans, url: path('app_account_notifications'), icon: 'lucide:bell', active: 'notifications' == section},
