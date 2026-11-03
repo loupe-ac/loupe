@@ -312,8 +312,8 @@ loupe init --reset               # write the first-run rules again
    or `--name`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
    The step also writes `.loupe/lifecycle.md`.
-4. Install the Loupe plugin in Claude Code, when `claude` is on your `PATH` and
-   `claude plugin list` shows no Loupe plugin. A failed command is printed for
+4. Install the `loupe` and `loupe-lifecycle` plugins in Claude Code, when `claude`
+   is on your `PATH` and `claude plugin list` does not show them. A failed command is printed for
    you to run, and never fails the step. When only `codex` is on your `PATH`,
    the step declares `loupe mcp` to Codex instead, sets
    `default_tools_approval_mode = "approve"` for each Codex account of the rule

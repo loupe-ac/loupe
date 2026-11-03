@@ -2776,7 +2776,7 @@
             </trans-unit>
             <trans-unit id="project.connect.skills.manual">
                 <source>project.connect.skills.manual</source>
-                <target>The Loupe plugin installs both. Run claude plugin marketplace add loupe-ac/loupe, then claude plugin install loupe@loupe. You can also copy plugins/loupe/skills/ from the Loupe repository into your project's .claude/skills/.</target>
+                <target>The loupe plugin installs both. Run claude plugin marketplace add loupe-ac/loupe, then claude plugin install loupe@loupe. A project on the Lifecycle workflow also needs claude plugin install loupe-lifecycle@loupe. You can also copy plugins/loupe/skills/ from the Loupe repository into your project's .claude/skills/, and plugins/loupe-lifecycle/skills/ for the Lifecycle workflow.</target>
             </trans-unit>
             <trans-unit id="project.connect.setup_prompt.heading">
                 <source>project.connect.setup_prompt.heading</source>

@@ -172,9 +172,7 @@ cpSync(join(repoRoot, 'plugins/loupe'), pluginCopy, {
     recursive: true,
     filter: (p) => !p.includes('/hooks'),
 });
-cpSync(join(repoRoot, 'plugins/loupe-lifecycle/skills'), join(pluginCopy, 'skills'), {
-    recursive: true,
-});
+const lifecyclePlugin = join(repoRoot, 'plugins/loupe-lifecycle');
 
 const work = join(out, 'repo');
 rmSync(work, { recursive: true, force: true });
@@ -261,6 +259,8 @@ for (let turn = 0; turn < maxTurns; turn++) {
         maxCost,
         '--plugin-dir',
         pluginCopy,
+        '--plugin-dir',
+        lifecyclePlugin,
         '--plugin-dir',
         skillPlugin,
         '--mcp-config',

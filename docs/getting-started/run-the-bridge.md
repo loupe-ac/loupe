@@ -24,7 +24,7 @@ loupe init
 2. It chooses the project, or creates one from the `origin` remote.
 3. It runs `loupe project link`, which writes `.loupe.yaml` and the starter
    `.loupe/lifecycle.md`, and connects the MCP server.
-4. It installs the Loupe plugin in Claude Code.
+4. It installs the two Loupe plugins in Claude Code.
 5. It writes the rule file.
 6. It asks whether to turn on automatic updates.
 7. It starts the bridge in the background.

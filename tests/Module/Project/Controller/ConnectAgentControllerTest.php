@@ -156,6 +156,35 @@ final class ConnectAgentControllerTest extends WebTestCase
         self::assertNotEmpty($crawler->filter('.lp-tools__name'));
     }
 
+    public function test_the_manual_skill_setup_names_every_plugin_of_the_marketplace(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'connect-plugins@example.com');
+        $project = new Project($owner, 'connect-site-plugins');
+        $em->persist($project);
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/connect');
+
+        self::assertResponseIsSuccessful();
+        $panel = $crawler->filter('.lp-skills-panel')->text();
+
+        $marketplace = json_decode((string) file_get_contents(\dirname(__DIR__, 4).'/.claude-plugin/marketplace.json'), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($marketplace);
+        self::assertIsArray($marketplace['plugins']);
+        self::assertNotEmpty($marketplace['plugins']);
+        foreach ($marketplace['plugins'] as $plugin) {
+            self::assertIsArray($plugin);
+            self::assertIsString($plugin['name']);
+            self::assertStringContainsString('claude plugin install '.$plugin['name'].'@loupe', $panel);
+            self::assertStringContainsString('plugins/'.$plugin['name'].'/skills/', $panel);
+        }
+    }
+
     public function test_the_agent_step_offers_a_setup_prompt_that_names_the_project(): void
     {
         $client = static::createClient();

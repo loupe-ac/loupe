@@ -678,7 +678,7 @@ func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
 	return nil
 }
 
-// initPlugin installs the Loupe plugin in Claude Code. It never fails: what it
+// initPlugin installs the Loupe plugins in Claude Code. It never fails: what it
 // cannot do, it prints for you to run.
 func initPlugin(cmd *cobra.Command, dir string) {
 	out := cmd.OutOrStdout()

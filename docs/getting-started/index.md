@@ -39,7 +39,7 @@ that is one project, and asks which one. The last row of the list creates a new
 project. Pass `--name "<name>"` to create a project without the list. When your
 login covers none, it creates one from the `origin` remote.
 It runs `loupe project link` for that project, then installs the Claude Code
-plugin, writes the rule file, and starts the bridge in the background.
+plugins, writes the rule file, and starts the bridge in the background.
 [Run the bridge](run-the-bridge.md) describes these steps. A second run changes
 nothing that is done already.
 
@@ -80,10 +80,10 @@ The file holds no credential. Claude Code asks you to approve the server the
 first time. [Connecting through the CLI](../using/mcp.md#connecting-through-the-cli)
 has the details.
 
-The plugin that `loupe init` installs adds skills that tell the agent how to
-write a document, work a board and act on feedback. It holds no credential.
-[The Claude Code plugin](../using/mcp.md#the-claude-code-plugin) lists the
-skills, and shows how to install it by hand.
+The plugins that `loupe init` installs add skills that tell the agent how to
+write a document, work a board and act on feedback. They hold no credential.
+[The Claude Code plugins](../using/mcp.md#the-claude-code-plugins) lists the
+skills, and shows how to install them by hand.
 
 ## 3. Open the readiness guide
 
