@@ -579,8 +579,11 @@ config folder. The bridge passes the skill packages of the project with
 `--plugin-dir`, and the `loupe` server with `--mcp-config`, when it starts the
 worker. The server that the bridge passes wins over an entry of the same name in
 the config folder or the repository. A resumed worker keeps the package
-versions it started with, while the store still holds them. The bridge deletes
-a version 30 days after a newer one replaced it, unless a live run holds it.
+versions it started with, while the store still holds them. The bridge picks
+the highest version of each package that meets `minCli` and whose `requires` the
+store can meet, and a lower version when a higher one does not fit. The bridge
+deletes a version 30 days after a newer one replaced it, unless a live run holds
+it or a new worker of a project would still get it.
 
 ### A worker account with its own plugins
 

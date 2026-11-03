@@ -363,9 +363,8 @@ func TestAdoptFindsTheResultLinePastOneMiB(t *testing.T) {
 	}
 }
 
-// A worker with packages gets the flags before the prompt, and its run folder
-// names the versions it started with.
-func TestRunWorkerPassesAndRecordsItsPackages(t *testing.T) {
+// A worker with packages gets the flags before the prompt.
+func TestRunWorkerPassesItsPackages(t *testing.T) {
 	fakeClaude(t, "echo \"$*\" > \"$PWD/args\"\necho '{\"type\":\"result\",\"structured_output\":{\"status\":\"finished\",\"summary\":\"x\"}}'\n")
 	shortConfigHome(t)
 	work := t.TempDir()
@@ -381,8 +380,5 @@ func TestRunWorkerPassesAndRecordsItsPackages(t *testing.T) {
 	}
 	if !strings.Contains(string(args), "--plugin-dir /store/loupe/1.0.0 --mcp-config {\"mcpServers\":{}} -p") {
 		t.Fatalf("args = %s", args)
-	}
-	if got := skills.ReadRecord(res.dir); got["loupe"] != "1.0.0" {
-		t.Fatalf("record = %v", got)
 	}
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
-	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
 )
@@ -393,25 +392,17 @@ func TestACodexWorkerAndAnEmptyStoreGetNoPackages(t *testing.T) {
 	}
 }
 
-func TestAResumeKeepsTheVersionsItsRunStartedWith(t *testing.T) {
+func TestAResumeKeepsTheVersionsItsSessionStartedWith(t *testing.T) {
 	r, dir := packageStore(t)
-	t.Setenv("LOUPE_CONFIG", t.TempDir())
-	runs, err := config.RunsDir()
-	if err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(filepath.Join(dir, "skills", "loupe", "0.9.0"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(runs, "run-1"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := skills.WriteRecord(filepath.Join(runs, "run-1"), []skills.Pick{{Package: "loupe", Version: "0.9.0"}}); err != nil {
+	if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "0.9.0"}}); err != nil {
 		t.Fatal(err)
 	}
 
 	spec := workerSpec{resume: true, sessionID: "s"}
-	if err := r.givePackages(&spec, pending{project: "x", continues: "run-1"}); err != nil {
+	if err := r.givePackages(&spec, pending{project: "x"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(spec.packages) != 1 || spec.packages[0].Version != "0.9.0" {
@@ -425,7 +416,7 @@ func TestAResumeKeepsTheVersionsItsRunStartedWith(t *testing.T) {
 	var buf bytes.Buffer
 	r.log = debugLogger(&buf)
 	spec = workerSpec{resume: true, sessionID: "s"}
-	if err := r.givePackages(&spec, pending{project: "x", continues: "run-1"}); err != nil {
+	if err := r.givePackages(&spec, pending{project: "x"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(spec.packages) != 2 || !strings.Contains(buf.String(), "skill_packages_current_on_resume") {
@@ -433,25 +424,146 @@ func TestAResumeKeepsTheVersionsItsRunStartedWith(t *testing.T) {
 	}
 }
 
-func TestThePruneKeepsTheVersionsOfALiveRun(t *testing.T) {
-	r, dir := packageStore(t)
-	old := filepath.Join(dir, "skills", "loupe", "0.5.0")
-	if err := os.MkdirAll(old, 0o755); err != nil {
+// replaceLoupe puts a newer loupe in the store, which replaced the older
+// versions long ago.
+func replaceLoupe(t *testing.T, dir, version, meta string) {
+	t.Helper()
+	newer := filepath.Join(dir, "skills", "loupe", version)
+	if err := os.MkdirAll(newer, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newer, "loupe-package.json"), []byte(meta), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	long := time.Now().Add(-90 * 24 * time.Hour)
-	if err := os.Chtimes(filepath.Join(dir, "skills", "loupe", "1.0.0"), long, long); err != nil {
+	if err := os.Chtimes(newer, long, long); err != nil {
 		t.Fatal(err)
 	}
-	r.live = map[string]liveRun{"a": {p: pending{spec: workerSpec{packages: []skills.Pick{{Package: "loupe", Version: "0.5.0"}}}}}}
+}
+
+// A worker that a former image started has only its record, because the
+// handover carries no packages.
+func TestThePruneKeepsTheVersionsThatTheRecordOfALiveRunNames(t *testing.T) {
+	r, dir := packageStore(t)
+	old := filepath.Join(dir, "skills", "loupe", "1.0.0")
+	replaceLoupe(t, dir, "2.0.0", "{}")
+	if err := skills.WriteRecord(dir, "s", []skills.Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.live = map[string]liveRun{"a": {p: pending{spec: workerSpec{sessionID: "s"}}}}
 
 	r.pruneSkills(time.Now())
-	if _, err := os.Stat(old); err != nil {
-		t.Fatalf("a live run's version was deleted: %v", err)
+	if !exists(old) {
+		t.Fatal("a live run's version was deleted")
 	}
 	r.live = nil
 	r.pruneSkills(time.Now())
-	if _, err := os.Stat(old); err == nil {
+	if exists(old) {
 		t.Fatal("the version stayed after its run ended")
+	}
+}
+
+func TestThePruneKeepsTheVersionsOfARunThatStartedThroughTheRouter(t *testing.T) {
+	h := newHarness(t)
+	store := t.TempDir()
+	old := filepath.Join(store, "skills", "loupe", "1.0.0")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h.router.skills.dir = store
+	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	started, release := make(chan workerSpec), make(chan struct{})
+	h.router.worker.run = func(_ context.Context, spec workerSpec, onStart func(workerProc)) workerResult {
+		onStart(workerProc{})
+		started <- spec
+		<-release
+
+		return workerResult{hasResult: true}
+	}
+
+	h.router.onData([]byte(cardMoved(87)))
+	spec := <-started
+	if len(spec.packages) != 1 || spec.packages[0].Version != "1.0.0" {
+		t.Fatalf("packages = %+v", spec.packages)
+	}
+	replaceLoupe(t, store, "2.0.0", "{}")
+	// The hold alone must keep the version, as when a record fails to write.
+	if err := os.RemoveAll(filepath.Join(store, "skills", ".records")); err != nil {
+		t.Fatal(err)
+	}
+	h.router.pruneSkills(time.Now())
+	if !exists(old) {
+		t.Fatal("the version of a running worker was deleted")
+	}
+	close(release)
+	eventually(t, "the end of the hold", func() bool {
+		h.router.skills.mu.Lock()
+		defer h.router.skills.mu.Unlock()
+
+		return len(h.router.skills.holds) == 0
+	})
+	eventually(t, "the end of the run", func() bool {
+		h.router.pruneSkills(time.Now())
+
+		return !exists(old)
+	})
+}
+
+// The bridge removes the run folder when a run ends, and a resume reads the
+// record after that.
+func TestARecordOutlivesItsRun(t *testing.T) {
+	h := newHarness(t)
+	store := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(store, "skills", "loupe", "1.0.0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h.router.skills.dir = store
+	h.router.skills.exe = func() (string, error) { return "/bin/loupe", nil }
+	runDir := t.TempDir()
+	sessions := make(chan string, 1)
+	h.router.worker.run = func(_ context.Context, spec workerSpec, onStart func(workerProc)) workerResult {
+		onStart(workerProc{dir: runDir})
+		sessions <- spec.sessionID
+
+		return workerResult{hasResult: true, dir: runDir}
+	}
+
+	h.router.onData([]byte(cardMoved(87)))
+	session := <-sessions
+	eventually(t, "the removal of the run folder", func() bool { return !exists(runDir) })
+	if got := skills.ReadRecord(store, session); got["loupe"] != "1.0.0" {
+		t.Fatalf("record = %v, want loupe 1.0.0", got)
+	}
+}
+
+// A version stays current while a higher one cannot run, so its age says
+// nothing about whether anything needs it.
+func TestThePruneKeepsTheVersionANewWorkerWouldGet(t *testing.T) {
+	r, dir := packageStore(t)
+	r.skills.cliVersion = "1.0.0"
+	replaceLoupe(t, dir, "2.0.0", `{"minCli":"9.0.0"}`)
+
+	r.pruneSkills(time.Now())
+	if !exists(filepath.Join(dir, "skills", "loupe", "1.0.0")) {
+		t.Fatal("the only version this CLI can run was deleted")
+	}
+
+	r.skills.cliVersion = "9.0.0"
+	r.pruneSkills(time.Now())
+	if exists(filepath.Join(dir, "skills", "loupe", "1.0.0")) {
+		t.Fatal("a replaced version stayed")
+	}
+}
+
+func TestThePruneKeepsTheVersionARequiresHoldsDown(t *testing.T) {
+	r, dir := packageStore(t, api.Site{ID: "p1", Slug: "life", SkillPackages: []string{"loupe-lifecycle"}})
+	if err := os.WriteFile(filepath.Join(dir, "skills", "loupe-lifecycle", "1.0.0", "loupe-package.json"), []byte(`{"requires":{"loupe":"<2.0.0"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replaceLoupe(t, dir, "2.0.0", "{}")
+
+	r.pruneSkills(time.Now())
+	if !exists(filepath.Join(dir, "skills", "loupe", "1.0.0")) {
+		t.Fatal("the version that loupe-lifecycle needs was deleted")
 	}
 }

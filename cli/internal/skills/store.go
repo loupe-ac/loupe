@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,9 +17,10 @@ import (
 // the packages it needs.
 const packageFile = "loupe-package.json"
 
-// RecordFile is the file in a run folder that names the version of each
-// package the run started with.
-const RecordFile = "packages.json"
+// recordsDir is the folder in the store that holds one file per session, which
+// names the version of each package the session started with. A record stays
+// after its run folder goes, because a resume reads it later.
+const recordsDir = ".records"
 
 // KeepAfterReplace is how long the store keeps a version after a newer one
 // replaced it.
@@ -67,47 +69,143 @@ func versions(configDir, pkg string) []string {
 }
 
 // Resolve picks the current version of each package: the highest one that
-// meets minCli and whose requires the store can meet. A dev build, whose
-// cliVersion is empty, meets every minCli. A package with no usable version
-// gives ErrMissing.
+// meets minCli and whose requires the store can meet, with a lower version when
+// a higher one does not fit. A package earlier in the list gets the first choice
+// of version. A dev build, whose cliVersion is empty, meets every minCli. A
+// package with no usable version gives ErrMissing.
 func Resolve(configDir, cliVersion string, packages []string) ([]Pick, error) {
+	chosen, err := solve(configDir, cliVersion, packages)
+	if err != nil {
+		return nil, err
+	}
 	picks := make([]Pick, 0, len(packages))
 	for _, pkg := range packages {
-		pick, ok := current(configDir, cliVersion, pkg)
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", ErrMissing, pkg)
-		}
-		picks = append(picks, pick)
-	}
-	// A pick must meet the requires of its package against the other picks,
-	// and a package the project does not use can still satisfy one.
-	for _, pick := range picks {
-		for dep, want := range readPackage(pick.Dir).Requires {
-			have := ""
-			for _, other := range picks {
-				if other.Package == dep {
-					have = other.Version
-				}
-			}
-			if have == "" {
-				if p, ok := current(configDir, cliVersion, dep); ok {
-					have = p.Version
-				}
-			}
-			if have == "" || !satisfies(have, want) {
-				return nil, fmt.Errorf("%w: %s needs %s %s", ErrMissing, pick.Package, dep, want)
-			}
-		}
+		picks = append(picks, chosen[pkg].Pick)
 	}
 
 	return picks, nil
+}
+
+// Current names, as package/version, each version that a pick for one of the
+// lists uses, also a dependency outside the list. A list the store cannot serve
+// adds nothing.
+func Current(configDir, cliVersion string, lists [][]string) map[string]bool {
+	current := map[string]bool{}
+	for _, packages := range lists {
+		chosen, err := solve(configDir, cliVersion, packages)
+		if err != nil {
+			continue
+		}
+		for _, c := range chosen {
+			current[c.Package+"/"+c.Version] = true
+		}
+	}
+
+	return current
+}
+
+// candidate is a version a CLI can run, with what it needs.
+type candidate struct {
+	Pick
+	meta packageMeta
+}
+
+// solver searches the versions for one set that meets every requires. failure
+// keeps the first reason a version did not fit, which belongs to the highest
+// versions the search tried.
+type solver struct {
+	configDir, cliVersion string
+	failure               error
+}
+
+func solve(configDir, cliVersion string, packages []string) (map[string]candidate, error) {
+	s := solver{configDir: configDir, cliVersion: cliVersion}
+	chosen := map[string]candidate{}
+	if !s.search(packages, chosen) {
+		return nil, s.failure
+	}
+
+	return chosen, nil
+}
+
+// search fills chosen for every package in todo and for what those need. It
+// returns false, with chosen as it found it, when no set of versions fits.
+func (s *solver) search(todo []string, chosen map[string]candidate) bool {
+	if len(todo) == 0 {
+		return true
+	}
+	pkg, rest := todo[0], todo[1:]
+	if _, done := chosen[pkg]; done {
+		return s.search(rest, chosen)
+	}
+	list := s.candidates(pkg)
+	if len(list) == 0 {
+		s.fail(fmt.Errorf("%w: %s", ErrMissing, pkg))
+
+		return false
+	}
+	for _, c := range list {
+		if !s.fits(c, chosen) {
+			continue
+		}
+		chosen[pkg] = c
+		if s.search(append(slices.Clone(rest), slices.Sorted(maps.Keys(c.meta.Requires))...), chosen) {
+			return true
+		}
+		delete(chosen, pkg)
+	}
+
+	return false
+}
+
+// fits reports whether c and the versions chosen so far meet the requires of
+// each other.
+func (s *solver) fits(c candidate, chosen map[string]candidate) bool {
+	for dep, want := range c.meta.Requires {
+		if other, ok := chosen[dep]; ok && !satisfies(other.Version, want) {
+			s.fail(fmt.Errorf("%w: %s needs %s %s", ErrMissing, c.Package, dep, want))
+
+			return false
+		}
+	}
+	for _, other := range chosen {
+		if want, ok := other.meta.Requires[c.Package]; ok && !satisfies(c.Version, want) {
+			s.fail(fmt.Errorf("%w: %s needs %s %s", ErrMissing, other.Package, c.Package, want))
+
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *solver) fail(err error) {
+	if s.failure == nil {
+		s.failure = err
+	}
+}
+
+// candidates lists the versions of a package that meet minCli, the highest
+// first.
+func (s *solver) candidates(pkg string) []candidate {
+	var list []candidate
+	for _, v := range versions(s.configDir, pkg) {
+		dir := filepath.Join(StoreDir(s.configDir), pkg, v)
+		meta := readPackage(dir)
+		if meta.MinCli != "" && s.cliVersion != "" && compareVersions(s.cliVersion, meta.MinCli) < 0 {
+			continue
+		}
+		list = append(list, candidate{Pick{Package: pkg, Version: v, Dir: dir}, meta})
+	}
+
+	return list
 }
 
 // Exact returns the folders of the recorded versions, and false when any of
 // them is gone.
 func Exact(configDir string, recorded map[string]string) ([]Pick, bool) {
 	picks := make([]Pick, 0, len(recorded))
-	for _, pkg := range slices.Sorted(mapKeys(recorded)) {
+	for _, pkg := range slices.Sorted(maps.Keys(recorded)) {
 		dir := filepath.Join(StoreDir(configDir), pkg, recorded[pkg])
 		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 			return nil, false
@@ -116,30 +214,6 @@ func Exact(configDir string, recorded map[string]string) ([]Pick, bool) {
 	}
 
 	return picks, len(picks) > 0
-}
-
-func mapKeys(m map[string]string) func(yield func(string) bool) {
-	return func(yield func(string) bool) {
-		for k := range m {
-			if !yield(k) {
-				return
-			}
-		}
-	}
-}
-
-func current(configDir, cliVersion, pkg string) (Pick, bool) {
-	for _, v := range versions(configDir, pkg) {
-		dir := filepath.Join(StoreDir(configDir), pkg, v)
-		meta := readPackage(dir)
-		if meta.MinCli != "" && cliVersion != "" && compareVersions(cliVersion, meta.MinCli) < 0 {
-			continue
-		}
-
-		return Pick{Package: pkg, Version: v, Dir: dir}, true
-	}
-
-	return Pick{}, false
 }
 
 type packageMeta struct {
@@ -156,8 +230,22 @@ func readPackage(dir string) packageMeta {
 	return meta
 }
 
-// WriteRecord writes the versions of a run to its folder.
-func WriteRecord(runDir string, picks []Pick) error {
+// recordPath is the file of a session's record. A session id comes from the
+// app, so one that could leave the folder has no record.
+func recordPath(configDir, session string) (string, bool) {
+	if session == "" || strings.HasPrefix(session, ".") || filepath.Base(session) != session {
+		return "", false
+	}
+
+	return filepath.Join(StoreDir(configDir), recordsDir, session+".json"), true
+}
+
+// WriteRecord writes the versions a session starts with.
+func WriteRecord(configDir, session string, picks []Pick) error {
+	path, ok := recordPath(configDir, session)
+	if !ok {
+		return fmt.Errorf("session id %q cannot name a record", session)
+	}
 	recorded := make(map[string]string, len(picks))
 	for _, p := range picks {
 		recorded[p.Package] = p.Version
@@ -166,14 +254,21 @@ func WriteRecord(runDir string, picks []Pick) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
 
-	return os.WriteFile(filepath.Join(runDir, RecordFile), data, 0o600)
+	return os.WriteFile(path, data, 0o600)
 }
 
-// ReadRecord reads the versions a run started with. It gives nil for a run
-// with no record, such as one that started before the record existed.
-func ReadRecord(runDir string) map[string]string {
-	data, err := os.ReadFile(filepath.Join(runDir, RecordFile))
+// ReadRecord reads the versions a session started with. It gives nil for a
+// session with no record, such as one that started before the record existed.
+func ReadRecord(configDir, session string) map[string]string {
+	path, ok := recordPath(configDir, session)
+	if !ok {
+		return nil
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -185,11 +280,24 @@ func ReadRecord(runDir string) map[string]string {
 	return recorded
 }
 
+// pruneRecords deletes each record older than KeepAfterReplace. A later resume
+// of that session takes the current versions.
+func pruneRecords(configDir string, now time.Time) {
+	dir := filepath.Join(StoreDir(configDir), recordsDir)
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && now.Sub(info.ModTime()) >= KeepAfterReplace {
+			_ = os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
+}
+
 // Prune deletes each version that a newer one replaced at least KeepAfterReplace
-// ago, unless inUse says a live run holds it. The time of the replacement is
-// the time the next higher version reached the store. It returns what it
-// deleted, as package/version.
+// ago, unless inUse says something still uses it, and each old record. The time
+// of the replacement is the time the next higher version reached the store. It
+// returns the versions it deleted, as package/version.
 func Prune(configDir string, now time.Time, inUse func(pkg, version string) bool) []string {
+	pruneRecords(configDir, now)
 	var removed []string
 	for _, pkg := range Held(configDir) {
 		list := versions(configDir, pkg)

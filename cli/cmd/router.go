@@ -1142,6 +1142,7 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 	spec := p.spec
 	spec.agent = r.agent
 	spec.credentials, spec.project = r.credentials, p.project
+	defer r.releasePackages(p.runID)
 	env, err := spec.accountEnv()
 	if err == nil {
 		err = r.givePackages(&spec, p)

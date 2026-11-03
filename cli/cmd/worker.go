@@ -436,11 +436,6 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		return nil, "", nil, fmt.Errorf("create run directory: %w", err)
 	}
 	spec.runDir = dir
-	if len(spec.packages) > 0 {
-		// A record that fails to write only makes a resume take the current
-		// versions, so the run starts.
-		_ = skills.WriteRecord(dir, spec.packages)
-	}
 
 	// Each stream has its own file, so stdout holds claude's JSON alone. The
 	// shell holds its own copies once it starts.

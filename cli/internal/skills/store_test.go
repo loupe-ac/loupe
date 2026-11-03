@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -71,6 +72,87 @@ func TestResolveChecksRequires(t *testing.T) {
 	}
 }
 
+func TestResolveTakesALowerVersionWhenAHigherNeedsWhatTheStoreLacks(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe-lifecycle", "1.0.0", `{"requires":{"loupe":">=1.0.0"}}`)
+	put(t, dir, "loupe-lifecycle", "2.0.0", `{"requires":{"loupe":">=2.0.0"}}`)
+
+	for _, order := range [][]string{{"loupe", "loupe-lifecycle"}, {"loupe-lifecycle", "loupe"}} {
+		got, err := Resolve(dir, "1.0.0", order)
+		if err != nil || versionOf(got, "loupe") != "1.0.0" || versionOf(got, "loupe-lifecycle") != "1.0.0" {
+			t.Fatalf("Resolve(%v) = %+v, %v, want both at 1.0.0", order, got, err)
+		}
+	}
+
+	put(t, dir, "loupe", "2.0.0", "")
+	got, err := Resolve(dir, "1.0.0", []string{"loupe", "loupe-lifecycle"})
+	if err != nil || versionOf(got, "loupe") != "2.0.0" || versionOf(got, "loupe-lifecycle") != "2.0.0" {
+		t.Fatalf("Resolve = %+v, %v, want both at 2.0.0", got, err)
+	}
+}
+
+func TestResolveLowersAnEarlierPackageWhenALaterOneCapsIt(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe", "2.0.0", "")
+	put(t, dir, "loupe-lifecycle", "1.0.0", `{"requires":{"loupe":"<2.0.0"}}`)
+
+	got, err := Resolve(dir, "1.0.0", []string{"loupe", "loupe-lifecycle"})
+	if err != nil || versionOf(got, "loupe") != "1.0.0" {
+		t.Fatalf("Resolve = %+v, %v, want loupe 1.0.0", got, err)
+	}
+}
+
+func TestResolveSearchesADependencyOutsideTheList(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "base", "2.0.0", `{"minCli":"9.0.0"}`)
+	put(t, dir, "base", "1.0.0", "")
+	put(t, dir, "mid", "2.0.0", `{"requires":{"base":">=2.0.0"}}`)
+	put(t, dir, "mid", "1.0.0", `{"requires":{"base":">=1.0.0"}}`)
+	put(t, dir, "top", "2.0.0", `{"requires":{"mid":">=2.0.0"}}`)
+	put(t, dir, "top", "1.0.0", `{"requires":{"mid":">=1.0.0"}}`)
+
+	got, err := Resolve(dir, "1.0.0", []string{"top"})
+	if err != nil || len(got) != 1 || got[0].Version != "1.0.0" {
+		t.Fatalf("Resolve = %+v, %v, want top 1.0.0 alone", got, err)
+	}
+}
+
+func TestResolveNamesTheRequirementWhenNoSetFits(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe-lifecycle", "2.0.0", `{"requires":{"loupe":">=2.0.0"}}`)
+	put(t, dir, "loupe-lifecycle", "1.0.0", `{"requires":{"loupe":">=1.5.0"}}`)
+
+	_, err := Resolve(dir, "1.0.0", []string{"loupe", "loupe-lifecycle"})
+	if !errors.Is(err, ErrMissing) || !strings.Contains(err.Error(), "loupe-lifecycle needs loupe >=2.0.0") {
+		t.Fatalf("err = %v, want the unmet requirement", err)
+	}
+}
+
+func TestCurrentNamesEachPickWithItsDependencies(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	put(t, dir, "loupe", "2.0.0", "")
+	put(t, dir, "loupe-lifecycle", "1.0.0", `{"requires":{"loupe":"<2.0.0"}}`)
+
+	got := Current(dir, "1.0.0", [][]string{{"loupe"}, {"loupe-lifecycle"}, {"market-x"}})
+	if len(got) != 3 || !got["loupe/2.0.0"] || !got["loupe/1.0.0"] || !got["loupe-lifecycle/1.0.0"] {
+		t.Fatalf("Current = %v", got)
+	}
+}
+
+func versionOf(picks []Pick, pkg string) string {
+	for _, p := range picks {
+		if p.Package == pkg {
+			return p.Version
+		}
+	}
+
+	return ""
+}
+
 func TestExactNeedsEveryRecordedFolder(t *testing.T) {
 	dir := t.TempDir()
 	put(t, dir, "loupe", "1.0.0", "")
@@ -87,16 +169,49 @@ func TestExactNeedsEveryRecordedFolder(t *testing.T) {
 }
 
 func TestARecordReadsBack(t *testing.T) {
-	run := t.TempDir()
-	if err := WriteRecord(run, []Pick{{Package: "loupe", Version: "1.0.0"}, {Package: "x", Version: "2.0.0"}}); err != nil {
+	dir := t.TempDir()
+	if err := WriteRecord(dir, "s1", []Pick{{Package: "loupe", Version: "1.0.0"}, {Package: "x", Version: "2.0.0"}}); err != nil {
 		t.Fatal(err)
 	}
-	got := ReadRecord(run)
+	got := ReadRecord(dir, "s1")
 	if got["loupe"] != "1.0.0" || got["x"] != "2.0.0" {
 		t.Fatalf("record = %v", got)
 	}
-	if ReadRecord(t.TempDir()) != nil {
-		t.Fatal("a run with no record reads as nil")
+	if ReadRecord(dir, "s2") != nil {
+		t.Fatal("a session with no record reads as nil")
+	}
+	if held := Held(dir); len(held) != 0 {
+		t.Fatalf("the records folder reads as packages: %v", held)
+	}
+}
+
+func TestASessionIDThatLeavesTheFolderHasNoRecord(t *testing.T) {
+	dir := t.TempDir()
+	for _, session := range []string{"", ".", "..", "../x", "a/b", ".hidden"} {
+		if err := WriteRecord(dir, session, []Pick{{Package: "loupe", Version: "1.0.0"}}); err == nil {
+			t.Errorf("WriteRecord(%q) wrote a record", session)
+		}
+		if ReadRecord(dir, session) != nil {
+			t.Errorf("ReadRecord(%q) read a record", session)
+		}
+	}
+}
+
+func TestPruneDeletesAnOldRecord(t *testing.T) {
+	dir := t.TempDir()
+	for _, session := range []string{"old", "new"} {
+		if err := WriteRecord(dir, session, []Pick{{Package: "loupe", Version: "1.0.0"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	long := time.Now().Add(-KeepAfterReplace)
+	if err := os.Chtimes(filepath.Join(StoreDir(dir), recordsDir, "old.json"), long, long); err != nil {
+		t.Fatal(err)
+	}
+
+	Prune(dir, time.Now(), nil)
+	if ReadRecord(dir, "old") != nil || ReadRecord(dir, "new") == nil {
+		t.Fatalf("old = %v, new = %v", ReadRecord(dir, "old"), ReadRecord(dir, "new"))
 	}
 }
 
