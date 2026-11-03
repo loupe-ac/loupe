@@ -232,7 +232,8 @@ func buildBody(cmd *cobra.Command, c publicapi.Command, op publicapi.Operation, 
 	}
 
 	for _, p := range op.Body {
-		if _, ok := body[p.Name]; p.Required && !ok {
+		v, ok := body[p.Name]
+		if p.Required && (!ok || (v == nil && !p.Nullable)) {
 			return nil, &exitError{exitUsage, fmt.Errorf("missing --%s, or %q in --input", flagName(p.Name), p.Name)}
 		}
 	}

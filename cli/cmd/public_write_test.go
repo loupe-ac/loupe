@@ -106,6 +106,29 @@ func TestAMissingRequiredValueExitsTwoAndNamesTheFlag(t *testing.T) {
 	}
 }
 
+func TestARequiredFieldThatIsNullInTheInputExitsTwoUnlessItIsNullable(t *testing.T) {
+	srv, seen := writeServer(t, 201, `{}`)
+	file := filepath.Join(t.TempDir(), "in.json")
+
+	if err := os.WriteFile(file, []byte(`{"title":null,"body":"B","type":"feature"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := runPublicCmd(t, srv, "card", "create", "--project", "p1", "--input", file)
+	if exitOf(err) != 2 || !strings.Contains(err.Error(), "--title") || len(*seen) != 0 {
+		t.Fatalf("err=%v sent=%d", err, len(*seen))
+	}
+
+	if err := os.WriteFile(file, []byte(`{"verdict":"approved","versionNumber":3,"expectedVerdictId":null}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runPublicCmd(t, srv, "document", "verdict", "d1", "--project", "p1", "--input", file); err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"expectedVerdictId":null,"verdict":"approved","versionNumber":3}`; len(*seen) != 1 || (*seen)[0].body != want {
+		t.Fatalf("sent=%v, want one body %s", *seen, want)
+	}
+}
+
 func TestANullableFieldTakesTheWordNull(t *testing.T) {
 	srv, seen := writeServer(t, 201, `{}`)
 
