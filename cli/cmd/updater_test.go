@@ -33,6 +33,9 @@ type fakeGitHub struct {
 	checksums []byte
 	failList  bool
 	goos      string
+	// extra are the releases of skill packages, and blobs the assets they name.
+	extra     []update.Release
+	blobs     map[string][]byte
 	listed    int
 	downloads int
 }
@@ -79,11 +82,17 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 				{Name: "checksums.txt", URL: g.server.URL + "/dl/checksums/" + v.String()},
 			}})
 		}
-		_ = json.NewEncoder(w).Encode(releases)
+		_ = json.NewEncoder(w).Encode(append(releases, g.extra...))
 	case "/dl/archive":
 		g.downloads++
 		_, _ = w.Write(g.archive)
 	default:
+		if blob, ok := g.blobs[r.URL.Path]; ok {
+			g.downloads++
+			_, _ = w.Write(blob)
+
+			return
+		}
 		if v, ok := strings.CutPrefix(r.URL.Path, "/dl/checksums/"); ok {
 			g.downloads++
 			parsed, _ := update.ParseVersion(v)

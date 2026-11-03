@@ -11,6 +11,7 @@ use App\Module\Bridge\Controller\Api\BridgeCommandParamInput;
 use App\Module\Bridge\Controller\Api\BridgeHookInput;
 use App\Module\Bridge\Controller\Api\BridgeHostSampleInput;
 use App\Module\Bridge\Controller\Api\BridgeRepositoryInput;
+use App\Module\Bridge\Controller\Api\BridgeSkillInput;
 use App\Module\Bridge\Controller\Api\BridgeWorktreeInput;
 use App\Module\Bridge\Controller\Api\RecordBridgeHeartbeatRequest;
 use App\Module\Bridge\Entity\Bridge;
@@ -306,6 +307,37 @@ final class BridgeHeartbeatApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertCount(1, $this->bridge($owner, $bridgeId)->hooks);
+    }
+
+    public function test_the_skill_report_is_stored_trimmed_and_kept_when_a_heartbeat_omits_it(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-skills@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'skills' => [
+            self::skill(),
+            self::skill(['package' => 'acme.extras_1', 'version' => ' 0.3.1 ', 'state' => 'failed', 'reason' => ' download failed ']),
+            self::skill(['package' => 'blank-reason', 'state' => 'failed', 'reason' => '  ']),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $expected = [
+            ['package' => 'loupe-lifecycle', 'version' => '1.2.0', 'state' => 'current', 'reason' => null],
+            ['package' => 'acme.extras_1', 'version' => '0.3.1', 'state' => 'failed', 'reason' => 'download failed'],
+            ['package' => 'blank-reason', 'version' => '1.2.0', 'state' => 'failed', 'reason' => null],
+        ];
+        self::assertSame($expected, $this->bridge($owner, $bridgeId)->skills);
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($expected, $this->bridge($owner, $bridgeId)->skills);
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'skills' => []]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->skills);
     }
 
     public function test_the_worker_pools_are_stored(): void
@@ -1332,6 +1364,16 @@ final class BridgeHeartbeatApiTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
+    private static function skill(array $overrides = []): array
+    {
+        return array_merge(['package' => 'loupe-lifecycle', 'version' => '1.2.0', 'state' => 'current', 'reason' => null], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
     private static function sample(array $overrides = []): array
     {
         return array_merge([
@@ -1348,6 +1390,19 @@ final class BridgeHeartbeatApiTest extends WebTestCase
     /** @return iterable<string, array{array<string, mixed>}> */
     public static function invalidPayloads(): iterable
     {
+        yield 'skills that are not a list' => [['skills' => 'loupe']];
+        yield 'skills keyed by name' => [['skills' => ['loupe' => self::skill()]]];
+        yield 'a skill that is not an object' => [['skills' => ['loupe']]];
+        yield 'too many skills' => [['skills' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_SKILLS + 1, self::skill())]];
+        yield 'a skill with no package' => [['skills' => [self::skill(['package' => null])]]];
+        yield 'a skill package in capitals' => [['skills' => [self::skill(['package' => 'Loupe'])]]];
+        yield 'a skill package that starts with a dot' => [['skills' => [self::skill(['package' => '.loupe'])]]];
+        yield 'a skill package that is too long' => [['skills' => [self::skill(['package' => str_repeat('a', BridgeSkillInput::MAX_PACKAGE_LENGTH + 1)])]]];
+        yield 'a skill with a blank version' => [['skills' => [self::skill(['version' => ' '])]]];
+        yield 'a skill version that is too long' => [['skills' => [self::skill(['version' => str_repeat('1', BridgeSkillInput::MAX_VERSION_LENGTH + 1)])]]];
+        yield 'an unknown skill state' => [['skills' => [self::skill(['state' => 'stale'])]]];
+        yield 'a skill with no state' => [['skills' => [self::skill(['state' => null])]]];
+        yield 'a skill reason that is too long' => [['skills' => [self::skill(['state' => 'failed', 'reason' => str_repeat('a', BridgeSkillInput::MAX_REASON_LENGTH + 1)])]]];
         yield 'hooks that are not a list' => [['hooks' => 'loupe']];
         yield 'hooks keyed by name' => [['hooks' => ['start' => self::hook()]]];
         yield 'a hook that is not an object' => [['hooks' => ['loupe']]];

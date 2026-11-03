@@ -8620,6 +8620,11 @@
             <trans-unit id="bridge.agents.worker_pools.queued"><source>bridge.agents.worker_pools.queued</source><target>%queued% queued</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.heading"><source>bridge.agents.accounts.heading</source><target>Accounts</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.as_of"><source>bridge.agents.accounts.as_of</source><target>As of %time%</target></trans-unit>
+            <trans-unit id="bridge.agents.skills.heading"><source>bridge.agents.skills.heading</source><target>Skills</target></trans-unit>
+            <trans-unit id="bridge.agents.skills.state.current"><source>bridge.agents.skills.state.current</source><target>Current</target></trans-unit>
+            <trans-unit id="bridge.agents.skills.state.failed"><source>bridge.agents.skills.state.failed</source><target>Failed</target></trans-unit>
+            <trans-unit id="bridge.agents.skills.summary.current"><source>bridge.agents.skills.summary.current</source><target>{0}none|{1}1 package current|]1,Inf[%count% packages current</target></trans-unit>
+            <trans-unit id="bridge.agents.skills.summary.failed"><source>bridge.agents.skills.summary.failed</source><target>%failed% of %count% failed</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.ready"><source>bridge.agents.accounts.state.ready</source><target>Ready</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.failing"><source>bridge.agents.accounts.state.failing</source><target>Failing</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.unused"><source>bridge.agents.accounts.state.unused</source><target>Unused</target></trans-unit>

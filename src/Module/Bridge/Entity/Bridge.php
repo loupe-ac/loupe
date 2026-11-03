@@ -23,6 +23,7 @@ use Symfony\Component\Uid\Uuid;
  * one config directory, and so one bridge id, each keep a row of their own.
  *
  * @phpstan-type HookRow array{package: string, ref: string, event: string, lastRunAt: ?string, outcome: string, error: ?string}
+ * @phpstan-type SkillRow array{package: string, version: string, state: 'current'|'failed', reason: ?string}
  * @phpstan-type WorkerPoolRow array{name: string, size: int, inUse: int, queued: int}
  * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int}
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
@@ -107,6 +108,14 @@ class Bridge
      */
     #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
     public array $hooks = [];
+
+    /**
+     * The skill packages the bridge installed, as its last heartbeat reported them. Null until a bridge sends a report.
+     *
+     * @var list<SkillRow>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $skills = null;
 
     /**
      * The worker pools of the bridge and their use, as its last heartbeat

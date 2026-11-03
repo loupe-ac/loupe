@@ -577,6 +577,11 @@ file that sets no permission default, one that has no `appPrompts` and no `work`
 entry, and one that maps no project to the current directory. `~` and symlinks
 in a `dir` are resolved before the comparison. `loupe init` fixes each note.
 
+The `Skills:` lines give each skill package in the store with its highest
+usable version and its state, as in `Skills:      loupe 1.4.0 current`. A running
+bridge adds the reason when its last update of a package failed, as in
+`Skills:      loupe-lifecycle 1.3.0 failed: <reason>`. They are notes, and they never fail the check.
+
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. A
 failure exits with status 1, and the error on stderr says what to run next.
 Read the exit status, because the error comes after the verdict when you merge
@@ -2073,6 +2078,13 @@ loupe update --rules ~/loupe/other-project.yaml
 |---|---|---|
 | `--rules` | `rules.yaml` in your config dir | Update the bridge that reads this rule file |
 
+The command updates the skill packages too, before the CLI. It installs the
+newest release of each package that the store holds or that a project names,
+and it prints one line for each package, such as `skills: loupe 1.4.0 installed`.
+It restarts no worker. A failed package update prints its reason and changes
+neither the store nor the CLI update. See
+[Skill package updates](../docs/extending/cli-bridge.md#skill-package-updates).
+
 When a bridge runs, the command asks it to check and install at once, through
 its local socket. When no bridge runs, the command downloads the release,
 checks it against `checksums.txt`, and replaces the binary on your `PATH`
@@ -2086,11 +2098,11 @@ When that `exec` fails, the line says `rejected` instead, and the command exits
 with status 1.
 
 The command does not update a binary that Homebrew installed, and it asks no
-bridge either. It prints
+bridge either. It still updates the skill packages first. It then prints
 `loupe was installed with Homebrew. Run: brew upgrade loupe`, changes nothing,
 and exits with status 1. A bridge that runs a Homebrew binary refuses the
 request of an older CLI with the same message, and stages nothing. Automatic
-updates with `autoUpdate: true` still run. The command finds such a binary by its
+updates of the skill packages with `autoUpdate: true` still run. The command finds such a binary by its
 path, with symlinks resolved: the path holds `/Cellar/loupe/`. A bridge reports
 the same install method in its heartbeat, so the agents page names
 `brew upgrade loupe`.

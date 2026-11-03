@@ -184,6 +184,35 @@
                     {% endfor %}
                 </details>
                 {% endif %}
+                {% if connection.bridge.skills is not empty %}
+                {% set failedSkills = connection.bridge.skills|filter(skill => skill.state == 'failed') %}
+                <details class="lp-agent-card__current lp-agent-card__accounts lp-agent-section" data-controller="details-memory" data-details-memory-key-value="skills-{{ bridge.id }}" data-agent-skills{% if failedSkills is not empty %} open{% endif %}>
+                    <summary class="lp-agent-section__summary">
+                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                        <span class="lp-agent-section__title">{{ 'bridge.agents.skills.heading'|trans }}</span>
+                        <span class="lp-agent-section__dot{% if failedSkills is not empty %} lp-agent-section__dot--danger{% endif %}" aria-hidden="true"></span>
+                        <span class="lp-agent-section__text" data-agent-section-summary>
+                            {%- if failedSkills is not empty -%}
+                                {{ 'bridge.agents.skills.summary.failed'|trans({'%failed%': failedSkills|length, '%count%': connection.bridge.skills|length}) }}
+                            {%- else -%}
+                                {{ 'bridge.agents.skills.summary.current'|trans({'%count%': connection.bridge.skills|length}) }}
+                            {%- endif -%}
+                        </span>
+                    </summary>
+                    {% for skill in connection.bridge.skills %}
+                    <div class="lp-agent-card__account{% if skill.state == 'failed' %} lp-agent-card__account--failing{% endif %}" data-agent-skill="{{ skill.package }}" data-agent-skill-state="{{ skill.state }}">
+                        <div class="lp-agent-card__account-line">
+                            <strong>{{ skill.package }}</strong>
+                            <span data-agent-skill-version>{{ skill.version }}</span>
+                            <span>{{ ('bridge.agents.skills.state.' ~ skill.state)|trans }}</span>
+                        </div>
+                        {% if skill.state == 'failed' and skill.reason %}
+                        <p class="lp-agent-card__account-hint" data-agent-skill-reason>{{ skill.reason }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </details>
+                {% endif %}
                 <footer>
                     <span>{{ connection.bridge.cliVersion|short_sha }}</span>
                     {% if connection.updateChip and connection.updateChip.command %}

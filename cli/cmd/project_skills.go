@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 )
 
 // skillsInterval is the time between two reads of the project list.
@@ -63,6 +66,9 @@ type skillState struct {
 	// of the session then keeps them. A prune takes mu for its whole length, so
 	// a pick never lands on a folder that the prune deletes.
 	holds map[string][]skills.Pick
+	// failed holds the reason of the last update that failed, for each package.
+	// An update that succeeds clears it.
+	failed map[string]string
 }
 
 // loadSkills reads the project list and keeps the answer, unless a read that
@@ -340,4 +346,83 @@ func (r *router) projectPackages(handle string, held []string) []string {
 	site, _ := r.projectSite(handle)
 
 	return site.PackagesIn(held)
+}
+
+// packageNames lists the packages a bridge keeps: every package held, and every
+// package a project names. The list is sorted and has each name once. A folder
+// of the store that no package name fits, such as one a person made, is not a
+// package.
+func packageNames(held []string, sites []api.Site) []string {
+	names := slices.DeleteFunc(slices.Clone(held), func(name string) bool { return !skills.ValidName(name) })
+	for _, site := range sites {
+		names = append(names, site.PackagesIn(held)...)
+	}
+	slices.Sort(names)
+
+	return slices.Compact(names)
+}
+
+// skillNames lists the packages the updater keeps current. A router with no
+// store has none.
+func (r *router) skillNames() []string {
+	s := &r.skills
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dir == "" {
+		return nil
+	}
+
+	return packageNames(skills.Held(s.dir), s.sites)
+}
+
+// recordSkillResults keeps the reason of each package that failed to update.
+func (r *router) recordSkillResults(results []skills.Result) {
+	s := &r.skills
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.failed = map[string]string{}
+	for _, res := range results {
+		if res.State == skills.StateFailed {
+			s.failed[res.Package] = res.Reason
+		}
+	}
+}
+
+// The server refuses a whole heartbeat that holds more rows than maxSkillReports,
+// a blank version, or a reason above maxSkillReason bytes. noSkillVersion stands
+// for a package with no usable version in the store.
+const (
+	maxSkillReports = 20
+	maxSkillReason  = 500
+	noSkillVersion  = "none"
+)
+
+// skillReports gives the heartbeat one row for each package. The version comes
+// from the store, so it is right after any install, `loupe update` included. A
+// package that the last update failed for is failed, with that reason. A
+// development build with an empty store reports nothing, because its workers use
+// the plugin their account installed.
+func (r *router) skillReports() []api.SkillReport {
+	names := r.skillNames()
+	s := &r.skills
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dir == "" || (s.cliVersion == "" && len(skills.Held(s.dir)) == 0) {
+		return nil
+	}
+	reports := make([]api.SkillReport, 0, min(len(names), maxSkillReports))
+	for _, name := range names[:min(len(names), maxSkillReports)] {
+		res := skills.Status(s.dir, s.cliVersion, name)
+		if reason, ok := s.failed[name]; ok {
+			res.State, res.Reason = skills.StateFailed, reason
+		}
+		reports = append(reports, api.SkillReport{
+			Package: res.Package,
+			Version: cmp.Or(res.Version, noSkillVersion),
+			State:   res.State,
+			Reason:  stream.Cut(res.Reason, maxSkillReason),
+		})
+	}
+
+	return reports
 }

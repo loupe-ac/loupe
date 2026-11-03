@@ -599,6 +599,16 @@ const (
 // invalid. A retry cannot turn any of those into a stored row.
 var ErrReportRefused = errors.New("the server refused the worker run report")
 
+// SkillReport is the state of one skill package in the store of the bridge.
+// State is "current" or "failed". Version is the highest version the store holds
+// that the CLI can use, and Reason says why a package failed.
+type SkillReport struct {
+	Package string `json:"package"`
+	Version string `json:"version"`
+	State   string `json:"state"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 // Heartbeat is the body of PUT /api/v1/bridge/bridges/{bridgeId}/heartbeat: the ids of
 // the projects the bridge follows, the build it runs, where its own update
 // stands, and its hooks. The server keeps its stored hooks when the key is
@@ -609,6 +619,9 @@ type Heartbeat struct {
 	CLIVersion string           `json:"cliVersion"`
 	Update     *HeartbeatUpdate `json:"update,omitempty"`
 	Hooks      []HookReport     `json:"hooks,omitzero"`
+	// Skills holds one row for each skill package the bridge keeps. Nil sends
+	// no key.
+	Skills []SkillReport `json:"skills,omitempty"`
 	// WorkerPools is nil until the router reports its pools.
 	WorkerPools []WorkerPoolReport `json:"workerPools,omitzero"`
 	// Paused and Capabilities send no key when nil, which keeps what the

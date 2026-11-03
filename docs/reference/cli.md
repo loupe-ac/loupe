@@ -116,10 +116,11 @@ A setup other than the default never replaces a binary.
   checkout and the commit, and says to run `just cli-setup <folder>`. The bridge
   of the setup runs no update check and reports a build.
 - In a setup that runs the shared binary, `loupe -c <folder> update` installs only the
-  panel copy of the running version into the setup. It prints that the binary
+  panel copy of the running version and the newest skill packages into the setup. It prints that the binary
   updates from the default setup. It asks no running bridge, and it runs for a
-  Homebrew binary too. The bridge runs no update check and reports that updates
-  are off. A release of the shared binary outside the server range
+  Homebrew binary too. The bridge runs no CLI update check and reports that updates
+  are off. With `autoUpdate: true`, it still updates the skill packages of the setup
+  every hour. A release of the shared binary outside the server range
   [drains](../extending/cli-bridge.md#draining). To replace that binary, run
   `LOUPE_CONFIG= loupe update`, then start the bridge again.
 
@@ -265,6 +266,10 @@ The `Bridges:` line counts the running bridges and gives their login state, as i
 `1 running, login valid.` or `none running.`. It reads the bridges with no
 network call. No running bridge is reported and does not fail the check. A bridge
 with an expired login fails the check, and the line points to `loupe bridge status`.
+
+The `Skills:` lines give each skill package in the store with its highest usable
+version and its state. A running bridge adds the reason when its last update of a
+package failed. They are notes, and they never fail the check.
 
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.

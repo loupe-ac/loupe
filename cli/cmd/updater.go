@@ -17,6 +17,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
@@ -57,6 +58,9 @@ type updateResult struct {
 	Outcome  string   `json:"outcome,omitempty"`
 	Problem  string   `json:"problem,omitempty"`
 	Problems []string `json:"problems,omitempty"`
+	// Skills is what the check did for each skill package. It is empty when the
+	// check did not look at them.
+	Skills []skills.Result `json:"skills,omitempty"`
 }
 
 func (u *updater) result(outcome, to, problem string) updateResult {
@@ -146,6 +150,17 @@ type updater struct {
 	// logged holds each once-only line already written. Only the holder of
 	// token reads or writes it.
 	logged map[string]bool
+
+	// skillNames lists the skill packages to keep current, and skillsDone gets
+	// the result of each update. Both may be nil, and the updater then leaves
+	// the skill packages alone.
+	skillNames func() []string
+	skillsDone func([]skills.Result)
+	// blocked holds the package versions this CLI cannot use. skillResult is the
+	// last skills update of the check that runs. Only the holder of token reads
+	// or writes them.
+	blocked     map[string]string
+	skillResult []skills.Result
 }
 
 // updateAPI is the GitHub API. LOUPE_UPDATE_API replaces it, for a test that
@@ -174,6 +189,7 @@ func newUpdater(log *slog.Logger, version, dir string, autoUpdate func() bool, o
 		token:      make(chan struct{}, 1),
 		kick:       make(chan struct{}, 1),
 		logged:     map[string]bool{},
+		blocked:    map[string]string{},
 	}
 }
 
@@ -381,7 +397,9 @@ func (u *updater) check(ctx context.Context) {
 // run runs one update check and then settles the drain. A forced one ignores
 // the skip list and the autoUpdate key.
 func (u *updater) run(ctx context.Context, force bool) updateResult {
+	u.skillResult = nil
 	res := u.runCheck(ctx, force)
+	res.Skills = u.skillResult
 	u.settle()
 
 	return res
@@ -457,6 +475,8 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		return u.result(updateDev, "", "the bridge runs a development build")
 	}
 	if u.shared {
+		u.sharedSkills(ctx)
+
 		return u.result(updateOff, "", "")
 	}
 	if cliRange == "" {
@@ -481,6 +501,7 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		return u.result(outcomeFailed, "", err.Error())
 	}
 	u.keepPanel(ctx, releases)
+	u.skillResult = u.refreshSkills(ctx, releases, force)
 	skip := st.SkipSet()
 	if force {
 		skip = nil
@@ -543,6 +564,57 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 	return u.result(outcomeRejected, to, "the new version failed its handover and is now on the skip list; the bridge log names the reason")
 }
 
+// skillsDue reports whether this check updates the skill packages. A forced
+// check does. An hourly one does when the autoUpdate key is on.
+func (u *updater) skillsDue(force bool) bool {
+	return u.skillNames != nil && (force || (u.autoUpdate != nil && u.autoUpdate()))
+}
+
+// sharedSkills updates the skill packages of a setup that runs the shared
+// binary. Its store is its own, and it never checks for a CLI release.
+func (u *updater) sharedSkills(ctx context.Context) {
+	if !u.skillsDue(false) {
+		return
+	}
+	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
+	if err != nil {
+		u.failed(ctx, err, "")
+
+		return
+	}
+	u.refreshSkills(ctx, releases, false)
+}
+
+// refreshSkills installs the newest skill package versions the store lacks,
+// from the releases of the check. It restarts nothing. A failure is logged and
+// reported, and changes nothing else.
+func (u *updater) refreshSkills(ctx context.Context, releases []update.Release, force bool) []skills.Result {
+	if !u.skillsDue(force) {
+		return nil
+	}
+	names := u.skillNames()
+	if len(names) == 0 {
+		return nil
+	}
+	results := skills.Refresh(ctx, u.hc, u.dir, u.version, releases, names, u.blocked)
+	if ctx.Err() != nil {
+		return nil
+	}
+	for _, r := range results {
+		if r.Installed != "" {
+			u.log.Info("skill_package_installed", "package", r.Package, "version", r.Installed)
+		}
+		if r.State == skills.StateFailed && u.once("skills|"+r.Package+"|"+r.Reason) {
+			u.log.Warn("skill_package_update_failed", "package", r.Package, "version", r.Version, "reason", r.Reason)
+		}
+	}
+	if u.skillsDone != nil {
+		u.skillsDone(results)
+	}
+
+	return results
+}
+
 // rejectedError is a downloaded archive that failed its checks.
 type rejectedError struct{ error }
 
@@ -584,7 +656,7 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 		return "", rejectedError{err}
 	}
 	if u.goos == "darwin" {
-		if err := u.stagePanel(archive, to); errors.Is(err, update.ErrPanelUnsafe) {
+		if err := u.stagePanel(archive, to); errors.Is(err, update.ErrArchiveUnsafe) {
 			u.log.Warn("update_rejected", "from", u.version, "to", to, "reason", err.Error())
 
 			return "", rejectedError{err}

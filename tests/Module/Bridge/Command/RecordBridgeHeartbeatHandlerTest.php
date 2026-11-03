@@ -168,6 +168,32 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertSame([], $this->reload($owner, $bridgeId)->hooks);
     }
 
+    public function test_the_skill_report_is_stored_kept_replaced_and_cleared(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-skills@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $current = ['package' => 'loupe-lifecycle', 'version' => '1.2.0', 'state' => 'current', 'reason' => null];
+        $failed = ['package' => 'loupe-lifecycle', 'version' => '1.3.0', 'state' => 'failed', 'reason' => 'download failed'];
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+        self::assertNull($this->reload($owner, $bridgeId)->skills);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', skills: [$current]));
+        self::assertSame([$current], $this->reload($owner, $bridgeId)->skills);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+        self::assertSame([$current], $this->reload($owner, $bridgeId)->skills);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', skills: [$failed]));
+        self::assertSame([$failed], $this->reload($owner, $bridgeId)->skills);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', skills: []));
+        self::assertSame([], $this->reload($owner, $bridgeId)->skills);
+    }
+
     public function test_a_row_written_before_the_hooks_column_reads_as_no_hooks(): void
     {
         self::bootKernel();

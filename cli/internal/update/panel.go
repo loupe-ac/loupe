@@ -24,13 +24,13 @@ const noPanelMarker = "no-panel"
 // ErrPanelTooBig reports an archive whose panel is larger than the caps allow.
 var ErrPanelTooBig = errors.New("the panel in the archive is too large")
 
-// ErrPanelUnsafe reports an archive that holds an unsafe path, link or file
+// ErrArchiveUnsafe reports an archive that holds an unsafe path, link or file
 // type. It points to a tampered archive, where ErrPanelTooBig and an error of
-// the disk do not.
-var ErrPanelUnsafe = errors.New("the archive holds an unsafe panel entry")
+// the disk do not. A skill package archive uses it too.
+var ErrArchiveUnsafe = errors.New("the archive holds an unsafe entry")
 
 func unsafeEntry(format string, args ...any) error {
-	return fmt.Errorf("%w: %s", ErrPanelUnsafe, fmt.Sprintf(format, args...))
+	return fmt.Errorf("%w: %s", ErrArchiveUnsafe, fmt.Sprintf(format, args...))
 }
 
 // The caps stop an archive that unpacks to far more than a real panel. They
@@ -121,7 +121,7 @@ func ExtractPanel(archive []byte, destDir string) (bool, error) {
 				return false, err
 			}
 		}
-		if err := extractPanelEntry(tr, hdr, staging, inner); err != nil {
+		if err := extractEntry(tr, hdr, staging, inner); err != nil {
 			return false, err
 		}
 	}
@@ -155,7 +155,7 @@ func panelEntryPath(name string) (inner string, inApp bool, err error) {
 	return rest, ok, nil
 }
 
-func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) error {
+func extractEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) error {
 	if inner == "" {
 		if hdr.Typeflag != tar.TypeDir {
 			return unsafeEntry("%s is not a folder", PanelAppName)
@@ -192,7 +192,7 @@ func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) e
 		return f.Close()
 	case tar.TypeSymlink:
 		if !symlinkStaysInside(inner, hdr.Linkname) {
-			return unsafeEntry("the symlink %q to %q leaves the app", hdr.Name, hdr.Linkname)
+			return unsafeEntry("the symlink %q to %q leaves the folder", hdr.Name, hdr.Linkname)
 		}
 		if err := ensurePanelDir(staging, path.Dir(inner)); err != nil {
 			return err
@@ -263,7 +263,7 @@ func checkSymlinks(staging string) error {
 			return err
 		}
 		if resolved != real && !strings.HasPrefix(resolved, real+string(filepath.Separator)) {
-			return unsafeEntry("the symlink %s leaves the app", strings.TrimPrefix(p, staging+"/"))
+			return unsafeEntry("the symlink %s leaves the folder", strings.TrimPrefix(p, staging+"/"))
 		}
 
 		return nil
