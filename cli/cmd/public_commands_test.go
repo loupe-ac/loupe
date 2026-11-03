@@ -117,6 +117,21 @@ func TestListSendsTheDefaultColumnsOnlyForTableAndTsv(t *testing.T) {
 	}
 }
 
+func TestListWithFieldsAllAsksForAndPrintsEveryField(t *testing.T) {
+	srv, seen := publicServer(t, `{"items":[{"number":1,"title":"T","body":"text"}],"next":null}`)
+
+	out, _, err := runPublicCmd(t, srv, "card", "list", "--project", "p", "--format", "tsv", "--fields", "all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "1\tT\ttext\n" {
+		t.Errorf("out = %q", out)
+	}
+	if (*seen)[0].query != "fields=all" {
+		t.Errorf("query = %q", (*seen)[0].query)
+	}
+}
+
 func TestListTakesACursorOrANextAddressAndNotesTheNextPage(t *testing.T) {
 	srv, seen := publicServer(t, `{"items":[],"next":"https://x.test/api/v1/projects/p/cards?cursor=abc123&limit=1"}`)
 

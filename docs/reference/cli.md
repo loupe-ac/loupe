@@ -258,7 +258,7 @@ because they need no sign-in. Use curl for them.
 | Flag | Purpose |
 |---|---|
 | `--format` | `table`, `tsv`, `json` or `toon`. TOON is a compact text format for agents. A terminal gets a table, and a pipe gets tsv with no header. |
-| `--fields` | The fields to print, as a comma list. `all` prints every field. On a read, the CLI sends the API parameter `fields`. |
+| `--fields` | The fields to print, as a comma list. `all` prints every field, so a list in a table or tsv gets one column for each field that its rows hold. On a read, the CLI sends the API parameter `fields`. |
 | `--project` | The project, as above |
 | `--retry` | Wait for `Retry-After` on a 429 answer and send the request once more. It waits at most 120 seconds. |
 

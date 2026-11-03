@@ -49,6 +49,25 @@ func TestTSVSingleNamedFieldIsExact(t *testing.T) {
 	}
 }
 
+func TestFieldsAllPrintsEveryFieldOfAList(t *testing.T) {
+	body := `{"items":[{"number":1,"body":"a\nb"},{"number":2,"extra":"x"}],"next":null}`
+	columns := []string{"number"}
+
+	for _, fields := range [][]string{{"all"}, {"number", "all"}} {
+		got := render(t, TSV, body, Options{Fields: fields, Columns: columns})
+		if want := "1\ta\\nb\t\n2\t\tx\n"; got != want {
+			t.Fatalf("tsv %v: got %q want %q", fields, got, want)
+		}
+		got = render(t, Table, body, Options{Fields: fields, Columns: columns})
+		if want := "NUMBER  BODY  EXTRA\n1       a�b\n2             x\n"; got != want {
+			t.Fatalf("table %v: got %q want %q", fields, got, want)
+		}
+	}
+	if got := render(t, TSV, `{"items":[],"next":null}`, Options{Fields: []string{"all"}, Columns: columns}); got != "" {
+		t.Fatalf("empty list prints nothing: %q", got)
+	}
+}
+
 func TestTSVListUsesColumnsAndKeepsOneLine(t *testing.T) {
 	body := `{"items":[{"number":1,"title":"a\nb","x":9},{"number":2,"title":"c"}],"next":null}`
 	if got := render(t, TSV, body, Options{Columns: []string{"number", "title"}}); got != "1\ta\\nb\n2\tc\n" {

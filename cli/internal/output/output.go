@@ -44,7 +44,8 @@ type Options struct {
 	// Fields are the names the caller asked for, in the caller's order.
 	// Empty means no cut. A list that holds "all" means no cut as well.
 	Fields []string
-	// Columns are the default columns of a list in table and tsv.
+	// Columns are the default columns of a list in table and tsv. "all" in
+	// Fields replaces them with each field that the rows hold.
 	Columns []string
 	// LongText names the field that ends one item.
 	LongText string
@@ -71,13 +72,32 @@ func Write(w io.Writer, f Format, body []byte, o Options) error {
 	return fmt.Errorf("unknown format %q", f)
 }
 
+func (o Options) wantsAll() bool {
+	return contains(o.Fields, "all")
+}
+
 func (o Options) names() []string {
-	for _, n := range o.Fields {
-		if n == "all" {
-			return nil
-		}
+	if o.wantsAll() {
+		return nil
 	}
 	return o.Fields
+}
+
+// rowKeys lists each key of the rows, in the order the rows first show it.
+func rowKeys(items []any) []string {
+	var keys []string
+	for _, row := range items {
+		obj, ok := asObject(row)
+		if !ok {
+			continue
+		}
+		for _, f := range obj.Fields {
+			if !contains(keys, f.Key) {
+				keys = append(keys, f.Key)
+			}
+		}
+	}
+	return keys
 }
 
 // cut keeps the named keys of an item, or of each row of a list.
@@ -199,15 +219,11 @@ func writeText(w io.Writer, body []byte, o Options, table bool) error {
 	var out bytes.Buffer
 	if items, isList := listItems(obj); isList {
 		cols := o.names()
-		if len(cols) == 0 {
+		if len(cols) == 0 && !o.wantsAll() {
 			cols = o.Columns
 		}
-		if len(cols) == 0 && len(items) > 0 {
-			if first, ok := asObject(items[0]); ok {
-				for _, f := range first.Fields {
-					cols = append(cols, f.Key)
-				}
-			}
+		if len(cols) == 0 {
+			cols = rowKeys(items)
 		}
 		if table {
 			tableList(&out, items, cols, o)
