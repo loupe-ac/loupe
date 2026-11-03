@@ -10840,6 +10840,38 @@
                 },
                 "type": "object"
             },
+            "BridgeSkillInput": {
+                "properties": {
+                    "package": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 100
+                    },
+                    "version": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 50
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "current",
+                            "failed"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    }
+                },
+                "type": "object"
+            },
             "RecordBridgeHeartbeatRequest": {
                 "properties": {
                     "projects": {
@@ -11023,6 +11055,16 @@
                         "nullable": true,
                         "default": null,
                         "maxItems": 200
+                    },
+                    "skills": {
+                        "title": "The skill rows as the bridge row stores them. Null when the bridge sent no report.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BridgeSkillInput"
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 20
                     }
                 },
                 "type": "object"
