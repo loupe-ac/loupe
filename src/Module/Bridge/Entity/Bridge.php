@@ -24,7 +24,8 @@ use Symfony\Component\Uid\Uuid;
  *
  * @phpstan-type HookRow array{package: string, ref: string, event: string, lastRunAt: ?string, outcome: string, error: ?string}
  * @phpstan-type WorkerPoolRow array{name: string, size: int, inUse: int, queued: int}
- * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int}
+ * @phpstan-type FailedProjectRow array{projectId: string, reason: string}
+ * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int, failedProjects?: list<FailedProjectRow>}
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
  * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
@@ -350,6 +351,18 @@ class Bridge
         }
 
         return array_all($this->accounts, fn ($row) => !(!isset($row['kinds']) || \in_array($workKind, $row['kinds'], true)));
+    }
+
+    /**
+     * Whether the bridge reports the work kind on some account and every such account failed its check for the
+     * project, so the bridge runs no work of the kind for that project.
+     */
+    public function failsProjectFor(string $projectId, string $workKind): bool
+    {
+        $runs = array_filter($this->accounts ?? [], static fn (array $row): bool => \in_array($workKind, $row['kinds'] ?? [], true));
+
+        return [] !== $runs
+            && array_all($runs, static fn (array $row): bool => array_any($row['failedProjects'] ?? [], static fn (array $failed): bool => $failed['projectId'] === $projectId));
     }
 
     public function nameClashes(): bool

@@ -60,6 +60,7 @@ final readonly class ListAgentsHandler
                     $this->bridgeAccountTryNows->findLatestOfBridge($bridge),
                     AgentRefusalChip::for($bridge, $refusals[$bridge->id->toRfc4122()] ?? []),
                     $refusals[$bridge->id->toRfc4122()] ?? [],
+                    $projectId,
                 ),
                 $bridges,
             ),

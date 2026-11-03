@@ -214,11 +214,7 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 	for _, slug := range slugs {
 		found, err := envfile.LookPath(h.Program(), env, spec.Projects[slug])
 		if err != nil {
-			reason := "codex is not on PATH"
-			if slug != "" {
-				reason += " for project " + slug
-			}
-			problems = append(problems, harness.Problem{Reason: reason, Detail: err.Error()})
+			problems = append(problems, harness.Problem{Reason: "codex is not on PATH", Project: slug, Detail: err.Error()})
 
 			continue
 		}
@@ -272,7 +268,7 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 func (h Harness) mcpProblems(ctx context.Context, binary, home, slug, dir string, env []string) []harness.Problem {
 	fix := "run CODEX_HOME=" + home + " codex mcp add loupe -- loupe mcp"
 	fail := func(reason, detail string) []harness.Problem {
-		return []harness.Problem{{Reason: reason + " for project " + slug, Detail: detail}}
+		return []harness.Problem{{Reason: reason, Project: slug, Detail: detail}}
 	}
 
 	args := []string{"mcp", "get", "loupe", "--json"}
@@ -350,7 +346,7 @@ func (h Harness) approvalProblems(home, slug string) []harness.Problem {
 	paths = append(paths, filepath.Join(home, "config.toml"))
 	for _, f := range loadFiles(paths...) {
 		if f.err != nil {
-			return []harness.Problem{{Reason: "codex config does not parse for project " + slug, Detail: f.path + ": " + f.err.Error()}}
+			return []harness.Problem{{Reason: "codex config does not parse", Project: slug, Detail: f.path + ": " + f.err.Error()}}
 		}
 		switch f.cfg.McpServers["loupe"].DefaultToolsApprovalMode {
 		case "":
@@ -366,8 +362,9 @@ func (h Harness) approvalProblems(home, slug string) []harness.Problem {
 
 func approvalProblem(slug, file string) harness.Problem {
 	return harness.Problem{
-		Reason: "loupe MCP tools need approval for project " + slug,
-		Detail: `add default_tools_approval_mode = "approve" under [mcp_servers.loupe] in ` + file,
+		Reason:  "loupe MCP tools need approval",
+		Project: slug,
+		Detail:  `add default_tools_approval_mode = "approve" under [mcp_servers.loupe] in ` + file,
 	}
 }
 

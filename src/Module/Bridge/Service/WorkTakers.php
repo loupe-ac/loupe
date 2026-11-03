@@ -225,6 +225,7 @@ final readonly class WorkTakers
     private static function takes(Bridge $bridge, WorkRequest $request): bool
     {
         return $bridge->canRun($request)
+            && !$bridge->failsProjectFor((string) $request->project->id, Bridge::workKindOf($request->subjectType, $request->kind))
             && (\in_array(Bridge::workKindOf($request->subjectType, $request->kind), $bridge->workKinds, true)
                 || self::runsAsAppPrompt($bridge, $request));
     }

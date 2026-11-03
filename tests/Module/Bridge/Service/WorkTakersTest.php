@@ -173,6 +173,28 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
 
+    public function test_a_bridge_whose_accounts_all_failed_the_project_is_no_taker(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-project');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($bridge, ['one', 'two'], ['one'], (string) $project->id);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state, 'the other account still runs the kind');
+
+        $this->failedAccounts($bridge, ['one', 'two'], ['one', 'two'], (string) $project->id);
+
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
+    }
+
+    public function test_a_failure_of_another_project_keeps_the_bridge_a_taker(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failed-other-project');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($bridge, ['one'], ['one'], (string) Uuid::v7());
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_bridge_that_reports_no_kinds_is_no_taker(): void
     {
         [$project, $request, $owner] = $this->scenario('no-kinds');
@@ -714,6 +736,26 @@ final class WorkTakersTest extends KernelTestCase
     private function accounts(Bridge $bridge, array $kinds): void
     {
         $bridge->accounts = array_map(static fn (string $name, array $runs): array => ['name' => $name, 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => $runs], array_keys($kinds), array_values($kinds));
+        $this->em()->flush();
+    }
+
+    /**
+     * @param list<string> $names  the accounts that run the implement kind
+     * @param list<string> $failed the accounts that failed their check for the project
+     */
+    private function failedAccounts(Bridge $bridge, array $names, array $failed, string $projectId): void
+    {
+        $bridge->accounts = array_map(
+            static fn (string $name): array => [
+                'name' => $name,
+                'harness' => 'claude',
+                'state' => 'ready',
+                'reason' => null,
+                'kinds' => ['implement'],
+                'failedProjects' => \in_array($name, $failed, true) ? [['projectId' => $projectId, 'reason' => 'claude is not on PATH']] : [],
+            ],
+            $names,
+        );
         $this->em()->flush();
     }
 

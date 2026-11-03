@@ -1176,3 +1176,34 @@ func TestMatchWorkSkipsAnInteractiveRequestWithoutAnInteractiveEntry(t *testing.
 		})
 	}
 }
+
+// A project that an account failed for turns off the work of that project on
+// the account, and keeps the kinds and the capabilities the bridge offers.
+func TestAFailedProjectTurnsOffThatProjectOnly(t *testing.T) {
+	s := checked(t, workFile)
+	kinds, capabilities := s.WorkKindsOn(), s.Capabilities()
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"other": "claude is not on PATH"}})
+	if m := s.MatchWork(workRequest("implement")); m.Skip != Run {
+		t.Fatalf("a failure of another project stopped the work: %+v", m)
+	}
+
+	s.SetProjectProblems(map[string]map[string]string{"claude": {"loupe": "claude is not on PATH"}})
+	if m := s.MatchWork(workRequest("implement")); m.Skip != NoRule || m.Project != "loupe" {
+		t.Fatalf("match = %+v, want NoRule for loupe", m)
+	}
+	if got := s.WorkKindsOn(); !slices.Equal(got, kinds) {
+		t.Fatalf("WorkKindsOn = %v, want %v", got, kinds)
+	}
+	if got := s.Capabilities(); !slices.Equal(got, capabilities) {
+		t.Fatalf("Capabilities = %v, want %v", got, capabilities)
+	}
+	if off := s.AccountsOff(); len(off) != 0 {
+		t.Fatalf("AccountsOff = %v, want none", off)
+	}
+
+	s.SetProjectProblems(nil)
+	if m := s.MatchWork(workRequest("implement")); m.Skip != Run {
+		t.Fatalf("a clean check kept the work off: %+v", m)
+	}
+}

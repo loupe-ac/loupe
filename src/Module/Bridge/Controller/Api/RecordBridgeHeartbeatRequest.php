@@ -326,6 +326,12 @@ final class RecordBridgeHeartbeatRequest
             if (null !== $account->stopAt) {
                 $row['stopAt'] = $account->stopAt;
             }
+            if (null !== $account->failedProjects && [] !== $account->failedProjects) {
+                $row['failedProjects'] = array_map(
+                    static fn (BridgeFailedProjectInput $project): array => ['projectId' => strtolower($project->projectId ?? ''), 'reason' => trim($project->reason ?? '')],
+                    array_values($account->failedProjects),
+                );
+            }
 
             return $row;
         }, array_values($this->accounts));

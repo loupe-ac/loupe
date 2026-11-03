@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -30,7 +31,8 @@ type accountResult struct {
 	problems []harn.Problem
 }
 
-// reason joins the reasons of the problems, and is "" for a ready account.
+// reason joins the reasons of the problems of the whole account, and is ""
+// for an account that is ready or fails for single projects alone.
 func (a accountResult) reason() string {
 	return a.join(func(p harn.Problem) string { return p.Reason })
 }
@@ -42,10 +44,29 @@ func (a accountResult) detail() string {
 func (a accountResult) join(field func(harn.Problem) string) string {
 	parts := make([]string, 0, len(a.problems))
 	for _, p := range a.problems {
-		parts = append(parts, field(p))
+		if p.Project == "" {
+			parts = append(parts, field(p))
+		}
 	}
 
 	return strings.Join(parts, "; ")
+}
+
+// projectReasons maps each project the account failed for to the reasons of
+// its problems.
+func (a accountResult) projectReasons() map[string]string {
+	parts := map[string][]string{}
+	for _, p := range a.problems {
+		if p.Project != "" {
+			parts[p.Project] = append(parts[p.Project], p.Reason)
+		}
+	}
+	out := make(map[string]string, len(parts))
+	for slug, reasons := range parts {
+		out[slug] = strings.Join(reasons, "; ")
+	}
+
+	return out
 }
 
 // checkAccounts checks each account that the set declares with its harness, in
@@ -105,8 +126,21 @@ func harnessNameOf(run rules.RunSettings) string {
 func accountsOff(results []accountResult) map[string]string {
 	off := map[string]string{}
 	for _, a := range results {
-		if len(a.problems) > 0 {
-			off[a.name] = a.reason()
+		if reason := a.reason(); reason != "" {
+			off[a.name] = reason
+		}
+	}
+
+	return off
+}
+
+// projectsOff maps each account to the projects it failed for, and each of
+// them to the reason. An account with no failed project has no entry.
+func projectsOff(results []accountResult) map[string]map[string]string {
+	off := map[string]map[string]string{}
+	for _, a := range results {
+		if projects := a.projectReasons(); len(projects) > 0 {
+			off[a.name] = projects
 		}
 	}
 
@@ -116,8 +150,13 @@ func accountsOff(results []accountResult) map[string]string {
 // warnAccountsOff logs each failing account.
 func warnAccountsOff(log *slog.Logger, results []accountResult) {
 	for _, a := range results {
-		if len(a.problems) > 0 {
+		if a.reason() != "" {
 			log.Warn("account_failed", "account", a.name, "harness", a.harness, "unused", !a.used, "reason", a.reason(), "detail", a.detail())
+		}
+		for _, p := range a.problems {
+			if p.Project != "" {
+				log.Warn("project_failed", "account", a.name, "harness", a.harness, "unused", !a.used, "project", p.Project, "reason", p.Reason, "detail", p.Detail)
+			}
 		}
 	}
 }
@@ -125,7 +164,7 @@ func warnAccountsOff(log *slog.Logger, results []accountResult) {
 // accountReports gives a row for each account the set declares, and nil when no
 // check ran on the set.
 func accountReports(set *rules.Set) []api.AccountReport {
-	off := set.AccountsOff()
+	off, projectsOff := set.AccountsOff(), set.ProjectsOff()
 	if off == nil {
 		return nil
 	}
@@ -137,10 +176,24 @@ func accountReports(set *rules.Set) []api.AccountReport {
 		if reason := off[name]; reason != "" {
 			row.State, row.Reason = api.AccountFailing, cutReason(reason)
 		}
+		row.FailedProjects = failedProjects(set, projectsOff[name])
 		reports = append(reports, row)
 	}
 
 	return reports
+}
+
+// failedProjects lists the projects of m, which maps a slug to a reason, by
+// project id, in slug order. A slug without an id leaves the list.
+func failedProjects(set *rules.Set, m map[string]string) []api.FailedProject {
+	var out []api.FailedProject
+	for _, slug := range slices.Sorted(maps.Keys(m)) {
+		if id := set.ProjectID(slug); id != "" {
+			out = append(out, api.FailedProject{ProjectID: id, Reason: cutReason(m[slug])})
+		}
+	}
+
+	return out
 }
 
 // cutReason keeps a reason within maxAccountReason characters.

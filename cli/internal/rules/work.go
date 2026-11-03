@@ -421,7 +421,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	}
 	s.mu.RLock()
 	dead := s.deadWork[slug] != ""
-	off := s.offLocked(runs)
+	off := s.offLocked(runs, slug)
 	s.mu.RUnlock()
 	off = off || s.agentsOff != "" && (!ok || entry.Action != ActionCommand)
 	if (!ok && !s.appPrompts) || dead || off || (ok && !entry.takes(w.Kind, w.SubjectType) && !runCommand) {
@@ -700,7 +700,7 @@ func (s *Set) WorkKindsOn() []string {
 
 			continue
 		}
-		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs()) {
+		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs(), "") {
 			continue
 		}
 		if entry.Subject != api.SubjectCard {
@@ -776,7 +776,7 @@ func (s *Set) Capabilities() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for kind, entry := range s.work {
-		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs()) {
+		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs(), "") {
 			continue
 		}
 		interactive = interactive || entry.Action == ActionInteractive
@@ -795,7 +795,7 @@ func (s *Set) Capabilities() []string {
 	for _, subject := range subjects {
 		out = append(out, subjectCapabilityPrefix+subject)
 	}
-	if s.appPrompts && s.agentsOff == "" && !s.offLocked([]RunSettings{s.appRun}) {
+	if s.appPrompts && s.agentsOff == "" && !s.offLocked([]RunSettings{s.appRun}, "") {
 		out = append(out, CapabilityAppPrompts)
 	}
 
