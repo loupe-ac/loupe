@@ -11,7 +11,7 @@ node tests/skill-evals/session-test/run.mjs product   # /loupe-lifecycle:product
 node tests/skill-evals/session-test/run.mjs tech      # /loupe-lifecycle:tech-design
 ```
 
-Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per turn), `--max-turns N`. The script finds the skill plugin in `~/.claude/plugins/cache/superpowers-extended-cc-marketplace`, or reads `SKILL_PLUGIN_DIR`. A run costs about $3 and needs the `claude` CLI and Node. The exit code is 1 when a check fails.
+Options: `--out DIR`, `--skill-plugin DIR`, `--model M`, `--max-cost USD` (per turn), `--max-turns N`. The script fetches the skill plugin from `pcvelz/superpowers` at a pinned commit into the system temporary folder, unless `--skill-plugin` or `SKILL_PLUGIN_DIR` names a folder. The plugin need not be installed. Keep this skill for the test even when the owner uses another interview skill, because the checks need a skill that writes a spec file. A run costs about $3 and needs the `claude` CLI and Node. The exit code is 1 when a check fails.
 
 ## What it does
 

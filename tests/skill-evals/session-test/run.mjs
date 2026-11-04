@@ -13,12 +13,13 @@ import {
     mkdtempSync,
     readFileSync,
     readdirSync,
+    renameSync,
     rmSync,
     writeFileSync,
     appendFileSync,
     statSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -127,30 +128,38 @@ function sectionEntries(markdown, heading) {
     return entries;
 }
 
-function findSkillPlugin() {
-    const base = join(
-        homedir(),
-        '.claude/plugins/cache/superpowers-extended-cc-marketplace/superpowers-extended-cc',
-    );
-    if (!existsSync(base)) return null;
-    const versions = readdirSync(base)
-        .filter((v) =>
-            existsSync(join(base, v, 'skills/brainstorming/SKILL.md')),
-        )
-        .sort();
-    return versions.length ? join(base, versions[versions.length - 1]) : null;
+const SKILL_PLUGIN_REPO = 'https://github.com/pcvelz/superpowers.git';
+const SKILL_PLUGIN_COMMIT = 'c9d67cbf83ed9d1867f290bdd5d7440801c33b66';
+
+function fetchSkillPlugin() {
+    const parent = join(tmpdir(), 'session-test-skill-plugin');
+    const target = join(parent, SKILL_PLUGIN_COMMIT);
+    if (existsSync(target)) return target;
+    mkdirSync(parent, { recursive: true });
+    const partial = mkdtempSync(join(parent, 'partial-'));
+    const inPartial = (...a) =>
+        spawnSync('git', a, { cwd: partial, encoding: 'utf8' });
+    const failed = [
+        ['init', '-q'],
+        ['fetch', '-q', '--depth=1', SKILL_PLUGIN_REPO, SKILL_PLUGIN_COMMIT],
+        ['checkout', '-q', 'FETCH_HEAD'],
+    ].find((a) => inPartial(...a).status !== 0);
+    if (failed) {
+        rmSync(partial, { recursive: true, force: true });
+        return null;
+    }
+    renameSync(partial, target);
+    return target;
 }
 
-const skillPlugin = opt(
-    '--skill-plugin',
-    process.env.SKILL_PLUGIN_DIR || findSkillPlugin(),
-);
+const skillPlugin =
+    opt('--skill-plugin') ?? (process.env.SKILL_PLUGIN_DIR || fetchSkillPlugin());
 if (
     !skillPlugin ||
     !existsSync(join(skillPlugin, 'skills/brainstorming/SKILL.md'))
 ) {
     console.error(
-        'Cannot find the superpowers-extended-cc plugin. Pass --skill-plugin DIR.',
+        `Cannot fetch ${SKILL_PLUGIN_REPO} at ${SKILL_PLUGIN_COMMIT}. Pass --skill-plugin DIR.`,
     );
     process.exit(2);
 }

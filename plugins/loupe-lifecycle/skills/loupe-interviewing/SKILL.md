@@ -5,7 +5,7 @@ description: "Use when a Loupe design session asks the owner questions: the ques
 
 # Interviewing
 
-A Loupe design session loads this skill. It holds the question rules, the options shape, the intake prompt, the recap loop and the stop rule. The rules apply when the Loupe method leads the interview, and also when an installed skill leads (see `references/delegation.md`).
+A Loupe design session loads this skill. It holds the question rules, the options shape, the intake prompt, the recap loop and the stop rule. The rules apply when the Loupe method leads the interview. When an installed skill leads, it sets the format of its questions, and `references/delegation.md` says which rules still win.
 
 Each rule has a stable ID, so a comment can cite it. The IDs Q4, Q5 and Q6 are not here. Q4 is retired and must not be reused. The product design session holds Q5 and Q6. Keep the other IDs as they are.
 
