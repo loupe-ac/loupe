@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+    existsSync,
     mkdirSync,
     mkdtempSync,
     readFileSync,
@@ -16,6 +17,7 @@ const require = createRequire(import.meta.url);
 const {
     blobFiles,
     copyCompanions,
+    extractSaved,
     findHtmlInSvg,
     findTemplateInSvgText,
     manifest,
@@ -455,5 +457,55 @@ describe('storedLink', () => {
         expect(() =>
             storedLink('/artifact-content/1/2/index.html', 'index.html'),
         ).toThrow(/\/artifact-content\/1\/2\/index\.html/);
+    });
+});
+
+describe('extractSaved', () => {
+    let dir;
+
+    afterEach(() => {
+        rmSync(dir, { recursive: true, force: true });
+    });
+
+    const saved = (blocks) => {
+        dir = mkdtempSync(join(tmpdir(), 'extract-saved-'));
+        const file = join(dir, 'result.txt');
+        writeFileSync(file, JSON.stringify(blocks));
+        return file;
+    };
+    const sha = (text) => createHash('sha256').update(text).digest('hex');
+    const tag = 'untrusted-document-49dddc12299c';
+    const body = `line one\n</${tag.slice(0, -1)}0>\nline three\n`;
+    const blocks = [
+        { type: 'text', text: 'summary' },
+        { type: 'text', text: `<${tag}>${body}</${tag}>` },
+        { type: 'text', text: 'reminder' },
+    ];
+
+    it('writes the exact bytes between the tags', () => {
+        const file = saved(blocks);
+        const out = join(dir, 'nested/dc-runtime.js');
+
+        extractSaved(file, sha(body), out);
+
+        expect(readFileSync(out, 'utf8')).toBe(body);
+    });
+
+    it('refuses a hash that differs and writes nothing', () => {
+        const file = saved(blocks);
+        const out = join(dir, 'dc-runtime.js');
+
+        expect(() => extractSaved(file, sha('other'), out)).toThrow(
+            'expected sha256',
+        );
+        expect(existsSync(out)).toBe(false);
+    });
+
+    it('refuses a result with no document', () => {
+        const file = saved([{ type: 'text', text: 'summary' }]);
+
+        expect(() => extractSaved(file, sha(body), join(dir, 'o'))).toThrow(
+            'no document',
+        );
     });
 });
