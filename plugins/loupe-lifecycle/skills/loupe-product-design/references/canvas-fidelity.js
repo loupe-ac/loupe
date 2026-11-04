@@ -5,9 +5,10 @@
 //   manifest <folder>
 //   verify   <expected folder> <entry page link>
 //   shoot    <canvas folder> <out folder> [<entry page link>] [--index <artboard>] [--runtime <dc-runtime.js>] [--boards a,b] [--stored-only]
+//   extract  <saved tool result> <sha256> <out file>
 //
 // The canvas folder is the folder the session pushed, with the canvas files at
-// the paths the Artifact tool reads. Needs Node 18 or later and Playwright.
+// the paths the canvas tools read. Needs Node 18 or later and Playwright.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -454,6 +455,24 @@ function parse(args) {
     return { positional, options };
 }
 
+function extractSaved(savedResult, sha256, outFile) {
+    const blocks = JSON.parse(fs.readFileSync(savedResult, 'utf8'));
+    for (const block of blocks) {
+        const open = /^<(untrusted-document-[0-9a-f]+)>/.exec(block.text ?? '');
+        if (!open) continue;
+        const end = block.text.lastIndexOf(`</${open[1]}>`);
+        if (end < 0) throw new Error(`${savedResult}: the document has no closing tag`);
+        const text = block.text.slice(open[0].length, end);
+        const actual = crypto.createHash('sha256').update(text).digest('hex');
+        if (actual !== sha256) throw new Error(`${savedResult}: expected sha256 ${sha256}, found ${actual}`);
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        fs.writeFileSync(outFile, text);
+
+        return;
+    }
+    throw new Error(`${savedResult}: no document in the saved result`);
+}
+
 async function main(argv) {
     const [playwrightPath, command, ...rest] = argv;
     const { positional, options } = parse(rest);
@@ -469,15 +488,21 @@ async function main(argv) {
 
         return problems.length === 0 ? 0 : 1;
     }
+    if (command === 'extract') {
+        extractSaved(positional[0], positional[1], positional[2]);
+        console.log(`pass: ${positional[2]} has the expected hash`);
+
+        return 0;
+    }
     if (command === 'render') await render(playwrightPath, positional[0], positional[1], options);
     else if (command === 'scan') return scan(playwrightPath, positional[0], options);
     else if (command === 'shoot') await shoot(playwrightPath, positional[0], positional[1], positional[2], options);
-    else throw new Error('Commands: render, scan, manifest, verify, shoot');
+    else throw new Error('Commands: render, scan, manifest, verify, shoot, extract');
 
     return 0;
 }
 
-module.exports = { blobFiles, copyCompanions, rewriteBlobLinks, walk, findHtmlInSvg, findTemplateInSvgText, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
+module.exports = { blobFiles, copyCompanions, extractSaved, rewriteBlobLinks, walk, findHtmlInSvg, findTemplateInSvgText, serializeDocument, rebaseDocument, manifest, pageMap, pagePath, serve, storedLink, verify };
 
 if (require.main === module) {
     main(process.argv.slice(2)).then(
