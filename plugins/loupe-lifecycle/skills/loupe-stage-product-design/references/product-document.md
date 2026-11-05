@@ -55,7 +55,7 @@ Write it when the `Instruction files` section of the repository profile names a 
 1. List each component that the change reuses.
 2. List each component that it must change, and say what changes, such as a new option or a new state. A change to the look or the behaviour of a component goes into the component. The position on the page stays a page rule.
 3. Cite the `R` IDs each entry serves.
-4. Propose no new component. Name a part that no component covers as page-level.
+4. When no component covers a part, say so. Propose a new component when other pages can use it. Otherwise name the part as page-level.
 
 ## For tech design
 
