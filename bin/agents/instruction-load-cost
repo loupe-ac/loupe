@@ -8,7 +8,7 @@
 # whose project directory is this repository, one of its .worktrees or a bridge card worktree,
 # modified in the last n days (default 30).
 # Loads: each Skill tool call counts once by its tool-use id. AGENTS.md loads once per top-level session.
-# Words: the current "wc -w" of AGENTS.md and of .agents/skills/<name>/SKILL.md. Cost: loads x words.
+# Words: the current "wc -w" of AGENTS.md and of <name>/SKILL.md under .agents/skills, plugins/loupe/skills or plugins/loupe-lifecycle/skills. Cost: loads x words.
 # --with <skill>: per skill, the top-level sessions that load it and those that also load <skill>.
 # Prints counts and skill names only, never transcript content.
 # Requires: git, find, grep, awk, wc
@@ -62,13 +62,22 @@ calls() {
 
 words() { [[ -f "$1" ]] && wc -w <"$1" | tr -d ' ' || echo ""; }
 
+skill_words() {
+  local d w
+  for d in .agents/skills plugins/loupe/skills plugins/loupe-lifecycle/skills; do
+    w=$(words "$MAIN/$d/$1/SKILL.md")
+    if [[ -n "$w" ]]; then echo "$w"; return; fi
+  done
+  echo ""
+}
+
 echo "Window: last $DAYS days. Top-level sessions: $SESSIONS."
 echo
 
 {
   printf 'AGENTS.md\t%s\t%s\n' "$SESSIONS" "$(words "$MAIN/AGENTS.md")"
   calls | cut -f3 | sort | uniq -c | while read -r n skill; do
-    printf '%s\t%s\t%s\n' "$skill" "$n" "$(words "$MAIN/.agents/skills/$skill/SKILL.md")"
+    printf '%s\t%s\t%s\n' "$skill" "$n" "$(skill_words "$skill")"
   done
 } | awk -F'\t' '
   $3 == "" { missing = missing sprintf("%s%s (%d)", missing == "" ? "" : ", ", $1, $2); next }
@@ -86,7 +95,7 @@ echo
       if (i <= 7) top += cost[i]
     }
     printf "\nTotal load cost: %d words. Top 7 share: %.1f%%.\n", total, total ? 100 * top / total : 0
-    if (missing != "") printf "Not in .agents/skills (loads): %s\n", missing
+    if (missing != "") printf "Not in a skills folder (loads): %s\n", missing
   }'
 
 if [[ -n "$WITH" ]]; then
