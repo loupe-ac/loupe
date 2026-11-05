@@ -155,6 +155,14 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
             }
             $rules = GitHubBranchRules::fromRules($all);
         } catch (GitHubAppApiFailed|\UnexpectedValueException $e) {
+            if ($e instanceof GitHubAppApiFailed && GitHubAppApiFailed::PLAN_LIMITED === $e->reason) {
+                // A plan with no rulesets enforces none, on any base branch.
+                $rules = GitHubBranchRules::fromRules([]);
+                $this->rules[$key] = ['rules' => $rules, 'until' => $now->modify(self::RULES_TTL)];
+
+                return $rules;
+            }
+
             $this->logger->warning('forge.ruleset_unreadable', [
                 'installationId' => $installationId,
                 'repository' => $path,

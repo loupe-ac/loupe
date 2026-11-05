@@ -149,6 +149,19 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame(self::P.'classic-protection.classic_protection.title', $line->titleKey);
     }
 
+    public function test_rules_the_plan_cannot_hold_add_a_line_with_the_github_message(): void
+    {
+        $settings = new RepositorySettings('main', ['squash'], 15368, new RepositoryRules(false, false, null, [], [], false, false), [], [], false, 'Upgrade to GitHub Pro.');
+        $check = $this->check([$this->item('ci-checks', 'warning', [RepositorySuggestionCatalog::GAP_NO_CI_CHECK])], $settings);
+
+        $lines = $this->lines()->forCheck($check);
+
+        self::assertCount(2, $lines);
+        self::assertSame(self::P.'rules_unavailable.title', $lines[0]->titleKey);
+        self::assertSame('pending', $lines[0]->modifier);
+        self::assertSame(['%message%' => 'Upgrade to GitHub Pro.'], $lines[0]->detailParameters);
+    }
+
     public function test_a_gap_that_does_not_belong_to_its_key_gets_the_generic_line(): void
     {
         $check = $this->check([$this->item('ci-checks', 'warning', ['no_such_gap'])], $this->settings());
