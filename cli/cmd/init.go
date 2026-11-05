@@ -94,9 +94,11 @@ var (
 type initOptions struct {
 	link      projectLinkOptions
 	reset     bool
+	repoint   bool
 	rulesPath string
 	baseURL   string
 	name      string
+	folder    string
 	domain    string
 	origins   []string
 
@@ -112,8 +114,12 @@ func newInitCmd() *cobra.Command {
 		Short: "Set up Loupe for this repository: sign in, link the project, write the rules and start the bridge",
 		Long: "Runs the first-run steps in order. Each step skips itself when it is done already, " +
 			"so you can run the command again and nothing changes.\n\n" +
-			"1. Sign in with `loupe login`, when you are not signed in. --url names the instance. A login to another instance stops the command.\n" +
-			"2. Choose the project. --project names it by its id or its slug. Else " + projectfile.Name + " in this directory " +
+			"1. Check the folder. When this folder is below the root of its git repository, ask which to set up: the root (the default) or this folder. " +
+			"--folder root|current gives the answer. With no terminal and no --folder, the command stops before it writes anything. " +
+			"A folder below the root gets a warning, because a bridge worker starts at the root and cannot find that setup. " +
+			"The root as the answer runs every later step at the root, also for a relative --rules path.\n" +
+			"2. Sign in with `loupe login`, when you are not signed in. --url names the instance. A login to another instance stops the command.\n" +
+			"3. Choose the project. --project names it by its id or its slug. Else " + projectfile.Name + " in this directory " +
 			"names it. Else the command lists your projects, also when you have one, and the last row creates a new project. " +
 			"With no terminal to answer, the command prints the list and stops: pass --project <slug> to use a project, " +
 			"or --name \"<name>\" to create one. --name creates a project with that name and skips the list. " +
@@ -121,10 +127,11 @@ func newInitCmd() *cobra.Command {
 			"--origin can repeat, and both flags need --name. " +
 			"The server checks every value first, and a bad value creates no project. " +
 			"--name cannot go with --project, and it needs --force when " + projectfile.Name + " names a project already. " +
+			"When the name is taken and the login lists that project, the command asks \"You already have a project named <name>. Use it?\" and reuses it only on a yes; with no terminal it stops with the error. " +
 			"When your login covers no project, the command creates one from the `origin` remote of this repository.\n" +
-			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
+			"4. Link this directory with `loupe project link`. That writes " + projectfile.Name + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
-			"4. Install the Loupe plugins that this project needs in Claude Code, when `claude` is on your PATH " +
+			"5. Install the Loupe plugins that this project needs in Claude Code, when `claude` is on your PATH " +
 			"and lacks one: `loupe`, and `loupe-lifecycle` when the workflow of the project uses it. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
 			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for each " +
 			"Codex account of the rule file: in its profile file when that sets the mode, else in config.toml " +
@@ -132,25 +139,25 @@ func newInitCmd() *cobra.Command {
 			"install the Loupe plugins in the Codex home of each account. A home with a running worker " +
 			"is left to the bridge. After the last home, the Loupe skill folders in ~/.agents/skills/ move to " +
 			"the backup folder of the skill store, because Codex reads that folder for every home. The Codex " +
-			"part runs after step 5, because it reads the Codex accounts of the rule file. " +
+			"part runs after step 6, because it reads the Codex accounts of the rule file. " +
 			"When a command fails, the step prints it for you to run.\n" +
-			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
+			"6. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
 			"--reset writes the first-run rules again and keeps the projects map. A projects entry " +
-			"that maps this project to another directory stops the command.\n" +
-			"6. Ask whether to turn on automatic updates, when the rule file has no autoUpdate key. " +
+			"that maps this project to another directory stops the command, unless you pass --repoint or answer yes to the question that offers to point it at this directory.\n" +
+			"7. Ask whether to turn on automatic updates, when the rule file has no autoUpdate key. " +
 			"The default is no, and a session with no terminal answers no.\n" +
-			"7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge that " +
-			"runs already reloads the rule file when step 5 changed it.\n" +
-			"8. Install the Playwright browser, when the package.json of the repository root or of one of " +
+			"8. Start the bridge in the background, as `loupe bridge run -d` does. A bridge that " +
+			"runs already reloads the rule file when step 6 changed it.\n" +
+			"9. Install the Playwright browser, when the package.json of the repository root or of one of " +
 			"its direct subfolders lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
-			"9. Write the repository profile with an agent, when the workflow of the project needs one and " +
+			"10. Write the repository profile with an agent, when the workflow of the project needs one and " +
 			profile.Path + " is missing, lacks a section or holds a value marked \"" + profile.OpenQuestion + "\". " +
 			"--review-profile starts the agent also for a complete file. --agent picks claude or codex; with both on the PATH " +
 			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
-			"10. Print what remains and the project page. The accounts are reported before step 9, so a failing account never stops the agent.\n\n" +
-			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
+			"11. Print what remains and the project page. The accounts are reported before step 10, so a failing account never stops the agent.\n\n" +
+			"Steps 1, 2, 3, 4 and 6 stop the command when they fail. The other steps report a failure and go on. " +
 			"A bridge that fails to start, or a used account that fails for this project, makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -161,6 +168,8 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.name, "name", "", "create a project with this `name` and use it, instead of choosing from a list")
 	cmd.Flags().StringVar(&o.domain, "domain", "", "domain of the new project; needs --name")
 	cmd.Flags().StringArrayVar(&o.origins, "origin", nil, "allowed origin of the new project for the site-review widget; repeat it for more; needs --name")
+	cmd.Flags().StringVar(&o.folder, "folder", "", "folder to set up when this one is below the repository root: root or current; else init asks")
+	cmd.Flags().BoolVar(&o.repoint, "repoint", false, "point a rule file entry that maps another directory at this one")
 	cmd.Flags().BoolVar(&o.reset, "reset", false, "write the first-run rules again, and keep the projects map")
 	cmd.Flags().BoolVar(&o.link.force, "force", false, "replace an existing "+projectfile.Name)
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
@@ -186,6 +195,12 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return err
+	}
+	if dir, err = initFolder(cmd, dir, o.folder); err != nil {
+		return err
+	}
+	if o.rulesPath != "" && !filepath.IsAbs(o.rulesPath) {
+		o.rulesPath = filepath.Join(dir, o.rulesPath)
 	}
 	if _, err := makeSetupPin(); err != nil {
 		return err
@@ -218,7 +233,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	changed, err := initRules(cmd, path, dir, site, o.reset)
+	changed, err := initRules(cmd, path, dir, site, o)
 	if err != nil {
 		return err
 	}
@@ -253,6 +268,9 @@ func checkNameFlags(cmd *cobra.Command, o *initOptions) error {
 	o.name = strings.TrimSpace(o.name)
 	if cmd.Flags().Changed("name") && o.name == "" {
 		return errors.New("--name needs a project name")
+	}
+	if o.folder != "" && o.folder != folderRoot && o.folder != folderCurrent {
+		return fmt.Errorf("--folder takes %s or %s, not %q", folderRoot, folderCurrent, o.folder)
 	}
 	if o.name == "" {
 		for _, flag := range []string{"domain", "origin"} {
@@ -354,7 +372,7 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 			return api.Site{}, fmt.Errorf("%s names %s: pass --force to create the new project and replace the file", projectfile.Name, describe(linkedSite))
 		}
 
-		return initCreateNamed(cmd, client, o)
+		return initCreateNamed(cmd, client, dir, find, o)
 	}
 
 	if o.link.projectID != "" {
@@ -415,7 +433,7 @@ func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initO
 			return api.Site{}, fmt.Errorf("the setup %s links this folder to %s: pass --force to create the new project and replace the link", setup.Dir, describe(linkedSite))
 		}
 
-		return initCreateNamed(cmd, apiClient(cfg), o)
+		return initCreateNamed(cmd, apiClient(cfg), dir, find, o)
 	}
 
 	if o.link.projectID != "" {
@@ -473,25 +491,36 @@ func initPickProject(cmd *cobra.Command, client *api.Client, dir string, sites [
 		return site, nil
 	}
 
-	site, err := createByAsking(cmd, client, dir)
+	site, reused, err := createByAsking(cmd, client, dir, find)
 	if err != nil {
 		return api.Site{}, err
 	}
-	step(out, "Project", "done", "created "+describe(site))
+	stepProject(out, site, reused)
 
 	return site, nil
 }
 
+// stepProject says whether init created the project or took an existing one.
+func stepProject(out io.Writer, site api.Site, reused bool) {
+	if reused {
+		step(out, "Project", "done", "using "+describe(site))
+
+		return
+	}
+	step(out, "Project", "done", "created "+describe(site))
+}
+
 // createByAsking asks for a project name until the server takes one. Enter
-// sends the remote alone, and the server names the project after it.
-func createByAsking(cmd *cobra.Command, client *api.Client, dir string) (api.Site, error) {
+// sends the remote alone, and the server names the project after it. reused is
+// true when the name was taken and the person chose that project.
+func createByAsking(cmd *cobra.Command, client *api.Client, dir string, find func(string) (api.Site, bool)) (site api.Site, reused bool, err error) {
 	out, in := cmd.OutOrStdout(), cmd.InOrStdin()
 	remote := initOriginRemote(cmd.Context(), dir)
 
 	for {
 		name, err := askProjectName(out, in, remote)
 		if err != nil {
-			return api.Site{}, err
+			return api.Site{}, false, err
 		}
 		req := api.CreateProjectRequest{Name: name}
 		if name == "" {
@@ -504,19 +533,22 @@ func createByAsking(cmd *cobra.Command, client *api.Client, dir string) (api.Sit
 
 		var taken *api.NameTakenError
 		if errors.As(err, &taken) {
-			if taken.Slug == "" {
-				fmt.Fprintln(out, "You already have a project with this name or slug. Choose another name.")
-			} else {
-				fmt.Fprintf(out, "You already have a project with this name. Its slug is %s: `--project %s` uses it. Or choose another name.\n", taken.Slug, taken.Slug)
+			if existing, ok := find(taken.Slug); taken.Slug != "" && ok {
+				if confirm(out, cmd.InOrStdin(), fmt.Sprintf("You already have a project named %s. Use it?", cmp.Or(name, existing.Name))) {
+					return existing, true, nil
+				}
+
+				continue
 			}
+			fmt.Fprintln(out, "You already have a project with this name or slug. Choose another name.")
 
 			continue
 		}
 		if err != nil {
-			return api.Site{}, err
+			return api.Site{}, false, err
 		}
 
-		return site, nil
+		return site, false, nil
 	}
 }
 
@@ -548,39 +580,63 @@ func askProjectName(out io.Writer, in io.Reader, remote string) (string, error) 
 	}
 }
 
-// initCreateNamed creates the project that --name asks for.
-func initCreateNamed(cmd *cobra.Command, client *api.Client, o initOptions) (api.Site, error) {
+// initCreateNamed creates the project that --name asks for. A name that is
+// taken offers the project that holds it, on a terminal. Reusing it needs an
+// answer, because --name means create, and two repositories with one name
+// could otherwise share one project and its workers.
+func initCreateNamed(cmd *cobra.Command, client *api.Client, dir string, find func(string) (api.Site, bool), o initOptions) (api.Site, error) {
 	out := cmd.OutOrStdout()
 	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 	defer cancel()
 
 	site, err := createNamedProject(ctx, client, o)
+	var taken *api.NameTakenError
+	if errors.As(err, &taken) {
+		existing, known := find(taken.Slug)
+		if taken.Slug == "" || !known || !isTerminal(cmd.InOrStdin()) {
+			return api.Site{}, takenNameError(o.name, taken)
+		}
+		if !confirm(out, cmd.InOrStdin(), fmt.Sprintf("You already have a project named %s. Use it?", o.name)) {
+			site, reused, err := createByAsking(cmd, client, dir, find)
+			if err != nil {
+				return api.Site{}, err
+			}
+			stepProject(out, site, reused)
+
+			return site, nil
+		}
+		if o.domain != "" || len(o.origins) > 0 {
+			fmt.Fprintln(out, "Note: --domain and --origin apply to a new project, so they changed nothing on this one.")
+		}
+		stepProject(out, existing, true)
+
+		return existing, nil
+	}
 	if err != nil {
 		return api.Site{}, err
 	}
 	if o.domain != "" && site.Domain == "" || len(o.origins) > 0 && len(site.AllowedOrigins) == 0 {
 		fmt.Fprintln(out, "Warning: this Loupe instance ignored --domain or --origin, because it is older than this CLI. Set them in the project settings.")
 	}
-	step(out, "Project", "done", "created "+describe(site))
+	stepProject(out, site, false)
 
 	return site, nil
 }
 
 // createNamedProject sends the name, the domain and the origins. It sends no
-// remote, because the server uses the remote only to find a name.
+// remote, because the server uses the remote only to find a name. A name that
+// is taken comes back as the typed error.
 func createNamedProject(ctx context.Context, client *api.Client, o initOptions) (api.Site, error) {
-	site, err := client.CreateProject(ctx, api.CreateProjectRequest{Name: o.name, Domain: o.domain, Origins: o.origins})
+	return client.CreateProject(ctx, api.CreateProjectRequest{Name: o.name, Domain: o.domain, Origins: o.origins})
+}
 
-	var taken *api.NameTakenError
-	if errors.As(err, &taken) {
-		if taken.Slug == "" {
-			return api.Site{}, fmt.Errorf("you already have a project with the name or slug of %q: choose another name", o.name)
-		}
-
-		return api.Site{}, fmt.Errorf("you already have a project with this name, %s: pass --project %s to use it, or choose another name", taken.Slug, taken.Slug)
+// takenNameError is the error of a run that cannot ask about a taken name.
+func takenNameError(name string, taken *api.NameTakenError) error {
+	if taken.Slug == "" {
+		return fmt.Errorf("you already have a project with the name or slug of %q: choose another name", name)
 	}
 
-	return site, err
+	return fmt.Errorf("you already have a project with this name, %s: pass --project %s to use it, or choose another name", taken.Slug, taken.Slug)
 }
 
 // originRemote returns the origin remote of the repository without its
@@ -657,7 +713,7 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !link.force {
-		if err := offerServer(cmd, dir, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
+		if err := offerServer(cmd, dir, step, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
 			return err
 		}
 		step(out, "Link", "skipped", projectfile.Name+" exists already")
@@ -665,11 +721,13 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 		return nil
 	}
 
-	link.projectID = projectID
-	if err := runProjectLink(cmd, link); err != nil {
+	if err := projectfile.Write(dir, projectID); err != nil {
 		return err
 	}
-	step(out, "Link", "done", projectfile.Name+" names the project")
+	if err := offerServer(cmd, dir, step, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
+		return err
+	}
+	step(out, "Link", "done", projectfile.Name+" names the project "+projectID)
 
 	return nil
 }
@@ -1190,9 +1248,9 @@ func siteRuleSlug(site api.Site) string {
 
 // initRules writes the first-run rule file, or adds to the one that exists. It
 // reports whether it changed a file that existed.
-func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
+func initRules(cmd *cobra.Command, path, dir string, site api.Site, o initOptions) (bool, error) {
 	out := cmd.OutOrStdout()
-	opts := rules.FirstRunOptions{Slug: siteRuleSlug(site), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
+	opts := rules.FirstRunOptions{Slug: siteRuleSlug(site), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS, Repoint: o.repoint}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)
@@ -1200,33 +1258,21 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 		return false, fmt.Errorf("read rule file: %w", err)
 	}
 
-	var (
-		next   []byte
-		detail string
-	)
-	switch {
-	case missing:
-		if next, err = rules.FirstRun(opts); err != nil {
-			return false, err
-		}
-		detail = "wrote " + path
-	case reset:
-		if next, err = rules.Reset(existing, opts); err != nil {
-			return false, fmt.Errorf("rule file %s: %w", path, err)
-		}
-		detail = "wrote the first-run rules to " + path + " and kept its projects map"
-	default:
-		var added []string
-		if next, added, err = rules.Merge(existing, opts); err != nil {
-			return false, fmt.Errorf("rule file %s: %w", path, err)
-		}
-		if len(added) == 0 {
-			step(out, "Rules", "skipped", path+" has what the first run needs")
-			noteNoProductDesign(out, path, next, opts)
+	next, detail, err := initRulesNext(path, existing, missing, o.reset, opts)
+	var mismatch *rules.DirMismatchError
+	if errors.As(err, &mismatch) && !opts.Repoint &&
+		confirm(out, cmd.InOrStdin(), fmt.Sprintf("projects.%s maps %s. Point it at %s?", mismatch.Slug, mismatch.Mapped, dir)) {
+		opts.Repoint = true
+		next, detail, err = initRulesNext(path, existing, missing, o.reset, opts)
+	}
+	if err != nil {
+		return false, err
+	}
+	if detail == "" {
+		step(out, "Rules", "skipped", path+" has what the first run needs")
+		noteNoProductDesign(out, path, next, opts)
 
-			return false, nil
-		}
-		detail = "added " + strings.Join(added, ", ") + " to " + path
+		return false, nil
 	}
 
 	if !missing && bytes.Equal(existing, next) {
@@ -1242,6 +1288,33 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 	noteNoProductDesign(out, path, next, opts)
 
 	return !missing, nil
+}
+
+// initRulesNext builds the rule file init writes, and says what it did. An
+// empty detail means the file has what the first run needs.
+func initRulesNext(path string, existing []byte, missing, reset bool, opts rules.FirstRunOptions) ([]byte, string, error) {
+	switch {
+	case missing:
+		next, err := rules.FirstRun(opts)
+
+		return next, "wrote " + path, err
+	case reset:
+		next, err := rules.Reset(existing, opts)
+		if err != nil {
+			return nil, "", fmt.Errorf("rule file %s: %w", path, err)
+		}
+
+		return next, "wrote the first-run rules to " + path + " and kept its projects map", nil
+	}
+	next, added, err := rules.Merge(existing, opts)
+	if err != nil {
+		return nil, "", fmt.Errorf("rule file %s: %w", path, err)
+	}
+	if len(added) == 0 {
+		return next, "", nil
+	}
+
+	return next, "added " + strings.Join(added, ", ") + " to " + path, nil
 }
 
 // noteNoProductDesign says so when the rule file runs no interactive work

@@ -48,6 +48,22 @@ type FirstRunOptions struct {
 
 	LookPath func(string) (string, error)
 	GOOS     string
+
+	// Repoint replaces the dir of an entry that maps another directory,
+	// in place of failing with a DirMismatchError.
+	Repoint bool
+}
+
+// DirMismatchError says that the entry of the project maps another directory
+// than the one init sets up.
+type DirMismatchError struct {
+	Slug   string // the key of the entry, the slug or the id
+	Mapped string // the dir the entry names, as written
+	Dir    string // the folder init sets up
+}
+
+func (e *DirMismatchError) Error() string {
+	return fmt.Sprintf("projects.%s maps %s, not this directory %s: change its dir, or remove the entry, then run loupe init again, or pass --repoint to point it at this directory", e.Slug, e.Mapped, e.Dir)
 }
 
 func (o FirstRunOptions) look(name string) bool {
@@ -240,15 +256,23 @@ func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, e
 		if byID {
 			return nil, fmt.Errorf("projects.%s and projects.%s name the same project, and the bridge refuses both: remove projects.%s, then run loupe init again", o.Slug, idKey.Value, idKey.Value)
 		}
-		if err := sameDir(project, o.Slug, o.Dir); err != nil {
+		repointed, err := sameDir(project, o.Slug, o)
+		if err != nil {
 			return nil, err
+		}
+		if repointed {
+			added = append(added, "projects."+o.Slug+".dir")
 		}
 	} else if byID {
 		project, _ := lookup(projects, idKey.Value)
-		if err := sameDir(project, idKey.Value, o.Dir); err != nil {
+		repointed, err := sameDir(project, idKey.Value, o)
+		if err != nil {
 			return nil, err
 		}
 		added = append(added, "projects."+o.Slug+" (renamed from projects."+idKey.Value+")")
+		if repointed {
+			added = append(added, "projects."+o.Slug+".dir")
+		}
 		idKey.Value = o.Slug
 	} else {
 		projects.Content = append(projects.Content, scalarNode(o.Slug), mappingNode("dir", scalarNode(o.Dir)))
@@ -293,22 +317,27 @@ func idEntry(projects *yaml.Node, o FirstRunOptions) (*yaml.Node, bool) {
 	return nil, false
 }
 
-// sameDir fails when the project entry maps another directory than dir. An
+// sameDir fails with a DirMismatchError when the project entry maps another
+// directory than o.Dir. With o.Repoint it replaces that dir and reports it. An
 // entry with no dir is left to Parse.
-func sameDir(project *yaml.Node, slug, dir string) error {
+func sameDir(project *yaml.Node, slug string, o FirstRunOptions) (bool, error) {
 	n, ok := lookup(project, "dir")
 	if project.Kind != yaml.MappingNode || !ok || n.Kind != yaml.ScalarNode || n.Value == "" {
-		return nil
+		return false, nil
 	}
 	mapped, err := expandHome(n.Value)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if realPath(mapped) == realPath(dir) {
-		return nil
+	if realPath(mapped) == realPath(o.Dir) {
+		return false, nil
 	}
+	if !o.Repoint {
+		return false, &DirMismatchError{Slug: slug, Mapped: n.Value, Dir: o.Dir}
+	}
+	n.Value = o.Dir
 
-	return fmt.Errorf("projects.%s maps %s, not this directory %s: change its dir, or remove the entry, then run loupe init again", slug, n.Value, dir)
+	return true, nil
 }
 
 // realPath resolves the symlinks of a path that exists, and cleans any other.
