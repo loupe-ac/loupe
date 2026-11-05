@@ -25,6 +25,7 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string KEY = 'projects';
     public const string DEV_PROJECT_NAME = 'Dev Project';
     public const string KEYS_PROJECT_NAME = 'API key records';
+    public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -45,6 +46,12 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/keys-project');
     }
 
+    /** The project that runs the Lifecycle workflow, so its cards show the declared card values. */
+    public static function lifecycleProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/lifecycle-project');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -62,25 +69,26 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     {
         // The newest project comes first in the project picker.
         $this->project($context, $context->devUser(), self::devProjectId(), self::DEV_PROJECT_NAME);
+        $this->project($context, $context->devUser(), self::lifecycleProjectId(), self::LIFECYCLE_PROJECT_NAME, 'lifecycle', 300);
 
         $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
             ?? throw new \LogicException('The keys account does not exist.');
         $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
     }
 
-    private function project(SeedContext $context, User $owner, Uuid $id, string $name): void
+    private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0): void
     {
         if ($this->projects->find($id) instanceof Project) {
             return;
         }
 
-        $project = new Project($owner, $name, createdAt: $context->at(0));
+        $project = new Project($owner, $name, createdAt: $context->at($secondsAgo));
 
         $this->renameOldProject($owner, $name);
 
         $context->ids->assign($project, $id);
         $this->em->persist($project);
-        $this->events->dispatch(new ProjectCreating($project, 'simple'));
+        $this->events->dispatch(new ProjectCreating($project, $workflowTemplate));
         $this->em->flush();
     }
 

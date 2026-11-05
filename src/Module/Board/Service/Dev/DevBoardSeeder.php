@@ -76,6 +76,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         'empty-basket' => 530_000,
         'api-key-history' => 520_000,
         'person-history' => 510_000,
+        'lifecycle-values' => 500_000,
     ];
 
     public function __construct(
@@ -190,6 +191,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $this->seedOutdatedApproval($context, $project, $columns['in-review'] ?? $columns['in-progress'] ?? $backlog);
         $this->seedBasketCard($context, $project);
         $this->seedApiKeyHistory($context);
+        $this->seedLifecycleCard($context);
 
         $this->em->flush();
         foreach ([$history, $onboarding, $this->cards->find(self::cardId('export-documents')), $this->cards->find(self::cardId('sync-forge-state'))] as $card) {
@@ -251,6 +253,25 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $this->em->flush();
 
         return [$card, true];
+    }
+
+    /** A card of the Lifecycle project, whose Details tab draws the declared card values. */
+    private function seedLifecycleCard(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::lifecycleProjectId())
+            ?? throw new \LogicException('The lifecycle project does not exist.');
+        $columns = $this->boardColumns->findForProject($project);
+        $column = $columns[0] ?? throw new \LogicException('The project has no column.');
+
+        $this->card($context, $project, 'lifecycle-values', fn (int $number, \DateTimeImmutable $at): Card => new Card(
+            project: $project,
+            column: $column,
+            title: 'A card with card values',
+            body: 'Shows the value rows of the Details tab on a Lifecycle project.',
+            number: $number,
+            type: 'feature',
+            createdAt: $at,
+        ));
     }
 
     /**
