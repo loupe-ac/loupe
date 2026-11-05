@@ -9657,6 +9657,8 @@
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_review_required"><source>workflow.waiting.pr_review_required</source><target>Waiting: the rules of the base branch need no more approving reviews.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_review_required"><source>workflow.waiting.not.pr_review_required</source><target>Waiting: the rules of the base branch need more approving reviews.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_merge_target"><source>workflow.waiting.not.pr_base_is_merge_target</source><target>Waiting: the pull request targets the default branch or the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_checks_on_head"><source>workflow.waiting.pr_checks_on_head</source><target>Waiting: the checks have not run on the head commit.</target></trans-unit>

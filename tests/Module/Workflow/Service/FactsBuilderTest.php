@@ -887,6 +887,21 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
     }
 
+    public function test_a_pull_request_reads_as_review_required_when_the_forge_asks_for_more_approvals(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-review-required');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->review = PullRequestReview::Required;
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->reviewRequired);
+
+        $pullRequest->review = PullRequestReview::Approved;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->reviewRequired);
+    }
+
     public function test_a_blocked_reading_older_than_the_passed_approval_check_does_not_read_as_blocked(): void
     {
         self::bootKernel();

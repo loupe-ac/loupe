@@ -178,6 +178,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             // A reading taken before Loupe passed its check reads the missing check as the block.
             mergeBlocked: PullRequestMergeability::Blocked === $pullRequest->mergeability
                 && (null === $pullRequest->approvalCheckPassedAt || $pullRequest->refreshedAt > $pullRequest->approvalCheckPassedAt),
+            reviewRequired: PullRequestReview::Required === $pullRequest->review,
         );
     }
 
