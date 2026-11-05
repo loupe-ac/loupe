@@ -236,7 +236,7 @@ final class CardHistoryTabTest extends WebTestCase
 
     public function test_another_user_cannot_read_the_history(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $owner = $this->user($em, 'history-owner@example.com');
         $stranger = $this->user($em, 'history-stranger@example.com');
@@ -255,7 +255,7 @@ final class CardHistoryTabTest extends WebTestCase
 
     public function test_a_card_of_another_project_is_not_found_under_this_project(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $owner = $this->user($em, 'history-victim@example.com');
         $intruder = $this->user($em, 'history-intruder@example.com');
