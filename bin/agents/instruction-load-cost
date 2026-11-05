@@ -39,32 +39,49 @@ for root in "$HOME/.claude/projects" "$HOME/.claude-worker/projects"; do
 done
 [[ ${#DIRS[@]} -gt 0 ]] || { echo "No transcripts found for $SLUG" >&2; exit 1; }
 
+SKILL_DIRS=(.agents/skills plugins/loupe/skills plugins/loupe-lifecycle/skills)
+
 FILES=$(mktemp)
 HITS=$(mktemp)
-trap 'rm -f "$FILES" "$HITS"' EXIT
+ALIASES=$(mktemp)
+trap 'rm -f "$FILES" "$HITS" "$ALIASES"' EXIT
+
+# "<name>\t<folder>" for each skill whose frontmatter name differs from its folder, such as product-design.
+for d in "${SKILL_DIRS[@]}"; do
+  for f in "$MAIN/$d"/*/SKILL.md; do
+    [[ -f "$f" ]] || continue
+    name=$(awk '/^name:/ { gsub(/["\047]/, "", $2); print $2; exit }' "$f")
+    folder=$(basename "$(dirname "$f")")
+    if [[ -n "$name" && "$name" != "$folder" ]]; then printf '%s\t%s\n' "$name" "$folder" >>"$ALIASES"; fi
+  done
+done
 
 find "${DIRS[@]}" -type f -name '*.jsonl' -mtime "-$DAYS" -print0 >"$FILES"
 LC_ALL=C xargs -0 grep -oHE '"type":"tool_use","id":"[^"]+","name":"Skill","input":\{"skill":"[^"]+"' <"$FILES" >"$HITS" || true
 
 SESSIONS=$(tr '\0' '\n' <"$FILES" | grep -vc '/subagents/' || true)
 
-# Emits "<path>\t<id>\t<skill>" once per tool-use id, with the loupe: plugin prefix stripped.
+# Emits "<path>\t<id>\t<skill>" once per tool-use id. The skill is its folder name: a plugin prefix
+# such as loupe-lifecycle: is stripped, and a frontmatter name such as product-design maps to its folder.
 calls() {
-  awk '{
+  awk '
+  FILENAME == ARGV[1] { split($0, a, "\t"); folder[a[1]] = a[2]; next }
+  {
     at = index($0, ":\"type\":\"tool_use\"")
     path = substr($0, 1, at - 1)
     split(substr($0, at), f, "\"")
     id = f[8]; skill = f[18]
-    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^loupe:/, "", skill)
+    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^[A-Za-z0-9_.-]+:/, "", skill)
+    if (skill in folder) skill = folder[skill]
     if (!(id in seen)) { seen[id] = 1; print path "\t" id "\t" skill }
-  }' "$HITS"
+  }' "$ALIASES" "$HITS"
 }
 
 words() { [[ -f "$1" ]] && wc -w <"$1" | tr -d ' ' || echo ""; }
 
 skill_words() {
   local d w
-  for d in .agents/skills plugins/loupe/skills plugins/loupe-lifecycle/skills; do
+  for d in "${SKILL_DIRS[@]}"; do
     w=$(words "$MAIN/$d/$1/SKILL.md")
     if [[ -n "$w" ]]; then echo "$w"; return; fi
   done
