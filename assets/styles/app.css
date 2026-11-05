@@ -46,6 +46,8 @@
 @import './components/stepper.css';
 @import './components/chart.css';
 @import './components/graph-tile.css';
+@import './components/disclosure.css';
+@import './components/value-row.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -951,6 +953,9 @@
     .lp-agent-card__current {
         @apply grid gap-1 rounded-lg bg-surface-2 p-3 text-xs text-fg-mute;
     }
+    .lp-agent-card__current.lp-disclosure {
+        @apply block;
+    }
     .lp-agent-card__current strong {
         @apply text-sm font-semibold text-accent-ink;
     }
@@ -983,13 +988,7 @@
     .lp-agent-card__account-hint {
         @apply m-0;
     }
-    /* A collapsing section of the agent card. It opens on its own when it holds a problem. */
-    .lp-agent-section__summary {
-        @apply flex cursor-pointer list-none items-center gap-1 text-xs text-fg-mute;
-    }
-    .lp-agent-section__summary::-webkit-details-marker {
-        display: none;
-    }
+    /* The title, text and state dot of a section summary of the agent card. A section opens on its own when it holds a problem. */
     .lp-agent-section__title {
         @apply font-semibold text-fg;
     }
@@ -1005,17 +1004,6 @@
     }
     .lp-agent-section__dot--danger {
         @apply bg-status-danger;
-    }
-    .lp-agent-section__caret {
-        @apply shrink-0 transition-transform duration-100;
-    }
-    .lp-agent-section[open]
-        > .lp-agent-section__summary
-        .lp-agent-section__caret {
-        @apply rotate-90;
-    }
-    .lp-agent-section[open] > .lp-agent-section__summary {
-        @apply mb-1;
     }
     /* The usage bars of an account on the Agents page, `templates/Module/Bridge/_account_usage.html.twig`. */
     /* The bars of one account, side by side. */
@@ -2994,26 +2982,15 @@
         @apply m-0 text-sm font-semibold text-ink whitespace-nowrap;
     }
     /* The review switch of a card, with the help mark that sits beside its label. */
-    .lp-card-review,
-    .lp-card-value__control {
+    .lp-card-review {
         @apply flex items-center gap-1.5;
     }
-    .lp-card-review__help,
-    .lp-card-value__help {
+    .lp-card-review__help {
         @apply inline-flex cursor-help text-fg-mute;
     }
     /* The value rows of a card, one for each key its workflow template declares. */
     .lp-card-values {
         @apply flex flex-col gap-3;
-    }
-    .lp-card-value {
-        @apply flex flex-col gap-1;
-    }
-    .lp-card-value__label {
-        @apply text-sm font-semibold text-ink;
-    }
-    .lp-card-value__meta {
-        @apply text-xs font-normal text-fg-mute;
     }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {

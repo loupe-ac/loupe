@@ -44,6 +44,8 @@
 @import './components/stepper.css';
 @import './components/chart.css';
 @import './components/graph-tile.css';
+@import './components/disclosure.css';
+@import './components/value-row.css';
 
 @source "../../templates/components/Ds";
 

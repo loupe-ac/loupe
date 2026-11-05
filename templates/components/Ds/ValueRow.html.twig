@@ -1,0 +1,38 @@
+{#
+  Props:  @comment-budget-ignore
+    label      string   Translated name of the value.
+    text       string   Translated read-only value, drawn on the right. Without it, the content is a control, such as a switch.
+    help       string   Translated help text. It shows in an interactive tooltip on a help mark. Optional.
+    helpLabel  string   Translated accessible name of the help mark. Needed with help.
+    helpId     string   Id of the tooltip, for the aria-describedby of the control. Needed with help.
+  The meta block holds the line under the row, such as who set the value and when. Optional.
+  The footer block holds what follows the meta line, such as an error. Optional.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props label, text = null, help = null, helpLabel = null, helpId = null -%}
+{%- set meta -%}{% block meta %}{% endblock %}{%- endset -%}
+{%- set helpMark -%}
+    {%- if help is not null -%}
+        <span class="lp-value-row__help" data-controller="interactive-tooltip" data-interactive-tooltip-align-value="start" data-action="pointerenter->interactive-tooltip#open pointerleave->interactive-tooltip#scheduleClose focusin->interactive-tooltip#open focusout->interactive-tooltip#leaveFocus keydown.esc->interactive-tooltip#close">
+            <span tabindex="0" role="img" aria-label="{{ helpLabel }}" aria-describedby="{{ helpId }}" data-action="pointerdown->interactive-tooltip#pressed">
+                <twig:ux:icon name="lucide:circle-help" class="lp-icon lp-icon--sm" aria-hidden="true" />
+            </span>
+            <twig:Ds:Tooltip id="{{ helpId }}" :interactive="true">{{ help }}</twig:Ds:Tooltip>
+        </span>
+    {%- endif -%}
+{%- endset -%}
+<div{{ attributes.defaults({class: 'lp-value-row' ~ (text is not null ? ' lp-value-row--read-only')}) }}>
+    {%- if text is not null %}
+    <div class="lp-value-row__line">
+        <span class="lp-value-row__label">{{ label }}</span>
+        <span class="lp-value-row__end"><span class="lp-value-row__value">{{ text }}</span>{{ helpMark }}</span>
+    </div>
+    {%- else %}
+    <span class="lp-value-row__label">{{ label }}</span>
+    <div class="lp-value-row__control">{% block content %}{% endblock %}{{ helpMark }}</div>
+    {%- endif %}
+    {%- if meta|trim is not empty %}
+    <p class="lp-value-row__meta">{{ meta }}</p>
+    {%- endif %}
+    {% block footer %}{% endblock %}
+</div>
