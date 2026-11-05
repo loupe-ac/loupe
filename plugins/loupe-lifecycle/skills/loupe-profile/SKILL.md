@@ -9,7 +9,7 @@ Write `.loupe/lifecycle.md` with the owner, so that every stage skill finds the 
 
 ## Rules
 
-1. Read the repository before you ask. Ask the owner only for a value that the repository does not show.
+1. Read the repository before you ask. For a profile value, ask the owner only when the repository does not show it. Rule 2 names the other questions.
 2. Show every value in one grouped view, with the source of each. For the profile values, ask one question for each unknown value, and nothing else. The questions of rule 7, "Proposed edits" and "Moved work" come after the view, and they are the only other questions.
 3. State a value as the repository defines it. Never invent a command, a branch, a check or a column. A value you cannot find stays unknown until the owner answers.
 4. Write the file only after the owner approves the view. Write one numbered list for each section.
