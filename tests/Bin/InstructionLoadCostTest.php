@@ -56,6 +56,22 @@ final class InstructionLoadCostTest extends TestCase
         self::assertStringNotContainsString('Not in a skills folder', $output);
     }
 
+    public function test_with_accepts_every_skill_name_form(): void
+    {
+        $this->transcript(['loupe-lifecycle:product-design', 'loupe:loupe-board']);
+
+        foreach (['loupe-lifecycle:product-design', 'product-design', 'loupe-product-design'] as $with) {
+            $process = new Process(['bin/agents/instruction-load-cost', '--with', $with], $this->repo, ['HOME' => $this->dir.'/home']);
+            $process->run();
+
+            self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            $output = $process->getOutput();
+            self::assertStringContainsString('also load loupe-product-design:', $output, $with);
+            self::assertMatchesRegularExpression('/^loupe-board +1 +1$/m', $output, $with);
+            self::assertStringContainsString('Sessions that load loupe-product-design: 1', $output, $with);
+        }
+    }
+
     /**
      * @param list<string> $skills
      */

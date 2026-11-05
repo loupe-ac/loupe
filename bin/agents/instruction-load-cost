@@ -61,18 +61,23 @@ LC_ALL=C xargs -0 grep -oHE '"type":"tool_use","id":"[^"]+","name":"Skill","inpu
 
 SESSIONS=$(tr '\0' '\n' <"$FILES" | grep -vc '/subagents/' || true)
 
-# Emits "<path>\t<id>\t<skill>" once per tool-use id. The skill is its folder name: a plugin prefix
-# such as loupe-lifecycle: is stripped, and a frontmatter name such as product-design maps to its folder.
-calls() {
-  awk '
+# Maps a recorded skill name to its folder name: a plugin prefix such as loupe-lifecycle: is stripped,
+# and a frontmatter name such as product-design maps to its folder. Load the alias file as ARGV[1] first.
+NORMALIZE='
   FILENAME == ARGV[1] { split($0, a, "\t"); folder[a[1]] = a[2]; next }
+  function folder_of(skill) {
+    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^[A-Za-z0-9_.-]+:/, "", skill)
+    return (skill in folder) ? folder[skill] : skill
+  }'
+
+# Emits "<path>\t<id>\t<skill>" once per tool-use id, with the skill as its folder name.
+calls() {
+  awk "$NORMALIZE"'
   {
     at = index($0, ":\"type\":\"tool_use\"")
     path = substr($0, 1, at - 1)
     split(substr($0, at), f, "\"")
-    id = f[8]; skill = f[18]
-    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^[A-Za-z0-9_.-]+:/, "", skill)
-    if (skill in folder) skill = folder[skill]
+    id = f[8]; skill = folder_of(f[18])
     if (!(id in seen)) { seen[id] = 1; print path "\t" id "\t" skill }
   }' "$ALIASES" "$HITS"
 }
@@ -116,6 +121,7 @@ echo
   }'
 
 if [[ -n "$WITH" ]]; then
+  WITH=$(printf '%s\n' "$WITH" | awk "$NORMALIZE"' { print folder_of($0) }' "$ALIASES" -)
   echo
   echo "Top-level sessions per skill, and those that also load $WITH:"
   calls | grep -v '/subagents/' | awk -F'\t' -v with="$WITH" '
