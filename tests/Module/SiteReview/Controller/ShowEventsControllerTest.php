@@ -84,7 +84,7 @@ final class ShowEventsControllerTest extends WebTestCase
     }
 
     /**
-     * The drain publishes on the owner's topic, and /api/events hands out that
+     * The drain publishes on the owner's topic, and /api/v1/bridge/events hands out that
      * same topic, so every owned project reaches one subscriber.
      */
     public function test_an_event_of_any_owned_project_is_published_on_the_topic_the_endpoint_returns(): void
@@ -369,13 +369,13 @@ final class ShowEventsControllerTest extends WebTestCase
             default => EventBridge::server($raw, $this->unreported($em, $user)),
         };
 
-        $client->request(Request::METHOD_GET, '/api/events', server: $server);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events', server: $server);
 
         self::assertResponseStatusCodeSame(426);
         $body = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($body);
-        self::assertIsString($body['error'] ?? null);
-        self::assertStringContainsString('loupe CLI', $body['error']);
+        self::assertIsString($body['detail'] ?? null);
+        self::assertStringContainsString('loupe CLI', $body['detail']);
         self::assertArrayNotHasKey('jwt', $body);
     }
 
@@ -391,7 +391,7 @@ final class ShowEventsControllerTest extends WebTestCase
         );
         [$raw] = $this->issue($client, 'events-off@example.com');
 
-        $client->request(Request::METHOD_GET, '/api/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         // 404 rather than 403: with push off there is no hub to subscribe to.
         self::assertResponseStatusCodeSame(404);
@@ -421,7 +421,7 @@ final class ShowEventsControllerTest extends WebTestCase
         $em->flush();
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'mcp', $project);
 
-        $client->request(Request::METHOD_GET, '/api/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
         self::assertStringNotContainsString('/users/', (string) $client->getResponse()->getContent());
@@ -431,7 +431,7 @@ final class ShowEventsControllerTest extends WebTestCase
     public function test_no_token_is_unauthorized(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_GET, '/api/events');
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events');
         self::assertResponseStatusCodeSame(401);
     }
 
@@ -449,10 +449,12 @@ final class ShowEventsControllerTest extends WebTestCase
         $em->flush();
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'site-review', $project);
 
-        $client->request(Request::METHOD_GET, '/api/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString('{"error":"insufficient_scope"}', (string) $client->getResponse()->getContent());
+        $problem = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($problem);
+        self::assertSame('credential_not_allowed', $problem['code'] ?? null);
     }
 
     private function storeInboxFlag(EntityManagerInterface $em, string $value): void
@@ -509,7 +511,7 @@ final class ShowEventsControllerTest extends WebTestCase
     /** @return array<string, mixed> */
     private function events(KernelBrowser $client, string $raw): array
     {
-        $client->request(Request::METHOD_GET, '/api/events', server: EventBridge::server($raw, $this->bridges[$raw]));
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events', server: EventBridge::server($raw, $this->bridges[$raw]));
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);

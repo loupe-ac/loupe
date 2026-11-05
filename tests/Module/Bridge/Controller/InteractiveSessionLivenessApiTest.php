@@ -223,7 +223,7 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
 
     private function post(KernelBrowser $client, string $sessionId, string $raw): void
     {
-        $client->request(Request::METHOD_POST, '/api/interactive-sessions/'.$sessionId.'/close', server: [
+        $client->request(Request::METHOD_POST, '/api/v1/bridge/interactive-sessions/'.$sessionId.'/close', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
             'HTTP_ACCEPT' => 'application/json',
         ]);
@@ -232,7 +232,7 @@ final class InteractiveSessionLivenessApiTest extends WebTestCase
     /** @param list<array<string, mixed>> $readings */
     private function heartbeat(KernelBrowser $client, Uuid $bridgeId, string $raw, array $readings): void
     {
-        $client->request(Request::METHOD_PUT, '/api/bridges/'.$bridgeId->toRfc4122().'/heartbeat', server: [
+        $client->request(Request::METHOD_PUT, '/api/v1/bridge/bridges/'.$bridgeId->toRfc4122().'/heartbeat', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
             'CONTENT_TYPE' => 'application/json',
             'HTTP_ACCEPT' => 'application/json',

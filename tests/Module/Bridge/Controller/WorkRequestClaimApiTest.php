@@ -96,7 +96,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
         $this->post($client, $raw, $this->path($other, $request));
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'already_claimed'], $this->json($client));
+        self::assertSame('already_claimed', $this->json($client)['code'] ?? null);
         $stored = $this->reload($request);
         self::assertTrue($bridge->id->equals($stored->bridgeId));
         self::assertSame($token, $stored->claimToken?->toRfc4122());
@@ -133,7 +133,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
     {
         [$client, $owner, , $bridge] = $this->scenario('claim-unknown@example.com');
 
-        $this->post($client, $this->token($owner), '/api/bridges/'.$bridge->id.'/work-requests/'.Uuid::v7().'/claim');
+        $this->post($client, $this->token($owner), '/api/v1/bridge/bridges/'.$bridge->id.'/work-requests/'.Uuid::v7().'/claim');
 
         $this->assertRefused($client, 404, 'work_request_not_found');
     }
@@ -143,7 +143,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
         [$client, $owner, $project] = $this->scenario('claim-no-bridge@example.com');
         $request = $this->seedWorkRequest($this->em(), $project);
 
-        $this->post($client, $this->token($owner), '/api/bridges/'.Uuid::v4().'/work-requests/'.$request->id.'/claim');
+        $this->post($client, $this->token($owner), '/api/v1/bridge/bridges/'.Uuid::v4().'/work-requests/'.$request->id.'/claim');
 
         $this->assertRefused($client, 422, 'unknown_bridge');
         self::assertSame(WorkRequestState::Open, $this->reload($request)->state);
@@ -321,7 +321,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
 
     private function path(Bridge $bridge, WorkRequest $request): string
     {
-        return '/api/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/claim';
+        return '/api/v1/bridge/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/claim';
     }
 
     /** @param array<string, mixed>|null $body the JSON body, or null for none. Defaults to the account every scenario bridge runs. */
@@ -338,7 +338,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
     private function assertRefused(KernelBrowser $client, int $status, string $code): void
     {
         self::assertResponseStatusCodeSame($status);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
         self::assertSame([], $this->outboxPayloads());
     }
 

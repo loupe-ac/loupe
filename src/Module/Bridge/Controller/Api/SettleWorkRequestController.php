@@ -61,12 +61,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/bridges/{bridgeId}/work-requests/{workRequestId}/result',
-    name: 'api_legacy_bridge_work_request_result',
-    requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
-    methods: ['PUT'],
-)]
 final class SettleWorkRequestController extends AppController
 {
     public function __construct(

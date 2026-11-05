@@ -227,10 +227,10 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $raw = $this->agentToken($client, $caller);
 
         foreach ([(string) $other->id, (string) Uuid::v7()] as $handle) {
-            $this->put($client, '/api/projects/'.$handle.'/interactive-runs/'.Uuid::v4(), $raw, $this->payload());
+            $this->put($client, '/api/v1/bridge/projects/'.$handle.'/interactive-runs/'.Uuid::v4(), $raw, $this->payload());
 
             self::assertResponseStatusCodeSame(404, $handle);
-            self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+            self::assertSame('project_not_found', $this->problemCode($client));
         }
 
         self::assertSame([], $this->allRuns());
@@ -247,11 +247,11 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $this->put($client, $this->path($project->id, 'not-a-uuid'), $raw, $this->payload());
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_session_id"}', (string) $client->getResponse()->getContent());
+        self::assertSame('invalid_session_id', $this->problemCode($client));
         self::assertSame([], $this->allRuns());
     }
 
-    /** The bridge reads a 404 with no error code as a server with no launch endpoint. */
+    /** The bridge reads a generic 404 code as a server with no launch endpoint. */
     public function test_it_is_absent_with_no_error_code_while_push_is_switched_off(): void
     {
         $client = static::createClient();
@@ -264,7 +264,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload());
 
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('project_not_found', (string) $client->getResponse()->getContent());
+        self::assertSame('http_404', $this->problemCode($client));
         self::assertSame([], $this->allRuns());
     }
 
@@ -429,7 +429,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
             $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->itemPayload($elsewhere, ['subjectId' => (string) $id]));
 
             self::assertResponseStatusCodeSame(404);
-            self::assertJsonStringEqualsJsonString('{"error":"subject_not_found"}', (string) $client->getResponse()->getContent());
+            self::assertSame('subject_not_found', $this->problemCode($client));
         }
         self::assertSame([], $this->allRuns());
     }
@@ -445,7 +445,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => 'unheard-of', 'cardNumber' => null]));
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"unknown_subject_type"}', (string) $client->getResponse()->getContent());
+        self::assertSame('unknown_subject_type', $this->problemCode($client));
         self::assertSame([], $this->allRuns());
     }
 
@@ -470,7 +470,15 @@ final class InteractiveLaunchApiTest extends WebTestCase
 
     private function path(?Uuid $projectId, string $sessionId): string
     {
-        return '/api/projects/'.$projectId.'/interactive-runs/'.$sessionId;
+        return '/api/v1/bridge/projects/'.$projectId.'/interactive-runs/'.$sessionId;
+    }
+
+    private function problemCode(KernelBrowser $client): mixed
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+
+        return $body['code'] ?? null;
     }
 
     /**

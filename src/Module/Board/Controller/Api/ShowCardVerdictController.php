@@ -48,12 +48,6 @@ use Symfony\Component\Routing\Attribute\Route;
     requirements: ['cardId' => '[^/]+'],
     methods: ['GET'],
 )]
-#[Route(
-    '/api/board/cards/{cardId}/verdict',
-    name: 'api_legacy_board_card_verdict_show',
-    requirements: ['cardId' => '[^/]+'],
-    methods: ['GET'],
-)]
 final class ShowCardVerdictController extends AppController
 {
     public function __construct(

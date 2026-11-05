@@ -42,7 +42,7 @@ test('workshop opens the matching request and keeps card details in its drawer',
     // In motion shows only a card with an open run, so the card needs one.
     const token = await agentAccessToken(page);
     const queued = await page.request.put(
-        `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+        `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

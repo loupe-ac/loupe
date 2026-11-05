@@ -43,7 +43,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -71,7 +71,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -96,7 +96,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -129,7 +129,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -166,7 +166,7 @@ final class ListSitesApiTest extends WebTestCase
         $connection->executeStatement("UPDATE workflow_bindings SET definition = definition - 'skillPackages' - 'needsProfile' WHERE project_id = ?", [(string) $older->id]);
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -218,7 +218,7 @@ final class ListSitesApiTest extends WebTestCase
         }
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -253,7 +253,7 @@ final class ListSitesApiTest extends WebTestCase
         $em->flush();
 
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
@@ -285,7 +285,7 @@ final class ListSitesApiTest extends WebTestCase
     public function test_no_token_is_unauthorized(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_GET, '/api/projects');
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects');
         self::assertResponseStatusCodeSame(401);
     }
 
@@ -302,7 +302,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'mcp', $project);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
@@ -323,7 +323,7 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'site-review', $project);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         // The firewall refuses it on scope, so the answer comes from
@@ -331,7 +331,7 @@ final class ListSitesApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
-        self::assertSame('insufficient_scope', $data['error'] ?? null);
+        self::assertSame('credential_not_allowed', $data['code'] ?? null);
     }
 
     /**
@@ -351,13 +351,13 @@ final class ListSitesApiTest extends WebTestCase
 
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'site-review', $project);
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
-        self::assertSame('insufficient_scope', $data['error'] ?? null);
+        self::assertSame('credential_not_allowed', $data['code'] ?? null);
     }
 
     /** The settings of the projects read once, so a list of five projects sends the statements of a list of one. */
@@ -406,7 +406,7 @@ final class ListSitesApiTest extends WebTestCase
         self::assertInstanceOf(DebugDataHolder::class, $queries);
         $queries->reset();
 
-        $client->request(Request::METHOD_GET, '/api/projects',
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);

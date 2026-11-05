@@ -145,18 +145,21 @@ test('the full-screen artifact page updates the count in its tab title', async (
     const { projectId, todoNumber } = await seeded.json();
 
     const token = await agentAccessToken(page);
-    const stored = await request.post(`/api/projects/${projectId}/artifacts`, {
-        headers: { Authorization: `Bearer ${token}` },
-        multipart: {
-            name: 'Title check',
-            'paths[0]': 'index.html',
-            'files[0]': {
-                name: 'index.html',
-                mimeType: 'text/html',
-                buffer: Buffer.from('<h1>Title check</h1>'),
+    const stored = await request.post(
+        `/api/v1/bridge/projects/${projectId}/artifacts`,
+        {
+            headers: { Authorization: `Bearer ${token}` },
+            multipart: {
+                name: 'Title check',
+                'paths[0]': 'index.html',
+                'files[0]': {
+                    name: 'index.html',
+                    mimeType: 'text/html',
+                    buffer: Buffer.from('<h1>Title check</h1>'),
+                },
             },
         },
-    });
+    );
     expect(stored.status()).toBe(201);
     const { artifactId } = await stored.json();
 

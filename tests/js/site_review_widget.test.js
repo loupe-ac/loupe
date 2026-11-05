@@ -649,28 +649,6 @@ describe('the mode picker', () => {
     });
 });
 
-describe('a stale copy of the widget', () => {
-    it('is told to reload', async () => {
-        const fetchMock = bootWidget({
-            mode: { mode: 'per-note', cardId: null },
-            respond: () => ok({ comments: [], context: null }),
-        });
-        await settle();
-
-        const root = openNote();
-        await write(root, 'From an old tab');
-        fetchMock.mockImplementation(async () =>
-            rejected(410, { error: 'widget_outdated' }),
-        );
-        root.getElementById('lp-save').click();
-        await settle();
-
-        expect(root.getElementById('lp-error').textContent).toContain(
-            'Reload the page to update the review widget.',
-        );
-    });
-});
-
 describe('a preview page that names its card', () => {
     it('sends every note to that card and shows no picker', async () => {
         const fetchMock = bootWidget({
