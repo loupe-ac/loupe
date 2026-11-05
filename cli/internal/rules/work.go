@@ -387,7 +387,7 @@ func (w WorkEntry) takes(kind, subjectType string) bool {
 // entry is the work entry of the kind of w. With appPrompts, an entry about
 // another subject type counts as no entry, so the app prompt runs.
 func (s *Set) entry(w api.WorkRequest) (WorkEntry, bool) {
-	entry, ok := s.work[w.Kind]
+	entry, ok := s.entryFor(s.slugs[w.ProjectID], w.Kind)
 	if ok && s.appPrompts && !entry.takes(w.Kind, w.SubjectType) && !runsCommand(w) {
 		return WorkEntry{}, false
 	}
@@ -604,7 +604,7 @@ func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
 	if !mapped {
 		return ""
 	}
-	entry, ok := s.work[w.Kind]
+	entry, ok := s.entryFor(slug, w.Kind)
 	if !ok || entry.Action != ActionCommand {
 		return RefuseEntryMissing
 	}
@@ -638,7 +638,7 @@ func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
 // run a command that differs from the first. A context placeholder never
 // counts, because the command carries the context and an empty value is real.
 func (s *Set) WorkGaps(w api.WorkRequest) []string {
-	entry, ok := s.work[w.Kind]
+	entry, ok := s.entryFor(s.slugs[w.ProjectID], w.Kind)
 	if !ok {
 		return nil
 	}
@@ -675,7 +675,7 @@ func (s *Set) CommandEntries() []CommandEntry {
 
 // WorkKinds lists the kinds of the work map, in name order.
 func (s *Set) WorkKinds() []string {
-	return slices.Sorted(maps.Keys(s.work))
+	return s.allKinds()
 }
 
 // WorkKindsOn lists the kinds of the work map that the bridge can run now, in
@@ -687,32 +687,7 @@ func (s *Set) WorkKindsOn() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	out := []string{}
-	kinds := slices.Sorted(maps.Keys(s.work))
-	if _, has := s.work[TeardownKind]; !has && s.Isolation() == IsolationWorktree {
-		kinds = append(kinds, TeardownKind)
-		slices.Sort(kinds)
-	}
-	for _, kind := range kinds {
-		entry, has := s.work[kind]
-		if !has {
-			out = append(out, kind)
-
-			continue
-		}
-		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs(), "") {
-			continue
-		}
-		if entry.Subject != api.SubjectCard {
-			kind = entry.Subject + ":" + kind
-		}
-		out = append(out, kind)
-		if kind == SessionKind {
-			out = append(out, api.SubjectInboxItem+":"+SessionKind)
-		}
-	}
-
-	return out
+	return s.advertisedLocked()
 }
 
 // RunsAppPrompts reports whether the app prompts of the set run on the named
@@ -730,31 +705,28 @@ func (s *Set) AccountKinds(name string) []string {
 	if s.agentsOff != "" {
 		return out
 	}
-	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
-		entry := s.work[kind]
-		if !slices.ContainsFunc(entry.runs(), func(r RunSettings) bool { return r.Account == name }) {
-			continue
+	for _, kind := range s.allKinds() {
+		for _, entry := range s.entriesOf(kind) {
+			if !slices.ContainsFunc(entry.runs(), func(r RunSettings) bool { return r.Account == name }) {
+				continue
+			}
+			listed := kind
+			if entry.Subject != api.SubjectCard {
+				listed = entry.Subject + ":" + kind
+			}
+			if !slices.Contains(out, listed) {
+				out = append(out, listed)
+			}
 		}
-		if entry.Subject != api.SubjectCard {
-			kind = entry.Subject + ":" + kind
-		}
-		out = append(out, kind)
 	}
 
 	return out
 }
 
-// WorkEntry is the entry of a kind, with its defaults filled.
-func (s *Set) WorkEntry(kind string) (WorkEntry, bool) {
-	w, ok := s.work[kind]
-
-	return w, ok
-}
-
 // HasWork reports whether the set claims work requests: it has a work map, or
 // it runs app prompts.
 func (s *Set) HasWork() bool {
-	return len(s.work) > 0 || s.appPrompts
+	return len(s.allKinds()) > 0 || s.appPrompts
 }
 
 // WorkDead is the reason the work of a mapped project died, and "" while it
@@ -781,14 +753,16 @@ func (s *Set) Capabilities() []string {
 	var subjects []string
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for kind, entry := range s.work {
-		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs(), "") {
-			continue
-		}
-		interactive = interactive || entry.Action == ActionInteractive
-		session = session || kind == SessionKind
-		if entry.Subject != api.SubjectCard && !slices.Contains(subjects, entry.Subject) {
-			subjects = append(subjects, entry.Subject)
+	for _, kind := range s.allKinds() {
+		for _, entry := range s.entriesOf(kind) {
+			if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs(), "") {
+				continue
+			}
+			interactive = interactive || entry.Action == ActionInteractive
+			session = session || kind == SessionKind
+			if entry.Subject != api.SubjectCard && !slices.Contains(subjects, entry.Subject) {
+				subjects = append(subjects, entry.Subject)
+			}
 		}
 	}
 	if interactive {

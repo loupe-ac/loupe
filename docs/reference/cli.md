@@ -382,8 +382,21 @@ workflow opens, and runs an agent for each one. The
 - `loupe bridge stop` stops the bridge that reads the rule file. The bridge ends its workers, sends their reports and exits. The command fails when no bridge runs.
 - `loupe bridge reload` applies a changed rule file to a running bridge.
 - `loupe bridge status` shows the running bridges. See [`loupe bridge status`](#loupe-bridge-status).
+- `loupe bridge check` loads the rule file and lists what a project cannot run. See [`loupe bridge check`](#loupe-bridge-check).
 
-`run`, `stop` and `reload` take `--rules` to name another rule file.
+`run`, `stop`, `reload` and `check` take `--rules` to name another rule file.
+
+## `loupe bridge check`
+
+Loads the rule file as the bridge does, and makes no network call. It then lists
+each warning, one line each:
+
+- A `before`, `refresh`, `reset` or command path that the folder of its project lacks. Only a relative path with a slash counts.
+- A work kind that one project lists and another project does not. A request of that kind for the second project runs the app prompt when `appPrompts` is on, and is skipped otherwise.
+- A project entry of a kind that an experiment covers. The experiment covers the shared entry only, so the project entry runs without the variants.
+
+The command exits with status 1 when the file does not load, and 0 otherwise.
+`loupe bridge status` shows the same warnings for a running bridge.
 
 ## `loupe bridge status`
 
@@ -395,6 +408,7 @@ bridge, headed by the name of the bridge. A block shows:
 - the login, which is `valid` or `expired, waiting for loupe login`
 - the time of the last heartbeat that the server accepted
 - the last warning or error of the log, with its time
+- each warning of `loupe bridge check`
 - each running worker, with its card, its kind and its start time
 
 A bridge on an older CLI cannot report its status. Its block says that the
