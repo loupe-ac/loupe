@@ -10,6 +10,7 @@ use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricComparer;
 use App\Module\Bridge\Metric\MetricComparison;
+use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRow;
 use App\Module\Bridge\Metric\MetricRowSource;
@@ -73,7 +74,7 @@ final readonly class MetricQueryHandler
             $previousWindow = new MetricWindow($previousFrom, $from);
             // The previous rows move forward by the length, so they fall into the same buckets as the current rows.
             $previousRows = array_map(
-                static fn (MetricRow $row): MetricRow => new MetricRow($row->unitId, $row->cardNumber, $row->group, $row->time->add($length), $row->value),
+                static fn (MetricRow $row): MetricRow => $row->movedBy($length),
                 $this->rows->rows($command->project, $command->unit, $metric, $command->group, $previousFrom, $from),
             );
             if (true === $metric->key->metric?->isBucketEach()) {
@@ -87,15 +88,10 @@ final readonly class MetricQueryHandler
         $previousByGroup = self::byGroup($previousRows);
         // A line that only the previous period holds is still a line of the graph.
         foreach ($previousByGroup as $key => $part) {
-            $byGroup[$key] ??= ['group' => $part['group'], 'rows' => []];
+            $byGroup[$key] ??= ['label' => $part['label'], 'group' => $part['group'], 'groupKey' => $part['groupKey'], 'rows' => []];
         }
-        // The empty key sorts first, so the series with no group moves to the end.
-        ksort($byGroup, \SORT_STRING);
-        if (isset($byGroup[''])) {
-            $none = $byGroup[''];
-            unset($byGroup['']);
-            $byGroup[''] = $none;
-        }
+        // Series sort by label, with the key to break a tie. The series with no group goes last.
+        uasort($byGroup, static fn (array $a, array $b): int => [null === $a['group'], $a['label'], $a['groupKey']?->id()] <=> [null === $b['group'], $b['label'], $b['groupKey']?->id()]);
 
         $compare = null !== $previousWindow;
         // Every line that has a sign widens every range, so a graph with many lines draws a sign by chance more rarely.
@@ -107,11 +103,12 @@ final readonly class MetricQueryHandler
             $previousOfGroup = $previousByGroup[$key]['rows'] ?? [];
             $series[] = self::series(
                 $group['group'],
+                $group['groupKey'],
                 $group['rows'],
                 $command->statistic,
                 $command->bucket,
                 $compare ? $previousOfGroup : null,
-                $compare ? $this->comparer->compare($command->statistic, $metric->valueType(), $command->unit, $group['rows'], $previousOfGroup, $confidence, $seed.'|'.$key) : null,
+                $compare ? $this->comparer->compare($command->statistic, $metric->valueType(), $command->unit, $group['rows'], $previousOfGroup, $confidence, $seed.'|'.$group['label']) : null,
             );
         }
 
@@ -121,14 +118,15 @@ final readonly class MetricQueryHandler
     /**
      * @param list<MetricRow> $rows
      *
-     * @return array<string, array{group: ?string, rows: list<MetricRow>}>
+     * @return array<string, array{label: string, group: ?string, groupKey: ?MetricGroupKey, rows: list<MetricRow>}> label is the group text with a prefix, or the empty string for no group
      */
     private static function byGroup(array $rows): array
     {
         $byGroup = [];
         foreach ($rows as $row) {
-            $key = null === $row->group ? '' : 'key:'.$row->group;
-            $byGroup[$key] ??= ['group' => $row->group, 'rows' => []];
+            $label = null === $row->group ? '' : 'key:'.$row->group;
+            $key = null === $row->groupKey ? $label : $label.'|'.$row->groupKey->id();
+            $byGroup[$key] ??= ['label' => $label, 'group' => $row->group, 'groupKey' => $row->groupKey, 'rows' => []];
             $byGroup[$key]['rows'][] = $row;
         }
 
@@ -139,7 +137,7 @@ final readonly class MetricQueryHandler
      * @param list<MetricRow>  $rows
      * @param ?list<MetricRow> $previousRows the previous period already moved onto the current dates, null when the query does not compare
      */
-    private static function series(?string $group, array $rows, MetricStatistic $statistic, MetricBucket $bucket, ?array $previousRows, ?MetricComparison $comparison): MetricSeries
+    private static function series(?string $group, ?MetricGroupKey $groupKey, array $rows, MetricStatistic $statistic, MetricBucket $bucket, ?array $previousRows, ?MetricComparison $comparison): MetricSeries
     {
         usort($rows, static fn (MetricRow $a, MetricRow $b): int => [$b->time, (string) $b->unitId] <=> [$a->time, (string) $a->unitId]);
 
@@ -150,6 +148,7 @@ final readonly class MetricQueryHandler
             $rows,
             $comparison,
             null === $previousRows ? [] : self::points($previousRows, $statistic, $bucket),
+            $groupKey,
         );
     }
 
