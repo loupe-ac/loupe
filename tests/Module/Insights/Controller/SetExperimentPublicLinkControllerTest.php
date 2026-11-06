@@ -196,8 +196,26 @@ final class SetExperimentPublicLinkControllerTest extends WebTestCase
         self::assertSame(['error' => ['Public links are switched off on this instance.']], $session->getFlashBag()->peekAll());
 
         $client->request(Request::METHOD_POST, $this->path($projectId), $this->fields(true, null), [], self::HEADERS + self::STREAM);
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Public links are switched off on this instance.', (string) $client->getResponse()->getContent());
+        self::assertNull($this->linkOf($projectId));
+    }
+
+    public function test_a_turbo_share_after_a_takedown_fails_and_says_why(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('xshare-takedown');
+        $this->seedExperiment($project, 'trial');
+        $this->seedTakedown($project);
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_POST, $this->path($projectId), $this->fields(true, null), [], self::HEADERS + self::STREAM);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        self::assertStringContainsString('An admin took down the public links of this project.', (string) $client->getResponse()->getContent());
         self::assertNull($this->linkOf($projectId));
     }
 

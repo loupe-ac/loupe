@@ -69,9 +69,9 @@ class SetExperimentPublicLinkController extends AppController
             'project' => $project,
             'experiment' => $experiment,
             'share' => $this->states->for($project, $experiment),
-            'error' => $invalid ? $error : null,
+            'error' => $error,
         ]);
 
-        return new Response($html, $invalid ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+        return new Response($html, null !== $error ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }

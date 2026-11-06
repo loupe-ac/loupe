@@ -71,9 +71,9 @@ class SetGraphPublicLinkController extends AppController
             'project' => $project,
             'graph' => $graph,
             'share' => $this->states->for($graph),
-            'error' => $invalid ? $error : null,
+            'error' => $error,
         ]);
 
-        return new Response($html, $invalid ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+        return new Response($html, null !== $error ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }
