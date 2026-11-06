@@ -146,10 +146,47 @@ func TestMigrateRepairKeyLeavesAFileWithNoRepairKey(t *testing.T) {
 	}
 }
 
-func TestMigrateRepairKeyRefusesAQuotedKey(t *testing.T) {
-	body := "work:\n  \"repair\":\n    prompt: A.\n"
+func TestMigrateRepairKeyRenamesQuotedNamesAndKeepsTheQuotes(t *testing.T) {
+	body := "work:\n  \"repair\":\n    prompt: A.\nprojects:\n  loupe:\n    work:\n      'repair':\n        prompt: B.\n" +
+		"experiments:\n  fixes:\n    covers: [\"repair\"]\n  more:\n    covers:\n      - 'repair'\n"
+	changed, after, err := migrateRepair(t, body)
+	if err != nil || !changed {
+		t.Fatalf("changed = %v, err = %v", changed, err)
+	}
+	if want := strings.ReplaceAll(body, "repair", "recover"); after != want {
+		t.Fatalf("file =\n%s", after)
+	}
+}
+
+func TestMigrateRepairKeyRefusesAnEscapedName(t *testing.T) {
+	body := "work:\n  \"rep\\x61ir\":\n    prompt: A.\n"
 	changed, after, err := migrateRepair(t, body)
 	if changed || after != body || err == nil {
+		t.Fatalf("changed = %v, err = %v, file = %q", changed, err, after)
+	}
+}
+
+func TestMigrateRepairKeyRenamesTheVariantKindsOfAnExperiment(t *testing.T) {
+	body := claudeAccount + claudeDefaults + "\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\nwork:\n  repair:\n    prompt: Repair.\n" +
+		"experiments:\n  fixes:\n    covers: [repair]\n    baseline: a\n    variants:\n" +
+		"      - name: a\n        weight: 1\n        kinds:\n          repair:\n            model: opus\n" +
+		"      - name: b\n        weight: 1\n"
+	changed, after, err := migrateRepair(t, body)
+	if err != nil || !changed {
+		t.Fatalf("changed = %v, err = %v", changed, err)
+	}
+	if want := strings.ReplaceAll(body, "repair", "recover"); after != want {
+		t.Fatalf("file =\n%s", after)
+	}
+	if _, err := Parse([]byte(after), Defaults{}); err != nil {
+		t.Fatalf("migrated file does not load: %v", err)
+	}
+}
+
+func TestMigrateRepairKeyLeavesAnExperimentThatCoversBothNames(t *testing.T) {
+	body := "experiments:\n  fixes:\n    covers: [repair, recover]\n"
+	changed, after, err := migrateRepair(t, body)
+	if changed || after != body || err == nil || !strings.Contains(err.Error(), "covers both") {
 		t.Fatalf("changed = %v, err = %v, file = %q", changed, err, after)
 	}
 }

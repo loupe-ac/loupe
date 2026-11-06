@@ -63,11 +63,11 @@ func MigrateRepairKey(path string) (changed bool, err error) {
 	}
 	var edits []lineEdit
 	for _, n := range spots {
-		start, _, ok := tokenAt(data, n.Line, n.Column)
-		if !ok || !bytes.HasPrefix(data[start:], []byte(LegacyRepairKind)) || n.Style != 0 {
-			return false, fmt.Errorf("%w: the kind %s on line %d is not a plain word", ErrMigrationRefused, LegacyRepairKind, n.Line)
+		edit, ok := renameScalar(data, n)
+		if !ok {
+			return false, fmt.Errorf("%w: the kind %s on line %d is not a plain or a quoted word", ErrMigrationRefused, LegacyRepairKind, n.Line)
 		}
-		edits = append(edits, lineEdit{start, start + len(LegacyRepairKind), RecoverKind})
+		edits = append(edits, edit)
 	}
 	next := applyEdits(data, edits)
 	want := renamedRepair(old)
@@ -89,7 +89,33 @@ func MigrateRepairKey(path string) (changed bool, err error) {
 	return true, nil
 }
 
-// repairSpots lists the key nodes and the covers items that name repair.
+// renameScalar is the edit that renames the repair scalar n in place. A
+// quoted scalar keeps its quotes. A scalar with an escape is refused.
+func renameScalar(data []byte, n *yaml.Node) (lineEdit, bool) {
+	start, _, ok := tokenAt(data, n.Line, n.Column)
+	if !ok {
+		return lineEdit{}, false
+	}
+	var quote string
+	switch n.Style {
+	case 0:
+	case yaml.DoubleQuotedStyle:
+		quote = `"`
+	case yaml.SingleQuotedStyle:
+		quote = "'"
+	default:
+		return lineEdit{}, false
+	}
+	if !bytes.HasPrefix(data[start:], []byte(quote+LegacyRepairKind+quote)) {
+		return lineEdit{}, false
+	}
+	start += len(quote)
+
+	return lineEdit{start, start + len(LegacyRepairKind), RecoverKind}, true
+}
+
+// repairSpots lists the key nodes, the covers items and the variant kinds
+// overrides that name repair.
 func repairSpots(root *yaml.Node) ([]*yaml.Node, error) {
 	var spots []*yaml.Node
 	rename := func(where string, m *yaml.Node) error {
@@ -120,13 +146,33 @@ func repairSpots(root *yaml.Node) ([]*yaml.Node, error) {
 	}
 	if _, experiments := pair(root, "experiments"); experiments != nil && experiments.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(experiments.Content); i += 2 {
-			_, covers := pair(experiments.Content[i+1], "covers")
-			if covers == nil || covers.Kind != yaml.SequenceNode {
-				continue
+			name := experiments.Content[i].Value
+			if _, covers := pair(experiments.Content[i+1], "covers"); covers != nil && covers.Kind == yaml.SequenceNode {
+				var found []*yaml.Node
+				hasRecover := false
+				for _, item := range covers.Content {
+					if item.Kind != yaml.ScalarNode {
+						continue
+					}
+					switch item.Value {
+					case LegacyRepairKind:
+						found = append(found, item)
+					case RecoverKind:
+						hasRecover = true
+					}
+				}
+				if len(found) > 0 && hasRecover {
+					return nil, fmt.Errorf("%w: experiment %s covers both %s and %s", ErrMigrationRefused, name, LegacyRepairKind, RecoverKind)
+				}
+				spots = append(spots, found...)
 			}
-			for _, item := range covers.Content {
-				if item.Kind == yaml.ScalarNode && item.Value == LegacyRepairKind {
-					spots = append(spots, item)
+			if _, variants := pair(experiments.Content[i+1], "variants"); variants != nil && variants.Kind == yaml.SequenceNode {
+				for _, v := range variants.Content {
+					if _, kinds := pair(v, "kinds"); kinds != nil && kinds.Kind == yaml.MappingNode {
+						if err := rename("experiment "+name+" variant kinds", kinds); err != nil {
+							return nil, err
+						}
+					}
 				}
 			}
 		}
@@ -198,6 +244,23 @@ func renamedRepair(old map[string]any) map[string]any {
 					items[i] = item
 				}
 				c["covers"] = items
+			}
+			if variants, ok := c["variants"].([]any); ok {
+				items := make([]any, len(variants))
+				for i, v := range variants {
+					if vm, ok := v.(map[string]any); ok {
+						vc := map[string]any{}
+						for k, x := range vm {
+							vc[k] = x
+						}
+						if kinds, ok := vc["kinds"]; ok {
+							vc["kinds"] = renameKey(kinds)
+						}
+						v = vc
+					}
+					items[i] = v
+				}
+				c["variants"] = items
 			}
 			next[name] = c
 		}
