@@ -407,27 +407,27 @@ final readonly class DevInboxSeeder implements DevSeederInterface
     private function seedApiKeyNotices(SeedContext $context, Project $project): array
     {
         return [
-            $this->closedNotice($context, $project, 'api-key-notice', InboxAskOrigin::ApiKey, static function (InboxItem $item): void {
+            $this->closedNotice($context, $project, 'api-key-notice', 5_400, InboxAskOrigin::ApiKey, static function (InboxItem $item): void {
                 $item->apiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
                 $item->apiKeyName = 'Weekly CI';
                 $item->dedupeKey = 'weekly-mutation';
             }),
-            $this->closedNotice($context, $project, 'api-key-notice-twin', InboxAskOrigin::Loupe),
+            $this->closedNotice($context, $project, 'api-key-notice-twin', 5_460, InboxAskOrigin::Loupe),
         ];
     }
 
     /** @param (\Closure(InboxItem): void)|null $adjust */
-    private function closedNotice(SeedContext $context, Project $project, string $slug, InboxAskOrigin $origin, ?\Closure $adjust = null): InboxItem
+    private function closedNotice(SeedContext $context, Project $project, string $slug, int $secondsAgo, InboxAskOrigin $origin, ?\Closure $adjust = null): InboxItem
     {
-        $notice = $this->item($context, $slug, $project, InboxItemKind::Notice, 'The weekly mutation run failed', false, 5_400, [
+        $notice = $this->item($context, $slug, $project, InboxItemKind::Notice, 'The weekly mutation run failed', false, $secondsAgo, [
             'body' => 'The weekly CI run of `just mutation` ended with a failure. Read the run log before the next release.',
         ], $adjust, $origin);
 
         $id = DevSeedId::of('inbox/ask/'.$slug);
         $ask = $this->em->find(InboxAsk::class, $id);
         if (!$ask instanceof InboxAsk) {
-            $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $context->at(5_400));
-            $ask->closedAt = $context->at(5_400);
+            $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $context->at($secondsAgo));
+            $ask->closedAt = $context->at($secondsAgo);
             $context->ids->assign($ask, $id);
             $this->em->persist($ask);
         }
