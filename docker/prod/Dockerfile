@@ -159,6 +159,9 @@ RUN bin/console tailwind:build \
 	&& find var/tailwind -mindepth 1 -maxdepth 1 ! -name 'app.built.css' -exec rm -rf {} +
 RUN bin/console asset-map:compile
 RUN bin/console cache:warmup --env=prod
+# Creates every attribute of every routed controller, as a request would. A
+# class that the vendor tree lacks fails here and not on the first request.
+RUN bin/console app:check-controller-attributes
 
 # Build identity for the About page, written as a file rather than an env var so
 # that its ABSENCE is meaningful: an image this build did not produce has no

@@ -13,6 +13,8 @@ parameters:
 
     excludePaths:
         - config/reference.php (?)
+        # Fixtures that name classes which do not exist, on purpose.
+        - tests/Routing/Fixture
 
     treatPhpDocTypesAsCertain: false
 
