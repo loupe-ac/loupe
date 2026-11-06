@@ -642,10 +642,17 @@ final class ShippedTemplatesTest extends KernelTestCase
             pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, id: $id7, headSha: 'aaa1111', number: 7),
             provided: [WorkAtHeadFacts::class => new WorkAtHeadFacts([], [$id7->toRfc4122() => 'aaa1111'])],
         );
+        $primary = Uuid::v7();
+        $primaryChanged = FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, id: $primary, headSha: 'ccc3333', number: 8),
+            provided: [WorkAtHeadFacts::class => new WorkAtHeadFacts([], [$id7->toRfc4122() => 'bbb2222', $primary->toRfc4122() => 'ccc3333'], [$id7->toRfc4122() => ['fix']])],
+        );
 
         self::assertNotNull($rule->lead->cancelWhen);
         self::assertTrue($rule->lead->cancelWhen->evaluate($moved));
         self::assertFalse($rule->lead->cancelWhen->evaluate($same));
+        self::assertTrue($rule->lead->cancelWhen->evaluate($primaryChanged));
         self::assertSame('open', $rule->lead->params['cancelOnly'] ?? null);
         self::assertSame(WriteCardEventOnFixWithdrawn::REASON, $rule->lead->params['cancelReason'] ?? null);
     }

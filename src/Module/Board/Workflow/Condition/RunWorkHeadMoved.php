@@ -6,14 +6,13 @@ namespace App\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\WorkAtHeadFacts;
 use App\Module\Workflow\Contract\Condition;
-use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** An open or claimed work request of the given kind named a head that is not the current head of the pull request the rule acts on. */
+/** An open or claimed work request of the given kind named a head that is not the current head of its own open pull request. */
 final readonly class RunWorkHeadMoved implements Condition
 {
     #[\Override]
@@ -37,13 +36,13 @@ final readonly class RunWorkHeadMoved implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [WorkAtHeadFacts::class, EngineFact::PullRequest];
+        return [WorkAtHeadFacts::class];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return $facts->get(WorkAtHeadFacts::class)->headMoved($facts, ParameterValue::string($params, 'kind'));
+        return $facts->get(WorkAtHeadFacts::class)->headMoved(ParameterValue::string($params, 'kind'));
     }
 
     #[\Override]

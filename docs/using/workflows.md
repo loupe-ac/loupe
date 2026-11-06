@@ -248,7 +248,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   named a head of a pull request, and that pull request now has another head.
   The request names its pull request by the forge, the repository and the
   number, so a pull request of another repository with the same number does
-  not count.
+  not count. It reads every open pull request of the card, also one that is no
+  longer the pull request the rule acts on.
 - `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move to another column clears it. A new rank in the same column keeps it.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows

@@ -29,11 +29,12 @@ final readonly class WorkAtHeadFacts
         return null !== $id && \in_array($kind, $this->doneKinds[(string) $id] ?? [], true);
     }
 
-    /** Whether a live request of the kind named an older head of the pull request a rule acts on. */
-    public function headMoved(Facts $facts, string $kind): bool
+    /**
+     * Whether a live request of the kind named an older head of any open pull request of the card.
+     * It reads every pull request, not only the one a rule acts on, because a card holds one live request of a kind at most.
+     */
+    public function headMoved(string $kind): bool
     {
-        $id = $facts->pullRequest?->id;
-
-        return null !== $id && \in_array($kind, $this->movedKinds[(string) $id] ?? [], true);
+        return array_any($this->movedKinds, static fn (array $kinds): bool => \in_array($kind, $kinds, true));
     }
 }
