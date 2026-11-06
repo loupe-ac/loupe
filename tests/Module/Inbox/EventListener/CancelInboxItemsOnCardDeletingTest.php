@@ -194,6 +194,19 @@ final class CancelInboxItemsOnCardDeletingTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 
+    public function test_a_deleted_card_cancels_the_open_item_of_an_api_key(): void
+    {
+        $card = $this->card($this->em, $this->project);
+        $item = new InboxItem(project: $this->project, number: 1, kind: InboxItemKind::Todo, title: 'Rerun the job', blocking: false, origin: InboxAskOrigin::ApiKey);
+        $this->em->persist($item);
+        $item->cards->add(new InboxItemCard($item, $card));
+        $this->em->flush();
+
+        $this->delete($card);
+
+        self::assertSame(InboxItemState::Cancelled, $this->reload($item)->state);
+    }
+
     public function test_the_delete_closes_nothing_while_the_inbox_is_off(): void
     {
         $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);

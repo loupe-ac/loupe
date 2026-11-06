@@ -1,3 +1,4 @@
-{# Params: state (the value of InboxItemState), outcome (InboxOutcomeLabel). #}
-{% set chip = {resolved: 'ok', declined: 'resolved', cancelled: 'resolved'}[state] ?? 'pending' %}
+{# Params: state (the value of InboxItemState), outcome (InboxOutcomeLabel), verdict (optional, the value of InboxReviewVerdict). #}
+{% set verdictChip = {approved: 'ok', 'changes-requested': 'failed'}[verdict ?? ''] ?? null %}
+{% set chip = verdictChip ?? ({resolved: 'ok', declined: 'resolved', cancelled: 'resolved'}[state] ?? 'pending') %}
 <twig:Ds:StatusChip :modifier="chip">{{ outcome.key|trans(outcome.parameters) }}</twig:Ds:StatusChip>

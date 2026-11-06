@@ -320,13 +320,13 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::Answer], $this->defaults($item));
     }
 
-    public function test_a_notice_offers_no_response(): void
+    public function test_a_notice_offers_its_dismissal_alone(): void
     {
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Notice, title: 'The repository is blocked', blocking: false, origin: InboxAskOrigin::Loupe);
         $this->em->persist($item);
         $this->em->flush();
 
-        self::assertSame([], $this->kinds($item));
+        self::assertSame([InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_a_review_of_a_person_offers_its_verdict_and_a_dismissal(): void
@@ -537,14 +537,14 @@ final class ItemActionsTest extends KernelTestCase
     {
         $this->sessionBridge();
 
-        self::assertSame([], $this->kinds($this->notice()));
+        self::assertSame([InboxActionKind::Dismiss], $this->kinds($this->notice()));
     }
 
     public function test_an_item_with_no_card_and_no_bridge_that_opens_sessions_offers_no_session(): void
     {
-        self::assertSame([], $this->kinds($this->notice()));
+        self::assertSame([InboxActionKind::Dismiss], $this->kinds($this->notice()));
         $this->sessionBridge(capabilities: [Bridge::CAPABILITY_WORK_REQUESTS]);
-        self::assertSame([], $this->kinds($this->notice('Another notice')));
+        self::assertSame([InboxActionKind::Dismiss], $this->kinds($this->notice('Another notice')));
     }
 
     public function test_an_item_with_one_card_starts_its_session_on_the_card_with_any_session_bridge(): void
@@ -611,7 +611,7 @@ final class ItemActionsTest extends KernelTestCase
         $this->em->persist($request);
         $this->em->flush();
 
-        self::assertSame($offered, [] !== $this->kinds($item));
+        self::assertSame($offered, \in_array(InboxActionKind::StartSession, $this->kinds($item), true));
     }
 
     public function test_a_live_session_request_of_the_item_hides_start_session_also_when_the_item_now_has_one_card(): void
@@ -623,7 +623,7 @@ final class ItemActionsTest extends KernelTestCase
         $this->link($item, $this->card);
 
         self::assertSame(WorkSubject::CARD, $this->actions()->sessionSubjectOf($item)->type);
-        self::assertSame([InboxActionKind::Open], $this->kinds($item));
+        self::assertSame([InboxActionKind::Open, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_a_session_request_of_another_item_does_not_hide_start_session(): void
@@ -635,7 +635,7 @@ final class ItemActionsTest extends KernelTestCase
         $this->em->persist($request);
         $this->em->flush();
 
-        self::assertSame([InboxActionKind::StartSession], $this->kinds($item));
+        self::assertSame([InboxActionKind::StartSession, InboxActionKind::Dismiss], $this->kinds($item));
     }
 
     public function test_a_closed_item_with_no_card_offers_a_session_only_with_an_item_bridge(): void

@@ -27,6 +27,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Writes the three documents of the showcase: a plan with two versions, an approved spec and a tech design.
+ * The plan carries one comment, and the spec has none, so it is the empty twin of the Comments panel.
  * It also writes three approved documents in the project of the keys account: one with a verdict that an API
  * key recorded, one with a comment that an API key wrote, and an empty twin where a person did both.
  */
@@ -100,6 +101,8 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
             $this->store($context, $history, 'worker-run-history');
         }
 
+        $this->seedHistoryComment($context, $owner);
+
         if (!$this->documents->find(self::documentId('first-handoff')) instanceof Document) {
             $onboarding = new Document($owner, $project, 'Tech design: First handoff guide', $context->at(1_800));
             $onboarding->addVersion(
@@ -111,6 +114,21 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         }
 
         $this->seedApiKeyDocuments($context);
+    }
+
+    private function seedHistoryComment(SeedContext $context, User $owner): void
+    {
+        $commentId = DevSeedId::of('review/comment/worker-run-history');
+        if ($this->em->find(Comment::class, $commentId) instanceof Comment) {
+            return;
+        }
+
+        $history = $this->documents->find(self::documentId('worker-run-history'))
+            ?? throw new \LogicException('The worker run history document does not exist.');
+        $comment = $this->comment($context, $history->currentVersion(), $owner, false);
+        $context->ids->assign($comment, $commentId);
+        $this->em->persist($comment);
+        $this->em->flush();
     }
 
     private function seedApiKeyDocuments(SeedContext $context): void

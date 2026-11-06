@@ -41,6 +41,10 @@
                 <source>project.api.error.origins_too_many</source>
                 <target>You can allow {{ limit }} sites at most.</target>
             </trans-unit>
+            <trans-unit id="inbox.api.error.blocking_refused">
+                <source>inbox.api.error.blocking_refused</source>
+                <target>An item from the API never blocks. Leave blocking out, or pass false.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

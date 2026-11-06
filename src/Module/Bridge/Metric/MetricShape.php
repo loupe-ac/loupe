@@ -70,7 +70,7 @@ final readonly class MetricShape
     /** @return list<MetricStatistic> */
     public function statistics(): array
     {
-        return $this->valueType()->statistics();
+        return null === $this->template ? $this->builtIn()->statistics() : $this->valueType()->statistics();
     }
 
     /** @return list<MetricGroup> */

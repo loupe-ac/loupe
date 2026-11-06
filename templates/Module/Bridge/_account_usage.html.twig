@@ -16,7 +16,8 @@
     {% elseif percent is null %}
         {% set valueLabel = (reading.limited ? 'bridge.agents.usage.at_limit' : 'bridge.agents.usage.not_reported')|trans %}
     {% else %}
-        {% set valueLabel = 'bridge.agents.usage.percent'|trans({'%percent%': percent|round}) %}
+        {% set percentKey = state == 'at-stop' ? 'bridge.agents.usage.percent_at_stop' : (state == 'at-limit' ? 'bridge.agents.usage.percent_at_limit' : 'bridge.agents.usage.percent') %}
+        {% set valueLabel = percentKey|trans({'%percent%': percent|round}) %}
     {% endif %}
     {% set fill = state != 'unknown' and percent is not null ? min(percent, 100) : 0 %}
     {% set tone = state == 'at-limit' ? 'limit' : (state == 'at-stop' ? 'stop' : (state == 'unknown' ? 'unknown' : 'open')) %}

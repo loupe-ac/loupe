@@ -271,6 +271,10 @@ run. The server stores a value from the outcome or the `stopped` report, and a
 report with no value keeps the stored value. A run with no value has an unknown
 peak.
 
+The `peak-context` metric reads this value. `metric_query` and the Analytics
+page offer it on the run unit with the statistics `max`, `median`, `mean`, `p90`
+and `count`.
+
 ### Harness events
 
 An outcome or a `stopped` report can carry `harnessEvents`, an object that maps

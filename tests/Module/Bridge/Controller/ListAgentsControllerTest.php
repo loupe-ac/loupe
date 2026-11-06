@@ -69,7 +69,8 @@ final class ListAgentsControllerTest extends WebTestCase
         $chip = $crawler->filter('[data-agent-connection-id="'.$refused->id.'"] [data-agent-refused]');
         self::assertCount(1, $chip);
         self::assertStringContainsString('Cannot take work', $chip->text());
-        self::assertStringContainsString('Run `loupe update`.', $chip->text());
+        self::assertStringContainsString('Run loupe update.', $chip->text());
+        self::assertSame('loupe update', $chip->filter('code')->text());
         self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$healthy->id.'"] [data-agent-refused]'));
     }
 
@@ -277,6 +278,31 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-worker-pools]'));
     }
 
+    public function test_an_account_that_fails_only_for_this_project_does_not_read_ready(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-project-failure@example.com');
+        $project = $this->project($em, $owner, 'Project failure');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], accounts: [
+            ['name' => 'work', 'harness' => 'claude-code', 'state' => 'ready', 'reason' => null, 'failedProjects' => [
+                ['projectId' => (string) $project->id, 'reason' => 'no repository access'],
+                ['projectId' => '01a1a216-0000-7000-8000-000000000001', 'reason' => 'elsewhere'],
+            ]],
+        ], accountsReportedAt: new \DateTimeImmutable('2026-09-14 16:05:00'));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $account = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-account="work"]');
+        self::assertSame('work claude-code Failing for this project', preg_replace('/\s+/', ' ', trim($account->filter('.lp-agent-card__account-line')->text())));
+        self::assertStringContainsString('lp-agent-card__account--failing', (string) $account->attr('class'));
+        self::assertStringNotContainsString('not affected', $account->text());
+        self::assertSame('It also fails for one project that you cannot see here.', trim($account->filter('[data-agent-account-other-projects]')->text()));
+    }
+
     public function test_a_connection_shows_each_account_and_marks_a_failing_one(): void
     {
         $client = static::createClient();
@@ -335,7 +361,8 @@ final class ListAgentsControllerTest extends WebTestCase
         $session = $bars->eq(0);
         self::assertSame('at-stop', $session->attr('data-agent-usage-state'));
         self::assertSame('Session', trim($session->filter('.lp-usage-bar__name')->text()));
-        self::assertSame('97 %', trim($session->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('97 %, at its stop value', trim($session->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('97 %, at its stop value', $session->filter('progress')->attr('aria-valuetext'));
         self::assertSame('97', $session->filter('progress')->attr('value'));
         self::assertStringContainsString('Read 5m ago', $session->filter('[data-agent-usage-age]')->text());
         $week = $bars->eq(1);
@@ -362,7 +389,7 @@ final class ListAgentsControllerTest extends WebTestCase
 
         $bar = $crawler->filter('[data-agent-usage="session"]');
         self::assertSame('at-limit', $bar->attr('data-agent-usage-state'));
-        self::assertSame('104 %', trim($bar->filter('[data-agent-usage-value]')->text()));
+        self::assertSame('104 %, at its limit', trim($bar->filter('[data-agent-usage-value]')->text()));
         self::assertSame('100', $bar->filter('progress')->attr('value'));
     }
 

@@ -25,7 +25,7 @@
     .lp-list-row:focus-visible {
         position: relative;
         z-index: 1;
-        outline: 2px solid var(--accent);
+        outline: 2px solid var(--accent-ink);
         outline-offset: -2px;
     }
 

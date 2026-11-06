@@ -1,8 +1,10 @@
 {#- The agent's avatar with a presence dot, and a tooltip that names the bridge's
-    state and the session. Loupe has no session, so it shows its avatar alone.
+    state and the session. Loupe and an API key have no session, so each shows its avatar alone.
     Props: ask (InboxAsk or null), bridge (BridgeStatus or null), origin (InboxAskOrigin). -#}
 {% if origin.value == 'loupe' %}
     <twig:Ds:Avatar icon="lucide:search" size="sm" tone="tint" aria-hidden="true" />
+{% elseif origin.value == 'api-key' %}
+    <twig:Ds:Avatar icon="lucide:key-round" size="sm" tone="tint" aria-hidden="true" />
 {% elseif ask is null %}
     <twig:Ds:Avatar icon="lucide:bot" size="sm" tone="tint" aria-hidden="true" />
 {% else %}
@@ -23,7 +25,7 @@
                         <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'inbox.ask.bridge.last_heard'|trans({'%time%': bridge.lastSeenAt|relative_time(bridge.checkedAt)}) }}</time>{# @design-system-ignore #}
                     {% endif %}
                     {% if bridge.quiet %}{{ 'inbox.ask.bridge.quiet'|trans }}{% endif %}
-                    {% if bridge.loginExpired %}<span data-inbox-login-expired>{{ 'inbox.ask.bridge.login_expired'|trans }}</span>{% endif %}
+                    {% if bridge.loginExpired %}<span data-inbox-login-expired>{{ 'inbox.ask.bridge.login_expired'|trans|inline_code }}</span>{% endif %}
                 </span>
             {% elseif state == 'none' %}
                 <span class="lp-tooltip__line">{{ 'inbox.presence.no_bridge'|trans }}</span>
