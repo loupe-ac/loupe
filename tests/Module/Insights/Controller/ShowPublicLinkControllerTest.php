@@ -18,6 +18,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
@@ -111,22 +112,22 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         $flagged = $this->share($this->costGraph($project, 'Flagged', MetricGroup::None));
         $this->em()->flush();
 
-        $bodies = [];
+        $refusals = [];
         foreach (['aaaaaaaaaaaa' => 'unknown', $off->code => 'off', $removed->code => 'removed'] as $code => $reason) {
-            $client->request(Request::METHOD_GET, '/s/'.$code);
-            self::assertResponseStatusCodeSame(404, $reason);
-            $bodies[$reason] = $this->withoutNoise((string) $client->getResponse()->getContent());
+            $refusals[$reason] = $this->refusal($client, $code);
         }
 
         $flags = self::getContainer()->get(FeatureFlagRepository::class);
         self::assertInstanceOf(FeatureFlagRepository::class, $flags);
         $flags->findAllIndexed()[PublicLink::FLAG]->value = false;
         $this->em()->flush();
-        $client->request(Request::METHOD_GET, '/s/'.$flagged->code);
-        self::assertResponseStatusCodeSame(404, 'flag');
-        $bodies['flag'] = $this->withoutNoise((string) $client->getResponse()->getContent());
+        $refusals['flag'] = $this->refusal($client, $flagged->code);
 
-        self::assertCount(1, array_unique($bodies));
+        self::assertSame(404, $refusals['flag'][1]);
+        self::assertCount(1, array_unique(array_map(serialize(...), $refusals)), (string) json_encode($refusals));
+
+        $client->request(Request::METHOD_GET, '/s/'.$flagged->code);
+        self::assertResponseStatusCodeSame(404);
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
     }
 
@@ -226,12 +227,24 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         }
     }
 
-    /** The test environment prints the exception, so drop the object ids and the lines of this file. */
-    private function withoutNoise(string $body): string
+    /**
+     * The exception behind the 404, which alone decides the error page a visitor
+     * sees. The debug page of the test kernel is not stable between requests.
+     *
+     * @return array{class-string, int, string, string, int}
+     */
+    private function refusal(KernelBrowser $client, string $code): array
     {
-        $lines = array_filter(explode("\n", $body), static fn (string $line): bool => !str_contains($line, 'ShowPublicLinkControllerTest'));
+        $client->catchExceptions(false);
+        try {
+            $client->request(Request::METHOD_GET, '/s/'.$code);
+        } catch (HttpExceptionInterface $exception) {
+            return [$exception::class, $exception->getStatusCode(), $exception->getMessage(), $exception->getFile(), $exception->getLine()];
+        } finally {
+            $client->catchExceptions(true);
+        }
 
-        return (string) preg_replace('/\{#\d+/', '{#', implode("\n", $lines));
+        self::fail(\sprintf('The code %s showed a page.', $code));
     }
 
     private function seedLeakyRuns(Project $project): void
