@@ -14,7 +14,7 @@ run=${2:-}
 pattern=''
 
 case "$report" in
-    mutation) workflow='Mutation testing' artifact=infection-report ;;
+    mutation) workflow='Coverage report' artifact=infection-report ;;
     phpunit-coverage) workflow='Coverage report' artifact=phpunit-coverage ;;
     e2e-coverage) workflow='Coverage report' artifact=e2e-coverage ;;
     # The trailing `*` also matches `e2e-timing`, the single artifact a run
@@ -54,6 +54,25 @@ if [ -z "$run" ]; then
     fi
 fi
 
+# The date and conclusion of the chosen run, then a warning for each newer
+# completed run on main that failed. The warning goes to stderr and the exit
+# status stays 0, so a reader still gets the older report.
+run_json=$(gh api "repos/$repo/actions/runs/$run" -q '{c: .conclusion, d: .created_at, w: .name}')
+run_date=$(jq -r '.d[0:10]' <<<"$run_json")
+run_conclusion=$(jq -r '.c' <<<"$run_json")
+echo "run $run: $run_date, $run_conclusion"
+newer=$(gh run list --repo "$repo" --workflow "$workflow" --branch main --status completed \
+    --limit 20 --json databaseId,conclusion,createdAt \
+    -q "[.[] | select(.databaseId > $run and .conclusion != \"success\")] | sort_by(.createdAt)")
+newer_count=$(jq 'length' <<<"$newer")
+if [ "$newer_count" -gt 0 ]; then
+    newest=$(jq -r 'last.createdAt[0:10]' <<<"$newer")
+    echo "warning: $newer_count newer '$workflow' runs failed, newest $newest; this report is from $run_date" >&2
+fi
+if [ "$run_conclusion" != success ]; then
+    echo "warning: run $run ended $run_conclusion; its report may be incomplete" >&2
+fi
+
 dir="var/ci-reports/$artifact/$run"
 if [ ! -d "$dir" ]; then
     rm -rf "$dir.part"
@@ -66,7 +85,7 @@ if [ ! -d "$dir" ]; then
     mv "$dir.part" "$dir"
 fi
 
-echo "run $run: https://github.com/$repo/actions/runs/$run"
+echo "https://github.com/$repo/actions/runs/$run"
 echo "files: $dir"
 echo
 
