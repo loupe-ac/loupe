@@ -7,11 +7,11 @@ namespace App\Tests\Migrations;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Doctrine\DBAL\Schema\Schema;
-use DoctrineMigrations\Version20261105230000;
+use DoctrineMigrations\Version20261105232045;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-require_once __DIR__.'/../../migrations/Version20261105230000.php';
+require_once __DIR__.'/../../migrations/Version20261105232045.php';
 
 final class LifecycleReviewRequiredMigrationTest extends KernelTestCase
 {
@@ -44,7 +44,7 @@ final class LifecycleReviewRequiredMigrationTest extends KernelTestCase
     private function migrate(): void
     {
         $connection = $this->em()->getConnection();
-        $migration = new Version20261105230000($connection, new NullLogger());
+        $migration = new Version20261105232045($connection, new NullLogger());
         $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());

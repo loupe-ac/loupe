@@ -8,7 +8,7 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 use Symfony\Component\Yaml\Yaml;
 
-final class Version20261105230000 extends AbstractMigration
+final class Version20261105232045 extends AbstractMigration
 {
     #[\Override]
     public function getDescription(): string
