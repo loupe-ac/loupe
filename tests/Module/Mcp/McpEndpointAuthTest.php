@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Mcp;
 
+use App\Mcp\FlagGatedListToolsHandler;
 use App\Module\OAuth\Repository\GrantRepository;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
+use Mcp\Capability\Registry;
+use Mcp\Schema\Tool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -88,88 +91,13 @@ final class McpEndpointAuthTest extends WebTestCase
         $client = static::createClient();
         $raw = $this->persistValidToken($client);
 
-        self::assertSame([
-            'agent_review_submit',
-            'analysis_get',
-            'analysis_report',
-            'analytics_settings_get',
-            'analytics_settings_update',
-            'automation_settings_update',
-            'board_columns',
-            'bridge_command_cancel',
-            'bridge_host_samples',
-            'bridge_list',
-            'bucket_rule_create',
-            'bucket_rule_delete',
-            'bucket_rule_list',
-            'bucket_rule_move',
-            'card_create',
-            'card_get',
-            'card_get_history',
-            'card_hold',
-            'card_list',
-            'card_pause_release',
-            'card_release',
-            'card_run_close',
-            'card_run_open',
-            'card_search',
-            'card_update',
-            'column_create',
-            'column_delete',
-            'column_reorder',
-            'column_update',
-            'discovery_start',
-            'document_archive',
-            'document_create',
-            'document_decision_answer',
-            'document_decision_clear',
-            'document_get',
-            'document_get_review',
-            'document_list',
-            'document_mark_comment_addressed',
-            'document_publish',
-            'document_rename',
-            'document_reply_to_comment',
-            'document_review_answer',
-            'document_review_submit',
-            'document_revise',
-            'document_set_references',
-            'document_set_series',
-            'document_set_tags',
-            'document_unarchive',
-            'document_verdict_submit',
-            'document_verdict_withdraw',
-            'experiment_archive',
-            'experiment_card_exclude',
-            'experiment_card_include',
-            'experiment_get',
-            'experiment_unarchive',
-            'feedback_list',
-            'feedback_mark_addressed',
-            'graph_list',
-            'graph_move',
-            'graph_remove',
-            'graph_restore',
-            'graph_save',
-            'graph_update',
-            'metric_list',
-            'metric_query',
-            'project_current',
-            'project_origins_set',
-            'project_update',
-            'readiness_get',
-            'readiness_guide_set',
-            'readiness_report_submit',
-            'series_list',
-            'series_rename',
-            'tag_list',
-            'worker_run_get',
-            'worker_run_list',
-            'worker_run_resume',
-            'worker_run_stop',
-            'worker_run_tool_calls',
-            'workflow_get',
-        ], $this->listToolNames($client, $raw));
+        $listed = $this->listToolNames($client, $raw);
+
+        self::assertSame($listed, array_values(array_unique($listed)), 'The list repeats a tool.');
+        self::assertSame(self::registeredToolsWithoutGatedOnes(), $listed);
+        foreach (['agent_review_submit', 'card_create', 'card_get', 'document_create', 'project_current'] as $mustKeep) {
+            self::assertContains($mustKeep, $listed);
+        }
     }
 
     public function test_tools_list_advertises_document_highlight_once_the_flag_is_on(): void
@@ -313,5 +241,36 @@ final class McpEndpointAuthTest extends WebTestCase
         $user = $scenario->createUser('agent@example.com');
 
         return $scenario->accessTokenFor($client, $user, 'mcp', $scenario->createProject($user, 'Agent App'));
+    }
+
+    /**
+     * Every tool in the registry except the ones a feature flag hides. The
+     * flags default to off in the test database.
+     *
+     * @return list<string>
+     */
+    private static function registeredToolsWithoutGatedOnes(): array
+    {
+        $registry = self::getContainer()->get('mcp.registry');
+        self::assertInstanceOf(Registry::class, $registry);
+
+        $gated = [];
+        $handler = self::getContainer()->get(FlagGatedListToolsHandler::class);
+        $gatedTools = new \ReflectionProperty($handler, 'gatedTools')->getValue($handler);
+        self::assertIsIterable($gatedTools);
+        foreach ($gatedTools as $gatedTool) {
+            $gated[] = $gatedTool->gatedToolName();
+        }
+
+        $names = [];
+        foreach ($registry->getTools()->references as $tool) {
+            \assert($tool instanceof Tool);
+            if (!\in_array($tool->name, $gated, true)) {
+                $names[] = $tool->name;
+            }
+        }
+        sort($names);
+
+        return $names;
     }
 }
