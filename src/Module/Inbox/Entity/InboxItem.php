@@ -61,7 +61,7 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $note = null;
 
-    /** Whether the owner may dismiss the item. Loupe never offers it on a notice or a workflow question. */
+    /** Whether the owner may dismiss the item. Loupe never offers it on a workflow question, because the rule needs one of its options. */
     #[ORM\Column(options: ['default' => true])]
     public bool $dismissible;
 
@@ -152,7 +152,7 @@ class InboxItem implements ProjectScopedSubject
         $this->cards = new ArrayCollection();
         $this->documents = new ArrayCollection();
         $this->updatedAt = $this->createdAt;
-        $this->dismissible = !\in_array($kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true);
+        $this->dismissible = InboxItemKind::Workflow !== $kind;
     }
 
     /** An agent question takes a note beside its options. A workflow question takes a note only when text alone answers it. */
@@ -165,6 +165,12 @@ class InboxItem implements ProjectScopedSubject
     public function isAutomatic(): bool
     {
         return InboxAskOrigin::Loupe === $this->origin && \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Review], true);
+    }
+
+    /** The owner dismissed it. A notice of Loupe stays dismissed until its fact ends, and opens again only when the fact returns. */
+    public function isDismissed(): bool
+    {
+        return InboxItemState::Declined === $this->state;
     }
 
     #[\Override]

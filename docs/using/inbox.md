@@ -651,6 +651,11 @@ that. See [the bridge guide](../extending/cli-bridge.md) for the key.
 A notice states a fact of the project. It does not block an agent and takes no
 answer. A notice may link the cards that the fact is about.
 
+You can dismiss any notice. A dismissed notice closes as declined. While its
+fact holds, Loupe opens no new notice for it. Loupe opens a new notice only when
+the fact ends and then returns, such as when the key fails again after it
+worked, or the bridges go away again after one came back.
+
 Loupe opens the notice **No bridge can take work** when the work of a card waits
 for 10 minutes and no online bridge can take it. A paused bridge keeps the work
 waiting, and Loupe opens no notice for it.
@@ -711,8 +716,8 @@ gives the fields.
 1. The row and the thread name the key, such as "API key 'CI'", with a key
    icon. The name stays when you remove the key.
 2. The item never blocks, and no card waits for a person because of it.
-3. You can dismiss every item from the API, a notice too. No fact ends such a
-   notice, so it stays open until you dismiss it.
+3. You can dismiss every item from the API, a notice too. No fact ends a
+   notice from the API, so it stays open until you dismiss it.
 4. The script can send a `dedupeKey`. While an open item holds the same key, a
    new call returns that item and opens nothing. After you close the item, the
    next call opens a new one. A job that fails each night therefore shows one

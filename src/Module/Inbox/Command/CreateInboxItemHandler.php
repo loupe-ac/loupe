@@ -27,7 +27,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Hands one item from the public API to the owner. Nothing waits on it, so its
- * ask has no session and closes at once, and the owner may always dismiss it.
+ * ask has no session and closes at once.
  */
 final readonly class CreateInboxItemHandler
 {
@@ -78,8 +78,6 @@ final readonly class CreateInboxItemHandler
                 createdAt: $now,
                 searchLanguage: $command->project->searchLanguage,
             );
-            // No fact ends a notice from the API, so only the owner can close it.
-            $item->dismissible = true;
             $item->apiKeyId = $command->apiKey?->keyId;
             $item->apiKeyName = $command->apiKey?->keyName;
             $item->dedupeKey = $command->dedupeKey;

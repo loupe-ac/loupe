@@ -408,7 +408,6 @@ final readonly class DevInboxSeeder implements DevSeederInterface
     {
         return [
             $this->closedNotice($context, $project, 'api-key-notice', InboxAskOrigin::ApiKey, static function (InboxItem $item): void {
-                $item->dismissible = true;
                 $item->apiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
                 $item->apiKeyName = 'Weekly CI';
                 $item->dedupeKey = 'weekly-mutation';

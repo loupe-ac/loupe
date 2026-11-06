@@ -335,6 +335,30 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         self::assertSame(2, $open[0]->item->number);
     }
 
+    public function test_a_dismissed_notice_stays_closed_while_work_waits_and_its_outage_ends_when_a_bridge_is_back(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:49:00');
+        $this->reconciler->reconcile($this->project);
+        $first = $this->onlyOutage();
+        $first->item->state = InboxItemState::Declined;
+        $first->item->closedBy = InboxCloser::Owner;
+        $first->item->closedAt = new \DateTimeImmutable(self::NOW);
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(1, $this->itemCount());
+        self::assertNull($first->endedAt);
+
+        $this->bridge(seenSecondsAgo: 5);
+        $this->em->flush();
+        $this->reconciler->reconcile($this->project);
+
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $first->endedAt);
+        self::assertSame(InboxItemState::Declined, $first->item->state);
+        self::assertSame([], $this->openOutages());
+    }
+
     public function test_a_card_deleted_before_the_notice_opens_leaves_nothing_to_open(): void
     {
         $this->waitingRequest($this->card, '2026-10-16 11:49:00');

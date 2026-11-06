@@ -19,7 +19,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 
-/** A notice on the inbox page: Loupe as its sender, its body, and no response form. */
+/** A notice on the inbox page: its sender, its body, and the dismiss form. */
 final class NoticeItemPageTest extends WebTestCase
 {
     use InboxScenario;
@@ -52,7 +52,7 @@ final class NoticeItemPageTest extends WebTestCase
         $this->client->loginUser($owner);
     }
 
-    public function test_an_open_notice_shows_its_body_from_loupe_with_no_form(): void
+    public function test_an_open_notice_shows_its_body_from_loupe_and_a_dismiss(): void
     {
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
 
@@ -62,14 +62,13 @@ final class NoticeItemPageTest extends WebTestCase
         $item = $crawler->filter('#inbox-item-1');
         self::assertCount(1, $item);
         self::assertStringContainsString('sync-behind', $item->filter('.lp-inbox-item__body')->text());
-        self::assertCount(0, $item->filter('form'));
+        self::assertCount(1, $item->filter('form'), 'the owner can dismiss it');
         self::assertCount(0, $item->filter('.lp-inbox-item__blocking'));
     }
 
     public function test_a_notice_of_an_api_key_names_the_key_and_offers_a_dismiss(): void
     {
         $fromKey = new InboxItem(project: $this->project, number: 2, kind: InboxItemKind::Notice, title: 'The weekly run failed', blocking: false, origin: InboxAskOrigin::ApiKey, body: 'Read the log.');
-        $fromKey->dismissible = true;
         $fromKey->apiKeyName = 'Weekly CI';
         $this->em->persist($fromKey);
         $this->em->flush();

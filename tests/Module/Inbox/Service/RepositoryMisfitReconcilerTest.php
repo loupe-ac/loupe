@@ -167,7 +167,7 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         $this->repositoryWithGaps($this->project);
         $this->deliver();
         $first = $this->onlyMisfit();
-        $first->item->state = InboxItemState::Declined;
+        $first->item->state = InboxItemState::Cancelled;
         $this->em->flush();
         $this->clock->sleep(60);
 
@@ -177,6 +177,33 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         self::assertCount(2, $misfits);
         self::assertNotNull($misfits[0]->endedAt);
         self::assertCount(1, array_filter($misfits, static fn (InboxRepositoryMisfit $misfit): bool => null === $misfit->endedAt));
+    }
+
+    public function test_a_dismissed_notice_stays_closed_while_the_hold_lasts_and_a_new_one_opens_when_it_returns(): void
+    {
+        $repository = $this->repositoryWithGaps($this->project);
+        $this->deliver();
+        $first = $this->onlyMisfit();
+        $first->item->state = InboxItemState::Declined;
+        $first->item->closedBy = InboxCloser::Owner;
+        $first->item->closedAt = new \DateTimeImmutable();
+        $this->em->flush();
+        $this->clock->sleep(60);
+
+        $this->deliver();
+
+        self::assertNull($this->onlyMisfit()->endedAt);
+
+        $this->fit($repository);
+        $this->deliver();
+
+        self::assertNotNull($this->onlyMisfit()->endedAt);
+        self::assertSame(InboxItemState::Declined, $this->onlyMisfit()->item->state);
+
+        $this->block($repository);
+        $this->deliver();
+
+        self::assertCount(2, $this->misfits());
     }
 
     public function test_the_event_listener_reconciles_the_project_of_the_event(): void

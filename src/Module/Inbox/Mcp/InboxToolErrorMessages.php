@@ -110,7 +110,6 @@ final readonly class InboxToolErrorMessages
             MarkInboxItemDoneHandler::NOT_A_TO_DO => 'Only a todo can be marked done.',
             DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_action_run.',
             InboxItemCloser::ERROR_FINAL => 'The item is closed, so its response is final.',
-            InboxItemCloser::ERROR_NOTICE => 'A notice takes no response.',
             RunInboxActionHandler::NOT_AVAILABLE => 'This action does not fit the item now. The item may be closed, or the state it waits on changed. Read the item with inbox_get.',
             RunInboxActionHandler::NOTE_TOO_LONG => \sprintf('A note must be at most %d characters.', InboxAction::MAX_NOTE_LENGTH),
             RunInboxActionHandler::SESSION_PROMPT_TOO_LONG => \sprintf('A session prompt must be at most %d characters on this instance.', $this->promptLimit->maxLength()),

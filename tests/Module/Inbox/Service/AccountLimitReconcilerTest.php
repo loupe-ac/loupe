@@ -272,7 +272,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
 
         self::assertSame(InboxItemState::Resolved, $episode->item->state);
         self::assertSame([InboxCloser::Loupe, InboxCloseCause::FactEnded], [$episode->item->closedBy, $episode->item->closeCause]);
-        self::assertFalse($episode->item->dismissible);
+        self::assertTrue($episode->item->dismissible);
         self::assertEquals(new \DateTimeImmutable('2026-10-16 12:10:00'), $episode->endedAt);
         self::assertNull($episode->item->note);
     }
@@ -346,6 +346,30 @@ final class AccountLimitReconcilerTest extends KernelTestCase
         $open = array_values(array_filter($this->episodes(), static fn (InboxAccountLimit $episode): bool => null === $episode->endedAt));
         self::assertCount(1, $open);
         self::assertNotSame($first->item, $open[0]->item);
+    }
+
+    public function test_a_dismissed_notice_stays_closed_while_the_limit_holds_and_its_episode_ends_when_the_account_recovers(): void
+    {
+        $this->reading('claude', 'week', 100.0, self::WEEK_RESET, limited: true);
+        $this->waitingRequest($this->card);
+        $this->reconciler->reconcile($this->project);
+        $first = $this->onlyEpisode();
+        $first->item->state = InboxItemState::Declined;
+        $first->item->closedBy = InboxCloser::Owner;
+        $first->item->closedAt = new \DateTimeImmutable(self::NOW);
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(1, $this->itemCount());
+        self::assertNull($first->endedAt);
+
+        $this->clock->sleep(600);
+        $this->reading('claude', 'week', 40.0, self::WEEK_RESET, limited: false, readAt: '2026-10-16 12:10:00');
+        $this->reconciler->reconcile($this->project);
+
+        self::assertNotNull($first->endedAt);
+        self::assertSame(InboxItemState::Declined, $first->item->state);
     }
 
     private function reading(string $account, string $window, ?float $usedPercent, string $resetsAt, bool $limited, string $readAt = '2026-10-16 11:00:00', ?Bridge $bridge = null): void

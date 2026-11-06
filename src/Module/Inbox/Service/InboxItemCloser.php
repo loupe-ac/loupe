@@ -8,7 +8,6 @@ use App\Exception\DomainErrors;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use Doctrine\DBAL\LockMode;
@@ -23,7 +22,6 @@ use Doctrine\ORM\EntityManagerInterface;
 final readonly class InboxItemCloser
 {
     public const string ERROR_FINAL = 'inbox.item.error.final';
-    public const string ERROR_NOTICE = 'inbox.item.error.notice';
 
     /** The refusal a caller gives when the item it acts on is already closed. */
     public const string ITEM_NOT_OPEN = 'inbox.item.error.not_open';
@@ -127,10 +125,6 @@ final readonly class InboxItemCloser
     /** Why the item takes no response now, or null when it does. A sent response is final. */
     private static function refusal(InboxItem $item): ?string
     {
-        if (InboxItemKind::Notice === $item->kind && !$item->dismissible) {
-            return self::ERROR_NOTICE;
-        }
-
         return InboxItemState::Open === $item->state ? null : self::ERROR_FINAL;
     }
 }
