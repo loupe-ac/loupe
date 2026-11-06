@@ -10,7 +10,7 @@ Write `.loupe/lifecycle.md` with the owner, so that every stage skill finds the 
 ## Rules
 
 1. Read the repository before you ask. For a profile value, ask the owner only when the repository does not show it. Rule 2 names the other questions.
-2. Show every value in one grouped view, with the source of each. For the profile values, ask one question for each unknown value, and nothing else. The questions of rule 7, "Proposed edits" and "Moved work" come after the view, and they are the only other questions.
+2. Show every value in one grouped view, with the source of each. For the profile values, ask one question for each unknown value, and nothing else. The questions of rule 7, "Proposed edits" and "Moved work" come after the view, and they are the only other questions. "Merge setup" asks nothing.
 3. State a value as the repository defines it. Never invent a command, a branch, a check or a column. A value you cannot find stays unknown until the owner answers.
 4. Write the file only after the owner approves the view. Write one numbered list for each section.
 5. An existing file is somebody's work. Keep every value that is right, and change only what the repository or the owner contradicts.
@@ -27,7 +27,7 @@ Write `.loupe/lifecycle.md` with the owner, so that every stage skill finds the 
 6. Write the file. Check it holds every required section and no "owner to fill in" line that the owner answered.
 7. Write `.loupe.yaml` when the repository lacks it. `loupe project link` writes it for the project that `loupe init` linked.
 8. Get both files to the remote, as rule 6 says. Report what is on the remote and what is not.
-9. Run "Proposed edits". Then run "Moved work". Both steps come after the grouped view, and both change nothing without approval.
+9. Run "Merge setup". Then run "Proposed edits", and then "Moved work". All three steps come after the grouped view, and none of them changes anything without approval.
 
 ## Sections
 
@@ -48,6 +48,28 @@ A section starts with a `##` heading of the exact name and holds a numbered list
 | `Epics` | no | The epic branch pattern, the merge method of a child, the epic preview | `workflow_get` |
 | `Visual check` and `Preview` | no | How a worker proves a changed page | The repository, only when it has pages |
 | `Documents` | no | The tags of design documents | `workflow_get`, only when they differ from the default |
+
+## Merge setup
+
+This step asks the owner nothing and stores nothing. Loupe keeps no merge approval setting. The GitHub rules of the base branch decide who approves a merge. Read `Gate` item 1 of the view for the base branch `<base>`.
+
+1. Read the rules of `<base>` with `gh api repos/<owner>/<repo>/rules/branches/<base>`. Read the classic protection with `gh api repos/<owner>/<repo>/branches/<base>/protection`. Read the visibility with `gh repo view --json isPrivate`. A read that fails for a reason other than item 4 or item 5 goes into the report as unread.
+2. State who approves a merge. It is the agent review alone, or the agent review and the number of person approvals that GitHub requires. Take the number from the `pull_request` rule, or from the protection.
+3. State what enforces it, as one of these three:
+   - GitHub rulesets, when the rules list is not empty.
+   - Classic branch protection, when the protection read succeeds.
+   - Loupe alone, when neither exists. Say that anybody with write access can still merge on GitHub.
+4. A rules read can fail with the GitHub message "Upgrade to GitHub Pro or make this repository public to enable this feature." That is a plan refusal, and it means GitHub enforces no rules. Quote the message, and say that rulesets need a paid plan or a public repository. Any other 403 is a lost permission. Report it as unread.
+5. The protection read needs admin permission. When it fails for that reason, say that you cannot see classic protection. Say that the app and the merge stage still follow the `reviewDecision` of GitHub.
+6. List each setting that conflicts with the Loupe merge path, with the change that fixes it. A rule set that GitHub can enforce must do all of these:
+   - Require the check `Loupe / Approval` from the Loupe GitHub App.
+   - Forbid force pushes and deletion of `<base>`.
+   - Require one check of the CI of the repository, when the repository has CI.
+
+   A required approving review is allowed. Say that a person approves each pull request on GitHub before Loupe merges it.
+7. When GitHub can enforce no rules, the list is empty. Say that only Loupe enforces the agent review, and what makes rulesets available.
+8. An owner who wants a person to approve every pull request adds a ruleset or a branch protection rule that requires a review. On a plan with no rulesets, name the per-card switch "requires human review" as the only Loupe-side option.
+9. Change no GitHub setting. The owner makes each change, or asks the agent to make it, as rule 7 says.
 
 ## Proposed edits
 
@@ -80,4 +102,4 @@ When the prompt says the file exists, read it first. Compare every value with th
 
 ## Report
 
-End with a short report: the file written, the values the owner answered, any value still open, the edits applied and declined, the cards created and reused, what happened to each source, and where the files are on the remote.
+End with a short report: the file written, the values the owner answered, any value still open, the merge setup (who approves, what enforces it, each conflicting setting), the edits applied and declined, the cards created and reused, what happened to each source, and where the files are on the remote.

@@ -426,6 +426,10 @@ that change from one setup to the next.
    run asks the owner for each open value. Its conflict check also
    compares a hand-written profile and the rest of the repository with the checks
    of `workflow_get`.
+   After the grouped view, the skill runs a "Merge setup" step. It reads the rules of the base
+   branch, the classic branch protection and the repository visibility. It says who approves a
+   merge, and whether GitHub rulesets, classic protection or Loupe alone enforces it. It lists each
+   setting that conflicts with the Loupe merge path. It asks nothing and changes no GitHub setting.
 2. The unattended run notes cover what differs when a worker runs with no
    person: connect to Loupe, run a long command, read a linked prototype, and
    keep the final reply short. The generic notes are
