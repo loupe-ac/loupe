@@ -138,14 +138,12 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         $client = $this->client('');
         $project = $this->scenarioProject('public-takedown');
         $link = $this->share($this->costGraph($project, 'Taken', MetricGroup::None));
-        $client->request(Request::METHOD_GET, '/s/aaaaaaaaaaaa');
-        self::assertResponseStatusCodeSame(404);
-        $unknownBody = $this->withoutNoise((string) $client->getResponse()->getContent());
+        $unknown = $this->refusal($client, 'aaaaaaaaaaaa');
         $takedownId = (string) $this->seedTakedown($project)->id;
 
+        self::assertSame($unknown, $this->refusal($client, $link->code));
         $client->request(Request::METHOD_GET, '/s/'.$link->code);
         self::assertResponseStatusCodeSame(404);
-        self::assertSame($unknownBody, $this->withoutNoise((string) $client->getResponse()->getContent()));
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
 
         $this->em()->getConnection()->executeStatement('DELETE FROM insights_public_link_takedowns WHERE id = ?', [$takedownId]);
