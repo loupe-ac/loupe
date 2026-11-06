@@ -41,6 +41,33 @@ final class ReadinessReportWriterTest extends KernelTestCase
         self::assertMatchesRegularExpression('~### Suggested\n\n1\. \*\*Docs exist\*\*: No README\.\n2\. \*\*Old plugin\*\*: Sent as gap\.\n~', $markdown);
     }
 
+    public function test_the_report_lists_what_remains_grouped_by_actor(): void
+    {
+        $markdown = $this->write('', [
+            new ReportFinding('Bridge commands', 'suggested', 'One is missing.', 'owner', 'Install the codex-cli MCP server.'),
+            new ReportFinding('Facts in repo', 'suggested', 'In memory.', 'agent', 'Move the facts into docs/.'),
+            new ReportFinding('Preview URL', 'suggested', 'None.', 'owner', 'Give each folder its own URL.'),
+            new ReportFinding('Tests run', 'ready', 'Yes.', 'owner', 'Ignored for a ready finding.'),
+            new ReportFinding('Older plugin', 'suggested', 'No actor.'),
+        ], []);
+
+        self::assertMatchesRegularExpression('~## What remains\n\n### For the owner\n\n1\. Install the codex-cli MCP server\.\n2\. Give each folder its own URL\.\n\n### For an agent\n\n1\. Move the facts into docs/\.\n~', $markdown);
+        self::assertStringNotContainsString('Ignored for a ready finding', $markdown);
+        self::assertStringNotContainsString('1. Older plugin', $markdown);
+    }
+
+    public function test_a_finding_with_an_actor_and_no_action_lists_its_check(): void
+    {
+        $markdown = $this->write('', [new ReportFinding('GitHub App', 'suggested', 'Not installed.', 'owner')], []);
+
+        self::assertStringContainsString("### For the owner\n\n1. GitHub App\n", $markdown);
+    }
+
+    public function test_a_report_with_no_actor_has_no_what_remains_section(): void
+    {
+        self::assertStringNotContainsString('What remains', $this->write('', [new ReportFinding('Docs', 'suggested', 'No README.')], []));
+    }
+
     public function test_a_report_with_no_tick_box_writes_no_decision_block(): void
     {
         $markdown = $this->write('', [new ReportFinding('Tests run', 'ready', 'Yes.')], [

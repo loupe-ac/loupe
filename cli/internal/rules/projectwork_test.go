@@ -218,3 +218,20 @@ func TestUsedAccountsReadsTheProjectEntries(t *testing.T) {
 		t.Fatalf("UsedAccounts = %v", got)
 	}
 }
+
+// A project reads its own entry of a kind in place of the shared one, so the
+// account of the replaced shared entry is not one it uses.
+func TestUsedAccountsForReadsTheEffectiveEntriesOfOneProject(t *testing.T) {
+	body := "accounts:\n  claude:\n    harness: claude-code\n  other:\n    harness: claude-code\n  third:\n    harness: claude-code\ndefaults:\n  account: claude\n" +
+		"projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      fix:\n        prompt: x\n        account: other\n  plain:\n    dir: " + t.TempDir() +
+		"\nwork:\n  implement:\n    prompt: y\n  fix:\n    prompt: z\n    account: third\n"
+	s, err := Parse([]byte(body), Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for slug, want := range map[string][]string{"loupe": {"claude", "other"}, "plain": {"claude", "third"}} {
+		if got := s.UsedAccountsFor(slug); !slices.Equal(got, want) {
+			t.Errorf("UsedAccountsFor(%q) = %v, want %v", slug, got, want)
+		}
+	}
+}

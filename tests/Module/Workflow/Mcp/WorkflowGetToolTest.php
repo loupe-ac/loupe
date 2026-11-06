@@ -22,6 +22,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         'The gate commands of .loupe/lifecycle.md',
         'Read access to the CI check logs',
         'Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires',
+        'A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add',
     ];
 
     private const string DISCOVERY_CHECK = 'The loupe skill package is installed for the agent, with the loupe-discovery skill';
@@ -44,7 +45,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 43], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 44], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         self::assertArrayHasKey('githubAppId', $answer);
@@ -57,7 +58,12 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame('template', $kinds['implement']['origin']);
         self::assertSame(['implement'], $kinds['implement']['rules']);
         self::assertNotContains('The agent pushes as its own GitHub account', $kinds['implement']['checks']);
-        self::assertCount(9, $kinds['implement']['checks']);
+        self::assertCount(16, $kinds['implement']['checks']);
+        foreach (['A preview URL per branch', 'A gate step that uses a shared stack', 'The bridge commands of this kind', 'Each tool that the profile names', 'Each fact that a worker needs'] as $start) {
+            $matching = array_values(array_filter($kinds['implement']['checks'], static fn (string $check): bool => str_starts_with($check, $start)));
+            self::assertCount(1, $matching, $start);
+            self::assertStringContainsString('the actor is', $matching[0], $start);
+        }
         self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-agent-review', 'fix-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
         self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The loupe and loupe-lifecycle skill packages are installed for the agent', 'Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules']], $kinds['review']);
         self::assertSame(['kind' => 'sync', 'origin' => 'template', 'rules' => ['update-behind'], 'checks' => []], $kinds['sync']);

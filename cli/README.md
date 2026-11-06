@@ -372,18 +372,42 @@ loupe init --repoint             # point a rule file entry that maps another fol
    for a complete file. `--agent` picks `claude` or `codex`. With both on the
    `PATH` and a terminal, the command asks once. With no terminal or no agent,
    it prints the prompt to paste.
-11. Report the account check and print what remains. Before step 10, the
-   command prints each account of the rule file as `ready`, or one line for
-   each failure with its project, the reason and the fix. A failing account
-   never stops the agent. After the agent exits, the last lines name only the steps that remain:
-   fixing a failing account, finishing the profile, pushing `.loupe.yaml` and
-   the profile, restarting Claude Code after a plugin install, and starting
-   discovery. The discovery step goes away after a run starts, and it comes
-   back when the latest run failed. The last line is the link to
-   `/projects/<id>` on your instance.
-   The command exits with an error when an account that a rule uses fails for
-   this project. A failure in another project and an account that no rule uses
-   never change the exit status.
+11. Report the account check. Before step 10, the command prints each account
+   of the rule file as `ready`, or one line for each failure with its project,
+   the reason and the fix. A failing account never stops the agent.
+12. Offer to start discovery, after the agent exits. The command asks
+   `Start discovery now?` only when the profile is complete, the rule file
+   reads, no account that a work entry of this project uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
+   none started yet, or the profile agent ran in this command. A yes starts
+   discovery and prints `Discovery started: <link of the Workshop page>`. A no, or no
+   terminal, starts nothing and prints
+   ``Start discovery with `loupe discovery start` when you are ready.`` When a
+   condition fails, the command asks nothing and says to run `loupe init` again.
+   This step needs a CLI released after v2.1.0.
+13. Print what remains: fixing a failing account, finishing the profile,
+   pushing `.loupe.yaml` and the profile, and restarting Claude Code after a
+   plugin install. The last line is the link to `/projects/<id>` on your instance.
+   The command exits with an error when an account that a work entry of this
+   project uses fails. A failure in another project, and an account that only
+   another project uses, never change the exit status.
+
+## `loupe discovery start`
+
+Starts a discovery run for the project, and prints the link of the Workshop
+page, which opens the report when the worker has written it. It
+needs a CLI released after v2.1.0.
+
+```bash
+loupe discovery start
+loupe discovery start --project <slug>
+loupe discovery start --force
+```
+
+Before the call, the command checks the gate of `loupe init` in the current
+folder: the profile is complete, no account that a work entry of the project
+uses fails, and `.loupe.yaml` and the profile are pushed. A failed gate lists what
+remains and exits with status 1. `--force` skips the gate, and then
+`LOUPE_API_KEY` serves as the credential. The gate needs a stored login.
 
 ## `loupe project link`
 
@@ -2017,6 +2041,20 @@ loupe bridge check --rules ~/loupe-rules.yaml
 
 The command exits with status 1 when the file does not load, and 0 otherwise.
 `loupe bridge status` shows the same warnings for a running bridge.
+
+### `loupe bridge check --project <slug> --json`
+
+Prints one JSON object for a project of the rule file, for discovery to read. It
+needs a CLI released after v2.1.0, and both flags go together.
+
+```bash
+loupe bridge check --project loupe --json
+```
+
+- `project`, `dir`, `dirExists`, `rules`: the slug, its folder, whether the folder exists, and the rule file.
+- `kinds[]`: each work kind that the project can run, with `kind`, `source` (`project` or `shared`), `action` (`worker`, `interactive` or `command`), `account`, `harness` and `commands[]`.
+- `commands[]`: one item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists`. `checked` is false for a command with a placeholder or a `~`. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`.
+- `accounts[]`: each account that a kind uses, with `name`, `harness`, `configDir`, `configDirExists`, `mcpServers` and `mcpError`. `mcpServers` lists the names that the account config and the `.mcp.json` of the project declare. A server that a plugin brings is not listed.
 
 ## `loupe bridge reload`
 

@@ -124,9 +124,17 @@ The path does not take this method.
 
 This card is already unmanaged.
 
+### automation_off
+
+Board automation is off for this project, so discovery cannot start. Switch it on in the project settings.
+
 ### backlog_locked
 
 Nobody can rename, change, reorder or delete Backlog.
+
+### bridge_paused
+
+Every bridge that can run discovery is paused. Resume new work on a bridge.
 
 ### card_managed
 
@@ -176,6 +184,10 @@ The document has a newer version. Show it to the owner, then call again with its
 
 One or more decisions have no answer yet. Answer them first, or request changes.
 
+### discovery_running
+
+A discovery run is open on this project. The answer holds `cardNumber`, the card of that run.
+
 ### document_archived
 
 An archived document cannot be published. Restore it first.
@@ -204,9 +216,21 @@ A pause of kind rule ends only on its own release condition.
 
 Another project of this owner already has this name.
 
+### no_bridge
+
+No bridge serves this project now.
+
+### no_capable_bridge
+
+A bridge is online, but none can run discovery.
+
 ### no_terminal_column
 
 A board needs at least one terminal column.
+
+### no_workflow
+
+This project has no workflow, so discovery cannot start.
 
 ### not_paused
 

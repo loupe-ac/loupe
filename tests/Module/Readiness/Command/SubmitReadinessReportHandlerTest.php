@@ -107,6 +107,13 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         self::assertSame(2, $recorded[0]->context['suggestedCount']);
     }
 
+    public function test_the_actor_and_action_of_a_finding_reach_the_report(): void
+    {
+        $document = $this->submit(findings: [new ReportFinding('Tests run', 'suggested', 'None found.', 'owner', 'Add a test command.')]);
+
+        self::assertStringContainsString("## What remains\n\n### For the owner\n\n1. Add a test command.\n", $document->currentVersion()->markdownSource);
+    }
+
     public function test_a_report_with_no_proposal_is_stored_with_no_decision_block(): void
     {
         $document = $this->submit();
@@ -258,7 +265,7 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
 
     public function test_a_finding_needs_a_check_an_evidence_text_and_a_known_status(): void
     {
-        foreach ([new ReportFinding('', 'ready', 'x'), new ReportFinding('c', 'ready', ' '), new ReportFinding('c', 'maybe', 'x')] as $finding) {
+        foreach ([new ReportFinding('', 'ready', 'x'), new ReportFinding('c', 'ready', ' '), new ReportFinding('c', 'maybe', 'x'), new ReportFinding('c', 'suggested', 'x', 'nobody', 'y')] as $finding) {
             $this->assertRefused(SubmitReadinessReportHandler::FINDING_INVALID, fn () => $this->submit(findings: [$finding]));
         }
     }

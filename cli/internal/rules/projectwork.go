@@ -185,6 +185,46 @@ func (s *Set) Warnings() []string {
 	return out
 }
 
+// EntryCommand is one command that a work entry runs in the project folder.
+type EntryCommand struct {
+	Field string
+	Argv  []string
+}
+
+// Commands lists the commands the entry runs: before, refresh, reset and the
+// run of a command entry.
+func (w WorkEntry) Commands() []EntryCommand {
+	var out []EntryCommand
+	for _, c := range w.commands() {
+		out = append(out, EntryCommand{Field: c.field, Argv: slices.Clone(c.argv)})
+	}
+
+	return out
+}
+
+// RunSettings gives the account settings of an agent entry, and the zero value
+// for an entry that runs no agent.
+func (w WorkEntry) RunSettings() RunSettings {
+	return w.run.clone()
+}
+
+// Runs lists the account settings the entry can run with: its own, then those
+// of each variant of its experiment. An entry that runs no agent lists none.
+func (w WorkEntry) Runs() []RunSettings {
+	var out []RunSettings
+	for _, r := range w.runs() {
+		out = append(out, r.clone())
+	}
+
+	return out
+}
+
+// AppRun gives the account settings of an app prompt, and false when the set
+// runs no app prompt.
+func (s *Set) AppRun() (RunSettings, bool) {
+	return s.appRun.clone(), s.appPrompts
+}
+
 type entryCommand struct {
 	field string
 	argv  []string
