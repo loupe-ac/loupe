@@ -85,6 +85,19 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(\count($names), preg_match_all('/^\d+\. `Conflict check: /m', $skill));
     }
 
+    public function test_the_discovery_skill_names_each_onboarding_check_and_the_actor_of_findings(): void
+    {
+        $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
+        $source = (string) file_get_contents(\dirname(__DIR__, 4).'/config/workflows/lifecycle.yaml');
+
+        foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'an `actor` and an `action`'] as $text) {
+            self::assertStringContainsString($text, $skill);
+        }
+        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The Environment section', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
+            self::assertStringContainsString($check, $source);
+        }
+    }
+
     public function test_both_templates_pass_the_parser(): void
     {
         foreach ($this->shipped()->keys() as $key) {

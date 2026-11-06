@@ -235,7 +235,7 @@ func TestInitRunsEveryStepOnAFreshRepository(t *testing.T) {
 		"Sign in: skipped", "Project: done, using Dev Project", "Link: done", "Plugin: skipped",
 		"Rules: done", "Turn on automatic updates? [y/N]", "Auto-update: done, automatic updates are on",
 		"Bridge: done", "Playwright: skipped",
-		"What remains:", "Commit and push .loupe.yaml", "Start discovery", "Open " + w.server.URL + "/projects/" + firstProject,
+		"What remains:", "Commit and push .loupe.yaml", "offers to start discovery", "Open " + w.server.URL + "/projects/" + firstProject,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -2059,7 +2059,7 @@ func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T
 	inRepo(t, w.server.URL)
 	w.accounts = []accountResult{
 		{name: "main", harness: "claude", used: true},
-		{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
+		{name: "broken", harness: "claude", used: true, usedIn: []string{"dev"}, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
 		{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Detail: "run loupe init"}}},
 	}
 
@@ -2095,8 +2095,8 @@ func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
 			w := newInitWorld(t, c.site)
 			inRepo(t, w.server.URL)
 			w.accounts = []accountResult{
-				{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
-				{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+				{name: "broken", harness: "claude", used: true, usedIn: []string{c.key}, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
+				{name: "elsewhere", harness: "claude", used: true, usedIn: []string{c.key, "other"}, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
 				{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Project: c.key}}},
 			}
 
@@ -2193,7 +2193,7 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	list := []api.Site{simple, flow}
 
 	var out strings.Builder
-	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
+	if failing, unchecked := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 || unchecked != "" {
 		t.Errorf("failing for the Simple project = %v\n%s", failing, out.String())
 	}
 	if want := "failing for project flow: loupe plugin loupe-lifecycle is not installed"; !strings.Contains(out.String(), want) {
@@ -2204,7 +2204,7 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	}
 
 	out.Reset()
-	failing := reportAccounts(context.Background(), &out, path, flow, list)
+	failing, _ := reportAccounts(context.Background(), &out, path, flow, list)
 	if len(failing) != 1 || !strings.Contains(failing[0], "loupe-lifecycle is not installed") {
 		t.Errorf("failing for the Lifecycle project = %v\n%s", failing, out.String())
 	}
@@ -2370,8 +2370,8 @@ func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
 	if strings.Contains(last, "Commit and push") || strings.Contains(last, "Fix the account") || strings.Contains(last, "Restart Claude Code") {
 		t.Errorf("last lines name a step that is done:\n%s", last)
 	}
-	if !strings.Contains(last, "1. Finish the profile") && !strings.Contains(last, "Start discovery") {
-		t.Errorf("last lines lack the discovery step:\n%s", last)
+	if !strings.Contains(last, "1. Finish the profile") {
+		t.Errorf("last lines lack the profile step:\n%s", last)
 	}
 }
 
@@ -2397,7 +2397,7 @@ func TestInitLastLinesNameDiscoveryOnlyWhileItRemains(t *testing.T) {
 				t.Fatalf("init: %v\n%s", err, out)
 			}
 
-			if got := strings.Contains(out, "Start discovery"); got != tc.want {
+			if got := strings.Contains(out, "offers to start discovery"); got != tc.want {
 				t.Errorf("names discovery = %v, want %v:\n%s", got, tc.want, out)
 			}
 			if !strings.Contains(out, "Open "+w.server.URL+"/projects/"+firstProject) {

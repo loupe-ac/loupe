@@ -8,7 +8,7 @@ Read this file when a `spec` finding of the agent review of the head has `needsP
 4. Stop with `STAGE RESULT: blocked: spec finding needs the owner`. The first sentence after it is "Answer the question in the inbox, then resume this run." End the turn, and push nothing.
 5. On the resume, read the answer with `inbox_get`, and pass your session id as `readerSessionId`.
    - When the answer says to follow the design, change the code to follow it.
-   - When it accepts the code, add an entry to the "Departures" section of the build notes. The entry names the requirement or decision, what the code does instead, and the owner's answer. Revise the build notes with `document_revise`. The next review then shows the departure as a `nit`.
+   - When it accepts the code, add an entry to the "Departures" section of the build notes. The entry names the requirement or decision, what the code does instead, and the owner's answer. Revise the build notes with `document_revise`. The next review then names the departure in its summary and raises no finding for it.
 6. Run the gate, push, and go on with the round.
 
 A departure that the implementer records while it builds, before any review, keeps its own rule.

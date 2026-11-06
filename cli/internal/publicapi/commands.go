@@ -35,6 +35,7 @@ var Commands = []Command{
 	{Path: []string{"card", "hold"}, Op: "holdCard"},
 	{Path: []string{"card", "release"}, Op: "releaseCard"},
 	{Path: []string{"card", "pause-release"}, Op: "releaseCardPause"},
+	{Path: []string{"discovery", "start"}, Op: "startDiscovery"},
 	{Path: []string{"experiment", "cards"}, Op: "listExperimentCards"},
 	{Path: []string{"experiment", "exclude"}, Op: "excludeExperimentCard"},
 	{Path: []string{"experiment", "include"}, Op: "includeExperimentCard"},

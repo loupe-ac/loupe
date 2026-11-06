@@ -178,20 +178,20 @@ final class CardWaitTextTest extends KernelTestCase
         $em->flush();
         $pausedAt = new \DateTimeImmutable('2026-10-26 18:57:20');
         $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:07'), 'the before command exited with code 141');
-        $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $recovery = $this->workerRun($card->id, 'recover', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
         $this->workerRun($card->id, 'implement', WorkerRunState::Running, new \DateTimeImmutable('2026-10-26 19:04:39'));
         $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 19:05:00'), 'a later failure');
         $this->workerRun($card->id, 'review', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:19'), 'a failure of another rule', ruleId: 'review');
-        $wait = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, $pausedAt);
+        $wait = $this->pauseWait($card, 'recover-failed', PauseKind::Retries, $pausedAt);
 
-        self::assertSame('Paused: The repair worker could not fix the failure', $this->text->title([$wait], 'Ship it', 200));
+        self::assertSame('Paused: The recovery run could not clear the failure', $this->text->title([$wait], 'Ship it', 200));
         self::assertStringStartsWith(
-            'Card 33 is paused. The repair worker could not fix the failure. The last repair worker run failed: the before command exited with code 141. Open the card and resume it. [Open the failed run](',
+            'Card 33 is paused. The recovery run could not clear the failure. The last recovery worker run failed: the before command exited with code 141. Open the card and resume it. [Open the failed run](',
             $this->text->body([$wait]),
         );
         $line = $this->text->line($wait, false);
         self::assertNotNull($line->detail);
-        self::assertStringContainsString('search='.$repair->id?->toRfc4122(), $line->detail);
+        self::assertStringContainsString('search='.$recovery->id?->toRfc4122(), $line->detail);
         self::assertStringContainsString('Open the failed run', $line->detail);
     }
 
@@ -200,16 +200,16 @@ final class CardWaitTextTest extends KernelTestCase
         $em = $this->em();
         $card = $this->card($em, $this->wait->watch->project, 37);
         $em->flush();
-        $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
-        $pause = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
-        $params = ['%worker%' => 'repair worker', '%Worker%' => 'Repair worker', '%headline%' => 'Cannot check out the branch'];
-        $run = new InboxCardWait($pause->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $repair->id, params: $params);
+        $recovery = $this->workerRun($card->id, 'recover', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $pause = $this->pauseWait($card, 'recover-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $params = ['%worker%' => 'recovery worker', '%Worker%' => 'Recovery worker', '%headline%' => 'Cannot check out the branch'];
+        $run = new InboxCardWait($pause->watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $recovery->id, params: $params);
         $pause->watch->waits->add($run);
 
-        self::assertSame('Paused: The repair worker could not fix the failure', $this->text->title([$run, $pause], 'Ship it', 200));
+        self::assertSame('Paused: The recovery run could not clear the failure', $this->text->title([$run, $pause], 'Ship it', 200));
         $body = $this->text->body([$run, $pause]);
-        self::assertStringContainsString('Card 37 is paused. The repair worker could not fix the failure. The last repair worker run failed: the before command exited with code 141.', $body);
-        self::assertStringContainsString('search='.$repair->id?->toRfc4122(), $body);
+        self::assertStringContainsString('Card 37 is paused. The recovery run could not clear the failure. The last recovery worker run failed: the before command exited with code 141.', $body);
+        self::assertStringContainsString('search='.$recovery->id?->toRfc4122(), $body);
         self::assertStringContainsString('needs you: Cannot check out the branch', $body);
     }
 
@@ -218,11 +218,11 @@ final class CardWaitTextTest extends KernelTestCase
         $em = $this->em();
         $card = $this->card($em, $this->wait->watch->project, 38);
         $em->flush();
-        $repair = $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
-        $wait = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $recovery = $this->workerRun($card->id, 'recover', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $wait = $this->pauseWait($card, 'recover-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
 
         self::assertMatchesRegularExpression(
-            '~ Open the card and resume it\. \[Open the failed run\]\(https?://[^/)]+/[^)]*search='.preg_quote($repair->id?->toRfc4122() ?? '', '~').'\)$~',
+            '~ Open the card and resume it\. \[Open the failed run\]\(https?://[^/)]+/[^)]*search='.preg_quote($recovery->id?->toRfc4122() ?? '', '~').'\)$~',
             $this->text->body([$wait]),
         );
     }
@@ -325,8 +325,8 @@ final class CardWaitTextTest extends KernelTestCase
         $em = $this->em();
         $card = $this->card($em, $this->wait->watch->project, 43);
         $em->flush();
-        $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
-        $pause = $this->pauseWait($card, 'repair-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $this->workerRun($card->id, 'recover', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 18:57:17'), 'the before command exited with code 141');
+        $pause = $this->pauseWait($card, 'recover-failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
 
         self::assertSame([$pause], $this->text->pageWaits([$pause]));
     }
@@ -369,9 +369,9 @@ final class CardWaitTextTest extends KernelTestCase
 
     public function test_a_pause_that_is_gone_still_words_its_stored_code(): void
     {
-        $wait = new InboxCardWait($this->wait->watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: Uuid::v7(), params: ['%reason%' => 'repair-failed']);
+        $wait = new InboxCardWait($this->wait->watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: Uuid::v7(), params: ['%reason%' => 'recover-failed']);
 
-        self::assertSame('Card 4 is paused. The repair worker could not fix the failure. Open the card and resume it.', $this->text->body([$wait]));
+        self::assertSame('Card 4 is paused. The recovery run could not clear the failure. Open the card and resume it.', $this->text->body([$wait]));
     }
 
     private function em(): EntityManagerInterface

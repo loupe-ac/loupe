@@ -136,7 +136,7 @@ final class MarkerPassFlowTest extends KernelTestCase
         self::assertNull($card->markersDueAt);
     }
 
-    public function test_a_refused_request_waits_for_its_retry_and_the_card_pauses_when_the_retries_and_the_repair_run_out(): void
+    public function test_a_refused_request_waits_for_its_retry_and_the_card_pauses_when_the_retries_and_the_recovery_run_out(): void
     {
         $card = $this->retryingCard();
         $this->evaluate($card);
@@ -153,7 +153,7 @@ final class MarkerPassFlowTest extends KernelTestCase
 
         $this->refuse($card, '2026-10-02 12:40:00');
         $this->evaluate($card, '2026-10-02 12:41:00');
-        self::assertSame(['work-requested'], $this->keys($card), 'the repair opened');
+        self::assertSame(['work-requested'], $this->keys($card), 'the recovery opened');
 
         $this->refuse($card, '2026-10-02 12:50:00');
         $this->evaluate($card, '2026-10-02 12:51:00');
@@ -185,7 +185,7 @@ final class MarkerPassFlowTest extends KernelTestCase
         return $this->card($project, 'next');
     }
 
-    /** A card whose rule "work" gets one retry 10 minutes after a refusal, then a repair. */
+    /** A card whose rule "work" gets one retry 10 minutes after a refusal, then a recovery. */
     private function retryingCard(): Card
     {
         self::bootKernel();
@@ -198,7 +198,7 @@ final class MarkerPassFlowTest extends KernelTestCase
             'slots' => [['key' => 'one', 'label' => 'one']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10], 'repair' => ['kind' => 'repair']],
+            'onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10], 'recover' => ['kind' => 'recover']],
             'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['all' => []], 'then' => ['request' => ['kind' => 'work']]]],
             'markers' => [
                 ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'when' => ['card.paused' => []]],

@@ -275,12 +275,12 @@ final readonly class TemplateParser
                 }
             }
         }
-        // The engine tells a repair request apart by its kind, so no rule may ask for that kind.
+        // The engine tells a recovery request apart by its kind, so no rule may ask for that kind.
         foreach ($rules as $rule) {
             foreach ($rule->then as $call) {
                 $kind = $this->actions->get($call->key)->workKind($call->params);
-                if (null !== $onWorkFailed?->repairKind && $onWorkFailed->repairKind === $kind) {
-                    $errors[] = \sprintf('onWorkFailed.repair.kind: the rule "%s" already asks for the kind "%s"', $rule->id, $onWorkFailed->repairKind);
+                if (null !== $onWorkFailed?->recoveryKind && $onWorkFailed->recoveryKind === $kind) {
+                    $errors[] = \sprintf('onWorkFailed.recover.kind: the rule "%s" already asks for the kind "%s"', $rule->id, $onWorkFailed->recoveryKind);
                 }
             }
         }
@@ -422,7 +422,7 @@ final readonly class TemplateParser
 
     /**
      * What the request calls can write on a work request, and the outcomes the move calls can set. A call with no reason
-     * adds the fix reasons of a pull request and `unknown`. The repair kind of `onWorkFailed` is a kind too.
+     * adds the fix reasons of a pull request and `unknown`. The recovery kind of `onWorkFailed` is a kind too.
      *
      * @param list<Rule>                      $rules
      * @param array<string, list<ActionCall>> $childChoices
@@ -436,8 +436,8 @@ final readonly class TemplateParser
         foreach ($childChoices as $choiceCalls) {
             array_push($calls, ...self::flatten($choiceCalls));
         }
-        $kinds = null === $onWorkFailed?->repairKind ? [] : [$onWorkFailed->repairKind];
-        $requests = null === $onWorkFailed?->repairKind ? [] : [new ProducedRequest($onWorkFailed->repairKind, null, null)];
+        $kinds = null === $onWorkFailed?->recoveryKind ? [] : [$onWorkFailed->recoveryKind];
+        $requests = null === $onWorkFailed?->recoveryKind ? [] : [new ProducedRequest($onWorkFailed->recoveryKind, null, null)];
         $roles = [];
         $outcomes = [];
         foreach ($calls as $call) {
@@ -1599,23 +1599,23 @@ final readonly class TemplateParser
 
             return null;
         }
-        $repair = $value['repair'] ?? null;
-        if (null === $repair) {
+        $recovery = $value['recover'] ?? null;
+        if (null === $recovery) {
             return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes);
         }
-        $repairKind = \is_array($repair) ? ($repair['kind'] ?? null) : null;
-        if (!\is_string($repairKind)) {
-            $errors[] = 'onWorkFailed.repair: must be a map with a string "kind"';
+        $recoveryKind = \is_array($recovery) ? ($recovery['kind'] ?? null) : null;
+        if (!\is_string($recoveryKind)) {
+            $errors[] = 'onWorkFailed.recover: must be a map with a string "kind"';
 
             return null;
         }
-        if (1 !== preg_match(WorkKind::PATTERN, $repairKind)) {
-            $errors[] = 'onWorkFailed.repair.kind: must be a work request kind';
+        if (1 !== preg_match(WorkKind::PATTERN, $recoveryKind)) {
+            $errors[] = 'onWorkFailed.recover.kind: must be a work request kind';
 
             return null;
         }
 
-        return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, $repairKind);
+        return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, $recoveryKind);
     }
 
     /**

@@ -65,7 +65,7 @@ final class ShowDocumentDraftBandTest extends WebTestCase
     public function test_the_paused_form_gives_the_reason_and_links_to_the_card(): void
     {
         $card = $this->card();
-        $this->pause($card, 'repair-failed');
+        $this->pause($card, 'recover-failed');
 
         $crawler = $this->visit($this->designDraft($card));
 
@@ -74,7 +74,7 @@ final class ShowDocumentDraftBandTest extends WebTestCase
         self::assertStringContainsString('The agent review of this draft is paused.', $band->text());
         self::assertCount(1, $band->filter('svg[data-draft-band-icon="paused"]'));
         self::assertCount(0, $band->filter('svg[data-draft-band-icon="agent"]'));
-        self::assertStringContainsString('The repair worker could not fix the failure.', $band->text());
+        self::assertStringContainsString('The recovery run could not clear the failure.', $band->text());
         self::assertStringContainsString('Loupe does not publish the draft until the review goes on.', $band->text());
         self::assertSame(
             '/projects/'.$this->project->id.'/board/cards/'.$card->id,
@@ -144,7 +144,7 @@ final class ShowDocumentDraftBandTest extends WebTestCase
     public function test_finish_review_says_paused_and_never_that_an_agent_still_reviews(): void
     {
         $card = $this->card();
-        $this->pause($card, 'repair-failed');
+        $this->pause($card, 'recover-failed');
 
         $crawler = $this->visit($this->designDraft($card));
 

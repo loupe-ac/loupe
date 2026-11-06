@@ -336,19 +336,28 @@ func (r *router) pruneLocked(set *rules.Set, gone []string) {
 // filled. It also names each project of both sets whose dir changed.
 func diffRules(old, set *rules.Set) reloadResult {
 	res := reloadResult{OK: true, Projects: set.Projects()}
-	for _, kind := range set.WorkKinds() {
-		prev, ok := old.WorkEntry(kind)
-		entry, _ := set.WorkEntry(kind)
+	// Each map is compared on its own: the shared one by kind, and each project
+	// by <slug>/<kind>.
+	diff := func(name string, prev, entry rules.WorkEntry, was, is bool) {
 		switch {
-		case !ok:
-			res.Added = append(res.Added, kind)
-		case !reflect.DeepEqual(prev, entry):
-			res.Changed = append(res.Changed, kind)
+		case !was && is:
+			res.Added = append(res.Added, name)
+		case was && !is:
+			res.Removed = append(res.Removed, name)
+		case was && !reflect.DeepEqual(prev, entry):
+			res.Changed = append(res.Changed, name)
 		}
 	}
-	for _, kind := range old.WorkKinds() {
-		if _, ok := set.WorkEntry(kind); !ok {
-			res.Removed = append(res.Removed, kind)
+	for _, kind := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.SharedWorkKinds(), old.SharedWorkKinds())))) {
+		prev, was := old.SharedWorkEntry(kind)
+		entry, is := set.SharedWorkEntry(kind)
+		diff(kind, prev, entry, was, is)
+	}
+	for _, slug := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.Projects(), old.Projects())))) {
+		for _, kind := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.ProjectWorkKinds(slug), old.ProjectWorkKinds(slug))))) {
+			prev, was := old.ProjectWorkEntry(slug, kind)
+			entry, is := set.ProjectWorkEntry(slug, kind)
+			diff(slug+"/"+kind, prev, entry, was, is)
 		}
 	}
 	for _, slug := range set.Projects() {

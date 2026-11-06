@@ -244,7 +244,7 @@ final class DraftStateSignalTest extends KernelTestCase
 
     private function pause(Card $card): void
     {
-        $this->service(PauseCardHandler::class)(new PauseCardCommand($card, 'repair-failed', 'tech-design-review', PauseKind::Retries));
+        $this->service(PauseCardHandler::class)(new PauseCardCommand($card, 'recover-failed', 'tech-design-review', PauseKind::Retries));
     }
 
     /**

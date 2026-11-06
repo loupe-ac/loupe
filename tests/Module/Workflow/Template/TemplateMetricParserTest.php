@@ -182,12 +182,12 @@ final class TemplateMetricParserTest extends TestCase
         self::assertContains('metrics[0] (my-metric) count reason: unknown reason "checks-failed"; known reasons: agent-review', $this->errorsOf($source));
     }
 
-    public function test_the_repair_request_takes_any_known_reason(): void
+    public function test_the_recovery_request_takes_any_known_reason(): void
     {
-        $source = self::withMetric(['count' => ['kind' => 'repair', 'reason' => 'agent-review']]);
-        $source['onWorkFailed'] = ['retryOn' => ['no-taker'], 'retries' => 1, 'backoffMinutes' => [5], 'repair' => ['kind' => 'repair']];
+        $source = self::withMetric(['count' => ['kind' => 'recover', 'reason' => 'agent-review']]);
+        $source['onWorkFailed'] = ['retryOn' => ['no-taker'], 'retries' => 1, 'backoffMinutes' => [5], 'recover' => ['kind' => 'recover']];
 
-        self::assertEquals(new CountFilter(kind: 'repair', reason: 'agent-review'), $this->parser->parse($source)->metrics[0]->filter);
+        self::assertEquals(new CountFilter(kind: 'recover', reason: 'agent-review'), $this->parser->parse($source)->metrics[0]->filter);
     }
 
     public function test_it_reads_both_rate_forms(): void
@@ -285,12 +285,12 @@ final class TemplateMetricParserTest extends TestCase
         self::assertContains('metrics[0] (my-metric) duration from: the event "agent-review-passed" never happens, because no rule asks for a request of the kind "review"', $this->errorsOf($source));
     }
 
-    public function test_the_repair_kind_counts_as_a_kind(): void
+    public function test_the_recovery_kind_counts_as_a_kind(): void
     {
-        $source = self::withMetric(['count' => ['kind' => 'repair']]);
-        $source['onWorkFailed'] = ['retryOn' => ['no-taker'], 'retries' => 1, 'backoffMinutes' => [5], 'repair' => ['kind' => 'repair']];
+        $source = self::withMetric(['count' => ['kind' => 'recover']]);
+        $source['onWorkFailed'] = ['retryOn' => ['no-taker'], 'retries' => 1, 'backoffMinutes' => [5], 'recover' => ['kind' => 'recover']];
 
-        self::assertSame('repair', $this->parser->parse($source)->metrics[0]->filter?->kind);
+        self::assertSame('recover', $this->parser->parse($source)->metrics[0]->filter?->kind);
     }
 
     public function test_a_stored_copy_drops_a_metric_with_an_error_and_keeps_the_others(): void

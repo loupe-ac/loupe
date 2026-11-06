@@ -331,6 +331,40 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertStringEndsWith('/rules/branches/epic%2F436?per_page=100&page=1', $this->requests[2]['url']);
     }
 
+    public function test_a_plan_refusal_of_the_rules_reads_as_no_rules_on_a_base_that_is_not_the_default_branch(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_018);
+        $plan = 'Upgrade to GitHub Pro or make this repository public to enable this feature.';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($this->ruleLessGraphql('epic/436')),
+            $this->answer(['message' => $plan], 403),
+            $this->answer(['message' => $plan], 403),
+        ];
+
+        $snapshot = $this->reader()->read($pullRequest);
+
+        self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
+        self::assertSame([], $this->logger->records);
+    }
+
+    public function test_a_403_that_is_not_a_plan_refusal_stays_transient(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_019);
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($this->ruleLessGraphql('epic/436')),
+            $this->answer(['message' => 'Resource not accessible by integration'], 403),
+        ];
+
+        try {
+            $this->reader()->read($pullRequest);
+            self::fail('A lost permission must not read as no rules.');
+        } catch (PullRequestUnreadable $e) {
+            self::assertSame('base_rules_unreadable', $e->reason);
+        }
+    }
+
     public function test_a_failed_compare_is_logged_and_ignored(): void
     {
         $pullRequest = $this->tracked('loupe-ac/loupe', 70_005);

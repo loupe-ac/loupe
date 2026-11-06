@@ -116,6 +116,39 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         self::assertTrue($this->reader()->read($this->installed('loupe-ac/loupe', 80_002))->classicProtection);
     }
 
+    public function test_a_plan_refusal_of_the_rules_reads_as_no_rules_with_the_github_message(): void
+    {
+        $message = 'Upgrade to GitHub Pro or make this repository public to enable this feature.';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main', 'allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true]),
+            $this->answer(['message' => $message], 403),
+            $this->answer($this->branch(false)),
+            $this->answer($this->checksAnswer([])),
+        ];
+
+        $settings = $this->reader()->read($this->installed('loupe-ac/loupe', 80_020));
+
+        self::assertSame($message, $settings->rulesUnavailable);
+        self::assertFalse($settings->rules->pullRequestRule);
+        self::assertSame([], $settings->rules->requiredChecks);
+        self::assertSame([], $settings->rulesets);
+        $stored = json_decode(json_encode($settings, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($stored);
+        self::assertEquals($settings, RepositorySettings::fromArray($stored));
+    }
+
+    public function test_a_403_that_is_not_a_plan_refusal_stays_unreadable(): void
+    {
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main', 'allow_squash_merge' => true, 'allow_merge_commit' => true, 'allow_rebase_merge' => true]),
+            $this->answer(['message' => 'Resource not accessible by integration'], 403),
+        ];
+
+        self::assertSame('api_failed_http_status', $this->unreadable($this->installed('loupe-ac/loupe', 80_021)));
+    }
+
     public function test_a_branch_with_a_ruleset_and_no_classic_protection_reads_as_unprotected_by_classic_means(): void
     {
         $this->responses = $this->minimalAnswers($this->branch(false));

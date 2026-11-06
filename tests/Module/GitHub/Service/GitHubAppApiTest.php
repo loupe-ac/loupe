@@ -268,6 +268,35 @@ final class GitHubAppApiTest extends TestCase
         self::assertSame(403, $failure->status);
     }
 
+    public function test_a_403_with_the_plan_message_is_a_plan_limited_failure(): void
+    {
+        $message = 'Upgrade to GitHub Pro or make this repository public to enable this feature.';
+        $api = $this->api([
+            $this->created(['token' => self::TOKEN]),
+            new MockResponse(json_encode(['message' => $message], \JSON_THROW_ON_ERROR), ['http_code' => 403]),
+        ]);
+
+        $failure = $this->failure(static fn () => $api->get(42, '/repos/acme/widgets/rules/branches/main'));
+
+        self::assertSame('plan_limited', $failure->reason);
+        self::assertSame(403, $failure->status);
+        self::assertSame($message, $failure->githubMessage);
+        self::assertFalse($failure->rateLimited);
+    }
+
+    public function test_a_plan_message_on_a_rate_limited_403_stays_a_rate_limit(): void
+    {
+        $api = $this->api([
+            $this->created(['token' => self::TOKEN]),
+            new MockResponse('{"message":"Upgrade to GitHub Pro."}', ['http_code' => 403, 'response_headers' => ['x-ratelimit-remaining' => '0']]),
+        ]);
+
+        $failure = $this->failure(static fn () => $api->get(42, '/repos/acme/widgets/rules/branches/main'));
+
+        self::assertSame('http_status', $failure->reason);
+        self::assertTrue($failure->rateLimited);
+    }
+
     /** @return iterable<string, array{int, array<string, string>, bool}> */
     public static function rateLimits(): iterable
     {

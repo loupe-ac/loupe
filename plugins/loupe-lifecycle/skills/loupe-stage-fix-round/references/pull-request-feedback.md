@@ -42,7 +42,7 @@ An agent reviews each head commit of a pull request. `card_get` returns the late
    2. A behaviour that no requirement asks for: remove it.
    3. A decision made differently from the design: make the code follow the chosen option.
    4. A finding with `needsPerson` true: never settle it yourself, and never record a departure for it on your own. Read `owner-finding.md`, and follow it.
-6. Leave a `spec` nit alone when it cites a departure that the build notes record. This holds also in a round that started for another reason, such as a CI failure. Never undo a recorded departure by accident.
+6. Leave a `spec` finding alone when it only cites a departure that the build notes record. A finding that says a recorded departure breaks the design or a requirement is a real finding, so fix it. This holds also in a round that started for another reason, such as a CI failure. Never undo a recorded departure by accident.
 7. Answer a finding that needs evidence instead of code, and a finding you judge wrong, in the build notes. The finding has no thread, so you post no reply.
    1. Find the build notes by the tag `build-notes`. Add `### <finding title>` under `## Review answers`, in the order of the build notes.
    2. Open it with the result in one sentence. Then say what the finding asked, what you did, and the raw evidence in a code block. Remove each credential from the evidence before the revise, and show it as `<redacted>`.
