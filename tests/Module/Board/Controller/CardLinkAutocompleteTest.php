@@ -121,7 +121,7 @@ final class CardLinkAutocompleteTest extends WebTestCase
 
     public function test_a_signed_in_user_who_cannot_manage_the_project_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $owner = $this->user($em, 'link-refuse-owner@example.com');
         $stranger = $this->user($em, 'link-refuse-stranger@example.com');
