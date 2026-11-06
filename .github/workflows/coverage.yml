@@ -2,14 +2,17 @@ name: Coverage report
 
 on:
   schedule:
-    # Mondays, 03:00 UTC, an hour before the mutation run. A schedule fires from
-    # the default branch only, so this first runs after the branch merges.
+    # Mondays, 03:00 UTC. A schedule fires from the default branch only, so this
+    # first runs after the branch merges. Use workflow_dispatch before then.
     - cron: '0 3 * * 1'
   workflow_dispatch:
 
 concurrency:
   group: coverage-${{ github.ref }}
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
@@ -24,11 +27,20 @@ env:
 # different trees, and separate runners make a shared database impossible rather
 # than merely sequential. The cost is a second stack build, which is the cheaper
 # half of either job.
+# A job key is the check-run name GitHub matches required checks against, and the
+# workflow display name is not part of that match. Never reuse a job key from
+# ci.yml: lint, cs-check, phpstan, arkitect, gamache, audit, phpunit, cli-test,
+# e2e. A weekly job named `phpunit` would satisfy the required `phpunit` while
+# CI's own never ran.
+#
+# Each long test step has its own timeout below the job timeout. GitHub cancels
+# a job at its job timeout and skips every later step, also one with
+# `if: always()`. A step timeout only fails that step, so the uploads and the
+# failure-signal job still run.
 jobs:
   phpunit-coverage:
     runs-on: ubuntu-latest
-    # Run 34036090686 on main took 6m 23s.
-    timeout-minutes: 20
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -43,9 +55,11 @@ jobs:
 
       - run: date -u +'stack build ends %H:%M:%S UTC'
 
-      # Writes var/phpunit-coverage. Never var/coverage, which the e2e job below
-      # deletes at the start of its own run.
+      # Writes var/phpunit-coverage. Never var/coverage, which the e2e legs
+      # below delete at the start of their own run. ParaTest runs four workers,
+      # each restarting after 100 test files, so memory stays bounded per process.
       - run: just phpunit-coverage
+        timeout-minutes: 80
 
       - name: Coverage summary
         if: always()
@@ -62,51 +76,99 @@ jobs:
             var/phpunit-coverage/html
           if-no-files-found: warn
 
-  e2e-coverage:
+      # What Infection reads, so the mutation job skips its own first test run.
+      - name: Infection input
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-coverage-data
+          path: |
+            var/phpunit-coverage/coverage-xml
+            var/phpunit-coverage/junit.xml
+          retention-days: 2
+          if-no-files-found: error
+
+  # A job key is the check-run name GitHub matches required checks against. The
+  # key `infection` collides with no job of ci.yml.
+  infection:
+    needs: phpunit-coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      # A timing is only readable beside the machine that produced it, and the
+      # thread count in infection.json5 is chosen against a core count.
+      - name: Runner conditions
+        run: |
+          nproc
+          free -g | head -2
+
+      - uses: ./.github/actions/setup
+        with:
+          docker: 'true'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: phpunit-coverage-data
+          path: var/phpunit-coverage
+
+      # Infection counts a failing test as a killed mutant, so this job runs
+      # only after a green coverage job. The paths in the coverage XML match
+      # because both jobs mount the checkout at /var/www/html.
+      - run: just mutation --coverage=var/phpunit-coverage --skip-initial-tests
+        timeout-minutes: 110
+
+      - name: Mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infection-report
+          path: |
+            var/infection/infection.log
+            var/infection/summary.log
+          if-no-files-found: warn
+
+  # The leg names and splits match the e2e-shard matrix of ci.yml. The job key
+  # differs from every key of ci.yml.
+  e2e-coverage-leg:
+    name: e2e-coverage-${{ matrix.name }}
     runs-on: ubuntu-24.04
-    # A page render costs about 4.7s under coverage against about 0.5s without,
-    # so this job is long by nature. Run 34036090686 on main took 94 minutes.
-    # Two measured runs of the same work on the same runner type differed by
-    # 1.8x, so 180 keeps about 1.9x of headroom. A timeout kill looks the same
-    # as a broken suite to a reader.
-    timeout-minutes: 180
-    # ci.yaml pins XDEBUG_MODE to off, because a normal CI run reads no coverage
-    # and pays double for it. This job is the one that does read it.
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: chromium
+            shard: chromium
+            split: '--shard=1/6'
+          - name: chromium-2
+            shard: chromium
+            split: '--shard=2/6'
+          - name: chromium-3
+            shard: chromium
+            split: '--shard=3/6'
+          - name: chromium-4
+            shard: chromium
+            split: '--shard=4/6'
+          - name: chromium-5
+            shard: chromium
+            split: '--shard=5/6'
+          - name: chromium-6
+            shard: chromium
+            split: '--shard=6/6'
+          - name: rest
+            shard: rest
+            split: ''
+          - name: global-flags
+            shard: global-flags
+            split: ''
+    # ci.yml pins XDEBUG_MODE to off, because a normal CI run reads no coverage
+    # and pays double for it. These legs are the ones that do read it.
     env:
       XDEBUG_MODE: coverage
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          node: 'true'
-          docker: 'true'
-
-      - name: Runner conditions
-        run: |
-          nproc
-          date -u +'e2e stack starts %H:%M:%S UTC'
-
-      - run: >
-          docker compose -f compose.yaml -f docker/compose/ci.yaml
-          up -d --wait nginx mailer mercure
-
-      - name: Prepare the application
-        run: |
-          docker compose exec -T php-fpm bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
-          docker compose exec -T php-fpm bin/console league:oauth2-server:generate-keypair --skip-if-exists
-          docker compose exec -T php-fpm bin/console app:dev:seed --keep-flag-defaults
-
-      # CoverageSubscriber writes .cov files into var/ as www-data, and the
-      # runner owns var/. Without this the first write fails mid-suite.
-      - name: Let php-fpm write to var/
-        run: |
-          mkdir -p var/log
-          sudo chmod -R a+rwX var
-
-      - run: npx playwright install --with-deps chromium
-        working-directory: e2e
-
-      - run: date -u +'e2e run starts %H:%M:%S UTC'
+      - uses: ./.github/actions/e2e-stack
 
       # A silent 'off' collects nothing and still produces an empty report,
       # which reads as zero coverage. Read getenv, not ini_get: xdebug honours
@@ -117,10 +179,91 @@ jobs:
           echo "XDEBUG_MODE=$mode"
           case "$mode" in *coverage*) ;; *) echo 'coverage is off; the report would be empty'; exit 1 ;; esac
 
-      - run: just e2e-coverage
+      - run: date -u +'e2e run starts %H:%M:%S UTC'
+
+      # The recipe merges the local coverage before it returns the Playwright
+      # status, so a red leg still leaves its raw files in var/coverage.
+      - run: just e2e-coverage ${{ matrix.split }}
+        timeout-minutes: 100
         env:
           E2E_BASE_URL: http://localhost
           MAILPIT_URL: http://localhost:8025
+          E2E_SHARD: ${{ matrix.shard }}
+
+      # The suffix is matrix.name. The six chromium legs share one shard value,
+      # and upload-artifact refuses a second upload to the same name in a run.
+      - name: Raw coverage of this leg
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-coverage-raw-${{ matrix.name }}
+          path: var/coverage/*.cov
+          retention-days: 2
+          if-no-files-found: error
+
+      - name: Application errors
+        if: failure()
+        run: docker compose exec -T php-fpm sh -c 'grep -hE "CRITICAL|ERROR" var/log/dev.log | tail -n 40'
+
+      - name: Web server log
+        if: failure()
+        run: docker compose logs --no-log-prefix nginx > var/e2e-nginx.log
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nginx-log-${{ matrix.name }}
+          path: var/e2e-nginx.log
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.name }}
+          path: e2e/playwright-report
+          retention-days: 7
+
+  # Runs after a red or timed-out leg too, so the report holds the coverage of
+  # every test that ran. A cancelled run skips it on purpose. The workflow stays
+  # red through the failed leg.
+  e2e-coverage:
+    needs: e2e-coverage-leg
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          docker: 'true'
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-coverage-raw-*
+          path: var/raw
+          merge-multiple: false
+
+      # A missing leg makes the report partial, so the step fails after it
+      # merges and uploads what the other legs sent.
+      - name: Merge the raw coverage
+        run: |
+          expected='chromium chromium-2 chromium-3 chromium-4 chromium-5 chromium-6 rest global-flags'
+          found=0
+          missing=0
+          mkdir -p var/coverage
+          for leg in $expected; do
+            if compgen -G "var/raw/e2e-coverage-raw-$leg/*.cov" > /dev/null; then
+              found=$((found + 1))
+              cp var/raw/e2e-coverage-raw-$leg/*.cov var/coverage/
+            else
+              missing=$((missing + 1))
+              echo "::error::leg $leg uploaded no raw coverage"
+              echo "missing: $leg" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          [ "$found" -gt 0 ] || { echo 'no leg uploaded raw coverage'; exit 1; }
+          docker compose exec -T php-fpm vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
+          [ "$missing" -eq 0 ] || { echo "$missing leg(s) uploaded no raw coverage; the report is partial"; exit 1; }
 
       - name: Coverage summary
         if: always()
@@ -136,3 +279,13 @@ jobs:
             var/coverage/clover.xml
             var/coverage/html
           if-no-files-found: warn
+
+  failure-signal:
+    needs: [phpunit-coverage, infection, e2e-coverage-leg, e2e-coverage]
+    if: failure()
+    uses: ./.github/workflows/weekly-failure-signal.yml
+    with:
+      workflow: ${{ github.workflow }}
+      project: ${{ vars.LOUPE_PROJECT }}
+    secrets:
+      LOUPE_API_TOKEN: ${{ secrets.LOUPE_API_TOKEN }}

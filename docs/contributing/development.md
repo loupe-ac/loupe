@@ -176,10 +176,11 @@ line no test reaches, which `--with-uncovered` in both recipes keeps visible.
 you added or changed against `origin/main`, which takes minutes. Pass another base
 as its argument, such as `just mutation-diff main~5`.
 
-A weekly GitHub Action named "Mutation testing" runs the full pass and attaches
-its log as an artifact. It is informational, not a required check. That run takes
-15 to 25 minutes on a hosted runner and much longer on a development machine, for
-the reason below.
+The weekly "Coverage report" GitHub Action runs the full pass in its `infection`
+job and attaches the log as an artifact. The job reuses the coverage of the
+PHPUnit job in the same workflow. It is informational, not a required check. A
+red run adds a to-do to the Loupe inbox. The mutation step takes much longer on a
+development machine than on a hosted runner, for the reason below.
 
 ### Why a local timing is not a CI timing
 
