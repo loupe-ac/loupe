@@ -169,7 +169,7 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 		// printed when somebody declines the offer a dead end.
 		fmt.Fprintf(cmd.OutOrStdout(), "%s already exists, so it is kept.\n", projectfile.Name)
 
-		return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
+		return offerServer(cmd, dir, sayLine, o.writeMcp, o.skipMcp, o.writeMcpJSON)
 	}
 
 	projectID := o.projectID
@@ -198,7 +198,7 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s for project %s.\n", projectfile.Name, projectID)
 
-	return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
+	return offerServer(cmd, dir, sayLine, o.writeMcp, o.skipMcp, o.writeMcpJSON)
 }
 
 // runSetupProjectLink links the folder in the setup. It writes
@@ -240,10 +240,23 @@ func runSetupProjectLink(cmd *cobra.Command, dir string, o projectLinkOptions) e
 	return nil
 }
 
+// stepFunc prints one line of a command: a name, a state and a detail.
+type stepFunc func(out io.Writer, name, state, detail string)
+
+// sayLine prints a step as the sentence `loupe project link` has always printed.
+func sayLine(out io.Writer, _, state, detail string) {
+	if state == "skipped" {
+		fmt.Fprintf(out, "%s. Nothing to change.\n", detail)
+
+		return
+	}
+	fmt.Fprintln(out, detail)
+}
+
 // offerServer makes sure something starts `loupe mcp` for this repository.
 // Writing .loupe.yaml alone changes nothing an agent can see, and leaving this
 // out is why somebody installs the CLI and finds their agent unchanged.
-func offerServer(cmd *cobra.Command, dir string, write, skip, useFile bool) error {
+func offerServer(cmd *cobra.Command, dir string, say stepFunc, write, skip, useFile bool) error {
 	if skip {
 		return nil
 	}
@@ -268,7 +281,7 @@ func offerServer(cmd *cobra.Command, dir string, write, skip, useFile bool) erro
 		}
 
 		if got.Correct() {
-			fmt.Fprintf(out, "Claude Code already starts `loupe mcp` for %s. Nothing to change.\n", got.Where())
+			say(out, "MCP server", "skipped", "Claude Code already starts `loupe mcp` for "+got.Where())
 
 			return nil
 		}
@@ -516,7 +529,7 @@ func noAnswerMessage(canCreate bool) string {
 // describe names a project the way the chooser shows it. A project with no slug
 // yet shows its id, which is what the file will hold.
 func describe(site api.Site) string {
-	if site.Slug == "" {
+	if site.Slug == "" || site.Slug == site.Name {
 		return fmt.Sprintf("%s (%s)", site.Name, site.ID)
 	}
 
