@@ -32,7 +32,9 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, $path);
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Share…', trim($crawler->filter('.lp-experiment-heading [data-experiment-share]')->text()));
+        self::assertSame('Share…', trim($crawler->filter('.lp-experiment-heading__actions [data-experiment-share]')->text()));
+        self::assertCount(1, $crawler->filter('.lp-experiment-heading__actions [data-experiment-share] svg'));
+        self::assertCount(1, $crawler->filter('.lp-experiment-heading__actions [data-experiment-archive-toggle] svg'));
         $dialog = $crawler->filter('.lp-experiment-heading [data-share-dialog] dialog');
         self::assertCount(1, $dialog);
         self::assertSame('Share this experiment', trim($dialog->filter('.lp-dialog-title')->text()));
@@ -68,7 +70,7 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
         self::assertSame('Public', trim($crawler->filter('.lp-experiment-heading [data-experiment-public="trial"] .lp-tag')->text()));
     }
 
-    public function test_a_link_that_is_switched_off_keeps_its_address_and_shows_no_tag(): void
+    public function test_a_link_that_is_switched_off_hides_its_address_and_keeps_the_note_field(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('xrender-off');
@@ -85,7 +87,9 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
 
         $dialog = $crawler->filter('[data-share-dialog] dialog');
         self::assertCount(0, $dialog->filter('input.lp-switch[checked]'));
-        self::assertCount(1, $dialog->filter('input[readonly]'));
+        self::assertCount(0, $dialog->filter('input[readonly]'));
+        self::assertStringNotContainsString('Turn the switch off', $dialog->text());
+        self::assertCount(1, $dialog->filter('textarea[data-share-note]'));
         self::assertCount(0, $crawler->filter('[data-experiment-public] .lp-tag'));
     }
 

@@ -1,11 +1,11 @@
-{# A shared experiment: the totals of the comparison and the note of the owner. It has no tabs, no card, no link to
+{# A shared experiment: the totals of the comparison and the note of the owner. It has no tabs, no panel, no card, no link to
    the Cards tab, no Analyse button and no list of unknown metrics.
    Props: experiment (PublicExperimentResult), noteHtml (sanitized HTML or null). #}
 {% set headline = experiment.headline %}
 {% set text = experiment_headline_text() %}
 <div class="lp-public__experiment" data-public-experiment data-computed-at="{{ experiment.computedAt.timestamp }}">
     <h2 class="lp-experiment-heading__name">{{ experiment.experiment }}</h2>
-    <twig:Ds:Panel class="lp-public__panel" data-public-experiment-panel>
+    <div class="lp-public__experiment-body" data-public-experiment-panel>
         {% if noteHtml is not null %}
             <div class="prose lp-prose" data-public-experiment-note>{{ noteHtml|raw }}</div>
         {% endif %}
@@ -22,5 +22,5 @@
         {% include '@Insights/_experiment_metrics.html.twig' with {metrics: experiment.metrics, variants: experiment.variants, headline: headline, text: text, unknownMetrics: []} only %}
 
         <p class="lp-experiment-note" data-public-experiment-privacy>{{ 'insights.public_link.experiment.totals_only'|trans }}</p>
-    </twig:Ds:Panel>
+    </div>
 </div>

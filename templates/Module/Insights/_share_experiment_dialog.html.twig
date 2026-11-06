@@ -7,7 +7,9 @@
             <twig:ux:icon name="lucide:share-2" class="lp-icon lp-icon--md" />
         </button>
     {% else %}
-        <twig:Ds:Button variant="outline" size="sm" type="button" data-action="click->modal#open" data-experiment-share>{{ 'analytics.dashboard.menu.share'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="outline" size="sm" type="button" data-action="click->modal#open" data-experiment-share>
+            <twig:ux:icon name="lucide:share-2" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.share'|trans }}
+        </twig:Ds:Button>
     {% endif %}
     <twig:Ds:Dialog aria-labelledby="share-experiment-title-{{ experiment_share_key(experiment) }}" data-action="cancel->modal#close">
         <h2 class="lp-dialog-title" id="share-experiment-title-{{ experiment_share_key(experiment) }}">{{ 'bridge.experiments.share.title'|trans }}</h2>

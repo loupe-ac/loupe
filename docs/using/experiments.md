@@ -76,6 +76,8 @@ To share an experiment:
 3. Write a note for the visitors, if you want one.
 4. Press **Copy link**, and give the address to the visitor.
 
+The dialog shows the address only while the switch is on.
+
 The address looks like `https://loupe.ac/s/k3x9p2qamz4b`. It has 12 characters.
 It points to the site host of the instance. An instance with no site host serves
 the page on the app host. The address never changes. Turn the switch off, and the

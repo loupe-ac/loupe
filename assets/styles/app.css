@@ -3563,7 +3563,7 @@
         @apply contents;
     }
     .lp-document-row__action {
-        @apply flex items-center justify-center w-8.5 h-8.5 rounded-full bg-transparent border-0 cursor-pointer text-fg-mute transition-colors;
+        @apply flex shrink-0 items-center justify-center w-8.5 h-8.5 rounded-full bg-transparent border-0 cursor-pointer text-fg-mute transition-colors;
     }
     .lp-document-row__action:hover {
         @apply bg-tint-strong text-ink;
@@ -5880,6 +5880,10 @@
     summary.admin-action-row::-webkit-details-marker {
         @apply hidden;
     }
+    /* A row in a right-aligned table cell, such as an action column. */
+    .admin-action-row--end {
+        @apply justify-end;
+    }
 
     .admin-action-title {
         @apply text-sm font-semibold text-ink;
@@ -7787,20 +7791,24 @@
         @apply hidden;
     }
     /* A shared item inside the public site frame: one centred column under the site bar. */
+    /* The footer stays at the bottom of a short page, and the item takes the room above it. */
+    .lp-public-page {
+        min-height: 100dvh;
+    }
     .lp-public {
-        @apply flex flex-col items-center bg-surface-2 px-6 py-12;
+        @apply flex flex-1 flex-col items-center bg-surface-2 px-6 py-12;
     }
     .lp-public__inner {
-        @apply w-full max-w-5xl;
+        @apply w-full max-w-6xl;
     }
     .lp-public__item {
         @apply flex flex-col gap-5;
     }
-    /* A shared experiment: its name above one panel that holds the note and the comparison tables. */
+    /* A shared experiment: its name above the note and the comparison tables, with no panel around them. */
     .lp-public__experiment {
         @apply flex flex-col gap-3;
     }
-    .lp-public__panel > :first-child {
+    .lp-public__experiment-body > :first-child {
         @apply mt-0;
     }
     .lp-public__project {
@@ -7834,7 +7842,10 @@
         @apply contents;
     }
     .lp-dashboard-share__body {
-        @apply mt-4 flex flex-col gap-4;
+        @apply mt-4 flex flex-col gap-5;
+    }
+    .lp-dashboard-share__form {
+        @apply flex flex-col gap-5;
     }
     .lp-dashboard-share__link {
         @apply flex items-center gap-2;
@@ -7929,7 +7940,7 @@
     /* Experiment, Cards, Last run, Actions. */
     .lp-data-table--experiments {
         --lp-data-table-columns: minmax(0, 1fr) calc(var(--spacing) * 28)
-            calc(var(--spacing) * 32) calc(var(--spacing) * 12);
+            calc(var(--spacing) * 32) calc(var(--spacing) * 20);
     }
     /* Card, Variant, Column, Runs, Fix rounds, Cost, Left out. */
     .lp-data-table--experiment-cards {
@@ -7956,8 +7967,9 @@
     .lp-experiment-heading__name {
         @apply m-0 font-mono text-lg font-bold text-ink;
     }
-    .lp-experiment-heading__archive {
-        @apply ml-auto;
+    /* Share and Archive, pinned to the right end of the heading. */
+    .lp-experiment-heading__actions {
+        @apply ml-auto flex items-center gap-2 self-center;
     }
     .lp-experiment-tabs {
         @apply mb-4;

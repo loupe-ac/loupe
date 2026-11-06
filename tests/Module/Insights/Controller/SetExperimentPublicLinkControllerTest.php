@@ -78,7 +78,7 @@ final class SetExperimentPublicLinkControllerTest extends WebTestCase
         $link = $this->linkOf($projectId);
         self::assertNotNull($link);
         $code = $link->code;
-        self::assertStringContainsString('target="share-experiment-body-'.ExperimentShareForms::keyOf('trial').'"', $content);
+        self::assertStringContainsString('action="replace" method="morph" target="share-experiment-body-'.ExperimentShareForms::keyOf('trial').'"', $content);
         self::assertStringContainsString('/s/'.$code, $content);
         self::assertStringContainsString('data-experiment-public=\'trial\'', $content);
         self::assertStringContainsString('lp-tag', $content);

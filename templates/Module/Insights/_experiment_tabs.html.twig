@@ -5,12 +5,22 @@
     <span data-experiment-public="{{ experiment }}">{% if share.isPublic %}<twig:Ds:Tag tone="lime">{{ 'insights.public_link.tag'|trans }}</twig:Ds:Tag>{% endif %}</span>
     {% if archived %}<twig:Ds:Tag data-experiment-archived>{{ 'bridge.experiments.archived'|trans }}</twig:Ds:Tag>{% endif %}
     {% if is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
-    {% include '@Insights/_share_experiment_dialog.html.twig' with {project: project, experiment: experiment, share: share, archived: archived, iconOnly: false} only %}
-    <twig:Ds:ActionForm class="lp-experiment-heading__archive"
-        :action="path(archived ? 'app_project_analytics_experiment_unarchive' : 'app_project_analytics_experiment_archive', {id: project.id, experiment: experiment})"
-        :token="archived ? 'experiment-unarchive' : 'experiment-archive'">
-        <twig:Ds:Button type="submit" variant="outline" size="sm" data-experiment-archive-toggle>{{ (archived ? 'bridge.experiments.unarchive_action' : 'bridge.experiments.archive_action')|trans }}</twig:Ds:Button>
-    </twig:Ds:ActionForm>
+    <div class="lp-experiment-heading__actions">
+        {% include '@Insights/_share_experiment_dialog.html.twig' with {project: project, experiment: experiment, share: share, archived: archived, iconOnly: false} only %}
+        <twig:Ds:ActionForm
+            :action="path(archived ? 'app_project_analytics_experiment_unarchive' : 'app_project_analytics_experiment_archive', {id: project.id, experiment: experiment})"
+            :token="archived ? 'experiment-unarchive' : 'experiment-archive'">
+            {# Both states are written out, because the icon importer sees only literal names. #}
+            <twig:Ds:Button type="submit" variant="outline" size="sm" data-experiment-archive-toggle>
+                {%- if archived -%}
+                    <twig:ux:icon name="lucide:archive-restore" class="lp-icon lp-icon--sm" />
+                {%- else -%}
+                    <twig:ux:icon name="lucide:archive" class="lp-icon lp-icon--sm" />
+                {%- endif -%}
+                {{ (archived ? 'bridge.experiments.unarchive_action' : 'bridge.experiments.archive_action')|trans }}
+            </twig:Ds:Button>
+        </twig:Ds:ActionForm>
+    </div>
     {% endif %}
 </div>
 <twig:Ds:Tabs class="lp-experiment-tabs" aria-label="{{ 'bridge.experiments.tabs.label'|trans }}">

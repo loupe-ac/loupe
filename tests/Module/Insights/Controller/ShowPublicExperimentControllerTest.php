@@ -64,6 +64,7 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-goal]');
         self::assertSelectorTextContains('[data-public-experiment-panel] > [data-public-experiment-privacy]:last-child', 'Totals only. The cards of each variant stay private.');
         self::assertSelectorNotExists('[data-public-experiment-panel] .lp-experiment-heading__name');
+        self::assertSelectorNotExists('[data-public-experiment] .lp-panel');
         self::assertSelectorTextContains('.lp-public__meta', 'Updated 0 min ago');
         self::assertSelectorTextContains('.lp-public__meta a.lp-public__made-with', 'Made with Loupe');
         $stamp = $client->getCrawler()->filter('[data-controller~="dashboard-age"] [data-public-experiment]')->attr('data-computed-at');

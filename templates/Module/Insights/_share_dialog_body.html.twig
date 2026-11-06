@@ -6,10 +6,10 @@
     {% elseif error is not empty %}
         <twig:Ds:Flash severity="error">{{ error }}</twig:Ds:Flash>
     {% endif %}
-    {{ form_start(shareForm, {attr: {'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
+    {{ form_start(shareForm, {attr: {'class': 'lp-dashboard-share__form', 'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
         <twig:Ds:Switch :fieldView="shareForm.enabled" :help="'insights.form.share_graph_form.enabled.help'|trans" />
     {{ form_end(shareForm) }}
-    {% if share.link is not null %}
+    {% if share.isEnabled %}
         {% set linkUrl = public_link_url(share.link.code) %}
         <div class="lp-dashboard-share__link">
             <twig:Ds:Input type="text" readonly="readonly" :value="linkUrl" :aria-label="'insights.public_link.dialog.link'|trans" />

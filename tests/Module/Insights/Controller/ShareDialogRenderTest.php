@@ -69,7 +69,7 @@ final class ShareDialogRenderTest extends WebTestCase
         self::assertSame('Public', trim($crawler->filter('#dashboard-graph-'.$graphId.' [data-graph-public] .lp-tag')->text()));
     }
 
-    public function test_a_link_that_is_switched_off_keeps_its_address_and_shows_no_tag(): void
+    public function test_a_link_that_is_switched_off_hides_its_address_and_shows_no_tag(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('render-off');
@@ -86,7 +86,8 @@ final class ShareDialogRenderTest extends WebTestCase
 
         $dialog = $crawler->filter('[data-share-dialog] dialog');
         self::assertCount(0, $dialog->filter('input.lp-switch[checked]'));
-        self::assertCount(1, $dialog->filter('input[readonly]'));
+        self::assertCount(0, $dialog->filter('input[readonly]'));
+        self::assertStringNotContainsString('Turn the switch off', $dialog->text());
         self::assertCount(0, $crawler->filter('[data-graph-public] .lp-tag'));
     }
 

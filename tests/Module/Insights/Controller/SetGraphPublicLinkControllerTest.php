@@ -77,7 +77,7 @@ final class SetGraphPublicLinkControllerTest extends WebTestCase
         $link = $this->linkOf($graphId);
         self::assertNotNull($link);
         $code = $link->code;
-        self::assertStringContainsString('target="share-graph-body-'.$graphId.'"', $content);
+        self::assertStringContainsString('action="replace" method="morph" target="share-graph-body-'.$graphId.'"', $content);
         self::assertStringContainsString('/s/'.$code, $content);
         self::assertStringContainsString('Copy link', $content);
         self::assertStringContainsString('data-graph-public', $content);

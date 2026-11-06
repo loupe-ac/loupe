@@ -10,7 +10,7 @@
     {% endif %}
     {% if archived %}
         <twig:Ds:Flash severity="info" data-experiment-share-archived>{{ 'bridge.experiments.share.archived_note'|trans }}</twig:Ds:Flash>
-        {{ form_start(shareForm, {attr: {'data-turbo': 'false', 'data-experiment-share-confirm': ''}}) }}
+        {{ form_start(shareForm, {attr: {'class': 'lp-dashboard-share__form', 'data-turbo': 'false', 'data-experiment-share-confirm': ''}}) }}
             <input type="hidden" name="{{ shareForm.enabled.vars.full_name }}" value="1">
             {% do shareForm.enabled.setRendered() %}
             <twig:Ds:FormField :fieldView="shareForm.note" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-share-note': ''}" :hintText="'insights.form.share_experiment_form.note.help'|trans" />
@@ -20,12 +20,12 @@
             </twig:Ds:FormActions>
         {{ form_end(shareForm) }}
     {% else %}
-    {{ form_start(shareForm, {attr: {'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
+    {{ form_start(shareForm, {attr: {'class': 'lp-dashboard-share__form', 'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
         <twig:Ds:Switch :fieldView="shareForm.enabled" :help="'insights.form.share_experiment_form.enabled.help'|trans" />
         <twig:Ds:FormField :fieldView="shareForm.note" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-share-note': ''}" :hintText="'insights.form.share_experiment_form.note.help'|trans" />
     {{ form_end(shareForm) }}
     {% endif %}
-    {% if share.link is not null and not archived %}
+    {% if share.isEnabled and not archived %}
         {% set linkUrl = public_link_url(share.link.code) %}
         <div class="lp-dashboard-share__link">
             <twig:Ds:Input type="text" readonly="readonly" :value="linkUrl" :aria-label="'insights.public_link.dialog.link'|trans" />
