@@ -16,6 +16,7 @@ use App\Module\Inbox\View\CardWaitLine;
 use App\Module\Inbox\View\WorkLimitStory;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseReasonText;
+use App\Module\Workflow\Contract\SetupFailure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -303,8 +304,22 @@ final readonly class CardWaitText
         $params['%state%'] = mb_strtolower($this->translator->trans($run->state->translationKey(), [], null, $this->locale));
         $href = $this->urls->generate('app_project_worker_runs', ['id' => $wait->watch->project->id, 'search' => $run->id?->toRfc4122()], UrlGeneratorInterface::ABSOLUTE_URL);
         $link = \sprintf('[%s](%s)', $this->translator->trans('inbox.wait.pause_run_link', [], null, $this->locale), $href);
+        $setup = SetupFailure::fromOutput($run->output) ?? $this->recoveredSetupFailure($wait, $run, $pause);
+        if (null !== $setup) {
+            $link = $this->setupText($setup)."\n\n".$link;
+        }
 
         return ['' === $failure ? self::PAUSE_LABEL.'.run_state' : self::PAUSE_LABEL.'.run', $params, $link];
+    }
+
+    /** What the failed `before` command was and what it printed last. An older bridge names no command. */
+    private function setupText(SetupFailure $setup): string
+    {
+        $inline = static fn (string $text): string => '`'.str_replace('`', "'", $text).'`';
+        $params = ['%command%' => null === $setup->command ? '' : $inline($setup->command), '%error%' => '' === $setup->errorLine ? '' : $inline($setup->errorLine)];
+        $key = 'inbox.wait.pause_setup'.(null === $setup->command ? '_unnamed' : '').('' === $setup->errorLine ? '_silent' : '');
+
+        return $this->translator->trans($key, $params, null, $this->locale);
     }
 
     /** The story of a work-limit pause, or null for another pause or when the template no longer names its rule. */
@@ -406,6 +421,18 @@ final readonly class CardWaitText
         $run = $this->workerRuns->findLatestEndedOfCard($wait->watch->project, $wait->watch->cardId, $pause->createdAt, $pause->ruleId);
 
         return true === $run?->state->isFailure() ? $run : null;
+    }
+
+    /** The failed `before` command of the run before a failed recovery. The recovery carries the rule id of the run it recovers, with its own kind. */
+    private function recoveredSetupFailure(InboxCardWait $wait, WorkerRun $recovery, CardPause $pause): ?SetupFailure
+    {
+        $runs = $this->workerRuns->findLatestOfRule($wait->watch->project, $wait->watch->cardId, $pause->ruleId, $pause->createdAt, 2);
+        $previous = $runs[1] ?? null;
+        if (null === $previous || $runs[0] !== $recovery || $previous->workKind === $recovery->workKind || !$previous->state->isFailure()) {
+            return null;
+        }
+
+        return SetupFailure::fromOutput($previous->output);
     }
 
     private static function typePart(InboxCardWaitType $type): string

@@ -92,6 +92,7 @@ onWorkFailed:
     retries: 3
     backoffMinutes: [2, 3, 5]
     recover: { kind: recover }
+    repeatGoesToRepair: true
 facts:
     fix-waits-for-base-update:
         all:
