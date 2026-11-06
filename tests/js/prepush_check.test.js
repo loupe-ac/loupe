@@ -30,10 +30,10 @@ const gitEnv = {
     GIT_COMMITTER_EMAIL: 'test@loupe.test',
 };
 
-const dataLine =
-    '- [Run list](https://x.test/p?_hash=1), marker `data-run-id`, empty `/projects/e/runs`';
-const noDataLine =
-    '- [New form](https://x.test/p?_hash=2), marker `data-form`, no data';
+const signed = (to) =>
+    `https://card-1.loupe.dev.localhost/dev/preview-login?_hash=a1-_&email=demo%40loupe.test&to=${to}`;
+const dataLine = `- [Run list](${signed('%2Fprojects%2Fp%2Fruns')}), marker \`data-run-id\`, empty \`/projects/e/runs\``;
+const noDataLine = `- [New form](${signed('%2Ff')}), marker \`data-form\`, no data`;
 const signedOutLine =
     '- [Landing](https://card-1.loupe.dev.localhost/), marker `data-hero`. Signed out.';
 
@@ -119,9 +119,54 @@ describe('prepush-check.sh', () => {
         expect(r.out).toContain('has no list line');
     });
 
+    it.each([
+        [
+            'an ordinary link on a data line',
+            '- [Run list](https://x.test/p), marker `m`, empty `/e`',
+        ],
+        [
+            'an ordinary link on a no-data line',
+            '- [Form](https://x.test/p), marker `m`, no data',
+        ],
+        [
+            'an unsigned worktree link on a data line',
+            '- [Run list](https://card-1.loupe.dev.localhost/projects/p), marker `m`, empty `/e`',
+        ],
+        [
+            'a signed link with no hash',
+            '- [Form](https://card-1.loupe.dev.localhost/dev/preview-login?email=a%40b.c&to=%2Ff), marker `m`, no data',
+        ],
+        [
+            'a signed link on another host',
+            '- [Form](https://evil.test/dev/preview-login?_hash=a&email=a%40b.c&to=%2Ff), marker `m`, no data',
+        ],
+        [
+            'an ordinary link on a signed-out line',
+            '- [Landing](https://x.test/), marker `m`. Signed out.',
+        ],
+        [
+            'a signed link on a signed-out line',
+            '- [Landing](https://card-1.loupe.dev.localhost/dev/preview-login?_hash=a&email=a%40b.c&to=%2F), marker `m`. Signed out.',
+        ],
+    ])('rejects %s', (_name, line) => {
+        const r = run(`## Preview\n\n${line}\n`);
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('fits no line pattern');
+    });
+
+    it('rejects an ordinary link on a records state', () => {
+        const line =
+            '- [Run list](https://x.test/p), marker `data-run-id`, empty `/projects/e/runs`';
+        const r = run(`## Preview\n\n${line}\n`, {
+            notes: '## Preview\n\n- [Run list](/projects/p/runs), marker `data-run-id`, records\n',
+        });
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('"Run list" shows records');
+    });
+
     it('names a data line with no empty twin', () => {
         const r = run(
-            '## Preview\n\n- [Run list](https://x.test/p), marker `data-run-id`, no data\n- [Run list 2](https://x.test/q), marker `data-run-id`\n',
+            `## Preview\n\n- [Run list](${signed('%2Fa')}), marker \`data-run-id\`, no data\n- [Run list 2](${signed('%2Fb')}), marker \`data-run-id\`\n`,
         );
         expect(r.status).toBe(1);
         expect(r.out).toContain('fits no line pattern');
@@ -130,7 +175,7 @@ describe('prepush-check.sh', () => {
 
     it('names a records state whose line has no empty twin', () => {
         const r = run(
-            '## Preview\n\n- [Run list](https://x.test/p), marker `data-run-id`, no data\n',
+            `## Preview\n\n- [Run list](${signed('%2Fa')}), marker \`data-run-id\`, no data\n`,
             {
                 notes: '## Preview\n\n- [Run list](/projects/p/runs), marker `data-run-id`, records\n',
             },
