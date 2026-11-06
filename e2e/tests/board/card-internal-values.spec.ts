@@ -51,6 +51,9 @@ test('the internal values open read-only, and a direct write is refused', async 
     await section.locator('summary').click();
     await expect(section).toHaveAttribute('open');
     await expect(row).toBeVisible();
+    await expect(row.locator('.lp-value-row__label')).toHaveText(
+        'Session start approved',
+    );
     await expect(row.locator('.lp-value-row__value')).toHaveText('Off');
     await expect(row).toContainText('Not set');
     await expect(row.locator('input, button, [role="switch"]')).toHaveCount(0);

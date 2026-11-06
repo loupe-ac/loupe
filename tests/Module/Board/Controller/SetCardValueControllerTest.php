@@ -268,6 +268,7 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertCount(1, $section->filter('#card-value-'.self::INTERNAL_KEY));
         self::assertCount(0, $group->filter('details #card-value-'.self::KEY), 'A public value stays out of the section.');
         $row = $section->filter('#card-value-'.self::INTERNAL_KEY);
+        self::assertSame('workflow.value.internal.caption', trim($row->filter('.lp-value-row__label')->text()), 'The row reads the caption, which names the value on its own.');
         self::assertSame('Off', trim($row->filter('.lp-value-row__value')->text()));
         self::assertSame('Not set', trim($row->filter('.lp-value-row__meta')->text()));
     }

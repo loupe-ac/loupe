@@ -1,6 +1,6 @@
-{#- One internal value of a card, read-only: its label, On or Off, and who set it. Props: value (CardValueView). -#}
+{#- One internal value of a card, read-only: its caption as the row name, On or Off, and who set it. Props: value (CardValueView). -#}
 {% set setBy = value.setBy %}
-<twig:Ds:ValueRow id="card-value-{{ value.key }}" :label="value.label|trans" :text="(true === value.value ? 'board.card.values.on' : 'board.card.values.off')|trans">
+<twig:Ds:ValueRow id="card-value-{{ value.key }}" :label="value.caption|trans" :text="(true === value.value ? 'board.card.values.on' : 'board.card.values.off')|trans">
     <twig:block name="meta">
         {%- if setBy is not null and value.updatedAt is not null -%}
             {{ setBy|trans }} · <twig:Ds:RelativeTime :datetime="value.updatedAt" />
