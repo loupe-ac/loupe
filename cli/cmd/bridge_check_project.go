@@ -7,10 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
@@ -150,20 +150,25 @@ func accountFolders(run rules.RunSettings, projectDir string) accountCheck {
 		if run.Profile != "" {
 			files = append(files, filepath.Join(home, run.Profile+".config.toml"))
 		}
+		enabled := map[string]bool{}
 		for _, f := range files {
-			got, err := tomlServers(f)
-			names = append(names, got...)
-			errs = appendReadError(errs, err)
+			errs = appendReadError(errs, tomlServers(f, enabled))
+		}
+		for name, on := range enabled {
+			if on {
+				names = append(names, name)
+			}
 		}
 	default:
 		cfgDir, stateFile := claudeStateFile(run.ConfigDir)
 		out.ConfigDirExists = isDir(cfgDir)
-		got, err := claudeJSONServers(stateFile, projectDir)
+		got, off, err := claudeJSONServers(stateFile, projectDir)
 		names = append(names, got...)
 		errs = appendReadError(errs, err)
 		got, err = mcpFileServers(filepath.Join(projectDir, ".mcp.json"))
-		names = append(names, got...)
+		names = append(names, without(got, off.json)...)
 		errs = appendReadError(errs, err)
+		names = without(names, off.all)
 	}
 	slices.Sort(names)
 	out.MCPServers = append(out.MCPServers, slices.Compact(names)...)
@@ -195,32 +200,48 @@ func claudeStateFile(configDir string) (dir, file string) {
 	return filepath.Join(home, ".claude"), filepath.Join(home, ".claude.json")
 }
 
-func claudeJSONServers(file, projectDir string) ([]string, error) {
+// disabledServers holds the servers that a project of .claude.json turns
+// off: all names every server, and json names a server of .mcp.json.
+type disabledServers struct {
+	all  []string
+	json []string
+}
+
+func claudeJSONServers(file, projectDir string) ([]string, disabledServers, error) {
+	var off disabledServers
 	if file == "" {
-		return nil, nil
+		return nil, off, nil
 	}
 	data, err := os.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return nil, off, err
 	}
 	var doc struct {
 		MCPServers map[string]json.RawMessage `json:"mcpServers"`
 		Projects   map[string]struct {
-			MCPServers map[string]json.RawMessage `json:"mcpServers"`
+			MCPServers             map[string]json.RawMessage `json:"mcpServers"`
+			DisabledMCPServers     []string                   `json:"disabledMcpServers"`
+			DisabledMCPJSONServers []string                   `json:"disabledMcpjsonServers"`
 		} `json:"projects"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", file, err)
+		return nil, off, fmt.Errorf("%s: %w", file, err)
 	}
 	var names []string
 	for name := range doc.MCPServers {
 		names = append(names, name)
 	}
-	for name := range doc.Projects[projectDir].MCPServers {
+	project := doc.Projects[projectDir]
+	for name := range project.MCPServers {
 		names = append(names, name)
 	}
+	off.all, off.json = project.DisabledMCPServers, project.DisabledMCPJSONServers
 
-	return names, nil
+	return names, off, nil
+}
+
+func without(names, drop []string) []string {
+	return slices.DeleteFunc(names, func(n string) bool { return slices.Contains(drop, n) })
 }
 
 func mcpFileServers(file string) ([]string, error) {
@@ -242,27 +263,29 @@ func mcpFileServers(file string) ([]string, error) {
 	return names, nil
 }
 
-var tomlServerHeader = regexp.MustCompile(`^\s*\[mcp_servers\.("([^"]+)"|[A-Za-z0-9_-]+)\]\s*(#.*)?$`)
-
-// tomlServers reads the names of the [mcp_servers.<name>] tables of a Codex
-// config file.
-func tomlServers(file string) ([]string, error) {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
+// tomlServers reads the [mcp_servers.<name>] tables of a Codex config file
+// into enabled. A server is on unless its table sets enabled = false, and a
+// later file overrides the enabled value of an earlier one.
+func tomlServers(file string, enabled map[string]bool) error {
+	var doc struct {
+		MCPServers map[string]struct {
+			Enabled *bool `toml:"enabled"`
+		} `toml:"mcp_servers"`
 	}
-	var names []string
-	for _, line := range strings.Split(string(data), "\n") {
-		m := tomlServerHeader.FindStringSubmatch(line)
-		if m == nil {
-			continue
+	if _, err := toml.DecodeFile(file, &doc); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return err
 		}
-		name := m[2]
-		if name == "" {
-			name = m[1]
+
+		return fmt.Errorf("%s: %w", file, err)
+	}
+	for name, server := range doc.MCPServers {
+		if server.Enabled != nil {
+			enabled[name] = *server.Enabled
+		} else if _, seen := enabled[name]; !seen {
+			enabled[name] = true
 		}
-		names = append(names, name)
 	}
 
-	return names, nil
+	return nil
 }

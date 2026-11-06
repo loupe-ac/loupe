@@ -187,3 +187,41 @@ func TestBridgeCheckProjectNeedsJSON(t *testing.T) {
 		t.Fatal("--project alone was accepted")
 	}
 }
+
+func TestAccountFoldersLeavesOutADisabledCodexServer(t *testing.T) {
+	home := t.TempDir()
+	base := "[mcp_servers.on]\ncommand = \"a\"\n[mcp_servers.off]\nenabled = false\n[mcp_servers.later]\nenabled = false\n"
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(base), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profile := "[mcp_servers.later]\nenabled = true\n[mcp_servers.on]\nenabled = false\n"
+	if err := os.WriteFile(filepath.Join(home, "work.config.toml"), []byte(profile), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := accountFolders(rules.RunSettings{Harness: rules.HarnessCodex, ConfigDir: home}, t.TempDir())
+	if !slices.Equal(got.MCPServers, []string{"on"}) || got.MCPError != "" {
+		t.Errorf("base only = %+v", got)
+	}
+	got = accountFolders(rules.RunSettings{Harness: rules.HarnessCodex, ConfigDir: home, Profile: "work"}, t.TempDir())
+	if !slices.Equal(got.MCPServers, []string{"later"}) || got.MCPError != "" {
+		t.Errorf("with profile = %+v", got)
+	}
+}
+
+func TestAccountFoldersLeavesOutADisabledClaudeServer(t *testing.T) {
+	project := t.TempDir()
+	if err := os.WriteFile(filepath.Join(project, ".mcp.json"), []byte(`{"mcpServers":{"repo":{},"repo-off":{}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	state := `{"mcpServers":{"user":{},"user-off":{}},"projects":{"` + project + `":{"mcpServers":{"local":{}},"disabledMcpServers":["user-off"],"disabledMcpjsonServers":["repo-off"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, ".claude.json"), []byte(state), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := accountFolders(rules.RunSettings{Harness: rules.HarnessClaudeCode, ConfigDir: dir}, project)
+	if !slices.Equal(got.MCPServers, []string{"local", "repo", "user"}) || got.MCPError != "" {
+		t.Errorf("claude = %+v", got)
+	}
+}

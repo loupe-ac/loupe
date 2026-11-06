@@ -434,7 +434,7 @@ The command exits with status 1 when the file does not load, and 0 otherwise.
 | `kinds[].account`, `harness` | The account and the harness of an agent entry |
 | `kinds[].commands[]` | One item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists` |
 | `accounts[].name`, `harness`, `configDir`, `configDirExists` | An account that a kind uses, and its configuration folder. `configDir` is empty for the default folder |
-| `accounts[].mcpServers`, `mcpError` | The names of the MCP servers that the account config and the `.mcp.json` of the project declare, and the reason when a file cannot be read |
+| `accounts[].mcpServers`, `mcpError` | The names of the MCP servers that the account config and the `.mcp.json` of the project declare, and the reason when a file cannot be read. A server that the config turns off is left out: a Codex table with `enabled = false`, or a name in `disabledMcpServers` or `disabledMcpjsonServers` of the project in `.claude.json` |
 
 `checked` is false for a command with a placeholder or a `~`, which the command does not resolve. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`. For Claude Code, the servers come from `.claude.json` and the `.mcp.json` of the project. For Codex, they come from the `[mcp_servers.<name>]` tables of `config.toml` and of the profile file. A server that a plugin brings is not listed.
 
