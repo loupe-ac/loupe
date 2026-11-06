@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\DevSeed;
 
+use App\DevSeed\DevSeedId;
 use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Service\Dev\DevBoardSeeder;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentVersion;
@@ -49,6 +52,14 @@ final class ApiKeyRecordsSeedTest extends KernelTestCase
             $comments = $em->getRepository(Comment::class)->findBy(['version' => $this->versionOf($em, $slug)]);
             self::assertCount(1, $comments, $slug);
             self::assertSame($byKey, null !== $comments[0]->apiKeyId, $slug);
+        }
+
+        $keyedNotices = ['api-key-notice' => InboxAskOrigin::ApiKey, 'api-key-notice-twin' => InboxAskOrigin::Loupe];
+        foreach ($keyedNotices as $slug => $origin) {
+            $notice = $em->find(InboxItem::class, DevSeedId::of('inbox/item/'.$slug));
+            self::assertInstanceOf(InboxItem::class, $notice, $slug);
+            self::assertSame($origin, $notice->origin, $slug);
+            self::assertSame(InboxAskOrigin::ApiKey === $origin, null !== $notice->apiKeyName, $slug);
         }
     }
 

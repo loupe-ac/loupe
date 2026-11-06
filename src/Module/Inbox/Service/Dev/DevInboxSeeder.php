@@ -130,7 +130,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             ...$this->seedCompleted($context, $project, $reviewer, $rulesDocument),
             ...$this->seedSessionPromptItems($context, $project, $owner, $onboarding),
             ...$this->seedCommandRuns($context, $project, $owner, $onboarding),
-            $this->seedApiKeyNotice($context, $project),
+            ...$this->seedApiKeyNotices($context, $project),
         ];
         $this->em->flush();
 
@@ -398,19 +398,33 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         return $items;
     }
 
-    /** A notice that a CI job made with an API key. Its ask has no session and closed at once, as the API makes it. */
-    private function seedApiKeyNotice(SeedContext $context, Project $project): InboxItem
+    /**
+     * A notice that a CI job made with an API key, and its twin that Loupe made with no key.
+     * Each ask has no session and closed at once, as the API makes it.
+     *
+     * @return list<InboxItem>
+     */
+    private function seedApiKeyNotices(SeedContext $context, Project $project): array
     {
-        $notice = $this->item($context, 'api-key-notice', $project, InboxItemKind::Notice, 'The weekly mutation run failed', false, 5_400, [
-            'body' => 'The weekly CI run of `just mutation` ended with a failure. Read the run log before the next release.',
-        ], static function (InboxItem $item): void {
-            $item->dismissible = true;
-            $item->apiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
-            $item->apiKeyName = 'Weekly CI';
-            $item->dedupeKey = 'weekly-mutation';
-        }, InboxAskOrigin::ApiKey);
+        return [
+            $this->closedNotice($context, $project, 'api-key-notice', InboxAskOrigin::ApiKey, static function (InboxItem $item): void {
+                $item->dismissible = true;
+                $item->apiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
+                $item->apiKeyName = 'Weekly CI';
+                $item->dedupeKey = 'weekly-mutation';
+            }),
+            $this->closedNotice($context, $project, 'api-key-notice-twin', InboxAskOrigin::Loupe),
+        ];
+    }
 
-        $id = DevSeedId::of('inbox/ask/api-key-notice');
+    /** @param (\Closure(InboxItem): void)|null $adjust */
+    private function closedNotice(SeedContext $context, Project $project, string $slug, InboxAskOrigin $origin, ?\Closure $adjust = null): InboxItem
+    {
+        $notice = $this->item($context, $slug, $project, InboxItemKind::Notice, 'The weekly mutation run failed', false, 5_400, [
+            'body' => 'The weekly CI run of `just mutation` ended with a failure. Read the run log before the next release.',
+        ], $adjust, $origin);
+
+        $id = DevSeedId::of('inbox/ask/'.$slug);
         $ask = $this->em->find(InboxAsk::class, $id);
         if (!$ask instanceof InboxAsk) {
             $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $context->at(5_400));
