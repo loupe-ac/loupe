@@ -82,9 +82,15 @@ def split_commands(tokens):
         if re.fullmatch(r"[;&|()\n]+", token):
             if current["words"] or current["redirs"]:
                 commands.append(current)
+            commands += [char for char in token if char in "()"]
             current = {"words": [], "redirs": [], "hd": None, "pipe_in": token in ("|", "|&")}
         elif re.fullmatch(r"&>>?|>>?\|?", token):
             state = "file"
+        elif re.fullmatch(r"[<>]\(", token):
+            if current["words"] or current["redirs"]:
+                commands.append(current)
+            commands.append("(")
+            current = {"words": [], "redirs": [], "hd": None, "pipe_in": False}
         elif "<" in token or ">" in token:
             state = "skip"
         elif HEREDOC_TOKEN.fullmatch(token):
@@ -197,7 +203,15 @@ def judge(command, cwd, root, depth=0):
     folder = os.path.realpath(cwd)
     written = {}
     previous = None
+    saved = []
     for item in split_commands(tokenize(text)):
+        if item == "(":
+            saved.append(folder)
+            continue
+        if item == ")":
+            if saved:
+                folder = saved.pop()
+            continue
         words = list(item["words"])
         while words and (re.fullmatch(r"\w+=.*", words[0]) or os.path.basename(words[0]) in WRAPPERS):
             words.pop(0)

@@ -759,6 +759,14 @@ describe('no-bash-php-write.py', () => {
         ],
         ['an in-place edit after a cd out', "cd /tmp && sed -i 's/a/b/' x.php"],
         [
+            'a write inside a subshell that left the repository',
+            '(cd /tmp && echo x > a.php)',
+        ],
+        [
+            'a write after a nested subshell, still outside',
+            '(cd /tmp; (cd /var); echo x > a.php)',
+        ],
+        [
             'a script that is saved and not run',
             heredoc(
                 'cat > /tmp/edit.py',
@@ -811,6 +819,18 @@ describe('no-bash-php-write.py', () => {
         [
             'xargs after grep',
             "grep -rl X src --include=*.php | xargs sed -i 's/a/b/'",
+        ],
+        [
+            'a redirect after a subshell that changed directory',
+            '(cd /tmp && true); echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a command substitution that changed directory',
+            'echo $(cd /tmp && pwd); echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a process substitution that changed directory',
+            'diff <(cd /tmp && ls) x; echo x > src/Foo.php',
         ],
         [
             'an absolute path inside the repository',
