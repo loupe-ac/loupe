@@ -38,11 +38,6 @@ use Symfony\Component\Uid\Uuid;
     name: 'api_site_review_comment_update',
     methods: ['PATCH'],
 )]
-#[Route(
-    '/api/live-review/comments/{id}',
-    name: 'api_legacy_site_review_comment_update',
-    methods: ['PATCH'],
-)]
 final class UpdateCommentController extends AppController
 {
     public function __construct(

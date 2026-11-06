@@ -60,11 +60,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     name: 'api_events',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/events',
-    name: 'api_legacy_events',
-    methods: ['GET'],
-)]
 final class ShowEventsController extends AppController
 {
     public function __construct(
@@ -82,7 +77,7 @@ final class ShowEventsController extends AppController
         try {
             $view = ($this->showEvents)(new ShowEventsCommand($user, $request->headers->get(EventStreamGate::HEADER)));
         } catch (BridgeUpgradeRequired $e) {
-            throw new ApiProblemException(new ApiProblem(Response::HTTP_UPGRADE_REQUIRED, $e->reason, 'Upgrade required', $e->getMessage(), legacyError: $e->getMessage()));
+            throw new ApiProblemException(new ApiProblem(Response::HTTP_UPGRADE_REQUIRED, $e->reason, 'Upgrade required', $e->getMessage()));
         }
 
         return $this->json([

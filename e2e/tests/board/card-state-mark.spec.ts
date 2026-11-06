@@ -73,7 +73,7 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
     ) => {
         // The bearer token alone signs the report, with no session to wait on.
         const response = await request.put(
-            `/api/projects/${projectId}/worker-runs/${runId}`,
+            `/api/v1/bridge/projects/${projectId}/worker-runs/${runId}`,
             {
                 headers: { Authorization: `Bearer ${token}` },
                 data: {
@@ -214,7 +214,7 @@ test('the tooltip of a mark in the first column draws above the sidebar', async 
     const cardId = await card.getAttribute('data-card-id');
     const token = await agentAccessToken(page);
     const response = await request.put(
-        `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+        `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

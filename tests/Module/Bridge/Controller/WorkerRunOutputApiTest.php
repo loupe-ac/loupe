@@ -132,7 +132,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
             self::assertResponseStatusCodeSame(422);
         }
 
-        $client->request(Request::METHOD_PUT, '/api/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/output', server: [
+        $client->request(Request::METHOD_PUT, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/output', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
             'CONTENT_TYPE' => 'application/json',
             'HTTP_ACCEPT' => 'application/json',
@@ -151,7 +151,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
         $this->put($client, $project, 'nope', $this->agentToken($client, $owner), ['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_run_id"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'invalid_run_id');
     }
 
     public function test_an_unknown_project_is_refused_with_a_code(): void
@@ -160,10 +160,10 @@ final class WorkerRunOutputApiTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'output-no-project@example.com');
 
-        $client->request(Request::METHOD_PUT, '/api/projects/'.Uuid::v4().'/worker-runs/'.Uuid::v4().'/output', server: $this->headers($this->agentToken($client, $owner)), content: $this->json(['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']));
+        $client->request(Request::METHOD_PUT, '/api/v1/bridge/projects/'.Uuid::v4().'/worker-runs/'.Uuid::v4().'/output', server: $this->headers($this->agentToken($client, $owner)), content: $this->json(['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']));
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'project_not_found');
     }
 
     public function test_an_unknown_run_is_refused_with_a_code(): void
@@ -176,7 +176,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
         $this->put($client, $project, (string) Uuid::v4(), $this->agentToken($client, $owner), ['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"run_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'run_not_found');
     }
 
     public function test_a_run_of_another_bridge_is_refused_and_stores_nothing(): void
@@ -190,7 +190,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
         $this->put($client, $project, (string) $run->runKey, $this->agentToken($client, $owner), ['bridgeId' => (string) Uuid::v7(), 'offset' => 0, 'text' => 'a']);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"run_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'run_not_found');
         self::assertSame('', $this->text($run));
     }
 
@@ -216,7 +216,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
         $project = $this->project($em, $this->user($em, 'output-anon@example.com'), 'Output Anon');
         $run = $this->keyedRun($project);
 
-        $client->request(Request::METHOD_PUT, '/api/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/output', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], content: $this->json(['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']));
+        $client->request(Request::METHOD_PUT, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/output', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], content: $this->json(['bridgeId' => (string) $this->bridgeId, 'offset' => 0, 'text' => 'a']));
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -302,7 +302,7 @@ final class WorkerRunOutputApiTest extends WebTestCase
     /** @param array<string, mixed> $body */
     private function put(KernelBrowser $client, Project $project, string $runKey, string $raw, array $body): void
     {
-        $client->request(Request::METHOD_PUT, '/api/projects/'.$project->id.'/worker-runs/'.$runKey.'/output', server: $this->headers($raw), content: $this->json($body));
+        $client->request(Request::METHOD_PUT, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/'.$runKey.'/output', server: $this->headers($raw), content: $this->json($body));
     }
 
     /** @return array<string, string> */
@@ -327,5 +327,12 @@ final class WorkerRunOutputApiTest extends WebTestCase
             "SELECT COALESCE(string_agg(text, '' ORDER BY start_offset), '') FROM bridge_worker_run_output_chunks WHERE run_id = :run",
             ['run' => (string) $run->id],
         );
+    }
+
+    private function assertProblemCode(KernelBrowser $client, string $code): void
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame($code, $body['code'] ?? null);
     }
 }

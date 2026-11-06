@@ -55,12 +55,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['handle' => '[^/]+', 'sessionId' => '[^/]+'],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/projects/{handle}/interactive-runs/{sessionId}',
-    name: 'api_legacy_project_interactive_run_report',
-    requirements: ['handle' => '[^/]+', 'sessionId' => '[^/]+'],
-    methods: ['PUT'],
-)]
 final class ReportInteractiveLaunchController extends AppController
 {
     public function __construct(

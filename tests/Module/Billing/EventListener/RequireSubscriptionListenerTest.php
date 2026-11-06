@@ -165,7 +165,7 @@ final class RequireSubscriptionListenerTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function machinePaths(): iterable
     {
-        yield 'api' => ['/api/live-review/batches'];
+        yield 'api' => ['/api/v1/live-review-widget/batches'];
         yield 'mcp' => ['/mcp'];
     }
 
@@ -202,19 +202,6 @@ final class RequireSubscriptionListenerTest extends TestCase
             'detail' => 'This account needs an active subscription.',
             'subscribeUrl' => self::SUBSCRIBE_URL,
         ], json_decode((string) $response->getContent(), true));
-    }
-
-    public function test_an_old_api_path_keeps_the_flat_body(): void
-    {
-        $user = $this->user();
-        $event = $this->event('api_site_review_submit', '/api/live-review/batches');
-
-        $this->listener($user, $this->expiredProfile($user))($event);
-
-        $response = $event->getResponse();
-        self::assertNotNull($response);
-        self::assertSame(['error' => 'subscription_required', 'subscribeUrl' => self::SUBSCRIBE_URL], json_decode((string) $response->getContent(), true));
-        self::assertStringNotContainsString('problem', (string) $response->headers->get('Content-Type'));
     }
 
     #[DataProvider('machinePaths')]

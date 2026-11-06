@@ -54,12 +54,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['handle' => '[^/]+', 'runId' => '[^/]+'],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/projects/{handle}/worker-runs/{runId}',
-    name: 'api_legacy_project_worker_run_state_report',
-    requirements: ['handle' => '[^/]+', 'runId' => '[^/]+'],
-    methods: ['PUT'],
-)]
 final class ReportWorkerRunStateController extends AppController
 {
     public function __construct(

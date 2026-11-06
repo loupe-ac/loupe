@@ -26,7 +26,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         $project = $this->project($em, $owner, 'Columns App');
         $raw = $this->agentToken($client, $owner);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/columns', $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/columns', $raw);
 
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString(
@@ -56,7 +56,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         $em->flush();
         $raw = $this->agentToken($client, $owner);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/columns', $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/columns', $raw);
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
@@ -73,7 +73,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         $project = $this->project($em, $owner, 'Slugged App');
         $raw = $this->agentToken($client, $owner);
 
-        $this->get($client, '/api/projects/slugged-app/board/columns', $raw);
+        $this->get($client, '/api/v1/bridge/projects/slugged-app/columns', $raw);
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
@@ -89,13 +89,10 @@ final class ProjectColumnsApiTest extends WebTestCase
         $this->project($em, $owner, 'Named App');
         $raw = $this->agentToken($client, $owner);
 
-        $this->get($client, '/api/projects/'.rawurlencode('Named App').'/board/columns', $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.rawurlencode('Named App').'/columns', $raw);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString(
-            '{"error":"project_not_found"}',
-            (string) $client->getResponse()->getContent(),
-        );
+        self::assertSame('project_not_found', $this->problemCode($client));
     }
 
     /** Another owner's project answers exactly as a project that does not exist. */
@@ -108,14 +105,10 @@ final class ProjectColumnsApiTest extends WebTestCase
         $raw = $this->agentToken($client, $caller);
 
         foreach ([(string) $other->id, 'private-app', (string) Uuid::v7()] as $handle) {
-            $this->get($client, '/api/projects/'.rawurlencode($handle).'/board/columns', $raw);
+            $this->get($client, '/api/v1/bridge/projects/'.rawurlencode($handle).'/columns', $raw);
 
             self::assertResponseStatusCodeSame(404);
-            self::assertJsonStringEqualsJsonString(
-                '{"error":"project_not_found"}',
-                (string) $client->getResponse()->getContent(),
-                $handle,
-            );
+            self::assertSame('project_not_found', $this->problemCode($client), $handle);
         }
     }
 
@@ -127,13 +120,10 @@ final class ProjectColumnsApiTest extends WebTestCase
         $project = $this->project($em, $owner, 'Widget App');
         $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'site-review', $project);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/columns', $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/columns', $raw);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString(
-            '{"error":"insufficient_scope"}',
-            (string) $client->getResponse()->getContent(),
-        );
+        self::assertSame('credential_not_allowed', $this->problemCode($client));
     }
 
     public function test_a_request_without_a_token_is_refused(): void
@@ -142,7 +132,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         $em = $this->em();
         $project = $this->project($em, $this->user($em, 'columns-api-anonymous@example.com'), 'Anonymous App');
 
-        $client->request(Request::METHOD_GET, '/api/projects/'.$project->id.'/board/columns');
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects/'.$project->id.'/columns');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -168,7 +158,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         // Two access tokens of one grant share a bucket, so the second budget
         // needs a second account.
         $second = $this->agentToken($client, $other);
-        $path = '/api/projects/'.$project->id.'/board/columns';
+        $path = '/api/v1/bridge/projects/'.$project->id.'/columns';
 
         $this->get($client, $path, $first, '203.0.113.7');
         self::assertResponseIsSuccessful();
@@ -176,7 +166,7 @@ final class ProjectColumnsApiTest extends WebTestCase
         $this->get($client, $path, $first, '198.51.100.4');
         self::assertResponseStatusCodeSame(429);
 
-        $this->get($client, '/api/projects/'.$otherProject->id.'/board/columns', $second, '203.0.113.7');
+        $this->get($client, '/api/v1/bridge/projects/'.$otherProject->id.'/columns', $second, '203.0.113.7');
         self::assertResponseIsSuccessful();
     }
 
@@ -191,6 +181,14 @@ final class ProjectColumnsApiTest extends WebTestCase
     private function agentToken(KernelBrowser $browser, User $owner): string
     {
         return AgentCredential::agentToken(static::getContainer(), $owner);
+    }
+
+    private function problemCode(KernelBrowser $client): mixed
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+
+        return $body['code'] ?? null;
     }
 
     private function get(KernelBrowser $client, string $path, string $raw, string $clientIp = '127.0.0.1'): void

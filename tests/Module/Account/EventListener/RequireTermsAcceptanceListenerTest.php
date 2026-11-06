@@ -35,7 +35,7 @@ final class RequireTermsAcceptanceListenerTest extends TestCase
     {
         yield 'mcp endpoint' => ['/mcp'];
         yield 'mcp sub-path' => ['/mcp/messages'];
-        yield 'json api' => ['/api/projects'];
+        yield 'json api' => ['/api/v1/bridge/projects'];
         yield 'logout' => ['/logout'];
         yield 'terms' => ['/terms'];
         yield 'privacy' => ['/privacy'];
