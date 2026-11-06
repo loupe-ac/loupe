@@ -1,22 +1,55 @@
 name: Audit
 
-# `just ci` already audits composer.lock on every pull request. This exists for
-# the case that cannot: an advisory published while nobody opens one. Both
-# advisories this project has been bitten by went unnoticed for days.
+# Not a pull request check. An advisory on a dependency a branch does not touch
+# should not block that branch. The run on main and the daily run find it, and
+# the failure signal puts one to-do in the Loupe inbox.
 on:
+  push:
+    branches: [main]
   schedule:
-    - cron: '17 6 * * 1'
+    - cron: '17 6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  composer:
-    name: composer audit
+  audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      lines: ${{ steps.audit.outputs.lines }}
     steps:
       - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
+      - uses: ./.github/actions/setup
         with:
-          php-version: '8.5'
-          coverage: none
-      # --locked audits the lockfile itself, so no install is needed.
-      - run: composer audit --locked
+          node: 'true'
+          docker: 'true'
+      - name: Run the audit
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          just audit 2>&1 | tee var/audit.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            {
+              echo 'lines<<AUDIT_LINES_EOF'
+              grep -iE 'advisory|severity|CVE-|GHSA-|vulnerab|^Package:|^Title:|^Link:' var/audit.log | head -c 3000
+              echo
+              echo 'AUDIT_LINES_EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+  failure-signal:
+    needs: [audit]
+    if: failure()
+    uses: ./.github/workflows/weekly-failure-signal.yml
+    with:
+      workflow: audit
+      project: ${{ vars.LOUPE_PROJECT }}
+      title: Audit failed
+      body: ${{ needs.audit.outputs.lines }}
+    secrets:
+      LOUPE_API_TOKEN: ${{ secrets.LOUPE_API_TOKEN }}
