@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Service;
 
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Contract\CardValueType;
+use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Service\TemplateCardValueKeys;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
@@ -35,6 +36,15 @@ final class TemplateCardValueKeysTest extends KernelTestCase
                 'workflow.value.tech_design_interactive.caption',
                 'workflow.value.tech_design_interactive.help',
                 'workflow.value.tech_design_interactive.history',
+            ),
+            new TemplateValueKey(
+                'session-start-approved',
+                CardValueType::Bool,
+                'workflow.value.session_start_approved.label',
+                'workflow.value.session_start_approved.caption',
+                'workflow.value.session_start_approved.help',
+                'workflow.value.session_start_approved.history',
+                CardValueVisibility::Internal,
             ),
         ], $keys);
     }
@@ -75,7 +85,7 @@ final class TemplateCardValueKeysTest extends KernelTestCase
         $project = $this->workflowProject('value-keys-reset');
         $binding = $this->bindLifecycle($project);
         $keys = $this->keys();
-        self::assertCount(1, $keys->forProject($project->requireId()));
+        self::assertCount(2, $keys->forProject($project->requireId()));
         $definition = $binding->definition;
         unset($definition['values']);
         $binding->definition = $definition;
@@ -85,7 +95,7 @@ final class TemplateCardValueKeysTest extends KernelTestCase
         self::assertInstanceOf(ProjectTemplateCopy::class, $source);
         $source->reset();
 
-        self::assertCount(1, $keys->forProject($project->requireId()));
+        self::assertCount(2, $keys->forProject($project->requireId()));
         $keys->reset();
         self::assertSame([], $keys->forProject($project->requireId()));
     }

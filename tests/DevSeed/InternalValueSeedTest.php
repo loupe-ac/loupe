@@ -47,7 +47,7 @@ final class InternalValueSeedTest extends KernelTestCase
     {
         $card = $em->find(Card::class, $id) ?? throw new \LogicException('The card is missing.');
 
-        return array_values(array_filter($reader->forCard($card), static fn (CardValueView $view): bool => $view->isInternal()));
+        return array_values(array_filter($reader->forCard($card), static fn (CardValueView $view): bool => $view->isInternal() && DevInternalValueSeeder::VALUE_KEY === $view->key));
     }
 
     private function seed(): void

@@ -196,7 +196,7 @@ final class CardValuesToolTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject($name);
-        $this->bindLifecycle($project);
+        $this->bindLifecyclePublicOnly($project);
         $this->actAsMcpTokenBoundTo($project);
 
         return $this->create()('A card', 'Body', 'feature');

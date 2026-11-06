@@ -30,12 +30,19 @@ use Symfony\Component\Uid\Uuid;
  * The plan carries one comment, and the spec has none, so it is the empty twin of the Comments panel.
  * It also writes three approved documents in the project of the keys account: one with a verdict that an API
  * key recorded, one with a comment that an API key wrote, and an empty twin where a person did both.
+ * Two product designs in the Lifecycle project carry an approval of the Workflow account.
  */
 #[When('dev')]
 #[When('test')]
 final readonly class DevDocumentSeeder implements DevSeederInterface
 {
     public const string KEY = 'documents';
+
+    /** The product designs of the session start cards, by document slug. */
+    public const array SESSION_START_SLUGS = [
+        'session-start-ask' => 'Product design: a card that waits for a session start answer',
+        'session-start-approved' => 'Product design: a card with the session start approved',
+    ];
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -114,6 +121,36 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         }
 
         $this->seedApiKeyDocuments($context);
+        $this->seedSessionStartDocuments($context);
+    }
+
+    /**
+     * Two approved product designs in the Lifecycle project, each approved by the Workflow account.
+     * A card with no tech design and one of them is the case that starts a session start question.
+     */
+    private function seedSessionStartDocuments(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::lifecycleProjectId())
+            ?? throw new \LogicException('The lifecycle project does not exist.');
+        $workflow = $this->users->workflow();
+
+        foreach (self::SESSION_START_SLUGS as $slug => $title) {
+            if ($this->documents->find(self::documentId($slug)) instanceof Document) {
+                continue;
+            }
+
+            $document = new Document($context->devUser(), $project, $title, $context->at(1_200));
+            $version = $document->addVersion(
+                \sprintf("# %s\n\nA short product design that the workflow approved.\n", $title),
+                \sprintf('<h1>%s</h1><p>A short product design that the workflow approved.</p>', $title),
+            );
+            $document->status = DocumentStatus::Approved;
+            $this->tagApplier->apply($document, ['product-design']);
+            $this->store($context, $document, $slug);
+
+            $this->em->persist(new Review($version, Verdict::Approved, $workflow, submittedAt: $context->at(600), note: 'The design passed review.', workflowRule: 'product-design-approve'));
+            $this->em->flush();
+        }
     }
 
     private function seedHistoryComment(SeedContext $context, User $owner): void
