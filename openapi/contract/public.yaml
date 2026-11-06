@@ -8021,8 +8021,6 @@ components:
               $ref: '#/components/examples/ExperimentNotFound'
             route_not_found:
               $ref: '#/components/examples/RouteNotFound'
-            route_not_found:
-              $ref: '#/components/examples/RouteNotFound'
     E404ProjectNotFoundExperimentNotFoundCardNotInExperimentAnd1More:
       description: 'Refused: `project_not_found`, `experiment_not_found`, `card_not_in_experiment`, `route_not_found`.'
       headers:
