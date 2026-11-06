@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Repository;
 
+use App\Module\Account\Entity\User;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
@@ -38,6 +39,21 @@ class PublicLinkRepository extends ServiceEntityRepository
         }
 
         return $links;
+    }
+
+    /** @return list<PublicLink> the links of the projects the user owns, by project, then in order of creation */
+    public function findByOwner(User $user): array
+    {
+        return array_values($this->createQueryBuilder('l')
+            ->join('l.project', 'p')
+            ->andWhere('p.owner = :user')
+            ->setParameter('user', $user)
+            ->orderBy('p.name', 'ASC')
+            ->addOrderBy('p.id', 'ASC')
+            ->addOrderBy('l.createdAt', 'ASC')
+            ->addOrderBy('l.id', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     public function findForExperiment(Project $project, string $experiment): ?PublicLink

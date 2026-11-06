@@ -57,6 +57,12 @@ Discord and X links. An empty `site.link.source` makes the app use `APP_SOURCE_U
 value that is not a web address counts as empty. A change applies on the next
 page load. The docs pages take it at the next start of the web container.
 
+The **public links** flag, `insights.public_links.enabled`, switches the public
+links of Analytics on or off for the instance. It seeds on. While it is off, the
+Dashboard hides **Share…** and every public link shows "not found". The switches
+that owners set stay as they are, so the links work again when you turn the flag
+on. See [Share a graph publicly](analytics.md#share-a-graph-publicly).
+
 The **merge queued evaluations** flag, `workflow.merge_queued_evaluations`, makes
 the worker evaluate a card once for all the triggers that wait together in the
 queue. A trigger that arrives while an evaluation runs still queues one more
