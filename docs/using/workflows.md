@@ -478,7 +478,9 @@ neither retries nor pauses after a refused request.
 `repeatGoesToRepair` is optional and defaults to false. When it is true, a
 rule whose `before` command fails twice in a row in the same way skips the
 retries that remain. The two failures count as the same when the command, the
-exit code and the last output line are equal, letter for letter. The workflow
+exit code and the last output line are equal, letter for letter. The bridge
+cuts a long command in the output, so Loupe compares a hash of the whole
+command instead. The workflow
 then opens the repair at once, or pauses the card when the template has no
 `repair` key. A failure with a new last line, such as a new row number, keeps
 the normal retries. The paused item in the inbox quotes the command and the

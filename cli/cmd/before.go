@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -294,6 +296,8 @@ const maxCommandLine = 300
 // withCommandLine adds a second line, "command: <argv>", after the reason of a
 // failed before command, so the server can name the command. Each argument is
 // shell-quoted, and the line is cut at maxCommandLine bytes on a rune start.
+// A third line, "command-sha256: <hex>", holds the sha256 of the whole quoted
+// command, so the server tells apart two commands that differ after the cut.
 func withCommandLine(failure string, argv []string) string {
 	if failure == "" || len(argv) == 0 {
 		return failure
@@ -303,6 +307,7 @@ func withCommandLine(failure string, argv []string) string {
 		quoted[i] = shellQuote(a)
 	}
 	line := strings.Join(quoted, " ")
+	sum := sha256.Sum256([]byte(line))
 	if len(line) > maxCommandLine {
 		cut := maxCommandLine
 		for cut > 0 && !utf8.RuneStart(line[cut]) {
@@ -311,7 +316,7 @@ func withCommandLine(failure string, argv []string) string {
 		line = line[:cut]
 	}
 
-	return failure + "\ncommand: " + line
+	return failure + "\ncommand: " + line + "\ncommand-sha256: " + hex.EncodeToString(sum[:])
 }
 
 // truncatedMark starts a text whose start tailOf dropped.

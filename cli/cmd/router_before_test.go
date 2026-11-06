@@ -156,7 +156,7 @@ func TestAFailedBeforeFailsTheRunAndFreesTheCard(t *testing.T) {
 	if failed.ExitCode == nil || *failed.ExitCode != 2 || failed.HasResult == nil || *failed.HasResult || failed.FailureReason != nil {
 		t.Fatalf("failed = %+v", failed)
 	}
-	if failed.Output != "the before command exited with code 2\ncommand: 'prepare' '87'\nnpm ci failed" || failed.SessionID != "" || failed.ResumeSkipped != "" {
+	if failed.Output != "the before command exited with code 2\ncommand: 'prepare' '87'\ncommand-sha256: 37f0f1d04709b455a6f24ff0f639abe634404640a29901ed13e17f3439a72f36\nnpm ci failed" || failed.SessionID != "" || failed.ResumeSkipped != "" {
 		t.Fatalf("failed = %+v", failed)
 	}
 	calls := h.worker.recorded()
@@ -180,7 +180,7 @@ func TestAFailedBeforeReportsTheEndOfItsOutput(t *testing.T) {
 	h.send(cardMoved(87))
 
 	out := outcomeOf(t, rec.states(), rec.states()[0].runID).Output
-	if !strings.HasPrefix(out, "the before command exited with code 1\ncommand: 'prepare' '87'\n"+truncatedMark) || !strings.HasSuffix(out, "the real error") || len(out) > maxOutput {
+	if !strings.HasPrefix(out, "the before command exited with code 1\ncommand: 'prepare' '87'\ncommand-sha256: 37f0f1d04709b455a6f24ff0f639abe634404640a29901ed13e17f3439a72f36\n"+truncatedMark) || !strings.HasSuffix(out, "the real error") || len(out) > maxOutput {
 		t.Fatalf("output = %d bytes, %q…", len(out), out[:min(80, len(out))])
 	}
 	if n := strings.Count(out, "truncated"); n != 1 {
@@ -240,7 +240,7 @@ func TestABeforeFolderThatIsNoDirectoryFails(t *testing.T) {
 	h.send(cardMoved(87))
 
 	failed := outcomeOf(t, rec.states(), rec.states()[0].runID)
-	if failed.State != api.RunFailed || failed.ExitCode == nil || *failed.ExitCode != -1 || failed.Output != f.result.reason+"\ncommand: 'prepare' '87'" || h.runs() != 0 {
+	if failed.State != api.RunFailed || failed.ExitCode == nil || *failed.ExitCode != -1 || failed.Output != f.result.reason+"\ncommand: 'prepare' '87'\ncommand-sha256: 37f0f1d04709b455a6f24ff0f639abe634404640a29901ed13e17f3439a72f36" || h.runs() != 0 {
 		t.Fatalf("failed = %+v, runs = %d", failed, h.runs())
 	}
 }
@@ -415,15 +415,29 @@ func TestABeforeThatEndsInAHandoverPauseWaitsForIt(t *testing.T) {
 // withCommandLine names the filled command on the second line, quotes each
 // argument, and cuts the line at a rune start within the cap.
 func TestWithCommandLineNamesTheCommand(t *testing.T) {
-	if got := withCommandLine("the before command exited with code 1", []string{"bin/before.sh", "it's", "87"}); got != "the before command exited with code 1\ncommand: 'bin/before.sh' 'it'\\''s' '87'" {
+	if got := withCommandLine("the before command exited with code 1", []string{"bin/before.sh", "it's", "87"}); got != "the before command exited with code 1\ncommand: 'bin/before.sh' 'it'\\''s' '87'\ncommand-sha256: dd34e69c70f700b324e44de584db7f3cbca00bb351a4cc8dcf160d703316f248" {
 		t.Fatalf("got %q", got)
 	}
 	if got := withCommandLine("", []string{"x"}); got != "" {
 		t.Fatalf("a success gets no line, got %q", got)
 	}
-	long := withCommandLine("f", []string{strings.Repeat("é", 400)})
-	line := strings.TrimPrefix(long, "f\ncommand: ")
-	if len(line) > maxCommandLine || !utf8.ValidString(line) {
-		t.Fatalf("line = %d bytes, valid = %v", len(line), utf8.ValidString(line))
+	long := strings.Split(withCommandLine("f", []string{strings.Repeat("é", 400)}), "\n")
+	line := strings.TrimPrefix(long[1], "command: ")
+	if len(long) != 3 || len(line) > maxCommandLine || !utf8.ValidString(line) {
+		t.Fatalf("line = %d bytes, valid = %v, lines = %d", len(line), utf8.ValidString(line), len(long))
+	}
+}
+
+// Two commands that differ only after the cap share the command line and
+// differ in the hash line, so the server never counts them as one repeat.
+func TestWithCommandLineHashesTheWholeCommand(t *testing.T) {
+	prefix := strings.Repeat("a", maxCommandLine)
+	one := strings.Split(withCommandLine("f", []string{prefix + "1"}), "\n")
+	two := strings.Split(withCommandLine("f", []string{prefix + "2"}), "\n")
+	if one[1] != two[1] {
+		t.Fatalf("the cut lines differ: %q, %q", one[1], two[1])
+	}
+	if !strings.HasPrefix(one[2], "command-sha256: ") || len(one[2]) != len("command-sha256: ")+64 || one[2] == two[2] {
+		t.Fatalf("hash lines = %q, %q", one[2], two[2])
 	}
 }

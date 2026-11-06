@@ -33,6 +33,25 @@ final class SetupFailureTest extends TestCase
         self::assertSame([null, "'x'", ''], [$failure->exitCode, $failure->command, $failure->errorLine]);
     }
 
+    public function test_it_reads_the_hash_of_the_whole_command_and_keeps_it_out_of_the_error_line(): void
+    {
+        $hash = str_repeat('ab', 32);
+        $failure = SetupFailure::fromOutput("the before command exited with code 1\ncommand: 'x'\ncommand-sha256: {$hash}");
+
+        self::assertNotNull($failure);
+        self::assertSame(["'x'", $hash, ''], [$failure->command, $failure->commandHash, $failure->errorLine]);
+    }
+
+    public function test_two_commands_cut_to_the_same_line_differ_by_their_hash(): void
+    {
+        $one = SetupFailure::fromOutput("the before command exited with code 1\ncommand: 'a'\ncommand-sha256: ".str_repeat('1', 64)."\nboom");
+        $two = SetupFailure::fromOutput("the before command exited with code 1\ncommand: 'a'\ncommand-sha256: ".str_repeat('2', 64)."\nboom");
+
+        self::assertNotNull($one);
+        self::assertNotNull($two);
+        self::assertNotSame($one->fingerprint(), $two->fingerprint());
+    }
+
     public function test_an_output_of_another_failure_is_not_a_setup_failure(): void
     {
         self::assertNull(SetupFailure::fromOutput("the command exited with code 2\nboom"));

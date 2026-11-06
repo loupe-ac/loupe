@@ -1949,7 +1949,9 @@ folder is gone. A recorded folder that the bridge cannot read fails the resume.
 
 A failed `before` command reports its reason on the first line of the run output.
 The second line is `command: <argv>`, the command with its placeholders filled.
-Each argument is shell-quoted, and the line is cut at 300 bytes. The output of the
+Each argument is shell-quoted, and the line is cut at 300 bytes. The third line
+is `command-sha256: <hex>`, the sha256 of the whole quoted command, so two
+commands that differ after the cut never count as the same. The output of the
 command follows. Loupe reads the command and the last output line to find a
 setup failure that repeats (see [workflows](../using/workflows.md)). Pass a
 secret to the `before` command through the environment, never as an argument,
