@@ -25,6 +25,7 @@ enum Metric: string
     case AccountUsage = 'account-usage';
     case SessionUsage = 'session-usage';
     case WeekUsage = 'week-usage';
+    case PeakContext = 'peak-context';
 
     /**
      * The metrics whose key says all. A named metric needs a name too, so a
@@ -57,7 +58,7 @@ enum Metric: string
     {
         return match ($this) {
             self::Runs => [MetricUnit::Card],
-            self::StopRate, self::SessionUsage, self::WeekUsage => [MetricUnit::Run],
+            self::StopRate, self::SessionUsage, self::WeekUsage, self::PeakContext => [MetricUnit::Run],
             self::AccountUsage => [MetricUnit::Reading],
             default => [MetricUnit::Run, MetricUnit::Card],
         };
@@ -67,7 +68,7 @@ enum Metric: string
     {
         return match ($this) {
             self::Cost => MetricValueType::Money,
-            self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens => MetricValueType::Tokens,
+            self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens, self::PeakContext => MetricValueType::Tokens,
             self::Duration, self::BucketTime, self::BucketTimeAll, self::BucketTimeEach, self::BucketTimeAllEach => MetricValueType::Duration,
             self::Runs, self::HarnessEvents, self::BucketCalls, self::BucketCallsEach => MetricValueType::Count,
             self::StopRate => MetricValueType::Ratio,
@@ -78,6 +79,10 @@ enum Metric: string
     /** @return list<MetricStatistic> */
     public function statistics(): array
     {
+        if (self::PeakContext === $this) {
+            return [MetricStatistic::Max, MetricStatistic::Median, MetricStatistic::Mean, MetricStatistic::P90, MetricStatistic::Count];
+        }
+
         return $this->valueType()->statistics();
     }
 
@@ -100,18 +105,18 @@ enum Metric: string
     }
 
     /**
-     * The usage metrics read the account or overlap other work, so a card of an experiment has no value of them. A
+     * The usage metrics read the account or overlap other work, and a peak of a card is no sum of its runs, so a card of an experiment has no value of them. A
      * grouped bucket metric has one line per bucket, and an experiment compares one number per variant.
      */
     public function readsExperimentCards(): bool
     {
-        return !$this->isBucketEach() && !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage], true);
+        return !$this->isBucketEach() && !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext], true);
     }
 
     /** A sum over the runs of a card gives its value on the card unit. */
     public function isAdditive(): bool
     {
-        return !\in_array($this, [self::StopRate, self::AccountUsage, self::SessionUsage, self::WeekUsage], true);
+        return !\in_array($this, [self::StopRate, self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext], true);
     }
 
     public function description(): string
@@ -128,6 +133,7 @@ enum Metric: string
             self::AccountUsage => 'The share of a usage limit window of a bridge account that was used, in percent, as each stored reading gave it. A value past 100 means use past the limit. Only the bridges of the project owner that follow the project and have a name count. The group names the bridge, the account and the window, as in laptop/work session.', // @translation-check-ignore
             self::SessionUsage => 'The change in the use of the session window of the account of a run, in percentage points, from the first to the last reading inside the run. A run with fewer than two readings in the window is unknown. A run that overlaps other runs or sessions on the same account also counts their use.', // @translation-check-ignore
             self::WeekUsage => 'The change in the use of the weekly window of the account of a run, in percentage points, from the first to the last reading inside the run. A run with fewer than two readings in the window is unknown. A run that overlaps other runs or sessions on the same account also counts their use.', // @translation-check-ignore
+            self::PeakContext => 'The largest context of the main session in one turn of a run, in tokens. Subagents do not count, and a run with no value is unknown. A group by model names the model with the highest cost in the run, which can differ from the model at the peak.', // @translation-check-ignore
             self::HarnessEvents => 'The number of harness events of one kind in a run, such as diagnostics. A run that reported events but none of this kind counts 0, and a run that reported none is unknown. Name the kind after a colon: harness-events:<kind>.', // @translation-check-ignore
             self::BucketTime => 'The time of the main-session tool calls of a run in one bucket of the project rules, in milliseconds. Name the bucket after a colon: bucket-time:<name>.', // @translation-check-ignore
             self::BucketTimeAll => 'The time of the tool calls of a run in one bucket of the project rules, in milliseconds. It includes the calls of subagents, so it can exceed the run time. Name the bucket after a colon: bucket-time-all:<name>.', // @translation-check-ignore
