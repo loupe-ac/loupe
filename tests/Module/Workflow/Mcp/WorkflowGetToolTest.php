@@ -48,6 +48,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         self::assertArrayHasKey('githubAppId', $answer);
+        self::assertNull($answer['githubAppId'], 'An empty GITHUB_APP_ID reads as no App.');
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'design-review', 'tech-design-session', 'tech-design', 'tech-design-revise', 'tech-design-recheck', 'implement', 'breakdown',

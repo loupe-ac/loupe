@@ -610,6 +610,7 @@ cli-test:
     docker run --rm -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}/plugins/loupe/hooks":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
+    docker run --rm -v "{{justfile_directory()}}":/repo:ro -w /repo golang:1.26-alpine sh -c 'apk add --no-cache bash git jq >/dev/null && bash tests/plugins/github-approval-covers.sh'
 
 # Rewrite cli/internal/publicapi/operations_gen.go from openapi/public.json.
 # Run it after a change to the public API, then add a line to commands.go for a
