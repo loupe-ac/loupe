@@ -397,8 +397,9 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(2, $block->filter('#inbox-item-12 input[data-form-draft-target="option"]'));
         self::assertCount(1, $block->filter('#inbox-item-12 textarea[name="inbox_response_'.$question->id.'[note]"]'));
         self::assertCount(1, $block->filter('#inbox-item-13 form[name="inbox_response_'.$todo->id.'"]'));
-        self::assertSelectorTextSame('[data-inbox-open-count]', '2');
-        self::assertSelectorTextSame('a[href="/projects/'.$project->id.'/inbox"] .sr-only', '2 open items');
+        // One ask holds both items, so the pill counts it once.
+        self::assertSelectorTextSame('[data-inbox-open-count]', '1');
+        self::assertSelectorTextSame('a[href="/projects/'.$project->id.'/inbox"] .sr-only', '1 open entry');
     }
 
     public function test_the_page_is_one_frame_with_a_row_link_per_ask_and_the_selected_ask(): void

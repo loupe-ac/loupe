@@ -7,7 +7,7 @@ namespace App\Module\Inbox\Command;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Project\Repository\ProjectRepository;
 
-/** How many items are open over every project of the user, for the tab title. */
+/** How many open rows the inboxes list over every project of the user, for the tab title. */
 final readonly class ShowInboxOpenTotalHandler
 {
     public function __construct(
@@ -18,6 +18,6 @@ final readonly class ShowInboxOpenTotalHandler
 
     public function __invoke(ShowInboxOpenTotalCommand $command): int
     {
-        return array_sum($this->inboxItems->countOpenByProjects($this->projects->findByOwner($command->user)));
+        return array_sum($this->inboxItems->countOpenRowsByProjects($this->projects->findByOwner($command->user)));
     }
 }

@@ -28,7 +28,7 @@ final class ShowInboxOpenTotalHandlerTest extends KernelTestCase
         $this->handler = $handler;
     }
 
-    public function test_it_sums_the_open_items_over_every_project_of_the_owner(): void
+    public function test_it_sums_the_open_rows_over_every_project_of_the_owner(): void
     {
         $owner = $this->signedUpUser($this->em, 'total-sum');
         $first = $this->inboxProject($this->em, $owner);
@@ -50,6 +50,16 @@ final class ShowInboxOpenTotalHandlerTest extends KernelTestCase
         $this->question($this->em, $stranger, 1);
 
         self::assertSame(1, ($this->handler)(new ShowInboxOpenTotalCommand($owner)));
+    }
+
+    public function test_it_counts_an_ask_that_holds_two_items_once(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'total-ask');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $project, [$this->question($this->em, $project, 1), $this->question($this->em, $project, 2)]);
+        $this->todo($this->em, $project, 3);
+
+        self::assertSame(2, ($this->handler)(new ShowInboxOpenTotalCommand($owner)));
     }
 
     public function test_it_is_zero_when_the_owner_has_no_project(): void
