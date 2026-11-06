@@ -42,6 +42,8 @@ final readonly class ExperimentReportView
         public ?string $variantFilter,
         public bool $leftOutOnly,
         public bool $archived = false,
+        /** True when a walk by position has rows after the last card of this page. */
+        public bool $hasMore = false,
     ) {
     }
 }

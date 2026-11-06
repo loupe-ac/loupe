@@ -59,7 +59,19 @@
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ card.fixRounds }}</span>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-cost>{{ card.costMicros is null ? '–' : (card.costMicros / 1000000)|format_currency('USD') }}</span>
             <span class="lp-data-table__cell lp-experiment-reasons" role="cell">
-                {% for reason in card.leftOut %}<twig:Ds:Tag tone="amber">{{ ('bridge.experiments.left_out_reason.' ~ reason.value)|trans }}</twig:Ds:Tag>{% endfor %}
+                {% for reason in card.leftOut %}
+                    {% if reason.value == 'excluded' and card.exclusion is not null %}
+                        <span class="lp-experiment-excluded" tabindex="0" aria-describedby="excluded-{{ card.cardId }}" data-experiment-card-excluded>
+                            <twig:Ds:Tag tone="amber">{{ ('bridge.experiments.left_out_reason.' ~ reason.value)|trans }}</twig:Ds:Tag>
+                            <twig:Ds:Tooltip id="excluded-{{ card.cardId }}">
+                                <span class="lp-tooltip__line">{{ card.exclusion.reason }}</span>
+                                <span class="lp-tooltip__line">{{ 'bridge.experiments.excluded.by'|trans({'%name%': card.exclusion.authorName ?? 'bridge.experiments.excluded.deleted_user'|trans, '%date%': card.exclusion.excludedAt|format_datetime('medium', 'none')}) }}</span>
+                            </twig:Ds:Tooltip>
+                        </span>
+                    {% else %}
+                        <twig:Ds:Tag tone="amber">{{ ('bridge.experiments.left_out_reason.' ~ reason.value)|trans }}</twig:Ds:Tag>
+                    {% endif %}
+                {% endfor %}
             </span>
         </div>
         {% endfor %}

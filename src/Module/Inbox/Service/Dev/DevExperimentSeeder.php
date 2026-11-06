@@ -16,10 +16,12 @@ use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Bridge\Entity\ExperimentExclusion;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -78,6 +80,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         ['implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']],
     ];
 
+    /** The card of the first experiment that the owner left out by hand. */
+    private const string EXCLUDED_CARD = 'Mute a noisy bridge';
+
     private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5'];
 
     /** The last card has a pin and no run, so the figures leave it out. */
@@ -107,6 +112,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private CardEventRepository $cardEvents,
         private ExperimentDefinitionRepository $experimentDefinitions,
         private ExperimentPinRepository $experimentPins,
+        private ExperimentExclusionRepository $experimentExclusions,
         private WorkerRunRepository $workerRuns,
         private WorkRequestRepository $workRequests,
         private ForgePullRequestRepository $forgePullRequests,
@@ -196,6 +202,15 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
             if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
                 $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
+            }
+
+            if (self::EXPERIMENT === $experiment && self::EXCLUDED_CARD === $title) {
+                $exclusionId = DevSeedId::of('bridge/experiment-exclusion/'.$key);
+                if (!$this->experimentExclusions->find($exclusionId) instanceof ExperimentExclusion && !$this->experimentExclusions->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentExclusion) {
+                    $exclusion = new ExperimentExclusion($project, $cardId, $experiment, 'The card does not touch the code the experiment tests.', $project->owner, $context->now);
+                    $context->ids->assign($exclusion, $exclusionId);
+                    $this->em->persist($exclusion);
+                }
             }
 
             foreach ($runs as $position => [$cost, $minutes]) {

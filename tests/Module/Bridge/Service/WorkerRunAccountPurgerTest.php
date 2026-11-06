@@ -9,6 +9,7 @@ use App\Module\Account\Deletion\AccountPurger;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Bridge\Entity\ExperimentExclusion;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\WorkerRunAccountPurger;
@@ -190,6 +191,27 @@ final class WorkerRunAccountPurgerTest extends KernelTestCase
         self::assertSame(
             [['id' => (string) $foreign->id, 'held_by_id' => null]],
             $em->getConnection()->fetchAllAssociative('SELECT id, held_by_id FROM bridge_card_holds'),
+        );
+    }
+
+    public function test_it_takes_the_exclusions_of_owned_projects_and_unnames_the_author_elsewhere(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $leaving = $this->user($em, 'exclusions-purge-leaving@example.com');
+        $staying = $this->user($em, 'exclusions-purge-staying@example.com');
+        $now = new \DateTimeImmutable();
+        $em->persist(new ExperimentExclusion($this->project($em, $leaving, 'Leaving Exclusions'), Uuid::v7(), 'impl-model', 'Not a fit', $staying, $now));
+        $foreign = new ExperimentExclusion($this->project($em, $staying, 'Staying Exclusions'), Uuid::v7(), 'impl-model', 'Not a fit', $leaving, $now);
+        $em->persist($foreign);
+        $em->flush();
+        $em->clear();
+
+        $this->purge($leaving);
+
+        self::assertSame(
+            [['id' => (string) $foreign->id, 'excluded_by_id' => null]],
+            $em->getConnection()->fetchAllAssociative('SELECT id, excluded_by_id FROM bridge_experiment_exclusions'),
         );
     }
 

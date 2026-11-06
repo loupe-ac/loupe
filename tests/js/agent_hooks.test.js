@@ -687,6 +687,243 @@ describe('no-secret-reads.sh', () => {
     });
 });
 
+describe('no-bash-php-write.py', () => {
+    let root;
+    let bare;
+
+    function run(command, cwd, env = {}) {
+        return spawnSync('python3', [hooks + 'no-bash-php-write.py'], {
+            input: JSON.stringify({ tool_input: { command }, cwd }),
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                CLAUDE_CONFIG_DIR: '',
+                CLAUDE_PROJECT_DIR: '',
+                ...env,
+            },
+        });
+    }
+
+    beforeAll(() => {
+        root = realpathSync(mkdtempSync(join(tmpdir(), 'phpwrite-')));
+        mkdirSync(join(root, '.git'));
+        mkdirSync(join(root, 'repo', '.git'), { recursive: true });
+        bare = realpathSync(mkdtempSync(join(tmpdir(), 'phpwrite-bare-')));
+    });
+
+    afterAll(() => {
+        rmSync(root, { recursive: true, force: true });
+        rmSync(bare, { recursive: true, force: true });
+    });
+
+    const heredoc = (head, body) => `${head} <<'EOF'\n${body}\nEOF`;
+
+    it.each([
+        [
+            'a Python heredoc that edits a JavaScript file',
+            heredoc(
+                'python3 -',
+                "p = 'public/live-review/widget.js'\nopen(p, 'w').write('x')",
+            ) + '\ngit rm src/Controller/FooController.php',
+        ],
+        [
+            'a brief that names PHP files',
+            heredoc(
+                'cat > /tmp/c1298_brief.txt',
+                'Edit src/Foo.php and src/Bar.php with open(p, "w")',
+            ),
+        ],
+        [
+            'a changelog entry written with printf',
+            "printf '%s\\n' '- Fixed Kernel.php' > changelog.d/1525.md",
+        ],
+        [
+            'a copy of a vendor file onto a temp file',
+            'cp vendor/symfony/x/Kernel.php /tmp/hkb-new.php',
+        ],
+        [
+            'a saved script that merges lock files',
+            heredoc(
+                'cat > /tmp/lockmix/merge.py',
+                "import json\nopen('composer.lock', 'w').write('{}')\n# see src/Foo.php",
+            ),
+        ],
+        ['a read only command', 'sed -n 20,27p src/A.php; grep -n x src/B.php'],
+        [
+            'an in-place edit of a file outside the repository',
+            "sed -i 's/a/b/' /home/user/example.php",
+        ],
+        [
+            'an in-place edit above the repository',
+            "sed -i 's/a/b/' ../../outside.php",
+        ],
+        ['an in-place edit after a cd out', "cd /tmp && sed -i 's/a/b/' x.php"],
+        [
+            'a write inside a subshell that left the repository',
+            '(cd /tmp && echo x > a.php)',
+        ],
+        [
+            'a write after a nested subshell, still outside',
+            '(cd /tmp; (cd /var); echo x > a.php)',
+        ],
+        [
+            'a script that is saved and not run',
+            heredoc(
+                'cat > /tmp/edit.py',
+                "p = 'src/Foo.php'\nopen(p, 'w').write('x')",
+            ),
+        ],
+        [
+            'a script that names a PHP file and writes another file',
+            "python3 -c \"print('src/Foo.php'); open('README.md','w').write('x')\"",
+        ],
+        [
+            'a write after a cd between missing folders outside',
+            'cd /tmp/loupe-no-such-dir-456; echo x > /tmp/a.php',
+        ],
+        ['a mv of a PHP file', 'mv src/Foo.php src/Bar.php'],
+        ['a copy into a target folder outside', 'cp -t /tmp src/Foo.php'],
+        ['a copy into a folder outside', 'cp src/Foo.php /tmp'],
+        [
+            'a copy of found PHP files to a folder outside',
+            "find src -name '*.php' -exec cp {} /tmp \\;",
+        ],
+        [
+            'a copy of found text files into the repository',
+            "find /tmp -name '*.txt' -exec cp {} src/ \\;",
+        ],
+    ])('allows %s', (_label, command) => {
+        const result = run(command, join(root, 'repo'));
+        expect(result.status).toBe(0);
+    });
+
+    it('allows a write when no repository root exists', () => {
+        const result = run("sed -i 's/a/b/' /tmp/x.php", bare);
+        expect(result.status).toBe(0);
+    });
+
+    it.each([
+        ['sed -i on a test', "sed -i '' 's/a/b/' tests/FooTest.php"],
+        ['perl -pi', "perl -pi -e 's/a/b/' src/A.php"],
+        [
+            'a redirect with a here-document',
+            'cat > src/Foo.php <<EOF\n<?php\nEOF',
+        ],
+        ['tee -a', 'echo x | tee -a src/Foo.php'],
+        ['cp onto a PHP file', 'cp /tmp/x.php src/Foo.php'],
+        [
+            'a Python heredoc that opens a PHP path for writing',
+            heredoc('python3 -', "p = 'src/Foo.php'\nopen(p, 'w').write('x')"),
+        ],
+        [
+            'a Python loop over a PHP glob',
+            heredoc(
+                'python3 -',
+                "import glob\nfor f in glob.glob('src/**/*.php'):\n    open(f, 'w').write('x')",
+            ),
+        ],
+        [
+            'a script that the same command writes and runs',
+            heredoc(
+                'cat > /tmp/edit.py',
+                "p = 'src/Foo.php'\nopen(p, 'w').write('x')",
+            ) + '\npython3 /tmp/edit.py',
+        ],
+        ['find with exec', "find src -name '*.php' -exec sed -i 's/a/b/' {} +"],
+        [
+            'xargs after grep',
+            "grep -rl X src --include=*.php | xargs sed -i 's/a/b/'",
+        ],
+        [
+            'a redirect after a subshell that changed directory',
+            '(cd /tmp && true); echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a command substitution that changed directory',
+            'echo $(cd /tmp && pwd); echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a process substitution that changed directory',
+            'diff <(cd /tmp && ls) x; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd in a pipeline',
+            'cd /tmp | cat; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd at the end of a pipeline',
+            'cat x | cd /tmp; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd in a background job',
+            'cd /tmp & echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a background list that changed directory',
+            'cd /tmp && true & echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed cd with ||',
+            'cd /tmp/loupe-no-such-dir-456 || echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed cd with ;',
+            'cd /tmp/loupe-no-such-dir-456; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed pushd',
+            'pushd /tmp/loupe-no-such-dir-456; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd into a folder that mkdir makes',
+            'mkdir -p src/New && cd src/New && echo x > A.php',
+        ],
+        ['a copy into the current folder', 'cp /tmp/Foo.php .'],
+        ['a copy into a folder', 'cp /tmp/Foo.php src/'],
+        ['a copy into a target folder', 'cp -t . /tmp/Foo.php'],
+        [
+            'a copy into a long target folder',
+            'cp --target-directory=src /tmp/Foo.php',
+        ],
+        ['an install into a folder', 'install -m 644 /tmp/Foo.php src/'],
+        [
+            'a copy of found PHP files into the repository',
+            "find /tmp -name '*.php' -exec cp {} src/ \\;",
+        ],
+        [
+            'an xargs copy into the repository',
+            'ls /tmp/*.php | xargs -I {} cp {} src/',
+        ],
+        [
+            'an absolute path inside the repository',
+            'echo x >> ' + '__ROOT__/repo/src/A.php',
+        ],
+    ])('refuses %s', (_label, command) => {
+        const cwd = join(root, 'repo');
+        const result = run(command.replace('__ROOT__', root), cwd);
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain('Edit or Write tool');
+    });
+
+    it('finds the repository from the project folder when no .git exists', () => {
+        const result = run('echo x > src/A.php', bare, {
+            CLAUDE_PROJECT_DIR: bare,
+        });
+        expect(result.status).toBe(2);
+    });
+
+    it('logs a refusal to the config folder', () => {
+        const config = join(root, 'config');
+        run('echo x > src/A.php', join(root, 'repo'), {
+            CLAUDE_CONFIG_DIR: config,
+        });
+        const log = spawnSync('cat', [join(config, 'hooks', 'refusals.log')], {
+            encoding: 'utf8',
+        });
+        expect(log.stdout).toContain('echo x > src/A.php');
+    });
+});
+
 describe('a 20 KB input', () => {
     it.each([
         [

@@ -40,6 +40,29 @@ interface CardReportSourceInterface
      */
     public function typesFor(Project $project, array $cardIds): array;
 
+    /**
+     * The numbers of the project's cards with these ids. A card that is gone,
+     * or that belongs to another project, has no key.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, int> card id => card number
+     */
+    public function numbersFor(Project $project, array $cardIds): array;
+
+    /** The id of the project's card with this number. Null when the project has no such card. */
+    public function cardIdForNumber(Project $project, int $number): ?Uuid;
+
+    /**
+     * The pull request link URLs of the project's cards with these ids. A card
+     * with no link has no key.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, list<string>> card id => URLs
+     */
+    public function pullRequestUrlsFor(Project $project, array $cardIds): array;
+
     /** When the project's card history starts. Null when it holds no row. */
     public function historyStartFor(Project $project): ?\DateTimeImmutable;
 }

@@ -106,6 +106,11 @@ var Operations = []Operation{
 			{Name: "targetColumn", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The slug of the column the cards move to. It is needed only when the column holds cards.", Enum: nil},
 		}, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"deleted", "movedCards", "targetColumn", "columns"}, TimeFields: nil},
+	{ID: "excludeExperimentCard", Method: "PUT", Path: "/api/v1/projects/{project}/experiments/{experiment}/cards/{number}/exclusion", Summary: "Leave a card out of an experiment", Description: "The comparison then drops the card from every figure, metric, control and headline of every variant, and lists it with the left-out reason `excluded`. A second call replaces the reason, the author and the time. The experiment must list the card, and a listed card with no number cannot be reached. `DELETE` on the same path puts the card back.",
+		PathArgs: []string{"experiment", "number"}, HasProject: true, Query: nil, Body: []Param{
+			{Name: "reason", Type: "string", Format: "", Items: "", Required: true, Nullable: false, Description: "Why the card does not fit the question of the experiment. Surrounding blanks are cut off.", Enum: nil},
+		},
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "number", "title", "variant", "pullRequestUrls", "leftOut", "exclusion"}, TimeFields: nil},
 	{ID: "getArtifact", Method: "GET", Path: "/api/v1/projects/{project}/artifacts/{artifact}", Summary: "Describe one artifact", Description: "",
 		PathArgs: []string{"artifact"}, HasProject: true, Query: []Param{
 			{Name: "versionNumber", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The artifact version to read. It defaults to the latest.", Enum: nil},
@@ -141,6 +146,9 @@ var Operations = []Operation{
 	{ID: "holdCard", Method: "PUT", Path: "/api/v1/projects/{project}/cards/{number}/hold", Summary: "Make a card unmanaged", Description: "While the card is unmanaged, the workflow makes no move and starts no work on it, no bridge starts a worker on it, and a person may move it to any column. The hold cancels the work requests of the card that no bridge took yet. It stops no live run. A card already held answers 409 `already_paused`.",
 		PathArgs: []string{"number"}, HasProject: true, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "url", "outcome"}, TimeFields: nil},
+	{ID: "includeExperimentCard", Method: "DELETE", Path: "/api/v1/projects/{project}/experiments/{experiment}/cards/{number}/exclusion", Summary: "Put a card back into an experiment", Description: "Clears the manual exclusion of the card. The card counts again, unless an automatic left-out reason still applies to it. A card with no exclusion is left as it is, and the call still succeeds.",
+		PathArgs: []string{"experiment", "number"}, HasProject: true, Query: nil, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "number", "title", "variant", "pullRequestUrls", "leftOut", "exclusion"}, TimeFields: nil},
 	{ID: "listApiVersions", Method: "GET", Path: "/api/versions", Summary: "List the API versions of this instance", Description: "No sign-in is needed.",
 		PathArgs: nil, HasProject: false, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"versions", "cliRange"}, TimeFields: nil},
@@ -199,6 +207,14 @@ var Operations = []Operation{
 			{Name: "includeArchived", Type: "boolean", Format: "", Items: "", Required: false, Nullable: false, Description: "Include archived rows, which are left out by default.", Enum: nil},
 		}, Body: nil,
 		Idempotent: false, TakesFields: true, Multipart: false, AnswerFields: []string{"documentId", "url", "title", "language", "status", "archived", "archiveReason", "version", "versionDescription", "tags", "series", "seriesOrdinal", "references", "referencedBy", "createdAt", "markdown"}, TimeFields: []string{"createdAt"}},
+	{ID: "listExperimentCards", Method: "GET", Path: "/api/v1/projects/{project}/experiments/{experiment}/cards", Summary: "List the cards of an experiment", Description: "The cards that the Cards tab of the experiment lists, the latest run first and the cards with no run last. Each card names its variant, its pull request URLs, why the comparison leaves it out, and its manual exclusion. The state of the experiment can change between two pages of a walk, so a card can repeat or be missed.",
+		PathArgs: []string{"experiment"}, HasProject: true, Query: []Param{
+			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
+			{Name: "cursor", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The opaque position from the `next` URL of the last page.", Enum: nil},
+			{Name: "variant", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "Only the cards that count and ran this variant.", Enum: nil},
+			{Name: "leftOut", Type: "boolean", Format: "", Items: "", Required: false, Nullable: false, Description: "True for only the cards the comparison leaves out, and false for only the cards that count.", Enum: nil},
+		}, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "number", "title", "variant", "pullRequestUrls", "leftOut", "exclusion"}, TimeFields: nil},
 	{ID: "listFeedback", Method: "GET", Path: "/api/v1/projects/{project}/feedback", Summary: "List the feedback of the project", Description: "`screenshot` gives the size of the marked image. The image itself is not in this answer.",
 		PathArgs: nil, HasProject: true, Query: []Param{
 			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
