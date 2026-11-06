@@ -467,7 +467,7 @@ The command exits with status 1 when the file does not load, and 0 otherwise.
 | Field | Meaning |
 |---|---|
 | `project`, `dir`, `dirExists`, `rules` | The slug, its folder, whether the folder exists, and the rule file |
-| `kinds[].kind`, `source`, `action` | A work kind that the project can run. `source` is `project` or `shared`. `action` is `worker`, `interactive` or `command` |
+| `kinds[].kind`, `source`, `action` | A work kind that the bridge advertises. `source` is `project`, `shared` or `none`. `action` is `worker`, `interactive` or `command`, or `missing` for a kind that another project lists and this project does not. A missing kind has `source` `none` and no commands |
 | `kinds[].account`, `harness` | The account and the harness of an agent entry |
 | `kinds[].commands[]` | One item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists` |
 | `accounts[].name`, `harness`, `configDir`, `configDirExists` | An account that a kind uses, and its configuration folder. `configDir` is empty for the default folder |

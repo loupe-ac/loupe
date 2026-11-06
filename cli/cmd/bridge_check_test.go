@@ -199,6 +199,29 @@ func TestBridgeCheckProjectReportsVariantAndAppPromptAccounts(t *testing.T) {
 	}
 }
 
+func TestBridgeCheckProjectReportsAKindThatOnlyAnotherProjectLists(t *testing.T) {
+	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      review:\n        prompt: x\n  plans:\n    dir: "+t.TempDir()+"\nwork:\n  fix:\n    prompt: x\n")
+
+	out, err := runBridgeCheck(t, "--rules", path, "--project", "plans", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got projectCheck
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out)
+	}
+	kinds := map[string]kindCheck{}
+	for _, k := range got.Kinds {
+		kinds[k.Kind] = k
+	}
+	if k, ok := kinds["review"]; !ok || k.Action != "missing" || k.Source != "none" || len(k.Commands) != 0 {
+		t.Errorf("review = %+v, want a missing kind", k)
+	}
+	if k := kinds["fix"]; k.Action != "worker" || k.Source != "shared" {
+		t.Errorf("fix = %+v", k)
+	}
+}
+
 func TestBridgeCheckProjectRefusesAnUnknownProject(t *testing.T) {
 	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\nwork:\n  fix:\n    prompt: x\n")
 

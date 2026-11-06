@@ -72,12 +72,14 @@ func buildProjectCheck(set *rules.Set, path, slug string) projectCheck {
 	report := projectCheck{Project: slug, Dir: dir, Rules: path, Kinds: []kindCheck{}, Accounts: []accountCheck{}}
 	report.DirExists = isDir(dir)
 
-	kinds := slices.Concat(set.SharedWorkKinds(), set.ProjectWorkKinds(slug))
-	slices.Sort(kinds)
 	var runs []rules.RunSettings
-	for _, kind := range slices.Compact(kinds) {
+	for _, kind := range set.WorkKinds() {
 		entry, ok := set.WorkEntryFor(slug, kind)
 		if !ok {
+			if kind != rules.TeardownKind || set.Isolation() != rules.IsolationWorktree {
+				report.Kinds = append(report.Kinds, kindCheck{Kind: kind, Source: "none", Action: "missing", Commands: []commandCheck{}})
+			}
+
 			continue
 		}
 		k := kindCheck{Kind: kind, Source: "shared", Action: "worker", Commands: []commandCheck{}}

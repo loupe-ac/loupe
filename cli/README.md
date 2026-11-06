@@ -2052,7 +2052,7 @@ loupe bridge check --project loupe --json
 ```
 
 - `project`, `dir`, `dirExists`, `rules`: the slug, its folder, whether the folder exists, and the rule file.
-- `kinds[]`: each work kind that the project can run, with `kind`, `source` (`project` or `shared`), `action` (`worker`, `interactive` or `command`), `account`, `harness` and `commands[]`.
+- `kinds[]`: each work kind that the bridge advertises, with `kind`, `source` (`project`, `shared` or `none`), `action` (`worker`, `interactive`, `command`, or `missing` for a kind that another project lists and this project does not), `account`, `harness` and `commands[]`.
 - `commands[]`: one item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists`. `checked` is false for a command with a placeholder or a `~`. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`.
 - `accounts[]`: each account that a kind uses, with `name`, `harness`, `configDir`, `configDirExists`, `mcpServers` and `mcpError`. `mcpServers` lists the names that the account config and the `.mcp.json` of the project declare. A server that a plugin brings is not listed.
 
