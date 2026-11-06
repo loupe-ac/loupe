@@ -198,7 +198,7 @@ final readonly class UpdateCardHandler
                 }
             }
             if (null !== $command->values) {
-                $refusal = $this->cardValues->refusal($card, $command->values);
+                $refusal = $this->cardValues->refusal($card, $command->values, $command->actor);
                 if (null !== $refusal) {
                     return $refusal;
                 }

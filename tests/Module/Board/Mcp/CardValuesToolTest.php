@@ -23,6 +23,7 @@ final class CardValuesToolTest extends KernelTestCase
     use WorkflowProjects;
 
     private const string KEY = 'tech-design-interactive';
+    private const string INTERNAL_KEY = 'session-start-approved';
 
     public function test_card_update_writes_a_value_and_the_payload_reports_it(): void
     {
@@ -44,7 +45,7 @@ final class CardValuesToolTest extends KernelTestCase
         $card = $this->card('values-tool-unset');
 
         self::assertSame(
-            [['key' => self::KEY, 'type' => 'bool', 'value' => null, 'writer' => null, 'updatedAt' => null]],
+            [['key' => self::KEY, 'type' => 'bool', 'visibility' => 'public', 'value' => null, 'writer' => null, 'updatedAt' => null]],
             $card['values'],
         );
         $get = self::getContainer()->get(CardGetTool::class);
@@ -100,6 +101,49 @@ final class CardValuesToolTest extends KernelTestCase
         }
     }
 
+    public function test_the_payload_names_the_visibility_of_each_key(): void
+    {
+        $card = $this->internalCard('values-tool-visibility');
+
+        self::assertSame(
+            [self::KEY => 'public', self::INTERNAL_KEY => 'internal'],
+            array_column($card['values'], 'visibility', 'key'),
+        );
+    }
+
+    public function test_an_internal_key_is_refused_and_the_error_lists_only_the_public_keys(): void
+    {
+        $card = $this->internalCard('values-tool-internal');
+
+        try {
+            $this->update()($card['cardId'], title: 'Renamed', values: [self::INTERNAL_KEY => true]);
+            self::fail('The call was not refused.');
+        } catch (ToolCallException $e) {
+            self::assertSame('values.'.self::INTERNAL_KEY.': The key '.self::INTERNAL_KEY.' is internal. Only the workflow writes it.', $e->getMessage());
+        }
+        try {
+            $this->update()($card['cardId'], values: ['size' => true]);
+            self::fail('The call was not refused.');
+        } catch (ToolCallException $e) {
+            self::assertSame('values.size: The workflow template declares no key size. Declared keys: '.self::KEY.'.', $e->getMessage());
+        }
+        $get = self::getContainer()->get(CardGetTool::class);
+        self::assertInstanceOf(CardGetTool::class, $get);
+        $after = ($get($card['cardId'])->structuredContent ?? self::fail('card_get returned no structured content.'));
+        self::assertSame('A card', $after['title'], 'A refused call changes nothing.');
+        self::assertNull(array_column($after['values'], 'value', 'key')[self::INTERNAL_KEY]);
+    }
+
+    public function test_the_descriptions_say_that_only_the_workflow_writes_an_internal_value(): void
+    {
+        foreach ([CardUpdateTool::class, CardGetTool::class] as $class) {
+            $description = new \ReflectionClass($class)->getAttributes()[0]->getArguments()['description'];
+            self::assertStringContainsString('internal', $description, $class);
+            self::assertStringContainsString('visibility', $description, $class);
+        }
+        self::assertStringNotContainsString('Any caller may write a value, including', new \ReflectionClass(CardUpdateTool::class)->getAttributes()[0]->getArguments()['description']);
+    }
+
     public function test_a_template_with_no_keys_says_none(): void
     {
         self::bootKernel();
@@ -153,6 +197,17 @@ final class CardValuesToolTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject($name);
         $this->bindLifecycle($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        return $this->create()('A card', 'Body', 'feature');
+    }
+
+    /** @return array<string, mixed> a card of a project whose template also declares an internal key */
+    private function internalCard(string $name): array
+    {
+        self::bootKernel();
+        $project = $this->workflowProject($name);
+        $this->bindLifecycleWithInternalValue($project, self::INTERNAL_KEY);
         $this->actAsMcpTokenBoundTo($project);
 
         return $this->create()('A card', 'Body', 'feature');

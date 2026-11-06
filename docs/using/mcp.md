@@ -691,19 +691,24 @@ card. A child counts as done when it sits in a terminal column.
 
 The full card also carries `values`, a list with one entry for each key that
 the workflow template declares. The list is empty when the template declares no
-key. An entry holds `key`, `type`, `value`, `writer` and `updatedAt`. `type` is
-`bool`. `value` is null while nobody has set the key. `writer` holds `kind` and
-`name`, as `actor` does in the history, and `writer` and `updatedAt` are null
-for an unset key.
+key. An entry holds `key`, `type`, `visibility`, `value`, `writer` and
+`updatedAt`. `type` is `bool`. `visibility` is `public` or `internal`. `value`
+is null while nobody has set the key. `writer` holds `kind` and `name`, as
+`actor` does in the history, and `writer` and `updatedAt` are null for an unset
+key.
 
 `card_update` takes `values`, an object that maps a declared key to its value,
-such as `{"tech-design-interactive": true}`. Any caller may write a value,
-including a bridge worker. A key you leave out keeps its value. A call that
-names a key the template does not declare is refused, and so is a value of the
-wrong type. The error names the field, such as
-`values.size: The workflow template declares no key size. Declared keys:
-tech-design-interactive.`. One bad entry refuses the whole call, and the card
-keeps its other fields. A change writes a `value-changed` event in the history
+such as `{"tech-design-interactive": true}`. Any caller may write a value of
+`public` visibility, including a bridge worker. Only the workflow writes a
+value of `internal` visibility, so `card_update` refuses it for every caller.
+A key you leave out keeps its value. A call that names a key the template does
+not declare is refused, and so is a value of the wrong type. The error names the
+field, such as `values.size: The workflow template declares no key size.
+Declared keys: tech-design-interactive.`. The list of declared keys leaves out
+the internal keys. A refused internal key reads
+`values.session-start-approved: The key session-start-approved is internal.
+Only the workflow writes it.`. One bad entry refuses the whole call, and the
+card keeps its other fields. A change writes a `value-changed` event in the history
 of the card, and `card_get_history` returns it with `valueChange`.
 
 The full card also carries `pause`, the active workflow pause of the card, or
