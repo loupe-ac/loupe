@@ -7786,6 +7786,25 @@
     .lp-dashboard-age[hidden] {
         @apply hidden;
     }
+    /* A shared item inside the public site frame: one centred column under the site bar. */
+    .lp-public {
+        @apply flex flex-col items-center bg-surface-1 px-6 py-12;
+    }
+    .lp-public__inner {
+        @apply w-full max-w-5xl;
+    }
+    .lp-public__item {
+        @apply flex flex-col gap-5;
+    }
+    .lp-public__project {
+        @apply m-0 text-sm font-semibold text-fg-mute;
+    }
+    .lp-public__meta {
+        @apply flex flex-wrap items-center justify-between gap-2 text-xs text-fg-mute;
+    }
+    .lp-public__meta [hidden] {
+        @apply hidden;
+    }
     .lp-dashboard-notice {
         @apply mx-0 mt-4;
     }

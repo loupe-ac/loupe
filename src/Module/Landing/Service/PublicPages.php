@@ -37,6 +37,7 @@ final readonly class PublicPages
         'app_compare',
         'app_faq',
         'app_site_about',
+        'app_public_link',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_waitlist_modal',
@@ -50,7 +51,7 @@ final readonly class PublicPages
     ];
 
     /** The routes that have one copy, on the site host, when the instance splits its hosts. */
-    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare', 'app_faq'];
+    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare', 'app_faq', 'app_public_link'];
 
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,

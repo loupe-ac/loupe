@@ -1,0 +1,28 @@
+{# A shared graph with no grip and no actions. It draws the series names of the public result and no other name.
+   Props: graph (InsightsSavedGraph), result (DashboardGraphResult or null for a graph that cannot be drawn). #}
+{% set settings = [
+    ('analytics.metrics.unit.' ~ graph.unit.value)|trans,
+    ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans,
+    ('analytics.metrics.range.' ~ graph.range.value)|trans,
+    ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
+    ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
+]|join(' · ') %}
+{# The name is text that a person wrote, so the component prints it escaped. Never add |raw here. #}
+<twig:Ds:GraphTile
+    :name="graph.name"
+    :settings="settings"
+    :state="result ? 'ready' : 'broken'"
+    :legend="graph.showLegend"
+    :grip="false"
+    :brokenTitle="'analytics.public.broken'|trans"
+    data-graph-tile
+    :data-computed-at="result ? result.computedAt.timestamp : ''"
+>
+    {% if result is not null %}
+        {% if result.layout is null %}
+            <p class="lp-graph-tile__note">{{ 'analytics.metrics.empty.title'|trans }}</p>
+        {% else %}
+            <twig:Ds:Chart :layout="result.layout" :labels="result.labels" :label="result.title" :valueLabel="('analytics.metrics.statistic.' ~ graph.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" id="public-graph" />
+        {% endif %}
+    {% endif %}
+</twig:Ds:GraphTile>

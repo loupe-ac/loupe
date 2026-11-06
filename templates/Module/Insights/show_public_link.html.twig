@@ -1,0 +1,19 @@
+{% extends '@Insights/public/public_base.html.twig' %}
+
+{% block title %}{{ 'analytics.public.title'|trans({'%graph%': view.graph.name, '%project%': view.project.name}) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block public_body %}
+    {% set computedAt = view.result ? view.result.computedAt : null %}
+    <div class="lp-public__item" data-controller="dashboard-age" data-dashboard-age-now-value="{{ date().timestamp }}" data-dashboard-age-text-value="{{ 'analytics.dashboard.updated'|trans({'%minutes%': '%minutes%'}) }}">
+        <p class="lp-public__project">{{ view.project.name }}</p>
+        {% include '@Insights/public/_public_graph.html.twig' with {graph: view.graph, result: view.result} only %}
+        <div class="lp-public__meta">
+            <span data-dashboard-age-target="line"{% if computedAt is null %} hidden{% endif %}>
+                {%- if computedAt is not null -%}
+                    {{ 'analytics.dashboard.updated'|trans({'%minutes%': max(0, (date().timestamp - computedAt.timestamp) // 60)}) }}
+                {%- endif -%}
+            </span>
+            <span>{{ 'analytics.public.made_with'|trans }}</span>
+        </div>
+    </div>
+{% endblock %}
