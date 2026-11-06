@@ -10,10 +10,10 @@
     "check": "node check-docs-build.mjs"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.36.0",
-    "astro": "^5.14.0",
+    "@astrojs/markdown-satteri": "^0.4.7",
+    "@astrojs/starlight": "^0.42.9",
+    "astro": "^7.4.7",
     "sharp": "^0.34.0",
-    "starlight-openapi": "^0.22.0",
-    "unist-util-visit": "^5.1.0"
+    "starlight-openapi": "^0.27.0"
   }
 }
