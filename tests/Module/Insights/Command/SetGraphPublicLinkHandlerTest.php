@@ -17,7 +17,6 @@ use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ubermuda\AuditBundle\Auditor;
-use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class SetGraphPublicLinkHandlerTest extends KernelTestCase
@@ -84,6 +83,26 @@ final class SetGraphPublicLinkHandlerTest extends KernelTestCase
         self::assertNull($this->linkOf($graph));
     }
 
+    public function test_a_takedown_blocks_a_share_with_its_reason_and_keeps_the_owner_switch(): void
+    {
+        $project = $this->scenarioProject('share-takedown');
+        $graph = $this->seedSavedGraph($project);
+        $this->share($graph, true);
+        $this->seedTakedown($project);
+
+        foreach ([false, true] as $enabled) {
+            try {
+                $this->share($graph, $enabled);
+                self::fail('Expected a refusal.');
+            } catch (DomainErrors $e) {
+                self::assertSame(['enabled' => 'insights.public_link.block.taken_down'], $e->errors);
+            }
+        }
+
+        self::assertTrue($this->em()->isOpen());
+        self::assertTrue($this->linkOf($graph)?->enabled);
+    }
+
     public function test_a_removed_graph_cannot_be_shared(): void
     {
         $graph = $this->seedSavedGraph($this->scenarioProject('share-removed'), removedAt: new \DateTimeImmutable('-1 hour'));
@@ -104,7 +123,7 @@ final class SetGraphPublicLinkHandlerTest extends KernelTestCase
             $this->em(),
             $this->service(PublicLinkRepository::class),
             $this->service(SavedGraphLocker::class),
-            new PublicShareGuard($this->service(FeatureFlagService::class)),
+            $this->service(PublicShareGuard::class),
             $this->service(Auditor::class),
         );
         $handler(new SetGraphPublicLinkCommand($this->em()->find(InsightsSavedGraph::class, $graph->id) ?? throw new \LogicException(), $enabled));

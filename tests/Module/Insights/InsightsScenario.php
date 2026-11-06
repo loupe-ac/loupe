@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights;
 
+use App\Module\Account\Entity\User;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
@@ -17,6 +18,7 @@ use App\Module\Insights\Entity\AnalysisTopic;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalKind;
+use App\Module\Insights\Entity\PublicLinkTakedown;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
@@ -88,6 +90,15 @@ trait InsightsScenario
         $em->flush();
 
         return $graph;
+    }
+
+    private function seedTakedown(Project $project, ?User $admin = null): PublicLinkTakedown
+    {
+        $takedown = new PublicLinkTakedown($project, $admin);
+        $this->em()->persist($takedown);
+        $this->em()->flush();
+
+        return $takedown;
     }
 
     private function seedDocument(EntityManagerInterface $em, Project $project): Document

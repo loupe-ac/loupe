@@ -9,6 +9,8 @@ enum PublicShareBlock: string
 {
     case FlagOff = 'flag-off';
 
+    case TakenDown = 'taken-down';
+
     /** The key of the sentence that tells the owner why. */
     public function translationKey(): string
     {

@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Service;
 
 use App\Module\Insights\Entity\PublicLink;
-use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\PublicLinkVisibility;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class PublicLinkVisibilityTest extends KernelTestCase
@@ -73,6 +71,20 @@ final class PublicLinkVisibilityTest extends KernelTestCase
         self::assertNull($this->visibility()->resolve($link->code));
     }
 
+    public function test_a_takedown_hides_every_link_of_the_project_and_a_lift_brings_them_back(): void
+    {
+        $link = $this->sharedGraph('vis-takedown');
+        $other = $this->sharedGraph('vis-takedown-other');
+        $takedown = $this->seedTakedown($link->project);
+
+        self::assertNull($this->visibility()->resolve($link->code));
+        self::assertNotNull($this->visibility()->resolve($other->code));
+
+        $this->em()->remove($takedown);
+        $this->em()->flush();
+        self::assertSame($link->code, $this->visibility()->resolve($link->code)?->code);
+    }
+
     private function sharedGraph(string $name): PublicLink
     {
         $graph = $this->seedSavedGraph($this->scenarioProject($name));
@@ -85,11 +97,9 @@ final class PublicLinkVisibilityTest extends KernelTestCase
 
     private function visibility(): PublicLinkVisibility
     {
-        $links = self::getContainer()->get(PublicLinkRepository::class);
-        $flags = self::getContainer()->get(FeatureFlagService::class);
-        self::assertInstanceOf(PublicLinkRepository::class, $links);
-        self::assertInstanceOf(FeatureFlagService::class, $flags);
+        $visibility = self::getContainer()->get(PublicLinkVisibility::class);
+        self::assertInstanceOf(PublicLinkVisibility::class, $visibility);
 
-        return new PublicLinkVisibility($links, $flags);
+        return $visibility;
     }
 }
