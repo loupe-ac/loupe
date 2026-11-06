@@ -791,6 +791,33 @@ func (s *Set) UsedAccounts() []string {
 	return out
 }
 
+// UsedAccountsFor names, in order, each account that the effective work
+// entries of the project slug run on: the entries of the project, the shared
+// entries that the project does not replace, and the app prompt run.
+func (s *Set) UsedAccountsFor(slug string) []string {
+	runs := []RunSettings{}
+	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
+		if _, own := s.projectWork[slug][kind]; !own {
+			runs = append(runs, s.work[kind].runs()...)
+		}
+	}
+	for _, kind := range slices.Sorted(maps.Keys(s.projectWork[slug])) {
+		runs = append(runs, s.projectWork[slug][kind].runs()...)
+	}
+	if s.appPrompts {
+		runs = append(runs, s.appRun)
+	}
+	var out []string
+	for _, r := range runs {
+		if r.Account != "" && !slices.Contains(out, r.Account) {
+			out = append(out, r.Account)
+		}
+	}
+	slices.Sort(out)
+
+	return out
+}
+
 // StopAt is the use, in percent, at which Loupe stops new work on the named
 // account. An account that sets none, or that the set does not declare, gets
 // DefaultStopAt.

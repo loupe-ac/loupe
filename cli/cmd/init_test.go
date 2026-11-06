@@ -2059,7 +2059,7 @@ func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T
 	inRepo(t, w.server.URL)
 	w.accounts = []accountResult{
 		{name: "main", harness: "claude", used: true},
-		{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
+		{name: "broken", harness: "claude", used: true, usedIn: []string{"dev"}, problems: []harn.Problem{{Reason: "not logged in", Detail: "run claude login"}}},
 		{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Detail: "run loupe init"}}},
 	}
 
@@ -2095,8 +2095,8 @@ func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
 			w := newInitWorld(t, c.site)
 			inRepo(t, w.server.URL)
 			w.accounts = []accountResult{
-				{name: "broken", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
-				{name: "elsewhere", harness: "claude", used: true, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
+				{name: "broken", harness: "claude", used: true, usedIn: []string{c.key}, problems: []harn.Problem{{Reason: "no skills", Detail: "run loupe skills update", Project: c.key}}},
+				{name: "elsewhere", harness: "claude", used: true, usedIn: []string{c.key, "other"}, problems: []harn.Problem{{Reason: "no folder", Detail: "clone it", Project: "other"}}},
 				{name: "spare", harness: "codex", problems: []harn.Problem{{Reason: "no plugins", Project: c.key}}},
 			}
 

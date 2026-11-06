@@ -287,12 +287,12 @@ The request takes no body. The credential must manage the project. The answer is
   "cardId": "0198b0c2-6c3f-7b2e-8f41-9c0d5e7a1b22",
   "cardNumber": 12,
   "state": "requested",
-  "url": "https://app.example.com/projects/<id>/board/cards/<id>"
+  "url": "https://app.example.com/projects/<id>"
 }
 ```
 
-1. `url` is the page of the discovery card. The card links the report once the
-   worker has written it.
+1. `url` is the Workshop page of the project. Its discovery row shows the run,
+   and opens the report once the worker has written it.
 2. A run needs a live bridge that can run discovery, a workflow on the project, and
    board automation switched on. Only one run can be open at a time.
 3. A request that cannot start a run gets `409`. The code is `no_bridge`,

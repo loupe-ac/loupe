@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 )
 
 type discoveryCall struct{ project string }
@@ -218,6 +219,35 @@ func TestDiscoveryStartStartsWhenTheGateHolds(t *testing.T) {
 	}
 	if len(*calls) != 1 || (*calls)[0].project != firstProject || !strings.Contains(out, "Discovery started: https://app.test/projects/p2") {
 		t.Errorf("calls = %v, out = %q", *calls, out)
+	}
+}
+
+// An account that only another project uses never blocks this project, even
+// when the whole account fails.
+func TestDiscoveryStartIgnoresAnAccountThatOnlyAnotherProjectUses(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	completeProfile(t, dir)
+	w.gitClean = true
+	writeDefaultRules(t, "projects:\n  dev:\n    dir: "+dir+"\nwork:\n  plan:\n    prompt: go\n")
+	w.accounts = []accountResult{
+		{name: "main", harness: "claude", used: true, usedIn: []string{"dev"}},
+		{name: "remote", harness: "claude", used: true, usedIn: []string{"other"}, problems: []harn.Problem{{Reason: "not logged in"}}},
+	}
+	calls := stubDiscovery(t, api.Discovery{URL: "https://app.test/projects/p2"}, nil)
+
+	out, err := runDiscoveryCmd(t, "--project", "dev")
+	if err != nil {
+		t.Fatalf("err = %v, out = %q", err, out)
+	}
+	if len(*calls) != 1 {
+		t.Errorf("calls = %v, want one", *calls)
+	}
+
+	w.accounts[1].usedIn = []string{"dev", "other"}
+	out, err = runDiscoveryCmd(t, "--project", "dev")
+	if err == nil || !strings.Contains(err.Error(), "Fix the account remote: not logged in") {
+		t.Fatalf("err = %v, out = %q, want the account that this project uses", err, out)
 	}
 }
 

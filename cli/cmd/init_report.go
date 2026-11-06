@@ -52,8 +52,8 @@ type initLeft struct {
 
 // reportAccounts prints the state of each account of the rule file, in every
 // project of the file, and returns the lines of the used accounts that fail for
-// this project. A failure in another project, and an account that no rule uses,
-// never count. It runs before the profile agent, which needs no account.
+// this project. A failure in another project, and an account that no
+// effective work entry of this project uses, never count. It runs before the profile agent, which needs no account.
 // sites is the project list of the server, which lacks a project that this run
 // made. When the rule file cannot be read, it checks no account and returns
 // the reason as unchecked.
@@ -75,7 +75,7 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 
 	for _, a := range initCheckAccounts(ctx, set, sites) {
 		printAccount(out, a, slug)
-		if !a.used {
+		if !slices.Contains(a.usedIn, slug) {
 			continue
 		}
 		if reasons := nonEmpty(a.reason(), a.projectReasons()[slug]); len(reasons) > 0 {

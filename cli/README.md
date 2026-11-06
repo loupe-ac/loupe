@@ -354,7 +354,7 @@ loupe init --reset               # write the first-run rules again
    the reason and the fix. A failing account never stops the agent.
 11. Offer to start discovery, after the agent exits. The command asks
    `Start discovery now?` only when the profile is complete, the rule file
-   reads, no account that a rule uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
+   reads, no account that a work entry of this project uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
    none started yet, or the profile agent ran in this command. A yes starts
    discovery and prints `Discovery started: <link of the Workshop page>`. A no, or no
    terminal, starts nothing and prints
@@ -364,9 +364,9 @@ loupe init --reset               # write the first-run rules again
 12. Print what remains: fixing a failing account, finishing the profile,
    pushing `.loupe.yaml` and the profile, and restarting Claude Code after a
    plugin install. The last line is the link to `/projects/<id>` on your instance.
-   The command exits with an error when an account that a rule uses fails for
-   this project. A failure in another project and an account that no rule uses
-   never change the exit status.
+   The command exits with an error when an account that a work entry of this
+   project uses fails. A failure in another project, and an account that only
+   another project uses, never change the exit status.
 
 ## `loupe discovery start`
 
@@ -381,8 +381,8 @@ loupe discovery start --force
 ```
 
 Before the call, the command checks the gate of `loupe init` in the current
-folder: the profile is complete, no account that a rule uses fails for the
-project, and `.loupe.yaml` and the profile are pushed. A failed gate lists what
+folder: the profile is complete, no account that a work entry of the project
+uses fails, and `.loupe.yaml` and the profile are pushed. A failed gate lists what
 remains and exits with status 1. `--force` skips the gate, and then
 `LOUPE_API_KEY` serves as the credential. The gate needs a stored login.
 
