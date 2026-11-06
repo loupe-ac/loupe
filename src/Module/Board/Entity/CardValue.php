@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Repository\CardValueRepository;
 use App\Module\Workflow\Contract\Actor;
@@ -49,7 +50,8 @@ class CardValue
         #[ORM\ManyToOne(targetEntity: User::class)]
         public ?User $writerUser = null,
 
-        #[ORM\Column]
+        /** Kept to the microsecond, because a rule compares a write with the arrival of the card and with an approval. */
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public \DateTimeImmutable $updatedAt = new \DateTimeImmutable(),
     ) {
     }
