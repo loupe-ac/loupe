@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Security;
 
-use App\Api\Problem\ApiPaths;
 use App\Api\Problem\ApiProblem;
 use App\Module\Account\Entity\User;
 use App\Module\OAuth\Entity\ApiKey;
@@ -13,7 +12,6 @@ use App\Module\OAuth\Scope\ApiScope;
 use App\Security\AuthenticatedCredential;
 use App\Security\BearerToken;
 use Psr\Clock\ClockInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -129,10 +127,6 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
             ? new ApiProblem(Response::HTTP_UNAUTHORIZED, $code, 'API key expired', 'This API key is past its end date.')
             : new ApiProblem(Response::HTTP_UNAUTHORIZED, $code, 'Invalid credentials', 'The credentials are missing, wrong or revoked.');
 
-        if (!ApiPaths::usesProblemJson($request->getPathInfo())) {
-            return new JsonResponse($problem->toLegacyBody(), $problem->status);
-        }
-
-        return new JsonResponse($problem->toProblemBody(), $problem->status, ['Content-Type' => 'application/problem+json']);
+        return $problem->toResponse($request->getPathInfo());
     }
 }

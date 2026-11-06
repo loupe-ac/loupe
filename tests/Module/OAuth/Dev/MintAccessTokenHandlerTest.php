@@ -31,7 +31,7 @@ final class MintAccessTokenHandlerTest extends WebTestCase
 
         $token = $this->mint($user, ['agent']);
 
-        $client->request(Request::METHOD_GET, '/api/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token]);
         self::assertResponseIsSuccessful();
 
         $this->callMcp($client, $token);

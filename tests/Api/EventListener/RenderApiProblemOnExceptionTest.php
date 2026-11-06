@@ -36,9 +36,9 @@ use Symfony\Component\Validator\Exception\ValidationFailedException;
 
 final class RenderApiProblemOnExceptionTest extends TestCase
 {
-    public function test_a_coded_refusal_is_counted_under_its_canonical_route(): void
+    public function test_a_coded_refusal_is_counted_under_its_route(): void
     {
-        $this->render('/api/projects', new ApiProblemException(new ApiProblem(404, 'card_not_found', 'Not found', 'No card.')), ['_route' => 'api_legacy_show_card']);
+        $this->render('/api/v1/projects', new ApiProblemException(new ApiProblem(404, 'card_not_found', 'Not found', 'No card.')), ['_route' => 'api_show_card']);
 
         self::assertSame([['404', 'card_not_found', 'api_show_card']], $this->counted());
     }
@@ -82,7 +82,7 @@ final class RenderApiProblemOnExceptionTest extends TestCase
 
     public function test_a_path_left_alone_is_not_counted(): void
     {
-        $this->render('/api/projects', new NotFoundHttpException());
+        $this->render('/projects', new NotFoundHttpException());
         $this->render('/projects', new ApiProblemException(new ApiProblem(404, 'x', 'X', 'Y')));
 
         self::assertSame([], $this->counted());
@@ -142,19 +142,22 @@ final class RenderApiProblemOnExceptionTest extends TestCase
         self::assertSame('project_not_found', $this->body($response)['code']);
     }
 
-    public function test_a_thrown_problem_keeps_the_old_flat_shape_on_an_old_path(): void
+    public function test_a_thrown_problem_keeps_its_extras_in_the_body(): void
     {
-        $response = $this->render('/api/projects', new ApiProblemException(new ApiProblem(403, 'credential_not_allowed', 'Not allowed', 'This credential may not call this route.', extras: ['missing' => ['x']])));
+        $response = $this->render('/api/v1/projects', new ApiProblemException(new ApiProblem(403, 'credential_not_allowed', 'Not allowed', 'This credential may not call this route.', extras: ['missing' => ['x']])));
 
         self::assertSame(403, $response?->getStatusCode());
-        self::assertStringStartsWith('application/json', (string) $response->headers->get('Content-Type'));
-        self::assertSame(['error' => 'insufficient_scope', 'missing' => ['x']], $this->body($response));
+        self::assertSame('application/problem+json', $response->headers->get('Content-Type'));
+        self::assertSame(['x'], $this->body($response)['missing']);
+        self::assertSame('credential_not_allowed', $this->body($response)['code']);
     }
 
-    public function test_another_exception_on_an_old_path_is_left_alone(): void
+    public function test_an_unmatched_path_outside_a_version_is_route_not_found(): void
     {
-        self::assertNull($this->render('/api/projects', new NotFoundHttpException()));
-        self::assertNull($this->render('/api/anything', new \RuntimeException('boom')));
+        $response = $this->render('/api/anything', new NotFoundHttpException());
+
+        self::assertSame(404, $response?->getStatusCode());
+        self::assertSame('route_not_found', $this->body($response)['code']);
     }
 
     public function test_a_path_outside_the_api_is_left_alone(): void

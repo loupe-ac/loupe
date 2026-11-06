@@ -28,9 +28,7 @@ use Symfony\Component\Validator\Exception\ValidationFailedException;
 /**
  * Renders the exceptions of an API path as JSON, whatever the Accept header says.
  *
- * A /api/v1 path and the versions route answer Problem JSON. Any other /api path
- * keeps the old flat `{error, ...extras}` body for a thrown ApiProblemException,
- * and every other exception on it is left alone, so an old client sees what it saw.
+ * Every /api path answers Problem JSON.
  *
  * The priority sits below the security exception listener (1), which owns a refused
  * or missing credential, and above the framework error listener (-128).
@@ -54,8 +52,7 @@ final readonly class RenderApiProblemOnException
             return;
         }
 
-        $problemJson = ApiPaths::usesProblemJson($path);
-        $problem = $this->problemFor($event->getThrowable(), $request, $problemJson);
+        $problem = $this->problemFor($event->getThrowable(), $request);
         if (null === $problem) {
             return;
         }
@@ -74,17 +71,14 @@ final readonly class RenderApiProblemOnException
         \Sentry\traceMetrics()->count('api.refusal', 1, [
             'status' => $problem->status,
             'code' => $problem->code,
-            'route' => ApiPaths::canonicalRoute($request->attributes->get('_route')) ?? 'none',
+            'route' => $request->attributes->get('_route') ?? 'none',
         ]);
     }
 
-    private function problemFor(\Throwable $exception, Request $request, bool $problemJson): ?ApiProblem
+    private function problemFor(\Throwable $exception, Request $request): ?ApiProblem
     {
         if ($exception instanceof ApiProblemException) {
             return $exception->problem;
-        }
-        if (!$problemJson) {
-            return null;
         }
 
         $routeMatched = $request->attributes->has('_route');

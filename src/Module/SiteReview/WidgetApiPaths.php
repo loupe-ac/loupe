@@ -7,10 +7,9 @@ namespace App\Module\SiteReview;
 /**
  * The API paths the embedded widget calls.
  *
- * CORS and the write rate limit are both path-scoped, and both used to test for
- * `/api/live-review` alone. The widget now also calls a Board path, and neither
- * protection would have covered it: a listener that tests one prefix silently
- * exempts every other endpoint the widget reaches.
+ * CORS and the write rate limit are both path-scoped. A listener that tests one
+ * prefix silently exempts every other endpoint the widget reaches, so they share
+ * this list.
  *
  * Paths rather than namespaces, so this stays free of the arkitect rule fencing
  * Board as a leaf. A string is not a dependency.
@@ -18,7 +17,7 @@ namespace App\Module\SiteReview;
 final class WidgetApiPaths
 {
     /** @var list<string> */
-    public const array PREFIXES = ['/api/v1/live-review-widget', '/api/live-review', '/api/board/cards', '/api/board/feedback'];
+    public const array PREFIXES = ['/api/v1/live-review-widget'];
 
     public static function matches(string $path): bool
     {

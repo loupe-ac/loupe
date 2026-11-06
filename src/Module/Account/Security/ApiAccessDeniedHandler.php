@@ -17,7 +17,7 @@ use Symfony\Component\Security\Http\Authorization\AccessDeniedHandlerInterface;
  * API clients (the embeddable widget included) need a machine-readable error code to tell
  * "wrong token type" apart from other 403s such as an unbound token.
  *
- * A /api/v1 path answers Problem JSON, and any other path keeps the flat error body.
+ * An /api path answers Problem JSON, and any other path keeps the flat error body.
  */
 final class ApiAccessDeniedHandler implements AccessDeniedHandlerInterface
 {

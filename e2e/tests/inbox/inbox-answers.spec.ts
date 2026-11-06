@@ -302,8 +302,9 @@ test('the owner answers a question and declines a to-do', async ({
     page,
     inbox,
 }) => {
+    // The pill counts asks, and the seeded ask holds both items.
     const sidebarPill = page.locator('[data-inbox-open-count]');
-    await expect(sidebarPill).toHaveText('2');
+    await expect(sidebarPill).toHaveText('1');
 
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
     await expect(question).toContainText('Which format should the export use?');

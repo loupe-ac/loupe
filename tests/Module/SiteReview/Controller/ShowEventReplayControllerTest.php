@@ -154,7 +154,7 @@ final class ShowEventReplayControllerTest extends WebTestCase
         $client->disableReboot();
         [$raw] = $this->issue($client, 'replay-invalid@example.com');
 
-        $client->request(Request::METHOD_GET, '/api/events/replay'.$query, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay'.$query, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(400);
     }
@@ -191,12 +191,12 @@ final class ShowEventReplayControllerTest extends WebTestCase
             ['HTTP_AUTHORIZATION' => 'Bearer '.$raw],
             EventBridge::server($raw, EventBridge::register($em, $user, [Bridge::CAPABILITY_COMMANDS])),
         ] as $server) {
-            $client->request(Request::METHOD_GET, '/api/events/replay?after=0', server: $server);
+            $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after=0', server: $server);
 
             self::assertResponseStatusCodeSame(426);
             $body = json_decode((string) $client->getResponse()->getContent(), true);
             self::assertIsArray($body);
-            self::assertStringContainsString('loupe CLI', (string) ($body['error'] ?? ''));
+            self::assertStringContainsString('loupe CLI', (string) ($body['detail'] ?? ''));
             self::assertArrayNotHasKey('events', $body);
         }
     }
@@ -211,7 +211,7 @@ final class ShowEventReplayControllerTest extends WebTestCase
         );
         [$raw] = $this->issue($client, 'replay-off@example.com');
 
-        $client->request(Request::METHOD_GET, '/api/events/replay?after=0', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after=0', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -228,16 +228,18 @@ final class ShowEventReplayControllerTest extends WebTestCase
         $this->row($project, '{"secret":true}');
         $raw = AgentCredential::tokenFor(static::getContainer(), $user, 'site-review', $project);
 
-        $client->request(Request::METHOD_GET, '/api/events/replay?after=0', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after=0', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString('{"error":"insufficient_scope"}', (string) $client->getResponse()->getContent());
+        $problem = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($problem);
+        self::assertSame('credential_not_allowed', $problem['code'] ?? null);
     }
 
     public function test_no_token_is_unauthorized(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_GET, '/api/events/replay?after=0');
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after=0');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -255,7 +257,7 @@ final class ShowEventReplayControllerTest extends WebTestCase
 
         $this->replay($client, $first, 0);
 
-        $client->request(Request::METHOD_GET, '/api/events/replay?after=0', server: EventBridge::server($first, $this->bridges[$first]));
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after=0', server: EventBridge::server($first, $this->bridges[$first]));
         self::assertResponseStatusCodeSame(429);
 
         $this->replay($client, $second, 0);
@@ -275,7 +277,7 @@ final class ShowEventReplayControllerTest extends WebTestCase
     /** @return array<string, mixed> */
     private function replay(KernelBrowser $client, string $raw, int $after): array
     {
-        $client->request(Request::METHOD_GET, '/api/events/replay?after='.$after, server: EventBridge::server($raw, $this->bridges[$raw]));
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/events/replay?after='.$after, server: EventBridge::server($raw, $this->bridges[$raw]));
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);

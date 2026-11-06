@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { visit } from 'unist-util-visit';
+import { fileURLToPath } from 'node:url';
 
 // docs/ is browsable on GitHub, so its links are ordinary relative paths to
 // .md files. Those do not survive the build: a page written at
@@ -19,32 +19,36 @@ const routeFor = (relativePath, base) => {
   return route === '' ? `${base}/` : `${base}/${route}/`;
 };
 
-export function remarkDocsLinks({ docsDir, base = '' }) {
+// Returns the rewritten URL, or null when the link stays as written.
+export function rewriteDocsLink(url, from, docsDir, base = '') {
   const prefix = base.replace(/\/$/, '');
+  const [target, hash] = splitHash(url);
+  if (!target || /^([a-z]+:|\/|#)/i.test(target)) return null;
 
-  return (tree, file) => {
-    const from = file.history[0];
-    if (!from) return;
+  const absolute = path.resolve(path.dirname(from), target);
+  const relative = path.relative(docsDir, absolute);
 
-    visit(tree, 'link', (node) => {
-      const [target, hash] = splitHash(node.url);
-      if (!target || /^([a-z]+:|\/|#)/i.test(target)) return;
-
-      const absolute = path.resolve(path.dirname(from), target);
-      const relative = path.relative(docsDir, absolute);
-
-      if (relative.startsWith('..')) {
-        // blob/ is a file view and 404s on a directory, so ask the filesystem
-        // which this is rather than trusting a GitHub redirect.
-        const kind = isDirectory(absolute) ? 'tree' : 'blob';
-        const fromRoot = path.relative(path.resolve(docsDir, '..'), absolute);
-        node.url = `${REPO}/${kind}/main/${fromRoot}${hash}`;
-        return;
-      }
-      if (target.endsWith('.md')) node.url = routeFor(relative, prefix) + hash;
-    });
-  };
+  if (relative.startsWith('..')) {
+    // blob/ is a file view and 404s on a directory, so ask the filesystem
+    // which this is rather than trusting a GitHub redirect.
+    const kind = isDirectory(absolute) ? 'tree' : 'blob';
+    const fromRoot = path.relative(path.resolve(docsDir, '..'), absolute);
+    return `${REPO}/${kind}/main/${fromRoot}${hash}`;
+  }
+  return target.endsWith('.md') ? routeFor(relative, prefix) + hash : null;
 }
+
+export const docsLinks = ({ docsDir, base = '' }) => ({ fileURL }) => {
+  if (!fileURL) return null;
+  const from = fileURLToPath(fileURL);
+  return {
+    name: 'docs-links',
+    link(node, ctx) {
+      const url = rewriteDocsLink(node.url, from, docsDir, base);
+      if (url !== null) ctx.setProperty(node, 'url', url);
+    },
+  };
+};
 
 const isDirectory = (target) => {
   try {

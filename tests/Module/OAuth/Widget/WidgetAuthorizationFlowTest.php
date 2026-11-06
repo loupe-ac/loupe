@@ -73,10 +73,10 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         self::assertIsString($tokens['access_token']);
         self::assertIsString($tokens['refresh_token']);
 
-        $this->browser->request(Request::METHOD_GET, '/api/live-review/review', server: $this->bearer($tokens['access_token']));
+        $this->browser->request(Request::METHOD_GET, '/api/v1/live-review-widget/review', server: $this->bearer($tokens['access_token']));
         self::assertResponseIsSuccessful();
 
-        $this->browser->request(Request::METHOD_POST, '/api/board/feedback', server: [
+        $this->browser->request(Request::METHOD_POST, '/api/v1/live-review-widget/feedback', server: [
             ...$this->bearer($tokens['access_token']),
             'CONTENT_TYPE' => 'application/json',
         ], content: (string) json_encode(['body' => 'The button is hard to see', 'url' => self::SITE.'/checkout', 'target' => ['newCard' => new \stdClass()]]));
@@ -92,7 +92,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         ]);
         self::assertResponseIsSuccessful();
         self::assertIsString($refreshed['access_token']);
-        $this->browser->request(Request::METHOD_GET, '/api/live-review/review', server: $this->bearer($refreshed['access_token']));
+        $this->browser->request(Request::METHOD_GET, '/api/v1/live-review-widget/review', server: $this->bearer($refreshed['access_token']));
         self::assertResponseIsSuccessful();
     }
 
@@ -100,7 +100,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
     {
         $tokens = $this->grantTokens();
 
-        $this->browser->request(Request::METHOD_GET, '/api/projects', server: $this->bearer($tokens['access_token']));
+        $this->browser->request(Request::METHOD_GET, '/api/v1/bridge/projects', server: $this->bearer($tokens['access_token']));
         self::assertResponseStatusCodeSame(403);
         $this->browser->request(Request::METHOD_POST, '/mcp', server: [...$this->bearer($tokens['access_token']), 'CONTENT_TYPE' => 'application/json'], content: '{}');
         self::assertResponseStatusCodeSame(403);

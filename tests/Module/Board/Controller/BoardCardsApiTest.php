@@ -39,7 +39,7 @@ final class BoardCardsApiTest extends WebTestCase
         $client = static::createClient();
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-create@example.com');
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, [
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, [
             'title' => 'Footer overlaps the launcher',
             'body' => 'Seen at 1280px.',
             'type' => 'bug',
@@ -75,7 +75,7 @@ final class BoardCardsApiTest extends WebTestCase
         $em->persist($done);
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards', $raw);
         self::assertResponseIsSuccessful();
         $all = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($all);
@@ -83,7 +83,7 @@ final class BoardCardsApiTest extends WebTestCase
         // in flight.
         self::assertSame([2, 1], array_column($all['cards'], 'number'));
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q=footer', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q=footer', $raw);
         $narrowed = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($narrowed);
         self::assertSame([1], array_column($narrowed['cards'], 'number'));
@@ -102,18 +102,18 @@ final class BoardCardsApiTest extends WebTestCase
         $em->persist(new Card($project, $backlog, 'Step 1 of onboarding', '', 22));
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('Login fails'), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q='.urlencode('Login fails'), $raw);
         $byTitle = array_column(json_decode((string) $client->getResponse()->getContent(), true)['cards'], 'number');
         self::assertNotContains(1, $byTitle);
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('#1'), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q='.urlencode('#1'), $raw);
         self::assertSame([1], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
             'number',
         ));
 
         // A bare number names the card first, then the titles that hold it.
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q=1', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q=1', $raw);
         self::assertSame([1, 22], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
             'number',
@@ -131,7 +131,7 @@ final class BoardCardsApiTest extends WebTestCase
         $em->persist(new Card($project, $this->column($project, 'done'), 'Old review', '', 3, type: 'epic'));
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?type=epic', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?type=epic', $raw);
         self::assertResponseIsSuccessful();
         self::assertSame([1], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
@@ -140,7 +140,7 @@ final class BoardCardsApiTest extends WebTestCase
 
         // A type the board does not know filters nothing out rather than
         // failing, so the list stays usable for a newer widget.
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?type=nonsense', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?type=nonsense', $raw);
         self::assertSame([2, 1], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
             'number',
@@ -152,9 +152,9 @@ final class BoardCardsApiTest extends WebTestCase
         $client = static::createClient();
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-types@example.com');
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Review: /pricing']);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Review: /pricing']);
         self::assertResponseStatusCodeSame(201);
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Review: /checkout', 'type' => 'epic']);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Review: /checkout', 'type' => 'epic']);
         self::assertResponseStatusCodeSame(201);
 
         $cards = static::getContainer()->get(CardRepository::class)->findBy(['project' => $project], ['number' => 'ASC']);
@@ -167,7 +167,7 @@ final class BoardCardsApiTest extends WebTestCase
         $client = static::createClient();
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-unknown-type@example.com');
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Review: /pricing', 'type' => 'site-review']);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Review: /pricing', 'type' => 'site-review']);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(['feature', 'bug', 'security', 'tooling', 'docs', 'idea', 'epic'], json_decode((string) $client->getResponse()->getContent(), true)['types']);
@@ -188,7 +188,7 @@ final class BoardCardsApiTest extends WebTestCase
         $em->persist(new Card($project, $this->column($project, 'done'), 'Old review', '', 4, type: 'epic'));
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?parent=1', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?parent=1', $raw);
 
         self::assertResponseIsSuccessful();
         self::assertSame([2, 1], array_column(json_decode((string) $client->getResponse()->getContent(), true)['cards'], 'number'));
@@ -203,7 +203,7 @@ final class BoardCardsApiTest extends WebTestCase
         $this->em()->persist(new Card($project, $this->column($project, 'backlog'), 'Footer overlaps', '', 1, type: 'bug'));
         $this->em()->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?parent=1', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?parent=1', $raw);
 
         self::assertResponseIsSuccessful();
         self::assertSame([], json_decode((string) $client->getResponse()->getContent(), true)['cards']);
@@ -216,9 +216,9 @@ final class BoardCardsApiTest extends WebTestCase
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-parent-create@example.com');
         $this->declareTypes($project, self::GROUPING_TYPES);
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Q4', 'parent' => true, 'type' => 'epic']);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Q4', 'parent' => true, 'type' => 'epic']);
         self::assertResponseStatusCodeSame(201);
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Q5', 'parent' => true]);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Q5', 'parent' => true]);
         self::assertResponseStatusCodeSame(201);
 
         $cards = static::getContainer()->get(CardRepository::class)->findBy(['project' => $project], ['number' => 'ASC']);
@@ -232,11 +232,11 @@ final class BoardCardsApiTest extends WebTestCase
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-parent-refuse@example.com');
         $this->declareTypes($project, self::GROUPING_TYPES);
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Q4', 'parent' => true, 'type' => 'bug']);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Q4', 'parent' => true, 'type' => 'bug']);
 
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
-        self::assertSame('unknown_type', $data['error']);
+        self::assertSame('unknown_type', $data['code']);
         self::assertSame(['initiative', 'epic'], $data['types']);
         self::assertSame([], static::getContainer()->get(CardRepository::class)->findBy(['project' => $project]));
     }
@@ -248,7 +248,7 @@ final class BoardCardsApiTest extends WebTestCase
         [$raw, $project] = $this->projectWithToken($client, 'cards-api-parent-nogroup@example.com');
         $this->declareTypes($project, self::NO_GROUPING_TYPE);
 
-        $this->api($client, Request::METHOD_POST, '/api/board/cards', $raw, ['title' => 'Q4', 'parent' => true]);
+        $this->api($client, Request::METHOD_POST, '/api/v1/live-review-widget/cards', $raw, ['title' => 'Q4', 'parent' => true]);
 
         self::assertResponseStatusCodeSame(422);
     }
@@ -291,13 +291,13 @@ final class BoardCardsApiTest extends WebTestCase
         $em->persist(new Card($project, $backlog, 'Rename user_id across the export', '', 3));
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('%'), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q='.urlencode('%'), $raw);
         self::assertSame([2], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
             'number',
         ));
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('_'), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards?q='.urlencode('_'), $raw);
         self::assertSame([3], array_column(
             json_decode((string) $client->getResponse()->getContent(), true)['cards'],
             'number',
@@ -313,7 +313,7 @@ final class BoardCardsApiTest extends WebTestCase
         $project = $scenario->createProject($user, 'cards-api-mcp');
         $raw = $scenario->accessTokenFor($client, $user, 'mcp', $project);
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards', $raw);
 
         // The access_control line names ROLE_API_SITE_REVIEW, so an MCP token
         // is refused by the firewall rather than by the controller.
@@ -325,7 +325,7 @@ final class BoardCardsApiTest extends WebTestCase
         $client = static::createClient();
         [$raw] = $this->projectWithToken($client, 'cards-api-cors@example.com');
 
-        $this->api($client, Request::METHOD_GET, '/api/board/cards', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/cards', $raw);
 
         // The CORS subscriber tested one path prefix before this endpoint
         // existed, so without widening it the widget's own call would be

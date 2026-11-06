@@ -73,12 +73,11 @@ Counters that read `OutboxEvent` report zero forever. The projects list counts c
 
 ## API surface
 
-Every widget route sits under `/api/v1/live-review-widget`. The old paths (`/api/live-review/...`, `/api/board/cards...`, `/api/board/feedback...`) still answer for one server release under `api_legacy_*` route names, and `WidgetApiPaths` lists both prefixes.
+Every widget route sits under `/api/v1/live-review-widget`, and `WidgetApiPaths` lists that prefix. The old paths (`/api/live-review/...`, `/api/board/cards...`, `/api/board/feedback...`) are gone.
 
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/v1/live-review-widget/review` | GET | Rehydrate the widget's list (Pending only) |
-| `/api/live-review/comments` | POST | Answers 410 `widget_outdated`, so a stale script tells its reviewer to reload |
 | `/api/v1/live-review-widget/comments/{id}` | PATCH | Edit (Pending only) |
 | `/api/v1/live-review-widget/comments/{id}/resolve` | POST | Resolve (Pending only) |
 | `/api/v1/live-review-widget/feedback` | POST | Save a comment, its target card and the link in one request |
@@ -86,9 +85,9 @@ Every widget route sits under `/api/v1/live-review-widget`. The old paths (`/api
 | `/api/v1/live-review-widget/cards` | GET | Open cards for the widget's picker; `type=epic` lists epics alone |
 | `/api/v1/live-review-widget/cards` | POST | Create a card from the widget |
 
-This module holds two more routes that are not widget paths. `/api/v1/bridge/projects` and `/api/v1/bridge/events` serve the loupe CLI. The old `/api/projects` and `/api/events` paths still answer for one server release under `api_legacy_*` route names, for a CLI 1.x binary. `/api/v1/bridge/events` returns the caller's own user topic and a subscriber JWT for that one topic. `DrainOutboxHandler` publishes each event on its project topic and on the user topic of the project owner. The URL and the JWT thus keep one size, however many projects a user owns. The firewall grants each route by its own rule to `ROLE_API_AGENT`. The `site-review` scope does not carry that role, so a widget sign-in gets a 403 Problem JSON answer with the code `credential_not_allowed`. The old paths keep the flat body `insufficient_scope`. The routes keep their `ShowEventsController` and `ListSitesController` classes here because their command handlers live here.
+This module holds two more routes that are not widget paths. `/api/v1/bridge/projects` and `/api/v1/bridge/events` serve the loupe CLI. `/api/v1/bridge/events` returns the caller's own user topic and a subscriber JWT for that one topic. `DrainOutboxHandler` publishes each event on its project topic and on the user topic of the project owner. The URL and the JWT thus keep one size, however many projects a user owns. The firewall grants each route by its own rule to `ROLE_API_AGENT`. The `site-review` scope does not carry that role, so a widget sign-in gets a 403 Problem JSON answer with the code `credential_not_allowed`. The routes keep their `ShowEventsController` and `ListSitesController` classes here because their command handlers live here.
 
-The widget routes under `/api/v1/live-review-widget` include Board routes on the `site-review` scope. `config/packages/security.yaml` grants the prefix in one `access_control` line, and grants the old `/api/board/` paths in their own lines. The grant is then visible to anyone who reads that file. `WidgetApiPaths` keeps CORS and the write rate limit on every prefix. Both listeners tested one prefix before, and a listener that tests one prefix exempts every other endpoint the widget reaches, with no signal.
+The widget routes under `/api/v1/live-review-widget` include Board routes on the `site-review` scope. `config/packages/security.yaml` grants the prefix in one `access_control` line, so the grant is visible to anyone who reads that file. `WidgetApiPaths` keeps CORS and the write rate limit on the prefix. Both listeners tested one prefix before, and a listener that tests one prefix exempts every other endpoint the widget reaches, with no signal.
 
 The widget carries no credential. The embed names a project with `data-project`, and the reviewer signs in through an OAuth pop-up. The grant is bound to that one project, carries the `site-review` scope, and lives in the session storage of the tab. Only the owner of the project can sign in, and the page's origin must be on the project's allowed sites. `PrepareWidgetAuthorizationHandler` holds both checks.
 

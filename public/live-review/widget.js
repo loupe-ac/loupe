@@ -2668,9 +2668,6 @@
         if (error && error.code === 'delivery_conflict') {
             return 'The earlier submission is saved with different content. Copy your draft, then reload to review it.';
         }
-        if (error && error.code === 'widget_outdated') {
-            return 'Reload the page to update the review widget.';
-        }
         if (error && /^target_/.test(error.code || '')) {
             return 'That card is closed or gone. Choose where your notes go, then save again.';
         }

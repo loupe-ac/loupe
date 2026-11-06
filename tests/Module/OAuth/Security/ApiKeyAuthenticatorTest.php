@@ -21,11 +21,13 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  * No /api/v1 resource route exists yet, and an unmatched path answers 404
  * before the firewall runs. The public spec route stands in for a v1 path: it
  * is open to all, yet the firewall still reads a key sent with the request. A
- * live key gets 200 there and 403 on /api/projects, which needs the agent role.
+ * live key gets 200 there and 403 on /api/v1/bridge/projects, which needs the agent role.
  */
 final class ApiKeyAuthenticatorTest extends WebTestCase
 {
     private const string SPEC = '/api/v1/openapi.json';
+
+    private const string AGENT_ONLY = '/api/v1/bridge/projects';
 
     private const string SECRET = 'loupe_key_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -53,7 +55,7 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
         $this->call(self::SPEC);
         self::assertResponseStatusCodeSame(200);
 
-        $this->call('/api/projects');
+        $this->call(self::AGENT_ONLY);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -64,14 +66,6 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
         self::assertResponseStatusCodeSame(401);
         self::assertSame('application/problem+json', $this->client->getResponse()->headers->get('Content-Type'));
         self::assertSame('invalid_credentials', $this->body()['code']);
-    }
-
-    public function test_an_unknown_key_on_an_old_path_gets_the_flat_error(): void
-    {
-        $this->call('/api/projects', self::SECRET);
-
-        self::assertResponseStatusCodeSame(401);
-        self::assertSame(['error' => 'unauthorized'], $this->body());
     }
 
     public function test_a_revoked_key_is_refused_with_invalid_credentials(): void
@@ -96,21 +90,11 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
         self::assertSame('api_key_expired', $this->body()['code']);
     }
 
-    public function test_an_expired_key_on_an_old_path_keeps_its_code(): void
-    {
-        $this->store(expiresAt: new \DateTimeImmutable('-1 second'));
-
-        $this->call('/api/projects');
-
-        self::assertResponseStatusCodeSame(401);
-        self::assertSame(['error' => 'api_key_expired'], $this->body());
-    }
-
     public function test_a_key_that_ends_later_still_works(): void
     {
         $this->store(expiresAt: new \DateTimeImmutable('+1 day'));
 
-        $this->call('/api/projects');
+        $this->call(self::AGENT_ONLY);
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -131,7 +115,7 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
     {
         $this->store();
 
-        $this->call('/api/projects');
+        $this->call(self::AGENT_ONLY);
 
         self::assertResponseStatusCodeSame(403);
     }

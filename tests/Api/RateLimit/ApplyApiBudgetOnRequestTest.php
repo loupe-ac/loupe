@@ -100,11 +100,11 @@ final class ApplyApiBudgetOnRequestTest extends TestCase
         }
     }
 
-    public function test_the_bridge_widget_and_old_paths_keep_their_own_limits(): void
+    public function test_the_bridge_and_widget_paths_keep_their_own_limits(): void
     {
         $listener = $this->listener(['api.rate_limit_reads_per_minute' => 1], 'cred-4');
 
-        foreach (['/api/v1/bridge/card-holds', '/api/v1/live-review-widget/review', '/api/projects', '/api/events'] as $path) {
+        foreach (['/api/v1/bridge/card-holds', '/api/v1/live-review-widget/review', '/api/v1/bridge/events'] as $path) {
             for ($i = 0; $i < 3; ++$i) {
                 $this->handle($listener, Request::create('https://loupe.test'.$path));
             }
