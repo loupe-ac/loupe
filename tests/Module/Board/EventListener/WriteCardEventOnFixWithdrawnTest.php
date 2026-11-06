@@ -9,6 +9,7 @@ use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
+use App\Module\Board\EventListener\WriteCardEventOnFixWithdrawn;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
@@ -83,6 +84,14 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
         self::assertSame([], $this->events());
     }
 
+    public function test_a_fix_cancelled_for_another_cause_after_the_head_moved_leaves_no_row(): void
+    {
+        $this->announce($this->request('fix', self::OLD, 5, WorkRequestState::Cancelled, null));
+        $this->announce($this->request('fix', self::OLD, 5, WorkRequestState::Cancelled, 'session-opened'));
+
+        self::assertSame([], $this->events());
+    }
+
     public function test_a_fix_that_is_not_cancelled_leaves_no_row(): void
     {
         $this->announce($this->request('fix', self::OLD, 5, WorkRequestState::Done));
@@ -90,7 +99,7 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
         self::assertSame([], $this->events());
     }
 
-    private function request(string $kind, string $head, int $number, WorkRequestState $state): WorkRequest
+    private function request(string $kind, string $head, int $number, WorkRequestState $state, ?string $reason = WriteCardEventOnFixWithdrawn::REASON): WorkRequest
     {
         $request = new WorkRequest(
             project: AgentCredential::managed($this->em, $this->project, $this->project->id),
@@ -104,6 +113,7 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
         );
         $request->context = new WorkRequestContext(pullRequestNumber: $number, headSha: $head);
         $request->state = $state;
+        $request->reason = $reason;
         $request->settledAt = new \DateTimeImmutable('2026-10-01 12:05:00');
         $this->em->persist($request);
         $this->em->flush();

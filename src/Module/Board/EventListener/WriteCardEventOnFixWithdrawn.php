@@ -16,11 +16,14 @@ use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-/** A fix request that the workflow cancelled while its pull request has a newer head leaves one history row with both heads. */
+/** A fix request that the workflow cancelled because the head of its pull request moved leaves one history row with both heads. */
 #[AsEventListener]
 final readonly class WriteCardEventOnFixWithdrawn
 {
     private const string KIND = 'fix';
+
+    /** The `cancelReason` of a fix rule whose `cancelWhen` reads a moved head. */
+    public const string REASON = 'head-moved';
 
     public function __construct(
         private WorkRequestRepository $workRequests,
@@ -39,7 +42,7 @@ final readonly class WriteCardEventOnFixWithdrawn
         }
         $request = $this->workRequests->find($event->workRequestId);
         $oldHead = $request?->context->headSha;
-        if (null === $request || self::KIND !== $request->kind || null === $oldHead || null === $request->context->pullRequestNumber) {
+        if (null === $request || self::KIND !== $request->kind || self::REASON !== $request->reason || null === $oldHead || null === $request->context->pullRequestNumber) {
             return;
         }
         $card = $this->cards->find($cardId);

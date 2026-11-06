@@ -1516,8 +1516,10 @@ pull request gives, in the context and in the event. The fix rules for the
 
 The fix rules of the Lifecycle template withdraw a fix request that no bridge has
 taken yet when the head of its pull request moves. They use the condition
-`card.run.work_head_moved` in `cancelWhen`, with `cancelOnly: open`. The card
-history then shows a `fix-withdrawn` event with the old and the new head. The
+`card.run.work_head_moved` in `cancelWhen`, with `cancelOnly: open` and
+`cancelReason: head-moved`. The card history then shows a `fix-withdrawn` event
+with the old and the new head. A fix request that the workflow cancels for
+another reason writes no such event. The
 rule opens a new request only when the checks of the new head fail. A request that
 a bridge claimed keeps running.
 
@@ -1541,6 +1543,11 @@ rules use it, so that a person who publishes or reviews the draft cancels the
 agent work on it. With `cancelOnly: open` the engine withdraws only a request
 that no bridge has taken. A request that a bridge claimed stays. The Product
 design session rule uses it.
+
+A rule with `cancelWhen` can also set `cancelReason`, a code of lowercase
+letters, digits and hyphens. The engine stores the code on each request that
+`cancelWhen` withdraws. A request that the engine withdraws for another cause
+carries no code.
 
 A request rule can name a prompt with the optional `prompt` parameter. The value
 is a name of lowercase letters, digits and hyphens, such as `implement`. The

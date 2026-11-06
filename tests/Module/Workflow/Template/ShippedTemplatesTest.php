@@ -10,6 +10,7 @@ use App\Module\AgentReview\Workflow\AgentReviewPostingFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
+use App\Module\Board\EventListener\WriteCardEventOnFixWithdrawn;
 use App\Module\Board\Workflow\CardValueFacts;
 use App\Module\Board\Workflow\EpicBranchExistsFacts;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
@@ -644,6 +645,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertTrue($rule->lead->cancelWhen->evaluate($moved));
         self::assertFalse($rule->lead->cancelWhen->evaluate($same));
         self::assertSame('open', $rule->lead->params['cancelOnly'] ?? null);
+        self::assertSame(WriteCardEventOnFixWithdrawn::REASON, $rule->lead->params['cancelReason'] ?? null);
     }
 
     #[DataProvider('fixRuleIds')]
