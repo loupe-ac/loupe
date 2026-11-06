@@ -208,7 +208,7 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 - A change to the look or the behaviour of a component goes into the component, as a new option, size or state.
 - The position of a component on the page, such as its margin, its width in a grid or its order, stays a page rule.
 - When the card has a product document with a Design system section, follow its list. When you need a component change that the list lacks, ask the owner through the inbox.
-- Add no new component unless the card asks for one.
+- Add a new component when no catalog component fits and the part is used on more than one page. Say so in the design. A part used on one page stays page-level markup.
 - Write no hand-made `lp-*` root class for a block that the catalog lists, because `just gamache` blocks it once the block is enforced.
 
 `/styleguide` draws each component in dev, and `docs/contributing/design-system.md` lists them.
@@ -228,8 +228,6 @@ One component change touches these files:
 5. The export wrapper under `templates/Module/DesignSystem/export/`, when the component has one.
 6. The component test and the parity test under `tests/Module/DesignSystem/`.
 7. The entry in `references/components.md` and the table in `docs/contributing/design-system.md`.
-
-A part that no component covers stays page-level markup. Add no new component for it.
 
 Other pages can carry a page rule that the change makes needless. Search `assets/styles/app.css` for such rules. Update only the pages of your branch. Then send one non-blocking inbox to-do (`loupe-inbox`) that proposes a card for the other pages and names each page. Write no card yourself.
 

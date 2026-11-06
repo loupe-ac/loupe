@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Controller;
 use App\Module\Bridge\ValueObject\WorkerRunOutputLog;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RefusedPage;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
@@ -117,7 +118,7 @@ final class ShowWorkerRunOutputControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $path);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('secret', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('secret', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_run_of_another_project_is_not_found(): void

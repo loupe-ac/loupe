@@ -12,6 +12,7 @@ use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Tests\Support\RefusedPage;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -128,7 +129,7 @@ final class ShowForgeRepositoryRowControllerTest extends WebTestCase
         $this->fetchRow($client, $project->id, $repository->id);
 
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
-        self::assertStringNotContainsString('acme/secret', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('acme/secret', RefusedPage::body($client->getResponse()));
     }
 
     private function fetchRow(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, ?Uuid $projectId, ?Uuid $repositoryId): \Symfony\Component\DomCrawler\Crawler

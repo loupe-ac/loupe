@@ -1,0 +1,14 @@
+{#
+  Props:  @comment-budget-ignore
+    open   bool   The section starts open. False by default.
+  The content is the body. The summary block holds what the closed section shows beside the caret.
+  Any other attribute, class included, is passed to the details element, so a controller such as details-memory still fits.
+#}
+{%- props open = false -%}
+<details{{ attributes.defaults({class: 'lp-disclosure'}) }}{{ open ? ' open' }}>
+    <summary class="lp-disclosure__summary">
+        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret" aria-hidden="true" />
+        {% block summary %}{% endblock %}
+    </summary>
+    <div class="lp-disclosure__body">{% block content %}{% endblock %}</div>
+</details>

@@ -7,6 +7,7 @@ namespace App\Tests\Module\Board\Controller;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Form\CardLinkAutocompleteField;
 use App\Module\Project\Entity\Project;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -134,7 +135,7 @@ final class CardLinkAutocompleteTest extends WebTestCase
         $client->request(Request::METHOD_GET, $url.'&query=secret');
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Secret title', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Secret title', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_request_without_signed_options_is_refused(): void

@@ -41,7 +41,7 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertSame('Values', trim($group->filter('[data-card-values-heading]')->text()));
         $row = $group->filter('#card-value-'.self::KEY);
         self::assertCount(1, $row);
-        self::assertSame('Tech design', trim($row->filter('.lp-card-value__label')->text()));
+        self::assertSame('Tech design', trim($row->filter('.lp-value-row__label')->text()));
         $switch = $row->filter('input.lp-switch[role="switch"]');
         self::assertCount(1, $switch);
         self::assertNull($switch->attr('checked'));
@@ -51,7 +51,7 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/board/cards/'.$card->id.'/values/'.self::KEY, $row->filter('form')->attr('action'));
         self::assertStringContainsString('Turn this on to write the tech design in a session with you.', $row->filter('[role="tooltip"]')->text());
         self::assertCount(1, $row->filter('[role="tooltip"]#'.$switch->attr('aria-describedby')));
-        self::assertSame('Not set', trim($row->filter('.lp-card-value__meta')->text()));
+        self::assertSame('Not set', trim($row->filter('.lp-value-row__meta')->text()));
     }
 
     public function test_the_row_shows_the_stored_state_and_who_set_it(): void
@@ -65,7 +65,7 @@ final class SetCardValueControllerTest extends WebTestCase
 
         $row = $crawler->filter('#card-value-'.self::KEY);
         self::assertNotNull($row->filter('input.lp-switch')->attr('checked'));
-        self::assertStringStartsWith('Set by Riley', trim($row->filter('.lp-card-value__meta')->text()));
+        self::assertStringStartsWith('Set by Riley', trim($row->filter('.lp-value-row__meta')->text()));
     }
 
     public function test_a_project_whose_template_declares_no_key_shows_no_values_group(): void
