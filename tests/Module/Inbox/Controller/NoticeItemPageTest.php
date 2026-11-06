@@ -66,6 +66,24 @@ final class NoticeItemPageTest extends WebTestCase
         self::assertCount(0, $item->filter('.lp-inbox-item__blocking'));
     }
 
+    public function test_a_notice_of_an_api_key_names_the_key_and_offers_a_dismiss(): void
+    {
+        $fromKey = new InboxItem(project: $this->project, number: 2, kind: InboxItemKind::Notice, title: 'The weekly run failed', blocking: false, origin: InboxAskOrigin::ApiKey, body: 'Read the log.');
+        $fromKey->dismissible = true;
+        $fromKey->apiKeyName = 'Weekly CI';
+        $this->em->persist($fromKey);
+        $this->em->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox?item=2');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('[data-inbox-request] [data-inbox-source="api-key"]', "API key 'Weekly CI'");
+        self::assertSelectorTextSame('.lp-inbox-ask__source[data-inbox-source="api-key"]', "From API key 'Weekly CI'");
+        $item = $crawler->filter('#inbox-item-2');
+        self::assertSame("API key 'Weekly CI'", $item->filter('[data-inbox-api-key]')->text());
+        self::assertCount(1, $item->filter('form'), 'the owner can dismiss it');
+    }
+
     public function test_a_closed_notice_says_loupe_closed_it(): void
     {
         $this->notice->state = InboxItemState::Resolved;

@@ -228,8 +228,8 @@ class InboxItemRepository extends ServiceEntityRepository
     }
 
     /**
-     * The open items of an agent linked to the card whose other linked cards
-     * all sit in terminal columns, locked for update. An item with no other
+     * The open items of an agent or an API key linked to the card whose other
+     * linked cards all sit in terminal columns, locked for update. An item with no other
      * card matches. The caller holds a transaction.
      *
      * @return list<InboxItem>
@@ -240,11 +240,11 @@ class InboxItemRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->andWhere(\sprintf('EXISTS (SELECT m.id FROM %s m WHERE m.item = i AND m.card = :card)', InboxItemCard::class))
             ->andWhere('i.state = :open')
-            ->andWhere('i.origin = :agent')
+            ->andWhere('i.origin IN (:asked)')
             ->andWhere(\sprintf('NOT EXISTS (SELECT u.id FROM %s u JOIN u.card uc JOIN uc.column k WHERE u.item = i AND u.card <> :card AND k.terminal = false)', InboxItemCard::class))
             ->setParameter('card', $card)
             ->setParameter('open', InboxItemState::Open)
-            ->setParameter('agent', InboxAskOrigin::Agent)
+            ->setParameter('asked', [InboxAskOrigin::Agent->value, InboxAskOrigin::ApiKey->value])
             ->orderBy('i.number', 'ASC')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
@@ -298,6 +298,12 @@ class InboxItemRepository extends ServiceEntityRepository
     public function findOneByProjectAndNumber(Project $project, int $number): ?InboxItem
     {
         return $this->findOneBy(['project' => $project, 'number' => $number]);
+    }
+
+    /** The open item of the project that holds this dedupe key, or null. The caller holds the project lock. */
+    public function findOpenByDedupeKey(Project $project, string $dedupeKey): ?InboxItem
+    {
+        return $this->findOneBy(['project' => $project, 'dedupeKey' => $dedupeKey, 'state' => InboxItemState::Open]);
     }
 
     /**

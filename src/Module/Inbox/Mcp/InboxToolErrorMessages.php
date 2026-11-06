@@ -64,6 +64,7 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::TOO_MANY_OPTIONS => \sprintf('A question takes at most %d options.', InboxLimits::MAX_OPTIONS),
             AskInboxHandler::TOO_MANY_LINKS => \sprintf('An item links at most %d cards and %d documents.', InboxLimits::MAX_LINKS, InboxLimits::MAX_LINKS),
             AskInboxHandler::TO_DO_WITH_ANSWER => 'A todo is marked done or declined, so it takes no options, multiple or freeText.',
+            AskInboxHandler::NOTICE_WITH_ANSWER => 'A notice takes no answer, so it accepts no options, multiple or freeText.',
             AskInboxHandler::QUESTION_WITHOUT_ANSWER => 'A question needs options, freeText, or both, so the owner can answer it.',
             AskInboxHandler::MULTIPLE_WITHOUT_OPTIONS => 'multiple needs at least two options.',
             AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),

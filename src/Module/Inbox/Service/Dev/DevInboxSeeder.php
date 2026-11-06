@@ -130,6 +130,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             ...$this->seedCompleted($context, $project, $reviewer, $rulesDocument),
             ...$this->seedSessionPromptItems($context, $project, $owner, $onboarding),
             ...$this->seedCommandRuns($context, $project, $owner, $onboarding),
+            $this->seedApiKeyNotice($context, $project),
         ];
         $this->em->flush();
 
@@ -397,13 +398,40 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         return $items;
     }
 
+    /** A notice that a CI job made with an API key. Its ask has no session and closed at once, as the API makes it. */
+    private function seedApiKeyNotice(SeedContext $context, Project $project): InboxItem
+    {
+        $notice = $this->item($context, 'api-key-notice', $project, InboxItemKind::Notice, 'The weekly mutation run failed', false, 5_400, [
+            'body' => 'The weekly CI run of `just mutation` ended with a failure. Read the run log before the next release.',
+        ], static function (InboxItem $item): void {
+            $item->dismissible = true;
+            $item->apiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
+            $item->apiKeyName = 'Weekly CI';
+            $item->dedupeKey = 'weekly-mutation';
+        }, InboxAskOrigin::ApiKey);
+
+        $id = DevSeedId::of('inbox/ask/api-key-notice');
+        $ask = $this->em->find(InboxAsk::class, $id);
+        if (!$ask instanceof InboxAsk) {
+            $ask = new InboxAsk(project: $project, sessionId: null, bridgeId: null, createdAt: $context->at(5_400));
+            $ask->closedAt = $context->at(5_400);
+            $context->ids->assign($ask, $id);
+            $this->em->persist($ask);
+        }
+        if (!$ask->items->exists(static fn (int $key, InboxAskItem $link): bool => $link->item === $notice)) {
+            $ask->items->add(new InboxAskItem($ask, $notice));
+        }
+
+        return $notice;
+    }
+
     /**
      * Finds the item by its fixed id, or stores a new one.
      *
      * @param array{body?: string, options?: list<string>, freeText?: bool} $fields
      * @param (\Closure(InboxItem): void)|null                              $adjust runs only on a new item
      */
-    private function item(SeedContext $context, string $slug, Project $project, InboxItemKind $kind, string $title, bool $blocking, int $secondsAgo, array $fields, ?\Closure $adjust = null): InboxItem
+    private function item(SeedContext $context, string $slug, Project $project, InboxItemKind $kind, string $title, bool $blocking, int $secondsAgo, array $fields, ?\Closure $adjust = null, InboxAskOrigin $origin = InboxAskOrigin::Agent): InboxItem
     {
         $id = DevSeedId::of('inbox/item/'.$slug);
         $existing = $this->em->find(InboxItem::class, $id);
@@ -417,7 +445,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             kind: $kind,
             title: $title,
             blocking: $blocking,
-            origin: InboxAskOrigin::Agent,
+            origin: $origin,
             body: $fields['body'] ?? null,
             options: $fields['options'] ?? [],
             freeText: $fields['freeText'] ?? false,

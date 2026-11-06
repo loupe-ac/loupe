@@ -18,12 +18,16 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Service\InboxItemCloser;
+use App\Module\Inbox\Service\ReplyCardBuilder;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
-/** Loupe closes a notice when its fact ends, so no person and no agent responds to it. */
+/**
+ * Loupe closes its own notice when the fact ends, so no person and no agent responds to it.
+ * A notice from an API key has no fact that ends, so the owner dismisses it.
+ */
 final class NoticeItemResponsesTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -69,6 +73,28 @@ final class NoticeItemResponsesTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->notice->state);
     }
 
+    public function test_the_reply_card_offers_a_dismiss_on_a_notice_from_an_api_key_alone(): void
+    {
+        $builder = self::getContainer()->get(ReplyCardBuilder::class);
+        self::assertInstanceOf(ReplyCardBuilder::class, $builder);
+        $fromKey = $this->keyNotice();
+
+        self::assertNull($builder->build($this->notice)?->dismiss);
+        self::assertNotNull($builder->build($fromKey)?->dismiss);
+    }
+
+    public function test_the_owner_dismisses_a_notice_from_an_api_key(): void
+    {
+        $handler = self::getContainer()->get(DeclineInboxItemHandler::class);
+        self::assertInstanceOf(DeclineInboxItemHandler::class, $handler);
+        $fromKey = $this->keyNotice();
+
+        $handler(new DeclineInboxItemCommand($fromKey, 'Seen'));
+
+        self::assertSame(InboxItemState::Declined, $fromKey->state);
+        self::assertSame('Seen', $fromKey->note);
+    }
+
     public function test_withdraw_refuses_a_notice(): void
     {
         $handler = self::getContainer()->get(WithdrawInboxItemHandler::class);
@@ -76,6 +102,18 @@ final class NoticeItemResponsesTest extends KernelTestCase
 
         self::assertSame(['itemId' => WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE], $this->refusal(fn () => $handler(new WithdrawInboxItemCommand($this->notice, 'Not needed', Uuid::v4()))));
         self::assertSame(InboxItemState::Open, $this->notice->state);
+    }
+
+    private function keyNotice(): InboxItem
+    {
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $notice = new InboxItem(project: $this->notice->project, number: 2, kind: InboxItemKind::Notice, title: 'The weekly run failed', blocking: false, origin: InboxAskOrigin::ApiKey);
+        $notice->dismissible = true;
+        $em->persist($notice);
+        $em->flush();
+
+        return $notice;
     }
 
     /**

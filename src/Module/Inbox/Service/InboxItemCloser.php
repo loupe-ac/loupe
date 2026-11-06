@@ -127,7 +127,7 @@ final readonly class InboxItemCloser
     /** Why the item takes no response now, or null when it does. A sent response is final. */
     private static function refusal(InboxItem $item): ?string
     {
-        if (InboxItemKind::Notice === $item->kind) {
+        if (InboxItemKind::Notice === $item->kind && !$item->dismissible) {
             return self::ERROR_NOTICE;
         }
 

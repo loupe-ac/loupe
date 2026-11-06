@@ -42,7 +42,8 @@ final readonly class ReplyCardBuilder
         $targetGone = InboxItemKind::Review === $item->kind && !$item->isAutomatic() && self::targetIsGone($review);
 
         $response = $targetGone ? null : array_find($actions, static fn (ItemAction $action): bool => \in_array($action->kind, [InboxActionKind::Answer, InboxActionKind::Complete, InboxActionKind::SubmitReview], true));
-        $dismiss = \in_array($item->kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true)
+        // A notice of Loupe closes when its fact ends. A notice from the API is dismissible, because nothing else closes it.
+        $dismiss = InboxItemKind::Workflow === $item->kind || (InboxItemKind::Notice === $item->kind && !$item->dismissible)
             ? null
             : array_find($actions, static fn (ItemAction $action): bool => InboxActionKind::Dismiss === $action->kind);
 
