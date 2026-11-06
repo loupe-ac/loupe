@@ -1312,7 +1312,12 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	if code == 0 {
 		code = -1
 	}
-	failed := workerResult{exitCode: code, output: failedOutput(failure, res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
+	// A run adopted after a handover holds no before rule, so its output names no command.
+	var argv []string
+	if p.spec.before != nil {
+		argv = p.spec.before.Argv
+	}
+	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
 }
 

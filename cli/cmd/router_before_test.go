@@ -156,7 +156,7 @@ func TestAFailedBeforeFailsTheRunAndFreesTheCard(t *testing.T) {
 	if failed.ExitCode == nil || *failed.ExitCode != 2 || failed.HasResult == nil || *failed.HasResult || failed.FailureReason != nil {
 		t.Fatalf("failed = %+v", failed)
 	}
-	if failed.Output != "the before command exited with code 2\nnpm ci failed" || failed.SessionID != "" || failed.ResumeSkipped != "" {
+	if failed.Output != "the before command exited with code 2\ncommand: 'prepare' '87'\nnpm ci failed" || failed.SessionID != "" || failed.ResumeSkipped != "" {
 		t.Fatalf("failed = %+v", failed)
 	}
 	calls := h.worker.recorded()
@@ -180,7 +180,7 @@ func TestAFailedBeforeReportsTheEndOfItsOutput(t *testing.T) {
 	h.send(cardMoved(87))
 
 	out := outcomeOf(t, rec.states(), rec.states()[0].runID).Output
-	if !strings.HasPrefix(out, "the before command exited with code 1\n"+truncatedMark) || !strings.HasSuffix(out, "the real error") || len(out) > maxOutput {
+	if !strings.HasPrefix(out, "the before command exited with code 1\ncommand: 'prepare' '87'\n"+truncatedMark) || !strings.HasSuffix(out, "the real error") || len(out) > maxOutput {
 		t.Fatalf("output = %d bytes, %q…", len(out), out[:min(80, len(out))])
 	}
 	if n := strings.Count(out, "truncated"); n != 1 {
@@ -240,7 +240,7 @@ func TestABeforeFolderThatIsNoDirectoryFails(t *testing.T) {
 	h.send(cardMoved(87))
 
 	failed := outcomeOf(t, rec.states(), rec.states()[0].runID)
-	if failed.State != api.RunFailed || failed.ExitCode == nil || *failed.ExitCode != -1 || failed.Output != f.result.reason || h.runs() != 0 {
+	if failed.State != api.RunFailed || failed.ExitCode == nil || *failed.ExitCode != -1 || failed.Output != f.result.reason+"\ncommand: 'prepare' '87'" || h.runs() != 0 {
 		t.Fatalf("failed = %+v, runs = %d", failed, h.runs())
 	}
 }
@@ -409,5 +409,21 @@ func TestABeforeThatEndsInAHandoverPauseWaitsForIt(t *testing.T) {
 	h.router.wg.Wait()
 	if calls := h.worker.recorded(); len(calls) != 1 || calls[0].dir != folder {
 		t.Fatalf("worker = %+v", calls)
+	}
+}
+
+// withCommandLine names the filled command on the second line, quotes each
+// argument, and cuts the line at a rune start within the cap.
+func TestWithCommandLineNamesTheCommand(t *testing.T) {
+	if got := withCommandLine("the before command exited with code 1", []string{"bin/before.sh", "it's", "87"}); got != "the before command exited with code 1\ncommand: 'bin/before.sh' 'it'\\''s' '87'" {
+		t.Fatalf("got %q", got)
+	}
+	if got := withCommandLine("", []string{"x"}); got != "" {
+		t.Fatalf("a success gets no line, got %q", got)
+	}
+	long := withCommandLine("f", []string{strings.Repeat("é", 400)})
+	line := strings.TrimPrefix(long, "f\ncommand: ")
+	if len(line) > maxCommandLine || !utf8.ValidString(line) {
+		t.Fatalf("line = %d bytes, valid = %v", len(line), utf8.ValidString(line))
 	}
 }
