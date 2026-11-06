@@ -11,13 +11,12 @@
     {% endif %}
     <twig:Ds:Dialog aria-labelledby="share-experiment-title-{{ experiment_share_key(experiment) }}" data-action="cancel->modal#close">
         <h2 class="lp-dialog-title" id="share-experiment-title-{{ experiment_share_key(experiment) }}">{{ 'bridge.experiments.share.title'|trans }}</h2>
-        {% if archived %}
-            <p class="lp-dialog-desc" data-experiment-share-archived>{{ 'bridge.experiments.share.archived_note'|trans }}</p>
-        {% endif %}
-        {% include '@Insights/_share_experiment_dialog_body.html.twig' with {project: project, experiment: experiment, share: share, error: null} only %}
+        {% include '@Insights/_share_experiment_dialog_body.html.twig' with {project: project, experiment: experiment, share: share, error: null, archived: archived} only %}
+        {% if not archived %}
         <twig:Ds:FormActions>
             <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#close">{{ 'insights.public_link.dialog.done'|trans }}</twig:Ds:Button>
         </twig:Ds:FormActions>
+        {% endif %}
     </twig:Ds:Dialog>
 </div>
 {% endif %}

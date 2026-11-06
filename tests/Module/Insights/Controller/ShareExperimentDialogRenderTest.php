@@ -103,7 +103,26 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
         $client->loginUser($project->owner);
         $crawler = $client->request(Request::METHOD_GET, $path);
 
-        self::assertSame('This experiment is archived. Sharing it unarchives it.', trim($crawler->filter('[data-experiment-share-archived]')->text()));
+        $dialog = $crawler->filter('.lp-experiment-heading [data-share-dialog] dialog');
+        self::assertSame('This experiment is archived. Sharing it unarchives it.', trim($dialog->filter('[data-experiment-share-archived]')->text()));
+        $form = $dialog->filter('form[data-experiment-share-confirm]');
+        self::assertCount(1, $form);
+        self::assertSame('false', $form->attr('data-turbo'));
+        self::assertNull($form->attr('data-controller'));
+        self::assertCount(0, $dialog->filter('input.lp-switch'));
+        self::assertCount(1, $dialog->filter('textarea[data-share-note]'));
+        self::assertSame('Cancel', trim($dialog->filter('button[data-action="click->modal#close"]')->text()));
+        self::assertSame('Share and unarchive', trim($dialog->filter('button[type="submit"][data-experiment-share-unarchive]')->text()));
+
+        $noteField = (string) $form->filter('textarea')->attr('name');
+        $client->submit($form->form([$noteField => 'Back again.']));
+
+        self::assertResponseRedirects($path);
+        $crawler = $client->followRedirect();
+        self::assertSelectorNotExists('[data-experiment-archived]');
+        self::assertSame('Public', trim($crawler->filter('.lp-experiment-heading [data-experiment-public="trial"] .lp-tag')->text()));
+        self::assertSame('Back again.', trim($crawler->filter('.lp-experiment-heading textarea[data-share-note]')->text()));
+        self::assertCount(1, $crawler->filter('.lp-experiment-heading [data-share-dialog] input.lp-switch[checked]'));
     }
 
     public function test_each_row_of_the_list_has_a_share_button_and_the_public_tag(): void
@@ -170,11 +189,22 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
             'experiment' => 'trial',
             'share' => new PublicLinkShareView(null, PublicShareBlock::FlagOff),
             'error' => null,
+            'archived' => false,
         ]);
 
         self::assertStringContainsString('Public links are switched off on this instance.', $html);
         self::assertMatchesRegularExpression('/<input[^>]*disabled="disabled"[^>]*role="switch"/', $html);
         self::assertMatchesRegularExpression('/<textarea[^>]*disabled="disabled"/', $html);
+
+        $archived = $twig->render('@Insights/_share_experiment_dialog_body.html.twig', [
+            'project' => $this->em()->find(Project::class, $project->id),
+            'experiment' => 'trial',
+            'share' => new PublicLinkShareView(null, PublicShareBlock::FlagOff),
+            'error' => null,
+            'archived' => true,
+        ]);
+
+        self::assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*disabled[^>]*data-experiment-share-unarchive/', $archived);
     }
 
     private function pagePath(Project $project): string

@@ -7434,6 +7434,8 @@
             <trans-unit id="bridge.experiments.share.title"><source>bridge.experiments.share.title</source><target>Share this experiment</target></trans-unit>
             <trans-unit id="bridge.experiments.share.row"><source>bridge.experiments.share.row</source><target>Share %name%</target></trans-unit>
             <trans-unit id="bridge.experiments.share.archived_note"><source>bridge.experiments.share.archived_note</source><target>This experiment is archived. Sharing it unarchives it.</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.unarchive"><source>bridge.experiments.share.unarchive</source><target>Share and unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.cancel"><source>bridge.experiments.share.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="bridge.experiments.share.invalid"><source>bridge.experiments.share.invalid</source><target>Loupe could not change the sharing of this experiment. Try again.</target></trans-unit>
             <trans-unit id="bridge.experiments.archive.error.unknown"><source>bridge.experiments.archive.error.unknown</source><target>No run and no card pin names this experiment, so there is nothing to archive.</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>

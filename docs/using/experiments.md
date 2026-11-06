@@ -89,7 +89,8 @@ An experiment with a working link carries a **Public** tag in its heading and on
 its row in the list.
 
 Sharing an archived experiment unarchives it. The dialog of an archived
-experiment says so.
+experiment says so, and shows the note field with **Cancel** and **Share and
+unarchive**. Nothing changes until you select **Share and unarchive**.
 
 ### What a visitor sees
 
