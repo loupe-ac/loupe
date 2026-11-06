@@ -54,9 +54,10 @@ plain prose such as "card 1116", "PR #1295" and "pull request 1295".
 ## The inbox page
 
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
-many items are still open. The link is absent while the flag is off.
+many asks are still open. It matches the open count of the inbox page, so an ask
+that holds several items counts once. The link is absent while the flag is off.
 
-The browser tab title starts with the number of open items over all your
+The browser tab title starts with the number of open asks over all your
 projects, such as `(3) Board`. The title has no number at zero.
 
 The page has no header of its own. The activity page stays in the project
