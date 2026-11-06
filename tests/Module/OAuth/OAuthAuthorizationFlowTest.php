@@ -378,7 +378,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertIsString($tokens['access_token'] ?? null);
 
-        $this->browser->request(Request::METHOD_GET, '/api/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$tokens['access_token']]);
+        $this->browser->request(Request::METHOD_GET, '/api/v1/bridge/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$tokens['access_token']]);
         self::assertResponseIsSuccessful();
         $this->browser->request(Request::METHOD_POST, '/mcp', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$tokens['access_token']], content: self::INIT);
         self::assertResponseStatusCodeSame(403);

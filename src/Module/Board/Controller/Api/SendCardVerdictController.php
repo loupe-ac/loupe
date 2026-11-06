@@ -44,12 +44,6 @@ use Symfony\Component\Uid\Uuid;
     requirements: ['cardId' => '[^/]+'],
     methods: ['POST'],
 )]
-#[Route(
-    '/api/board/cards/{cardId}/verdicts',
-    name: 'api_legacy_board_card_verdict_send',
-    requirements: ['cardId' => '[^/]+'],
-    methods: ['POST'],
-)]
 final class SendCardVerdictController extends AppController
 {
     private const array REFUSALS = [

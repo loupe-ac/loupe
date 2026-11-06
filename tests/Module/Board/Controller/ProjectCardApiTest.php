@@ -26,7 +26,7 @@ final class ProjectCardApiTest extends WebTestCase
         $card = $this->card($em, $project, 'Second', 'in-progress');
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $this->get($client, '/api/projects/card-app/board/cards/'.$card->id, $raw);
+        $this->get($client, '/api/v1/bridge/projects/card-app/cards/'.$card->id, $raw);
 
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString(
@@ -47,7 +47,7 @@ final class ProjectCardApiTest extends WebTestCase
         $holds->hold($project, $card->id ?? throw new \LogicException('A created card has an id.'), $owner);
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/cards/'.$card->id, $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/cards/'.$card->id, $raw);
 
         self::assertResponseIsSuccessful();
         $body = json_decode((string) $client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
@@ -66,7 +66,7 @@ final class ProjectCardApiTest extends WebTestCase
         $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $project);
 
         foreach ([(string) $project->id, 'card-bound'] as $handle) {
-            $this->get($client, '/api/projects/'.$handle.'/board/cards/'.$card->id, $raw);
+            $this->get($client, '/api/v1/bridge/projects/'.$handle.'/cards/'.$card->id, $raw);
 
             self::assertResponseIsSuccessful($handle);
         }
@@ -82,10 +82,10 @@ final class ProjectCardApiTest extends WebTestCase
         $elsewhere = $this->card($em, $this->project($em, $owner, 'Card Away'), 'Away');
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/cards/'.$elsewhere->id, $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/cards/'.$elsewhere->id, $raw);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"card_not_found"}', (string) $client->getResponse()->getContent());
+        self::assertSame('card_not_found', $this->problemCode($client));
     }
 
     public function test_an_unknown_card_is_not_found(): void
@@ -97,10 +97,10 @@ final class ProjectCardApiTest extends WebTestCase
         $raw = AgentCredential::agentToken(static::getContainer(), $owner);
 
         foreach ([(string) Uuid::v7(), 'not-a-uuid'] as $cardId) {
-            $this->get($client, '/api/projects/'.$project->id.'/board/cards/'.$cardId, $raw);
+            $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/cards/'.$cardId, $raw);
 
             self::assertResponseStatusCodeSame(404);
-            self::assertJsonStringEqualsJsonString('{"error":"card_not_found"}', (string) $client->getResponse()->getContent(), $cardId);
+            self::assertSame('card_not_found', $this->problemCode($client), $cardId);
         }
     }
 
@@ -113,10 +113,10 @@ final class ProjectCardApiTest extends WebTestCase
         $card = $this->card($em, $other, 'Private');
         $raw = AgentCredential::agentToken(static::getContainer(), $caller);
 
-        $this->get($client, '/api/projects/'.$other->id.'/board/cards/'.$card->id, $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$other->id.'/cards/'.$card->id, $raw);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+        self::assertSame('project_not_found', $this->problemCode($client));
     }
 
     public function test_a_widget_token_is_refused_by_the_firewall(): void
@@ -128,7 +128,7 @@ final class ProjectCardApiTest extends WebTestCase
         $card = $this->card($em, $project, 'Widget');
         $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'site-review', $project);
 
-        $this->get($client, '/api/projects/'.$project->id.'/board/cards/'.$card->id, $raw);
+        $this->get($client, '/api/v1/bridge/projects/'.$project->id.'/cards/'.$card->id, $raw);
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -140,7 +140,7 @@ final class ProjectCardApiTest extends WebTestCase
         $project = $this->project($em, $this->user($em, 'card-api-anonymous@example.com'), 'Card Anonymous');
         $card = $this->card($em, $project, 'Anonymous');
 
-        $client->request(Request::METHOD_GET, '/api/projects/'.$project->id.'/board/cards/'.$card->id);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects/'.$project->id.'/cards/'.$card->id);
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -151,6 +151,14 @@ final class ProjectCardApiTest extends WebTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
         return $em;
+    }
+
+    private function problemCode(KernelBrowser $client): mixed
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+
+        return $body['code'] ?? null;
     }
 
     private function get(KernelBrowser $client, string $path, string $raw): void

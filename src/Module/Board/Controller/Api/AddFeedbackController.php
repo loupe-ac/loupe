@@ -23,8 +23,8 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 /**
  * Saves a widget note on its card, and creates the card when the note asks
- * for one. `config/packages/security.yaml` grants the path to the widget token
- * in its own line, next to the card picker's.
+ * for one. `config/packages/security.yaml` grants the widget prefix to the
+ * widget token.
  */
 #[OA\Post(operationId: 'addWidgetFeedback', summary: 'Save a widget note on its card', requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object', additionalProperties: true)), tags: ['Widget'], parameters: [
     new OA\Parameter(name: 'X-Loupe-Project', description: 'The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.', in: 'header', schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -44,11 +44,6 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 #[Route(
     '/api/v1/live-review-widget/feedback',
     name: 'api_board_feedback_add',
-    methods: ['POST'],
-)]
-#[Route(
-    '/api/board/feedback',
-    name: 'api_legacy_board_feedback_add',
     methods: ['POST'],
 )]
 final class AddFeedbackController extends AppController

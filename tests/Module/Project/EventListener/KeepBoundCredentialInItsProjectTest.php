@@ -51,7 +51,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
 
         $swept = 0;
         foreach ($router->getRouteCollection() as $name => $route) {
-            if (!str_starts_with($route->getPath(), '/api/projects/{handle}') && !str_starts_with($route->getPath(), '/api/v1/bridge/projects/{handle}')) {
+            if (!str_starts_with($route->getPath(), '/api/v1/bridge/projects/{handle}')) {
                 continue;
             }
 
@@ -69,20 +69,14 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
             ], content: '{}');
 
             self::assertResponseStatusCodeSame(404, $name.' let a bound credential reach another project.');
-            if (str_starts_with($uri, '/api/v1/')) {
-                self::assertSame('application/problem+json', $this->client->getResponse()->headers->get('Content-Type'), $name);
-                $problem = json_decode((string) $this->client->getResponse()->getContent(), true);
-                self::assertIsArray($problem, $name);
-                self::assertSame('project_not_found', $problem['code'] ?? null, $name);
-                self::assertSame(404, $problem['status'] ?? null, $name);
-
-                continue;
-            }
-
-            self::assertSame('{"error":"project_not_found"}', $this->client->getResponse()->getContent(), $name);
+            self::assertSame('application/problem+json', $this->client->getResponse()->headers->get('Content-Type'), $name);
+            $problem = json_decode((string) $this->client->getResponse()->getContent(), true);
+            self::assertIsArray($problem, $name);
+            self::assertSame('project_not_found', $problem['code'] ?? null, $name);
+            self::assertSame(404, $problem['status'] ?? null, $name);
         }
 
-        self::assertGreaterThanOrEqual(26, $swept);
+        self::assertGreaterThanOrEqual(13, $swept);
     }
 
     public function test_a_refusal_leaves_a_security_audit_row(): void
@@ -161,7 +155,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
         $owner = $this->scenario->createUser('unit-none@example.com');
         $other = $this->scenario->createProject($owner, 'Other site');
 
-        self::assertNull($this->invoke(null, $owner, '/api/projects/'.$other->id.'/board/columns', (string) $other->id));
+        self::assertNull($this->invoke(null, $owner, '/api/v1/bridge/projects/'.$other->id.'/columns', (string) $other->id));
         self::assertSame([], $this->audit->records('project.agent_route_refused'));
     }
 
@@ -172,7 +166,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
         $second = $this->scenario->createProject($owner, 'Second site');
         $credential = new AuthenticatedCredential((string) Uuid::v7(), ['ROLE_AGENT'], allProjects: true);
 
-        self::assertNull($this->invoke($credential, $owner, '/api/projects/'.$second->id.'/board/columns', (string) $second->id));
+        self::assertNull($this->invoke($credential, $owner, '/api/v1/bridge/projects/'.$second->id.'/columns', (string) $second->id));
         self::assertSame([], $this->audit->records('project.agent_route_refused'));
     }
 
@@ -195,11 +189,11 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
         $credential = new AuthenticatedCredential((string) Uuid::v7(), ['ROLE_AGENT'], $first->id);
         $this->refusals()->create('token:'.$credential->id)->consume(30);
 
-        self::assertNull($this->invoke($credential, $owner, '/api/projects/'.$first->id.'/board/columns', (string) $first->id));
-        self::assertNull($this->invoke($credential, $owner, '/api/projects/'.$first->id.'/board/columns', (string) $first->id));
+        self::assertNull($this->invoke($credential, $owner, '/api/v1/bridge/projects/'.$first->id.'/columns', (string) $first->id));
+        self::assertNull($this->invoke($credential, $owner, '/api/v1/bridge/projects/'.$first->id.'/columns', (string) $first->id));
 
         $this->expectException(TooManyRequestsHttpException::class);
-        $this->invoke($credential, $owner, '/api/projects/'.$second->id.'/board/columns', (string) $second->id);
+        $this->invoke($credential, $owner, '/api/v1/bridge/projects/'.$second->id.'/columns', (string) $second->id);
     }
 
     public function test_an_accepted_request_spends_no_refusal_token(): void
@@ -208,7 +202,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
         $first = $this->scenario->createProject($owner, 'First site');
         $credential = new AuthenticatedCredential((string) Uuid::v7(), ['ROLE_AGENT'], $first->id);
 
-        $response = $this->invoke($credential, $owner, '/api/projects/'.$first->id.'/board/columns', (string) $first->id);
+        $response = $this->invoke($credential, $owner, '/api/v1/bridge/projects/'.$first->id.'/columns', (string) $first->id);
 
         self::assertNull($response);
         self::assertSame(30, $this->refusals()->create('token:'.$credential->id)->consume(0)->getRemainingTokens());
@@ -245,7 +239,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
 
     private function get(string $token, string $handle): void
     {
-        $this->client->request(Request::METHOD_GET, '/api/projects/'.$handle.'/board/columns', server: [
+        $this->client->request(Request::METHOD_GET, '/api/v1/bridge/projects/'.$handle.'/columns', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$token,
         ]);
     }

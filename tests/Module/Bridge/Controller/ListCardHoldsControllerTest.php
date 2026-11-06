@@ -54,7 +54,7 @@ final class ListCardHoldsControllerTest extends WebTestCase
         $owner = $this->user($em, 'holds-list-empty@example.com');
         $this->project($em, $owner, 'Holds empty');
 
-        $client->request(Request::METHOD_GET, '/api/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$this->agentToken($client, $owner)]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$this->agentToken($client, $owner)]);
 
         self::assertResponseIsSuccessful();
         self::assertSame('{"holds":[]}', $client->getResponse()->getContent());
@@ -70,16 +70,18 @@ final class ListCardHoldsControllerTest extends WebTestCase
         $this->cardHolds()->hold($project, Uuid::v7(), $owner);
         $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'site-review', $project);
 
-        $client->request(Request::METHOD_GET, '/api/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString('{"error":"insufficient_scope"}', (string) $client->getResponse()->getContent());
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame('credential_not_allowed', $body['code']);
     }
 
     public function test_no_token_is_unauthorized(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_GET, '/api/card-holds');
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/card-holds');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -98,7 +100,7 @@ final class ListCardHoldsControllerTest extends WebTestCase
 
         $this->list($client, $first);
 
-        $client->request(Request::METHOD_GET, '/api/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$first]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$first]);
         self::assertResponseStatusCodeSame(429);
 
         $this->list($client, $second);
@@ -107,7 +109,7 @@ final class ListCardHoldsControllerTest extends WebTestCase
     /** @return array<mixed> */
     private function list(KernelBrowser $client, string $raw): array
     {
-        $client->request(Request::METHOD_GET, '/api/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/card-holds', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);

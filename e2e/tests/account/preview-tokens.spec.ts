@@ -64,7 +64,7 @@ async function mintPreviewToken(
     cardPath?: string,
 ): Promise<void> {
     const response = await page.request.post(
-        `/api/projects/${projectId}/preview-tokens`,
+        `/api/v1/bridge/projects/${projectId}/preview-tokens`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

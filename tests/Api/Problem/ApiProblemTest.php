@@ -31,29 +31,6 @@ final class ApiProblemTest extends TestCase
         $problem = new ApiProblem(422, 'validation_failed', 'Validation failed', 'One or more fields were refused.', errors: [['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']]);
 
         self::assertSame([['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']], $problem->toProblemBody()['errors']);
-        self::assertSame([['field' => 'title', 'code' => 'title_blank', 'message' => 'Blank.']], $problem->toLegacyBody()['errors']);
-    }
-
-    #[TestWith(['credential_not_allowed', 'insufficient_scope'])]
-    #[TestWith(['invalid_credentials', 'unauthorized'])]
-    #[TestWith(['project_not_found', 'project_not_found'])]
-    public function test_the_legacy_body_keeps_the_old_name_of_a_renamed_code(string $code, string $legacy): void
-    {
-        $body = new ApiProblem(403, $code, 'Title', 'Detail', extras: ['slug' => 'x'])->toLegacyBody();
-
-        self::assertSame(['error' => $legacy, 'slug' => 'x'], $body);
-    }
-
-    #[TestWith(['/api/v1/projects', true])]
-    #[TestWith(['/api/v2/projects', true])]
-    #[TestWith(['/api/v1', true])]
-    #[TestWith(['/api/versions', true])]
-    #[TestWith(['/api/projects', false])]
-    #[TestWith(['/api/events', false])]
-    #[TestWith(['/api/v1x/projects', false])]
-    public function test_it_tells_which_paths_answer_problem_json(string $path, bool $expected): void
-    {
-        self::assertSame($expected, ApiPaths::usesProblemJson($path));
     }
 
     #[TestWith(['/api/v1/projects', true])]
@@ -62,22 +39,13 @@ final class ApiProblemTest extends TestCase
     #[TestWith(['/api/v1/bridge/heartbeat', false])]
     #[TestWith(['/api/v1/live-review-widget/review', false])]
     #[TestWith(['/api/v1/bridges', true])]
-    #[TestWith(['/api/projects', false])]
     #[TestWith(['/api/v2/projects', false])]
     public function test_it_tells_which_paths_belong_to_the_public_contract(string $path, bool $expected): void
     {
         self::assertSame($expected, ApiPaths::isPublic($path));
     }
 
-    public function test_a_legacy_error_overrides_the_code_on_an_old_path_only(): void
-    {
-        $problem = new ApiProblem(426, 'no_bridge_id', 'Upgrade required', 'Upgrade the CLI.', legacyError: 'Upgrade the CLI.');
-
-        self::assertSame(['error' => 'Upgrade the CLI.'], $problem->toLegacyBody());
-        self::assertSame('no_bridge_id', $problem->toProblemBody()['code']);
-    }
-
-    public function test_it_answers_problem_json_on_a_new_path(): void
+    public function test_it_answers_problem_json(): void
     {
         $problem = new ApiProblem(404, 'run_not_found', 'Run not found', 'No such run.', headers: ['X-Test' => '1']);
 
@@ -89,13 +57,15 @@ final class ApiProblemTest extends TestCase
         self::assertSame($problem->toProblemBody(), json_decode((string) $response->getContent(), true));
     }
 
-    public function test_it_answers_the_flat_error_on_an_old_path(): void
+    #[TestWith(['credential_not_allowed', 'insufficient_scope'])]
+    #[TestWith(['invalid_credentials', 'unauthorized'])]
+    #[TestWith(['subscription_required', 'subscription_required'])]
+    public function test_a_path_outside_api_answers_the_flat_body(string $code, string $expected): void
     {
-        $response = new ApiProblem(404, 'run_not_found', 'Run not found', 'No such run.')->toResponse('/api/runs/x');
+        $response = new ApiProblem(403, $code, 'Title', 'Detail', extras: ['subscribeUrl' => 'https://x'])->toResponse('/mcp');
 
-        self::assertSame(404, $response->getStatusCode());
-        self::assertStringNotContainsString('problem+json', (string) $response->headers->get('Content-Type'));
-        self::assertSame('{"error":"run_not_found"}', $response->getContent());
+        self::assertSame(['error' => $expected, 'subscribeUrl' => 'https://x'], json_decode((string) $response->getContent(), true));
+        self::assertNotSame('application/problem+json', $response->headers->get('Content-Type'));
     }
 
     public function test_the_refused_factory_derives_the_title_from_the_code(): void

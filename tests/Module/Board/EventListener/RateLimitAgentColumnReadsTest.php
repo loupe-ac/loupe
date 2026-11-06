@@ -70,16 +70,6 @@ final class RateLimitAgentColumnReadsTest extends TestCase
         $listener($this->event('api_project_board_card_show', '203.0.113.7'));
     }
 
-    public function test_the_legacy_route_names_draw_on_the_same_bucket(): void
-    {
-        $listener = $this->listener('agent-token-1');
-
-        $listener($this->event('api_legacy_project_board_column_list', '203.0.113.7'));
-
-        $this->expectException(TooManyRequestsHttpException::class);
-        $listener($this->event('api_project_board_card_show', '203.0.113.7'));
-    }
-
     private function listener(?string $apiTokenId, ?StorageInterface $storage = null): RateLimitAgentColumnReads
     {
         $tokenStorage = new TokenStorage();
@@ -108,7 +98,7 @@ final class RateLimitAgentColumnReadsTest extends TestCase
 
     private function event(string $route, string $ip): RequestEvent
     {
-        $request = Request::create('/api/projects/anything/board/columns', Request::METHOD_GET, server: ['REMOTE_ADDR' => $ip]);
+        $request = Request::create('/api/v1/bridge/projects/anything/columns', Request::METHOD_GET, server: ['REMOTE_ADDR' => $ip]);
         $request->attributes->set('_route', $route);
 
         return new RequestEvent(

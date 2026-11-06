@@ -49,12 +49,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['bridgeId' => Requirement::UUID],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/bridges/{bridgeId}/runs',
-    name: 'api_legacy_bridge_runs_report',
-    requirements: ['bridgeId' => Requirement::UUID],
-    methods: ['PUT'],
-)]
 final class ReportBridgeRunsController extends AppController
 {
     public function __construct(

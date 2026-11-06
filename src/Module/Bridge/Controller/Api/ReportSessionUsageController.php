@@ -55,12 +55,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['handle' => '[^/]+', 'sessionId' => '[^/]+'],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/projects/{handle}/worker-runs/sessions/{sessionId}/usage',
-    name: 'api_legacy_project_worker_run_session_usage_report',
-    requirements: ['handle' => '[^/]+', 'sessionId' => '[^/]+'],
-    methods: ['PUT'],
-)]
 final class ReportSessionUsageController extends AppController
 {
     public function __construct(

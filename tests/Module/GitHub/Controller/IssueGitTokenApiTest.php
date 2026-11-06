@@ -47,7 +47,7 @@ final class IssueGitTokenApiTest extends WebTestCase
 
     public function test_a_request_with_no_token_is_unauthorized(): void
     {
-        $this->client->request(Request::METHOD_POST, '/api/projects/some-site/git-token');
+        $this->client->request(Request::METHOD_POST, '/api/v1/bridge/projects/some-site/git-token');
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -99,7 +99,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame('git_identity_not_managed', $this->json()['error']);
+        self::assertSame('git_identity_not_managed', $this->json()['code']);
         self::assertSame([], $this->requests);
     }
 
@@ -110,7 +110,9 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'missing_grant', 'missing' => ['contents']], $this->json());
+        $body = $this->json();
+        self::assertSame('missing_grant', $body['code'] ?? null);
+        self::assertSame(['contents'], $body['missing'] ?? null);
         self::assertCount(1, $this->requests);
     }
 
@@ -123,7 +125,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('no_installation', $this->json()['error']);
+        self::assertSame('no_installation', $this->json()['code']);
         self::assertSame([], $this->requests);
     }
 
@@ -138,7 +140,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('installation_suspended', $this->json()['error']);
+        self::assertSame('installation_suspended', $this->json()['code']);
     }
 
     public function test_it_serves_the_repository_of_the_project_and_never_the_one_of_another_project(): void
@@ -176,7 +178,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id, 'acme/site-9004');
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('no_repository', $this->json()['error']);
+        self::assertSame('no_repository', $this->json()['code']);
         self::assertSame([], $this->requests);
     }
 
@@ -252,7 +254,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(502);
-        self::assertSame('github_unavailable', $this->json()['error']);
+        self::assertSame('github_unavailable', $this->json()['code']);
     }
 
     public function test_it_names_a_missing_app_signing_key_as_a_setup_problem(): void
@@ -265,7 +267,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('app_not_configured', $this->json()['error']);
+        self::assertSame('app_not_configured', $this->json()['code']);
         self::assertSame([], $this->requests);
     }
 
@@ -278,7 +280,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('app_not_configured', $this->json()['error']);
+        self::assertSame('app_not_configured', $this->json()['code']);
         self::assertSame([], $this->requests);
     }
 
@@ -335,7 +337,7 @@ final class IssueGitTokenApiTest extends WebTestCase
     /** @param ?string $repository the repository to ask for, or null to send an empty object */
     private function call(string $token, string $handle, ?string $repository = 'acme/site-'.self::REPOSITORY): void
     {
-        $this->client->request(Request::METHOD_POST, '/api/projects/'.$handle.'/git-token', server: [
+        $this->client->request(Request::METHOD_POST, '/api/v1/bridge/projects/'.$handle.'/git-token', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             'HTTP_ACCEPT' => 'application/json',
             'CONTENT_TYPE' => 'application/json',

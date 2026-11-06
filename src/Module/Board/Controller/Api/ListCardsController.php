@@ -50,11 +50,6 @@ use Symfony\Component\Routing\Attribute\Route;
     name: 'api_board_card_list',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/board/cards',
-    name: 'api_legacy_board_card_list',
-    methods: ['GET'],
-)]
 final class ListCardsController extends AppController
 {
     /** One page of cards. A picker is for choosing, not for browsing a backlog. */

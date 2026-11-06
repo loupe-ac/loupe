@@ -188,7 +188,7 @@ final class CardVerdictApiTest extends WebTestCase
         foreach (['request-changes', 'comment'] as $kind) {
             $data = $this->call($client, Request::METHOD_POST, $this->sendPath($card), $raw, ['kind' => $kind, 'message' => '  ', 'submissionId' => '0198a2c0-0000-7000-8000-0000000000aa']);
             self::assertResponseStatusCodeSame(422);
-            self::assertSame('message_required', $data['error']);
+            self::assertSame('message_required', $data['code']);
         }
         self::assertSame([], $this->service(CardVerdictRepository::class)->findAll());
     }
@@ -205,7 +205,7 @@ final class CardVerdictApiTest extends WebTestCase
         $data = $this->call($client, Request::METHOD_POST, $this->sendPath($card), $raw, ['kind' => 'approve', 'pullRequestIds' => [(string) $foreign->id], 'submissionId' => '0198a2c0-0000-7000-8000-0000000000aa']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('pull_request_not_on_card', $data['error']);
+        self::assertSame('pull_request_not_on_card', $data['code']);
         self::assertSame([], $this->service(CardVerdictRepository::class)->findAll());
     }
 
@@ -226,7 +226,7 @@ final class CardVerdictApiTest extends WebTestCase
 
         $changed = $this->call($client, Request::METHOD_POST, $this->sendPath($card), $raw, [...$body, 'message' => 'Another thought.']);
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('submission_reused', $changed['error']);
+        self::assertSame('submission_reused', $changed['code']);
 
         $this->em->clear();
         self::assertCount(1, $this->service(CardVerdictRepository::class)->findAll());
@@ -286,7 +286,7 @@ final class CardVerdictApiTest extends WebTestCase
         $data = $this->call($client, Request::METHOD_POST, $this->sendPath($card), $raw, ['kind' => 'approve', 'submissionId' => '0198a2c0-0000-7000-8000-0000000000aa']);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame('card_closed', $data['error']);
+        self::assertSame('card_closed', $data['code']);
     }
 
     public function test_a_token_that_is_not_a_widget_token_is_refused(): void
@@ -312,10 +312,10 @@ final class CardVerdictApiTest extends WebTestCase
     {
         $client = static::createClient();
 
-        $client->request(Request::METHOD_GET, '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdict');
+        $client->request(Request::METHOD_GET, '/api/v1/live-review-widget/cards/0198a2c0-0000-7000-8000-000000000001/verdict');
         self::assertResponseStatusCodeSame(401);
 
-        $client->request(Request::METHOD_POST, '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', server: ['CONTENT_TYPE' => 'application/json'], content: '{"kind":"approve"}');
+        $client->request(Request::METHOD_POST, '/api/v1/live-review-widget/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', server: ['CONTENT_TYPE' => 'application/json'], content: '{"kind":"approve"}');
         self::assertResponseStatusCodeSame(401);
     }
 
@@ -351,12 +351,12 @@ final class CardVerdictApiTest extends WebTestCase
 
     private function panelPath(Card $card): string
     {
-        return '/api/board/cards/'.$card->id.'/verdict';
+        return '/api/v1/live-review-widget/cards/'.$card->id.'/verdict';
     }
 
     private function sendPath(Card $card): string
     {
-        return '/api/board/cards/'.$card->id.'/verdicts';
+        return '/api/v1/live-review-widget/cards/'.$card->id.'/verdicts';
     }
 
     /**

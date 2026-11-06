@@ -34,9 +34,6 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  * cover every project of its owner: a credential bound to one project, or one
  * with no project grant, must never reach past what it covers.
  *
- * The old path stays for one release, because the CLI calls it until the next
- * server release. The exception listener gives it the old flat error body.
- *
  * The rate limit key expression sees only the request, the arguments and this
  * controller, so the key service rides on a public property.
  */
@@ -60,11 +57,6 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 #[Route(
     '/api/v1/projects',
     name: 'api_project_create',
-    methods: ['POST'],
-)]
-#[Route(
-    '/api/projects',
-    name: 'api_legacy_project_create',
     methods: ['POST'],
 )]
 final class CreateProjectController extends AppController

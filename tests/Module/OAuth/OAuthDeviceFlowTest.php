@@ -355,7 +355,7 @@ final class OAuthDeviceFlowTest extends WebTestCase
 
     private function callAgentApi(string $bearer): int
     {
-        $this->browser->request(Request::METHOD_GET, '/api/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$bearer]);
+        $this->browser->request(Request::METHOD_GET, '/api/v1/bridge/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$bearer]);
 
         return $this->browser->getResponse()->getStatusCode();
     }

@@ -117,7 +117,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $repository = static::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $repository);
         self::assertCount(1, $repository->reopenLapsed($this->clock()->now(), [], new \DateTimeImmutable('2000-01-01')));
-        $this->post($client, $raw, '/api/bridges/'.$second->id.'/work-requests/'.$request->id.'/claim');
+        $this->post($client, $raw, '/api/v1/bridge/bridges/'.$second->id.'/work-requests/'.$request->id.'/claim');
         self::assertResponseStatusCodeSame(200);
         $fresh = $this->json($client)['claimToken'];
 
@@ -174,7 +174,7 @@ final class WorkRequestResultApiTest extends WebTestCase
     {
         [$client, $owner, , $bridge] = $this->scenario('result-unknown@example.com');
 
-        $this->put($client, $this->token($owner), '/api/bridges/'.$bridge->id.'/work-requests/'.Uuid::v7().'/result', ['claimToken' => (string) Uuid::v4(), 'state' => 'done']);
+        $this->put($client, $this->token($owner), '/api/v1/bridge/bridges/'.$bridge->id.'/work-requests/'.Uuid::v7().'/result', ['claimToken' => (string) Uuid::v4(), 'state' => 'done']);
 
         $this->assertRefused($client, 404, 'work_request_not_found');
     }
@@ -207,7 +207,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $this->send($client, $raw, $this->path($bridge, $request), $body);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
         self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
     }
 
@@ -282,7 +282,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $this->put($client, $raw, $this->path($bridge, $request), self::networkHandBack($token, $changes));
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
         self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
     }
 
@@ -314,7 +314,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $this->put($client, $raw, $this->path($bridge, $request), self::handBack($token, $changes));
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
         self::assertSame(WorkRequestState::Claimed, $this->reload($request)->state);
     }
 
@@ -443,7 +443,7 @@ final class WorkRequestResultApiTest extends WebTestCase
     private function claimed(KernelBrowser $client, string $raw, Project $project, Bridge $bridge): array
     {
         $request = $this->seedWorkRequest($this->em(), $project);
-        $this->post($client, $raw, '/api/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/claim');
+        $this->post($client, $raw, '/api/v1/bridge/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/claim');
         self::assertResponseStatusCodeSame(200);
         $token = $this->json($client)['claimToken'];
         self::assertIsString($token);
@@ -477,7 +477,7 @@ final class WorkRequestResultApiTest extends WebTestCase
 
     private function path(Bridge $bridge, WorkRequest $request): string
     {
-        return '/api/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/result';
+        return '/api/v1/bridge/bridges/'.$bridge->id.'/work-requests/'.$request->id.'/result';
     }
 
     private function post(KernelBrowser $client, string $raw, string $path): void
@@ -513,7 +513,7 @@ final class WorkRequestResultApiTest extends WebTestCase
     private function assertRefused(KernelBrowser $client, int $status, string $code): void
     {
         self::assertResponseStatusCodeSame($status);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
     }
 
     /** @return array<mixed> */
