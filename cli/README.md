@@ -636,7 +636,7 @@ restart finds it ready.
 
 The `Rules:` lines are notes too. When the rule file exists, the check notes a
 file that sets no permission default, one that has no `appPrompts` and no `work`
-entry, and one that maps no project to the current directory. `~` and symlinks
+entry, shared or under a project, and one that maps no project to the current directory. `~` and symlinks
 in a `dir` are resolved before the comparison. `loupe init` fixes each note.
 
 The `Skills:` lines give each skill package in the store with its highest
@@ -756,7 +756,27 @@ slug you do not own, the start check lists the slugs you do own. When a mapped
 project is deleted or stops being yours, the bridge logs one `project_gone`
 line, and runs no more work for it.
 
-The file needs a [`work`](#the-work-map) map or `appPrompts: true`. With
+A project can list its own work entries under `projects.<slug>.work`. Each one
+replaces the shared entry of the same kind for that project, and the project
+uses the shared entry for each kind it does not list. A project entry takes the
+fields of a shared entry, except `action: command`. This needs a CLI released
+after v2.0.2, because an older CLI refuses a `work` key under a project.
+[Work entries of a project](../docs/extending/cli-bridge.md#work-entries-of-a-project)
+gives an example. Run [`loupe bridge check`](#loupe-bridge-check) after a change.
+
+```yaml
+projects:
+  loupe:
+    dir: ~/Code/loupe
+    work:
+      implement:
+        prompt: Implement card {cardNumber}.
+        before:
+          run: [bin/worktrees/bridge-before.sh, '{cardNumber}']
+```
+
+The file needs a [`work`](#the-work-map) entry, shared or under a project, or
+`appPrompts: true`. With
 `appPrompts: true`, the bridge runs the prompt that Loupe sends for a kind of
 work that `work:` does not map. The workflow of the board decides when work
 runs, and the bridge runs it. A file with a `rules:` list or an
@@ -1952,6 +1972,23 @@ the `full` level also gives, lets an agent edit files and run commands in the pr
 watching. The cards it acts on come from your board, and the bridge never puts
 card text into a prompt, but the agent reads that text itself once it starts.
 Point `dir` at a directory you are willing to have changed.
+
+## `loupe bridge check`
+
+Loads the rule file as the bridge does, and makes no network call. It needs a
+CLI released after v2.0.2. It lists each warning on one line:
+
+- a `before`, `refresh`, `reset` or command path that the folder of its project lacks
+- a work kind that one project lists and another project does not
+- a project entry of a kind that an experiment covers, which runs without the variants
+
+```bash
+loupe bridge check
+loupe bridge check --rules ~/loupe-rules.yaml
+```
+
+The command exits with status 1 when the file does not load, and 0 otherwise.
+`loupe bridge status` shows the same warnings for a running bridge.
 
 ## `loupe bridge reload`
 
