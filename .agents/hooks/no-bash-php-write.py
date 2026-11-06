@@ -243,14 +243,18 @@ def script_writes_php(text, folder, root):
     return False
 
 
-def next_folder(args, folder):
+def next_folder(args, folder, root):
     targets = [argument for argument in args if not argument.startswith("-")]
     if args and args[0] == "-":
         return None
     if not targets:
         return os.path.realpath(os.path.expanduser("~"))
     path = resolve(targets[0], folder)
-    return None if path is UNKNOWN or path is None else path
+    if path is UNKNOWN or path is None:
+        return None
+    if not os.path.isdir(path) and (folder is None or is_inside(folder, root) or is_inside(path, root)):
+        return None
+    return path
 
 
 def has_pattern(words):
@@ -310,7 +314,7 @@ def judge(command, cwd, root, depth=0):
         args = words[1:]
         if name in ("cd", "pushd"):
             if not (item["pipe_in"] or item["pipe_out"]):
-                folder = next_folder(args, folder)
+                folder = next_folder(args, folder, root)
             previous = item
             continue
         if item["hd"] is not None:

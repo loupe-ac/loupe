@@ -777,6 +777,10 @@ describe('no-bash-php-write.py', () => {
             'a script that names a PHP file and writes another file',
             "python3 -c \"print('src/Foo.php'); open('README.md','w').write('x')\"",
         ],
+        [
+            'a write after a cd between missing folders outside',
+            'cd /tmp/loupe-no-such-dir-456; echo x > /tmp/a.php',
+        ],
         ['a mv of a PHP file', 'mv src/Foo.php src/Bar.php'],
         ['a copy into a target folder outside', 'cp -t /tmp src/Foo.php'],
         ['a copy into a folder outside', 'cp src/Foo.php /tmp'],
@@ -857,6 +861,22 @@ describe('no-bash-php-write.py', () => {
         [
             'a redirect after a background list that changed directory',
             'cd /tmp && true & echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed cd with ||',
+            'cd /tmp/loupe-no-such-dir-456 || echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed cd with ;',
+            'cd /tmp/loupe-no-such-dir-456; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a failed pushd',
+            'pushd /tmp/loupe-no-such-dir-456; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd into a folder that mkdir makes',
+            'mkdir -p src/New && cd src/New && echo x > A.php',
         ],
         ['a copy into the current folder', 'cp /tmp/Foo.php .'],
         ['a copy into a folder', 'cp /tmp/Foo.php src/'],
