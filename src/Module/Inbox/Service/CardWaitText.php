@@ -304,7 +304,7 @@ final readonly class CardWaitText
         $params['%state%'] = mb_strtolower($this->translator->trans($run->state->translationKey(), [], null, $this->locale));
         $href = $this->urls->generate('app_project_worker_runs', ['id' => $wait->watch->project->id, 'search' => $run->id?->toRfc4122()], UrlGeneratorInterface::ABSOLUTE_URL);
         $link = \sprintf('[%s](%s)', $this->translator->trans('inbox.wait.pause_run_link', [], null, $this->locale), $href);
-        $setup = SetupFailure::fromOutput($run->output);
+        $setup = SetupFailure::fromOutput($run->output) ?? $this->recoveredSetupFailure($wait, $run, $pause);
         if (null !== $setup) {
             $link = $this->setupText($setup)."\n\n".$link;
         }
@@ -421,6 +421,18 @@ final readonly class CardWaitText
         $run = $this->workerRuns->findLatestEndedOfCard($wait->watch->project, $wait->watch->cardId, $pause->createdAt, $pause->ruleId);
 
         return true === $run?->state->isFailure() ? $run : null;
+    }
+
+    /** The failed `before` command of the run before a failed recovery. The recovery carries the rule id of the run it recovers, with its own kind. */
+    private function recoveredSetupFailure(InboxCardWait $wait, WorkerRun $recovery, CardPause $pause): ?SetupFailure
+    {
+        $runs = $this->workerRuns->findLatestOfRule($wait->watch->project, $wait->watch->cardId, $pause->ruleId, $pause->createdAt, 2);
+        $previous = $runs[1] ?? null;
+        if (null === $previous || $runs[0] !== $recovery || $previous->workKind === $recovery->workKind || !$previous->state->isFailure()) {
+            return null;
+        }
+
+        return SetupFailure::fromOutput($previous->output);
     }
 
     private static function typePart(InboxCardWaitType $type): string
