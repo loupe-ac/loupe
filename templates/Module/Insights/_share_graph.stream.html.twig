@@ -1,0 +1,9 @@
+{# The answer to a share request: the new state of the dialog body and of the Public tag. Props: project (Project), graph (InsightsSavedGraph), share (GraphShareView), error (string or null). #}
+<turbo-stream action="update" method="morph" target="share-graph-body-{{ graph.id }}">
+    <template>
+        {% include '@Insights/_share_dialog_body.html.twig' with {graph: graph, share: share, error: error} only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="update" targets="#dashboard-graph-{{ graph.id }} [data-graph-public]">
+    <template>{% if share.isPublic %}<twig:Ds:Tag tone="lime">{{ 'insights.public_link.tag'|trans }}</twig:Ds:Tag>{% endif %}</template>
+</turbo-stream>

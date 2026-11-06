@@ -7814,6 +7814,19 @@
     .lp-dashboard-live-status {
         @apply m-0 mt-2 text-xs text-fg-dim empty:hidden;
     }
+    /* The share dialog sits in the tile actions, and its wrapper adds no box of its own. */
+    .lp-dashboard-share {
+        @apply contents;
+    }
+    .lp-dashboard-share__body {
+        @apply flex flex-col gap-4;
+    }
+    .lp-dashboard-share__link {
+        @apply flex items-center gap-2;
+    }
+    .lp-dashboard-share__link > .lp-input {
+        @apply min-w-0 flex-1;
+    }
     .lp-dashboard-grid {
         @apply mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2;
     }

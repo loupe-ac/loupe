@@ -373,7 +373,7 @@ readonly class Catalog
                 states: [],
                 enforced: true,
                 group: 'core',
-                summary: 'A saved graph on the Dashboard: a grip, the name, the settings line, an actions block for the menu and the chart. A broken tile names what is gone, draws no chart and holds the buttons of its footer block.',
+                summary: 'A saved graph on the Dashboard: a grip, the name, the settings line, an actions block for the menu and the chart. A broken tile names what is gone, draws no chart and holds the buttons of its footer block. A public tile ends the settings line with a Public tag.',
                 element: 'article',
                 viewport: '900x700',
             ),

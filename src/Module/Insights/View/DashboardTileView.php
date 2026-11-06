@@ -20,6 +20,7 @@ final readonly class DashboardTileView
         public bool $canMoveUp,
         /** False for the last tile, which cannot move down. */
         public bool $canMoveDown,
+        public GraphShareView $share,
     ) {
     }
 

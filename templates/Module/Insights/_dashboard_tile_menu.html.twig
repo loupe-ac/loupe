@@ -15,6 +15,11 @@
         <twig:Ds:MenuItem role="menuitem" data-action="click->graph-tile#rename">
             <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.rename'|trans }}
         </twig:Ds:MenuItem>
+        {% if tile.share.isAvailable %}
+        <twig:Ds:MenuItem role="menuitem" data-action="click->graph-tile#share">
+            <twig:ux:icon name="lucide:share-2" class="lp-icon lp-icon--sm" />{{ 'analytics.dashboard.menu.share'|trans }}
+        </twig:Ds:MenuItem>
+        {% endif %}
         <twig:Ds:MenuDivider />
         <twig:Ds:MenuHeading>{{ 'insights.form.graph_width_form.width.label'|trans }}</twig:Ds:MenuHeading>
         {{ form_start(forms.width) }}

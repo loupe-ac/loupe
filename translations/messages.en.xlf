@@ -8994,6 +8994,7 @@
             <trans-unit id="analytics.dashboard.tile.loading"><source>analytics.dashboard.tile.loading</source><target>Loading this graph.</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.label"><source>analytics.dashboard.menu.label</source><target>Graph actions</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.rename"><source>analytics.dashboard.menu.rename</source><target>Rename</target></trans-unit>
+            <trans-unit id="analytics.dashboard.menu.share"><source>analytics.dashboard.menu.share</source><target>Share…</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.edit"><source>analytics.dashboard.menu.edit</source><target>Open in Metrics</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.width_half"><source>analytics.dashboard.menu.width_half</source><target>Half width</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.width_full"><source>analytics.dashboard.menu.width_full</source><target>Full width</target></trans-unit>
@@ -9014,6 +9015,13 @@
             <trans-unit id="analytics.public.made_with"><source>analytics.public.made_with</source><target>Made with Loupe</target></trans-unit>
             <trans-unit id="analytics.public.title"><source>analytics.public.title</source><target>%graph% · %project%</target></trans-unit>
             <trans-unit id="insights.public_link.block.flag_off"><source>insights.public_link.block.flag_off</source><target>Public links are switched off on this instance.</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.title"><source>insights.public_link.dialog.title</source><target>Share this graph</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.link"><source>insights.public_link.dialog.link</source><target>Public link</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.copy"><source>insights.public_link.dialog.copy</source><target>Copy link</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.copied"><source>insights.public_link.dialog.copied</source><target>Copied!</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.note"><source>insights.public_link.dialog.note</source><target>Turn the switch off and the link shows "not found". Turn it on again and the same link works again.</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.done"><source>insights.public_link.dialog.done</source><target>Done</target></trans-unit>
+            <trans-unit id="insights.public_link.tag"><source>insights.public_link.tag</source><target>Public</target></trans-unit>
             <trans-unit id="analytics.dashboard.live.stopped"><source>analytics.dashboard.live.stopped</source><target>Live updates stopped. Reload the page to see changes made in other tabs.</target></trans-unit>
             <trans-unit id="analytics.dashboard.add.title"><source>analytics.dashboard.add.title</source><target>Add a graph</target></trans-unit>
             <trans-unit id="analytics.dashboard.add.hint"><source>analytics.dashboard.add.hint</source><target>Build it in Metrics, then save it here</target></trans-unit>
@@ -9040,6 +9048,8 @@
             <trans-unit id="insights.form.graph_legend_form.show.label"><source>insights.form.graph_legend_form.show.label</source><target>Legend</target></trans-unit>
             <trans-unit id="insights.form.graph_legend_form.show.on"><source>insights.form.graph_legend_form.show.on</source><target>Show</target></trans-unit>
             <trans-unit id="insights.form.graph_legend_form.show.off"><source>insights.form.graph_legend_form.show.off</source><target>Hide</target></trans-unit>
+            <trans-unit id="insights.form.share_graph_form.enabled.label"><source>insights.form.share_graph_form.enabled.label</source><target>Public link</target></trans-unit>
+            <trans-unit id="insights.form.share_graph_form.enabled.help"><source>insights.form.share_graph_form.enabled.help</source><target>Anyone with the link can see this graph as you saved it. Account names show as Account 1, Account 2.</target></trans-unit>
             <trans-unit id="insights.form.drag_graph_form.steps.label"><source>insights.form.drag_graph_form.steps.label</source><target>Places to move</target></trans-unit>
             <trans-unit id="analytics.metrics.save.button"><source>analytics.metrics.save.button</source><target>Save to dashboard</target></trans-unit>
             <trans-unit id="analytics.metrics.save.cap_reached"><source>analytics.metrics.save.cap_reached</source><target>The Dashboard holds %limit% graphs. Remove one to add another.</target></trans-unit>

@@ -6,6 +6,7 @@ namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
+use App\Module\Insights\Service\GraphShareStates;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphHealth;
 use App\Module\Insights\View\DashboardTileView;
@@ -20,6 +21,7 @@ final readonly class ShowDashboardHandler
         private SavedGraphHealth $health,
         private DashboardGraphResults $results,
         private SavedGraphCap $cap,
+        private GraphShareStates $shares,
         private ClockInterface $clock,
     ) {
     }
@@ -30,11 +32,12 @@ final readonly class ShowDashboardHandler
         $graphs = $this->insightsSavedGraphs->findActive($project);
         $broken = $this->health->check($project, $graphs);
 
+        $shares = $this->shares->forGraphs($project, $graphs);
         $tiles = [];
         $last = \count($graphs) - 1;
         foreach ($graphs as $index => $graph) {
             $problem = $broken[(string) $graph->id] ?? null;
-            $tiles[] = new DashboardTileView($graph, $problem, null === $problem ? $this->results->get($project, $graph) : null, $index > 0, $index < $last);
+            $tiles[] = new DashboardTileView($graph, $problem, null === $problem ? $this->results->get($project, $graph) : null, $index > 0, $index < $last, $shares[(string) $graph->id]);
         }
 
         $now = \DateTimeImmutable::createFromInterface($this->clock->now());
