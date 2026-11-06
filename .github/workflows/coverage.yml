@@ -199,7 +199,7 @@ jobs:
           name: e2e-coverage-raw-${{ matrix.name }}
           path: var/coverage/*.cov
           retention-days: 2
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Application errors
         if: failure()
@@ -243,22 +243,27 @@ jobs:
           path: var/raw
           merge-multiple: false
 
+      # A missing leg makes the report partial, so the step fails after it
+      # merges and uploads what the other legs sent.
       - name: Merge the raw coverage
         run: |
           expected='chromium chromium-2 chromium-3 chromium-4 chromium-5 chromium-6 rest global-flags'
           found=0
+          missing=0
           mkdir -p var/coverage
           for leg in $expected; do
             if compgen -G "var/raw/e2e-coverage-raw-$leg/*.cov" > /dev/null; then
               found=$((found + 1))
               cp var/raw/e2e-coverage-raw-$leg/*.cov var/coverage/
             else
-              echo "::warning::leg $leg uploaded no raw coverage"
+              missing=$((missing + 1))
+              echo "::error::leg $leg uploaded no raw coverage"
               echo "missing: $leg" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
           [ "$found" -gt 0 ] || { echo 'no leg uploaded raw coverage'; exit 1; }
           docker compose exec -T php-fpm vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
+          [ "$missing" -eq 0 ] || { echo "$missing leg(s) uploaded no raw coverage; the report is partial"; exit 1; }
 
       - name: Coverage summary
         if: always()
