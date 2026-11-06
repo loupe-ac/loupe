@@ -38,6 +38,8 @@ use App\Module\Insights\View\BrokenGraphReason;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Project\Workshop\WorkshopConnection;
+use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Service\Dev\DevDocumentSeeder;
 use App\Module\SiteReview\Entity\SiteReviewComment;
@@ -296,6 +298,21 @@ final class FullDevSeedTest extends KernelTestCase
         self::assertSame(1, $experiment('bridge_experiment_definitions'));
         self::assertSame(1, $experiment('bridge_experiment_pins'));
         self::assertSame(0, $experiment('bridge_worker_runs'));
+    }
+
+    public function test_the_connect_page_has_a_quiet_machine_and_an_owner_with_no_machine_as_its_empty_twin(): void
+    {
+        $this->seed(self::DAY);
+
+        $connections = self::getContainer()->get(WorkshopConnectionsProviderInterface::class);
+        $projects = self::getContainer()->get(ProjectRepository::class);
+        $quiet = static fn (Uuid $projectId): int => \count(array_filter(
+            $connections->forOwnerOf($projects->find($projectId) ?? throw new \LogicException('The project is seeded.')),
+            static fn (WorkshopConnection $connection): bool => $connection->quiet,
+        ));
+
+        self::assertGreaterThan(0, $quiet(DevProjectSeeder::devProjectId()));
+        self::assertSame(0, $quiet(DevProjectSeeder::keysProjectId()));
     }
 
     public function test_the_showcase_exists_with_fixed_ids_and_its_requests_do_not_need_the_inbox_flag(): void

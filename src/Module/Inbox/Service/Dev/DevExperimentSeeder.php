@@ -141,18 +141,21 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     private function seedEmptyExperiment(SeedContext $context, Project $project): void
     {
         $definitionId = DevSeedId::of('bridge/experiment/'.self::EMPTY_EXPERIMENT);
-        if ($this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition
-            || $this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentDefinition) {
-            return;
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentDefinition) {
+                return;
+            }
+
+            $definition = new ExperimentDefinition($project, self::EMPTY_EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
         }
 
-        $definition = new ExperimentDefinition($project, self::EMPTY_EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
-        $context->ids->assign($definition, $definitionId);
-        $this->em->persist($definition);
-
         $cardId = DevSeedId::of('board/card/'.self::EXPERIMENT.'/'.Slug::fromName(self::CARDS[0][0]));
-        $at = $context->now->modify('-1 day');
-        $this->em->persist(new ExperimentPin($project, $cardId, self::EMPTY_EXPERIMENT, 'opus', $at, $at));
+        if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentPin) {
+            $at = $context->now->modify('-1 day');
+            $this->em->persist(new ExperimentPin($project, $cardId, self::EMPTY_EXPERIMENT, 'opus', $at, $at));
+        }
         $this->em->flush();
     }
 
