@@ -248,6 +248,36 @@ jobs:
           images: golang:1.26-alpine
       - run: just cli-test
 
+  # Builds the image that `just deploy` ships, with the attribute check of the
+  # build stage. A fault that only the image has, such as a class that
+  # `composer install --no-dev` leaves out, shows here and not at the deploy.
+  # It runs on a push to main only: the build takes about ten minutes with no
+  # layer cache, and it is no required check. A red run on main names the commit.
+  prod-image:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-just
+      - id: buildx-mirror
+        continue-on-error: true
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+      - if: steps.buildx-mirror.outcome == 'failure'
+        uses: docker/setup-buildx-action@v4
+        with:
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+      - run: just build-prod
+
   # Eight runners, each with its own stack, database and seed. Six legs split
   # `chromium` per test. `rest` holds admin and the destructive chain, which
   # has to stay in one runner's order, and `global-flags` runs alone. Each leg
