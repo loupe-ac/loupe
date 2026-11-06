@@ -1314,7 +1314,7 @@ func TestInitLeavesACorrectMcpServerAloneWhenTheProjectFileExists(t *testing.T) 
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "Nothing to change") || !strings.Contains(out, "Link: skipped") {
+	if !strings.Contains(out, "MCP server: skipped, Claude Code already starts") || !strings.Contains(out, "Link: skipped") {
 		t.Errorf("output:\n%s", out)
 	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
@@ -1867,8 +1867,8 @@ func TestInitCreateRowAsksAgainWhenTheNameIsTaken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "Its slug is blog") || !strings.Contains(out, "--project blog") {
-		t.Errorf("output must name the slug:\n%s", out)
+	if !strings.Contains(out, "You already have a project with this name or slug. Choose another name.") {
+		t.Errorf("output must ask for another name:\n%s", out)
 	}
 	if body, _ := w.createBody.Load().(map[string]any); body["name"] != "Blog 2" || w.created.Load() != 2 {
 		t.Errorf("create body = %v, created = %d", body, w.created.Load())
