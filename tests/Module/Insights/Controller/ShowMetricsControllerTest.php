@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Controller;
 
+use App\Module\Bridge\Metric\Metric;
+use App\Module\Workflow\Template\ShippedTemplates;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -36,7 +38,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(17, $form->filter('select[name="metric"] option'));
+        self::assertMetricOptionsMatchTheCode(self::options($form, 'metric'));
         self::assertCount(1, $form->filter('select[name="metric"] option[value="peak-context"]'));
         self::assertSame(['Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
         self::assertCount(1, $form->filter('noscript'));
@@ -239,7 +241,7 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(17, $select->children('option'));
+        self::assertMetricOptionsMatchTheCode($select->children('option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertCount(1, $select->children('option[value="peak-context"]'));
         $groups = $select->filter('optgroup');
         self::assertCount(3, $groups);
@@ -393,5 +395,26 @@ final class ShowMetricsControllerTest extends WebTestCase
     private static function options(Crawler $form, string $name): array
     {
         return $form->filter('select[name="'.$name.'"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value'));
+    }
+
+    /**
+     * The picker lists every standalone metric and every metric of the shipped
+     * simple template, which a project gets by default.
+     *
+     * @param list<string> $values
+     */
+    private static function assertMetricOptionsMatchTheCode(array $values): void
+    {
+        $templateKeys = array_map(
+            static fn (array $metric): string => (string) $metric['key'],
+            self::getContainer()->get(ShippedTemplates::class)->source('simple')['metrics'],
+        );
+        $expected = [...array_map(static fn (Metric $metric): string => $metric->value, Metric::standalone()), ...$templateKeys];
+
+        self::assertSame($expected, array_values(array_unique($expected)), 'The derived set holds a duplicate.');
+        self::assertEqualsCanonicalizing($expected, $values);
+        foreach (['cost', 'peak-context', 'merge-rate', 'hours-to-merge'] as $mustKeep) {
+            self::assertContains($mustKeep, $values);
+        }
     }
 }
