@@ -7,12 +7,13 @@
     nameLabel     string   Header of the first table column. Optional.
     valueLabel    string   Header of the value column. Optional.
     changeLabel   string   Header of the change column. Optional.
+    table         bool     False draws no table, so the hover cards alone give the values. True by default.
 
   Draws the plot, the legend and the closed table of a chart. A Line, Bars or stacked chart has one hover target for each time bucket,
   and a Donut has one for each slice. The server prints each hover card in a template, and chart_hover_controller.js shows it.
   A Number chart has no plot, no table and no hover card. The page draws it without JavaScript, minus the hover cards.
 #}
-{% props layout, labels = [], id = null, label = null, nameLabel = null, valueLabel = null, changeLabel = null %}
+{% props layout, labels = [], id = null, label = null, nameLabel = null, valueLabel = null, changeLabel = null, table = true %}
 {% set chartId = id ?? ('chart-' ~ random()) %}
 {% set isLine = layout.lines is defined %}
 {% set isBars = layout.buckets is defined %}
@@ -173,6 +174,7 @@
             </template>
         {% endfor %}
 
+        {% if table %}
         {% set hasShare = layout.table|filter(row => row.share is not null)|length > 0 %}
         {% set columns = [{label: nameLabel ?? 'analytics.chart.table.name'|trans}, {label: valueLabel ?? 'analytics.chart.table.value'|trans, align: 'end'}] %}
         {% if hasShare %}
@@ -198,5 +200,6 @@
                 {% endfor %}
             </twig:Ds:DataTable>
         </details>
+        {% endif %}
     {% endif %}
 </figure>

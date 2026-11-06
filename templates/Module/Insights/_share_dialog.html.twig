@@ -1,0 +1,10 @@
+{# The share dialog of one tile. It opens from the Share item of the tile menu. Props: graph (InsightsSavedGraph), share (GraphShareView), error (string or null). #}
+<div class="lp-dashboard-share" data-controller="modal" data-share-dialog>
+    <twig:Ds:Dialog aria-labelledby="share-graph-title-{{ graph.id }}" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="share-graph-title-{{ graph.id }}">{{ 'insights.public_link.dialog.title'|trans }}</h2>
+        {% include '@Insights/_share_dialog_body.html.twig' with {graph: graph, share: share, error: error} only %}
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#close">{{ 'insights.public_link.dialog.done'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </twig:Ds:Dialog>
+</div>

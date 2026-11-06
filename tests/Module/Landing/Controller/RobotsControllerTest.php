@@ -26,7 +26,7 @@ final class RobotsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringStartsWith('text/plain', (string) $client->getResponse()->headers->get('Content-Type'));
         $lines = explode("\n", (string) $client->getResponse()->getContent());
-        foreach (['User-agent: *', 'Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /ai-policy$', 'Allow: /waitlist$', 'Allow: /login$', 'Allow: /register$', 'Allow: /assets/', 'Disallow: /'] as $line) {
+        foreach (['User-agent: *', 'Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /ai-policy$', 'Allow: /waitlist$', 'Allow: /login$', 'Allow: /register$', 'Allow: /assets/', 'Allow: /s/', 'Disallow: /'] as $line) {
             self::assertContains($line, $lines);
         }
     }
@@ -66,7 +66,7 @@ final class RobotsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/robots.txt');
 
         foreach (explode("\n", (string) $client->getResponse()->getContent()) as $line) {
-            if (str_starts_with($line, 'Allow: ') && 'Allow: /assets/' !== $line) {
+            if (str_starts_with($line, 'Allow: ') && !\in_array($line, ['Allow: /assets/', 'Allow: /s/'], true)) {
                 self::assertStringEndsWith('$', $line);
             }
         }

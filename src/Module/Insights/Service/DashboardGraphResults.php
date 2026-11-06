@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Service;
 
+use App\Module\Bridge\Metric\MetricGroupKey;
+use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Command\ShowMetricsHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
@@ -52,7 +54,7 @@ final readonly class DashboardGraphResults
         $query = MetricsQuery::fromQuery($settings, $this->templateMetrics->forProject($project->requireId()));
         $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query, $now));
 
-        $result = new DashboardGraphResult($now, $view->title, $view->chart, $view->layout, $view->labels, $view->metrics->current, $view->metrics->previous);
+        $result = new DashboardGraphResult($now, $view->title, $view->chart, $view->layout, $view->labels, array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->metrics->series), $view->metrics->current, $view->metrics->previous);
         $item = $this->cache->getItem($this->key($project, $graph));
         $item->set($result)->expiresAfter(self::LIFETIME);
         $this->cache->save($item);
@@ -63,6 +65,6 @@ final readonly class DashboardGraphResults
     /** The locale is part of the key, because the layout holds formatted numbers and translated texts. */
     public function key(Project $project, InsightsSavedGraph $graph): string
     {
-        return 'insights_dashboard_'.$project->requireId()->toRfc4122().'_'.hash('sha256', implode('|', [...$graph->settings(), \Locale::getDefault()]));
+        return 'insights_dashboard_v2_'.$project->requireId()->toRfc4122().'_'.hash('sha256', implode('|', [...$graph->settings(), \Locale::getDefault()]));
     }
 }

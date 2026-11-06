@@ -18,6 +18,7 @@ use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricChangeKind;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRange;
@@ -666,6 +667,117 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertNull($view->series[1]->comparison->change);
     }
 
+    public function test_a_split_by_account_keys_each_series_by_its_account(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 1_000_000, account: 'work');
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 10:00:00', cost: 1_000_000);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::Account);
+
+        self::assertEquals(
+            ['work' => new MetricGroupKey(account: 'work'), '' => null],
+            array_combine(array_map(static fn (MetricSeries $series): string => (string) $series->group, $view->series), array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->series)),
+        );
+    }
+
+    public function test_a_card_split_by_account_keys_its_series_too(): void
+    {
+        $card = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', cost: 1_000_000, account: 'work');
+
+        $view = $this->query(MetricUnit::Card, Metric::Cost, MetricStatistic::Sum, MetricGroup::Account);
+
+        self::assertEquals(new MetricGroupKey(account: 'work'), $view->series[0]->groupKey);
+    }
+
+    public function test_a_split_by_bridge_keys_each_series_by_the_bridge_id(): void
+    {
+        $bridge = Uuid::v7();
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 1_000_000, bridgeId: $bridge);
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::Bridge);
+
+        self::assertSame($bridge->toRfc4122(), $view->series[0]->group);
+        self::assertEquals(new MetricGroupKey(bridgeId: $bridge->toRfc4122()), $view->series[0]->groupKey);
+    }
+
+    public function test_any_other_split_leaves_the_key_null(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 1_000_000, workKind: 'implement', harness: 'codex');
+
+        foreach ([MetricGroup::None, MetricGroup::Harness, MetricGroup::Stage] as $group) {
+            $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, $group);
+
+            self::assertNotSame([], $view->series);
+            foreach ($view->series as $series) {
+                self::assertNull($series->groupKey);
+            }
+        }
+    }
+
+    public function test_the_account_usage_keys_each_series_by_bridge_account_and_window(): void
+    {
+        $bridge = $this->seedBridge($this->em, $this->project->owner, projects: [(string) $this->project->id]);
+        $bridge->name = 'laptop';
+        $this->em->flush();
+        $this->seedAccountReading($this->em, $bridge, '2026-10-01 10:00:00');
+        $this->seedAccountReading($this->em, $bridge, '2026-10-01 10:00:00', window: 'week');
+
+        $view = $this->query(MetricUnit::Reading, Metric::AccountUsage, MetricStatistic::Max, MetricGroup::AccountWindow);
+
+        self::assertEquals(
+            [new MetricGroupKey($bridge->id->toRfc4122(), 'work', 'session'), new MetricGroupKey($bridge->id->toRfc4122(), 'work', 'week')],
+            array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->series),
+        );
+    }
+
+    public function test_two_series_with_one_label_stay_two_series(): void
+    {
+        $follows = [(string) $this->project->id];
+        $first = $this->seedBridge($this->em, $this->project->owner, projects: $follows);
+        $first->name = 'a';
+        $second = $this->seedBridge($this->em, $this->project->owner, projects: $follows);
+        $second->name = 'a/b';
+        $this->em->flush();
+        $this->seedAccountReading($this->em, $first, '2026-10-01 10:00:00', account: 'b/c');
+        $this->seedAccountReading($this->em, $second, '2026-10-01 10:00:00', account: 'c');
+
+        $view = $this->query(MetricUnit::Reading, Metric::AccountUsage, MetricStatistic::Max, MetricGroup::AccountWindow);
+
+        self::assertCount(2, $view->series);
+        self::assertSame(['a/b/c session', 'a/b/c session'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertEqualsCanonicalizing(
+            [$first->id->toRfc4122(), $second->id->toRfc4122()],
+            array_map(static fn (MetricSeries $series): ?string => $series->groupKey?->bridgeId, $view->series),
+        );
+    }
+
+    public function test_a_compare_keeps_the_key_of_a_series_that_only_the_previous_period_holds(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cost: 2_000_000, account: 'work');
+        $this->fact(Uuid::v7(), endedAt: '2026-08-11 09:00:00', cost: 1_000_000, account: 'gone');
+
+        $view = $this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::Account, MetricCompare::Previous);
+
+        self::assertSame(['gone', 'work'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertSame([], $view->series[0]->points);
+        self::assertEquals(new MetricGroupKey(account: 'gone'), $view->series[0]->groupKey);
+        self::assertEquals(new MetricGroupKey(account: 'work'), $view->series[1]->groupKey);
+    }
+
+    public function test_a_compare_of_a_bucket_each_metric_leaves_the_key_null(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-09-10 09:00:00', cardNumber: 1, runId: $this->runWithBuckets(['tests' => 1500]));
+        $this->fact(Uuid::v7(), endedAt: '2026-08-11 09:00:00', cardNumber: 2, runId: $this->runWithBuckets(['edits' => 500]));
+
+        $view = $this->query(MetricUnit::Run, Metric::BucketTimeEach, MetricStatistic::Mean, compare: MetricCompare::Previous);
+
+        self::assertNotSame([], $view->series);
+        foreach ($view->series as $series) {
+            self::assertNull($series->groupKey);
+        }
+    }
+
     public function test_a_compare_of_all_time_is_refused(): void
     {
         try {
@@ -898,6 +1010,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?float $sessionUsageDelta = null,
         ?float $weekUsageDelta = null,
         ?int $peakContextTokens = null,
+        ?Uuid $bridgeId = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -923,6 +1036,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'session_usage_delta' => $sessionUsageDelta,
             'week_usage_delta' => $weekUsageDelta,
             'peak_context_tokens' => $peakContextTokens,
+            'bridge_id' => null === $bridgeId ? null : (string) $bridgeId,
         ]);
 
         return $runId;

@@ -18,6 +18,7 @@ final readonly class MetricSeries
         public array $rows,
         public ?MetricComparison $comparison = null,
         public array $previousPoints = [],
+        public ?MetricGroupKey $groupKey = null,
     ) {
     }
 }

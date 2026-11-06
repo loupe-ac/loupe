@@ -7786,6 +7786,29 @@
     .lp-dashboard-age[hidden] {
         @apply hidden;
     }
+    /* A shared item inside the public site frame: one centred column under the site bar. */
+    .lp-public {
+        @apply flex flex-col items-center bg-surface-2 px-6 py-12;
+    }
+    .lp-public__inner {
+        @apply w-full max-w-5xl;
+    }
+    .lp-public__item {
+        @apply flex flex-col gap-5;
+    }
+    .lp-public__project {
+        @apply m-0 text-sm font-semibold text-fg-mute;
+    }
+    .lp-public__meta {
+        @apply flex flex-wrap items-center justify-between gap-2 text-xs text-fg-mute;
+    }
+    .lp-public__meta [hidden] {
+        @apply hidden;
+    }
+    /* The "Made with Loupe" line of a shared page, a link to the Loupe site. */
+    .lp-public__made-with {
+        @apply text-fg-mute underline-offset-2 hover:text-fg hover:underline;
+    }
     .lp-dashboard-notice {
         @apply mx-0 mt-4;
     }
@@ -7794,6 +7817,19 @@
     }
     .lp-dashboard-live-status {
         @apply m-0 mt-2 text-xs text-fg-dim empty:hidden;
+    }
+    /* The share dialog sits in the tile actions, and its wrapper adds no box of its own. */
+    .lp-dashboard-share {
+        @apply contents;
+    }
+    .lp-dashboard-share__body {
+        @apply mt-4 flex flex-col gap-4;
+    }
+    .lp-dashboard-share__link {
+        @apply flex items-center gap-2;
+    }
+    .lp-dashboard-share__link > .lp-input {
+        @apply min-w-0 flex-1;
     }
     .lp-dashboard-grid {
         @apply mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2;
