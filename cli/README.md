@@ -353,8 +353,8 @@ loupe init --reset               # write the first-run rules again
    of the rule file as `ready`, or one line for each failure with its project,
    the reason and the fix. A failing account never stops the agent.
 11. Offer to start discovery, after the agent exits. The command asks
-   `Start discovery now?` only when the profile is complete, no account that a
-   rule uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
+   `Start discovery now?` only when the profile is complete, the rule file
+   reads, no account that a rule uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
    none started yet, or the profile agent ran in this command. A yes starts
    discovery and prints `Discovery started: <link of the report>`. A no, or no
    terminal, starts nothing and prints

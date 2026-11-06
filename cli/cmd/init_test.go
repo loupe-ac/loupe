@@ -2193,7 +2193,7 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	list := []api.Site{simple, flow}
 
 	var out strings.Builder
-	if failing := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 {
+	if failing, unchecked := reportAccounts(context.Background(), &out, path, simple, list); len(failing) != 0 || unchecked != "" {
 		t.Errorf("failing for the Simple project = %v\n%s", failing, out.String())
 	}
 	if want := "failing for project flow: loupe plugin loupe-lifecycle is not installed"; !strings.Contains(out.String(), want) {
@@ -2204,7 +2204,7 @@ func TestReportAccountsChecksEachProjectAgainstItsOwnPackages(t *testing.T) {
 	}
 
 	out.Reset()
-	failing := reportAccounts(context.Background(), &out, path, flow, list)
+	failing, _ := reportAccounts(context.Background(), &out, path, flow, list)
 	if len(failing) != 1 || !strings.Contains(failing[0], "loupe-lifecycle is not installed") {
 		t.Errorf("failing for the Lifecycle project = %v\n%s", failing, out.String())
 	}

@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -189,11 +191,25 @@ func TestDiscoveryStartRefusesWhenTheGateFails(t *testing.T) {
 	}
 }
 
+// writeDefaultRules writes the rule file at the path that the gate reads.
+func writeDefaultRules(t *testing.T, content string) {
+	t.Helper()
+	path, err := defaultRulesPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, content)
+}
+
 func TestDiscoveryStartStartsWhenTheGateHolds(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
 	completeProfile(t, dir)
 	w.gitClean = true
+	writeDefaultRules(t, "projects:\n  dev:\n    dir: "+dir+"\nwork:\n  plan:\n    prompt: go\n")
 	calls := stubDiscovery(t, api.Discovery{ReportURL: "https://app.test/report/2"}, nil)
 
 	out, err := runDiscoveryCmd(t, "--project", "dev")
@@ -202,6 +218,42 @@ func TestDiscoveryStartStartsWhenTheGateHolds(t *testing.T) {
 	}
 	if len(*calls) != 1 || (*calls)[0].project != firstProject || !strings.Contains(out, "Discovery started: https://app.test/report/2") {
 		t.Errorf("calls = %v, out = %q", *calls, out)
+	}
+}
+
+// The gate never passes on accounts that it could not check.
+func TestDiscoveryStartRefusesWhenTheAccountCheckCannotRun(t *testing.T) {
+	for name, rules := range map[string]string{"missing": "", "unreadable": "projects: [\n"} {
+		t.Run(name, func(t *testing.T) {
+			w := newInitWorld(t, devSite())
+			dir := inRepo(t, w.server.URL)
+			completeProfile(t, dir)
+			w.gitClean = true
+			if rules != "" {
+				writeDefaultRules(t, rules)
+			}
+			calls := stubDiscovery(t, api.Discovery{}, nil)
+
+			out, err := runDiscoveryCmd(t, "--project", "dev")
+			if err == nil || !strings.Contains(err.Error(), "Check the accounts:") {
+				t.Fatalf("err = %v, out = %q", err, out)
+			}
+			if len(*calls) != 0 {
+				t.Errorf("calls = %v, want none", *calls)
+			}
+		})
+	}
+}
+
+func TestReportAccountsSaysWhyItCheckedNothing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rules.yaml")
+	failing, unchecked := reportAccounts(context.Background(), io.Discard, path, api.Site{ID: "p"}, nil)
+	if len(failing) != 0 || unchecked != "no rule file at "+path {
+		t.Errorf("failing = %v, unchecked = %q", failing, unchecked)
+	}
+	blockers := discoveryBlockers(initLeft{accountCheck: unchecked}, nil)
+	if len(blockers) != 1 || !strings.Contains(blockers[0], "Check the accounts: no rule file at") {
+		t.Errorf("blockers = %v", blockers)
 	}
 }
 

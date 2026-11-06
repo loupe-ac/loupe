@@ -3,6 +3,7 @@ package cmd
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,9 @@ var initGit = func(dir string, args ...string) (string, error) {
 type initLeft struct {
 	// accounts holds one line for each used account that fails for the project.
 	accounts []string
+	// accountCheck says why the account check could not run, and is empty when
+	// it ran.
+	accountCheck string
 	// profile says why the profile is not finished, and is empty when it is.
 	profile string
 	// restart is true when init installed the Claude Code plugins.
@@ -51,13 +55,17 @@ type initLeft struct {
 // this project. A failure in another project, and an account that no rule uses,
 // never count. It runs before the profile agent, which needs no account.
 // sites is the project list of the server, which lacks a project that this run
-// made.
-func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) []string {
+// made. When the rule file cannot be read, it checks no account and returns
+// the reason as unchecked.
+func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) (failing []string, unchecked string) {
 	set, err := rules.Load(path, rules.Defaults{})
 	if err != nil {
 		fmt.Fprintf(out, "Accounts: failed, cannot read %s: %v.\n", path, err)
+		if errors.Is(err, rules.ErrMissing) {
+			return nil, "no rule file at " + path
+		}
 
-		return nil
+		return nil, "cannot read " + path + ": " + err.Error()
 	}
 	slug := siteRuleSlug(site)
 
@@ -65,7 +73,6 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 		sites = append(slices.Clone(sites), site)
 	}
 
-	var failing []string
 	for _, a := range initCheckAccounts(ctx, set, sites) {
 		printAccount(out, a, slug)
 		if !a.used {
@@ -76,7 +83,7 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 		}
 	}
 
-	return failing
+	return failing, ""
 }
 
 // printAccount prints one line for each problem of the account: the problems of
@@ -133,7 +140,7 @@ func nonEmpty(values ...string) []string {
 }
 
 // reportAccountsStep runs the account check with the bound of the checks.
-func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) []string {
+func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) ([]string, string) {
 	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout+10*time.Second)
 	defer cancel()
 
@@ -183,9 +190,12 @@ func pushed(dir, file string) bool {
 }
 
 // discoveryBlockers lists what stops discovery from starting: the open profile,
-// the failing accounts and the files that the remote lacks.
+// the failing or unchecked accounts and the files that the remote lacks.
 func discoveryBlockers(left initLeft, files []string) []string {
 	var out []string
+	if left.accountCheck != "" {
+		out = append(out, "Check the accounts: "+left.accountCheck+". Then run `loupe init` again to check them.")
+	}
 	for _, a := range left.accounts {
 		out = append(out, "Fix the account "+a+". Then run `loupe init` again to check it.")
 	}

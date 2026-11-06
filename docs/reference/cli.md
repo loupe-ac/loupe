@@ -180,7 +180,7 @@ The project list always shows when your login covers a project, also when it cov
 
 Starts a discovery run for the project. A worker checks the repository against the profile and lists what remains before each kind of work can run. The command prints `Discovery started: <link of the report>`. It needs the next release of the CLI after v2.1.0.
 
-Before the call, the command checks the gate of `loupe init`, in the current folder: the profile is complete, no account that a rule uses fails for the project, and `.loupe.yaml` and the profile are pushed. It does not check whether a run started before. When the gate fails, it lists what remains and exits with status 1. The gate needs a stored login.
+Before the call, the command checks the gate of `loupe init`, in the current folder: the profile is complete, the rule file of the bridge reads, no account that a rule uses fails for the project, and `.loupe.yaml` and the profile are pushed. It does not check whether a run started before. When the gate fails, it lists what remains and exits with status 1. The gate needs a stored login.
 
 | Flag | Purpose |
 |---|---|

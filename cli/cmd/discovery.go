@@ -98,7 +98,7 @@ func newDiscoveryStartCmd() *cobra.Command {
 		Long: "Starts a discovery run. A worker checks the repository against the profile and lists " +
 			"what remains before each kind of work can run. It prints the link of the report.\n\n" +
 			"Before the call, the command checks the gate that `loupe init` uses: the profile is " +
-			"complete, no account that a rule uses fails for the project, and the setup files are " +
+			"complete, the rule file reads, no account that a rule uses fails for the project, and the setup files are " +
 			"committed and pushed. It reads the current folder, so run it in the repository. " +
 			"--force skips the gate. The gate needs a stored login. With --force, LOUPE_API_KEY serves too.\n\n" +
 			"The project comes from --project, LOUPE_PROJECT, the project link, or " + ".loupe.yaml.\n\n" + betaNote,
@@ -179,8 +179,10 @@ func checkDiscoveryGate(ctx context.Context, site api.Site, sites []api.Site) er
 	}
 	var left initLeft
 	left.profile = profileReason(dir, site)
-	if path, err := defaultRulesPath(); err == nil {
-		left.accounts = reportAccountsStep(ctx, io.Discard, path, site, sites)
+	if path, err := defaultRulesPath(); err != nil {
+		left.accountCheck = "cannot find the rule file: " + err.Error()
+	} else {
+		left.accounts, left.accountCheck = reportAccountsStep(ctx, io.Discard, path, site, sites)
 	}
 	blockers := discoveryBlockers(left, filesNotPushed(dir, site))
 	if len(blockers) == 0 {
