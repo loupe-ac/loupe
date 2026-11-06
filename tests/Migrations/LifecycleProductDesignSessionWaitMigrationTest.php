@@ -50,7 +50,7 @@ final class LifecycleProductDesignSessionWaitMigrationTest extends KernelTestCas
 
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame('open', $this->sessionRule($this->row($connection, $projectId))['then']['request']['cancelOnly'] ?? null);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);

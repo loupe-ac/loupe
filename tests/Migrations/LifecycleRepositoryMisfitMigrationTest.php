@@ -48,7 +48,7 @@ final class LifecycleRepositoryMisfitMigrationTest extends KernelTestCase
         self::assertContains('repository-misfit', array_column($migrated['markers'], 'key'));
         self::assertContains('repository-misfit', $migrated['inbox']);
         self::assertNotContains('removed-marker', array_column($migrated['markers'], 'key'), 'The copy is rewritten whole, so a marker that the template dropped goes too.');
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $stored = $this->binding($connection, $projectId);
 

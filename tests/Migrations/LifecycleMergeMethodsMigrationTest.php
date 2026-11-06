@@ -50,7 +50,7 @@ final class LifecycleMergeMethodsMigrationTest extends KernelTestCase
         foreach ($merges as $rule) {
             self::assertSame(['squash', 'merge', 'rebase'], $rule['then']['forge-write']['methods']);
         }
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);
 

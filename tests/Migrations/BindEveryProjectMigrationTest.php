@@ -60,7 +60,7 @@ final class BindEveryProjectMigrationTest extends KernelTestCase
         $binding = $this->service(WorkflowBindingRepository::class)->findOneByProjectId($this->id($migrated));
         self::assertNotNull($binding);
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
-        self::assertSame(['lifecycle', $source['version'] ?? null], [$binding->templateKey, $binding->templateVersion]);
+        self::assertSame(['lifecycle', (string) ($source['version'] ?? '')], [$binding->templateKey, $binding->templateVersion]);
         self::assertSame($this->row($handled)['definition'], $this->row($migrated)['definition']);
         self::assertSame($this->links($handled), $this->links($migrated));
         self::assertSame(['implementation', 'in-review', 'next', 'product-design', 'tech-design'], array_keys($this->links($migrated)));

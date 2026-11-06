@@ -31,7 +31,7 @@ final class LifecycleApprovalRuleMigrationTest extends KernelTestCase
 
         $shipped = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$shipped, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->definition($connection, $projectId));
-        self::assertSame($shipped['version'], $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$projectId]));
+        self::assertSame((string) $shipped['version'], $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$projectId]));
     }
 
     public function test_a_binding_with_no_epic_branch_and_no_rule_keeps_none(): void
