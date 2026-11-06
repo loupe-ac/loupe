@@ -59,11 +59,13 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * It has no fallback, and a change writes a history row of the card.
  * The epic merge write acts on a child that waits for a blocker outside its epic: it merges the default
  * branch into the epic branch, and a project with no writer opens the fallback work.
+ * A branch update that names no fallback stores a permanent refusal on the pull request head instead: the rule
+ * that waits for the update then turns false, and the fix rules start the agent.
  */
 final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFactChange
 {
     public const string KEY = 'forge-write';
-    private const array WRITES_WITHOUT_FALLBACK = ['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check', 'agent-review-check', 'review-ready', 'comment', 'approval-check'];
+    private const array WRITES_WITHOUT_FALLBACK = ['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check', 'agent-review-check', 'review-ready', 'comment', 'approval-check', 'update-branch'];
     private const array COMMENTS = ['fix-run', 'stale-approval', 'agent-review'];
     private const array APPROVAL_STATES = ['pass', 'revoke'];
 
@@ -252,7 +254,9 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             return match ($write) {
                 ForgeWriteKind::Merge => $this->forgeWrite(fn () => $this->forgePullRequestWrites->merge($pullRequest, $context->stringList('methods')), $fallback),
                 ForgeWriteKind::ChangeBase => $this->changeBase($pullRequest, $fallback),
-                ForgeWriteKind::UpdateBranch => $this->forgeWrite(fn () => $this->forgePullRequestWrites->updateBranch($pullRequest), $fallback),
+                ForgeWriteKind::UpdateBranch => null === $fallbackKind
+                    ? $this->updateBranchWithoutFallback($pullRequest, $facts->pullRequest?->headSha, $card)
+                    : $this->forgeWrite(fn () => $this->forgePullRequestWrites->updateBranch($pullRequest), $fallback),
                 ForgeWriteKind::ApprovalCheck => $this->approvalCheck($context, $card, $pullRequest),
             };
         } catch (PullRequestWriteFailed|PullRequestSyncFailed $e) {
@@ -263,6 +267,30 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
 
             return ActionOutcome::refused($e->cause);
         }
+    }
+
+    /**
+     * A permanent failure other than a conflict or a moved head (HTTP 422) means the update cannot run on this head.
+     * The refusal stays on the row, and the next evaluation reads `pr.can_update_branch` as false. Any other failure refuses the rule, so the engine retries.
+     */
+    private function updateBranchWithoutFallback(ForgePullRequest $pullRequest, ?string $headSha, Card $card): ActionOutcome
+    {
+        try {
+            $this->forgePullRequestWrites->updateBranch($pullRequest);
+        } catch (PullRequestWriteFailed|PullRequestSyncFailed $e) {
+            if ('in_flight' === $e->cause) {
+                return ActionOutcome::done();
+            }
+            if (!$e->permanent || 'refused' === $e->cause || null === $headSha) {
+                return ActionOutcome::refused($e->cause);
+            }
+            $this->forgePullRequestWrites->recordUpdateRefused($pullRequest, $headSha);
+            $this->evaluateAgain($card);
+
+            return ActionOutcome::done();
+        }
+
+        return ActionOutcome::done();
     }
 
     /** A pass writes the head that the rule read. A head that moved since then ends the write with no post, and the next evaluation decides again. */

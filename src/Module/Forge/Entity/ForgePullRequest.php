@@ -81,6 +81,14 @@ class ForgePullRequest
     #[ORM\Column(length: 20, enumType: PullRequestMergeability::class)]
     public PullRequestMergeability $mergeability = PullRequestMergeability::Unknown;
 
+    /** The commits the head lacks from the base at the last read, or null when that read did not compare them. */
+    #[ORM\Column(nullable: true)]
+    public ?int $behindBy = null;
+
+    /** The head on which the forge refused a branch update for good. A new head makes it stale. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $updateRefusedSha = null;
+
     #[ORM\Column(length: 20, enumType: PullRequestReview::class)]
     public PullRequestReview $review = PullRequestReview::None;
 
@@ -295,6 +303,7 @@ class ForgePullRequest
         $this->checksSha = $snapshot->checksSha;
         $this->failedChecks = $snapshot->failedChecks;
         $this->mergeability = $snapshot->mergeability;
+        $this->behindBy = $snapshot->behindBy;
         $this->review = $snapshot->review;
         $this->reviewFromRules = $snapshot->reviewFromRules;
         $this->readyToMerge = $snapshot->readyToMerge;
@@ -417,6 +426,7 @@ class ForgePullRequest
             $this->title,
             $this->closedAt,
             $this->reviewFromRules,
+            $this->behindBy,
         );
     }
 }

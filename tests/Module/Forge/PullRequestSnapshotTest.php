@@ -597,6 +597,26 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertTrue($this->changed()->equals(new PullRequestSnapshot(...$arguments)));
     }
 
+    public function test_the_snapshot_counts_only_whether_the_head_is_behind_its_base(): void
+    {
+        $behind = fn (?int $count): PullRequestSnapshot => new PullRequestSnapshot(...[...self::changedArguments(), 'behindBy' => $count]);
+
+        self::assertTrue($behind(2)->equals($behind(7)));
+        self::assertTrue($behind(0)->equals($behind(null)));
+        self::assertFalse($behind(0)->equals($behind(1)));
+        self::assertFalse($behind(null)->equals($behind(3)));
+    }
+
+    public function test_a_row_keeps_how_far_behind_its_base_the_last_read_found_it(): void
+    {
+        $pullRequest = $this->pullRequest();
+
+        $pullRequest->apply(new PullRequestSnapshot(headSha: 'head1', behindBy: 4));
+
+        self::assertSame(4, $pullRequest->behindBy);
+        self::assertSame(4, $pullRequest->snapshot()->behindBy);
+    }
+
     /** @param array<string, mixed> $change */
     #[DataProvider('oneFieldChanges')]
     public function test_a_change_to_one_field_breaks_equality(array $change): void

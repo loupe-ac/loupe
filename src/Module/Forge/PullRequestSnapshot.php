@@ -51,6 +51,8 @@ final readonly class PullRequestSnapshot
         public ?\DateTimeImmutable $closedAt = null,
         /** The forge gave $review as its own review decision, which GitHub does only while the rules of the base branch require reviews. A change counts, because it decides whether the pull request waits for a review. */
         public bool $reviewFromRules = false,
+        /** The commits the head lacks from the base, or null when the read did not compare them. equals() counts only whether it is above zero. */
+        public ?int $behindBy = null,
     ) {
     }
 
@@ -79,6 +81,7 @@ final readonly class PullRequestSnapshot
             && $this->review === $other->review
             && $this->reviewFromRules === $other->reviewFromRules
             && $this->readyToMerge === $other->readyToMerge
+            && ($this->behindBy > 0) === ($other->behindBy > 0)
             && $this->changesRequestedAt == $other->changesRequestedAt
             && (null === $this->defaultBranch || null === $other->defaultBranch || $this->defaultBranch === $other->defaultBranch);
     }

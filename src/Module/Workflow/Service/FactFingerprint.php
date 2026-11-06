@@ -73,6 +73,7 @@ final readonly class FactFingerprint
             EngineFact::PullRequestHead => $facts->pullRequest?->headSha,
             EngineFact::PullRequestMergeGate => null === $facts->pullRequest ? null : [$facts->pullRequest->checksOnHead, $facts->pullRequest->canMerge, $facts->pullRequest->baseIsDefault, $facts->pullRequest->mergeBlocked],
             EngineFact::PullRequestApprovalCheck => null === $facts->pullRequest ? null : [$facts->pullRequest->approvalCheckPassed, $facts->pullRequest->canPostCheck],
+            EngineFact::PullRequestBaseUpdate => null === $facts->pullRequest ? null : [$facts->pullRequest->baseAhead, $facts->pullRequest->updateRefusedOnHead],
         };
     }
 }

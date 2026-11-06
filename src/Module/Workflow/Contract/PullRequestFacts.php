@@ -29,6 +29,8 @@ final readonly class PullRequestFacts
      * @param bool               $approvalCheckPassed Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
      * @param bool               $canPostCheck        the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
      * @param bool               $mergeBlocked        the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseAhead           the base holds commits the head lacks, on any base branch
+     * @param bool               $updateRefusedOnHead the forge refused a branch update of this head for good, so a new head tries again
      * @param bool               $reviewRequired      the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
      */
     public function __construct(
@@ -62,6 +64,8 @@ final readonly class PullRequestFacts
         public bool $canPostCheck = false,
         public bool $mergeBlocked = false,
         public bool $reviewRequired = false,
+        public bool $baseAhead = false,
+        public bool $updateRefusedOnHead = false,
     ) {
     }
 

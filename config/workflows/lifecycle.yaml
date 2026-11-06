@@ -93,6 +93,13 @@ onWorkFailed:
     backoffMinutes: [2, 3, 5]
     recover: { kind: recover }
 facts:
+    fix-waits-for-base-update:
+        all:
+            - pr.open: {}
+            - pr.checks_failed: {}
+            - pr.base_ahead: {}
+            - pr.can_update_branch: {}
+            - not: { pr.conflicting: {} }
     pr-reviewable:
         all:
             - pr.open: {}
@@ -535,6 +542,16 @@ rules:
                     - agent_review.overridden: {}
       then: { move: { to: in-review } }
 
+    # GitHub merges the base into the branch before an agent fixes failed checks. The fix rules wait while this update can run.
+    - id: update-before-fix
+      slot: implementation
+      when:
+          all:
+              - fact.fix-waits-for-base-update: {}
+              - not: { card.run.worker_active: {} }
+              - not: { card.run.session_open: {} }
+      then: { forge-write: { write: update-branch } }
+
     - id: fix-in-implementation
       slot: implementation
       when:
@@ -542,7 +559,9 @@ rules:
               - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
-                    - pr.checks_failed: {}
+                    - all:
+                          - pr.checks_failed: {}
+                          - not: { fact.fix-waits-for-base-update: {} }
                     - pr.conflicting: {}
                     - pr.changes_requested: {}
       then:
@@ -618,6 +637,15 @@ rules:
               - not: { pr.changes_requested: {} }
       then: { forge-write: { write: review-ready } }
 
+    - id: update-before-fix-in-review
+      slot: in-review
+      when:
+          all:
+              - fact.fix-waits-for-base-update: {}
+              - not: { card.run.worker_active: {} }
+              - not: { card.run.session_open: {} }
+      then: { forge-write: { write: update-branch } }
+
     - id: fix-in-review
       slot: in-review
       when:
@@ -625,7 +653,9 @@ rules:
               - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
-                    - pr.checks_failed: {}
+                    - all:
+                          - pr.checks_failed: {}
+                          - not: { fact.fix-waits-for-base-update: {} }
                     - pr.conflicting: {}
                     - pr.changes_requested: {}
       then:
