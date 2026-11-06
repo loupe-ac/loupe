@@ -18,7 +18,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 
-/** POST /api/v1/projects, PATCH /api/v1/projects/{project}, and the old POST /api/projects beside the new one. */
+/** POST /api/v1/projects and PATCH /api/v1/projects/{project}. */
 final class ProjectWriteApiTest extends WebTestCase
 {
     private KernelBrowser $client;
@@ -200,24 +200,6 @@ final class ProjectWriteApiTest extends WebTestCase
             self::assertSame('validation_failed', $this->json()['code'], $field);
             self::assertSame($field, $this->json()['errors'][0]['field'], $field);
         }
-    }
-
-    public function test_the_old_path_keeps_its_flat_errors_and_its_route_beside_the_new_one(): void
-    {
-        $owner = $this->scenario->createUser('legacy-create@example.com');
-        $token = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp');
-
-        $this->send(Request::METHOD_POST, '/api/projects', $token, '{}');
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'name_required'], $this->json());
-
-        $this->send(Request::METHOD_POST, '/api/projects', $token, '{"name":"Shop"}');
-        self::assertResponseStatusCodeSame(201);
-        self::assertSame('shop', $this->json()['slug']);
-
-        $this->send(Request::METHOD_POST, '/api/projects', $token, '{"name":"Shop"}');
-        self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'name_taken', 'slug' => 'shop'], $this->json());
     }
 
     public function test_a_patch_changes_the_name_and_the_slug_and_keeps_what_it_leaves_out(): void

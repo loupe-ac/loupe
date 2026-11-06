@@ -15,12 +15,6 @@ final readonly class ApiPaths
     /** The versions this server answers. A path of any other version gets `api_version_unsupported`. */
     public const array SERVED_VERSIONS = ['v1'];
 
-    /** True for a path that answers Problem JSON: any /api/v<N> path, and the versions route. */
-    public static function usesProblemJson(string $path): bool
-    {
-        return '/api/versions' === $path || 1 === preg_match('#^/api/v\d+(/|$)#', $path);
-    }
-
     public static function isApi(string $path): bool
     {
         return '/api' === $path || str_starts_with($path, '/api/');
@@ -37,16 +31,6 @@ final readonly class ApiPaths
         }
 
         return array_all(self::PRIVATE_PREFIXES, fn ($prefix) => !($path === $prefix || str_starts_with($path, $prefix.'/')));
-    }
-
-    /** The name a route had before its path moved under /api/v1/bridge, so a check keyed on a route name covers both paths. */
-    public static function canonicalRoute(mixed $route): ?string
-    {
-        if (!\is_string($route)) {
-            return null;
-        }
-
-        return str_starts_with($route, 'api_legacy_') ? 'api_'.substr($route, \strlen('api_legacy_')) : $route;
     }
 
     /** The requested version of a /api/v<N> path, such as `v2`, or null on any other path. */

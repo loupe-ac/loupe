@@ -44,11 +44,6 @@ use Symfony\Component\Uid\Uuid;
     name: 'api_board_feedback_delete',
     methods: ['DELETE'],
 )]
-#[Route(
-    '/api/board/feedback/{id}',
-    name: 'api_legacy_board_feedback_delete',
-    methods: ['DELETE'],
-)]
 final class DeleteFeedbackController extends AppController
 {
     public function __construct(

@@ -119,7 +119,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         ]]);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertJsonStringEqualsJsonString('{"error":"process_count_mismatch"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'process_count_mismatch');
         self::assertSame([], $this->usageRows());
         self::assertNull($this->runOf($run)->usageSource);
     }
@@ -142,7 +142,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         ]]);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertJsonStringEqualsJsonString('{"error":"ambiguous_start_order"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'ambiguous_start_order');
         self::assertSame([], $this->usageRows());
         self::assertNull($this->runOf($first)->usageSource);
     }
@@ -158,7 +158,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->put($client, $project, (string) Uuid::v4(), $raw, ['processes' => [self::process('reported', 'claude')]]);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertJsonStringEqualsJsonString('{"error":"process_count_mismatch"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'process_count_mismatch');
     }
 
     public function test_another_users_project_answers_project_not_found(): void
@@ -174,7 +174,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->put($client, $other, (string) $session, $raw, ['processes' => [self::process('reported', 'claude')]]);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'project_not_found');
         self::assertSame([], $this->usageRows());
     }
 
@@ -189,7 +189,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->put($client, $project, 'not-a-uuid', $raw, ['processes' => [self::process('reported', 'claude')]]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_session_id"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'invalid_session_id');
     }
 
     public function test_a_run_id_fills_the_closed_interactive_run_and_its_fact_row(): void
@@ -243,7 +243,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->put($client, $project, (string) $session, $raw, ['runId' => (string) $runId, 'processes' => [self::process('estimated', 'claude')]]);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertJsonStringEqualsJsonString('{"error":"process_count_mismatch"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'process_count_mismatch');
         self::assertSame([], $this->usageRows());
     }
 
@@ -263,7 +263,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         ]]);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertJsonStringEqualsJsonString('{"error":"process_count_mismatch"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'process_count_mismatch');
         self::assertSame([], $this->usageRows());
     }
 
@@ -278,7 +278,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->put($client, $project, (string) Uuid::v4(), $raw, ['runId' => 'not-a-uuid', 'processes' => [self::process('reported', 'claude')]]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_run_id"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'invalid_run_id');
     }
 
     /** @return iterable<string, array{array<string, mixed>}> */
@@ -406,7 +406,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
     {
         $client->request(
             Request::METHOD_PUT,
-            '/api/projects/'.$project->id.'/worker-runs/sessions/'.$sessionId.'/usage',
+            '/api/v1/bridge/projects/'.$project->id.'/worker-runs/sessions/'.$sessionId.'/usage',
             server: [
                 'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
                 'CONTENT_TYPE' => 'application/json',
@@ -432,5 +432,12 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         $this->em()->clear();
 
         return $this->em()->find(WorkerRun::class, $run->id) ?? throw new \LogicException('The run is gone.');
+    }
+
+    private function assertProblemCode(KernelBrowser $client, string $code): void
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame($code, $body['code'] ?? null);
     }
 }

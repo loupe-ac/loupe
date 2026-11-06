@@ -77,13 +77,17 @@ final class PublicApiRoutesTest extends WebTestCase
         self::assertSame(['v1'], $body['versions']);
     }
 
-    public function test_an_old_api_path_that_matches_no_route_is_not_rewritten(): void
+    public function test_an_unversioned_api_path_that_matches_no_route_answers_route_not_found(): void
     {
         $client = static::createClient();
 
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/api/no-such-route');
 
-        self::assertNotSame('application/problem+json', $client->getResponse()->headers->get('Content-Type'));
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame('application/problem+json', $client->getResponse()->headers->get('Content-Type'));
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame('route_not_found', $body['code']);
     }
 
     public function test_a_public_route_with_no_sign_in_has_the_budget_flags_seeded_by_the_migration_defaults(): void

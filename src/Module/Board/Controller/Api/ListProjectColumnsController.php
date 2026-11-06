@@ -43,12 +43,6 @@ use Symfony\Contracts\Translation\TranslatorInterface;
     requirements: ['handle' => '[^/]+'],
     methods: ['GET'],
 )]
-#[Route(
-    '/api/projects/{handle}/board/columns',
-    name: 'api_legacy_project_board_column_list',
-    requirements: ['handle' => '[^/]+'],
-    methods: ['GET'],
-)]
 final class ListProjectColumnsController extends AppController
 {
     public function __construct(

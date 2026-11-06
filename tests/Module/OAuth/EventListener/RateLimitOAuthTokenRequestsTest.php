@@ -31,7 +31,7 @@ final class RateLimitOAuthTokenRequestsTest extends TestCase
     {
         $listener = new RateLimitOAuthTokenRequests(self::factory());
 
-        foreach (['/oauth/authorize', '/api/projects', '/oauth/tokens'] as $path) {
+        foreach (['/oauth/authorize', '/api/v1/projects', '/oauth/tokens'] as $path) {
             $listener($this->event($path, '10.0.0.1'));
             $listener($this->event($path, '10.0.0.1'));
             $listener($this->event($path, '10.0.0.1'));

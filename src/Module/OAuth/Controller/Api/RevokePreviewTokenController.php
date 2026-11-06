@@ -50,12 +50,6 @@ use Symfony\Component\Routing\Attribute\Route;
     requirements: ['handle' => '[^/]+', 'label' => '[^/]+'],
     methods: ['DELETE'],
 )]
-#[Route(
-    '/api/projects/{handle}/preview-tokens/{label}',
-    name: 'api_legacy_project_preview_token_revoke',
-    requirements: ['handle' => '[^/]+', 'label' => '[^/]+'],
-    methods: ['DELETE'],
-)]
 final class RevokePreviewTokenController extends AppController
 {
     public function __construct(

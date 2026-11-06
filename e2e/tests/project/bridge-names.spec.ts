@@ -19,7 +19,7 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     const headers = { Authorization: `Bearer ${token}` };
     const heartbeat = async (bridgeId: string, name?: string) => {
         const response = await page.request.put(
-            `/api/bridges/${bridgeId}/heartbeat`,
+            `/api/v1/bridge/bridges/${bridgeId}/heartbeat`,
             {
                 headers,
                 data: {
@@ -33,7 +33,7 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     };
     const report = async (bridgeId: string) => {
         const response = await page.request.put(
-            `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+            `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
             {
                 headers,
                 data: {
