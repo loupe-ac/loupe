@@ -446,6 +446,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 	}
 	var errs []error
 	s.accounts, errs = checkAccounts(f.Accounts, root)
+	errs = append(errs, refuseRepairKey(f)...)
 	declared := slices.Sorted(maps.Keys(f.Accounts))
 	if f.EnvFile != "" {
 		path, err := checkPath("envFile", f.EnvFile)
