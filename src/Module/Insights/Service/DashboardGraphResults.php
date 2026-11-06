@@ -54,7 +54,7 @@ final readonly class DashboardGraphResults
         $query = MetricsQuery::fromQuery($settings, $this->templateMetrics->forProject($project->requireId()));
         $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query, $now));
 
-        $result = new DashboardGraphResult($now, $view->title, $view->chart, $view->layout, $view->labels, array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->metrics->series), $view->metrics->current, $view->metrics->previous);
+        $result = new DashboardGraphResult($now, $view->title, $view->chart, $view->layout, $view->labels, array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->series), $view->metrics->current, $view->metrics->previous);
         $item = $this->cache->getItem($this->key($project, $graph));
         $item->set($result)->expiresAfter(self::LIFETIME);
         $this->cache->save($item);

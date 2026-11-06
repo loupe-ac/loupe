@@ -61,6 +61,7 @@ final readonly class ShowMetricsHandler
             $locks,
             MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $ordered, new MetricValueFormatter(\Locale::getDefault())),
             $labels,
+            $ordered,
         );
     }
 }

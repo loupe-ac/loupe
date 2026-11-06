@@ -152,6 +152,24 @@ final class DashboardGraphResultsTest extends KernelTestCase
         self::assertEquals([new MetricGroupKey(account: 'work')], $result->seriesKeys);
     }
 
+    public function test_each_key_sits_at_the_position_of_its_label_when_the_total_order_differs_from_the_name_order(): void
+    {
+        $project = $this->scenarioProject('results-keys-order');
+        $em = $this->em();
+        foreach (['alpha' => '1.00', 'zeta' => '5.00'] as $account => $cost) {
+            $run = $this->seedRun($em, $project, cardNumber: 'alpha' === $account ? 1 : 2, endedAt: new \DateTimeImmutable('-5 days'));
+            $this->seedUsage($em, $run, costUsd: $cost);
+            $em->getConnection()->executeStatement('UPDATE bridge_worker_run_facts SET account = :account WHERE run_id = :run', ['account' => $account, 'run' => (string) $run->id]);
+        }
+        $graph = $this->costGraph($project);
+        $graph->group = MetricGroup::Account;
+
+        $result = $this->results()->compute($project, $graph);
+
+        self::assertSame(['zeta', 'alpha'], $result->labels);
+        self::assertEquals([new MetricGroupKey(account: 'zeta'), new MetricGroupKey(account: 'alpha')], $result->seriesKeys);
+    }
+
     public function test_a_graph_with_no_split_has_null_keys(): void
     {
         $project = $this->scenarioProject('results-null-keys');
