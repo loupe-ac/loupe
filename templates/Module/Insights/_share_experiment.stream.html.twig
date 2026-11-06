@@ -1,0 +1,9 @@
+{# The answer to an experiment share request that left the experiment unarchived: the new state of the dialog body and of the Public tag. Props: project (Project), experiment (string), share (PublicLinkShareView), error (string or null). #}
+<turbo-stream action="update" method="morph" target="share-experiment-body-{{ experiment_share_key(experiment) }}">
+    <template>
+        {% include '@Insights/_share_experiment_dialog_body.html.twig' with {project: project, experiment: experiment, share: share, error: error, archived: false} only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="update" targets="[data-experiment-public='{{ experiment }}']">
+    <template>{% if share.isPublic %}<twig:Ds:Tag tone="lime">{{ 'insights.public_link.tag'|trans }}</twig:Ds:Tag>{% endif %}</template>
+</turbo-stream>

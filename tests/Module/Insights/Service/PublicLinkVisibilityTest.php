@@ -71,6 +71,36 @@ final class PublicLinkVisibilityTest extends KernelTestCase
         self::assertNull($this->visibility()->resolve($link->code));
     }
 
+    public function test_an_enabled_experiment_link_resolves_and_switching_it_off_hides_it(): void
+    {
+        $project = $this->scenarioProject('vis-experiment');
+        $link = PublicLink::forExperiment($project, 'trial', 'A note.');
+        $this->em()->persist($link);
+        $this->em()->flush();
+
+        self::assertSame($link->code, $this->visibility()->resolve($link->code)?->code);
+
+        $link->enabled = false;
+        $this->em()->flush();
+        self::assertNull($this->visibility()->resolve($link->code));
+
+        $link->enabled = true;
+        $this->em()->flush();
+        self::assertNotNull($this->visibility()->resolve($link->code));
+    }
+
+    public function test_the_instance_flag_hides_an_experiment_link_too(): void
+    {
+        $link = PublicLink::forExperiment($this->scenarioProject('vis-experiment-flag'), 'trial');
+        $this->em()->persist($link);
+        $flags = self::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[PublicLink::FLAG]->value = false;
+        $this->em()->flush();
+
+        self::assertNull($this->visibility()->resolve($link->code));
+    }
+
     public function test_a_takedown_hides_every_link_of_the_project_and_a_lift_brings_them_back(): void
     {
         $link = $this->sharedGraph('vis-takedown');

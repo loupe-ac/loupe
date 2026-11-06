@@ -41,6 +41,23 @@ final class PublicLinkRepositoryTest extends KernelTestCase
         self::assertNull($this->links()->findByCode('aaaaaaaaaaaa'));
     }
 
+    public function test_the_experiment_links_of_a_project_come_by_experiment_name_and_leave_out_graphs_and_other_projects(): void
+    {
+        $project = $this->scenarioProject('links-by-experiment');
+        $this->em()->persist(PublicLink::forGraph($this->seedSavedGraph($project)));
+        $trial = PublicLink::forExperiment($project, 'trial');
+        $this->em()->persist($trial);
+        $this->em()->persist(PublicLink::forExperiment($this->scenarioProject('links-other'), 'trial'));
+        $this->em()->flush();
+        $this->em()->clear();
+        $stored = $this->em()->find($project::class, $project->id) ?? throw new \LogicException();
+
+        $links = $this->links()->findExperimentLinks($stored);
+
+        self::assertSame(['trial'], array_keys($links));
+        self::assertSame($trial->code, $links['trial']->code);
+    }
+
     public function test_the_database_refuses_a_second_link_for_one_graph(): void
     {
         $graph = $this->seedSavedGraph($this->scenarioProject('links-graph-unique'));

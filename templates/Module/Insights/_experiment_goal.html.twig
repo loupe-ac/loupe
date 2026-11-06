@@ -1,0 +1,65 @@
+{# The goal table of an experiment and its notes. Props: headline (ExperimentHeadline), text (ExperimentHeadlineText). #}
+{% set goal = headline.goal %}
+{% set baselineArm = headline.baselineArm %}
+{% if baselineArm is null %}
+    <p class="lp-experiment-note" data-experiment-no-baseline>{{ 'bridge.experiments.goal.no_baseline'|trans({'%key%': '<code class="lp-experiment-config-key">baseline:</code>'})|raw }}</p>
+{% elseif goal.problem is not null %}
+    <p class="lp-experiment-note" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.problem.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>
+{% else %}
+    {% set goalName = text.metricName(goal.metric) %}
+    <h3 class="lp-experiment-section" data-experiment-goal-heading>{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalName, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</h3>
+    <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-goal>
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'bridge.experiments.variants.variant'|trans }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ goalName }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.goal.column.change'|trans({'%baseline%': headline.baseline}) }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.goal.column.range'|trans }}</th>
+                    <th scope="col">{{ 'bridge.experiments.goal.column.result'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-experiment-goal-row="{{ headline.baseline }}" data-experiment-goal-baseline>
+                    <th scope="row">{{ headline.baseline }} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag></th>
+                    <td class="lp-experiment-table__number">{{ text.point(goal.metric, baselineArm.point) ?? '–' }}</td>
+                    <td class="lp-experiment-table__number">–</td>
+                    <td class="lp-experiment-table__number lp-experiment-table__range">–</td>
+                    <td></td>
+                </tr>
+                {% for comparison in headline.comparisons %}
+                    <tr data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}">
+                        <th scope="row">{{ comparison.variant }}</th>
+                        <td class="lp-experiment-table__number">{{ text.point(goal.metric, comparison.arm.point) ?? '–' }}</td>
+                        <td class="lp-experiment-table__number">{{ text.change(goal, comparison) ?? '–' }}</td>
+                        <td class="lp-experiment-table__number lp-experiment-table__range">{{ text.range(comparison) ?? '–' }}</td>
+                        <td>
+                            {% if comparison.state.value == 'held' %}
+                                {% if comparison.hold.reason.value == 'failed' %}
+                                    <twig:Ds:StatusChip modifier="failed" :label="'bridge.experiments.goal.hold.chip_failed'|trans" />
+                                {% else %}
+                                    <twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.controls.result.no_data'|trans" />
+                                {% endif %}
+                            {% elseif comparison.state.value == 'not-enough-cards' %}
+                                <twig:Ds:StatusChip modifier="neutral" :label="text.needs(comparison, baselineArm)" />
+                            {% elseif comparison.state.value == 'clear' %}
+                                <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
+                            {% else %}
+                                <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
+    {% if headline.comparisons|length > 1 %}
+        <p class="lp-experiment-note" data-experiment-goal-widened>{{ 'bridge.experiments.goal.widened'|trans({'%level%': text.level(headline.confidence), '%count%': headline.comparisons|length, '%baseline%': headline.baseline}) }}</p>
+    {% endif %}
+    {% for comparison in headline.comparisons|filter(comparison => comparison.state.value == 'held') %}
+        <p class="lp-experiment-note" data-experiment-goal-hold="{{ comparison.variant }}" data-experiment-goal-hold-reason="{{ comparison.hold.reason.value }}">{{ comparison.variant }}: {{ text.holdReason(comparison) }}</p>
+    {% endfor %}
+{% endif %}

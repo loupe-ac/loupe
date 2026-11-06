@@ -6,7 +6,7 @@ namespace App\Tests\Module\Insights\Controller;
 
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Service\PublicShareBlock;
-use App\Module\Insights\View\GraphShareView;
+use App\Module\Insights\View\PublicLinkShareView;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -187,7 +187,7 @@ final class ShareDialogRenderTest extends WebTestCase
 
         $html = $twig->render('@Insights/_share_dialog_body.html.twig', [
             'graph' => $this->em()->find($graph::class, $graph->id),
-            'share' => new GraphShareView(null, PublicShareBlock::FlagOff),
+            'share' => new PublicLinkShareView(null, PublicShareBlock::FlagOff),
             'error' => null,
         ]);
 

@@ -7443,6 +7443,12 @@
             <trans-unit id="bridge.experiments.unarchive"><source>bridge.experiments.unarchive</source><target>Unarchive %name%</target></trans-unit>
             <trans-unit id="bridge.experiments.archive_action"><source>bridge.experiments.archive_action</source><target>Archive</target></trans-unit>
             <trans-unit id="bridge.experiments.unarchive_action"><source>bridge.experiments.unarchive_action</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.title"><source>bridge.experiments.share.title</source><target>Share this experiment</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.row"><source>bridge.experiments.share.row</source><target>Share %name%</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.archived_note"><source>bridge.experiments.share.archived_note</source><target>This experiment is archived. Sharing it unarchives it.</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.unarchive"><source>bridge.experiments.share.unarchive</source><target>Share and unarchive</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.cancel"><source>bridge.experiments.share.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="bridge.experiments.share.invalid"><source>bridge.experiments.share.invalid</source><target>Loupe could not change the sharing of this experiment. Try again.</target></trans-unit>
             <trans-unit id="bridge.experiments.archive.error.unknown"><source>bridge.experiments.archive.error.unknown</source><target>No run and no card pin names this experiment, so there is nothing to archive.</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
@@ -9038,6 +9044,7 @@
             <trans-unit id="insights.public_link.dashboard.taken_down"><source>insights.public_link.dashboard.taken_down</source><target>An admin took down the public links of this project. Every link shows "not found" until an admin restores them. Your switches stay as they are.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.text"><source>insights.public_link.admin_bar.text</source><target>You see this bar because you are an admin.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.action"><source>insights.public_link.admin_bar.action</source><target>Take down the public links of this project</target></trans-unit>
+            <trans-unit id="insights.public_link.experiment.totals_only"><source>insights.public_link.experiment.totals_only</source><target>Totals only. The cards of each variant stay private.</target></trans-unit>
             <trans-unit id="insights.admin.public_links.page.title"><source>insights.admin.public_links.page.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.title"><source>insights.admin.public_links.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.unit"><source>insights.admin.public_links.unit</source><target>project</target></trans-unit>
@@ -9104,6 +9111,10 @@
             <trans-unit id="insights.form.graph_legend_form.show.off"><source>insights.form.graph_legend_form.show.off</source><target>Hide</target></trans-unit>
             <trans-unit id="insights.form.share_graph_form.enabled.label"><source>insights.form.share_graph_form.enabled.label</source><target>Public link</target></trans-unit>
             <trans-unit id="insights.form.share_graph_form.enabled.help"><source>insights.form.share_graph_form.enabled.help</source><target>Anyone with the link can see this graph as you saved it. Account names show as Account 1, Account 2.</target></trans-unit>
+            <trans-unit id="insights.form.share_experiment_form.enabled.label"><source>insights.form.share_experiment_form.enabled.label</source><target>Public link</target></trans-unit>
+            <trans-unit id="insights.form.share_experiment_form.enabled.help"><source>insights.form.share_experiment_form.enabled.help</source><target>Anyone with the link can see the totals of this experiment. The page shows no card, no account name and no person.</target></trans-unit>
+            <trans-unit id="insights.form.share_experiment_form.note.label"><source>insights.form.share_experiment_form.note.label</source><target>Note for visitors</target></trans-unit>
+            <trans-unit id="insights.form.share_experiment_form.note.help"><source>insights.form.share_experiment_form.note.help</source><target>Shown above the results. You can use Markdown.</target></trans-unit>
             <trans-unit id="insights.form.drag_graph_form.steps.label"><source>insights.form.drag_graph_form.steps.label</source><target>Places to move</target></trans-unit>
             <trans-unit id="analytics.metrics.save.button"><source>analytics.metrics.save.button</source><target>Save to dashboard</target></trans-unit>
             <trans-unit id="analytics.metrics.save.cap_reached"><source>analytics.metrics.save.cap_reached</source><target>The Dashboard holds %limit% graphs. Remove one to add another.</target></trans-unit>
