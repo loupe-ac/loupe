@@ -5,9 +5,12 @@ description: "Use when running mutation testing or code coverage, choosing betwe
 
 # Mutation testing and coverage
 
-Two weekly GitHub Actions produce these reports. Neither is a required check, and
-neither gates a merge. Both write their results to an artifact, so the run page
-shows no score.
+One weekly GitHub Actions workflow, `Coverage report`, produces these reports.
+It is not a required check, and it gates no merge. It writes its results to
+artifacts, so the run page shows no score. When a job is red, a `failure-signal`
+job puts a to-do titled "Weekly run failed: Coverage report" in the Loupe inbox. A
+red run that stays red keeps one open to-do. The job needs the repository secret
+`LOUPE_API_TOKEN` and the variable `LOUPE_PROJECT`.
 
 ## The recipes, and where each writes
 
@@ -15,9 +18,9 @@ The recipe names do not make the difference obvious.
 
 | Recipe | Measures | Writes |
 |---|---|---|
-| `just mutation` | mutation, all of `src` | `var/infection/` |
+| `just mutation` | mutation, all of `src`. CI passes `--coverage=var/phpunit-coverage --skip-initial-tests`, so it reuses the coverage run | `var/infection/` |
 | `just mutation-diff [BASE]` | mutation, the `src/` files you changed | `var/infection/` |
-| `just phpunit-coverage` | coverage, the PHPUnit suites | `var/phpunit-coverage/` |
+| `just phpunit-coverage` | coverage, the PHPUnit suites, through ParaTest with four workers | `var/phpunit-coverage/`, with `coverage-xml/` and `junit.xml` for Infection |
 | `just e2e-coverage` | coverage, the Playwright suite | `var/coverage/` |
 
 A hook refuses a bare `just phpunit-coverage` for an agent. Pass a path, such as
@@ -56,14 +59,18 @@ just ci-report phpunit-timing      # slowest PHPUnit classes and tests
 ```
 
 With no run id, the recipe takes the newest completed run on `main` that still
-holds the artifact. It downloads into `var/ci-reports/<artifact>/<run-id>/`,
-which git ignores. It does not download a run twice.
+holds the artifact. It prints the date and conclusion of that run. It warns on
+stderr when newer runs of the workflow failed, and when the chosen run itself was
+red. It exits 0 either way. It downloads into `var/ci-reports/<artifact>/<run-id>/`,
+which git ignores. It does not download a run twice. For `mutation` it also
+searches the retired `Mutation testing` workflow when no `Coverage report` run
+holds the report yet.
 
 | Report | Workflow | Job | Artifact | Holds | Retention |
 |---|---|---|---|---|---|
-| mutation | `Mutation testing` | `infection` | `infection-report` | `summary.log`, `infection.log` | 90 days |
+| mutation | `Coverage report` | `infection` | `infection-report` | `summary.log`, `infection.log` | 90 days |
 | PHPUnit coverage | `Coverage report` | `phpunit-coverage` | `phpunit-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
-| e2e coverage | `Coverage report` | `e2e-coverage` | `e2e-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
+| e2e coverage | `Coverage report` | `e2e-coverage-leg` (eight legs), merged by `e2e-coverage` | `e2e-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
 | e2e timing | `CI` | `e2e-<leg>`, one per matrix leg | `e2e-timing-<leg>`, such as `e2e-timing-chromium-3` | `results.json` | 30 days |
 | PHPUnit timing | `CI` | `phpunit` | `phpunit-timing` | `junit.xml` | 30 days |
 
@@ -94,6 +101,15 @@ about 87 MB. Fetch it only when you need a per-file breakdown.
 A run with no artifact means that the job failed before it wrote one. It does
 not mean zero coverage. It does not mean that the upload step is missing. Read
 the job log.
+
+Each e2e coverage leg uploads its raw `.cov` files as `e2e-coverage-raw-<leg>`, and
+the `e2e-coverage` job merges them after a red or timed-out leg too. The step
+that runs a long test has its own `timeout-minutes`, below the job limit. GitHub
+cancels a job at the job limit and skips every later step. A step limit fails
+only that step, so the uploads and the failure signal still run.
+
+Under coverage, `e2e/playwright.config.ts` sets `maxFailures` to 0 and raises the
+navigation and action limits.
 
 A red run on its own still produces a report. `just e2e-coverage` runs its
 `phpcov merge` before the exit check, deliberately. A suite that loses a spec
@@ -135,7 +151,7 @@ both growth rates. With sizes of 10,000 and 20,000 and a bound of 3.0, one
 Playwright carries the same kind of bound in its own config. Its `expect`
 timeout is an absolute 5 seconds. Per-request collection takes one page render
 from about 0.5s to about 4.7s. A coverage run therefore sits on that bound, and
-fails on timeouts, not on anything a spec asserts. `playwright.config.ts` raises
+fails on timeouts, not on anything a spec asserts. `e2e/playwright.config.ts` raises
 the timeouts when `COVERAGE` is set. The per-pull-request gate keeps 5s.
 
 ## Never size a run from a local timing
