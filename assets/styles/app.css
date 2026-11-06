@@ -2930,9 +2930,10 @@
     .lp-card-drawer__icon {
         @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
     }
-    /* On a phone the card page keeps a bar of at least 36 px under the 64 px top bar.
+    /* On a phone the card page keeps a bar of at least 36 px, border included, under the 64 px top bar.
        The bar grows to a second line when the number and the status tag do not fit on one.
-       The buttons keep their 44 px tap size and reach past the bar. The icon and the source tag leave. */
+       The buttons keep their 44 px tap size and reach 6 px past the bar on each side, so one line stays 36 px.
+       The icon and the source tag leave. */
     @media (width < 40rem) {
         .lp-card-drawer__header {
             @apply min-h-9 flex-wrap gap-2 px-4 py-0;
@@ -2947,7 +2948,7 @@
             @apply hidden;
         }
         .lp-card-drawer__header-actions .lp-btn {
-            @apply -my-1;
+            @apply -my-1.5;
         }
     }
     .lp-card-drawer__body {
