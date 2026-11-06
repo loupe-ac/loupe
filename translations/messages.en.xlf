@@ -9032,6 +9032,7 @@
             <trans-unit id="insights.public_link.dashboard.taken_down"><source>insights.public_link.dashboard.taken_down</source><target>An admin took down the public links of this project. Every link shows "not found" until an admin restores them. Your switches stay as they are.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.text"><source>insights.public_link.admin_bar.text</source><target>You see this bar because you are an admin.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.action"><source>insights.public_link.admin_bar.action</source><target>Take down the public links of this project</target></trans-unit>
+            <trans-unit id="insights.public_link.experiment.totals_only"><source>insights.public_link.experiment.totals_only</source><target>Totals only. The cards of each variant stay private.</target></trans-unit>
             <trans-unit id="insights.admin.public_links.page.title"><source>insights.admin.public_links.page.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.title"><source>insights.admin.public_links.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.unit"><source>insights.admin.public_links.unit</source><target>project</target></trans-unit>

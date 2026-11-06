@@ -5,18 +5,22 @@
 {% set text = experiment_headline_text() %}
 <div class="lp-public__experiment" data-public-experiment>
     <h2 class="lp-experiment-heading__name">{{ experiment.experiment }}</h2>
-    {% if noteHtml is not null %}
-        <div class="prose lp-prose" data-public-experiment-note>{{ noteHtml|raw }}</div>
-    {% endif %}
-    {% if headline is not null %}
-        {% include '@Insights/_experiment_goal.html.twig' with {headline: headline, text: text} only %}
+    <twig:Ds:Panel class="lp-public__panel" data-public-experiment-panel>
+        {% if noteHtml is not null %}
+            <div class="prose lp-prose" data-public-experiment-note>{{ noteHtml|raw }}</div>
+        {% endif %}
+        {% if headline is not null %}
+            {% include '@Insights/_experiment_goal.html.twig' with {headline: headline, text: text} only %}
 
-        {% include '@Insights/_experiment_controls.html.twig' with {headline: headline, text: text} only %}
+            {% include '@Insights/_experiment_controls.html.twig' with {headline: headline, text: text} only %}
 
-        {% include '@Insights/_experiment_guards.html.twig' with {headline: headline, text: text} only %}
-    {% endif %}
+            {% include '@Insights/_experiment_guards.html.twig' with {headline: headline, text: text} only %}
+        {% endif %}
 
-    {% include '@Insights/_experiment_variants.html.twig' with {variants: experiment.variants, headline: headline} only %}
+        {% include '@Insights/_experiment_variants.html.twig' with {variants: experiment.variants, headline: headline} only %}
 
-    {% include '@Insights/_experiment_metrics.html.twig' with {metrics: experiment.metrics, variants: experiment.variants, headline: headline, text: text, unknownMetrics: []} only %}
+        {% include '@Insights/_experiment_metrics.html.twig' with {metrics: experiment.metrics, variants: experiment.variants, headline: headline, text: text, unknownMetrics: []} only %}
+
+        <p class="lp-experiment-note" data-public-experiment-privacy>{{ 'insights.public_link.experiment.totals_only'|trans }}</p>
+    </twig:Ds:Panel>
 </div>

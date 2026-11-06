@@ -57,9 +57,12 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-sidebar');
         self::assertSelectorTextContains('.lp-public__project', 'Project public-x-ok');
         self::assertSelectorTextContains('[data-public-experiment] .lp-experiment-heading__name', 'model-test');
-        self::assertSelectorExists('[data-experiment-variants]');
-        self::assertSelectorExists('[data-experiment-metrics]');
-        self::assertSelectorExists('[data-experiment-goal]');
+        self::assertSelectorExists('[data-public-experiment-panel] [data-public-experiment-note]');
+        self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-variants]');
+        self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-metrics]');
+        self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-goal]');
+        self::assertSelectorTextContains('[data-public-experiment-panel] > [data-public-experiment-privacy]:last-child', 'Totals only. The cards of each variant stay private.');
+        self::assertSelectorNotExists('[data-public-experiment-panel] .lp-experiment-heading__name');
         self::assertSelectorTextContains('.lp-public__meta', 'Updated 0 min ago');
         self::assertSelectorTextContains('.lp-public__meta a.lp-public__made-with', 'Made with Loupe');
     }

@@ -7796,6 +7796,13 @@
     .lp-public__item {
         @apply flex flex-col gap-5;
     }
+    /* A shared experiment: its name above one panel that holds the note and the comparison tables. */
+    .lp-public__experiment {
+        @apply flex flex-col gap-3;
+    }
+    .lp-public__panel > :first-child {
+        @apply mt-0;
+    }
     .lp-public__project {
         @apply m-0 text-sm font-semibold text-fg-mute;
     }
