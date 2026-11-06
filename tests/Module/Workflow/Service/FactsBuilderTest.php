@@ -887,6 +887,43 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertFalse($this->facts($card)->pullRequest->mergeBlocked);
     }
 
+    public function test_a_pull_request_reads_as_review_required_when_the_forge_asks_for_more_approvals(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-review-required');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->review = PullRequestReview::Required;
+        $pullRequest->reviewFromRules = true;
+        $this->em()->flush();
+        self::assertTrue($this->facts($card)->pullRequest?->reviewRequired);
+
+        $pullRequest->review = PullRequestReview::Approved;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest->reviewRequired);
+    }
+
+    public function test_a_rejected_review_that_the_rules_count_keeps_review_required_after_a_fix_run_answers_it(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-review-rejected');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->review = PullRequestReview::ChangesRequested;
+        $pullRequest->reviewFromRules = true;
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('2026-10-19 14:55:00');
+        $this->em()->flush();
+        $this->fix($card, $pullRequest, '2026-10-19 15:02:00', WorkRequestState::Done);
+
+        $facts = $this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.');
+        self::assertFalse($facts->changesRequested, 'The fix run answers the request.');
+        self::assertTrue($facts->reviewRequired, 'GitHub still refuses the merge until it reads a new review.');
+
+        $pullRequest->reviewFromRules = false;
+        $this->em()->flush();
+        self::assertFalse($this->facts($card)->pullRequest?->reviewRequired, 'With no review rules, the fix run lets the merge go on.');
+    }
+
     public function test_a_blocked_reading_older_than_the_passed_approval_check_does_not_read_as_blocked(): void
     {
         self::bootKernel();

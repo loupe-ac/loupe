@@ -93,6 +93,13 @@ method. A stage that needs that value stops as if the section were missing. The
 `Repair` section lists each action that a repair worker may take, with its
 commands and its guards.
 
+The agent also looks for two more things. It proposes edits to instruction files
+and project skills that conflict with the Loupe workflow, and it offers to move
+open work that the repository tracks elsewhere, such as GitHub issues or a
+`docs/NEXT_STEPS.md` list, to the board. It changes nothing in your tooling or
+workflow without your approval. It asks about each edit, and about each source
+of moved work, and it closes an issue or removes a line only when you say yes.
+
 To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
 of your repository. The example is for a Node project on GitHub with the
 Lifecycle workflow and its default column slugs.

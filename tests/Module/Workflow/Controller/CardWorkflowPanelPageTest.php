@@ -67,23 +67,23 @@ final class CardWorkflowPanelPageTest extends WebTestCase
         self::assertStringContainsString('The pause ends when the facts that the rule reads change.', $paused->text());
     }
 
-    public function test_a_failed_repair_pause_shows_its_reason(): void
+    public function test_a_failed_recovery_pause_shows_its_reason(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'panel-paused-repair@example.com');
+        $owner = $this->user($em, 'panel-paused-recovery@example.com');
         $project = $this->project($em, $owner);
         $card = $this->card($em, $project, 'Paused', 'next');
         $pause = static::getContainer()->get(PauseCardHandler::class);
         self::assertInstanceOf(PauseCardHandler::class, $pause);
-        $pause(new PauseCardCommand($card, Engine::REPAIR_FAILED, 'implement', PauseKind::Retries));
+        $pause(new PauseCardCommand($card, Engine::RECOVER_FAILED, 'implement', PauseKind::Retries));
         $em->clear();
 
         $client->loginUser($owner);
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('The repair worker could not fix the failure.', $crawler->filter('[data-workflow-pause]')->text());
+        self::assertStringContainsString('The recovery run could not clear the failure.', $crawler->filter('[data-workflow-pause]')->text());
     }
 
     public function test_an_unknown_pause_code_shows_the_code(): void

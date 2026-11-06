@@ -33,8 +33,8 @@ final class Evaluation
     /** True once the pass changed what the facts read, such as a fired rule or a pause, so the marker pass builds them again. */
     public bool $factsStale = false;
 
-    /** @var array<string, true> the ids of the rules whose repair request is live */
-    public array $repairing = [];
+    /** @var array<string, true> the ids of the rules whose recovery request is live */
+    public array $recovering = [];
 
     /** @var list<array{rule: string, outcome: string, code: ?string}> */
     public array $fired = [];

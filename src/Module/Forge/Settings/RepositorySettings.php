@@ -19,6 +19,7 @@ final readonly class RepositorySettings implements \JsonSerializable
      * @param list<RepositoryRuleset> $rulesets
      * @param list<string>            $recentChecks      the names of checks that recent pull requests ran, without the Loupe checks
      * @param bool                    $classicProtection true when the branch has classic protection
+     * @param string|null             $rulesUnavailable  the forge message when the plan has no rulesets, so the forge enforces none; null when the rules were read
      */
     public function __construct(
         public string $defaultBranch,
@@ -28,6 +29,7 @@ final readonly class RepositorySettings implements \JsonSerializable
         public array $rulesets,
         public array $recentChecks,
         public bool $classicProtection,
+        public ?string $rulesUnavailable = null,
     ) {
     }
 
@@ -53,6 +55,7 @@ final readonly class RepositorySettings implements \JsonSerializable
             'rulesets' => $this->rulesets,
             'recentChecks' => $this->recentChecks,
             'classicProtection' => $this->classicProtection,
+            'rulesUnavailable' => $this->rulesUnavailable,
         ];
     }
 
@@ -78,6 +81,7 @@ final readonly class RepositorySettings implements \JsonSerializable
             array_map(static fn (mixed $ruleset): RepositoryRuleset => \is_array($ruleset) ? RepositoryRuleset::fromArray($ruleset) : throw new \InvalidArgumentException('settings.rulesets'), $rulesets),
             self::strings($data['recentChecks'] ?? null, 'settings.recentChecks'),
             \is_bool($data['classicProtection'] ?? null) ? $data['classicProtection'] : throw new \InvalidArgumentException('settings.classicProtection'),
+            \is_string($data['rulesUnavailable'] ?? null) ? $data['rulesUnavailable'] : null,
         );
     }
 

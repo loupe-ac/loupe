@@ -107,7 +107,16 @@ final readonly class GitHubPullRequestMerger implements PullRequestMerger
     {
         $all = [];
         for ($page = 1; $page <= self::MAX_RULE_PAGES; ++$page) {
-            $items = $this->api->get($installationId, $repositoryPath.'/rules/branches/'.rawurlencode($base), ['per_page' => self::RULES_PER_PAGE, 'page' => $page]);
+            try {
+                $items = $this->api->get($installationId, $repositoryPath.'/rules/branches/'.rawurlencode($base), ['per_page' => self::RULES_PER_PAGE, 'page' => $page]);
+            } catch (GitHubAppApiFailed $e) {
+                // A plan with no rulesets enforces none, so the repository switches alone decide the methods.
+                if (GitHubAppApiFailed::PLAN_LIMITED === $e->reason) {
+                    return GitHubBranchRules::fromRules([]);
+                }
+
+                throw $e;
+            }
             $all = [...$all, ...$items];
             if (\count($items) < self::RULES_PER_PAGE) {
                 break;
@@ -126,7 +135,7 @@ final readonly class GitHubPullRequestMerger implements PullRequestMerger
         if ($e->rateLimited) {
             return new PullRequestWriteFailed('api_failed_rate_limited', permanent: false, previous: $e, retryAfterSeconds: $e->retryAfterSeconds);
         }
-        if ('http_status' === $e->reason && \in_array($e->status, self::REFUSED_STATUSES, true)) {
+        if (GitHubAppApiFailed::PLAN_LIMITED === $e->reason || ('http_status' === $e->reason && \in_array($e->status, self::REFUSED_STATUSES, true))) {
             return new PullRequestWriteFailed('permission', permanent: true, previous: $e);
         }
         if ('http_status' === $e->reason && \in_array($e->status, self::NOT_MERGEABLE_STATUSES, true)) {

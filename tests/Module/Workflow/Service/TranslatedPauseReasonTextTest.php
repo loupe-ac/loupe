@@ -17,7 +17,7 @@ final class TranslatedPauseReasonTextTest extends KernelTestCase
 
     public function test_a_pause_code_reads_the_pause_text(): void
     {
-        self::assertSame('The repair worker could not fix the failure.', $this->text()->forPause('repair-failed'));
+        self::assertSame('The recovery run could not clear the failure.', $this->text()->forPause('recover-failed'));
     }
 
     public function test_a_pause_that_keeps_a_refusal_code_reads_the_refusal_text(): void
@@ -34,7 +34,7 @@ final class TranslatedPauseReasonTextTest extends KernelTestCase
     public function test_a_refusal_code_reads_only_the_refusal_text(): void
     {
         self::assertSame('The board refused the move.', $this->text()->forRefusal('move-refused'));
-        self::assertSame('repair-failed', $this->text()->forRefusal('repair-failed'));
+        self::assertSame('recover-failed', $this->text()->forRefusal('recover-failed'));
     }
 
     private function text(): PauseReasonText

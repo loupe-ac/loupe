@@ -1,5 +1,5 @@
 key: simple
-version: 14
+version: 15
 defaultType: feature
 skillPackages: [loupe]
 needsProfile: false
@@ -105,8 +105,8 @@ markers:
                     any:
                         - card.run.work_active: { kind: fix }
                         - card.run.worker_active: { kind: fix }
-                        - card.run.work_active: { kind: repair }
-                        - card.run.worker_active: { kind: repair }
+                        - card.run.work_active: { kind: recover }
+                        - card.run.worker_active: { kind: recover }
                         - card.rule.retry_scheduled: {}
     - key: conflicting
       kind: stuck
@@ -120,8 +120,8 @@ markers:
                     any:
                         - card.run.work_active: { kind: fix }
                         - card.run.worker_active: { kind: fix }
-                        - card.run.work_active: { kind: repair }
-                        - card.run.worker_active: { kind: repair }
+                        - card.run.work_active: { kind: recover }
+                        - card.run.worker_active: { kind: recover }
     - key: ready-not-merged
       kind: stuck
       label: marker.ready_not_merged

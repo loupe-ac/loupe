@@ -2974,6 +2974,18 @@
                 <source>readiness.report.none</source>
                 <target>None.</target>
             </trans-unit>
+            <trans-unit id="readiness.report.remains">
+                <source>readiness.report.remains</source>
+                <target>What remains</target>
+            </trans-unit>
+            <trans-unit id="readiness.report.remains_owner">
+                <source>readiness.report.remains_owner</source>
+                <target>For the owner</target>
+            </trans-unit>
+            <trans-unit id="readiness.report.remains_agent">
+                <source>readiness.report.remains_agent</source>
+                <target>For an agent</target>
+            </trans-unit>
             <trans-unit id="readiness.report.proposals">
                 <source>readiness.report.proposals</source>
                 <target>Proposals</target>
@@ -9363,6 +9375,8 @@
             <trans-unit id="github.repositories.check.method.any"><source>github.repositories.check.method.any</source><target>any method</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.read"><source>github.repositories.check.failed.read</source><target>GitHub did not answer at %time%.</target></trans-unit>
             <trans-unit id="github.repositories.check.failed.no_installation"><source>github.repositories.check.failed.no_installation</source><target>Loupe checks only repositories of the GitHub App. Install the App on this repository to check it.</target></trans-unit>
+            <trans-unit id="github.repositories.check.rules_unavailable.title"><source>github.repositories.check.rules_unavailable.title</source><target>Rulesets need a paid plan or a public repository</target></trans-unit>
+            <trans-unit id="github.repositories.check.rules_unavailable.detail"><source>github.repositories.check.rules_unavailable.detail</source><target>GitHub enforces no rules on this repository, so only Loupe enforces the agent review. GitHub said: %message%</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.title"><source>github.repositories.check.unknown.title</source><target>A setting does not fit</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.detail"><source>github.repositories.check.unknown.detail</source><target>Loupe has no description for this finding.</target></trans-unit>
             <trans-unit id="github.repositories.check.approval-gate.fits.title"><source>github.repositories.check.approval-gate.fits.title</source><target>Loupe / Approval gates merges into %branch%</target></trans-unit>
@@ -9684,6 +9698,8 @@
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_review_required"><source>workflow.waiting.pr_review_required</source><target>Waiting: the rules of the base branch need no more approving reviews.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_review_required"><source>workflow.waiting.not.pr_review_required</source><target>Waiting: the rules of the base branch need more approving reviews.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_merge_target"><source>workflow.waiting.not.pr_base_is_merge_target</source><target>Waiting: the pull request targets the default branch or the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_checks_on_head"><source>workflow.waiting.pr_checks_on_head</source><target>Waiting: the checks have not run on the head commit.</target></trans-unit>
@@ -9996,7 +10012,7 @@
             <trans-unit id="workflow.pause.lost"><source>workflow.pause.lost</source><target>The bridge lost the worker run.</target></trans-unit>
             <trans-unit id="workflow.pause.stopped"><source>workflow.pause.stopped</source><target>A person or the bridge stopped the worker.</target></trans-unit>
             <trans-unit id="workflow.pause.no-bridge-took-work"><source>workflow.pause.no-bridge-took-work</source><target>No bridge took the requested work in time.</target></trans-unit>
-            <trans-unit id="workflow.pause.repair-failed"><source>workflow.pause.repair-failed</source><target>The repair worker could not fix the failure.</target></trans-unit>
+            <trans-unit id="workflow.pause.recover-failed"><source>workflow.pause.recover-failed</source><target>The recovery run could not clear the failure.</target></trans-unit>
             <trans-unit id="workflow.pause.inbox-off"><source>workflow.pause.inbox-off</source><target>The inbox is off, so the workflow cannot ask the owner about this card. The pause ends when the inbox is on.</target></trans-unit>
             <trans-unit id="workflow.pause.work-limit-reached"><source>workflow.pause.work-limit-reached</source><target>The rule requested the most work that it may request for this card.</target></trans-unit>
             <trans-unit id="workflow.note.product_design_undone"><source>workflow.note.product_design_undone</source><target>The approval of the product design was undone. Check the tech design against the product design again.</target></trans-unit>

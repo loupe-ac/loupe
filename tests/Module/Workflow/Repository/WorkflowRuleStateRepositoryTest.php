@@ -194,6 +194,17 @@ final class WorkflowRuleStateRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->findWorkHoldsSince([(string) $card->id]));
     }
 
+    public function test_reset_for_cards_clears_the_recovery_mark(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('rule-state-reset-recovered'));
+        $this->state($card, 'a', recovered: true);
+
+        $this->repository()->resetForCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], new \DateTimeImmutable());
+
+        self::assertFalse($this->em()->getConnection()->fetchOne('SELECT repaired FROM workflow_rule_states WHERE card_id = ?', [(string) $card->id]));
+    }
+
     public function test_clear_work_holds_of_project_clears_the_marks_of_that_project_alone_and_names_each_card_once(): void
     {
         self::bootKernel();
@@ -246,12 +257,13 @@ final class WorkflowRuleStateRepositoryTest extends KernelTestCase
         return $card;
     }
 
-    private function state(Card $card, string $ruleId, ?\DateTimeImmutable $dueAt = null, ?Uuid $askItemId = null, bool $heldByWorkHold = false): void
+    private function state(Card $card, string $ruleId, ?\DateTimeImmutable $dueAt = null, ?Uuid $askItemId = null, bool $heldByWorkHold = false, bool $recovered = false): void
     {
         $state = new WorkflowRuleState($card->id ?? throw new \LogicException('The card is persisted.'), $card->project, $ruleId);
         $state->dueAt = $dueAt;
         $state->askItemId = $askItemId;
         $state->heldByWorkHoldSince = $heldByWorkHold ? new \DateTimeImmutable('2026-10-02 09:00:00') : null;
+        $state->recovered = $recovered;
         $this->em()->persist($state);
         $this->em()->flush();
     }

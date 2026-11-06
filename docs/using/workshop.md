@@ -87,6 +87,13 @@ The card tracks the run, and Loupe moves it. Each run gets a new card.
 The [`discovery` rule](workflows.md#rules-the-app-adds) then asks a bridge for the work.
 An agent can start discovery with the `discovery_start` MCP tool, and read the checklist with `readiness_get`.
 
+You can also start discovery from the terminal.
+At its end, `loupe init` asks "Start discovery now?" when onboarding is ready: the profile is complete, the account check passes, and `.loupe.yaml` and the profile are pushed.
+A yes starts the run and prints the link of the Workshop page. The discovery row of that page opens the report when the worker has written it. A no, or no terminal, starts nothing.
+When a condition fails, `loupe init` asks nothing, lists what remains, and says to run it again.
+`loupe discovery start` checks the same conditions and then starts a run. `--force` skips the check.
+See [the CLI reference](../reference/cli.md).
+
 Discovery runs these generic checks on every project:
 
 - How to build and test the project, and whether CI runs those commands.
@@ -108,6 +115,11 @@ A worker that runs on a bridge cannot open claude.ai artifacts.
 It trusts the repository, and the finding says that it did not check the artifact.
 A project with a design system in the repository and no artifact gets a suggestion.
 Only you can create the artifact, in a browser on claude.ai.
+The Lifecycle workflow also adds the onboarding checks.
+They check that the bridge commands of each kind resolve for the project, and that each tool the profile names exists for the worker account.
+The worker reads both with `loupe bridge check --project <slug> --json` on the bridge machine.
+Other onboarding checks cover the merge setup, the `Environment` section of the profile, a gate step that tests the main checkout, facts that only a personal memory holds, the setup of a new worktree, and one e2e run at a time on a shared stack.
+The merge setup finding says who approves a merge on the repository, and what enforces it: GitHub rulesets, classic branch protection, or Loupe alone.
 A check that the project does not meet is a suggestion, never a failure.
 A suggestion becomes a proposed card that leaves the method open.
 
@@ -138,6 +150,11 @@ The Run discovery row shows the state of the latest run:
 The worker submits its report with the `readiness_report_submit` MCP tool.
 Loupe writes the report as a document with the tag `readiness-report`, and links it to the discovery card.
 The document lists the checks that are ready under **Ready**, the other checks under **Suggested**, and one section for each card the worker proposes.
+
+Each finding names who acts on it and what to do.
+The section **What remains** lists every action of the suggested findings, grouped by actor: the owner, for a step in a browser, on a settings page, on the bridge machine or in a GitHub setting, and an agent, for a change in the repository.
+A finding that needs no action is not in the list.
+Work through this list to finish the onboarding of the project.
 
 A proposal that has no open card gets a tick box in a **Decision** block at the end of the report.
 A proposal that names an open card shows "Card N covers this" and has no tick box.
