@@ -14,6 +14,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Session\ReadOnlyAwareSessionHandler;
+use App\Tests\Support\RefusedPage;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -48,7 +49,7 @@ final class ShowBoardManifestControllerTest extends WebTestCase
         $project = $this->project($em, $this->user($em, 'manifest-owner@example.com'));
         $this->addTriageColumn($project);
         $em->flush();
-        $this->card($em, $project, 'Private');
+        $this->card($em, $project, 'Outsider-hidden manifest card');
         $outsider = $this->user($em, 'manifest-outsider@example.com');
         $em->clear();
 
@@ -56,7 +57,7 @@ final class ShowBoardManifestControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $this->manifestUrl($project));
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Private', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Outsider-hidden manifest card', RefusedPage::body($client->getResponse()));
     }
 
     public function test_the_manifest_route_does_not_write_the_session(): void

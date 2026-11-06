@@ -10,6 +10,7 @@ use App\Module\OpenRouter\Entity\OpenRouterKeyState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\OpenRouter\OpenRouterScenario;
 use App\Tests\Support\MercureCookies;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -47,7 +48,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         foreach ([['GET', ''], ['GET', '/status'], ['GET', '?replace=1']] as [$method, $suffix]) {
             $client->request($method, $this->page($project).$suffix);
             self::assertResponseStatusCodeSame(403, $method.' '.$suffix);
-            self::assertStringNotContainsString('wxyz', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString('wxyz', RefusedPage::body($client->getResponse()));
         }
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, $this->page($project), ['open_router_key_form' => ['secret' => self::SECRET]]);
         self::assertResponseStatusCodeSame(403);
