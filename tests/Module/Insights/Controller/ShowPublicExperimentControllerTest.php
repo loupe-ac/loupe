@@ -17,6 +17,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /** The test app host is `localhost`. */
 final class ShowPublicExperimentControllerTest extends WebTestCase
@@ -152,14 +153,16 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertInstanceOf(ArchiveExperimentHandler::class, $archive);
         $archive(new ArchiveExperimentCommand($project, 'model-test'));
 
-        $bodies = [];
-        foreach (['aaaaaaaaaaaa' => 'wrong code', $link->code => 'archived', $ghost->code => 'unknown experiment'] as $code => $reason) {
-            $client->request(Request::METHOD_GET, '/s/'.$code);
-            self::assertResponseStatusCodeSame(404, $reason);
-            $bodies[$reason] = $this->withoutNoise((string) $client->getResponse()->getContent());
-        }
+        $refusals = [
+            'wrong code' => $this->refusal($client, 'aaaaaaaaaaaa'),
+            'archived' => $this->refusal($client, $link->code),
+            'unknown experiment' => $this->refusal($client, $ghost->code),
+        ];
 
-        self::assertCount(1, array_unique($bodies));
+        self::assertSame(404, $refusals['archived'][1]);
+        self::assertCount(1, array_unique(array_map(serialize(...), $refusals)), (string) json_encode($refusals));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseStatusCodeSame(404);
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
     }
 
@@ -211,12 +214,19 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         return $link;
     }
 
-    /** The test environment prints the exception, so drop the object ids, the source lines and the lines of the handler and of this file. */
-    private function withoutNoise(string $body): string
+    /** @return array{class-string, int, string} */
+    private function refusal(KernelBrowser $client, string $code): array
     {
-        $lines = array_filter(explode("\n", $body), static fn (string $line): bool => !str_contains($line, 'ShowPublicExperimentControllerTest') && !str_contains($line, 'ShowPublicLinkHandler') && !str_contains($line, '›') && !str_contains($line, '#line'));
+        $client->catchExceptions(false);
+        try {
+            $client->request(Request::METHOD_GET, '/s/'.$code);
+        } catch (HttpExceptionInterface $exception) {
+            return [$exception::class, $exception->getStatusCode(), $exception->getMessage()];
+        } finally {
+            $client->catchExceptions(true);
+        }
 
-        return (string) preg_replace('/\{#\d+/', '{#', implode("\n", $lines));
+        self::fail(\sprintf('The code %s showed a page.', $code));
     }
 
     private function client(string $siteHost): KernelBrowser
