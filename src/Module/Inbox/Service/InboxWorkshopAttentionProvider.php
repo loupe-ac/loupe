@@ -43,7 +43,7 @@ final readonly class InboxWorkshopAttentionProvider implements WorkshopAttention
                 $this->urls->generate('app_project_inbox', ['id' => (string) $project->id, 'item' => $item->number]),
                 $item->kind->value,
                 $item->blocking,
-                InboxAskOrigin::Loupe === $item->origin ? InboxAskOrigin::Loupe->value : $subjects[(string) $item->id] ?? 'agent',
+                \in_array($item->origin, [InboxAskOrigin::Loupe, InboxAskOrigin::ApiKey], true) ? $item->origin->value : $subjects[(string) $item->id] ?? 'agent',
                 ($item->cards->first() ?: null)?->card->number,
                 $item->createdAt,
             );

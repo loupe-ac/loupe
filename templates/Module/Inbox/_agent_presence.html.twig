@@ -1,8 +1,10 @@
 {#- The agent's avatar with a presence dot, and a tooltip that names the bridge's
-    state and the session. Loupe has no session, so it shows its avatar alone.
+    state and the session. Loupe and an API key have no session, so each shows its avatar alone.
     Props: ask (InboxAsk or null), bridge (BridgeStatus or null), origin (InboxAskOrigin). -#}
 {% if origin.value == 'loupe' %}
     <twig:Ds:Avatar icon="lucide:search" size="sm" tone="tint" aria-hidden="true" />
+{% elseif origin.value == 'api-key' %}
+    <twig:Ds:Avatar icon="lucide:key-round" size="sm" tone="tint" aria-hidden="true" />
 {% elseif ask is null %}
     <twig:Ds:Avatar icon="lucide:bot" size="sm" tone="tint" aria-hidden="true" />
 {% else %}

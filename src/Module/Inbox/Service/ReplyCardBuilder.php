@@ -42,7 +42,7 @@ final readonly class ReplyCardBuilder
         $targetGone = InboxItemKind::Review === $item->kind && !$item->isAutomatic() && self::targetIsGone($review);
 
         $response = $targetGone ? null : array_find($actions, static fn (ItemAction $action): bool => \in_array($action->kind, [InboxActionKind::Answer, InboxActionKind::Complete, InboxActionKind::SubmitReview], true));
-        $dismiss = \in_array($item->kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true)
+        $dismiss = InboxItemKind::Workflow === $item->kind
             ? null
             : array_find($actions, static fn (ItemAction $action): bool => InboxActionKind::Dismiss === $action->kind);
 

@@ -229,6 +229,33 @@ final class OpenRouterKeyNoticeReconcilerTest extends KernelTestCase
         self::assertNotSame($first, $this->openNotices()[0]);
     }
 
+    public function test_a_dismissed_notice_stays_closed_while_the_key_is_refused_and_a_new_one_opens_after_the_key_worked(): void
+    {
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+        $first = $this->onlyNotice();
+        $first->item->state = InboxItemState::Declined;
+        $first->item->closedBy = InboxCloser::Owner;
+        $first->item->closedAt = new \DateTimeImmutable();
+        $this->em->flush();
+
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+
+        self::assertCount(1, $this->notices());
+        self::assertNull($first->endedAt);
+
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Working);
+        $this->reconciler->works($this->keyId);
+
+        self::assertNotNull($first->endedAt);
+        self::assertSame(InboxItemState::Declined, $first->item->state);
+
+        $this->storeKeyState($this->em, $this->keyId, OpenRouterKeyState::Refused);
+        $this->reconciler->refused($this->keyId, false, $this->project->requireId());
+
+        self::assertCount(2, $this->notices());
+        self::assertCount(1, $this->openNotices());
+    }
+
     public function test_a_refusal_of_a_removed_key_opens_nothing(): void
     {
         $this->em->getConnection()->executeStatement('DELETE FROM openrouter_keys WHERE id = :id', ['id' => $this->keyId->toRfc4122()]);

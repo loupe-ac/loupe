@@ -6,10 +6,8 @@ namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Bridge\Command\RecordRunAskCommand;
 use App\Module\Bridge\Command\RecordRunAskHandler;
-use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
@@ -27,13 +25,10 @@ use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
-use App\Module\Inbox\Service\InboxLinkResolver;
+use App\Module\Inbox\Service\InboxItemDrafter;
 use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
-use App\Module\Inbox\Service\RunSuggestions;
-use App\Module\Inbox\Service\SessionPromptLimit;
-use App\Module\Inbox\Service\SuggestedCommandCheck;
 use App\Module\Review\Entity\Document;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
@@ -61,6 +56,7 @@ final readonly class AskInboxHandler
     public const string TOO_MANY_OPTIONS = 'inbox.item.error.too_many_options';
     public const string TOO_MANY_LINKS = 'inbox.item.error.too_many_links';
     public const string TO_DO_WITH_ANSWER = 'inbox.item.error.todo_with_answer';
+    public const string NOTICE_WITH_ANSWER = 'inbox.item.error.notice_with_answer';
     public const string QUESTION_WITHOUT_ANSWER = 'inbox.item.error.question_without_answer';
     public const string MULTIPLE_WITHOUT_OPTIONS = 'inbox.item.error.multiple_without_options';
     public const string REVIEW_TARGET_REQUIRED = 'inbox.review.error.target_required';
@@ -87,7 +83,7 @@ final readonly class AskInboxHandler
         private InboxItemRepository $inboxItems,
         private InboxSessionAsks $sessionAsks,
         private AskingBridge $askingBridge,
-        private InboxLinkResolver $links,
+        private InboxItemDrafter $drafter,
         private InboxSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
         private Auditor $auditor,
@@ -96,7 +92,6 @@ final readonly class AskInboxHandler
         private InboxCardTileRefresher $cardTiles,
         private WorkerRunRepository $workerRuns,
         private RecordRunAskHandler $recordRunAsk,
-        private SessionPromptLimit $promptLimit,
         private MessageBusInterface $bus,
     ) {
     }
@@ -117,7 +112,7 @@ final readonly class AskInboxHandler
             : null;
         $drafts = [];
         foreach ($command->items as $index => $input) {
-            $drafts[] = $this->draft($command, $index, $input, $bridge);
+            $drafts[] = $this->drafter->draft($command->project, $input, \sprintf('items[%d].', $index), $bridge);
         }
         if (null !== $command->context && mb_strlen($command->context) > InboxLimits::MAX_CONTEXT_LENGTH) {
             throw new DomainErrors(['context' => InboxSessionAsks::CONTEXT_TOO_LONG]);
@@ -249,184 +244,5 @@ final readonly class AskInboxHandler
         }
 
         ($this->recordRunAsk)(new RecordRunAskCommand($run, $ask->id ?? throw new \LogicException('A persisted ask has an id.')));
-    }
-
-    private function draft(AskInboxCommand $command, int $index, AskInboxItem $input, ?Bridge $bridge): AskInboxDraft
-    {
-        $field = static fn (string $name): string => \sprintf('items[%d].%s', $index, $name);
-
-        if (mb_strlen($input->title) > InboxItem::MAX_TITLE_LENGTH) {
-            throw new DomainErrors([$field('title') => self::TITLE_TOO_LONG]);
-        }
-        $title = trim($input->title);
-        if ('' === $title) {
-            throw new DomainErrors([$field('title') => self::TITLE_BLANK]);
-        }
-        if (1 === preg_match('/[\r\n]/', $title)) {
-            throw new DomainErrors([$field('title') => self::TITLE_MULTILINE]);
-        }
-
-        if (null !== $input->body && mb_strlen($input->body) > InboxLimits::MAX_BODY_LENGTH) {
-            throw new DomainErrors([$field('body') => self::BODY_TOO_LONG]);
-        }
-        $body = null === $input->body || '' === trim($input->body) ? null : $input->body;
-
-        if (\count($input->options) > InboxLimits::MAX_OPTIONS) {
-            throw new DomainErrors([$field('options') => self::TOO_MANY_OPTIONS]);
-        }
-        if (array_any($input->options, static fn (string $option): bool => mb_strlen($option) > InboxLimits::MAX_OPTION_LENGTH)) {
-            throw new DomainErrors([$field('options') => self::OPTION_TOO_LONG]);
-        }
-        $options = array_map(trim(...), $input->options);
-        if (\in_array('', $options, true)) {
-            throw new DomainErrors([$field('options') => self::OPTION_BLANK]);
-        }
-        // An answer stores option indexes, so two equal options make it ambiguous.
-        if (\count(array_unique($options)) !== \count($options)) {
-            throw new DomainErrors([$field('options') => self::OPTION_DUPLICATE]);
-        }
-
-        if (InboxItemKind::Todo === $input->kind && ([] !== $options || $input->multiple || $input->freeText)) {
-            throw new DomainErrors([$field('options') => self::TO_DO_WITH_ANSWER]);
-        }
-        if (InboxItemKind::Question === $input->kind && [] === $options && !$input->freeText) {
-            throw new DomainErrors([$field('options') => self::QUESTION_WITHOUT_ANSWER]);
-        }
-        if ($input->multiple && \count($options) < 2) {
-            throw new DomainErrors([$field('multiple') => self::MULTIPLE_WITHOUT_OPTIONS]);
-        }
-
-        if (\count($input->cardIds) > InboxLimits::MAX_LINKS) {
-            throw new DomainErrors([$field('cardIds') => self::TOO_MANY_LINKS]);
-        }
-        if (\count($input->documentIds) > InboxLimits::MAX_LINKS) {
-            throw new DomainErrors([$field('documentIds') => self::TOO_MANY_LINKS]);
-        }
-
-        $reviewTarget = null;
-        if (InboxItemKind::Review === $input->kind) {
-            if ((null === $input->reviewDocumentId) === (null === $input->reviewPullRequestId)) {
-                throw new DomainErrors([$field('reviewDocumentId') => self::REVIEW_TARGET_REQUIRED]);
-            }
-            if ([] !== $options || $input->multiple || $input->freeText) {
-                throw new DomainErrors([$field('options') => self::REVIEW_WITH_ANSWER]);
-            }
-            $reviewTarget = null !== $input->reviewDocumentId
-                ? ($this->links->documents($command->project, [$input->reviewDocumentId], $field('reviewDocumentId'))[0]
-                    ?? throw new DomainErrors([$field('reviewDocumentId') => InboxLinkResolver::DOCUMENT_UNKNOWN]))
-                : $this->links->pullRequest($command->project, $input->reviewPullRequestId ?? '', $field('reviewPullRequestId'));
-        } elseif (null !== $input->reviewDocumentId || null !== $input->reviewPullRequestId) {
-            throw new DomainErrors([$field('kind') => self::REVIEW_TARGET_WRONG_KIND]);
-        }
-
-        $cardIds = $input->cardIds;
-        $documentIds = $input->documentIds;
-        if ($reviewTarget instanceof Document) {
-            $documentIds[] = (string) $reviewTarget->id;
-        } elseif ($reviewTarget instanceof CardPullRequest) {
-            $cardIds[] = (string) $reviewTarget->card->id;
-        }
-        $cards = $this->links->cards($command->project, $cardIds, $field('cardIds'));
-        $documents = $this->links->documents($command->project, $documentIds, $field('documentIds'));
-        if (\count($cards) > InboxLimits::MAX_LINKS || \count($documents) > InboxLimits::MAX_LINKS) {
-            throw new DomainErrors([$field('kind') => self::TOO_MANY_LINKS]);
-        }
-
-        $linkedCardIds = array_map(static fn (Card $card): string => (string) $card->id, $cards);
-
-        return new AskInboxDraft(
-            kind: $input->kind,
-            title: $title,
-            body: $body,
-            options: $options,
-            multiple: $input->multiple,
-            freeText: $input->freeText,
-            blocking: $input->blocking ?? InboxItemKind::Question === $input->kind,
-            cards: $cards,
-            documents: $documents,
-            reviewTarget: $reviewTarget,
-            suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
-            dismissible: $input->dismissible,
-        );
-    }
-
-    /**
-     * Checks what the agent suggests. It never checks the fit, because the fit changes while the item is open.
-     *
-     * @param list<AskInboxSuggestion> $suggestions
-     * @param list<string>             $linkedCardIds
-     *
-     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string, prompt: ?string}>
-     */
-    private function suggestions(array $suggestions, InboxItemKind $kind, array $linkedCardIds, string $field, ?Bridge $bridge): array
-    {
-        if (\count($suggestions) > RunSuggestions::MAX_SUGGESTIONS) {
-            throw new DomainErrors([$field => self::TOO_MANY_SUGGESTIONS]);
-        }
-
-        $checked = [];
-        foreach ($suggestions as $suggestion) {
-            if (!(InboxActionKind::tryFrom($suggestion->action)?->isSuggestable() ?? false)) {
-                throw new DomainErrors([$field => self::SUGGESTION_UNKNOWN_ACTION]);
-            }
-            if (isset($checked[$suggestion->action])) {
-                throw new DomainErrors([$field => self::SUGGESTION_DUPLICATE]);
-            }
-            if ($suggestion->recommended && array_any($checked, static fn (array $earlier): bool => $earlier['recommended'])) {
-                throw new DomainErrors([$field => self::SUGGESTION_TWO_RECOMMENDED]);
-            }
-            if (mb_strlen($suggestion->reason) > RunSuggestions::MAX_REASON_LENGTH) {
-                throw new DomainErrors([$field => self::SUGGESTION_REASON_TOO_LONG]);
-            }
-            $reason = trim((string) preg_replace('/\s+/u', ' ', $suggestion->reason));
-            if ('' === $reason) {
-                throw new DomainErrors([$field => self::SUGGESTION_REASON_BLANK]);
-            }
-            if (null !== $suggestion->cardId && !\in_array(strtolower($suggestion->cardId), $linkedCardIds, true)) {
-                throw new DomainErrors([$field => self::SUGGESTION_CARD_NOT_LINKED]);
-            }
-            $prompt = null;
-            if (null !== $suggestion->prompt) {
-                if (InboxActionKind::StartSession->value !== $suggestion->action) {
-                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_UNEXPECTED]);
-                }
-                if (mb_strlen($suggestion->prompt) > $this->promptLimit->maxLength()) {
-                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_TOO_LONG]);
-                }
-                $prompt = trim($suggestion->prompt);
-                if ('' === $prompt) {
-                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_BLANK]);
-                }
-            }
-            $command = null;
-            if (InboxActionKind::RunCommand->value !== $suggestion->action) {
-                if (null !== $suggestion->command || null !== $suggestion->proposedEntry) {
-                    throw new DomainErrors([$field => self::SUGGESTION_COMMAND_UNEXPECTED]);
-                }
-            } else {
-                if (InboxItemKind::Todo !== $kind) {
-                    throw new DomainErrors([$field => self::SUGGESTION_RUN_COMMAND_KIND]);
-                }
-                if (null === $suggestion->command || '' === trim($suggestion->command->entry)) {
-                    throw new DomainErrors([$field => self::SUGGESTION_COMMAND_REQUIRED]);
-                }
-                $command = new AskInboxRunCommand(trim($suggestion->command->entry), $suggestion->command->branch, $suggestion->command->params);
-                $error = SuggestedCommandCheck::error($command, $suggestion->proposedEntry, $bridge);
-                if (null !== $error) {
-                    throw new DomainErrors([$field => $error]);
-                }
-            }
-            $checked[$suggestion->action] = [
-                'action' => $suggestion->action,
-                'reason' => $reason,
-                'recommended' => $suggestion->recommended,
-                'cardId' => null === $suggestion->cardId ? null : strtolower($suggestion->cardId),
-                'command' => null === $command ? null : ['entry' => $command->entry, 'branch' => $command->branch, 'params' => $command->params],
-                'proposedEntry' => null === $command ? null : $suggestion->proposedEntry,
-                'prompt' => $prompt,
-            ];
-        }
-
-        return array_values($checked);
     }
 }

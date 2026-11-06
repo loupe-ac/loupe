@@ -273,6 +273,7 @@ names the ways to choose. It never guesses.
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
+| `loupe inbox` | `create`, `get` |
 
 `loupe card list` filters by the state of a card with `--state` and
 `--state-code`: `loupe card list --state working` lists the cards with the
@@ -281,6 +282,14 @@ working mark, and `--state-code run-open` narrows them to the running workers.
 terminal column has no state. The flags need a CLI release after `cli/v2.0.1`
 and a server that has the filters. A server without them ignores the flags and
 answers every card.
+
+`loupe inbox create` puts one item in the inbox of the owner, and `loupe inbox
+get <itemId>` reads it with the answer. A CI job can run
+`loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci`
+with an API key, and the owner sees one open item for repeated failures.
+The [API reference](api/index.md#inbox-items) gives the rules. The commands
+need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
+the inbox flag on.
 
 The verbs are the words of the MCP tools, so `document_revise` is
 `loupe document revise`. A flag is the API parameter in kebab-case:

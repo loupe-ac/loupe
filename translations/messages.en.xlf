@@ -6172,10 +6172,6 @@
                 <source>inbox.item.error.final</source>
                 <target>This item is closed, so its response is final.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.error.notice">
-                <source>inbox.item.error.notice</source>
-                <target>A notice takes no response. Loupe closes it when the fact ends.</target>
-            </trans-unit>
             <trans-unit id="inbox.bridge_outage.title">
                 <source>inbox.bridge_outage.title</source>
                 <target>No bridge can take work</target>
@@ -6406,6 +6402,7 @@
             <trans-unit id="inbox.thread.you_verb.submit-review"><source>inbox.thread.you_verb.submit-review</source><target>submitted a review at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.thread.api_key"><source>inbox.thread.api_key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
@@ -8182,12 +8179,14 @@
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.row.source.loupe"><source>inbox.row.source.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.row.source.api-key"><source>inbox.row.source.api-key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
             <trans-unit id="inbox.answer.write"><source>inbox.answer.write</source><target>Write an answer</target></trans-unit>
             <trans-unit id="inbox.answer.write_placeholder"><source>inbox.answer.write_placeholder</source><target>Write your answer for the agent</target></trans-unit>
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
+            <trans-unit id="inbox.from.api-key"><source>inbox.from.api-key</source><target>From API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.linked.menu_label"><source>inbox.linked.menu_label</source><target>Linked items</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.card"><source>inbox.linked.menu_heading.card</source><target>Linked cards (%count%)</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.document"><source>inbox.linked.menu_heading.document</source><target>Linked documents (%count%)</target></trans-unit>

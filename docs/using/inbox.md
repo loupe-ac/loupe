@@ -27,6 +27,9 @@ from 1 inside the project, so you can say "item 12" to an agent.
 - A **notice** tells you about a fact of the project that needs a change.
   Loupe opens it and takes no answer. See [Notices](#notices).
 
+A script, such as a CI job, can also put a question, a to-do or a notice in
+the inbox through the public API. See [Items from the API](#items-from-the-api).
+
 An **ask** is the set of items that one agent session hands over at once. The
 agent writes a short context for the ask, and the page shows that context above
 the items. An item that blocks the agent carries a **Blocking** label.
@@ -136,6 +139,7 @@ it closed.
 
 A bold **From the agent** heading opens the message of the ask. An ask that
 Loupe opened, such as a card wait or a workflow question, says **From Loupe**.
+An item from an API key says **From API key 'CI'**, with the name of the key.
 The items follow the message. An ask with one item shows that title once. An
 ask with two or more items gives each item its own section, with a number, its
 title and its type. Replies under an item show each author's initial, name and
@@ -651,6 +655,11 @@ that. See [the bridge guide](../extending/cli-bridge.md) for the key.
 A notice states a fact of the project. It does not block an agent and takes no
 answer. A notice may link the cards that the fact is about.
 
+You can dismiss any notice. A dismissed notice closes as declined. While its
+fact holds, Loupe opens no new notice for it. Loupe opens a new notice only when
+the fact ends and then returns, such as when the key fails again after it
+worked, or the bridges go away again after one came back.
+
 Loupe opens the notice **No bridge can take work** when the work of a card waits
 for 10 minutes and no online bridge can take it. A paused bridge keeps the work
 waiting, and Loupe opens no notice for it.
@@ -700,6 +709,25 @@ project can press [Try now](board.md#try-now) before the reset.
 Loupe once opened a notice while a bridge rule raced the sync of the project.
 Bridge rules are gone, so Loupe closed each such notice as **cancelled**, and
 opens no new one.
+
+### Items from the API
+
+A script with an [API key](api-keys.md) can put one question, to-do or notice in
+the inbox with `POST /api/v1/projects/{project}/inbox/items` or
+`loupe inbox create`. The [API reference](../reference/api/index.md#inbox-items)
+gives the fields.
+
+1. The row and the thread name the key, such as "API key 'CI'", with a key
+   icon. The name stays when you remove the key.
+2. The item never blocks, and no card waits for a person because of it.
+3. You can dismiss every item from the API, a notice too. No fact ends a
+   notice from the API, so it stays open until you dismiss it.
+4. The script can send a `dedupeKey`. While an open item holds the same key, a
+   new call returns that item and opens nothing. After you close the item, the
+   next call opens a new one. A job that fails each night therefore shows one
+   item.
+5. The script reads your answer with
+   `GET /api/v1/projects/{project}/inbox/items/{itemId}` or `loupe inbox get`.
 
 ### Workflow questions
 

@@ -166,14 +166,15 @@ final class InboxThreadBuilderTest extends KernelTestCase
         yield 'rule' => [InboxCloser::Rule, InboxItemState::Resolved, null, 'inbox.outcome.resolved'];
     }
 
-    public function test_a_notice_holds_its_text_and_no_reply_card(): void
+    public function test_a_notice_holds_its_text_and_a_reply_card_with_its_dismiss_alone(): void
     {
         $item = $this->item(InboxItemKind::Notice, body: 'The bridge is back.', origin: InboxAskOrigin::Loupe);
 
         $thread = $this->builder->build($item);
 
         self::assertSame('The bridge is back.', $thread->body);
-        self::assertNull($thread->replyCard);
+        self::assertNotNull($thread->replyCard?->dismiss);
+        self::assertNull($thread->replyCard->main);
     }
 
     public function test_a_workflow_question_shows_no_dismiss(): void
