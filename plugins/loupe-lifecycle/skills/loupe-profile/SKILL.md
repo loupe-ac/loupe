@@ -53,24 +53,25 @@ A section starts with a `##` heading of the exact name and holds a numbered list
 
 This step asks the owner nothing and stores nothing. Loupe keeps no merge approval setting. The GitHub rules of the base branch decide who approves a merge. Read `Gate` item 1 of the view for the base branch `<base>`.
 
-1. Make four reads. A read that fails for a reason that item 4 or item 5 does not name goes into the report as unread.
+1. Make five reads. A read that fails for a reason that item 4 or item 5 does not name goes into the report as unread.
    - The rules of `<base>`: `gh api repos/<owner>/<repo>/rules/branches/<base>`. The list holds every active rule of every ruleset that targets `<base>`, and each rule names its `ruleset_id`.
    - The classic protection: `gh api repos/<owner>/<repo>/branches/<base>/protection`.
-   - The protection flag: `gh api repos/<owner>/<repo>/branches/<base> --jq .protected`. It needs only read access.
+   - The protection flag: `gh api repos/<owner>/<repo>/branches/<base> --jq .protected`. It needs only read access. Rulesets also set it, so it never shows on its own that classic protection exists.
+   - The classic rule of the branch: `gh api graphql -f query='query($o:String!,$r:String!,$q:String!){repository(owner:$o,name:$r){ref(qualifiedName:$q){branchProtectionRule{id requiredApprovingReviewCount}}}}' -f o=<owner> -f r=<repo> -f q=refs/heads/<base>`. Item 5 says how to read the answer.
    - The visibility: `gh repo view --json isPrivate`.
 2. State who approves a merge. It is the agent review alone, or the agent review and the number of person approvals that GitHub requires. GitHub applies every source together, so the required number is the highest of these values:
    - `required_approving_review_count` of each `pull_request` rule in the rules list. Several rulesets can each hold one.
-   - `required_pull_request_reviews.required_approving_review_count` of the classic protection.
+   - `required_pull_request_reviews.required_approving_review_count` of the classic protection, or `requiredApprovingReviewCount` of the classic rule.
 
    When a source is unread, say that the number is at least the highest value you read.
 3. State what enforces it. Name every active source, because rulesets and classic protection can apply together:
    - GitHub rulesets, when the rules list is not empty. Name each `ruleset_id`.
-   - Classic branch protection, when the protection read succeeds. Also name it when the protection flag is `true` and the rules list is empty, and say that you cannot read its settings.
-   - Loupe alone, only when you confirm that no source exists. The rules list is empty or refused as item 4 says, and the protection flag is `false` or the protection read says "Branch not protected". Say that anybody with write access can still merge on GitHub.
+   - Classic branch protection, when the protection read succeeds, or when the classic rule read returns a rule. Also name it when the protection flag is `true`, the rules list is empty and the classic rule is unread, and say that you cannot read its settings.
+   - Loupe alone, only when you confirm that no source exists. The rules list is empty or refused as item 4 says, and item 5 confirms that no classic protection exists. Say that anybody with write access can still merge on GitHub.
 
    When you cannot confirm or rule out a source, report that source as unread, never as absent.
 4. A rules read can fail with the GitHub message "Upgrade to GitHub Pro or make this repository public to enable this feature." That is a plan refusal, and it means that no ruleset applies. Quote the message, and say that rulesets need a paid plan or a public repository. A plan refusal says nothing about classic protection, so still read it as item 3 says. Any other 403 is a lost permission. Report the rules as unread.
-5. The protection read returns 404 with the message "Branch not protected" when `<base>` has no classic protection. That confirms the absence. The read needs admin permission, and any other 403 or 404 means that you cannot see the settings. Then use the protection flag, and say that the app and the merge stage still follow the `reviewDecision` of GitHub.
+5. Three answers confirm that `<base>` has no classic protection: the protection flag is `false`, the protection read returns 404 "Branch not protected", or the classic rule read returns `branchProtectionRule: null` with no `errors` entry. The protection read needs admin permission, so a generic 404 `Not Found` or a 403 says nothing. Then decide by the classic rule read. A rule in the answer confirms classic protection and gives its approval count. An `errors` entry, such as `FORBIDDEN`, leaves classic protection unread. Then say that the app and the merge stage still follow the `reviewDecision` of GitHub.
 6. List each setting that conflicts with the Loupe merge path, with the change that fixes it. A rule set that GitHub can enforce must do all of these:
    - Require the check `Loupe / Approval` from the Loupe GitHub App.
    - Forbid force pushes and deletion of `<base>`.

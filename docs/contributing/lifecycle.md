@@ -427,7 +427,8 @@ that change from one setup to the next.
    compares a hand-written profile and the rest of the repository with the checks
    of `workflow_get`.
    After the grouped view, the skill runs a "Merge setup" step. It reads the rules of the base
-   branch, the classic branch protection and the repository visibility. It says who approves a
+   branch, the classic branch protection, the classic rule of the branch through GraphQL, and the
+   repository visibility. It says who approves a
    merge, and the highest approval count across every source. It names each source that enforces
    it: GitHub rulesets, classic protection, or both. It reports Loupe alone only when it confirms
    that no source applies. It lists each setting that conflicts with the Loupe merge path. It asks nothing and changes no GitHub setting.
