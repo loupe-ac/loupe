@@ -2992,6 +2992,13 @@
     .lp-card-values {
         @apply flex flex-col gap-3;
     }
+    /* The closed section of internal values, set apart under the switches. */
+    .lp-card-values__internal {
+        @apply border-t border-line pt-3;
+    }
+    .lp-card-values__internal > .lp-disclosure__summary {
+        @apply text-xs text-fg-label;
+    }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {
         @apply whitespace-normal font-normal;

@@ -53,7 +53,7 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: string}
  * @phpstan-type CardStateSummary array{kind: string, code: string, since: string, reason: string, others: list<CardStateReasonSummary>}
  * @phpstan-type CardListStateSummary array{kind: string, code: string, since: string}
- * @phpstan-type CardValueSummary array{key: string, type: string, value: mixed, writer: ?array{kind: string, name: ?string}, updatedAt: ?string}
+ * @phpstan-type CardValueSummary array{key: string, type: string, visibility: string, value: mixed, writer: ?array{kind: string, name: ?string}, updatedAt: ?string}
  * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, requiresHumanReview: bool, values: list<CardValueSummary>, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
  * @phpstan-type CardListSummary array{cardId: string, number: int, title: string, type: string, status: string, reporter: string, parentCardId: ?string, updatedAt: string, state: ?CardListStateSummary}
  */
@@ -399,6 +399,7 @@ final readonly class CardPayload
                 static fn (CardValueView $value): array => [
                     'key' => $value->key,
                     'type' => $value->type->value,
+                    'visibility' => $value->visibility->value,
                     'value' => $value->value,
                     'writer' => null === $value->writerKind ? null : ['kind' => $value->writerKind->value, 'name' => $value->writerUser?->fullName],
                     'updatedAt' => $value->updatedAt?->format(\DATE_ATOM),

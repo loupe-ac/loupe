@@ -36,6 +36,13 @@ final readonly class ActionContext
         return \is_string($value) ? $value : throw new \LogicException(\sprintf('The rule "%s" has no string parameter "%s".', $this->ruleId, $name));
     }
 
+    public function bool(string $name): bool
+    {
+        $value = $this->params[$name] ?? null;
+
+        return \is_bool($value) ? $value : throw new \LogicException(\sprintf('The rule "%s" has no boolean parameter "%s".', $this->ruleId, $name));
+    }
+
     public function optionalString(string $name): ?string
     {
         return \array_key_exists($name, $this->params) ? $this->string($name) : null;

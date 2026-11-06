@@ -22,6 +22,7 @@ use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\SetCardValue;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Bridge\Metric\BuiltInMetricKeys;
 use App\Module\Bridge\Workflow\Condition\AccountUsage;
@@ -37,6 +38,7 @@ use App\Module\Workflow\Condition\CardInSlot;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
 use App\Module\Workflow\Contract\CardValueType;
+use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerLink;
@@ -81,7 +83,7 @@ final class TemplateParserTest extends TestCase
     {
         $this->actions = new Actions(array_map(
             static fn (string $class): Action => new \ReflectionClass($class)->newInstanceWithoutConstructor(),
-            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, StopWork::class, MissingAction::class],
+            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, ApproveDocument::class, RequestChanges::class, StopWork::class, SetCardValue::class, MissingAction::class],
         ));
         $this->parser = new TemplateParser(new Conditions([
             new AccountUsage(),
@@ -396,6 +398,94 @@ final class TemplateParserTest extends TestCase
             new TemplateValueKey('tech-design-interactive', CardValueType::Bool, 'workflow.value.tech-design-interactive.label', 'workflow.value.tech-design-interactive.caption', 'workflow.value.tech-design-interactive.help', 'workflow.value.tech-design-interactive.history'),
             new TemplateValueKey('review-2', CardValueType::Bool, 'workflow.value.review2.label', 'workflow.value.review2.caption', 'workflow.value.review2.help', 'workflow.value.review2.history'),
         ], $template->values);
+    }
+
+    public function test_a_value_key_is_public_unless_it_says_internal(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['values' => [
+            self::valueKey('plain'),
+            ['visibility' => 'public'] + self::valueKey('explicit'),
+            ['visibility' => 'internal'] + self::valueKey('hidden'),
+        ]]);
+
+        self::assertSame(
+            ['plain' => CardValueVisibility::Public, 'explicit' => CardValueVisibility::Public, 'hidden' => CardValueVisibility::Internal],
+            array_column(array_map(static fn (TemplateValueKey $key): array => ['key' => $key->key, 'visibility' => $key->visibility], $template->values), 'visibility', 'key'),
+        );
+    }
+
+    /** @param list<string> $errors */
+    #[DataProvider('invalidVisibilities')]
+    public function test_a_visibility_that_is_not_known_is_refused_and_a_stored_copy_drops_the_key(mixed $visibility, array $errors): void
+    {
+        $source = self::valid() + ['values' => [['visibility' => $visibility] + self::valueKey('hidden'), self::valueKey('good')]];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame($errors, $e->errors);
+        }
+        self::assertSame(['good'], array_map(static fn (TemplateValueKey $key): string => $key->key, $this->parser->parseStored($source)->values));
+    }
+
+    /** @return iterable<string, array{mixed, list<string>}> */
+    public static function invalidVisibilities(): iterable
+    {
+        yield 'an unknown word' => ['private', ['values[0]: unknown visibility "private"; use public or internal']];
+        yield 'an empty string' => ['', ['values[0]: unknown visibility ""; use public or internal']];
+        yield 'a boolean' => [true, ['values[0]: unknown visibility "1"; use public or internal']];
+        yield 'an explicit null' => [null, ['values[0]: unknown visibility "null"; use public or internal']];
+    }
+
+    public function test_caption_and_help_stay_required_for_an_internal_value_key(): void
+    {
+        try {
+            $this->parser->parse(self::valid() + ['values' => [array_diff_key(['visibility' => 'internal'] + self::valueKey('hidden'), ['help' => 1])]]);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['values[0]: help must be a non-empty string'], $e->errors);
+        }
+    }
+
+    public function test_a_rule_may_set_a_declared_value_and_the_params_keep_the_boolean(): void
+    {
+        $source = self::withValueRule(['card.value' => ['key' => 'good']], [self::valueKey('good')]);
+        $source['rules'][array_key_last($source['rules'])]['then'] = ['set-value' => ['key' => 'good', 'value' => false]];
+
+        $rule = array_last($this->parser->parse($source)->rules);
+
+        self::assertNotNull($rule);
+        self::assertSame('set-value', $rule->lead->key);
+        self::assertSame(['key' => 'good', 'value' => false], $rule->lead->params);
+    }
+
+    /**
+     * @param array<string, mixed>       $call
+     * @param array{0: non-empty-string} $errors the end of the one error
+     */
+    #[DataProvider('invalidSetValueCalls')]
+    public function test_a_set_value_call_that_is_not_valid_is_refused(array $call, array $errors): void
+    {
+        $source = self::withValueRule(['card.value' => ['key' => 'good']], [self::valueKey('good')]);
+        $source['rules'][array_key_last($source['rules'])]['then'] = ['set-value' => $call];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertCount(1, $e->errors);
+            self::assertStringEndsWith($errors[0], $e->errors[0]);
+        }
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, array{0: non-empty-string}}> */
+    public static function invalidSetValueCalls(): iterable
+    {
+        yield 'a key the template does not declare' => [['key' => 'ghost', 'value' => true], ['set-value: unknown value key "ghost"; declared keys: good']];
+        yield 'a value that is not a boolean' => [['key' => 'good', 'value' => 'yes'], ['set-value: parameter "value" must be true or false']];
+        yield 'a missing value' => [['key' => 'good'], ['set-value: missing parameter "value"']];
+        yield 'a missing key' => [['value' => true], ['set-value: missing parameter "key"']];
     }
 
     public function test_a_template_with_no_values_section_has_no_value_keys(): void

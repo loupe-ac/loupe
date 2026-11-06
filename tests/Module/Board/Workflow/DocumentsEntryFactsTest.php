@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Workflow;
 
+use App\Module\Account\Entity\User;
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardEventKind;
@@ -169,6 +171,75 @@ final class DocumentsEntryFactsTest extends KernelTestCase
 
         self::assertTrue($facts->rejectedBefore);
         self::assertNull($facts->cleanCheckVersion, 'A revision of a changes-requested document is no publish.');
+    }
+
+    public function test_a_document_with_no_approval_has_no_approval_time(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'changes-requested', 1, 'Rework it.'));
+
+        $facts = $this->facts($card, $document);
+
+        self::assertNull($facts->newestApprovalAt);
+        self::assertFalse($facts->newestApprovalByWorkflow);
+    }
+
+    public function test_the_newest_approval_names_its_time_to_the_microsecond_and_whether_the_workflow_account_gave_it(): void
+    {
+        $card = $this->newCard();
+        $person = $this->draft($card, "# Design\n\nNothing to decide.");
+        $workflow = $this->draft($card, "# Design\n\nAlso nothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($person));
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($workflow));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($person->owner, $person, 'approved', 1, 'Fine.'));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($this->service(UserRepository::class)->workflow(), $workflow, 'approved', 1, 'Auto.', workflowRule: 'auto-approve'));
+
+        $byPerson = $this->facts($card, $person);
+        $byWorkflow = $this->facts($card, $workflow);
+
+        self::assertFalse($byPerson->newestApprovalByWorkflow);
+        self::assertTrue($byWorkflow->newestApprovalByWorkflow);
+        self::assertNotNull($byPerson->newestApprovalAt);
+        self::assertGreaterThan($byPerson->newestApprovalAt, $byWorkflow->newestApprovalAt, 'The later approval has the later time, also inside one second.');
+        $stored = $this->em()->getConnection()->fetchOne('SELECT submitted_at FROM reviews WHERE reviewer_id = ?', [User::WORKFLOW_ID]);
+        self::assertEquals(new \DateTimeImmutable((string) $stored), $byWorkflow->newestApprovalAt);
+    }
+
+    public function test_an_approval_of_a_newer_version_wins_a_tie_in_time(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($this->service(UserRepository::class)->workflow(), $document, 'approved', 1, 'Auto.', workflowRule: 'auto-approve'));
+        $this->service(ReviseDocumentHandler::class)(new ReviseDocumentCommand($document, "# Design\n\nA second round.", 'Second round.'));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 2, 'Fine.'));
+        $this->em()->getConnection()->executeStatement("UPDATE reviews SET submitted_at = '2026-10-22 10:00:00'");
+
+        self::assertFalse($this->facts($card, $document)->newestApprovalByWorkflow);
+    }
+
+    public function test_the_position_in_the_log_wins_a_tie_in_time_inside_one_version(): void
+    {
+        $card = $this->newCard();
+        $document = $this->draft($card, "# Design\n\nNothing to decide.");
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $first = $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($document->owner, $document, 'approved', 1, 'Fine.'));
+        $withdrawal = $this->service(UndoVerdictHandler::class)(new UndoVerdictCommand($document, $document->owner, $first->id?->toRfc4122() ?? ''));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($this->service(UserRepository::class)->workflow(), $document, 'approved', 1, 'Auto.', expectedReviewId: $withdrawal->id?->toRfc4122(), workflowRule: 'auto-approve'));
+        $this->em()->getConnection()->executeStatement("UPDATE reviews SET submitted_at = '2026-10-22 10:00:00'");
+
+        self::assertTrue($this->facts($card, $document)->newestApprovalByWorkflow, 'The approval at position 3 is the newest.');
+    }
+
+    public function test_the_approval_time_leaves_the_fingerprint_alone(): void
+    {
+        $at = new \DateTimeImmutable('2026-10-22 10:00:00');
+        $plain = new DocumentFacts(['d'], 'approved', 'one', 'T', null, 1, 1, 'review', $at, 0, 0);
+        $approved = new DocumentFacts(['d'], 'approved', 'one', 'T', null, 1, 1, 'review', $at, 0, 0, false, false, $at->modify('+1 minute'), true);
+
+        self::assertSame(FingerprintValue::documents([$plain]), FingerprintValue::documents([$approved]));
     }
 
     public function test_the_fingerprint_changes_with_each_part_of_the_entry_facts(): void

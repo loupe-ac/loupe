@@ -8,6 +8,7 @@ use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardValue;
+use App\Module\Board\Repository\CardValueRepository;
 use App\Module\Board\Workflow\CardValueFactProvider;
 use App\Module\Board\Workflow\CardValueFacts;
 use App\Module\Workflow\Contract\Actor;
@@ -57,6 +58,40 @@ final class CardValueFactProviderTest extends KernelTestCase
 
         self::assertNotSame($before, $after);
         self::assertSame([self::KEY => true], $after);
+    }
+
+    public function test_each_held_value_carries_the_time_and_the_kind_of_its_last_write(): void
+    {
+        $card = $this->lifecycleCard('value-fact-writes');
+        $written = new \DateTimeImmutable('2026-10-22 10:00:00.123456');
+        $this->em()->persist(new CardValue($card, self::KEY, true, Actor::Agent, null, $written));
+        $this->em()->persist(new CardValue($card, 'gone', true, Actor::Human));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $writes = $this->facts($card)->writes;
+
+        self::assertSame([self::KEY], array_keys($writes), 'A key the template does not declare has no write.');
+        self::assertSame(Actor::Agent, $writes[self::KEY]->writerKind);
+        self::assertEquals($written, $writes[self::KEY]->at, 'The write keeps its microseconds.');
+    }
+
+    public function test_the_write_stays_out_of_the_fingerprint(): void
+    {
+        $card = $this->lifecycleCard('value-fact-print-write');
+        $provider = $this->provider();
+        $this->em()->persist(new CardValue($card, self::KEY, true, Actor::Agent, null, new \DateTimeImmutable('2026-10-22 10:00:00')));
+        $this->em()->flush();
+        $before = $provider->fingerprint($this->facts($card));
+        $cardValues = self::getContainer()->get(CardValueRepository::class);
+        self::assertInstanceOf(CardValueRepository::class, $cardValues);
+        $row = $cardValues->findOneForCardFresh($card, self::KEY);
+        self::assertNotNull($row);
+        $row->writerKind = Actor::Human;
+        $row->updatedAt = new \DateTimeImmutable('2026-10-23 10:00:00');
+        $this->em()->flush();
+
+        self::assertSame($before, $provider->fingerprint($this->facts($card)));
     }
 
     private function facts(Card $card): CardValueFacts

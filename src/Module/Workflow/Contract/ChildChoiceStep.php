@@ -7,7 +7,7 @@ namespace App\Module\Workflow\Contract;
 /** One action of a child choice, as the workflow template declares it. */
 final readonly class ChildChoiceStep
 {
-    /** @param array<string, int|string> $params */
+    /** @param array<string, bool|int|string> $params */
     public function __construct(
         public string $key,
         public array $params,
