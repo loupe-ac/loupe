@@ -177,7 +177,10 @@ func TestALiveEventMovesTheCursor(t *testing.T) {
 	h.router.onEvent("not-a-number", []byte(cardMoved(13)))
 	h.router.wg.Wait()
 
-	if got := startedCards(t, h); !slices.Equal(got, []int{12, 11, 13}) {
+	// Each start waits for its claim, so the three can log in any order.
+	got := startedCards(t, h)
+	slices.Sort(got)
+	if !slices.Equal(got, []int{11, 12, 13}) {
 		t.Fatalf("started = %v", got)
 	}
 	st := readCursorFile(t, path)
@@ -206,7 +209,7 @@ func TestACursorThatCannotBeSavedIsLoggedOnce(t *testing.T) {
 
 // The catch-up reads pages until the last one, each after the highest id of
 // the one before. It skips a row at or below the floor and a row it handled
-// already, and runs the rest in order.
+// already, and runs the rest.
 func TestTheCatchUpReadsEveryPage(t *testing.T) {
 	h := newHarness(t)
 	path := withCursor(t, h, 10, 8)
@@ -224,7 +227,11 @@ func TestTheCatchUpReadsEveryPage(t *testing.T) {
 	if got := rep.called(); !slices.Equal(got, []int64{10, 12}) {
 		t.Fatalf("replay afters = %v", got)
 	}
-	if got := startedCards(t, h); !slices.Equal(got, []int{9, 11, 12, 13}) {
+	// Each start waits for its claim, so the catch-up starts can log in any
+	// order.
+	got := startedCards(t, h)
+	slices.Sort(got)
+	if !slices.Equal(got, []int{9, 11, 12, 13}) {
 		t.Fatalf("started = %v", got)
 	}
 	h.only(t, "event_duplicate")
