@@ -560,7 +560,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertInstanceOf(WorkerRunRepository::class, $repository);
         $emptyId = $runs[$empty]->id ?? throw new \LogicException('A stored run has an id.');
         $absentId = $runs[$absent]->id ?? throw new \LogicException('A stored run has an id.');
-        self::assertSame(
+        self::assertEquals(
             [(string) $emptyId => 0, (string) $absentId => null],
             $repository->findHarnessEventCountsOfRuns([$emptyId, $absentId], 'diagnostics'),
         );

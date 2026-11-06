@@ -303,6 +303,40 @@ class CardPullRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The pull request link URLs of the project's cards with these ids, oldest link first. A card with no link has no key.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, list<string>> card id => URLs
+     */
+    public function findUrlsOfCards(Project $project, array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        /** @var list<array{card_id: string, url: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT link.card_id, link.url FROM board_card_pull_requests link
+            JOIN board_cards c ON c.id = link.card_id
+            WHERE c.project_id = :project AND c.id IN (:cards)
+            ORDER BY link.added_at, link.id',
+            [
+                'project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(),
+                'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
+            ],
+            ['cards' => ArrayParameterType::STRING],
+        );
+
+        $urls = [];
+        foreach ($rows as $row) {
+            $urls[$row['card_id']][] = $row['url'];
+        }
+
+        return $urls;
+    }
+
+    /**
      * When each pull request that a card links opened and merged, as the last forge read found them. A card with
      * no read pull request has no key.
      *

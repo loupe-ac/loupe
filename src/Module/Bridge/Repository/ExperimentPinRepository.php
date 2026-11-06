@@ -76,6 +76,21 @@ class ExperimentPinRepository extends ServiceEntityRepository
         return array_values($this->findBy(['project' => $project, 'experiment' => $experiment], ['createdAt' => 'ASC', 'id' => 'ASC']));
     }
 
+    public function existsForCard(Project $project, string $experiment, Uuid $cardId): bool
+    {
+        return null !== $this->createQueryBuilder('p')
+            ->select('1')
+            ->andWhere('p.project = :project')
+            ->andWhere('p.experiment = :experiment')
+            ->andWhere('p.cardId = :cardId')
+            ->setParameter('project', $project)
+            ->setParameter('experiment', $experiment)
+            ->setParameter('cardId', $cardId, UuidType::NAME)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function deleteUpdatedBefore(\DateTimeImmutable $cutoff): int
     {
         return (int) $this->createQueryBuilder('pin')

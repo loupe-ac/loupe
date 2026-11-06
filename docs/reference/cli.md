@@ -270,6 +270,7 @@ names the ways to choose. It never guesses.
 | `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
 | `loupe card` | `list`, `get`, `history`, `create`, `update`, `hold`, `release`, `pause-release` |
+| `loupe experiment` | `cards`, `exclude`, `include` |
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
@@ -282,6 +283,12 @@ working mark, and `--state-code run-open` narrows them to the running workers.
 terminal column has no state. The flags need a CLI release after `cli/v2.0.1`
 and a server that has the filters. A server without them ignores the flags and
 answers every card.
+
+`loupe experiment cards <experiment>` lists the cards of an experiment, with
+their variant, pull request URLs and left-out reasons. `loupe experiment exclude
+<experiment> <number> --reason "..."` leaves a card out of the comparison, and
+`loupe experiment include <experiment> <number>` puts it back. These commands
+need CLI 2.1.0 or later and a server that has the experiment routes.
 
 `loupe inbox create` puts one item in the inbox of the owner, and `loupe inbox
 get <itemId>` reads it with the answer. A CI job can run

@@ -6863,6 +6863,123 @@
                 },
                 "type": "object"
             },
+            "ExperimentCardRow": {
+                "required": [
+                    "cardId",
+                    "number",
+                    "title",
+                    "variant",
+                    "pullRequestUrls",
+                    "leftOut",
+                    "exclusion"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The card number, or null for a card that the experiment lists but the board and the runs no longer name. A card with no number cannot be excluded.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "title": {
+                        "description": "The card title, or null when the card is gone.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant that did the work, or null when none is known.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pullRequestUrls": {
+                        "description": "Every pull request link of the card, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        }
+                    },
+                    "leftOut": {
+                        "description": "Why the comparison leaves the card out. Empty for a card that counts.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "switched",
+                                "mixed",
+                                "before-test",
+                                "covered-without-variant",
+                                "no-history",
+                                "no-run",
+                                "excluded"
+                            ]
+                        }
+                    },
+                    "exclusion": {
+                        "description": "The manual exclusion of the card, or null.",
+                        "required": [
+                            "reason",
+                            "excludedBy",
+                            "excludedAt"
+                        ],
+                        "properties": {
+                            "reason": {
+                                "type": "string"
+                            },
+                            "excludedBy": {
+                                "description": "The full name of the author, or null when the account is gone.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "excludedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExperimentCardRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardExclude": {
+                "required": [
+                    "reason"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "Why the card does not fit the question of the experiment. Surrounding blanks are cut off.",
+                        "type": "string",
+                        "maxLength": 500,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
             "InboxItem": {
                 "required": [
                     "itemId",
