@@ -1,5 +1,5 @@
 key: lifecycle
-version: 42
+version: 43
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
