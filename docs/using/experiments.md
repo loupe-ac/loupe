@@ -337,6 +337,40 @@ below the metrics shows how many cards are left out, and links to them.
 | Covered work without the variant | a worker run of no experiment or of another experiment did a covered kind of work on the card at or after the first run of this experiment |
 | Run before the card history | the first experiment run of the card is older than the card history of the project |
 | No experiment run | a pin puts the card in the experiment, and no experiment run worked the card |
+| Excluded | the owner left the card out by hand. Hover or focus the tag to read the reason, the author and the date |
+
+## Exclude a card
+
+Some cards do not fit the question of an experiment. A test of a PHP language
+server, for example, cannot help a card that changes no PHP. The owner can leave
+such a card out of the experiment by hand. The comparison then drops the card
+from every figure, every metric, every control and the headline, for every
+variant. The card stays on the Cards tab with the tag **Excluded**, and the
+**left out** filter lists it.
+
+Only the owner of the project can exclude a card. The Cards tab has no exclude
+button. Use the CLI, the public API or the MCP tools:
+
+```bash
+loupe experiment cards php-lsp-4 --format json
+loupe experiment exclude php-lsp-4 1203 --reason "Changes no PHP"
+loupe experiment include php-lsp-4 1203
+```
+
+1. `loupe experiment cards` lists the cards with their variant, their pull
+   request URLs and their left-out reasons. A script can read the files that each
+   pull request changed, and exclude the cards that need no PHP.
+2. `loupe experiment exclude` takes the card number and a reason of 1 to 500
+   characters. A second call replaces the reason, the author and the date.
+3. `loupe experiment include` puts the card back. The card counts again, unless
+   an automatic reason still leaves it out. A card with no exclusion stays as it is.
+4. The experiment must list the card, or the call is refused. A card that the
+   Cards tab lists with no card number, such as a pinned card that never ran and
+   was then deleted from the board, cannot be excluded. It is already left out as
+   **No experiment run**.
+
+The MCP tools `experiment_card_exclude` and `experiment_card_include` do the same.
+The commands need CLI 2.1.0.
 
 ## The Cards tab
 

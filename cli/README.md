@@ -558,7 +558,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `feedback`, `document`, `artifact` and `inbox` groups
+The `project`, `column`, `card`, `experiment`, `feedback`, `document`, `artifact` and `inbox` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -570,10 +570,14 @@ loupe card list --status next --format json
 loupe card list --state working
 loupe card get 42 --fields url
 loupe card update 42 --status done
+loupe experiment cards php-lsp-4 --format json
+loupe experiment exclude php-lsp-4 42 --reason "Changes no PHP"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
 loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
+
+The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
 
 1. **Credential.** `LOUPE_API_KEY` wins over the login, and `LOUPE_URL` names the
    instance. The CLI never stores a key. Bridge commands ignore the key.

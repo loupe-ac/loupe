@@ -19,6 +19,8 @@ final readonly class Cursor
 {
     private const string TIME_FORMAT = 'Y-m-d H:i:s.u';
 
+    private const string NO_RUN = 'none';
+
     /**
      * @param array<string, scalar|null> $filters
      */
@@ -38,6 +40,37 @@ final readonly class Cursor
     public static function afterCreated(string $sort, \DateTimeImmutable $createdAt, Uuid $id, array $filters = []): self
     {
         return new self($sort, $createdAt->format(self::TIME_FORMAT), (string) $id, $filters);
+    }
+
+    /**
+     * The cursor that resumes after a row of a list that sorts on the time of a last run. A row with no run holds the sort value `none`.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterLastRun(string $sort, ?\DateTimeImmutable $lastRunAt, Uuid $id, array $filters = []): self
+    {
+        return new self($sort, null === $lastRunAt ? self::NO_RUN : $lastRunAt->format(self::TIME_FORMAT), (string) $id, $filters);
+    }
+
+    /**
+     * @return array{?\DateTimeImmutable, Uuid} the time of the last run, null for a row with no run, and the id of the last row of the previous page
+     *
+     * @throws ApiProblemException `invalid_cursor` for a position that does not parse
+     */
+    public function lastRunPosition(): array
+    {
+        $at = null;
+        if (self::NO_RUN !== $this->sortValue) {
+            $at = \DateTimeImmutable::createFromFormat(self::TIME_FORMAT, $this->sortValue);
+            if (false === $at) {
+                throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+            }
+        }
+        if (!Uuid::isValid($this->id)) {
+            throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+        }
+
+        return [$at, Uuid::fromString($this->id)];
     }
 
     /**

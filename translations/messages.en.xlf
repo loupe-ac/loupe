@@ -7527,6 +7527,11 @@
             <trans-unit id="bridge.experiments.left_out_reason.covered-without-variant"><source>bridge.experiments.left_out_reason.covered-without-variant</source><target>Covered work without the variant</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-history"><source>bridge.experiments.left_out_reason.no-history</source><target>Run before the card history</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-run"><source>bridge.experiments.left_out_reason.no-run</source><target>No experiment run</target></trans-unit>
+            <trans-unit id="bridge.experiments.left_out_reason.excluded"><source>bridge.experiments.left_out_reason.excluded</source><target>Excluded</target></trans-unit>
+            <trans-unit id="bridge.experiments.excluded.by"><source>bridge.experiments.excluded.by</source><target>Excluded by %name% on %date%</target></trans-unit>
+            <trans-unit id="bridge.experiments.excluded.deleted_user"><source>bridge.experiments.excluded.deleted_user</source><target>a deleted account</target></trans-unit>
+            <trans-unit id="bridge.experiments.exclusion.error.unknown_experiment"><source>bridge.experiments.exclusion.error.unknown_experiment</source><target>No run and no card pin names this experiment.</target></trans-unit>
+            <trans-unit id="bridge.experiments.exclusion.error.card_not_in_experiment"><source>bridge.experiments.exclusion.error.card_not_in_experiment</source><target>The experiment does not list a card with this number.</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.filter_label"><source>bridge.experiments.cards.filter_label</source><target>Show cards</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.all"><source>bridge.experiments.cards.all</source><target>All</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.left_out"><source>bridge.experiments.cards.left_out</source><target>Left out</target></trans-unit>

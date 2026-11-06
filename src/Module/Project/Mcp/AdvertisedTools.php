@@ -99,6 +99,8 @@ final class AdvertisedTools
         'experiment_get',
         'experiment_archive',
         'experiment_unarchive',
+        'experiment_card_exclude',
+        'experiment_card_include',
         'analysis_get',
         'analysis_report',
         'analytics_settings_get',

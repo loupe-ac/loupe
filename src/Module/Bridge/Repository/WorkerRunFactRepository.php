@@ -127,6 +127,35 @@ class WorkerRunFactRepository extends ServiceEntityRepository
             ->setParameter('experiment', $experiment));
     }
 
+    /** The card that a fact of the experiment names with this card number. Null when no fact does. */
+    public function findExperimentCardIdByNumber(Project $project, string $experiment, int $number): ?Uuid
+    {
+        $id = $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT subject_id FROM bridge_worker_run_facts WHERE project_id = :project AND experiment = :experiment AND subject_type = 'card' AND card_number = :number ORDER BY received_at DESC LIMIT 1",
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'number' => $number],
+        );
+
+        return false === $id ? null : Uuid::fromString((string) $id);
+    }
+
+    /** Whether any card fact of the project names the experiment. */
+    public function experimentHasFact(Project $project, string $experiment): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT 1 FROM bridge_worker_run_facts WHERE project_id = :project AND experiment = :experiment AND subject_type = 'card' LIMIT 1",
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment],
+        );
+    }
+
+    /** Whether a fact of the experiment names the card. */
+    public function experimentHasCard(Project $project, string $experiment, Uuid $cardId): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT 1 FROM bridge_worker_run_facts WHERE project_id = :project AND experiment = :experiment AND subject_type = 'card' AND subject_id = :card LIMIT 1",
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'card' => $cardId->toRfc4122()],
+        );
+    }
+
     /**
      * The writer updates rows with SQL, and a managed row cannot refresh its
      * readonly properties. Array hydration skips the identity map.

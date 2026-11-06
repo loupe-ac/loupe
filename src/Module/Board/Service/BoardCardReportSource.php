@@ -6,11 +6,13 @@ namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Experiment\CardColumn;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Project\Entity\Project;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+use Symfony\Component\Uid\Uuid;
 
 #[AsAlias(CardReportSourceInterface::class)]
 final readonly class BoardCardReportSource implements CardReportSourceInterface
@@ -18,6 +20,7 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
     public function __construct(
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
+        private CardPullRequestRepository $cardPullRequests,
     ) {
     }
 
@@ -73,6 +76,24 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
         }
 
         return $types;
+    }
+
+    #[\Override]
+    public function numbersFor(Project $project, array $cardIds): array
+    {
+        return [] === $cardIds ? [] : $this->cards->findNumbersByIds($project, $cardIds);
+    }
+
+    #[\Override]
+    public function cardIdForNumber(Project $project, int $number): ?Uuid
+    {
+        return $this->cards->findIdByProjectAndNumber($project, $number);
+    }
+
+    #[\Override]
+    public function pullRequestUrlsFor(Project $project, array $cardIds): array
+    {
+        return $this->cardPullRequests->findUrlsOfCards($project, $cardIds);
     }
 
     #[\Override]
