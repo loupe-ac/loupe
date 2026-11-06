@@ -308,6 +308,9 @@ type statusResult struct {
 	// CodexPlugins is the state of the Loupe plugins in each Codex home of the
 	// rule file that the bridge keeps.
 	CodexPlugins []codexHomeReport `json:"codexPlugins,omitempty"`
+	// Warnings lists what the rule file gets wrong without failing to load,
+	// such as a setup command that its project folder lacks.
+	Warnings []string `json:"warnings,omitempty"`
 	// Problems holds the refusal of a bridge that cannot answer the op.
 	Problems []string `json:"problems,omitempty"`
 }

@@ -192,6 +192,9 @@ services:
 # (e.g. an MCP tool) keeping them reachable.
 when@test:
     services:
+        App\Tests\Support\HideDebugErrorPage:
+            autoconfigure: true
+
         # The export storage is private. Tests seed and assert on archives
         # through it rather than poking at var/exports, so that they keep
         # passing whichever adapter EXPORT_STORAGE selects.
