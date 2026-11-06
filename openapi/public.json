@@ -7137,7 +7137,7 @@
                     "Discovery"
                 ],
                 "summary": "Start a discovery run",
-                "description": "Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the page of the card, which links the report once the worker has written it. `Location` names the card. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time.",
+                "description": "Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the Workshop page of the project, whose discovery row opens the report once the worker has written it. `Location` names the card. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time.",
                 "operationId": "startDiscovery",
                 "parameters": [
                     {
