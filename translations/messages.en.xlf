@@ -9562,6 +9562,10 @@
             <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.label"><source>dev.value.internal_demo.label</source><target>Dev demo</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.caption"><source>dev.value.internal_demo.caption</source><target>Written by the workflow</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.help"><source>dev.value.internal_demo.help</source><target>A demo value that only the workflow writes. The dev seed declares it for one project.</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.history"><source>dev.value.internal_demo.history</source><target>the dev demo value</target></trans-unit>
             <trans-unit id="workflow.waiting.card_in_slot"><source>workflow.waiting.card_in_slot</source><target>Waiting: the card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_in_slot"><source>workflow.waiting.not.card_in_slot</source><target>Waiting: the card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
