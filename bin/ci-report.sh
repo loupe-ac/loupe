@@ -12,9 +12,12 @@ run=${2:-}
 # `gh run download --pattern` puts every match in its own subdirectory, so a
 # pattern also changes the layout under $dir.
 pattern=''
+# A workflow searched only when the newer ones hold no run with the artifact,
+# such as the retired workflow that held the mutation report before it moved.
+fallback=''
 
 case "$report" in
-    mutation) workflow='Coverage report' artifact=infection-report ;;
+    mutation) workflow='Coverage report' fallback='Mutation testing' artifact=infection-report ;;
     phpunit-coverage) workflow='Coverage report' artifact=phpunit-coverage ;;
     e2e-coverage) workflow='Coverage report' artifact=e2e-coverage ;;
     # The trailing `*` also matches `e2e-timing`, the single artifact a run
@@ -41,15 +44,17 @@ holds_artifact() {
 }
 
 if [ -z "$run" ]; then
-    for id in $(gh run list --repo "$repo" --workflow "$workflow" --branch main \
-        --status completed --limit 20 --json databaseId -q '.[].databaseId'); do
-        if holds_artifact "$id"; then
-            run=$id
-            break
-        fi
+    for wf in "$workflow" ${fallback:+"$fallback"}; do
+        for id in $(gh run list --repo "$repo" --workflow "$wf" --branch main \
+            --status completed --limit 20 --json databaseId -q '.[].databaseId'); do
+            if holds_artifact "$id"; then
+                run=$id
+                break 2
+            fi
+        done
     done
     if [ -z "$run" ]; then
-        echo "No completed '$workflow' run in the last 20 on main holds '${pattern:-$artifact}'." >&2
+        echo "No completed run of '$workflow'${fallback:+ or '$fallback'} in the last 20 on main holds '${pattern:-$artifact}'." >&2
         exit 1
     fi
 fi
@@ -60,14 +65,17 @@ fi
 run_json=$(gh api "repos/$repo/actions/runs/$run" -q '{c: .conclusion, d: .created_at, w: .name}')
 run_date=$(jq -r '.d[0:10]' <<<"$run_json")
 run_conclusion=$(jq -r '.c' <<<"$run_json")
-echo "run $run: $run_date, $run_conclusion"
-newer=$(gh run list --repo "$repo" --workflow "$workflow" --branch main --status completed \
-    --limit 20 --json databaseId,conclusion,createdAt \
-    -q "[.[] | select(.databaseId > $run and .conclusion != \"success\")] | sort_by(.createdAt)")
+run_workflow=$(jq -r '.w' <<<"$run_json")
+echo "run $run: $run_workflow, $run_date, $run_conclusion"
+newer=$(for wf in "$workflow" ${fallback:+"$fallback"}; do
+    gh run list --repo "$repo" --workflow "$wf" --branch main --status completed \
+        --limit 20 --json databaseId,conclusion,createdAt \
+        -q ".[] | select(.databaseId > $run and .conclusion != \"success\")"
+done | jq -s 'sort_by(.createdAt)')
 newer_count=$(jq 'length' <<<"$newer")
 if [ "$newer_count" -gt 0 ]; then
     newest=$(jq -r 'last.createdAt[0:10]' <<<"$newer")
-    echo "warning: $newer_count newer '$workflow' runs failed, newest $newest; this report is from $run_date" >&2
+    echo "warning: $newer_count newer runs failed, newest $newest; this report is from $run_date" >&2
 fi
 if [ "$run_conclusion" != success ]; then
     echo "warning: run $run ended $run_conclusion; its report may be incomplete" >&2

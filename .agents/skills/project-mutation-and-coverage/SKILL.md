@@ -62,7 +62,9 @@ With no run id, the recipe takes the newest completed run on `main` that still
 holds the artifact. It prints the date and conclusion of that run. It warns on
 stderr when newer runs of the workflow failed, and when the chosen run itself was
 red. It exits 0 either way. It downloads into `var/ci-reports/<artifact>/<run-id>/`,
-which git ignores. It does not download a run twice.
+which git ignores. It does not download a run twice. For `mutation` it also
+searches the retired `Mutation testing` workflow when no `Coverage report` run
+holds the report yet.
 
 | Report | Workflow | Job | Artifact | Holds | Retention |
 |---|---|---|---|---|---|
