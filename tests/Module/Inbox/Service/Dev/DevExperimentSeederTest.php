@@ -13,6 +13,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -121,6 +122,20 @@ final class DevExperimentSeederTest extends KernelTestCase
         $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
         $this->em()->clear();
         self::assertSame(1, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
+    }
+
+    public function test_one_pinned_experiment_is_archived_once(): void
+    {
+        $project = $this->seeded();
+
+        $archives = $this->service(ExperimentArchiveRepository::class);
+        self::assertNotNull($archives->findOneByName($project, DevExperimentSeeder::ARCHIVED_EXPERIMENT));
+        self::assertNull($archives->findOneByName($project, DevExperimentSeeder::EXPERIMENT));
+        self::assertNotNull($this->service(ExperimentPinRepository::class)->findOneBy(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]));
+
+        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
+        $this->em()->clear();
+        self::assertSame(1, $this->service(ExperimentArchiveRepository::class)->count(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]));
     }
 
     public function test_a_second_run_writes_no_row(): void
