@@ -218,6 +218,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if bl != nil {
 		migration.log(bl.log, path)
 	}
+	migrateRepairKey(path, bl)
 	set, err := rules.Load(path, defaults)
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
