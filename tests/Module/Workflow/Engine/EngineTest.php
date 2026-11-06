@@ -4780,7 +4780,7 @@ final class EngineTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('engine');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',

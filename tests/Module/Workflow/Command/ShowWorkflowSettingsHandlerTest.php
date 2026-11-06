@@ -24,7 +24,9 @@ use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
+use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -61,7 +63,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(42, $template->version);
+        self::assertSame(TemplateVersion::of($this->service(ShippedTemplates::class)->source('lifecycle')), $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -232,7 +234,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
     public function test_a_named_fact_shows_its_conditions_with_the_name_of_the_outermost_fact(): void
     {
         $project = $this->workflowProject('workflow-settings-named-fact');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',
@@ -266,7 +268,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
     public function test_a_stored_copy_that_names_a_condition_this_instance_lacks_still_shows(): void
     {
         $project = $this->workflowProject('workflow-settings-missing-condition');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',

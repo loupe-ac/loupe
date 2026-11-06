@@ -200,7 +200,7 @@ trait InboxFixtures
         if (!isset($this->stageLinks[(string) $projectId]) && null === $bindings->findOneByProjectId($projectId)) {
             $shipped = self::getContainer()->get(ShippedTemplates::class);
             self::assertInstanceOf(ShippedTemplates::class, $shipped);
-            $em->persist(new WorkflowBinding($project, 'lifecycle', 1, $shipped->source('lifecycle')));
+            $em->persist(new WorkflowBinding($project, 'lifecycle', '1', $shipped->source('lifecycle')));
         }
         $this->stageLinks[(string) $projectId] = true;
         if (!isset($this->stageLinks[$key])) {

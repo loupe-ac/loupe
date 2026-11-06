@@ -63,6 +63,7 @@ use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateMetricParser;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplatePrompts;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\Action\ExpressionPluggedAction;
 use App\Tests\Module\Workflow\Action\PluggedAction;
 use App\Tests\Module\Workflow\Fact\FactsMother;
@@ -204,7 +205,8 @@ final class TemplateParserTest extends TestCase
         $template = $this->parser->parse(self::valid());
 
         self::assertSame('test', $template->key);
-        self::assertSame(1, $template->version);
+        self::assertSame(TemplateVersion::of(self::valid()), $template->version);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{12}$/', $template->version);
         self::assertSame(['build', 'review'], array_map(static fn ($slot) => $slot->key, $template->slots));
         self::assertSame('workflow.slot.review', $template->slot('review')?->label);
         self::assertNull($template->slot('nowhere'));
@@ -1112,7 +1114,6 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'backoffMinutes: is missing'];
-        yield 'wrongly typed version' => [static fn (array $t): array => ['version' => '1'] + $t, 'version: must be an integer'];
         yield 'wrongly typed key' => [static fn (array $t): array => ['key' => ''] + $t, 'key: must be a non-empty string'];
         yield 'slots not a list' => [static fn (array $t): array => ['slots' => 'build', 'manualMoves' => [], 'rules' => []] + $t, 'slots: must be a list'];
         yield 'rules not a list' => [static fn (array $t): array => ['rules' => ['a' => 1]] + $t, 'rules: must be a list'];
@@ -1970,7 +1971,7 @@ final class TemplateParserTest extends TestCase
     public function test_it_reports_every_error_at_once(): void
     {
         $template = self::valid();
-        $template['version'] = 'one';
+        $template['defaultType'] = '';
         $template['rules'][2]['when'] = ['pr.foo' => []];
 
         try {
@@ -1978,7 +1979,7 @@ final class TemplateParserTest extends TestCase
             self::fail('The parser must refuse the template.');
         } catch (InvalidTemplate $e) {
             self::assertSame([
-                'version: must be an integer',
+                'defaultType: must be a non-empty string',
                 'rules[2] (merge) when: unknown condition "pr.foo"',
             ], $e->errors);
         }

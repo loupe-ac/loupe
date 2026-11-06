@@ -290,7 +290,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $em = $this->em();
         $project = $this->newProject('readiness-ready@example.com');
         $project->agentFirstSeenAt = new \DateTimeImmutable();
-        $em->persist(new WorkflowBinding($project, 'simple', 1, []));
+        $em->persist(new WorkflowBinding($project, 'simple', '1', []));
         $this->seedCapableBridge($project);
         $em->persist(new GitHubInstallation($project, ++self::$installationId, 'acme', GitHubRepositorySelection::Selected));
         $em->persist(new ForgeRepository($project, 'github', 'ext-ready', 'acme/app', ForgeRepositorySource::Installation, (string) self::$installationId));
@@ -649,7 +649,7 @@ final class ReadinessChecklistTest extends KernelTestCase
 
     private function bind(Project $project): void
     {
-        $this->em()->persist(new WorkflowBinding($project, 'simple', 1, []));
+        $this->em()->persist(new WorkflowBinding($project, 'simple', '1', []));
         $this->em()->flush();
     }
 

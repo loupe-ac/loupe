@@ -12,6 +12,7 @@ use App\Module\Workflow\Entity\WorkflowSlotLink;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -42,7 +43,7 @@ final class BindWorkflowTemplateHandlerTest extends KernelTestCase
         $stored = $this->bindings()->findOneByProjectId($this->project->id ?? throw new \LogicException());
         self::assertNotNull($stored);
         self::assertSame('lifecycle', $stored->templateKey);
-        self::assertSame(42, $stored->templateVersion);
+        self::assertSame(TemplateVersion::of($this->shipped()->source('lifecycle')), $stored->templateVersion);
         self::assertEquals($this->shipped()->source('lifecycle'), $stored->definition);
 
         $links = [];
@@ -55,7 +56,7 @@ final class BindWorkflowTemplateHandlerTest extends KernelTestCase
         self::assertSame($expected, $links);
 
         self::assertSame(
-            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => 42],
+            ['bindingId' => (string) $binding->id, 'projectId' => (string) $this->project->id, 'templateKey' => 'lifecycle', 'templateVersion' => TemplateVersion::of($this->shipped()->source('lifecycle'))],
             $this->audit->record('workflow.template_bound')->context,
         );
     }
