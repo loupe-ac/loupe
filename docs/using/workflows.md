@@ -1248,7 +1248,7 @@ another column. A person's approval on GitHub then posts the success again.
 | Condition | True when |
 |---|---|
 | `card.review.needs_person` | The **Requires human review** switch of the card is on. For an epic it is also true when the switch of a child is on, or when a child pull request merged into the epic branch without a passed or overridden agent review. It is in the **Board** group |
-| `pr.review_required` | GitHub says the rules of the base branch still need approving reviews. The `merge-ready` rule waits while it is true. It is in the **Forge** group |
+| `pr.review_required` | GitHub says the rules of the base branch still need approving reviews, or a review under those rules requested changes. A fix run does not end it, because GitHub refuses the merge until a person approves again or dismisses the review. The `merge-ready` rule waits while it is true. It is in the **Forge** group |
 
 An epic pull request into the default branch gets its own agent review, and then the same rules. The agent review of the
 epic covers the whole change, also the merges of the default branch into the epic branch and their conflict fixes.

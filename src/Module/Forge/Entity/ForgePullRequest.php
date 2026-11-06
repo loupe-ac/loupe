@@ -84,6 +84,10 @@ class ForgePullRequest
     #[ORM\Column(length: 20, enumType: PullRequestReview::class)]
     public PullRequestReview $review = PullRequestReview::None;
 
+    /** The forge gave $review as its own review decision, so the rules of the base branch hold the merge until it reads approved. */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $reviewFromRules = false;
+
     #[ORM\Column]
     public bool $readyToMerge = false;
 
@@ -292,6 +296,7 @@ class ForgePullRequest
         $this->failedChecks = $snapshot->failedChecks;
         $this->mergeability = $snapshot->mergeability;
         $this->review = $snapshot->review;
+        $this->reviewFromRules = $snapshot->reviewFromRules;
         $this->readyToMerge = $snapshot->readyToMerge;
         $this->changesRequestedAt = $snapshot->changesRequestedAt;
         $this->openedAt = $snapshot->openedAt;
@@ -411,6 +416,7 @@ class ForgePullRequest
             $this->latestApproverLogin,
             $this->title,
             $this->closedAt,
+            $this->reviewFromRules,
         );
     }
 }

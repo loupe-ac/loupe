@@ -49,6 +49,8 @@ final readonly class PullRequestSnapshot
         public ?string $title = null,
         /** When the forge closed the pull request, whether merged or not. equals() leaves it out. */
         public ?\DateTimeImmutable $closedAt = null,
+        /** The forge gave $review as its own review decision, which GitHub does only while the rules of the base branch require reviews. equals() leaves it out. */
+        public bool $reviewFromRules = false,
     ) {
     }
 
