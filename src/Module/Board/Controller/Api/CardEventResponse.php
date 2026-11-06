@@ -30,7 +30,7 @@ final readonly class CardEventResponse
      * @param array<string, mixed>|null                                                    $valueChange
      */
     public function __construct(
-        #[OA\Property(enum: ['created', 'moved', 'fix-requested', 'stopped', 'ready-to-merge', 'synced', 'run-finished', 'paused', 'pause-released', 'verdict', 'review-overridden', 'override-ended', 'resume-skipped', 'document-verdict', 'verdict-failed', 'auto-approved', 'approval-dismissed', 'human-review-changed', 'value-changed'])]
+        #[OA\Property(enum: ['created', 'moved', 'fix-requested', 'fix-withdrawn', 'stopped', 'ready-to-merge', 'synced', 'run-finished', 'paused', 'pause-released', 'verdict', 'review-overridden', 'override-ended', 'resume-skipped', 'document-verdict', 'verdict-failed', 'auto-approved', 'approval-dismissed', 'human-review-changed', 'value-changed'])]
         public string $kind,
 
         #[OA\Property(format: 'date-time')]

@@ -597,7 +597,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $facts = FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, conflicting: $change['conflicting'] ?? false, canPostCheck: $change['canPostCheck'] ?? true, baseAhead: $change['baseAhead'] ?? true, updateRefusedOnHead: $change['updateRefusedOnHead'] ?? false),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, conflicting: $change['conflicting'] ?? false, checksOnHead: true, canPostCheck: $change['canPostCheck'] ?? true, baseAhead: $change['baseAhead'] ?? true, updateRefusedOnHead: $change['updateRefusedOnHead'] ?? false),
             run: FactsMother::run(activeWorkerKinds: $workerKinds),
         );
         $suffix = 'in-review' === $slot ? '-in-review' : '';
@@ -615,6 +615,48 @@ final class ShippedTemplatesTest extends KernelTestCase
             self::assertLessThan(array_search($fix, $ids, true), array_search($update, $ids, true));
             self::assertEquals($this->call('forge-write', ['write' => 'update-branch']), $this->ruleOf($slot, $update)->then[0]);
         }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function fixRuleIds(): iterable
+    {
+        yield 'implementation' => ['fix-in-implementation'];
+        yield 'in-review' => ['fix-in-review'];
+    }
+
+    #[DataProvider('fixRuleIds')]
+    public function test_a_fix_rule_withdraws_its_open_request_when_the_head_moves(string $id): void
+    {
+        $slot = 'fix-in-review' === $id ? 'in-review' : 'implementation';
+        $rule = $this->ruleOf($slot, $id);
+        $moved = FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, headSha: 'bbb2222', number: 7),
+            provided: [WorkRequestFacts::class => new WorkRequestFacts(['fix'], [], ['fix'], [], ['fix' => [['number' => 7, 'headSha' => 'aaa1111']]])],
+        );
+        $same = FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, headSha: 'aaa1111', number: 7),
+            provided: [WorkRequestFacts::class => new WorkRequestFacts(['fix'], [], ['fix'], [], ['fix' => [['number' => 7, 'headSha' => 'aaa1111']]])],
+        );
+
+        self::assertNotNull($rule->lead->cancelWhen);
+        self::assertTrue($rule->lead->cancelWhen->evaluate($moved));
+        self::assertFalse($rule->lead->cancelWhen->evaluate($same));
+        self::assertSame('open', $rule->lead->params['cancelOnly'] ?? null);
+    }
+
+    #[DataProvider('fixRuleIds')]
+    public function test_a_fix_for_failed_checks_waits_for_the_checks_of_the_head(string $id): void
+    {
+        $slot = 'fix-in-review' === $id ? 'in-review' : 'implementation';
+        $failed = static fn (bool $onHead): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, checksOnHead: $onHead),
+        );
+
+        self::assertContains($id, $this->firingRuleIds($failed(true)));
+        self::assertNotContains($id, $this->firingRuleIds($failed(false)));
     }
 
     /** @return iterable<string, array{string, list<string>, bool}> */
@@ -765,7 +807,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         return FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, checksOnHead: true),
             provided: [WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
         );
     }

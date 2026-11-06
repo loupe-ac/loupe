@@ -10,6 +10,7 @@ enum CardEventKind: string
     case Created = 'created';
     case Moved = 'moved';
     case FixRequested = 'fix-requested';
+    case FixWithdrawn = 'fix-withdrawn';
     case Stopped = 'stopped';
     case ReadyToMerge = 'ready-to-merge';
     case Synced = 'synced';

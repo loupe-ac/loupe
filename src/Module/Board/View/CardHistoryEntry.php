@@ -74,6 +74,9 @@ final readonly class CardHistoryEntry
             CardEventKind::Created => self::created($event, $actor, $detail),
             CardEventKind::Moved => self::moved($event, $actor, $detail),
             CardEventKind::FixRequested => self::automation($event, $actor, $detail, 'lucide:wrench', 'board.card.history.fix_requested'),
+            CardEventKind::FixWithdrawn => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['oldHeadSha'] ?? null) && \is_string($detail['newHeadSha'] ?? null)
+                ? new self('lucide:undo-2', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.fix_withdrawn', ['%pr%' => $detail['pullRequest'], '%old%' => mb_substr($detail['oldHeadSha'], 0, 7), '%new%' => mb_substr($detail['newHeadSha'], 0, 7)]))
+                : null,
             CardEventKind::Stopped => \is_string($detail['runId'] ?? null)
                 ? self::stoppedRun($event, $actor, $detail, $runExists)
                 : self::automation($event, $actor, $detail, 'lucide:ban', 'board.card.history.stopped'),

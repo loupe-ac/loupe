@@ -4567,6 +4567,7 @@ components:
           - created
           - moved
           - fix-requested
+          - fix-withdrawn
           - stopped
           - ready-to-merge
           - synced
@@ -6758,6 +6759,7 @@ components:
           - created
           - moved
           - fix-requested
+          - fix-withdrawn
           - stopped
           - ready-to-merge
           - synced

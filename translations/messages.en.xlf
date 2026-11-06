@@ -7942,6 +7942,7 @@
             <trans-unit id="board.card.history.created"><source>board.card.history.created</source><target>%actor% created it in %column%.</target></trans-unit>
             <trans-unit id="board.card.history.moved"><source>board.card.history.moved</source><target>%actor% moved it from %from% to %to%.</target></trans-unit>
             <trans-unit id="board.card.history.fix_requested"><source>board.card.history.fix_requested</source><target>%actor% asked for a fix on #%pr%.</target></trans-unit>
+            <trans-unit id="board.card.history.fix_withdrawn"><source>board.card.history.fix_withdrawn</source><target>Fix request withdrawn on #%pr%: new head. The request was for %old%, and the head is now %new%.</target></trans-unit>
             <trans-unit id="board.card.history.stopped"><source>board.card.history.stopped</source><target>%actor% stopped the automation on #%pr%.</target></trans-unit>
             <trans-unit id="board.card.history.ready_to_merge"><source>board.card.history.ready_to_merge</source><target>#%pr% is ready to merge.</target></trans-unit>
             <trans-unit id="board.card.history.synced"><source>board.card.history.synced</source><target>%actor% updated #%pr% with its base branch.</target></trans-unit>
@@ -9795,6 +9796,8 @@
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_all_finished_one_merged"><source>workflow.waiting.not.pr_all_finished_one_merged</source><target>Waiting: no pull request is open, and one is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_done_at_head"><source>workflow.waiting.run_done_at_head</source><target>Waiting: no matching work request ended done at the current head of the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_head_moved"><source>workflow.waiting.run_work_head_moved</source><target>Waiting: the head of the pull request is the head that the open request named.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_head_moved"><source>workflow.waiting.not.run_work_head_moved</source><target>Waiting: the head of the pull request moved since the open request named it.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_done_at_head"><source>workflow.waiting.not.run_done_at_head</source><target>Waiting: a matching work request ended done at the current head of the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_active"><source>workflow.waiting.run_work_active</source><target>Waiting: no matching work request is active.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>

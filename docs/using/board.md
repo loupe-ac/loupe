@@ -493,7 +493,7 @@ timeline. A row says who created the card and in which column, and who moved
 it from one column to another. When Loupe moved the card on its own, a line
 under the row says why, for example after a pull request merged. An agent's
 move inside a worker run names that run on the same line. The tab also
-records when the automation asked for a fix or stopped, with the reason, when
+records when the automation asked for a fix or stopped, with the reason, when it withdrew a queued fix request because the head moved, when
 a pull request was ready to merge, when a verdict was sent from the
 live-review widget, and when an approval started or ended the override of a
 failed agent review. A finished agent run shows its
@@ -1189,7 +1189,7 @@ this card reads the link. `card_search` does not carry `relatedCards`.
 same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
-`kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
+`kind` is `created`, `moved`, `fix-requested`, `fix-withdrawn`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
 `approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
