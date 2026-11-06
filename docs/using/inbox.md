@@ -241,7 +241,8 @@ Every item that takes a response shows its forms under its text.
 - **Mark a to-do done.** Write an optional note for the agent in the note
   field, then select **Mark complete**. The closed to-do shows your note.
 - **Dismiss an item.** Write an optional note for the agent in the note field,
-  then select **Dismiss**. Dismiss any item that you cannot or will not answer,
+  then select **Dismiss**. Your browser asks you to confirm, because a
+  dismissed item cannot be reopened. Dismiss any item that you cannot or will not answer,
   including a question whose options do not fit. A workflow question has no
   **Dismiss**, because Loupe needs one of its options.
 
@@ -473,7 +474,7 @@ The actions are:
 - "Run a command" runs a command of your rule file on your machine. See
   [Running a command](#running-a-command).
 - "Dismiss" closes the item as declined. It sits apart at the bottom of the
-  menu, in red. Dismiss ignores the note.
+  menu, in red. Dismiss asks you to confirm first, and it ignores the note.
 
 Loupe shows only the actions that fit the item now. It picks the main action
 from the newest open wait: Resume the run for a stopped run, Retry the card for
@@ -825,7 +826,7 @@ The Loupe ask that holds the item closes with it.
 ### Dismiss
 
 Open the menu of the split button and select **Dismiss** to close an automatic
-item that you do not need. The item closes as declined. Dismiss takes no note. Loupe does not open the item again
+item that you do not need. Your browser asks you to confirm first. The item closes as declined. Dismiss takes no note. Loupe does not open the item again
 for the same document version, the same run or the same pull request commit. A
 new version of the document opens a new item, and so does a new run that
 waits. A pull request wait holds the dismiss for one commit: a new commit that

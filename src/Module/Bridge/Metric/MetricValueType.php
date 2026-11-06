@@ -16,7 +16,7 @@ enum MetricValueType: string
 
     /**
      * A ratio is a mean of ones and zeros, so a sum or a percentile of it means nothing. A percent is a share of a
-     * limit, so a sum of it means nothing either, and its peak is the figure that matters. No other type offers the max.
+     * limit, so a sum of it means nothing either, and its peak is the figure that matters. No other type offers the max on its own; a metric can add it through `Metric::statistics()`.
      *
      * @return list<MetricStatistic>
      */

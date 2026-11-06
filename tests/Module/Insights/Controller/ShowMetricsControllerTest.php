@@ -36,7 +36,8 @@ final class ShowMetricsControllerTest extends WebTestCase
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
-        self::assertCount(16, $form->filter('select[name="metric"] option'));
+        self::assertCount(17, $form->filter('select[name="metric"] option'));
+        self::assertCount(1, $form->filter('select[name="metric"] option[value="peak-context"]'));
         self::assertSame(['Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
         self::assertCount(1, $form->filter('noscript'));
 
@@ -238,7 +239,8 @@ final class ShowMetricsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $select = $crawler->filter('form[data-metrics-form] select[name="metric"]');
-        self::assertCount(16, $select->children('option'));
+        self::assertCount(17, $select->children('option'));
+        self::assertCount(1, $select->children('option[value="peak-context"]'));
         $groups = $select->filter('optgroup');
         self::assertCount(3, $groups);
         self::assertSame(['Time buckets', 'Time buckets, subagents included', 'Calls in time buckets'], $groups->each(static fn (Crawler $group): string => (string) $group->attr('label')));
