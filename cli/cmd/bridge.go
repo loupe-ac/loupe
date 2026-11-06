@@ -59,7 +59,7 @@ func newBridgeCmd() *cobra.Command {
 		Use:   "bridge",
 		Short: "Run Loupe work requests in local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgeStatusCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgeStatusCmd(), newBridgeCheckCmd(), newBridgePreflightCmd(), newBridgeHooksCmd(), newBridgeLogsCmd())
 
 	return cmd
 }
@@ -850,6 +850,7 @@ func (r *router) status() statusResult {
 		Login:     loginValid,
 		Workers:   []statusWorker{},
 		Skills:    r.skillReports(),
+		Warnings:  r.rules().Warnings(),
 
 		CodexPlugins: r.codexHomeReports(),
 	}

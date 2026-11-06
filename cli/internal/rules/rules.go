@@ -303,6 +303,9 @@ func (l Launch) Argv(v LaunchValues) []string {
 // Project maps a project slug to the directory its workers run in.
 type Project struct {
 	Dir string `yaml:"dir"`
+	// Work maps a kind to the entry this project runs in place of the shared
+	// entry of the same kind. A kind it does not list uses the shared entry.
+	Work map[string]WorkEntry `yaml:"work"`
 }
 
 // BeforeConfig is the before block as written. No shell reads Run.
@@ -372,6 +375,9 @@ type Set struct {
 	pools map[string]int
 	// work has the defaults of each worker entry filled.
 	work map[string]WorkEntry
+	// projectWork maps a project slug to the entries it lists, with the
+	// defaults filled. entryFor reads it before work.
+	projectWork map[string]map[string]WorkEntry
 	// appPrompts runs the app prompt of a kind that work does not hold, with
 	// appRun.
 	appPrompts bool
@@ -433,7 +439,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		return nil, err
 	}
 
-	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, acceptEntries: f.AcceptEntries, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
+	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, projectWork: map[string]map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, acceptEntries: f.AcceptEntries, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
 	s.appPrompts, s.defaults, s.fileDefaults = f.AppPrompts != nil && *f.AppPrompts, defaults, f.Defaults
 	if keyNode(root, "accounts") == nil {
 		s.agentsOff = agentsOffNoAccounts
@@ -468,7 +474,8 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.dirs[slug] = dir
 	}
-	if len(f.Work) == 0 && !s.appPrompts {
+	listsWork := len(f.Work) > 0 || slices.ContainsFunc(slices.Collect(maps.Values(f.Projects)), func(p Project) bool { return len(p.Work) > 0 })
+	if !listsWork && !s.appPrompts {
 		errs = append(errs, errors.New("the rule file has no work, and no appPrompts: true"))
 	}
 	name, err := bridgeName(f.Name)
@@ -501,6 +508,9 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.work[kind] = w
 	}
+	for _, slug := range slices.Sorted(maps.Keys(f.Projects)) {
+		errs = append(errs, s.checkProjectWork(slug, f.Projects[slug], f.WorkerPools, pools, known, declared, root)...)
+	}
 	covered, experimentErrs := checkExperiments(s.work, f.Experiments)
 	errs = append(errs, experimentErrs...)
 	for _, kind := range slices.Sorted(maps.Keys(covered)) {
@@ -516,7 +526,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.appRun = s.resolve("", "", "", false)
 	}
-	interactive := slices.ContainsFunc(slices.Collect(maps.Values(f.Work)), func(w WorkEntry) bool { return w.Action == ActionInteractive })
+	interactive := s.HasInteractive()
 	launch, err := checkLaunch(f.Launch, interactive)
 	if err != nil {
 		errs = append(errs, err)
@@ -524,7 +534,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 	s.launch = launch
 	errs = append(errs, checkHooks(f.Hooks)...)
 	s.hooks = f.Hooks
-	if len(f.Work) == 0 && !s.appPrompts {
+	if !listsWork && !s.appPrompts {
 		return nil, withExample(errors.Join(errs...))
 	}
 	if len(errs) > 0 {
@@ -670,8 +680,13 @@ func (s *Set) Isolation() string {
 // checkWorkAccounts checks the account and the level of an entry, and fills
 // its run settings.
 func (s *Set) checkWorkAccounts(kind string, w *WorkEntry, declared []string, root *yaml.Node) []error {
-	at := func(path ...any) string { return lineOf(root, append([]any{"work", kind}, path...)...) }
-	prefix := fmt.Sprintf("work %q: ", kind)
+	return s.checkEntryAccounts([]any{"work", kind}, fmt.Sprintf("work %q: ", kind), w, declared, root)
+}
+
+// checkEntryAccounts is checkWorkAccounts for the entry at path, with prefix
+// in front of each error.
+func (s *Set) checkEntryAccounts(base []any, prefix string, w *WorkEntry, declared []string, root *yaml.Node) []error {
+	at := func(path ...any) string { return lineOf(root, append(slices.Clone(base), path...)...) }
 	errs := checkAccountName(at("account"), prefix+"account", w.Account, declared)
 	errs = append(errs, checkLevel(at("permissions"), prefix+"permissions", w.Permissions)...)
 	switch w.Action {
@@ -759,7 +774,7 @@ func (s *Set) AgentsOff() string {
 func (s *Set) UsedAccounts() []string {
 	var out []string
 	runs := []RunSettings{}
-	for _, w := range s.work {
+	for _, w := range s.allEntries() {
 		runs = append(runs, w.runs()...)
 	}
 	if s.appPrompts {
@@ -1402,7 +1417,7 @@ func (s *Set) Launch() Launch {
 
 // HasInteractive reports whether a work entry has action interactive.
 func (s *Set) HasInteractive() bool {
-	return slices.ContainsFunc(slices.Collect(maps.Values(s.work)), func(w WorkEntry) bool { return w.Action == ActionInteractive })
+	return slices.ContainsFunc(s.allEntries(), func(w WorkEntry) bool { return w.Action == ActionInteractive })
 }
 
 // ProjectID is the id Check resolved for a mapped slug.
