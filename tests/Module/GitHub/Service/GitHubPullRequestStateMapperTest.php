@@ -289,6 +289,26 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame($fromRules, $snapshot->reviewFromRules);
     }
 
+    /** @return iterable<string, array{string, bool, string, bool}> */
+    public static function changeRequestRules(): iterable
+    {
+        yield 'a ruleset that requires a review' => ['CHANGES_REQUESTED', true, 'CLEAN', true];
+        yield 'a merge that GitHub blocks, as classic branch protection does' => ['CHANGES_REQUESTED', false, 'BLOCKED', true];
+        yield 'an optional change request on a mergeable pull request' => ['CHANGES_REQUESTED', false, 'CLEAN', false];
+        yield 'a required review always comes from the rules' => ['REVIEW_REQUIRED', false, 'CLEAN', true];
+    }
+
+    #[DataProvider('changeRequestRules')]
+    public function test_a_review_decision_counts_as_a_rule_only_when_a_rule_backs_it(string $decision, bool $rulesetRequiresReview, string $mergeStateStatus, bool $expected): void
+    {
+        $node = self::pullRequest604();
+        $node['reviewDecision'] = $decision;
+        $node['mergeStateStatus'] = $mergeStateStatus;
+        $rules = new GitHubBranchRules(self::rules604()->requiredChecks, false, $rulesetRequiresReview);
+
+        self::assertSame($expected, self::mapper()->map($node, $rules, null)->reviewFromRules);
+    }
+
     public function test_a_node_without_latest_opinionated_reviews_has_no_review(): void
     {
         $node = self::pullRequest604();

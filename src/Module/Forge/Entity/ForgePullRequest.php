@@ -84,7 +84,7 @@ class ForgePullRequest
     #[ORM\Column(length: 20, enumType: PullRequestReview::class)]
     public PullRequestReview $review = PullRequestReview::None;
 
-    /** The forge gave $review as its own review decision, so the rules of the base branch hold the merge until it reads approved. */
+    /** The rules of the base branch back $review, so they hold the merge until it reads approved. An optional review never sets it. */
     #[ORM\Column(options: ['default' => false])]
     public bool $reviewFromRules = false;
 

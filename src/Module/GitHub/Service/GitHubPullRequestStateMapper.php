@@ -85,8 +85,24 @@ final readonly class GitHubPullRequestStateMapper
             latestApproverLogin: $latestApproverLogin,
             title: $this->title($pullRequest),
             closedAt: $this->time($pullRequest['closedAt'] ?? null),
-            reviewFromRules: null !== ($pullRequest['reviewDecision'] ?? null),
+            reviewFromRules: $this->reviewFromRules($pullRequest, $rules),
         );
+    }
+
+    /**
+     * GitHub can give a decision for an optional review too, so a decision
+     * counts as a rule only when a ruleset requires a review or GitHub blocks
+     * the merge. The block covers classic branch protection, which no ruleset shows.
+     *
+     * @param array<mixed> $pullRequest
+     */
+    private function reviewFromRules(array $pullRequest, ?GitHubBranchRules $rules): bool
+    {
+        return match ($pullRequest['reviewDecision'] ?? null) {
+            null => false,
+            'REVIEW_REQUIRED' => true,
+            default => true === $rules?->requiresReview || 'BLOCKED' === ($pullRequest['mergeStateStatus'] ?? null),
+        };
     }
 
     /**
