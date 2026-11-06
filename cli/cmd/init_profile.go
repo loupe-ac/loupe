@@ -47,25 +47,26 @@ var initExecutable = os.Executable
 // owner. It runs only for a project whose workflow needs a profile, and only
 // when the file is missing, lacks a section or holds an open value. It never
 // fails init: when it cannot start the agent, it prints the prompt to paste. It
-// returns why the profile is not finished, and an empty string when it is.
-func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) string {
+// returns why the profile is not finished, and an empty string when it is. It
+// also says whether the agent ran, so a new discovery can replace an old report.
+func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (left string, agentRan bool) {
 	out := cmd.OutOrStdout()
 
 	if !site.ProfileNeeded() {
 		step(out, "Profile", "skipped", "the workflow of this project needs no profile")
 
-		return ""
+		return "", agentRan
 	}
 	status, err := profile.Check(dir)
 	if err != nil {
 		step(out, "Profile", "failed", err.Error())
 
-		return "the check failed: " + err.Error()
+		return "the check failed: " + err.Error(), agentRan
 	}
 	if status.Complete() && !o.reviewProfile {
 		step(out, "Profile", "skipped", profile.Path+" is complete. Pass --review-profile to review it")
 
-		return ""
+		return "", agentRan
 	}
 
 	paths, packages := profilePackageDirs(site)
@@ -81,7 +82,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) s
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, prompt)
 
-		return "no agent ran: " + why
+		return "no agent ran: " + why, agentRan
 	}
 
 	if agent == agentCodex {
@@ -90,7 +91,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) s
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, prompt)
 
-			return "no agent ran: " + why
+			return "no agent ran: " + why, agentRan
 		}
 	}
 
@@ -102,7 +103,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) s
 			fmt.Fprintln(out)
 			fmt.Fprintln(out, prompt)
 
-			return "no agent ran: cannot find loupe for the MCP server"
+			return "no agent ran: cannot find loupe for the MCP server", agentRan
 		}
 		args = []string{}
 		for _, p := range packages {
@@ -111,12 +112,13 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) s
 		args = append(args, "--mcp-config", mcpConfig, "--", prompt)
 	}
 	step(out, "Profile", "started", status.Reason()+". The "+agent+" agent writes it with you")
+	agentRan = true
 	if err := initAgent(dir, cmd.InOrStdin(), out, agent, args...); err != nil {
 		step(out, "Profile", "failed", agent+" stopped: "+err.Error()+". Paste this prompt into an agent in this folder:")
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, prompt)
 
-		return agent + " stopped: " + err.Error()
+		return agent + " stopped: " + err.Error(), agentRan
 	}
 
 	after, err := profile.Check(dir)
@@ -124,15 +126,15 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) s
 	case err != nil:
 		step(out, "Profile", "failed", err.Error())
 
-		return "the check failed: " + err.Error()
+		return "the check failed: " + err.Error(), agentRan
 	case after.Complete():
 		step(out, "Profile", "done", profile.Path+" is complete")
 
-		return ""
+		return "", agentRan
 	default:
 		step(out, "Profile", "open", after.Reason()+". Run `loupe init --review-profile` to go on")
 
-		return after.Reason()
+		return after.Reason(), agentRan
 	}
 }
 

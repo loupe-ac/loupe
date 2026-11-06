@@ -43,6 +43,8 @@ tags:
   description: Notes from the live-review widget.
 - name: Artifacts
   description: Stored design artifacts. A flag gates them.
+- name: Discovery
+  description: The readiness check of a project.
 - name: Inbox
   description: Items for the inbox of the owner. A flag gates them.
 paths:
@@ -2263,6 +2265,49 @@ paths:
           $ref: '#/components/responses/E405MethodNotAllowedAnon'
         '429':
           $ref: '#/components/responses/E429RateLimitedAnon'
+  /api/v1/projects/{project}/discovery:
+    post:
+      operationId: startDiscovery
+      summary: Start a discovery run
+      tags:
+      - Discovery
+      description: Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The
+        worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The
+        request takes no body. `url` is the Workshop page of the project, whose discovery row opens the report once the worker
+        has written it. `Location` names the card.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: The new discovery run and its card.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveryStartResult'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409NoBridgeNoCapableBridgeBridgePausedAnd5More'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
 components:
   securitySchemes:
     bearerAuth:
@@ -4686,6 +4731,36 @@ components:
           type: string
           description: The URL of the next page, or null on the last page.
           nullable: true
+          format: uri
+    DiscoveryStartResult:
+      type: object
+      required:
+      - runId
+      - cardId
+      - cardNumber
+      - state
+      - url
+      properties:
+        runId:
+          type: string
+          description: The id of the discovery run.
+          format: uuid
+        cardId:
+          type: string
+          description: The id of the discovery card.
+          format: uuid
+        cardNumber:
+          type: integer
+          description: The number of the discovery card.
+          minimum: 1
+        state:
+          type: string
+          description: The state of the run. A new run is `requested`.
+          enum:
+          - requested
+        url:
+          type: string
+          description: The Workshop page of the project in the app. Its discovery row shows the run, and opens the report once the worker has written it.
           format: uri
     ExperimentCardRow:
       type: object
@@ -7365,6 +7440,55 @@ components:
         status: 409
         code: epic_children_open
         detail: This epic has open child cards. Move each of them to a terminal column first.
+    NoBridge:
+      summary: no_bridge
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_bridge
+        title: No bridge
+        status: 409
+        code: no_bridge
+        detail: No bridge serves this project now. Start a bridge that serves this project, then run discovery again.
+    NoCapableBridge:
+      summary: no_capable_bridge
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_capable_bridge
+        title: No capable bridge
+        status: 409
+        code: no_capable_bridge
+        detail: A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then run discovery again.
+    BridgePaused:
+      summary: bridge_paused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#bridge_paused
+        title: Bridge paused
+        status: 409
+        code: bridge_paused
+        detail: Every bridge that can run discovery is paused. Resume new work on a bridge on the Agents page, then run discovery again.
+    NoWorkflow:
+      summary: no_workflow
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_workflow
+        title: No workflow
+        status: 409
+        code: no_workflow
+        detail: This project has no workflow. Choose a workflow for this project, then run discovery again.
+    AutomationOff:
+      summary: automation_off
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#automation_off
+        title: Board automation off
+        status: 409
+        code: automation_off
+        detail: 'Board automation is off for this project. Switch on "Run the workflow of the board" on the Automation tab of the project settings, then run discovery again.'
+    DiscoveryRunning:
+      summary: discovery_running
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#discovery_running
+        title: Discovery running
+        status: 409
+        code: discovery_running
+        detail: Discovery already runs on card #12. Wait until that run ends.
+        cardNumber: 12
     AlreadyPaused:
       summary: already_paused
       value:
@@ -8119,6 +8243,36 @@ components:
               $ref: '#/components/examples/EpicChildrenOpen'
             child_design_refused:
               $ref: '#/components/examples/ChildDesignRefused'
+    E409NoBridgeNoCapableBridgeBridgePausedAnd5More:
+      description: 'Refused: `no_bridge`, `no_capable_bridge`, `bridge_paused`, `no_workflow`, `automation_off`, `discovery_running`, `idempotency_key_reused`, `idempotency_in_progress`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            no_bridge:
+              $ref: '#/components/examples/NoBridge'
+            no_capable_bridge:
+              $ref: '#/components/examples/NoCapableBridge'
+            bridge_paused:
+              $ref: '#/components/examples/BridgePaused'
+            no_workflow:
+              $ref: '#/components/examples/NoWorkflow'
+            automation_off:
+              $ref: '#/components/examples/AutomationOff'
+            discovery_running:
+              $ref: '#/components/examples/DiscoveryRunning'
+            idempotency_key_reused:
+              $ref: '#/components/examples/IdempotencyKeyReused'
+            idempotency_in_progress:
+              $ref: '#/components/examples/IdempotencyInProgress'
     E409AlreadyPaused:
       description: 'Refused: `already_paused`.'
       headers:

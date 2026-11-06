@@ -87,7 +87,17 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
         }
 
         $branchPath = $repositoryPath.'/branches/'.rawurlencode($default);
-        $rules = $this->rules($installationId, $repositoryPath, $default);
+        $rulesUnavailable = null;
+        try {
+            $rules = $this->rules($installationId, $repositoryPath, $default);
+        } catch (GitHubAppApiFailed $e) {
+            if (GitHubAppApiFailed::PLAN_LIMITED !== $e->reason) {
+                throw $e;
+            }
+            // The plan has no rulesets, so GitHub enforces none and the check stays readable.
+            $rules = GitHubBranchRules::fromRules([]);
+            $rulesUnavailable = $e->githubMessage;
+        }
         $rulesets = $this->rulesets($installationId, $repositoryPath, $rules);
         $branch = $this->api->get($installationId, $branchPath);
         $enabled = \is_array($branch['protection'] ?? null) ? ($branch['protection']['enabled'] ?? null) : null;
@@ -111,6 +121,7 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
             $rulesets,
             $this->recentChecks($installationId, $owner, $name, $default),
             $enabled,
+            $rulesUnavailable,
         );
     }
 

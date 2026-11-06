@@ -359,7 +359,7 @@ final class FactFingerprintTest extends TestCase
     {
         return [
             $pullRequest->state->value, $pullRequest->draft, $pullRequest->checks->value, $pullRequest->conflicting, $pullRequest->behind,
-            $pullRequest->approvalsCoveringHead, $pullRequest->changesRequested, $pullRequest->baseIsMergeTarget, $pullRequest->baseIsEpicBranch,
+            $pullRequest->approvalsCoveringHead, $pullRequest->changesRequested, $pullRequest->reviewRequired, $pullRequest->baseIsMergeTarget, $pullRequest->baseIsEpicBranch,
             $pullRequest->stacked, $pullRequest->parentMerged,
         ];
     }

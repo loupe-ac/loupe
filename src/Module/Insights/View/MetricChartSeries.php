@@ -10,7 +10,7 @@ final readonly class MetricChartSeries
     public function __construct(
         /** Null for the rows with no group. */
         public ?string $group,
-        /** The palette slot, from 1. Zero for the grey that the series past the seventh of more than eight share. */
+        /** The palette slot, from 1. Zero for the grey that the series past the eleventh of more than twelve share. */
         public int $slot,
         /** The place of the series in the query view, which the template reads its label by. */
         public int $position,

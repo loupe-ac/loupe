@@ -63,11 +63,24 @@ final readonly class ReadinessReportWriter
         }
         ksort($options);
 
+        $suggested = array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::isSuggested($finding->status)));
+        $remains = [];
+        foreach ([ReportFinding::OWNER, ReportFinding::AGENT] as $actor) {
+            $actions = array_values(array_map(
+                static fn (ReportFinding $finding): string => '' === trim($finding->action) ? $finding->check : trim($finding->action),
+                array_filter($suggested, static fn (ReportFinding $finding): bool => $actor === $finding->actor),
+            ));
+            if ([] !== $actions) {
+                $remains[$actor] = $actions;
+            }
+        }
+
         return $this->twig->render('@Readiness/report.md.twig', [
+            'remains' => $remains,
             'workflow' => $workflow,
             'summary' => trim($summary),
             'ready' => array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::READY === $finding->status)),
-            'suggested' => array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::isSuggested($finding->status))),
+            'suggested' => $suggested,
             'proposals' => array_map(static fn (DiscoveryProposal $proposal): array => [
                 'title' => self::optionLabel($proposal->title),
                 'type' => $proposal->type,

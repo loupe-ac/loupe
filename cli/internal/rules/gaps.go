@@ -22,7 +22,7 @@ func Gaps(data []byte, dir string, keys ...string) ([]string, error) {
 		gaps = append(gaps, "it sets no permission default: add defaults.permissions, or a permissionMode on an account")
 	}
 	if !hasPrompts(m) {
-		gaps = append(gaps, "it has no prompts: set appPrompts to true, or add a work entry")
+		gaps = append(gaps, "it has no prompts: set appPrompts to true, or add a work entry, shared or under a project")
 	}
 	switch {
 	case mapsDir(m, dir, keys[:min(len(keys), 1)]) != "":
@@ -59,9 +59,18 @@ func hasPrompts(m map[string]any) bool {
 	if on, _ := m["appPrompts"].(bool); on {
 		return true
 	}
-	work, _ := m["work"].(map[string]any)
+	if work, _ := m["work"].(map[string]any); len(work) > 0 {
+		return true
+	}
+	projects, _ := m["projects"].(map[string]any)
+	for _, project := range projects {
+		entry, _ := project.(map[string]any)
+		if work, _ := entry["work"].(map[string]any); len(work) > 0 {
+			return true
+		}
+	}
 
-	return len(work) > 0
+	return false
 }
 
 // mapsDir returns the key of an entry under one of keys that maps dir, or ""

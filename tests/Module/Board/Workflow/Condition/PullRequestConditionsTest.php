@@ -26,6 +26,7 @@ use App\Module\Board\Workflow\Condition\PullRequestMergeBlocked;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestParentMerged;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
+use App\Module\Board\Workflow\Condition\PullRequestReviewRequired;
 use App\Module\Board\Workflow\Condition\PullRequestsAllClosedUnmerged;
 use App\Module\Board\Workflow\Condition\PullRequestsAllFinishedOneMerged;
 use App\Module\Board\Workflow\Condition\PullRequestStacked;
@@ -90,6 +91,9 @@ final class PullRequestConditionsTest extends TestCase
 
         yield 'changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: true), true];
         yield 'no changes requested' => [new PullRequestChangesRequested(), [], self::current(changesRequested: false), false];
+
+        yield 'review required' => [new PullRequestReviewRequired(), [], self::current(reviewRequired: true), true];
+        yield 'no review required' => [new PullRequestReviewRequired(), [], self::current(reviewRequired: false), false];
 
         yield 'base is merge target' => [new PullRequestBaseIsMergeTarget(), [], self::current(baseIsMergeTarget: true), true];
         yield 'base is not merge target' => [new PullRequestBaseIsMergeTarget(), [], self::current(baseIsMergeTarget: false), false];
@@ -172,6 +176,7 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.behind' => [new PullRequestBehind(), []];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 1]];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), []];
+        yield 'pr.review_required' => [new PullRequestReviewRequired(), []];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), []];
         yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), []];
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), []];
@@ -223,6 +228,7 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), [], 'pr_merge_blocked', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
+        yield 'pr.review_required' => [new PullRequestReviewRequired(), [], 'pr_review_required', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];
         yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), [], 'pr_checks_on_head', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.can_merge' => [new PullRequestCanMerge(), [], 'pr_can_merge', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
@@ -260,6 +266,7 @@ final class PullRequestConditionsTest extends TestCase
         bool $approvalCheckPassed = false,
         bool $canPostCheck = false,
         bool $mergeBlocked = false,
+        bool $reviewRequired = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -279,6 +286,7 @@ final class PullRequestConditionsTest extends TestCase
             approvalCheckPassed: $approvalCheckPassed,
             canPostCheck: $canPostCheck,
             mergeBlocked: $mergeBlocked,
+            reviewRequired: $reviewRequired,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

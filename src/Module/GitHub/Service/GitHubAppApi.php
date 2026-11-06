@@ -25,6 +25,9 @@ final class GitHubAppApi
     private const int PAGE_SIZE = 100;
     private const int MAX_PAGES = 10;
 
+    /** The start of the 403 message that GitHub gives for rules on a plan that has none. */
+    private const string PLAN_REFUSAL_PREFIX = 'Upgrade to GitHub';
+
     /** @var array<int, array{token: non-empty-string, until: \DateTimeImmutable}> */
     private array $tokens = [];
 
@@ -246,6 +249,15 @@ final class GitHubAppApi
             || (403 === $status && ('0' === ($headers['x-ratelimit-remaining'][0] ?? null) || isset($headers['retry-after'])));
     }
 
+    /** The `message` of a 403 body that starts with the plan refusal of GitHub, else null. A lost permission never matches. */
+    private static function planRefusal(string $body): ?string
+    {
+        $data = json_decode($body, true);
+        $message = \is_array($data) ? ($data['message'] ?? null) : null;
+
+        return \is_string($message) && str_starts_with($message, self::PLAN_REFUSAL_PREFIX) ? $message : null;
+    }
+
     /**
      * The seconds of `retry-after`, else the wait until the `x-ratelimit-reset` epoch.
      *
@@ -282,6 +294,12 @@ final class GitHubAppApi
             if ($status < 200 || $status >= 300) {
                 $headers = $response->getHeaders(false);
                 $rateLimited = self::rateLimited($status, $headers);
+                if (403 === $status && !$rateLimited) {
+                    $message = self::planRefusal($response->getContent(false));
+                    if (null !== $message) {
+                        throw new GitHubAppApiFailed(GitHubAppApiFailed::PLAN_LIMITED, $status, githubMessage: $message);
+                    }
+                }
                 throw new GitHubAppApiFailed('http_status', $status, $rateLimited, $rateLimited ? $this->retryAfter($headers) : null);
             }
 

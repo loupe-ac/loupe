@@ -182,6 +182,9 @@ func printBridge(out io.Writer, b bridgeReport) {
 	} else {
 		fmt.Fprintln(out, "  Last error:  none")
 	}
+	for _, w := range s.Warnings {
+		fmt.Fprintf(out, "  Warning:     %s\n", w)
+	}
 	if len(s.Workers) == 0 {
 		fmt.Fprintln(out, "  Workers:     none running")
 

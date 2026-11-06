@@ -24,6 +24,18 @@
 {% else %}
 {{ 'readiness.report.none'|trans }}
 {% endfor %}
+{% if remains is not empty %}
+
+## {{ 'readiness.report.remains'|trans }}
+{% for actor, actions in remains %}
+
+### {{ ('readiness.report.remains_' ~ actor)|trans }}
+
+{% for action in actions %}
+{{ loop.index }}. {{ action }}
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% if proposals is not empty %}
 
 ## {{ 'readiness.report.proposals'|trans }}
