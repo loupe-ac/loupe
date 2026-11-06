@@ -63,7 +63,8 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-graph-tile__grip');
         self::assertSelectorNotExists('.lp-graph-tile__actions');
         self::assertSelectorExists('[data-controller~="dashboard-age"] [data-dashboard-age-target="line"]');
-        self::assertSelectorTextContains('.lp-public__meta', 'Made with Loupe');
+        self::assertSelectorTextContains('.lp-public__meta a.lp-public__made-with', 'Made with Loupe');
+        self::assertSelectorNotExists('.lp-chart__table');
         self::assertSelectorTextContains('.lp-public__meta', 'Updated 0 min ago');
         self::assertStringNotContainsString('noindex', (string) $client->getResponse()->getContent());
     }

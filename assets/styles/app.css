@@ -7788,7 +7788,7 @@
     }
     /* A shared item inside the public site frame: one centred column under the site bar. */
     .lp-public {
-        @apply flex flex-col items-center bg-surface-1 px-6 py-12;
+        @apply flex flex-col items-center bg-surface-2 px-6 py-12;
     }
     .lp-public__inner {
         @apply w-full max-w-5xl;
@@ -7805,6 +7805,10 @@
     .lp-public__meta [hidden] {
         @apply hidden;
     }
+    /* The "Made with Loupe" line of a shared page, a link to the Loupe site. */
+    .lp-public__made-with {
+        @apply text-fg-mute underline-offset-2 hover:text-fg hover:underline;
+    }
     .lp-dashboard-notice {
         @apply mx-0 mt-4;
     }
@@ -7819,7 +7823,7 @@
         @apply contents;
     }
     .lp-dashboard-share__body {
-        @apply flex flex-col gap-4;
+        @apply mt-4 flex flex-col gap-4;
     }
     .lp-dashboard-share__link {
         @apply flex items-center gap-2;

@@ -14,8 +14,11 @@ use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectCreating;
@@ -29,7 +32,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Writes three more projects of the dev user, one for each edge state of the Metrics dashboard: a project with no
  * runs, a project that holds as many saved graphs as the default cap allows, and a project whose dashboard holds a
- * graph that names a bucket the project has no rule for. The graphs go in directly, because the save handler
+ * graph that names a bucket the project has no rule for. That graph carries a public link with a fixed code, so a
+ * worktree also shows the broken shared page at /s/{code}. The graphs go in directly, because the save handler
  * refuses a save at the cap. A later seed restores a graph that is missing or removed, and keeps an edited graph.
  */
 #[When('dev')]
@@ -41,6 +45,9 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
     public const string NO_RUNS_NAME = 'Dev Project (no runs)';
     public const string AT_CAP_NAME = 'Dev Project (graph cap)';
     public const string BROKEN_GRAPH_NAME = 'Dev Project (broken graph)';
+
+    /** The code of the public link of the graph that names a bucket with no rule. */
+    public const string BROKEN_GRAPH_CODE = 'devgraphbrkn';
 
     /** The metrics of the graphs at the cap, each with the unit it reads. */
     private const array CAP_METRICS = [
@@ -61,6 +68,7 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
     public function __construct(
         private ProjectRepository $projects,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
+        private PublicLinkRepository $publicLinks,
         private EntityManagerInterface $em,
         private EventDispatcherInterface $events,
         private DevProjectSeeder $devProjects,
@@ -110,6 +118,20 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         $this->graph($context, 'broken-graph', $broken, 'Cost per run', 'cost', MetricUnit::Run, 0, 120);
         $this->graph($context, 'broken-graph', $broken, 'Time in tests', 'bucket-time:tests', MetricUnit::Run, 1, 60);
 
+        $this->em->flush();
+        $this->share($context, $broken, DevSeedId::of('insights/graph/broken-graph/bucket-time-tests-run'));
+    }
+
+    private function share(SeedContext $context, Project $project, Uuid $graphId): void
+    {
+        $id = DevSeedId::of('insights/public-link/broken-graph');
+        $graph = $this->insightsSavedGraphs->find($graphId);
+        if ($this->publicLinks->find($id) instanceof PublicLink || !$graph instanceof InsightsSavedGraph) {
+            return;
+        }
+        $link = new PublicLink($project, PublicLinkKind::Graph, self::BROKEN_GRAPH_CODE, savedGraph: $graph);
+        $context->ids->assign($link, $id);
+        $this->em->persist($link);
         $this->em->flush();
     }
 

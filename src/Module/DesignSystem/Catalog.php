@@ -361,7 +361,7 @@ readonly class Catalog
                 states: ['hover', 'focus'],
                 enforced: true,
                 group: 'core',
-                summary: 'A metric drawn as a line, bars, stacked bars, 100% stacked bars, a donut or a number. It has a legend, a hover card on each time bucket or slice, and a table under every type except the number.',
+                summary: 'A metric drawn as a line, bars, stacked bars, 100% stacked bars, a donut or a number. It has a legend, a hover card on each time bucket or slice, and a table under every type except the number. A page can turn the table off, so the hover cards alone give the values.',
                 element: 'figure',
                 viewport: '900x700',
             ),

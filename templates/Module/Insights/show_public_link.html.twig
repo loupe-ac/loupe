@@ -13,7 +13,7 @@
                     {{ 'analytics.dashboard.updated'|trans({'%minutes%': max(0, (date().timestamp - computedAt.timestamp) // 60)}) }}
                 {%- endif -%}
             </span>
-            <span>{{ 'analytics.public.made_with'|trans }}</span>
+            <a href="{{ site_url('/') }}" data-turbo="false" class="lp-public__made-with">{{ 'analytics.public.made_with'|trans }}</a>
         </div>
     </div>
 {% endblock %}
