@@ -67,6 +67,14 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 6. Prove: `working-with-prs` "Prove each preview link shows its state". The effective URL ends in the path, and the marker count is 1 or more. Write the marker you found on the line of each link.
    On a data state the marker must show only when the page holds its data. The template must print it once for each record, inside a loop over the records, or inside a condition that is true only when records exist. Examples are a row id, a `data-series` attribute, or a data attribute on a filled tile. A page title, a heading, a panel id or a chart container never counts, because the page renders them with no data too. Prove the count is 1 or more on the seeded page, and 0 on the page of the empty twin. The review reads the Twig templates under `templates/` and the Twig component classes under `src/` that feed them.
 7. Signed-out page: a page that only a signed-out visitor sees, such as the landing page at `/`, takes a plain link to the app of the worker folder. A signed link signs the reader in, and the page then redirects. Prove the plain link as item 6 says, with no cookie jar. The marker must not be on `main`.
+8. Excluded paths: `^templates/(.*/)?email/` and `^templates/Module/DesignSystem/export/`. The pre-push check reads these extended regexes and skips a changed path that matches one.
+9. Line patterns: the pre-push check accepts a line of the body when it matches one extended regex of the fenced block below. The block holds the data state, the state with no data, and the signed-out state.
+
+   ```
+   ^- \[[^]]+\]\([^)]+\), marker `[^`]+`, empty `[^`]+`[[:space:]]*$
+   ^- \[[^]]+\]\([^)]+\), marker `[^`]+`, no data[[:space:]]*$
+   ^- \[[^]]+\]\([^)]+\), marker `[^`]+`\. Signed out\.[[:space:]]*$
+   ```
 
 ## Visual check
 

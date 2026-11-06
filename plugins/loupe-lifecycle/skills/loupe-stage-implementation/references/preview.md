@@ -41,6 +41,17 @@ The signed link goes into the pull request body only through a temporary body fi
 
 The profile `Section` and `Line` items say where the proven lines go and what a line looks like. On a rerun whose pull request exists, replace that section of the body. Use "Read the pull request body" and "Replace the pull request body" of the forge adapter. No build notes entry, such as a "Departures" entry, excuses a required state with no proven line. A line that says "Not seeded", or holds no link or marker, is unproven.
 
+## The pre-push check
+
+Run `prepush-check.sh`, which sits next to this file, before each push that opens or changes the pull request body. It makes no network call and opens no link. It reads the proven lines as text, so it finds the gaps that text can show. The proof of a marker, the empty twin and the template stay with the proof steps above and with the review.
+
+1. Save the build notes to a file: call `document_get` on them, and write the Markdown to a file in the `mktemp -d` folder of "The body file". Write the body file in the same folder.
+2. Run it from the worker folder: `prepush-check.sh --profile .loupe/lifecycle.md --body <body file> --notes <notes file> --base origin/<base> --card-type <type> --prototype yes|no`. `<type>` is the `type` of `card_get`. Pass `--prototype yes` when the card, its parent, its source card or a linked design links an artifact, as `prototype-map.md` "Collect the artifacts" says. The script needs `bash` and `git`.
+3. Exit 0 means no gap. Exit 1 lists `gap:` lines. Fix each one, write the body file again, and run the script again. Push only after exit 0.
+4. Exit 2 lists only `not-proven:` lines. That is the result of "Block, never skip", so push on exit 2 only on that path. Any other run with exit 2 proves the state and runs the script again.
+5. The profile `Preview` section can give two optional items. `Line patterns` holds one extended regex for each accepted line form, in a fenced block. `Excluded paths` holds regexes for changed paths that do not count. With no `Line patterns`, a line needs a Markdown link and a marker in backticks.
+6. Remove the `mktemp -d` folder after the forge command, as "The body file" says.
+
 ## Block, never skip
 
 A required state that you cannot seed, mint or prove, and an empty list of required states, block the stage. The visual check skips in that case, and this check never does.
