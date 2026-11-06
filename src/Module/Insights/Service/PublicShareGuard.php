@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Service;
 
 use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Repository\PublicLinkTakedownRepository;
 use App\Module\Project\Entity\Project;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
@@ -13,6 +14,7 @@ final readonly class PublicShareGuard
 {
     public function __construct(
         private FeatureFlagService $featureFlags,
+        private PublicLinkTakedownRepository $publicLinkTakedowns,
     ) {
     }
 
@@ -20,6 +22,9 @@ final readonly class PublicShareGuard
     {
         if (!$this->featureFlags->isEnabled(PublicLink::FLAG, true)) {
             return PublicShareBlock::FlagOff;
+        }
+        if ($this->publicLinkTakedowns->existsForProject($project)) {
+            return PublicShareBlock::TakenDown;
         }
 
         return null;

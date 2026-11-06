@@ -16,9 +16,11 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Entity\PublicLinkTakedown;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Repository\PublicLinkTakedownRepository;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectCreating;
@@ -33,7 +35,8 @@ use Symfony\Component\Uid\Uuid;
  * Writes three more projects of the dev user, one for each edge state of the Metrics dashboard: a project with no
  * runs, a project that holds as many saved graphs as the default cap allows, and a project whose dashboard holds a
  * graph that names a bucket the project has no rule for. That graph carries a public link with a fixed code, so a
- * worktree also shows the broken shared page at /s/{code}. The graphs go in directly, because the save handler
+ * worktree also shows the broken shared page at /s/{code}. The project at the cap has a shared graph and an admin
+ * takedown, so a worktree shows the taken-down state. The graphs go in directly, because the save handler
  * refuses a save at the cap. A later seed restores a graph that is missing or removed, and keeps an edited graph.
  */
 #[When('dev')]
@@ -48,6 +51,9 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
 
     /** The code of the public link of the graph that names a bucket with no rule. */
     public const string BROKEN_GRAPH_CODE = 'devgraphbrkn';
+
+    /** The code of the public link of the project that an admin took down. */
+    public const string TAKEN_DOWN_CODE = 'devgraphtkdn';
 
     /** The metrics of the graphs at the cap, each with the unit it reads. */
     private const array CAP_METRICS = [
@@ -69,6 +75,7 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         private ProjectRepository $projects,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private PublicLinkRepository $publicLinks,
+        private PublicLinkTakedownRepository $publicLinkTakedowns,
         private EntityManagerInterface $em,
         private EventDispatcherInterface $events,
         private DevProjectSeeder $devProjects,
@@ -119,17 +126,30 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         $this->graph($context, 'broken-graph', $broken, 'Time in tests', 'bucket-time:tests', MetricUnit::Run, 1, 60);
 
         $this->em->flush();
-        $this->share($context, $broken, DevSeedId::of('insights/graph/broken-graph/bucket-time-tests-run'));
+        $this->share($context, $broken, DevSeedId::of('insights/graph/broken-graph/bucket-time-tests-run'), 'broken-graph', self::BROKEN_GRAPH_CODE);
+        $this->share($context, $atCap, DevSeedId::of('insights/graph/graph-cap/cost-run'), 'graph-cap', self::TAKEN_DOWN_CODE);
+        $this->takeDown($context, $atCap);
     }
 
-    private function share(SeedContext $context, Project $project, Uuid $graphId): void
+    private function takeDown(SeedContext $context, Project $project): void
     {
-        $id = DevSeedId::of('insights/public-link/broken-graph');
+        if ($this->publicLinkTakedowns->existsForProject($project)) {
+            return;
+        }
+        $takedown = new PublicLinkTakedown($project, $context->adminUser(), $context->at(30));
+        $context->ids->assign($takedown, DevSeedId::of('insights/public-link-takedown/graph-cap'));
+        $this->em->persist($takedown);
+        $this->em->flush();
+    }
+
+    private function share(SeedContext $context, Project $project, Uuid $graphId, string $slug, string $code): void
+    {
+        $id = DevSeedId::of('insights/public-link/'.$slug);
         $graph = $this->insightsSavedGraphs->find($graphId);
         if ($this->publicLinks->find($id) instanceof PublicLink || !$graph instanceof InsightsSavedGraph) {
             return;
         }
-        $link = new PublicLink($project, PublicLinkKind::Graph, self::BROKEN_GRAPH_CODE, savedGraph: $graph);
+        $link = new PublicLink($project, PublicLinkKind::Graph, $code, savedGraph: $graph);
         $context->ids->assign($link, $id);
         $this->em->persist($link);
         $this->em->flush();

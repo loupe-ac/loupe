@@ -18,17 +18,19 @@ final readonly class PublicLinkDetailView
         public ?PublicExperimentResult $experiment,
         /** The sanitized HTML of the note of an experiment link, or null when the owner wrote none. */
         public ?string $noteHtml,
+        /** The code in the address, which the admin bar names. */
+        public string $code,
     ) {
     }
 
-    public static function forGraph(Project $project, InsightsSavedGraph $graph, ?DashboardGraphResult $result): self
+    public static function forGraph(Project $project, InsightsSavedGraph $graph, ?DashboardGraphResult $result, string $code): self
     {
-        return new self($project, $graph, $result, null, null);
+        return new self($project, $graph, $result, null, null, $code);
     }
 
-    public static function forExperiment(Project $project, PublicExperimentResult $experiment, ?string $noteHtml): self
+    public static function forExperiment(Project $project, PublicExperimentResult $experiment, ?string $noteHtml, string $code): self
     {
-        return new self($project, null, null, $experiment, $noteHtml);
+        return new self($project, null, null, $experiment, $noteHtml, $code);
     }
 
     public function isExperiment(): bool

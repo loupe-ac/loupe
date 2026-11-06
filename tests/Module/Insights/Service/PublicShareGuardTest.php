@@ -9,7 +9,6 @@ use App\Module\Insights\Service\PublicShareBlock;
 use App\Module\Insights\Service\PublicShareGuard;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class PublicShareGuardTest extends KernelTestCase
@@ -37,12 +36,34 @@ final class PublicShareGuardTest extends KernelTestCase
         self::assertSame('insights.public_link.block.flag_off', $block->translationKey());
     }
 
+    public function test_a_takedown_blocks_a_share_with_its_reason_and_only_for_its_project(): void
+    {
+        $taken = $this->scenarioProject('guard-taken');
+        $spared = $this->scenarioProject('guard-spared');
+        $this->seedTakedown($taken);
+
+        $block = $this->guard()->blockedBy($taken);
+
+        self::assertSame(PublicShareBlock::TakenDown, $block);
+        self::assertSame('insights.public_link.block.taken_down', $block->translationKey());
+        self::assertNull($this->guard()->blockedBy($spared));
+    }
+
+    public function test_the_flag_wins_over_a_takedown(): void
+    {
+        $project = $this->scenarioProject('guard-both');
+        $this->seedTakedown($project);
+        $this->setFlag(false);
+
+        self::assertSame(PublicShareBlock::FlagOff, $this->guard()->blockedBy($project));
+    }
+
     private function guard(): PublicShareGuard
     {
-        $featureFlags = self::getContainer()->get(FeatureFlagService::class);
-        self::assertInstanceOf(FeatureFlagService::class, $featureFlags);
+        $guard = self::getContainer()->get(PublicShareGuard::class);
+        self::assertInstanceOf(PublicShareGuard::class, $guard);
 
-        return new PublicShareGuard($featureFlags);
+        return $guard;
     }
 
     private function setFlag(bool $value): void

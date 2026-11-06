@@ -12,12 +12,15 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Project\Entity\Project;
+use App\Site\SignedInCookie;
 use App\Tests\Module\Insights\InsightsScenario;
 use App\Tests\Support\InstalledInstance;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
@@ -111,23 +114,89 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         $flagged = $this->share($this->costGraph($project, 'Flagged', MetricGroup::None));
         $this->em()->flush();
 
-        $bodies = [];
+        $refusals = [];
         foreach (['aaaaaaaaaaaa' => 'unknown', $off->code => 'off', $removed->code => 'removed'] as $code => $reason) {
-            $client->request(Request::METHOD_GET, '/s/'.$code);
-            self::assertResponseStatusCodeSame(404, $reason);
-            $bodies[$reason] = $this->withoutNoise((string) $client->getResponse()->getContent());
+            $refusals[$reason] = $this->refusal($client, $code);
         }
 
         $flags = self::getContainer()->get(FeatureFlagRepository::class);
         self::assertInstanceOf(FeatureFlagRepository::class, $flags);
         $flags->findAllIndexed()[PublicLink::FLAG]->value = false;
         $this->em()->flush();
-        $client->request(Request::METHOD_GET, '/s/'.$flagged->code);
-        self::assertResponseStatusCodeSame(404, 'flag');
-        $bodies['flag'] = $this->withoutNoise((string) $client->getResponse()->getContent());
+        $refusals['flag'] = $this->refusal($client, $flagged->code);
 
-        self::assertCount(1, array_unique($bodies));
+        self::assertSame(404, $refusals['flag'][1]);
+        self::assertCount(1, array_unique(array_map(serialize(...), $refusals)), (string) json_encode($refusals));
+
+        $client->request(Request::METHOD_GET, '/s/'.$flagged->code);
+        self::assertResponseStatusCodeSame(404);
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_a_takedown_gives_the_same_404_page_and_a_lift_brings_the_page_back(): void
+    {
+        $client = $this->client('');
+        $project = $this->scenarioProject('public-takedown');
+        $link = $this->share($this->costGraph($project, 'Taken', MetricGroup::None));
+        $unknown = $this->refusal($client, 'aaaaaaaaaaaa');
+        $takedownId = (string) $this->seedTakedown($project)->id;
+
+        self::assertSame($unknown, $this->refusal($client, $link->code));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseStatusCodeSame(404);
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+
+        $this->em()->getConnection()->executeStatement('DELETE FROM insights_public_link_takedowns WHERE id = ?', [$takedownId]);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.lp-public__project', 'Project public-takedown');
+    }
+
+    public function test_the_admin_bar_shows_on_the_site_host_for_the_admin_hint_and_sets_no_cookie(): void
+    {
+        $client = $this->client('loupe.example');
+        $link = $this->share($this->costGraph($this->scenarioProject('public-bar'), 'Cost', MetricGroup::None));
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->getCookieJar()->set(new Cookie(SignedInCookie::NAME, '1', 0, '/', 'loupe.example'));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->getCookieJar()->set(new Cookie(SignedInCookie::NAME, 'admin', 0, '/', 'loupe.example'));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-admin-bar]');
+        $action = $client->getCrawler()->filter('[data-admin-bar] a');
+        self::assertCount(1, $action);
+        self::assertSame('http://localhost/admin/public-links/'.$link->code.'/take-down', $action->attr('href'));
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_the_admin_bar_shows_on_the_app_host_for_a_signed_in_admin_only(): void
+    {
+        $client = $this->client('');
+        $link = $this->share($this->costGraph($this->scenarioProject('public-bar-app'), 'Cost', MetricGroup::None));
+        $plain = $this->user($this->em(), 'bar-plain-'.uniqid().'@example.com');
+        $admin = $this->user($this->em(), 'bar-admin-'.uniqid().'@example.com');
+        $admin->roles = ['ROLE_ADMIN'];
+        $this->em()->flush();
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertSelectorNotExists('[data-admin-bar]');
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+
+        $client->loginUser($plain);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->loginUser($admin);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-admin-bar]');
+        self::assertSelectorTextContains('[data-admin-bar] a', 'Take down the public links of this project');
     }
 
     public function test_a_code_of_the_wrong_shape_does_not_route(): void
@@ -226,12 +295,24 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         }
     }
 
-    /** The test environment prints the exception, so drop the object ids and the lines of this file. */
-    private function withoutNoise(string $body): string
+    /**
+     * The exception behind the 404, which alone decides the error page a visitor
+     * sees. The debug page of the test kernel is not stable between requests.
+     *
+     * @return array{class-string, int, string, string, int}
+     */
+    private function refusal(KernelBrowser $client, string $code): array
     {
-        $lines = array_filter(explode("\n", $body), static fn (string $line): bool => !str_contains($line, 'ShowPublicLinkControllerTest'));
+        $client->catchExceptions(false);
+        try {
+            $client->request(Request::METHOD_GET, '/s/'.$code);
+        } catch (HttpExceptionInterface $exception) {
+            return [$exception::class, $exception->getStatusCode(), $exception->getMessage(), $exception->getFile(), $exception->getLine()];
+        } finally {
+            $client->catchExceptions(true);
+        }
 
-        return (string) preg_replace('/\{#\d+/', '{#', implode("\n", $lines));
+        self::fail(\sprintf('The code %s showed a page.', $code));
     }
 
     private function seedLeakyRuns(Project $project): void

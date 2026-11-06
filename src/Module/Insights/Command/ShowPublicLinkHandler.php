@@ -31,7 +31,7 @@ final readonly class ShowPublicLinkHandler
             $result = $this->experimentReport->forExperiment($link->project, $link->experiment) ?? throw new NotFoundHttpException('No public link shows for this code.');
             $note = $link->note;
 
-            return PublicLinkDetailView::forExperiment($link->project, $result, null === $note || '' === trim($note) ? null : $this->markdown->renderWithoutHeadingIds($note));
+            return PublicLinkDetailView::forExperiment($link->project, $result, null === $note || '' === trim($note) ? null : $this->markdown->renderWithoutHeadingIds($note), $link->code);
         }
 
         $graph = $link->savedGraph;
@@ -39,6 +39,6 @@ final readonly class ShowPublicLinkHandler
             throw new NotFoundHttpException('No public link shows for this code.');
         }
 
-        return PublicLinkDetailView::forGraph($link->project, $graph, $this->graphResults->forGraph($graph));
+        return PublicLinkDetailView::forGraph($link->project, $graph, $this->graphResults->forGraph($graph), $link->code);
     }
 }
