@@ -201,7 +201,8 @@ when@test:
 
         # WebTestCase runs in web mode, where the debug error page quotes the
         # test source, so a refused response would contain the test's own strings.
-        error_renderer:
+        # The serializer renderer still answers JSON requests and falls back here.
+        error_renderer.default:
             alias: 'error_renderer.cli'
 
         # The audit facade and its Doctrine sink have one consumer each, so the
