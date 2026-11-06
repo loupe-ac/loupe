@@ -62,9 +62,9 @@ class WorkflowRuleState
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $causesAtOpen = null;
 
-    /** True while the engine has started the repair of the current escalation. */
-    #[ORM\Column(options: ['default' => false])]
-    public bool $repaired = false;
+    /** True while the engine has started the recovery of the current escalation. */
+    #[ORM\Column(name: 'repaired', options: ['default' => false])]
+    public bool $recovered = false;
 
     /** The inbox item of the ask the rule opened and the engine has not withdrawn. No foreign key, as the item may go. */
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
@@ -111,7 +111,7 @@ class WorkflowRuleState
         $this->subjectPullRequestId = null;
         $this->workRequestId = null;
         $this->causesAtOpen = null;
-        $this->repaired = false;
+        $this->recovered = false;
         $this->askItemId = null;
         $this->answeringRunId = null;
         $this->heldByBlockerSince = null;

@@ -72,7 +72,7 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         $card = $this->card();
         $handler = self::getContainer()->get(PauseCardHandler::class);
         self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($card, 'repair-failed', 'tech-design-review', PauseKind::Retries));
+        $handler(new PauseCardCommand($card, 'recover-failed', 'tech-design-review', PauseKind::Retries));
 
         $this->fetch($this->designDraft($card), $this->project->owner);
 

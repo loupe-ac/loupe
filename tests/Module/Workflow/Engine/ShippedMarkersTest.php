@@ -297,7 +297,7 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['%number%' => 12], $this->written('checks-failed')->params);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:00:00'), $this->written('checks-failed')->since);
         self::assertSame(['work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['fix'])));
-        self::assertSame(['run-open'], $this->keys($this->workFacts('implementation', $pullRequest, [], ['repair'])));
+        self::assertSame(['run-open'], $this->keys($this->workFacts('implementation', $pullRequest, [], ['recover'])));
         self::assertSame(['checks-failed', 'work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['review'])));
     }
 

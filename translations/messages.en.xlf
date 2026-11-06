@@ -9963,7 +9963,7 @@
             <trans-unit id="workflow.pause.lost"><source>workflow.pause.lost</source><target>The bridge lost the worker run.</target></trans-unit>
             <trans-unit id="workflow.pause.stopped"><source>workflow.pause.stopped</source><target>A person or the bridge stopped the worker.</target></trans-unit>
             <trans-unit id="workflow.pause.no-bridge-took-work"><source>workflow.pause.no-bridge-took-work</source><target>No bridge took the requested work in time.</target></trans-unit>
-            <trans-unit id="workflow.pause.repair-failed"><source>workflow.pause.repair-failed</source><target>The repair worker could not fix the failure.</target></trans-unit>
+            <trans-unit id="workflow.pause.recover-failed"><source>workflow.pause.recover-failed</source><target>The recovery run could not clear the failure.</target></trans-unit>
             <trans-unit id="workflow.pause.inbox-off"><source>workflow.pause.inbox-off</source><target>The inbox is off, so the workflow cannot ask the owner about this card. The pause ends when the inbox is on.</target></trans-unit>
             <trans-unit id="workflow.pause.work-limit-reached"><source>workflow.pause.work-limit-reached</source><target>The rule requested the most work that it may request for this card.</target></trans-unit>
             <trans-unit id="workflow.note.product_design_undone"><source>workflow.note.product_design_undone</source><target>The approval of the product design was undone. Check the tech design against the product design again.</target></trans-unit>

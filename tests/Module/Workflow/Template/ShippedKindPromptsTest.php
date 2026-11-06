@@ -71,7 +71,7 @@ final class ShippedKindPromptsTest extends TestCase
     private function lifecycleKinds(): array
     {
         $template = Yaml::parseFile(self::ROOT.'/config/workflows/lifecycle.yaml');
-        $kinds = [(string) $template['onWorkFailed']['repair']['kind']];
+        $kinds = [(string) $template['onWorkFailed']['recover']['kind']];
         foreach ($template['rules'] as $rule) {
             $then = $rule['then'];
             if (isset($then['request']['kind'])) {

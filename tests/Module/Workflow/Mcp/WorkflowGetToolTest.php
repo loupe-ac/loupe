@@ -44,7 +44,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 41], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 42], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         $kinds = array_column($answer['kinds'], null, 'kind');
@@ -90,7 +90,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 14], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => 15], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],
