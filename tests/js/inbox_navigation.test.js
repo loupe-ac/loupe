@@ -124,3 +124,90 @@ it('shows no spinner when another frame renders', async () => {
 
     expect(root.hasAttribute('data-inbox-loading')).toBe(false);
 });
+
+async function mountWithControls() {
+    document.body.innerHTML =
+        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><a class="lp-tabs__tab" id="tab-closed" data-turbo-frame="inbox-view" data-inbox-side="closed" href="#"></a><form id="search-form"><input id="inbox-search" name="q"></form><a class="lp-filter-clear" id="clear" data-turbo-frame="inbox-view" href="#"></a><a class="lp-inbox-filter__button" data-turbo-frame="inbox-view" data-inbox-type="all" href="#"></a><a class="lp-inbox-filter__button" data-turbo-frame="inbox-view" data-inbox-type="question" href="#"></a><div data-inbox-scroll><a class="lp-list-row" id="second" href="#"></a></div></turbo-frame></div>';
+    application = Application.start();
+    application.register('inbox-navigation', InboxNavigationController);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function renderView(html) {
+    const frame = document.getElementById('inbox-view');
+    frame.dispatchEvent(
+        new CustomEvent('turbo:before-frame-render', { bubbles: true }),
+    );
+    frame.innerHTML = html;
+    frame.dispatchEvent(
+        new CustomEvent('turbo:frame-render', { bubbles: true }),
+    );
+}
+
+const CONTROLS =
+    '<a class="lp-tabs__tab" data-turbo-frame="inbox-view" data-inbox-side="closed" href="#"></a><form><input id="inbox-search" name="q"></form><a class="lp-inbox-filter__button" data-turbo-frame="inbox-view" data-inbox-type="question" href="#"></a>';
+
+it('moves focus to the title of the picked request', async () => {
+    await mountWithControls();
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+
+    renderView(
+        `${CONTROLS}<h2 class="lp-inbox-ask__title" tabindex="-1"></h2>`,
+    );
+
+    expect(document.activeElement.className).toBe('lp-inbox-ask__title');
+});
+
+it('returns focus to the tab that was used', async () => {
+    await mountWithControls();
+    document
+        .getElementById('tab-closed')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+
+    renderView(CONTROLS);
+
+    expect(document.activeElement.dataset.inboxSide).toBe('closed');
+});
+
+it('returns focus to the type filter that was used', async () => {
+    await mountWithControls();
+    document
+        .querySelector('[data-inbox-type="question"]')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+
+    renderView(CONTROLS);
+
+    expect(document.activeElement.dataset.inboxType).toBe('question');
+});
+
+it('returns focus to the search field after a search submits', async () => {
+    await mountWithControls();
+    document
+        .getElementById('search-form')
+        .dispatchEvent(new Event('submit', { bubbles: true }));
+
+    renderView(CONTROLS);
+
+    expect(document.activeElement.id).toBe('inbox-search');
+});
+
+it('returns focus to the search field after the Clear link', async () => {
+    await mountWithControls();
+    document
+        .getElementById('clear')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+
+    renderView(CONTROLS);
+
+    expect(document.activeElement.id).toBe('inbox-search');
+});
+
+it('moves no focus when a render follows no action of the owner', async () => {
+    await mountWithControls();
+
+    renderView(CONTROLS);
+
+    expect(document.activeElement).toBe(document.body);
+});

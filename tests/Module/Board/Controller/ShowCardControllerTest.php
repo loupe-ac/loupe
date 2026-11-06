@@ -239,7 +239,8 @@ final class ShowCardControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$linked->id);
         self::assertResponseIsSuccessful();
         $field = $crawler->filter('[data-card-state="stuck"] .lp-status-box__field--wide');
-        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $field->text());
+        self::assertStringContainsString('Start a bridge, or run loupe login.', $field->text());
+        self::assertSame('loupe login', $field->filter('code')->text());
         $link = $field->filter('a');
         self::assertCount(1, $link);
         self::assertSame('/projects/'.$project->id.'/agents', $link->attr('href'));

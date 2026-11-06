@@ -134,7 +134,7 @@
                     <twig:Ds:Hint as="span">{{ reply.verbKey|trans({'%time%': reply.at ? reply.at|date('H:i') : ''}) }}</twig:Ds:Hint>
                     {% if review and review.reviewedVersionNumber %}<twig:Ds:Hint as="span">{{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}</twig:Ds:Hint>{% endif %}
                     {% if reply.outcome %}
-                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: reply.outcome} only %}</span>
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: reply.outcome, verdict: review and review.verdict ? review.verdict.value : null} only %}</span>
                     {% endif %}
                 </div>
                 {% if reply.options %}
@@ -167,7 +167,7 @@
                     <span class="lp-comment-author">{{ ('inbox.thread.closing.author.' ~ closer)|trans }}</span>
                     <twig:Ds:Hint as="span">{{ 'inbox.thread.closing.hint'|trans({'%time%': closing.at ? closing.at|relative_time : ''}) }}</twig:Ds:Hint>{# @design-system-ignore #}
                     {% if closing.outcome %}
-                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: closing.outcome} only %}</span>
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: closing.outcome, verdict: review and review.verdict ? review.verdict.value : null} only %}</span>
                     {% endif %}
                 </div>
                 <div class="lp-comment-thread">

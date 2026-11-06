@@ -93,6 +93,8 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-inbox-status]', 'Review recorded. Review the pull request is closed.');
         $this->client->request(Request::METHOD_GET, $this->completedUrl().'&ask='.$ask->id);
         self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Changes requested');
+        self::assertSelectorExists('[data-inbox-review-verdict] .lp-status-chip--failed');
+        self::assertSelectorNotExists('[data-inbox-review-verdict] .lp-status-chip--ok');
         self::assertSelectorTextContains('#inbox-item-1', 'Add a retry limit.');
         self::assertSelectorNotExists('form[name="'.$name.'"]');
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -126,6 +128,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->client->request(Request::METHOD_GET, $this->completedUrl());
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Approved');
+        self::assertSelectorExists('[data-inbox-review-verdict] .lp-status-chip--ok');
         self::assertSelectorTextContains('#inbox-item-1', 'Keep this original answer.');
         self::assertSelectorTextContains('[data-inbox-review-withdrawal]', 'Riley Chen withdrew this verdict');
         self::assertSelectorTextContains('[data-inbox-review-withdrawal]', 'This request keeps its original answer.');
