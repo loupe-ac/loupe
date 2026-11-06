@@ -18,9 +18,12 @@ use App\Module\Readiness\Command\StartDiscoveryCommand;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Service\DiscoveryApiProblems;
 use App\Module\Workflow\Contract\Actor;
+use App\Security\CredentialRateLimitKey;
 use App\Security\CurrentApiKeyActor;
 use OpenApi\Attributes as OA;
+use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -41,6 +44,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new ProblemResponse(409, ['no_bridge', 'no_capable_bridge', 'bridge_paused', 'no_workflow', 'automation_off', 'discovery_running', 'idempotency_key_reused', 'idempotency_in_progress']),
     ],
 )]
+#[RateLimit('discovery_start', key: new Expression('this.rateLimitKey.forRequest(request)'))]
 #[Route(
     '/api/v1/projects/{project}/discovery',
     name: 'api_discovery_start',
@@ -53,6 +57,7 @@ final class StartProjectDiscoveryController extends AppController
         private readonly DiscoveryApiProblems $problems,
         private readonly CurrentApiKeyActor $currentKey,
         private readonly PageLinks $links,
+        public readonly CredentialRateLimitKey $rateLimitKey,
     ) {
     }
 

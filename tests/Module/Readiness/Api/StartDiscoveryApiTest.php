@@ -14,6 +14,7 @@ use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\ShippedTemplates;
+use App\Security\CredentialRateLimitKey;
 use App\Tests\Module\Readiness\ReadinessScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
@@ -22,6 +23,7 @@ use App\Tests\Support\PublicSpec;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Uid\Uuid;
 
 /** POST /api/v1/projects/{project}/discovery. */
@@ -85,6 +87,33 @@ final class StartDiscoveryApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(409);
         self::assertSame('discovery_running', $this->json()['code']);
         self::assertSame($number, $this->json()['cardNumber']);
+        self::assertCount(1, $this->runs($project));
+    }
+
+    public function test_a_start_refused_by_its_route_limit_starts_no_run(): void
+    {
+        [$owner, $project] = $this->readyProject('discovery-api-limited');
+        $token = ApiKeyCredential::mint(static::getContainer(), $owner);
+        $this->client->disableReboot();
+        $this->client->request(Request::METHOD_GET, '/api/v1/projects', server: ['HTTP_AUTHORIZATION' => 'Bearer '.$token]);
+        $key = static::getContainer()->get(CredentialRateLimitKey::class)->forRequest(Request::create($this->url($project), Request::METHOD_POST));
+        self::assertStringStartsWith('token:', $key);
+        $factory = static::getContainer()->get('limiter.discovery_start');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $factory);
+        $limiter = $factory->create($key);
+        $limiter->consume(100000);
+
+        $this->send($project, $token);
+
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame('rate_limited', $this->json()['code']);
+        self::assertTrue($this->client->getResponse()->headers->has('Retry-After'));
+        self::assertCount(0, $this->runs($project));
+
+        $limiter->reset();
+        $this->send($project, $token);
+
+        self::assertResponseStatusCodeSame(201);
         self::assertCount(1, $this->runs($project));
     }
 
