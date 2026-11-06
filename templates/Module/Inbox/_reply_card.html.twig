@@ -136,7 +136,7 @@
             {% if sessionMain and '' == hint %}{% set hint = sessionHint %}{% endif %}
             <twig:Ds:Hint as="span" class="inbox-split__hint">{{ hint }}</twig:Ds:Hint>
             {% if card.dismiss %}
-                <twig:Ds:Button variant="ghost" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))" data-inbox-action="dismiss">{{ card.dismiss.action.labelKey|trans(card.dismiss.action.labelParams) }}</twig:Ds:Button>
+                <twig:Ds:Button variant="ghost" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'dismiss'}))" data-inbox-action="dismiss" data-turbo-confirm="{{ 'inbox.action.dismiss.confirm'|trans }}">{{ card.dismiss.action.labelKey|trans(card.dismiss.action.labelParams) }}</twig:Ds:Button>
             {% endif %}
             {% if main or card.menu %}
                 <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">

@@ -289,7 +289,7 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
             $this->put($client, $project, $run, $raw, ['calls' => [self::call(1, 'Bash')], 'timing' => null]);
 
             self::assertResponseStatusCodeSame(404);
-            self::assertJsonStringEqualsJsonString('{"error":"run_not_found"}', (string) $client->getResponse()->getContent());
+            $this->assertProblemCode($client, 'run_not_found');
             self::assertSame([], $this->rows($run));
         }
     }
@@ -303,10 +303,10 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
         $project = $this->project($em, $owner, 'Tool Calls Server Id');
         $run = $this->keyedRun($project);
 
-        $this->request($client, '/api/projects/'.$project->id.'/worker-runs/'.$run->id.'/tool-calls', $this->agentToken($client, $owner), ['calls' => [], 'timing' => null]);
+        $this->request($client, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/'.$run->id.'/tool-calls', $this->agentToken($client, $owner), ['calls' => [], 'timing' => null]);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"run_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'run_not_found');
     }
 
     public function test_another_users_project_answers_project_not_found(): void
@@ -320,7 +320,7 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
         $this->put($client, $other, $run, $this->agentToken($client, $caller), ['calls' => [self::call(1, 'Bash')], 'timing' => null]);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'project_not_found');
         self::assertSame([], $this->rows($run));
     }
 
@@ -331,10 +331,10 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
         $owner = $this->user($em, 'tool-calls-bad-id@example.com');
         $project = $this->project($em, $owner, 'Tool Calls Bad Id');
 
-        $this->request($client, '/api/projects/'.$project->id.'/worker-runs/not-a-uuid/tool-calls', $this->agentToken($client, $owner), ['calls' => [], 'timing' => null]);
+        $this->request($client, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/not-a-uuid/tool-calls', $this->agentToken($client, $owner), ['calls' => [], 'timing' => null]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_run_id"}', (string) $client->getResponse()->getContent());
+        $this->assertProblemCode($client, 'invalid_run_id');
     }
 
     /** @return iterable<string, array{array<string, mixed>}> */
@@ -469,7 +469,7 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
     /** @param array<string, mixed> $body */
     private function put(KernelBrowser $client, Project $project, WorkerRun $run, string $raw, array $body): void
     {
-        $this->request($client, '/api/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/tool-calls', $raw, $body);
+        $this->request($client, '/api/v1/bridge/projects/'.$project->id.'/worker-runs/'.$run->runKey.'/tool-calls', $raw, $body);
     }
 
     /** @param array<string, mixed> $body */
@@ -518,5 +518,12 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
         $this->em()->clear();
 
         return $this->em()->find(WorkerRun::class, $run->id) ?? throw new \LogicException('The run is gone.');
+    }
+
+    private function assertProblemCode(KernelBrowser $client, string $code): void
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame($code, $body['code'] ?? null);
     }
 }

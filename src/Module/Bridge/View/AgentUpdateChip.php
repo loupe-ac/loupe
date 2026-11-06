@@ -26,8 +26,10 @@ final readonly class AgentUpdateChip
 
     public static function for(Bridge $bridge, bool $compatible, string $installScriptUrl): ?self
     {
+        $command = self::installCommand($bridge, $installScriptUrl);
+
         if (!$compatible && CliUpdateState::Draining !== $bridge->updateState) {
-            return new self('bridge.agents.update.incompatible', ['%range%' => CliCompatibility::RANGE], 'failed');
+            return new self('bridge.agents.update.incompatible', ['%range%' => CliCompatibility::RANGE], 'failed', $command);
         }
 
         return match ($bridge->updateState) {
@@ -40,12 +42,17 @@ final readonly class AgentUpdateChip
                 'bridge.agents.update.available',
                 ['%version%' => $bridge->updateVersion],
                 'neutral',
-                CliInstallMethod::Homebrew === $bridge->installMethod
-                    ? 'brew upgrade loupe'
-                    : 'curl -fsSL '.$installScriptUrl.' | sh',
+                $command,
             ),
             CliUpdateState::Dev, null => null,
-            CliUpdateState::Draining => new self('bridge.agents.update.draining', ['%range%' => CliCompatibility::RANGE], 'failed'),
+            CliUpdateState::Draining => new self('bridge.agents.update.draining', ['%range%' => CliCompatibility::RANGE], 'failed', $command),
         };
+    }
+
+    private static function installCommand(Bridge $bridge, string $installScriptUrl): string
+    {
+        return CliInstallMethod::Homebrew === $bridge->installMethod
+            ? 'brew upgrade loupe'
+            : 'curl -fsSL '.$installScriptUrl.' | sh';
     }
 }

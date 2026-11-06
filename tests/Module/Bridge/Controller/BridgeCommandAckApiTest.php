@@ -108,7 +108,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
         [$client, $owner, $run] = $this->scenario('ack-bridge@example.com');
         $command = $this->seedCommand($this->em(), $run);
 
-        $this->put($client, $this->token($owner), '/api/bridges/'.Uuid::v4().'/commands/'.$command->id, '{"state":"done"}');
+        $this->put($client, $this->token($owner), '/api/v1/bridge/bridges/'.Uuid::v4().'/commands/'.$command->id, '{"state":"done"}');
 
         $this->assertNotFound($client);
         self::assertSame(BridgeCommandState::Pending, $this->reload($command)->state);
@@ -118,7 +118,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
     {
         [$client, $owner, $run] = $this->scenario('ack-unknown@example.com');
 
-        $this->put($client, $this->token($owner), '/api/bridges/'.$run->bridgeId.'/commands/'.Uuid::v4(), '{"state":"done"}');
+        $this->put($client, $this->token($owner), '/api/v1/bridge/bridges/'.$run->bridgeId.'/commands/'.Uuid::v4(), '{"state":"done"}');
 
         $this->assertNotFound($client);
     }
@@ -149,7 +149,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
         $this->put($client, $this->token($owner), $this->path($command), $body);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => $code], $this->json($client));
+        self::assertSame($code, $this->json($client)['code'] ?? null);
         self::assertSame(BridgeCommandState::Pending, $this->reload($command)->state);
     }
 
@@ -165,7 +165,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
         self::assertSame(BridgeCommandState::Pending, $this->reload($command)->state);
     }
 
-    /** The bridge reads a 404 with no error code as a server with no ack endpoint. */
+    /** The bridge reads a generic 404 code as a server with no ack endpoint. */
     public function test_it_is_absent_with_no_error_code_while_push_is_switched_off(): void
     {
         [$client, $owner, $run] = $this->scenario('ack-flag@example.com');
@@ -176,7 +176,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
         $this->put($client, $raw, $this->path($command), '{"state":"done"}');
 
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('"error"', $this->body($client));
+        self::assertSame('http_404', $this->json($client)['code'] ?? null);
         self::assertSame(BridgeCommandState::Pending, $this->reload($command)->state);
     }
 
@@ -230,7 +230,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
 
     private function path(BridgeCommand $command): string
     {
-        return '/api/bridges/'.$command->bridgeId.'/commands/'.$command->id;
+        return '/api/v1/bridge/bridges/'.$command->bridgeId.'/commands/'.$command->id;
     }
 
     private function put(KernelBrowser $client, string $raw, string $path, string $body): void
@@ -250,7 +250,7 @@ final class BridgeCommandAckApiTest extends WebTestCase
     private function assertNotFound(KernelBrowser $client): void
     {
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'command_not_found'], $this->json($client));
+        self::assertSame('command_not_found', $this->json($client)['code'] ?? null);
     }
 
     private function body(KernelBrowser $client): string

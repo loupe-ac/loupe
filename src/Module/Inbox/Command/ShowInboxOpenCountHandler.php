@@ -6,7 +6,7 @@ namespace App\Module\Inbox\Command;
 
 use App\Module\Inbox\Repository\InboxItemRepository;
 
-/** How many items of the project are open, for the sidebar pill. */
+/** How many rows the open side of the inbox lists, for the sidebar pill. */
 final readonly class ShowInboxOpenCountHandler
 {
     public function __construct(
@@ -16,6 +16,6 @@ final readonly class ShowInboxOpenCountHandler
 
     public function __invoke(ShowInboxOpenCountCommand $command): int
     {
-        return $this->inboxItems->countOpenByProject($command->project);
+        return $this->inboxItems->countOpenRowsByProject($command->project);
     }
 }

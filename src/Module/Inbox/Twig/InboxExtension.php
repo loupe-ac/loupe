@@ -298,10 +298,10 @@ final class InboxExtension extends AbstractExtension
     /** Feeds the sidebar pill, which shows only while the project has open items. */
     public function openCount(Project $project): int
     {
-        return $this->inboxItems->countOpenByProject($project);
+        return $this->inboxItems->countOpenRowsByProject($project);
     }
 
-    /** Feeds the tab title: the open items over every project of the user, or zero with nobody signed in. */
+    /** Feeds the tab title: the open rows over every project of the user, or zero with nobody signed in. */
     public function openTotal(?User $user): int
     {
         return null === $user ? 0 : ($this->openTotal)(new ShowInboxOpenTotalCommand($user));

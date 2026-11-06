@@ -31,7 +31,7 @@ final readonly class LogWidgetOriginMismatch
     {
         $request = $event->getRequest();
         $path = $request->getPathInfo();
-        if (!str_starts_with($path, '/api/live-review') && !str_starts_with($path, '/api/v1/live-review-widget')) {
+        if (!str_starts_with($path, '/api/v1/live-review-widget')) {
             return;
         }
 

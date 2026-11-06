@@ -8,7 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\SiteOrigins;
-use App\Tests\Support\AgentCredential;
+use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -31,33 +31,9 @@ final class CreateProjectApiTest extends WebTestCase
 
     public function test_a_request_with_no_token_is_unauthorized(): void
     {
-        $this->client->request(Request::METHOD_POST, '/api/projects', server: ['CONTENT_TYPE' => 'application/json'], content: '{"name":"Shop"}');
+        $this->client->request(Request::METHOD_POST, '/api/v1/projects', server: ['CONTENT_TYPE' => 'application/json'], content: '{"name":"Shop"}');
 
         self::assertResponseStatusCodeSame(401);
-    }
-
-    public function test_a_project_bound_token_is_refused_and_creates_nothing(): void
-    {
-        $owner = $this->scenario->createUser('create-project-bound@example.com');
-        $project = $this->scenario->createProject($owner, 'Bound site');
-        $token = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $project);
-
-        $this->call($token, '{"name":"Shop"}');
-
-        self::assertResponseStatusCodeSame(403);
-        self::assertSame(['error' => 'credential_not_owner_wide'], $this->json());
-        self::assertSame(0, $this->countNamed('Shop'));
-    }
-
-    public function test_an_agent_token_with_no_project_grant_is_refused_and_creates_nothing(): void
-    {
-        $owner = $this->scenario->createUser('create-project-agent-only@example.com');
-
-        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), '{"name":"Shop"}');
-
-        self::assertResponseStatusCodeSame(403);
-        self::assertSame(['error' => 'credential_not_owner_wide'], $this->json());
-        self::assertSame(0, $this->countNamed('Shop'));
     }
 
     public function test_an_owner_wide_token_creates_a_project_with_the_lifecycle_binding(): void
@@ -102,7 +78,8 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"name":"Shop"}');
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'name_taken', 'slug' => 'shop'], $this->json());
+        self::assertSame('name_taken', $this->json()['code']);
+        self::assertSame('shop', $this->json()['slug']);
         self::assertSame(1, $this->countNamed('Shop'));
     }
 
@@ -114,7 +91,8 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"name":"blog"}');
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'name_taken', 'slug' => 'blog'], $this->json());
+        self::assertSame('name_taken', $this->json()['code']);
+        self::assertSame('blog', $this->json()['slug']);
     }
 
     public function test_the_domain_is_none_and_the_origins_are_empty_when_the_request_gives_neither(): void
@@ -149,15 +127,15 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"name":"Shop","origins":["https://shop.example.com/checkout"]}');
 
         self::assertResponseStatusCodeSame(422);
-        $violations = $this->json()['violations'] ?? null;
+        $violations = $this->json()['errors'] ?? null;
         self::assertIsArray($violations);
         self::assertCount(1, $violations);
-        self::assertSame('origins[0]', $violations[0]['propertyPath']);
+        self::assertSame('origins[0]', $violations[0]['field']);
         self::assertSame(
             static::getContainer()->get(TranslatorInterface::class)->trans('project.api.error.origin_invalid', [], 'validators', 'en'),
-            $violations[0]['title'],
+            $violations[0]['message'],
         );
-        self::assertStringContainsString('site origin', $violations[0]['title']);
+        self::assertStringContainsString('site origin', $violations[0]['message']);
         self::assertSame(0, $this->countNamed('Shop'));
     }
 
@@ -168,9 +146,9 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"name":"Shop","origins":[123]}');
 
         self::assertResponseStatusCodeSame(422);
-        $violations = $this->json()['violations'] ?? null;
+        $violations = $this->json()['errors'] ?? null;
         self::assertIsArray($violations);
-        self::assertSame('origins[0]', $violations[0]['propertyPath']);
+        self::assertSame('origins[0]', $violations[0]['field']);
         self::assertSame(0, $this->countNamed('Shop'));
     }
 
@@ -192,10 +170,10 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, \sprintf('{"name":"Shop","origins":%s}', json_encode($origins)));
 
         self::assertResponseStatusCodeSame(422);
-        $violations = $this->json()['violations'] ?? null;
+        $violations = $this->json()['errors'] ?? null;
         self::assertIsArray($violations);
         self::assertCount(1, $violations);
-        self::assertSame('origins', $violations[0]['propertyPath']);
+        self::assertSame('origins', $violations[0]['field']);
         self::assertSame(0, $this->countNamed('Shop'));
     }
 
@@ -228,7 +206,7 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"domain":"https://shop.example.com"}');
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'name_required'], $this->json());
+        self::assertSame('name_required', $this->json()['code']);
     }
 
     public function test_a_name_with_no_letters_is_refused(): void
@@ -238,7 +216,7 @@ final class CreateProjectApiTest extends WebTestCase
         $this->call($token, '{"name":"!!!"}');
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'name_invalid'], $this->json());
+        self::assertSame('name_invalid', $this->json()['code']);
     }
 
     public function test_a_remote_that_is_not_a_git_url_is_refused(): void
@@ -263,15 +241,15 @@ final class CreateProjectApiTest extends WebTestCase
         self::assertFalse($factory->create('credential')->consume()->isAccepted());
     }
 
-    /** The scopes `loupe login` asks for: `mcp` with no project named covers every project of the owner. */
+    /** An API key covers every project of its owner. */
     private function ownerWideToken(User $owner): string
     {
-        return AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp');
+        return ApiKeyCredential::mint(static::getContainer(), $owner);
     }
 
     private function call(string $token, string $body): void
     {
-        $this->client->request(Request::METHOD_POST, '/api/projects', server: [
+        $this->client->request(Request::METHOD_POST, '/api/v1/projects', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             'CONTENT_TYPE' => 'application/json',
             'HTTP_ACCEPT' => 'application/json',

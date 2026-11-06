@@ -119,7 +119,7 @@ final class ShowForgeRepositoryRowControllerTest extends WebTestCase
 
     public function test_a_stranger_is_forbidden_and_gets_no_row(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $project = $this->projectOf($this->signedUpUser('owner'));
         $repository = $this->repositoryOf($project, 'acme/secret');
         $stranger = $this->signedUpUser('stranger');

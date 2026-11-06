@@ -74,7 +74,7 @@ final class DownloadGitHubRulesetControllerTest extends WebTestCase
 
     public function test_a_stranger_is_forbidden_and_gets_no_file(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $project = $this->projectOf($this->signedUpUser('owner'));
         $repository = $this->repositoryOf($project, 'acme/app');
         $this->checkOf($repository, ['approval-gate'], appId: 4242, recent: []);

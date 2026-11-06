@@ -50,10 +50,10 @@ final class RateLimitSiteReviewWritesTest extends TestCase
     {
         $listener = $this->listenerAuthenticatedAs('widget-token-1');
 
-        $listener($this->request('POST', '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', '203.0.113.7'));
+        $listener($this->request('POST', '/api/v1/live-review-widget/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', '203.0.113.7'));
 
         $this->expectException(TooManyRequestsHttpException::class);
-        $listener($this->request('POST', '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', '203.0.113.7'));
+        $listener($this->request('POST', '/api/v1/live-review-widget/cards/0198a2c0-0000-7000-8000-000000000001/verdicts', '203.0.113.7'));
     }
 
     public function test_safe_methods_are_never_limited(): void
@@ -61,8 +61,8 @@ final class RateLimitSiteReviewWritesTest extends TestCase
         $listener = $this->listenerAuthenticatedAs('widget-token-1');
 
         $listener($this->write('203.0.113.7'));
-        $listener($this->request('GET', '/api/live-review/comments', '203.0.113.7'));
-        $listener($this->request('GET', '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdict', '203.0.113.7'));
+        $listener($this->request('GET', '/api/v1/live-review-widget/feedback', '203.0.113.7'));
+        $listener($this->request('GET', '/api/v1/live-review-widget/cards/0198a2c0-0000-7000-8000-000000000001/verdict', '203.0.113.7'));
         $this->addToAssertionCount(1);
     }
 
@@ -87,7 +87,7 @@ final class RateLimitSiteReviewWritesTest extends TestCase
 
     private function write(string $ip): RequestEvent
     {
-        return $this->request('POST', '/api/live-review/comments', $ip);
+        return $this->request('POST', '/api/v1/live-review-widget/feedback', $ip);
     }
 
     private function request(string $method, string $path, string $ip): RequestEvent

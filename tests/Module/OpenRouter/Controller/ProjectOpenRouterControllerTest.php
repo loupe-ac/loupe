@@ -39,7 +39,7 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
 
     public function test_a_user_who_does_not_own_the_project_can_neither_see_nor_change_the_section(): void
     {
-        $client = $this->client();
+        $client = $this->client(debug: false);
         $owner = $this->makeUser(static::getContainer(), 'authz-owner');
         $project = $this->makeProject(static::getContainer(), $owner);
         $this->makeKey(static::getContainer(), $project, 'sk-or-v1-project-secret-wxyz');
@@ -227,9 +227,9 @@ final class ProjectOpenRouterControllerTest extends WebTestCase
         return '/projects/'.$project->id.'/settings/openrouter';
     }
 
-    private function client(int $answer = 200): KernelBrowser
+    private function client(int $answer = 200, bool $debug = true): KernelBrowser
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => $debug]);
         $client->disableReboot();
         static::getContainer()->set('openrouter.client', new MockHttpClient(function () use ($answer): MockResponse {
             ++$this->calls;

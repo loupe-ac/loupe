@@ -33,25 +33,6 @@ final class WidgetTokenSurfaceTest extends WebTestCase
      *
      * @return iterable<string, array{string, string}>
      */
-    public static function widgetPaths(): iterable
-    {
-        $id = (string) Uuid::v7();
-
-        yield 'add comment' => [Request::METHOD_POST, '/api/live-review/comments'];
-        yield 'update comment' => [Request::METHOD_PATCH, '/api/live-review/comments/'.$id];
-        yield 'resolve comment' => [Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve'];
-        yield 'pending comments' => [Request::METHOD_GET, '/api/live-review/review'];
-        yield 'list cards' => [Request::METHOD_GET, '/api/board/cards'];
-        yield 'create card' => [Request::METHOD_POST, '/api/board/cards'];
-        yield 'add feedback' => [Request::METHOD_POST, '/api/board/feedback'];
-        yield 'delete feedback' => [Request::METHOD_DELETE, '/api/board/feedback/'.$id];
-    }
-
-    /**
-     * The same routes under the private widget prefix.
-     *
-     * @return iterable<string, array{string, string}>
-     */
     public static function widgetV1Paths(): iterable
     {
         $id = (string) Uuid::v7();
@@ -71,25 +52,11 @@ final class WidgetTokenSurfaceTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function agentPaths(): iterable
     {
-        yield 'projects' => [Request::METHOD_GET, '/api/projects'];
-        yield 'events' => [Request::METHOD_GET, '/api/events'];
-        yield 'columns' => [Request::METHOD_GET, '/api/projects/anything/board/columns'];
-        yield 'card' => [Request::METHOD_GET, '/api/projects/anything/board/cards/'.Uuid::v4()];
-        yield 'bridge heartbeat' => [Request::METHOD_PUT, '/api/bridges/'.Uuid::v4().'/heartbeat'];
-    }
-
-    #[DataProvider('widgetPaths')]
-    public function test_a_widget_token_still_reaches_every_widget_path(string $method, string $path): void
-    {
-        $client = static::createClient();
-        $client->disableReboot();
-        $raw = $this->widgetToken($client, 'widget-surface@example.com', 'widget-surface-site');
-
-        $this->call($client, $method, $path, $raw);
-
-        $status = $client->getResponse()->getStatusCode();
-        self::assertNotSame(Response::HTTP_UNAUTHORIZED, $status, $method.' '.$path.' rejected the widget token');
-        self::assertNotSame(Response::HTTP_FORBIDDEN, $status, $method.' '.$path.' rejected the widget token');
+        yield 'projects' => [Request::METHOD_GET, '/api/v1/bridge/projects'];
+        yield 'events' => [Request::METHOD_GET, '/api/v1/bridge/events'];
+        yield 'columns' => [Request::METHOD_GET, '/api/v1/bridge/projects/anything/columns'];
+        yield 'card' => [Request::METHOD_GET, '/api/v1/bridge/projects/anything/cards/'.Uuid::v4()];
+        yield 'bridge heartbeat' => [Request::METHOD_PUT, '/api/v1/bridge/bridges/'.Uuid::v4().'/heartbeat'];
     }
 
     #[DataProvider('widgetV1Paths')]
@@ -117,21 +84,9 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         $this->call($client, $method, $path, $raw);
 
         self::assertResponseStatusCodeSame(403);
-    }
-
-    #[DataProvider('widgetPaths')]
-    public function test_an_agent_token_reaches_no_widget_path(string $method, string $path): void
-    {
-        $client = static::createClient();
-        $client->disableReboot();
-        $raw = $this->agentToken($client, 'agent-on-widget@example.com');
-
-        $this->call($client, $method, $path, $raw);
-
-        self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString(
-            '{"error":"insufficient_scope"}',
-            (string) $client->getResponse()->getContent(),
+        self::assertSame(
+            'credential_not_allowed',
+            json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR)['code'] ?? null,
             $method.' '.$path.' must refuse on scope, not on project binding',
         );
     }
@@ -146,9 +101,9 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         $this->call($client, $method, $path, $raw);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString(
-            '{"error":"insufficient_scope"}',
-            (string) $client->getResponse()->getContent(),
+        self::assertSame(
+            'credential_not_allowed',
+            json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR)['code'] ?? null,
         );
     }
 

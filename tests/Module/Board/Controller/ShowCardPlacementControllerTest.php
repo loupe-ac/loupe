@@ -262,7 +262,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
 
     public function test_an_outsider_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
 
         $owner = $this->user($em, 'placement-owner@example.com');

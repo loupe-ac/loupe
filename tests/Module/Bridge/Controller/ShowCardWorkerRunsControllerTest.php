@@ -477,7 +477,7 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
 
     public function test_another_users_project_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = $this->em();
 
         $owner = $this->user($em, 'card-fragment-theirs@example.com');

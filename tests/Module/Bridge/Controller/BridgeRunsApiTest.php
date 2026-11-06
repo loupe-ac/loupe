@@ -155,7 +155,7 @@ final class BridgeRunsApiTest extends WebTestCase
     {
         $client->request(
             Request::METHOD_PUT,
-            '/api/bridges/'.$bridgeId.'/runs',
+            '/api/v1/bridge/bridges/'.$bridgeId.'/runs',
             server: [
                 'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
                 'CONTENT_TYPE' => 'application/json',

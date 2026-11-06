@@ -58,6 +58,19 @@ final class MetricShapeTest extends TestCase
         }
     }
 
+    public function test_the_peak_context_is_a_run_token_count_with_the_max_and_no_sum(): void
+    {
+        $shape = new MetricShape(new MetricKey(Metric::PeakContext));
+
+        self::assertSame([MetricUnit::Run], $shape->units());
+        self::assertSame(MetricValueType::Tokens, $shape->valueType());
+        self::assertSame([MetricStatistic::Max, MetricStatistic::Median, MetricStatistic::Mean, MetricStatistic::P90, MetricStatistic::Count], $shape->statistics());
+        self::assertFalse($shape->isAdditive());
+        self::assertFalse(Metric::PeakContext->readsExperimentCards());
+        self::assertNotContains(MetricGroup::AccountWindow, $shape->groups());
+        self::assertContains(MetricGroup::Model, $shape->groups());
+    }
+
     public function test_only_a_percent_offers_the_max_and_only_a_ratio_or_a_percent_leaves_out_the_sum(): void
     {
         foreach (MetricValueType::cases() as $type) {

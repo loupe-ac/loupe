@@ -22,10 +22,9 @@ use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
-use App\Module\Inbox\Service\InboxLinkResolver;
+use App\Module\Inbox\Service\InboxItemDrafter;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
-use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\QueuedPushes;
@@ -260,8 +259,8 @@ final class AskInboxHandlerTest extends KernelTestCase
         self::assertInstanceOf(InboxSessionAsks::class, $sessionAsks);
         $askingBridge = $container->get(AskingBridge::class);
         self::assertInstanceOf(AskingBridge::class, $askingBridge);
-        $links = $container->get(InboxLinkResolver::class);
-        self::assertInstanceOf(InboxLinkResolver::class, $links);
+        $drafter = $container->get(InboxItemDrafter::class);
+        self::assertInstanceOf(InboxItemDrafter::class, $drafter);
         $indexer = $container->get(InboxSearchIndexer::class);
         self::assertInstanceOf(InboxSearchIndexer::class, $indexer);
 
@@ -273,9 +272,6 @@ final class AskInboxHandlerTest extends KernelTestCase
         $workerRuns = $container->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $workerRuns);
 
-        $promptLimit = $container->get(SessionPromptLimit::class);
-        self::assertInstanceOf(SessionPromptLimit::class, $promptLimit);
-
-        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $promptLimit, $container->get(MessageBusInterface::class));
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $drafter, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $container->get(MessageBusInterface::class));
     }
 }

@@ -56,7 +56,7 @@
         @apply stroke-line-strong stroke-1;
     }
     .lp-chart__tick {
-        @apply fill-fg-dim text-xs tabular-nums;
+        @apply fill-fg-dim text-xs font-mono tabular-nums;
     }
     .lp-chart__line {
         @apply fill-none stroke-2;
@@ -157,10 +157,10 @@
         @apply min-w-0 flex-1 truncate text-fg;
     }
     .lp-chart__card-value {
-        @apply font-semibold tabular-nums text-ink;
+        @apply font-semibold font-mono tabular-nums text-ink;
     }
     .lp-chart__card-share {
-        @apply tabular-nums text-fg-dim;
+        @apply font-mono tabular-nums text-fg-dim;
     }
     .lp-chart__card-previous {
         @apply m-0 ps-5 leading-normal text-fg-dim;
@@ -171,7 +171,7 @@
 
     /* The change is one neutral colour in every direction. */
     .lp-chart__change {
-        @apply inline-flex items-center gap-1 font-sans tabular-nums text-fg;
+        @apply inline-flex items-center gap-1 font-mono tabular-nums text-fg;
     }
     .lp-chart__sign {
         @apply inline-block whitespace-nowrap font-sans rounded-full border border-line bg-surface-1 px-2 py-px text-xs font-semibold text-fg;

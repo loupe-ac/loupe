@@ -58,12 +58,6 @@ use Symfony\Component\Routing\Attribute\Route;
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]
-#[Route(
-    '/api/projects/{handle}/git-token',
-    name: 'api_legacy_project_git_token_issue',
-    requirements: ['handle' => '[^/]+'],
-    methods: ['POST'],
-)]
 final class IssueGitTokenController extends AppController
 {
     public function __construct(

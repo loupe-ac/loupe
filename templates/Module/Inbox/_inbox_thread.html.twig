@@ -28,6 +28,7 @@
 {% set misfit = home and open ? inbox_repository_misfit(item) : null %}
 {% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', held: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 {% set agentRequest = item.origin.value == 'agent' %}
+{% set keyRequest = item.origin.value == 'api-key' %}
 <article class="lp-inbox-item"{% if home %} id="inbox-item-{{ item.number }}"{% endif %} data-inbox-item="{{ item.number }}" data-inbox-item-open="{{ open ? 'true' : 'false' }}">
     {% if showHead ?? false %}
     <div class="lp-inbox-item__head">
@@ -46,8 +47,8 @@
             {% if thread.body %}
             <li class="lp-inbox-thread__message">
                 <div class="lp-comment-thread__header lp-inbox-thread__head">
-                    <twig:Ds:Avatar :icon="agentRequest ? 'lucide:bot' : 'lucide:search'" size="xs" tone="tint" aria-hidden="true" />
-                    <span class="lp-comment-author">{{ (agentRequest ? 'inbox.thread.agent' : 'inbox.thread.loupe')|trans }}</span>
+                    <twig:Ds:Avatar :icon="keyRequest ? 'lucide:key-round' : (agentRequest ? 'lucide:bot' : 'lucide:search')" size="xs" tone="tint" aria-hidden="true" />
+                    <span class="lp-comment-author"{% if keyRequest %} data-inbox-api-key{% endif %}>{{ keyRequest ? 'inbox.thread.api_key'|trans({'%name%': item.apiKeyName}) : (agentRequest ? 'inbox.thread.agent' : 'inbox.thread.loupe')|trans }}</span>
                     <twig:Ds:Hint as="span">{{ (item.kind.value == 'notice' ? 'inbox.thread.waiting' : 'inbox.thread.asked')|trans({'%time%': item.createdAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}
                 </div>
                 <div class="lp-comment-thread">
@@ -134,7 +135,7 @@
                     <twig:Ds:Hint as="span">{{ reply.verbKey|trans({'%time%': reply.at ? reply.at|date('H:i') : ''}) }}</twig:Ds:Hint>
                     {% if review and review.reviewedVersionNumber %}<twig:Ds:Hint as="span">{{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}</twig:Ds:Hint>{% endif %}
                     {% if reply.outcome %}
-                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: reply.outcome} only %}</span>
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: reply.outcome, verdict: review and review.verdict ? review.verdict.value : null} only %}</span>
                     {% endif %}
                 </div>
                 {% if reply.options %}
@@ -167,7 +168,7 @@
                     <span class="lp-comment-author">{{ ('inbox.thread.closing.author.' ~ closer)|trans }}</span>
                     <twig:Ds:Hint as="span">{{ 'inbox.thread.closing.hint'|trans({'%time%': closing.at ? closing.at|relative_time : ''}) }}</twig:Ds:Hint>{# @design-system-ignore #}
                     {% if closing.outcome %}
-                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: closing.outcome} only %}</span>
+                        <span class="lp-inbox-thread__chip"{% if review and review.verdict %} data-inbox-review-verdict{% endif %}>{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state.value, outcome: closing.outcome, verdict: review and review.verdict ? review.verdict.value : null} only %}</span>
                     {% endif %}
                 </div>
                 <div class="lp-comment-thread">

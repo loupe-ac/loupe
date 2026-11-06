@@ -104,7 +104,7 @@ final class ShowWorkerRunOutputControllerTest extends WebTestCase
 
     public function test_a_stranger_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = $this->em();
         $owner = $this->user($em, 'output-private-owner@example.com');
         $stranger = $this->user($em, 'output-private-stranger@example.com');

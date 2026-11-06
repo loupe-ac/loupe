@@ -297,11 +297,8 @@ A retry that changes the surface, a native fact or the image returns `delivery_c
 Pass `surface=ios-simulator` to list the notes of the native surface.
 
 All widget routes live under `/api/v1/live-review-widget`.
-The old paths `/api/live-review/...` and `/api/board/cards...` and `/api/board/feedback...` still answer for one server release, so an old copy of the script keeps working.
-
-An old copy of the widget script saves through `POST /api/live-review/comments`.
-That path answers HTTP 410 with the code `widget_outdated`, so the old copy tells its reviewer to reload and cannot save a note.
-Load the script from `/live-review/widget.js` to get the current widget.
+The old paths `/api/live-review/...`, `/api/board/cards...` and `/api/board/feedback...` no longer exist.
+An old copy of the script gets HTTP 404 with the code `route_not_found`. Reload the page to load the current widget from `/live-review/widget.js`.
 
 ## Resolving a note
 
