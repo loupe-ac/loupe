@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -101,5 +102,88 @@ func TestDiffRulesNamesAProjectEntryWithItsSlug(t *testing.T) {
 	res = diffRules(parse("one", false), parse("one", true))
 	if !slices.Equal(res.Added, []string{"fix"}) || len(res.Changed) != 0 {
 		t.Fatalf("result = %+v", res)
+	}
+}
+
+func TestBridgeCheckProjectJSONReportsCommandsAndAccounts(t *testing.T) {
+	loupe := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(loupe, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(loupe, "bin", "before.sh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(loupe, ".mcp.json"), []byte(`{"mcpServers":{"loupe":{"command":"loupe"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	claudeDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(claudeDir, ".claude.json"), []byte(`{"mcpServers":{"github":{}},"projects":{"`+loupe+`":{"mcpServers":{"local":{}}}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	codexHome := t.TempDir()
+	if err := os.WriteFile(filepath.Join(codexHome, "config.toml"), []byte("[mcp_servers.loupe]\ncommand = \"loupe\"\n[mcp_servers.loupe.env]\nA = \"b\"\n[mcp_servers.\"codex-cli\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "accounts:\n  claude:\n    harness: claude-code\n    configDir: " + claudeDir + "\n  cx:\n    harness: codex\n    codexHome: " + codexHome + "\ndefaults:\n  account: claude\n" +
+		"projects:\n  loupe:\n    dir: " + loupe + "\n    work:\n      review:\n        prompt: x\n        account: cx\n        before:\n          run: [bin/before.sh]\n        reset:\n          run: [bin/missing.sh]\n" +
+		"work:\n  implement:\n    prompt: x\n  e2e:\n    action: command\n    run: [sh, -c, true]\n    description: d\n"
+	path := writeCheckRules(t, body)
+
+	out, err := runBridgeCheck(t, "--rules", path, "--project", "loupe", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got projectCheck
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out)
+	}
+	if got.Project != "loupe" || got.Dir != loupe || !got.DirExists || got.Rules != path {
+		t.Errorf("header = %+v", got)
+	}
+	kinds := map[string]kindCheck{}
+	for _, k := range got.Kinds {
+		kinds[k.Kind] = k
+	}
+	review := kinds["review"]
+	if review.Source != "project" || review.Account != "cx" || review.Harness != "codex" || len(review.Commands) != 2 {
+		t.Fatalf("review = %+v", review)
+	}
+	if c := review.Commands[0]; c.Field != "before" || !c.Checked || !c.Exists || c.Resolved != filepath.Join(loupe, "bin", "before.sh") {
+		t.Errorf("before = %+v", c)
+	}
+	if c := review.Commands[1]; c.Field != "reset" || !c.Checked || c.Exists {
+		t.Errorf("reset = %+v", c)
+	}
+	if k := kinds["implement"]; k.Source != "shared" || k.Action != "worker" || k.Account != "claude" {
+		t.Errorf("implement = %+v", k)
+	}
+	if k := kinds["e2e"]; k.Action != "command" || len(k.Commands) != 1 || !k.Commands[0].Exists || k.Commands[0].Field != "run" {
+		t.Errorf("e2e = %+v", k)
+	}
+	accounts := map[string]accountCheck{}
+	for _, a := range got.Accounts {
+		accounts[a.Name] = a
+	}
+	if a := accounts["claude"]; !a.ConfigDirExists || !slices.Equal(a.MCPServers, []string{"github", "local", "loupe"}) || a.MCPError != "" {
+		t.Errorf("claude = %+v", a)
+	}
+	if a := accounts["cx"]; !a.ConfigDirExists || !slices.Equal(a.MCPServers, []string{"codex-cli", "loupe"}) {
+		t.Errorf("cx = %+v", a)
+	}
+}
+
+func TestBridgeCheckProjectRefusesAnUnknownProject(t *testing.T) {
+	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\nwork:\n  fix:\n    prompt: x\n")
+
+	if _, err := runBridgeCheck(t, "--rules", path, "--project", "other", "--json"); err == nil || !strings.Contains(err.Error(), `no project "other"`) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestBridgeCheckProjectNeedsJSON(t *testing.T) {
+	path := writeCheckRules(t, checkFile)
+
+	if _, err := runBridgeCheck(t, "--rules", path, "--project", "loupe"); err == nil {
+		t.Fatal("--project alone was accepted")
 	}
 }

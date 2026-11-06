@@ -270,6 +270,37 @@ Test the `code`, and never the `detail`, because the wording can change. The
 `validation_failed`) adds an `errors` list. Each entry has a `field`, a `code`
 and a `message`.
 
+## Start discovery
+
+`POST /api/v1/projects/{project}/discovery` starts a discovery run. A run adds a
+tooling card to Backlog. A bridge that serves the project then runs a read-only
+worker, which checks the repository and writes a readiness report. The report
+lists what remains and who acts: the owner or an agent. The `loupe discovery start`
+command calls this route.
+
+The request takes no body. The credential must manage the project. The answer is
+`201`, with the card in the `Location` header:
+
+```json
+{
+  "runId": "0198b0c2-6c1e-7d0a-9a8e-4b1f6d3e2a10",
+  "cardId": "0198b0c2-6c3f-7b2e-8f41-9c0d5e7a1b22",
+  "cardNumber": 12,
+  "state": "requested",
+  "url": "https://app.example.com/projects/<id>/board/cards/<id>"
+}
+```
+
+1. `url` is the page of the discovery card. The card links the report once the
+   worker has written it.
+2. A run needs a live bridge that can run discovery, a workflow on the project, and
+   board automation switched on. Only one run can be open at a time.
+3. A request that cannot start a run gets `409`. The code is `no_bridge`,
+   `no_capable_bridge`, `bridge_paused`, `no_workflow`, `automation_off` or
+   `discovery_running`. `discovery_running` adds `cardNumber`, the card of the
+   open run. The `detail` says what to change.
+4. The route takes the `Idempotency-Key` header, as the other creates do.
+
 ## Who made a change
 
 A history event, a review and a decision name the actor. The `kind` is `human`,

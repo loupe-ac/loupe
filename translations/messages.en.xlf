@@ -2974,6 +2974,18 @@
                 <source>readiness.report.none</source>
                 <target>None.</target>
             </trans-unit>
+            <trans-unit id="readiness.report.remains">
+                <source>readiness.report.remains</source>
+                <target>What remains</target>
+            </trans-unit>
+            <trans-unit id="readiness.report.remains_owner">
+                <source>readiness.report.remains_owner</source>
+                <target>For the owner</target>
+            </trans-unit>
+            <trans-unit id="readiness.report.remains_agent">
+                <source>readiness.report.remains_agent</source>
+                <target>For an agent</target>
+            </trans-unit>
             <trans-unit id="readiness.report.proposals">
                 <source>readiness.report.proposals</source>
                 <target>Proposals</target>

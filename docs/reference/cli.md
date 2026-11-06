@@ -141,9 +141,23 @@ The steps, in order:
 7. Start the bridge in the background.
 8. Install the Playwright browser, when the repository uses Playwright.
 9. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
-10. Report the accounts, and print what remains.
+10. Offer to start discovery, when onboarding is ready.
+11. Report what remains, and print the project link.
 
-Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent. The last lines come after the agent exits, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files, restarting Claude Code and starting discovery. The discovery step goes away after a run starts, and it comes back when the latest run failed. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
+Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent.
+
+Step 10 asks `Start discovery now? It runs a worker that checks the repository and lists what remains.` It asks only when all of these hold:
+
+- The profile is complete, or the workflow needs none.
+- No account that a rule uses fails for this project.
+- `.loupe.yaml` and the profile are committed and pushed, because a worker reads only what the remote holds.
+- No discovery run started yet, or the profile agent ran in this `loupe init`, so a new report replaces one that predates the new profile.
+
+On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the report>`. The list of what remains arrives some minutes later, in the report. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
+
+The last lines come after step 10, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
+
+This ending needs the next release of the CLI after v2.1.0, and a Loupe instance that has the discovery route.
 
 | Flag | Purpose |
 |---|---|
@@ -161,6 +175,17 @@ Before step 9, `loupe init` prints each account of the rule file as ready, or pr
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
 
 [`loupe init`](../../cli/README.md#loupe-init) gives each step in full.
+
+## `loupe discovery start`
+
+Starts a discovery run for the project. A worker checks the repository against the profile and lists what remains before each kind of work can run. The command prints `Discovery started: <link of the report>`. It needs the next release of the CLI after v2.1.0.
+
+Before the call, the command checks the gate of `loupe init`, in the current folder: the profile is complete, no account that a rule uses fails for the project, and `.loupe.yaml` and the profile are pushed. It does not check whether a run started before. When the gate fails, it lists what remains and exits with status 1. The gate needs a stored login.
+
+| Flag | Purpose |
+|---|---|
+| `--project` | The project, by id or slug, else `LOUPE_PROJECT`, the project link or `.loupe.yaml` |
+| `--force` | Start without the gate. `LOUPE_API_KEY` serves with this flag |
 
 ## `loupe project link`
 
@@ -397,6 +422,21 @@ each warning, one line each:
 
 The command exits with status 1 when the file does not load, and 0 otherwise.
 `loupe bridge status` shows the same warnings for a running bridge.
+
+## `loupe bridge check --project`
+
+`loupe bridge check --project <slug> --json` prints one JSON object for a project, from the machine of the bridge. Discovery reads it. The slug is the key of the project in the rule file. Both flags go together. The command makes no network call, and it needs the next release of the CLI after v2.1.0.
+
+| Field | Meaning |
+|---|---|
+| `project`, `dir`, `dirExists`, `rules` | The slug, its folder, whether the folder exists, and the rule file |
+| `kinds[].kind`, `source`, `action` | A work kind that the project can run. `source` is `project` or `shared`. `action` is `worker`, `interactive` or `command` |
+| `kinds[].account`, `harness` | The account and the harness of an agent entry |
+| `kinds[].commands[]` | One item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists` |
+| `accounts[].name`, `harness`, `configDir`, `configDirExists` | An account that a kind uses, and its configuration folder. `configDir` is empty for the default folder |
+| `accounts[].mcpServers`, `mcpError` | The names of the MCP servers that the account config and the `.mcp.json` of the project declare, and the reason when a file cannot be read |
+
+`checked` is false for a command with a placeholder or a `~`, which the command does not resolve. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`. For Claude Code, the servers come from `.claude.json` and the `.mcp.json` of the project. For Codex, they come from the `[mcp_servers.<name>]` tables of `config.toml` and of the profile file. A server that a plugin brings is not listed.
 
 ## `loupe bridge status`
 

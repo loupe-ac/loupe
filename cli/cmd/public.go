@@ -37,7 +37,8 @@ var groupShort = map[string]string{
 const betaNote = "This command is in beta. Its name, its flags and its output can change in a minor release."
 
 // addPublicCommands adds one command for each entry of publicapi.Commands. A
-// group that exists already, such as `project`, keeps its own commands.
+// group that exists already, such as `project`, keeps its own commands, and a
+// hand-written command beats the generated one of the same path.
 func addPublicCommands(root *cobra.Command) {
 	for _, c := range publicapi.Commands {
 		op, ok := publicapi.Lookup(c.Op)
@@ -47,6 +48,10 @@ func addPublicCommands(root *cobra.Command) {
 		parent := root
 		for i, name := range c.Path[:len(c.Path)-1] {
 			parent = publicGroup(parent, name, strings.Join(c.Path[:i+1], " "))
+		}
+		leaf := c.Path[len(c.Path)-1]
+		if slices.ContainsFunc(parent.Commands(), func(sub *cobra.Command) bool { return sub.Name() == leaf }) {
+			continue
 		}
 		build := newPublicLeaf
 		if custom := leafBuilders[op.ID]; custom != nil {

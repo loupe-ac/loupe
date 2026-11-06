@@ -234,6 +234,9 @@ var Operations = []Operation{
 			{Name: "body", Type: "string", Format: "", Items: "", Required: true, Nullable: false, Description: "The reply text. At most 65536 bytes. The reply is attributed to the agent.", Enum: nil},
 		},
 		Idempotent: true, TakesFields: false, Multipart: false, AnswerFields: []string{"id", "url"}, TimeFields: nil},
+	{ID: "startDiscovery", Method: "POST", Path: "/api/v1/projects/{project}/discovery", Summary: "Start a discovery run", Description: "Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the page of the card, which links the report once the worker has written it. `Location` names the card. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time.",
+		PathArgs: nil, HasProject: true, Query: nil, Body: nil,
+		Idempotent: true, TakesFields: false, Multipart: false, AnswerFields: []string{"runId", "cardId", "cardNumber", "state", "url"}, TimeFields: nil},
 	{ID: "submitDocumentVerdict", Method: "POST", Path: "/api/v1/projects/{project}/documents/{document}/verdicts", Summary: "Record the verdict of the owner", Description: "An approval moves the card of the document on. A verdict on a draft stops its agent review. A bridge worker is refused. `Location` points at the review, because no route reads one verdict.",
 		PathArgs: []string{"document"}, HasProject: true, Query: nil, Body: []Param{
 			{Name: "versionNumber", Type: "integer", Format: "", Items: "", Required: true, Nullable: false, Description: "The version you showed the owner.", Enum: nil},

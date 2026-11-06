@@ -40,6 +40,10 @@ type initLeft struct {
 	profile string
 	// restart is true when init installed the Claude Code plugins.
 	restart bool
+	// profileRan is true when the profile agent ran in this init.
+	profileRan bool
+	// discoveryStarted is true when init started discovery.
+	discoveryStarted bool
 }
 
 // reportAccounts prints the state of each account of the rule file, in every
@@ -178,24 +182,37 @@ func pushed(dir, file string) bool {
 	return err == nil
 }
 
+// discoveryBlockers lists what stops discovery from starting: the open profile,
+// the failing accounts and the files that the remote lacks.
+func discoveryBlockers(left initLeft, files []string) []string {
+	var out []string
+	for _, a := range left.accounts {
+		out = append(out, "Fix the account "+a+". Then run `loupe init` again to check it.")
+	}
+	if left.profile != "" {
+		out = append(out, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
+	}
+	if len(files) > 0 {
+		out = append(out, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")
+	}
+
+	return out
+}
+
 // initNext prints the last lines. They name only what remains, and the link
 // opens the project.
 func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) {
-	var todo []string
-	for _, a := range left.accounts {
-		todo = append(todo, "Fix the account "+a+". Then run `loupe init` again to check it.")
-	}
-	if left.profile != "" {
-		todo = append(todo, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
-	}
-	if files := filesNotPushed(dir, site); len(files) > 0 {
-		todo = append(todo, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")
-	}
+	todo := discoveryBlockers(left, filesNotPushed(dir, site))
+	blocked := len(todo) > 0
 	if left.restart {
 		todo = append(todo, "Restart Claude Code to load the Loupe plugins.")
 	}
-	if site.DiscoveryToStart() {
-		todo = append(todo, "Start discovery with Run discovery on the project page, so an agent checks the profile against the repository.")
+	if wantsDiscovery(site, left) && !left.discoveryStarted {
+		if blocked {
+			todo = append(todo, "Run `loupe init` again when these are done. It then offers to start discovery.")
+		} else {
+			todo = append(todo, "Start discovery with `loupe discovery start` when you are ready.")
+		}
 	}
 
 	fmt.Fprintln(out)
@@ -206,4 +223,10 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 		fmt.Fprintf(out, "%d. %s\n", i+1, t)
 	}
 	fmt.Fprintf(out, "Open %s/projects/%s\n", strings.TrimRight(baseURL, "/"), site.ID)
+}
+
+// wantsDiscovery says whether a discovery run is due: none ran yet, or the
+// profile agent wrote a profile that the last report predates.
+func wantsDiscovery(site api.Site, left initLeft) bool {
+	return site.DiscoveryToStart() || left.profileRan
 }
