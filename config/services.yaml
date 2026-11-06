@@ -199,13 +199,11 @@ when@test:
             alias: 'export.storage'
             public: true
 
-        # Render an HTML error as production does. The debug page prints the
-        # stack trace with source lines of the test, so a test that asserts a
-        # refused page leaks a value would match its own source.
-        twig.error_renderer.html:
-            class: Symfony\Bridge\Twig\ErrorRenderer\TwigErrorRenderer
-            decorates: error_renderer.html
-            arguments: ['@twig', '@.inner', false]
+        # WebTestCase runs in web mode, where the debug error page quotes the
+        # test source, so a refused response would contain the test's own strings.
+        # The serializer renderer still answers JSON requests and falls back here.
+        error_renderer.default:
+            alias: 'error_renderer.cli'
 
         # The audit facade and its Doctrine sink have one consumer each, so the
         # compiler inlines them and a test cannot reach the drained instance.
