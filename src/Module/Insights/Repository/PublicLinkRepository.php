@@ -41,6 +41,17 @@ class PublicLinkRepository extends ServiceEntityRepository
         return $links;
     }
 
+    /** @return array<string, PublicLink> the experiment links of a project, by experiment name */
+    public function findExperimentLinks(Project $project): array
+    {
+        $links = [];
+        foreach ($this->findBy(['project' => $project, 'kind' => PublicLinkKind::Experiment]) as $link) {
+            $links[(string) $link->experiment] = $link;
+        }
+
+        return $links;
+    }
+
     /** @return list<PublicLink> the links of the projects the user owns, by project, then in order of creation */
     public function findByOwner(User $user): array
     {

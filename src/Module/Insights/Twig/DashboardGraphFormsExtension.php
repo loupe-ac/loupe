@@ -8,7 +8,7 @@ use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\ShareGraphRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
 use App\Module\Insights\View\DashboardGraphFormViews;
-use App\Module\Insights\View\GraphShareView;
+use App\Module\Insights\View\PublicLinkShareView;
 use Symfony\Component\Form\FormView;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -31,7 +31,7 @@ final class DashboardGraphFormsExtension extends AbstractExtension
     }
 
     /** The switch of the share dialog. It is disabled while a reason blocks the share. */
-    public function shareForm(InsightsSavedGraph $graph, GraphShareView $share): FormView
+    public function shareForm(InsightsSavedGraph $graph, PublicLinkShareView $share): FormView
     {
         return $this->forms->share($graph, ShareGraphRequest::fromState($share->isEnabled()), null !== $share->block)->createView();
     }

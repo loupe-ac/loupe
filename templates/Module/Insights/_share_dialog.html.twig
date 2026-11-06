@@ -1,4 +1,4 @@
-{# The share dialog of one tile. It opens from the Share item of the tile menu. Props: graph (InsightsSavedGraph), share (GraphShareView), error (string or null). #}
+{# The share dialog of one tile. It opens from the Share item of the tile menu. Props: graph (InsightsSavedGraph), share (PublicLinkShareView), error (string or null). #}
 <div class="lp-dashboard-share" data-controller="modal" data-share-dialog>
     <twig:Ds:Dialog aria-labelledby="share-graph-title-{{ graph.id }}" data-action="cancel->modal#close">
         <h2 class="lp-dialog-title" id="share-graph-title-{{ graph.id }}">{{ 'insights.public_link.dialog.title'|trans }}</h2>

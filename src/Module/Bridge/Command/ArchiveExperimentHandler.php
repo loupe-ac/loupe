@@ -6,12 +6,14 @@ namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\ExperimentArchive;
+use App\Module\Bridge\Event\ExperimentArchiving;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -25,6 +27,7 @@ final readonly class ArchiveExperimentHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -61,6 +64,7 @@ final readonly class ArchiveExperimentHandler
                 $archive->coveredRunIds = $covered;
             }
             $this->em->flush();
+            $this->events->dispatch(new ExperimentArchiving($project, $experiment));
         });
 
         $this->auditor->record(

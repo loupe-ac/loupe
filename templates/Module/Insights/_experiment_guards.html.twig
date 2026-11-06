@@ -1,0 +1,35 @@
+{# The guards table of an experiment. Props: headline (ExperimentHeadline), text (ExperimentHeadlineText). #}
+    {% if headline.guards is not empty and headline.comparisons is not empty %}
+        <h3 class="lp-experiment-section">{{ 'bridge.experiments.guards.heading'|trans }}</h3>
+        <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-guards>
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'bridge.experiments.guards.guard'|trans }}</th>
+                        <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.guards.baseline_column'|trans({'%variant%': headline.baseline}) }}</th>
+                        {% for comparison in headline.comparisons %}
+                            <th scope="col" class="lp-experiment-table__number">{{ comparison.variant }}</th>
+                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.guards.change_column'|trans }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for guard in headline.guards %}
+                        {% set guardIndex = loop.index0 %}
+                        <tr data-experiment-guard="{{ guard.metric.key }}">
+                            <th scope="row">{{ text.metricName(guard.metric) }}</th>
+                            <td class="lp-experiment-table__number">{{ text.point(guard.metric, guard.baselinePoint) ?? '–' }}</td>
+                            {% for comparison in headline.comparisons %}
+                                {% set guardChange = comparison.guards[guardIndex] %}
+                                <td class="lp-experiment-table__number">{{ text.point(guard.metric, guardChange.point) ?? '–' }}</td>
+                                <td class="lp-experiment-table__number lp-experiment-table__range">{{ text.guardChange(guard, guardChange) ?? '–' }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
+    {% endif %}

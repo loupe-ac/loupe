@@ -34,6 +34,9 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -58,6 +61,12 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     public const string KEY = 'experiments';
 
     public const string EXPERIMENT = 'implement';
+
+    /** The code of the public link of the first experiment. */
+    public const string SHARED_EXPERIMENT_CODE = 'devexperimen';
+
+    /** The note that the owner wrote for the visitors of the shared experiment. */
+    public const string SHARED_EXPERIMENT_NOTE = "A comparison of two models on the implement work.\n\nThe figures cover the pull requests that merged in the last three weeks.";
 
     /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
     public const string EMPTY_EXPERIMENT = 'implement-no-runs';
@@ -118,6 +127,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
+        private PublicLinkRepository $publicLinks,
     ) {
     }
 
@@ -142,6 +152,21 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
         $this->seedEmptyExperiment($context, $project);
+        $this->seedPublicLink($context, $project);
+    }
+
+    /** Shares the first experiment with a note, so a worktree has a working public link. A stored link stays as it is. */
+    private function seedPublicLink(SeedContext $context, Project $project): void
+    {
+        $id = DevSeedId::of('insights/public-link/experiment/'.self::EXPERIMENT);
+        if ($this->publicLinks->find($id) instanceof PublicLink || $this->publicLinks->findForExperiment($project, self::EXPERIMENT) instanceof PublicLink) {
+            return;
+        }
+
+        $link = new PublicLink($project, PublicLinkKind::Experiment, self::SHARED_EXPERIMENT_CODE, experiment: self::EXPERIMENT, note: self::SHARED_EXPERIMENT_NOTE);
+        $context->ids->assign($link, $id);
+        $this->em->persist($link);
+        $this->em->flush();
     }
 
     private function seedEmptyExperiment(SeedContext $context, Project $project): void

@@ -1,0 +1,23 @@
+{# The Share action of one experiment and its dialog. The button opens the dialog through its own modal controller.
+   Props: project (Project), experiment (string), share (PublicLinkShareView), archived (bool), iconOnly (bool, a row button with no text). #}
+{% if share.isAvailable %}
+<div class="lp-dashboard-share" data-controller="modal" data-share-dialog>
+    {% if iconOnly %}
+        <button type="button" class="lp-document-row__action" data-action="click->modal#open" data-experiment-row-share aria-label="{{ 'bridge.experiments.share.row'|trans({'%name%': experiment}) }}">
+            <twig:ux:icon name="lucide:share-2" class="lp-icon lp-icon--md" />
+        </button>
+    {% else %}
+        <twig:Ds:Button variant="outline" size="sm" type="button" data-action="click->modal#open" data-experiment-share>{{ 'analytics.dashboard.menu.share'|trans }}</twig:Ds:Button>
+    {% endif %}
+    <twig:Ds:Dialog aria-labelledby="share-experiment-title-{{ experiment_share_key(experiment) }}" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="share-experiment-title-{{ experiment_share_key(experiment) }}">{{ 'bridge.experiments.share.title'|trans }}</h2>
+        {% if archived %}
+            <p class="lp-dialog-desc" data-experiment-share-archived>{{ 'bridge.experiments.share.archived_note'|trans }}</p>
+        {% endif %}
+        {% include '@Insights/_share_experiment_dialog_body.html.twig' with {project: project, experiment: experiment, share: share, error: null} only %}
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#close">{{ 'insights.public_link.dialog.done'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </twig:Ds:Dialog>
+</div>
+{% endif %}

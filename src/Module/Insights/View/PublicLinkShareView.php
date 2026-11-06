@@ -7,8 +7,8 @@ namespace App\Module\Insights\View;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Service\PublicShareBlock;
 
-/** What the Dashboard knows about the public link of one graph: the link, if the owner ever shared it, and any reason that blocks a share. */
-final readonly class GraphShareView
+/** What a share dialog knows about the public link of one item, a graph or an experiment: the link, if the owner ever shared it, and any reason that blocks a share. */
+final readonly class PublicLinkShareView
 {
     public function __construct(
         public ?PublicLink $link,

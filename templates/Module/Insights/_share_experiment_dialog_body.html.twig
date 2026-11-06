@@ -1,0 +1,21 @@
+{# The part of the experiment share dialog that a share changes. The share stream replaces it. Props: project (Project), experiment (string), share (PublicLinkShareView), error (string or null). #}
+{% set shareForm = experiment_share_form(project, experiment, share) %}
+<div class="lp-dashboard-share__body" id="share-experiment-body-{{ experiment_share_key(experiment) }}">
+    {% if share.block is not null %}
+        <twig:Ds:Flash severity="warning">{{ share.block.translationKey|trans }}</twig:Ds:Flash>
+    {% elseif error is not empty %}
+        <twig:Ds:Flash severity="error">{{ error }}</twig:Ds:Flash>
+    {% endif %}
+    {{ form_start(shareForm, {attr: {'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
+        <twig:Ds:Switch :fieldView="shareForm.enabled" :help="'insights.form.share_experiment_form.enabled.help'|trans" />
+        <twig:Ds:FormField :fieldView="shareForm.note" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-share-note': ''}" :hintText="'insights.form.share_experiment_form.note.help'|trans" />
+    {{ form_end(shareForm) }}
+    {% if share.link is not null %}
+        {% set linkUrl = public_link_url(share.link.code) %}
+        <div class="lp-dashboard-share__link">
+            <twig:Ds:Input type="text" readonly="readonly" :value="linkUrl" :aria-label="'insights.public_link.dialog.link'|trans" />
+            <twig:Ds:CopyButton :text="linkUrl" :label="'insights.public_link.dialog.copy'|trans" :copiedLabel="'insights.public_link.dialog.copied'|trans" buttonVariant="primary" />
+        </div>
+        <p class="lp-dialog-desc">{{ 'insights.public_link.dialog.note'|trans }}</p>
+    {% endif %}
+</div>

@@ -19,6 +19,9 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
+use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\DevSeed\DevProjectFixture;
@@ -100,6 +103,24 @@ final class DevExperimentSeederTest extends KernelTestCase
         $card = $this->service(CardRepository::class)->find(DevSeedId::of('board/card/implement/export-the-board-as-csv'));
         self::assertSame('Export the board as CSV', $card?->title);
         self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/implement/export-the-board-as-csv/0')));
+    }
+
+    public function test_the_implement_experiment_is_shared_with_a_note_and_a_fixed_code(): void
+    {
+        $project = $this->seeded();
+
+        $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::EXPERIMENT);
+        self::assertNotNull($link);
+        self::assertSame(PublicLinkKind::Experiment, $link->kind);
+        self::assertSame(DevExperimentSeeder::SHARED_EXPERIMENT_CODE, $link->code);
+        self::assertTrue($link->enabled);
+        self::assertSame(DevExperimentSeeder::SHARED_EXPERIMENT_NOTE, $link->note);
+        self::assertTrue(DevSeedId::of('insights/public-link/experiment/implement')->equals($link->id));
+        self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+
+        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
+        $this->em()->clear();
+        self::assertSame(1, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
     }
 
     public function test_a_second_run_writes_no_row(): void

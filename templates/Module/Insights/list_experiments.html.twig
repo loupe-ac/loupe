@@ -15,6 +15,7 @@
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
     {% set canManage = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
+    {% set shares = experiment_share_states(project, experiments|map(row => row.name)) %}
     {% if archivedCount > 0 or includeArchived %}
     <twig:Ds:FilterBar
         :action="path('app_project_analytics_experiments', {id: project.id})"
@@ -36,6 +37,7 @@
                 <a class="lp-data-table__target" href="{{ path('app_project_analytics_experiment', {id: project.id, experiment: experiment.name}) }}">
                     <span class="lp-data-table__title" data-experiment-name>{{ experiment.name }}</span>
                 </a>
+                <span data-experiment-public="{{ experiment.name }}">{% if shares[experiment.name].isPublic %}<twig:Ds:Tag tone="lime">{{ 'insights.public_link.tag'|trans }}</twig:Ds:Tag>{% endif %}</span>
             </div>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-cards>{{ 'bridge.experiments.card_count'|trans({'%count%': experiment.cards}) }}</span>
             <span class="lp-data-table__cell" role="cell">
@@ -47,6 +49,7 @@
             </span>
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 {% if canManage %}
+                {% include '@Insights/_share_experiment_dialog.html.twig' with {project: project, experiment: experiment.name, share: shares[experiment.name], archived: experiment.archived, iconOnly: true} only %}
                 {# Both states are written out, because the icon importer sees only literal names. #}
                 <form method="post" class="lp-document-row__action-form"
                       action="{{ path(experiment.archived ? 'app_project_analytics_experiment_unarchive' : 'app_project_analytics_experiment_archive', {id: project.id, experiment: experiment.name}) }}">
