@@ -12,11 +12,13 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Project\Entity\Project;
+use App\Site\SignedInCookie;
 use App\Tests\Module\Insights\InsightsScenario;
 use App\Tests\Support\InstalledInstance;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
@@ -128,6 +130,74 @@ final class ShowPublicLinkControllerTest extends WebTestCase
 
         self::assertCount(1, array_unique($bodies));
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_a_takedown_gives_the_same_404_page_and_a_lift_brings_the_page_back(): void
+    {
+        $client = $this->client('');
+        $project = $this->scenarioProject('public-takedown');
+        $link = $this->share($this->costGraph($project, 'Taken', MetricGroup::None));
+        $client->request(Request::METHOD_GET, '/s/aaaaaaaaaaaa');
+        self::assertResponseStatusCodeSame(404);
+        $unknownBody = $this->withoutNoise((string) $client->getResponse()->getContent());
+        $takedownId = (string) $this->seedTakedown($project)->id;
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame($unknownBody, $this->withoutNoise((string) $client->getResponse()->getContent()));
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+
+        $this->em()->getConnection()->executeStatement('DELETE FROM insights_public_link_takedowns WHERE id = ?', [$takedownId]);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.lp-public__project', 'Project public-takedown');
+    }
+
+    public function test_the_admin_bar_shows_on_the_site_host_for_the_admin_hint_and_sets_no_cookie(): void
+    {
+        $client = $this->client('loupe.example');
+        $link = $this->share($this->costGraph($this->scenarioProject('public-bar'), 'Cost', MetricGroup::None));
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->getCookieJar()->set(new Cookie(SignedInCookie::NAME, '1', 0, '/', 'loupe.example'));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->getCookieJar()->set(new Cookie(SignedInCookie::NAME, 'admin', 0, '/', 'loupe.example'));
+        $client->request(Request::METHOD_GET, '/s/'.$link->code, server: ['HTTP_HOST' => 'loupe.example']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-admin-bar]');
+        $action = $client->getCrawler()->filter('[data-admin-bar] a');
+        self::assertCount(1, $action);
+        self::assertSame('http://localhost/admin/public-links/'.$link->code.'/take-down', $action->attr('href'));
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_the_admin_bar_shows_on_the_app_host_for_a_signed_in_admin_only(): void
+    {
+        $client = $this->client('');
+        $link = $this->share($this->costGraph($this->scenarioProject('public-bar-app'), 'Cost', MetricGroup::None));
+        $plain = $this->user($this->em(), 'bar-plain-'.uniqid().'@example.com');
+        $admin = $this->user($this->em(), 'bar-admin-'.uniqid().'@example.com');
+        $admin->roles = ['ROLE_ADMIN'];
+        $this->em()->flush();
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertSelectorNotExists('[data-admin-bar]');
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+
+        $client->loginUser($plain);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertSelectorNotExists('[data-admin-bar]');
+
+        $client->loginUser($admin);
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-admin-bar]');
+        self::assertSelectorTextContains('[data-admin-bar] a', 'Take down the public links of this project');
     }
 
     public function test_a_code_of_the_wrong_shape_does_not_route(): void

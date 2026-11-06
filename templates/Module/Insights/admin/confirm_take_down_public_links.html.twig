@@ -1,0 +1,31 @@
+{% extends '@UbermudaAdmin/base.html.twig' %}
+
+{% block title %}{{ 'insights.admin.public_links.confirm.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    {% set returnTo = app.request.query.get('returnTo') %}
+    {% set backHref = (returnTo and returnTo starts with '/admin/') ? returnTo : path('app_admin_public_links_list') %}
+    <div class="admin-page" data-testid="take-down-confirm">
+        <div class="admin-card p-6 flex flex-col gap-4">
+            <div>
+                <h1 class="admin-section-title">{{ 'insights.admin.public_links.confirm.title'|trans({'%project%': view.project.name}) }}</h1>
+                <p class="admin-section-subtitle">{{ 'insights.admin.public_links.confirm.owner'|trans({'%name%': view.owner.fullName, '%email%': view.owner.email}) }}</p>
+                <p class="admin-section-subtitle">{{ 'insights.admin.public_links.confirm.items'|trans({'%count%': view.items}) }}</p>
+            </div>
+            {% if view.takenDown %}
+                <p class="admin-action-help m-0" data-testid="already-taken-down">{{ 'insights.admin.public_links.confirm.already'|trans }}</p>
+                <div class="flex justify-end gap-3">
+                    <a href="{{ backHref }}" class="admin-button-secondary admin-button-small">{{ 'insights.admin.public_links.confirm.back'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="admin-action-help m-0">{{ 'insights.admin.public_links.confirm.help'|trans }}</p>
+                <form method="post" action="{{ path('app_admin_public_links_take_down', {code: view.link.code}) }}" class="flex justify-end gap-3">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-public-links-take-down') }}">
+                    <input type="hidden" name="returnTo" value="{{ backHref }}">
+                    <a href="{{ backHref }}" class="admin-button-secondary admin-button-small">{{ 'insights.admin.public_links.confirm.cancel'|trans }}</a>
+                    <button type="submit" class="admin-button-danger admin-button-small" data-testid="take-down-submit">{{ 'insights.admin.public_links.take_down.confirm'|trans }}</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

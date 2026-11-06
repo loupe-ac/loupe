@@ -28,6 +28,6 @@ final readonly class ShowPublicLinkHandler
             throw new NotFoundHttpException('No public link shows for this code.');
         }
 
-        return new PublicLinkDetailView($link->project, $graph, $this->graphResults->forGraph($graph));
+        return new PublicLinkDetailView($link->project, $graph, $this->graphResults->forGraph($graph), $link->code);
     }
 }

@@ -112,6 +112,48 @@ final class ShareDialogRenderTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-graph-public] .lp-tag'));
     }
 
+    public function test_a_takedown_keeps_share_shows_the_reason_and_disables_the_switch(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('render-takedown');
+        $graph = $this->seedSavedGraph($project);
+        $this->em()->persist(PublicLink::forGraph($graph));
+        $this->em()->flush();
+        $this->seedTakedown($project);
+        $path = $this->tilePath((string) $project->id, (string) $graph->id);
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-action="click->graph-tile#share"]'));
+        $dialog = $crawler->filter('[data-share-dialog] dialog');
+        self::assertCount(1, $dialog);
+        self::assertStringContainsString('An admin took down the public links of this project.', $dialog->text());
+        self::assertCount(1, $dialog->filter('input.lp-switch[role="switch"][disabled]'));
+        self::assertCount(0, $crawler->filter('[data-graph-public] .lp-tag'));
+    }
+
+    public function test_the_dashboard_tells_the_owner_about_a_takedown_and_only_then(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('render-notice');
+        $this->seedSavedGraph($project);
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+        $client->loginUser($project->owner);
+
+        $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/dashboard');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('[data-public-links-taken-down]');
+
+        $this->seedTakedown($this->em()->find($project::class, $projectId) ?? throw new \LogicException());
+        $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/dashboard');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-public-links-taken-down]', 'An admin took down the public links of this project.');
+    }
+
     public function test_a_blocked_share_disables_the_switch_and_says_why(): void
     {
         $client = static::createClient();
