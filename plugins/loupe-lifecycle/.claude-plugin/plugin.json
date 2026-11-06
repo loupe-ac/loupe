@@ -1,7 +1,7 @@
 {
   "name": "loupe-lifecycle",
   "displayName": "Loupe Lifecycle",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Skills for a Loupe project on the Lifecycle workflow: the product design and tech design sessions, and the card stages from design to merge.",
   "author": {
     "name": "Geoffrey Bachelet",
