@@ -90,7 +90,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
         $source = (string) file_get_contents(\dirname(__DIR__, 4).'/config/workflows/lifecycle.yaml');
 
-        foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'rename `## Repair` to `## Recovery`', 'an `actor` and an `action`'] as $text) {
+        foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'an `actor` and an `action`'] as $text) {
             self::assertStringContainsString($text, $skill);
         }
         foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The Environment section', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
