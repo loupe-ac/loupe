@@ -154,6 +154,26 @@ final class ShareDialogRenderTest extends WebTestCase
         self::assertSelectorTextContains('[data-public-links-taken-down]', 'An admin took down the public links of this project.');
     }
 
+    public function test_the_dashboard_notice_stays_while_the_instance_flag_is_off(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('render-notice-flag-off');
+        $this->seedSavedGraph($project);
+        $flags = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[PublicLink::FLAG]->value = false;
+        $this->em()->flush();
+        $this->seedTakedown($project);
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+        $client->loginUser($project->owner);
+
+        $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/dashboard');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-public-links-taken-down]', 'An admin took down the public links of this project.');
+    }
+
     public function test_a_blocked_share_disables_the_switch_and_says_why(): void
     {
         $client = static::createClient();

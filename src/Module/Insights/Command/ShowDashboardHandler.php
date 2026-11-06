@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Repository\PublicLinkTakedownRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
 use App\Module\Insights\Service\GraphShareStates;
-use App\Module\Insights\Service\PublicShareBlock;
-use App\Module\Insights\Service\PublicShareGuard;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphHealth;
 use App\Module\Insights\View\DashboardTileView;
@@ -24,7 +23,7 @@ final readonly class ShowDashboardHandler
         private DashboardGraphResults $results,
         private SavedGraphCap $cap,
         private GraphShareStates $shares,
-        private PublicShareGuard $shareGuard,
+        private PublicLinkTakedownRepository $publicLinkTakedowns,
         private ClockInterface $clock,
     ) {
     }
@@ -59,7 +58,7 @@ final readonly class ShowDashboardHandler
             $this->cap->limit(),
             [] === $computed ? null : min($computed),
             $now,
-            PublicShareBlock::TakenDown === $this->shareGuard->blockedBy($project),
+            $this->publicLinkTakedowns->existsForProject($project),
         );
     }
 }
