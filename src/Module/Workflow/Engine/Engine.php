@@ -283,6 +283,7 @@ final readonly class Engine
                     self::adoptSubject($state, $bound->subject);
                 }
                 $state->attempts = 0;
+                $state->lastSetupFailure = null;
                 $state->dueAt = null;
                 $state->lastRefusal = null;
                 $state->lastRefusalAt = null;
@@ -614,6 +615,7 @@ final readonly class Engine
             $this->write($run, $this->state($run, $rule), static function (WorkflowRuleState $state): void {
                 $state->truth = false;
                 $state->attempts = 0;
+                $state->lastSetupFailure = null;
                 $state->dueAt = null;
                 $state->workRequestId = null;
                 $state->recovered = false;
@@ -662,6 +664,7 @@ final readonly class Engine
             $state->truth = $bound->truth;
             $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
             $state->attempts = 0;
+            $state->lastSetupFailure = null;
             $state->dueAt = null;
             $state->lastRefusal = null;
             $state->lastRefusalAt = $run->now;
@@ -787,6 +790,7 @@ final readonly class Engine
             $state->heldByWorkHoldSince = null;
             $this->markBlockerHold($run, $rule, $state, $bound);
             $state->attempts = 0;
+            $state->lastSetupFailure = null;
             $state->dueAt = null;
             $state->lastRefusal = null;
             $state->lastRefusalAt = null;
@@ -882,6 +886,7 @@ final readonly class Engine
                 }
                 if (!$retrying || (null === $outcome->requestId && !$outcome->alreadyLive)) {
                     $state->attempts = 0;
+                    $state->lastSetupFailure = null;
                 }
                 $state->dueAt = null;
                 $state->lastRefusal = null;

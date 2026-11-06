@@ -859,6 +859,31 @@ final class EngineTest extends KernelTestCase
         self::assertNull($this->activePause($card));
     }
 
+    public function test_the_first_setup_failure_after_the_rule_turned_false_and_true_again_keeps_the_retries(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::NOT_EPIC)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30], 'repeatGoesToRepair' => true]);
+        $this->evaluate($card);
+        $output = "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing";
+        $this->failSetup($card, $this->liveRequests($card)[0], $output, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'work')->lastSetupFailure);
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:22:00');
+        self::assertNull($this->ruleState($card, 'work')->lastSetupFailure, 'A new rule cycle compares from scratch.');
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:23:00');
+        $request = $this->liveRequests($card)[0];
+        self::assertSame('work', $request->kind);
+
+        $this->failSetup($card, $request, $output, '2026-10-02 12:30:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame([], $this->liveRequests($card), 'The first failure of the new cycle earns a retry, not the repair.');
+        self::assertSame(1, $this->ruleState($card, 'work')->attempts);
+        self::assertNull($this->activePause($card));
+    }
+
     public function test_a_repeated_setup_failure_retries_as_before_when_the_template_does_not_ask_for_the_repair(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30]]);
