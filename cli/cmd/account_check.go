@@ -27,7 +27,10 @@ const maxAccountReason = 200
 type accountResult struct {
 	name, harness string
 	// used is false for an account no rule runs on.
-	used     bool
+	used bool
+	// usedIn lists the mapped projects whose effective work entries run on
+	// the account.
+	usedIn   []string
 	problems []harn.Problem
 }
 
@@ -88,6 +91,12 @@ func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []
 	}
 	names := set.DeclaredAccounts()
 	used := set.UsedAccounts()
+	usedIn := map[string][]string{}
+	for _, slug := range set.Projects() {
+		for _, name := range set.UsedAccountsFor(slug) {
+			usedIn[name] = append(usedIn[name], slug)
+		}
+	}
 	plugins := checkInputs(slices.Collect(maps.Keys(projects)), sites)
 	// Each account runs in its own goroutine, so a slow one cannot use up the
 	// time of the next.
@@ -97,6 +106,7 @@ func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []
 		wg.Go(func() {
 			out[i] = checkAccount(ctx, set, name, projects, plugins)
 			out[i].used = slices.Contains(used, name)
+			out[i].usedIn = usedIn[name]
 		})
 	}
 	wg.Wait()

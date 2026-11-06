@@ -17,7 +17,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-#[McpTool(name: self::NAME, description: 'Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review, and links it to the discovery card. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or suggested, and the evidence you found. Use suggested for a check that the project does not meet yet, and gap is accepted as an alias. proposals lists cards that would close a suggestion, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it. When the owner asked for changes, the run is revising, and one call with the same runId stores a new version of the same report and replaces the proposals that made no card.')]
+#[McpTool(name: self::NAME, description: 'Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review, and links it to the discovery card. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or suggested, the evidence you found, an actor (owner, agent or none) and an action of one sentence. The report lists each suggested finding that has an actor under "What remains", grouped by actor. An older plugin may leave actor and action out, and the actor is then none. Use suggested for a check that the project does not meet yet, and gap is accepted as an alias. proposals lists cards that would close a suggestion, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it. When the owner asked for changes, the run is revising, and one call with the same runId stores a new version of the same report and replaces the proposals that made no card.')]
 final readonly class ReadinessReportSubmitTool
 {
     use ResolvesBoundProject;
@@ -30,6 +30,8 @@ final readonly class ReadinessReportSubmitTool
             'check' => ['type' => 'string', 'description' => 'the name of the check'],
             'status' => ['type' => 'string', 'enum' => ['ready', 'suggested', 'gap'], 'description' => 'ready when the project meets the check, suggested when Loupe would work better with it; gap is an alias of suggested'],
             'evidence' => ['type' => 'string', 'description' => 'what you found, as short Markdown'],
+            'actor' => ['type' => 'string', 'enum' => ['owner', 'agent', 'none'], 'description' => 'who acts on a suggested finding: owner for a person, agent for a coding agent, none when nobody needs to act'],
+            'action' => ['type' => 'string', 'description' => 'one sentence that says what the actor does; empty when the actor is none'],
         ],
         'required' => ['check', 'status', 'evidence'],
     ];
@@ -59,7 +61,7 @@ final readonly class ReadinessReportSubmitTool
      *
      * @param string       $runId     the id of the discovery run
      * @param string       $workflow  the name of the workflow the project uses
-     * @param array<mixed> $findings  the checks, each with check, status and evidence
+     * @param array<mixed> $findings  the checks, each with check, status, evidence, actor and action
      * @param array<mixed> $proposals the cards to propose, each with key, title, type, body and optionally openCardNumber
      * @param string       $summary   a short Markdown summary of the report
      *
@@ -99,7 +101,7 @@ final readonly class ReadinessReportSubmitTool
                 SubmitReadinessReportHandler::RUN_UNKNOWN => 'No discovery run of this project has that runId. Call readiness_get or discovery_start for the runId, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::RUN_NOT_REQUESTED => 'This run does not wait for a report now. It failed, or it reported already. Call readiness_get to read its state, or discovery_start to open a new run.',
                 SubmitReadinessReportHandler::ALREADY_REPORTED => 'This run has a report already. Call readiness_get to read it, or discovery_start to open a new run.',
-                SubmitReadinessReportHandler::FINDING_INVALID => 'Each finding needs a check, an evidence text, and a status of ready or suggested. Fix the findings, then call readiness_report_submit again.',
+                SubmitReadinessReportHandler::FINDING_INVALID => 'Each finding needs a check, an evidence text, a status of ready or suggested, and an actor of owner, agent or none. Fix the findings, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::PROPOSAL_INVALID => 'Each proposal needs a key of up to 64 characters, a title of up to 255 characters, and a type. Fix the proposals, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::PROPOSAL_TYPE => \sprintf(
                     'A proposal type must be one of %s. Call board_columns for the types of this project. Fix the type, then call readiness_report_submit again.',
@@ -124,7 +126,13 @@ final readonly class ReadinessReportSubmitTool
             throw new ToolCallException('Each finding needs a check, a status and an evidence text, all as strings. Fix the findings, then call readiness_report_submit again.');
         }
 
-        return new ReportFinding($item['check'], $item['status'], $item['evidence']);
+        $actor = $item['actor'] ?? ReportFinding::NONE;
+        $action = $item['action'] ?? '';
+        if (!\is_string($actor) || !\is_string($action)) {
+            throw new ToolCallException('The actor and the action of a finding must be strings. Fix the findings, then call readiness_report_submit again.');
+        }
+
+        return new ReportFinding($item['check'], $item['status'], $item['evidence'], $actor, $action);
     }
 
     private static function proposal(mixed $item): ReportProposal

@@ -150,6 +150,8 @@ gh pr view <url> --json state,isDraft,headRefOid,baseRefName,mergeable,mergeStat
 gh pr checks <url> --required --json bucket -q 'group_by(.bucket)|map("\(.[0].bucket)=\(length)")|join(" ")'
 ```
 
+When no rule requires a check, the second command prints `no required checks reported on the '<branch>' branch` on stderr, nothing on stdout, and exits 1 (checked with gh 2.95.0). That output is green with a required count of 0, not a failure. Any other exit 1 with no such message is a failed read.
+
 The approval is not part of this read. "Check the approval covers the head" reads it. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means `pass=<required count>` and no other bucket.
 
 Report state: `OPEN` is `open`, `MERGED` is `merged`, and `CLOSED` is `closed`.
@@ -171,13 +173,15 @@ For an epic child, replace the second command with the by-name read of "Read the
 
 ## Check the approval covers the head
 
-The approval is whatever the rules of the base branch require: a check from a GitHub App, a number of approving reviews, or both. `reviewDecision` is no source for it. It stays empty when the rules require a check and no review, and it stays `APPROVED` after a push when the rules do not dismiss a stale review. Read the approval with the script that sits next to this file. `<forge dir>` is the directory of this file:
+The approval is the check `Loupe / Approval` from the Loupe App, plus whatever the rules of the base branch add: a number of approving reviews. `reviewDecision` is no source for the approval, because it stays empty when the rules require a check and no review, and it stays `APPROVED` after a push when the rules do not dismiss a stale review. The script reads it only for `REVIEW_REQUIRED`, which means GitHub wants more approvals. Read the approval with the script that sits next to this file. `<forge dir>` is the directory of this file:
 
 ```bash
-APPROVER=<login> <forge dir>/github-approval-covers.sh --conflicts <covered|hold> <url> <sha>
+APPROVER=<login> <forge dir>/github-approval-covers.sh --conflicts <covered|hold> --app-id <githubAppId> <url> <sha>
 ```
 
 Set `--conflicts` from the project rule: `hold` when `workflow_get` returns `approvalCoversConflictResolution` false, and `covered` otherwise. A flag left out means `covered`.
+
+Set `--app-id` to `githubAppId` from `workflow_get`. The script needs it when no rule names the check. When `githubAppId` is null, omit the flag. The script then stops with `UNREAD` in that case.
 
 Set `APPROVER` when the profile `Merge` section names an approver. The named reviewer must then also hold a current approval that covers the head. This adds a condition and lowers no count that the rules require. Otherwise omit it.
 
@@ -186,7 +190,9 @@ The script reads `repos/<nameWithOwner>/rules/branches/<base>`, which lists the 
 1. A rule that requires the check `Loupe / Approval` selects the App that may post it. The script needs a successful run of that check on the head commit from each selected App. A run of the same name from another App does not count. A check belongs to one commit, so a success on the head covers the head. When a rule selects no App, the script holds.
 2. A rule that requires approving reviews gives a count. GitHub enforces the largest count of all the rules, and so does the script. It takes each reviewer's last approving or blocking review, and needs that many current approvals. Each of the newest approvals must cover the head, by time. The script reads the pushes to the head branch, and takes the head of the last push before the approval. A commit in that head is covered. The script sorts every other commit. A review's `commit_id` does not show what the reviewer saw, because GitHub moves it onto the head that a later merge creates.
 3. When the rules require both, both must hold.
-4. When the rules require neither, the script asks for one current approval that covers the head. It reads rulesets only, and a repository can still require a review through the older branch protection.
+4. When no rule names the check, the script needs a successful `Loupe / Approval` run from the App with the id of `--app-id` on the head. So with no rules, the merge stage merges on the same signal as the app: the agent review passed. A review count that the rules name still applies.
+5. When GitHub answers `403` with a message that starts `Upgrade to GitHub` (a plan with no rulesets), the script reads no rules. Any other `403` is a lost permission and gives `UNREAD`.
+6. When `reviewDecision` is `REVIEW_REQUIRED`, rulesets or classic branch protection want more approvals, and the script holds. This read needs no admin permission. `branches/<base>/protection` does.
 
 The script prints one line:
 
@@ -195,12 +201,13 @@ The script prints one line:
 | `COVERED ...` | 0 | The rules hold. Every later commit of a counted review is a merge from the base. With `--conflicts hold`, git also makes each merge again with no conflict. |
 | `HOLD commits after approval: ...` | 1 | A later commit adds new content. |
 | `HOLD conflict resolution after approval: ...` | 1 | With `--conflicts hold`, a merge from the base holds a conflict resolution or a hand edit. |
-| `HOLD no approval check on the head` | 1 | A rule requires the check, and a selected App posted no success on the head. |
+| `HOLD no approval check on the head` | 1 | The Loupe App, or the App that a rule selects, posted no success on the head. |
+| `HOLD GitHub requires more approvals` | 1 | `reviewDecision` is `REVIEW_REQUIRED`. |
 | `HOLD the rules select no App for Loupe / Approval` | 1 | A rule requires the check and selects no App, so the script cannot tell a forged run from a real one. |
 | `HOLD <found> of <count> approvals` | 1 | The rules require more current approvals than exist. |
 | `HOLD no approval from <login>` | 1 | The named approver holds no current approval. |
 | `HOLD head moved`, `HOLD no push ...`, `HOLD 250 commits or more ...` | 1 | The item fails for that reason. |
-| `UNREAD: ...` | 2 | A read failed. |
+| `UNREAD: ...` | 2 | A read failed, or no rule names the check and `--app-id` is missing. |
 
 Report approval: the script line is the report, as it is.
 
@@ -253,6 +260,8 @@ The first command lists the active rules by `type`. `pull_request` holds `requir
 The third command reads classic branch protection. The message `Branch not protected` means that the branch has none. Any other error, such as `Not Found` with no admin permission, means that it could not be read.
 
 Report each setting that a command fails to read as not readable, and quote the error.
+
+The first command answers `403` with the message "Upgrade to GitHub Pro or make this repository public to enable this feature." on a private repository of a plan with no rulesets. Read that answer as "GitHub enforces no rules". Any other `403` is a lost permission.
 
 ## Merge
 

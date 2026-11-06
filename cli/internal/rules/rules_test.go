@@ -64,7 +64,7 @@ const oneRule = claudeAccount + claudeDefaults + oneWork
 
 func entry(t *testing.T, s *Set, kind string) WorkEntry {
 	t.Helper()
-	w, ok := s.WorkEntry(kind)
+	w, ok := s.SharedWorkEntry(kind)
 	if !ok {
 		t.Fatalf("no entry for %s", kind)
 	}

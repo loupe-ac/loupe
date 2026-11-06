@@ -1262,6 +1262,7 @@ another column. A person's approval on GitHub then posts the success again.
 | Condition | True when |
 |---|---|
 | `card.review.needs_person` | The **Requires human review** switch of the card is on. For an epic it is also true when the switch of a child is on, or when a child pull request merged into the epic branch without a passed or overridden agent review. It is in the **Board** group |
+| `pr.review_required` | GitHub says the rules of the base branch still need approving reviews, or a review under those rules requested changes. A fix run does not end it, because GitHub refuses the merge until a person approves again or dismisses the review. The `merge-ready` rule waits while it is true. It is in the **Forge** group |
 
 An epic pull request into the default branch gets its own agent review, and then the same rules. The agent review of the
 epic covers the whole change, also the merges of the default branch into the epic branch and their conflict fixes.
@@ -1271,7 +1272,11 @@ repository, or when the agent review failed and you can override it. A pull requ
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."
 The Repositories tab of the project settings lists the settings of each repository that do not fit.
-Loupe reads rulesets only. It does not read classic branch protection. The steps below fix both problems.
+GitHub rules decide who approves a merge. They can come from rulesets or from classic branch protection. When they
+require approving reviews, the `merge-ready` rule waits until a person gives them on GitHub (`pr.review_required`).
+When GitHub enforces no rules, Loupe merges when the agent review passes. Then only Loupe enforces the agent review,
+and anybody with write access can still merge on GitHub. Rulesets on a private repository need a paid GitHub plan.
+The steps below set up the ruleset.
 
 #### Set up the ruleset
 
@@ -1286,10 +1291,11 @@ after a change. The same steps by hand:
    recently.
 3. In the ruleset, add the required status check `Loupe / Approval`, and set the **Loupe** GitHub App as its source.
    Without the source, any CI job or commit status can post the same name and forge the approval.
-4. Remove the rule **Require approvals** from the ruleset. The App cannot give that approval on its own pull request.
+4. Add the rule **Require approvals** only when you want a person to approve every pull request. The App cannot give
+   that approval on its own pull request, so a person approves on GitHub and Loupe merges after that.
 
-A project that updates to this version gets the new rules in its template copy. A ruleset that still requires an
-approving review blocks the merge of a pull request that the App opened, until the owner changes the ruleset.
+A project that updates to this version gets the new rules in its template copy. A ruleset that requires an approving
+review no longer makes Loupe try a merge that GitHub refuses. The card waits for the approval instead.
 
 ### Asking about an unplanned child
 

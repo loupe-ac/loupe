@@ -72,7 +72,8 @@ final readonly class DevMetricsSeeder
     /** The account of the runs of each model, by index. */
     private const array ACCOUNTS = ['dev-work', 'dev-personal', 'dev-work'];
 
-    private const array WORK_KINDS = ['implement', 'review', 'fix-round'];
+    /** More kinds than the chart palette holds colours, so a chart grouped by stage draws the grey. */
+    private const array WORK_KINDS = ['implement', 'review', 'fix-round', 'breakdown', 'tech-design', 'tech-design-revise', 'product-design', 'design-review', 'epic-preview', 'merge', 'repair', 'deploy-check', 'discovery', 'analysis'];
 
     /** @var list<array{string, int, int, list<string>}> tool, start offset in seconds, base duration in milliseconds, signatures */
     private const array CALLS = [

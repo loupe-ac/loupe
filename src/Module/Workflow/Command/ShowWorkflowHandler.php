@@ -12,6 +12,7 @@ use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final readonly class ShowWorkflowHandler
 {
@@ -21,6 +22,9 @@ final readonly class ShowWorkflowHandler
         private BoardColumns $boardColumns,
         private AppRules $appRules,
         private Actions $actions,
+
+        #[Autowire(env: 'default::GITHUB_APP_ID')]
+        private ?string $githubAppId = null,
     ) {
     }
 
@@ -70,6 +74,7 @@ final readonly class ShowWorkflowHandler
             ),
             approvalCoversConflictResolution: $template->approvalCoversConflictResolution,
             epicBranch: $template->epicBranch,
+            githubAppId: '' === $this->githubAppId ? null : $this->githubAppId,
         );
     }
 }

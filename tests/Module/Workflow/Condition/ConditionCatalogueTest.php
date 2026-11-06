@@ -115,6 +115,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.open' => 'workflow.source.forge',
         'pr.parent_merged' => 'workflow.source.forge',
         'pr.ready_for' => 'workflow.source.forge',
+        'pr.review_required' => 'workflow.source.forge',
         'pr.stack_parent' => 'workflow.source.forge',
         'pr.stacked' => 'workflow.source.forge',
     ];

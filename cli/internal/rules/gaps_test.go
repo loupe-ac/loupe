@@ -55,6 +55,10 @@ func TestGapsNamesMissingPrompts(t *testing.T) {
 	if got := gapsOf(t, withWork, dir); got != "" {
 		t.Errorf("a work entry is a prompt, got:\n%s", got)
 	}
+	withProjectWork := body + "    work:\n      fix:\n        prompt: go\n"
+	if got := gapsOf(t, withProjectWork, dir); got != "" {
+		t.Errorf("a work entry of a project is a prompt, got:\n%s", got)
+	}
 }
 
 func TestGapsMatchesTheDirectoryThroughASymlink(t *testing.T) {

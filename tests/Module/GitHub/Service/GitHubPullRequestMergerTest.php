@@ -183,6 +183,38 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
         self::assertCount(3, $this->requests);
     }
 
+    public function test_a_plan_refusal_of_the_rules_merges_with_the_repository_switches_alone(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_040, base: 'main');
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
+            $this->answer(['message' => 'Upgrade to GitHub Pro or make this repository public to enable this feature.'], 403),
+            $this->answer(['merged' => true]),
+        ];
+
+        $this->merger()->merge($pullRequest, ['squash', 'merge'], 'head1');
+
+        self::assertCount(4, $this->requests);
+        self::assertSame('PUT', $this->requests[3]['method']);
+    }
+
+    public function test_a_403_of_the_rules_that_is_not_a_plan_refusal_is_a_permission_failure(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 73_041, base: 'main');
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->repository(),
+            $this->answer(['message' => 'Resource not accessible by integration'], 403),
+        ];
+
+        $failure = $this->failure($pullRequest);
+
+        self::assertSame('permission', $failure->cause);
+        self::assertTrue($failure->permanent);
+        self::assertCount(3, $this->requests);
+    }
+
     /** @return iterable<string, array{int, string}> */
     public static function refusals(): iterable
     {

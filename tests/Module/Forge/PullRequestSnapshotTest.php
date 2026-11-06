@@ -620,6 +620,7 @@ final class PullRequestSnapshotTest extends TestCase
         yield 'mergeability' => [['mergeability' => PullRequestMergeability::Mergeable]];
         yield 'review' => [['review' => PullRequestReview::Approved]];
         yield 'ready' => [['readyToMerge' => false]];
+        yield 'review from rules' => [['reviewFromRules' => true]];
         yield 'changes requested at' => [['changesRequestedAt' => new \DateTimeImmutable('2026-09-22 09:00:00')]];
         yield 'changes requested cleared' => [['changesRequestedAt' => null]];
         yield 'default branch' => [['defaultBranch' => 'trunk']];

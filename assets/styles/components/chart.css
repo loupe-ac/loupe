@@ -48,6 +48,18 @@
     .lp-chart-slot--8 {
         --lp-chart-colour: var(--chart-8);
     }
+    .lp-chart-slot--9 {
+        --lp-chart-colour: var(--chart-9);
+    }
+    .lp-chart-slot--10 {
+        --lp-chart-colour: var(--chart-10);
+    }
+    .lp-chart-slot--11 {
+        --lp-chart-colour: var(--chart-11);
+    }
+    .lp-chart-slot--12 {
+        --lp-chart-colour: var(--chart-12);
+    }
 
     .lp-chart__grid {
         @apply stroke-line-faint stroke-1;

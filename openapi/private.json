@@ -6863,6 +6863,45 @@
                 },
                 "type": "object"
             },
+            "DiscoveryStartResult": {
+                "required": [
+                    "runId",
+                    "cardId",
+                    "cardNumber",
+                    "state",
+                    "url"
+                ],
+                "properties": {
+                    "runId": {
+                        "description": "The id of the discovery run.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardId": {
+                        "description": "The id of the discovery card.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "description": "The number of the discovery card.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "state": {
+                        "description": "The state of the run. A new run is `requested`.",
+                        "type": "string",
+                        "enum": [
+                            "requested"
+                        ]
+                    },
+                    "url": {
+                        "description": "The Workshop page of the project in the app. Its discovery row shows the run, and opens the report once the worker has written it.",
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "type": "object"
+            },
             "ExperimentCardRow": {
                 "required": [
                     "cardId",

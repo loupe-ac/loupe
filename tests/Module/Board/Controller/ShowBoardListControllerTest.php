@@ -34,7 +34,9 @@ final class ShowBoardListControllerTest extends WebTestCase
         $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $project = $this->project($em, $this->user($em, 'list-owner@example.com'));
-        $this->card($em, $project, 'Private card', 'next');
+        // The debug error page quotes this test's source, so the title must not appear in it literally.
+        $title = 'Private card '.bin2hex(random_bytes(4));
+        $this->card($em, $project, $title, 'next');
         $outsider = $this->user($em, 'list-outsider@example.com');
         $em->clear();
 
@@ -42,7 +44,7 @@ final class ShowBoardListControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $this->listUrl($project));
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Private card', RefusedPage::body($client->getResponse()));
+        self::assertStringNotContainsString($title, RefusedPage::body($client->getResponse()));
     }
 
     public function test_the_list_route_does_not_write_the_session(): void

@@ -3,6 +3,7 @@ package cmd
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,24 +37,35 @@ var initGit = func(dir string, args ...string) (string, error) {
 type initLeft struct {
 	// accounts holds one line for each used account that fails for the project.
 	accounts []string
+	// accountCheck says why the account check could not run, and is empty when
+	// it ran.
+	accountCheck string
 	// profile says why the profile is not finished, and is empty when it is.
 	profile string
 	// restart is true when init installed the Claude Code plugins.
 	restart bool
+	// profileRan is true when the profile agent ran in this init.
+	profileRan bool
+	// discoveryStarted is true when init started discovery.
+	discoveryStarted bool
 }
 
 // reportAccounts prints the state of each account of the rule file, in every
 // project of the file, and returns the lines of the used accounts that fail for
-// this project. A failure in another project, and an account that no rule uses,
-// never count. It runs before the profile agent, which needs no account.
+// this project. A failure in another project, and an account that no
+// effective work entry of this project uses, never count. It runs before the profile agent, which needs no account.
 // sites is the project list of the server, which lacks a project that this run
-// made.
-func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) []string {
+// made. When the rule file cannot be read, it checks no account and returns
+// the reason as unchecked.
+func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) (failing []string, unchecked string) {
 	set, err := rules.Load(path, rules.Defaults{})
 	if err != nil {
 		fmt.Fprintf(out, "Accounts: failed, cannot read %s: %v.\n", path, err)
+		if errors.Is(err, rules.ErrMissing) {
+			return nil, "no rule file at " + path
+		}
 
-		return nil
+		return nil, "cannot read " + path + ": " + err.Error()
 	}
 	slug := siteRuleSlug(site)
 
@@ -61,10 +73,9 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 		sites = append(slices.Clone(sites), site)
 	}
 
-	var failing []string
 	for _, a := range initCheckAccounts(ctx, set, sites) {
 		printAccount(out, a, slug)
-		if !a.used {
+		if !slices.Contains(a.usedIn, slug) {
 			continue
 		}
 		if reasons := nonEmpty(a.reason(), a.projectReasons()[slug]); len(reasons) > 0 {
@@ -72,7 +83,7 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 		}
 	}
 
-	return failing
+	return failing, ""
 }
 
 // printAccount prints one line for each problem of the account: the problems of
@@ -129,7 +140,7 @@ func nonEmpty(values ...string) []string {
 }
 
 // reportAccountsStep runs the account check with the bound of the checks.
-func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) []string {
+func reportAccountsStep(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) ([]string, string) {
 	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout+10*time.Second)
 	defer cancel()
 
@@ -178,24 +189,40 @@ func pushed(dir, file string) bool {
 	return err == nil
 }
 
+// discoveryBlockers lists what stops discovery from starting: the open profile,
+// the failing or unchecked accounts and the files that the remote lacks.
+func discoveryBlockers(left initLeft, files []string) []string {
+	var out []string
+	if left.accountCheck != "" {
+		out = append(out, "Check the accounts: "+left.accountCheck+". Then run `loupe init` again to check them.")
+	}
+	for _, a := range left.accounts {
+		out = append(out, "Fix the account "+a+". Then run `loupe init` again to check it.")
+	}
+	if left.profile != "" {
+		out = append(out, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
+	}
+	if len(files) > 0 {
+		out = append(out, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")
+	}
+
+	return out
+}
+
 // initNext prints the last lines. They name only what remains, and the link
 // opens the project.
 func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) {
-	var todo []string
-	for _, a := range left.accounts {
-		todo = append(todo, "Fix the account "+a+". Then run `loupe init` again to check it.")
-	}
-	if left.profile != "" {
-		todo = append(todo, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
-	}
-	if files := filesNotPushed(dir, site); len(files) > 0 {
-		todo = append(todo, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")
-	}
+	todo := discoveryBlockers(left, filesNotPushed(dir, site))
+	blocked := len(todo) > 0
 	if left.restart {
 		todo = append(todo, "Restart Claude Code to load the Loupe plugins.")
 	}
-	if site.DiscoveryToStart() {
-		todo = append(todo, "Start discovery with Run discovery on the project page, so an agent checks the profile against the repository.")
+	if wantsDiscovery(site, left) && !left.discoveryStarted {
+		if blocked {
+			todo = append(todo, "Run `loupe init` again when these are done. It then offers to start discovery.")
+		} else {
+			todo = append(todo, "Start discovery with `loupe discovery start` when you are ready.")
+		}
 	}
 
 	fmt.Fprintln(out)
@@ -206,4 +233,10 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 		fmt.Fprintf(out, "%d. %s\n", i+1, t)
 	}
 	fmt.Fprintf(out, "Open %s/projects/%s\n", strings.TrimRight(baseURL, "/"), site.ID)
+}
+
+// wantsDiscovery says whether a discovery run is due: none ran yet, or the
+// profile agent wrote a profile that the last report predates.
+func wantsDiscovery(site api.Site, left initLeft) bool {
+	return site.DiscoveryToStart() || left.profileRan
 }

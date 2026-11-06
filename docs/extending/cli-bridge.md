@@ -1949,6 +1949,42 @@ folder is gone. A recorded folder that the bridge cannot read fails the resume.
 [The before command](../../cli/README.md#the-before-command) in
 `cli/README.md` gives the fields, the timeouts and the folder contract.
 
+## Work entries of a project
+
+One bridge can follow several projects that need different setup commands. A
+project can list its own work entries under `projects.<slug>.work`. Each one
+replaces the shared entry of the same kind for that project. A project uses the
+shared entry for each kind it does not list.
+
+```yaml
+projects:
+  loupe:
+    dir: ~/Code/loupe
+    work:
+      implement:
+        prompt: Implement card {cardNumber}.
+        before:
+          run: [bin/worktrees/bridge-before.sh, '{cardNumber}']
+  make-plans:
+    dir: ~/Code/make-plans
+work:
+  implement:
+    prompt: Implement card {cardNumber}.
+```
+
+Here `make-plans` gets the shared entry and a plain worktree, and `loupe` gets
+its own `before` command.
+
+- A project entry has the same fields as a shared entry, except `action: command`. A command entry stays in the shared `work` map, because the heartbeat reports command entries with no project.
+- The bridge reports one list of kinds for all its projects. A kind that only one project lists is advertised and claimed. A request of that kind for another project runs the app prompt when `appPrompts` is on, and is skipped otherwise.
+- An experiment covers the shared entry only. A project entry of a covered kind runs without the variants.
+- `loupe bridge check` and `loupe bridge status` warn about a relative setup command that its project folder lacks, and about a kind that a project cannot run.
+- `loupe bridge reload` names a project entry as `<slug>/<kind>` in its added, changed and removed lists.
+
+A bridge on a CLI older than this change refuses a `work` key under a project.
+Move an entry under its project only after the CLI of the bridge machine is
+updated.
+
 ## Worker isolation
 
 `defaults.isolation` keeps the workers of different cards out of one checkout.

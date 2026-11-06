@@ -1,5 +1,5 @@
 key: lifecycle
-version: 42
+version: 44
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
@@ -91,7 +91,7 @@ onWorkFailed:
     retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
-    repair: { kind: repair }
+    recover: { kind: recover }
 facts:
     pr-reviewable:
         all:
@@ -166,8 +166,8 @@ rules:
               checks:
                   - An interactive session that the owner can join
                   - The loupe and loupe-lifecycle skill packages are installed for the agent
-                  - When the project has a user interface, a design system that an agent can read, such as design tokens, a component catalog, a styleguide page, or a Design System artifact on claude.ai that the agent instructions name as its home
-                  - When the project has a user interface, a Design System artifact on claude.ai that holds or mirrors the design system, named in .loupe/lifecycle.md or the agent instructions
+                  - "When the project has a user interface, a design system that an agent can read, such as design tokens, a component catalog, a styleguide page, or a Design System artifact on claude.ai that the agent instructions name as its home. When it fails, the actor is owner, and the action names the missing part: a design system that an agent can read"
+                  - "When the project has a user interface, a Design System artifact on claude.ai that holds or mirrors the design system, named in .loupe/lifecycle.md or the agent instructions. When it fails, the actor is owner, and the action names the missing part: a Design System artifact that the profile or the agent instructions name"
 
     - id: product-design-revise
       slot: product-design
@@ -461,9 +461,16 @@ rules:
               cancelOnly: open
               checks:
                   - A worktree per card, so two cards never share one checkout
-                  - A preview URL per branch, with the review widget on it
+                  - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry"
+                  - "A preview URL per branch, with the review widget on it. When it fails, the actor is owner, and the action says to give each worker folder its own URL, or to remove the preview steps from the profile"
                   - The .loupe/lifecycle.md sections that the stage skills read
+                  - "The Environment section of .loupe/lifecycle.md matches the folder that the bridge gives a worker. When it does not, the actor is owner, and the action names the line to correct"
                   - A build command and a test command that an agent can run
+                  - "The bridge commands of this kind resolve for this project and exist in its folder. Read loupe bridge check --project <slug> --json on the bridge machine. When one does not, the actor is owner, and the action names the command and the folder"
+                  - "Each tool that the profile names exists for the worker account. Read the same bridge check for the configuration folder and the MCP servers of the account. When one is missing, the actor is owner, and the action names the tool and the account"
+                  - "A gate step that serves the main checkout, such as an e2e run against a shared stack, tests the code of the worker folder. When it does not, the actor is owner, and the action names the step and how to point it at the worker folder"
+                  - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"
+                  - "Each fact that a worker needs is in the repository, and not in the personal memory of another account. When one is not, the actor is agent, and the action names the fact and the file that should hold it"
                   - A draft pull request that a separate agent reviews after the push
                   - "Conflict check: agent instruction files. No instruction file contradicts what a stage skill does"
                   - "Conflict check: repository hooks. No hook refuses a command that a stage skill runs"
@@ -548,6 +555,7 @@ rules:
                   - The gate commands of .loupe/lifecycle.md
                   - Read access to the CI check logs
                   - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
+                  - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"
               refill:
                   all:
                       - pr.checks_passed: {}
@@ -630,6 +638,7 @@ rules:
                   - The gate commands of .loupe/lifecycle.md
                   - Read access to the CI check logs
                   - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
+                  - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"
               refill:
                   all:
                       - pr.checks_passed: {}
@@ -763,6 +772,7 @@ rules:
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
               - not: { pr.behind: {} }
+              - not: { pr.review_required: {} }
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
@@ -772,7 +782,7 @@ rules:
               methods: [squash, merge, rebase]
               fallback: merge
               checks:
-                  - "Conflict check: branch rules. The base branch has a pull request rule, requires the check Loupe / Approval from the Loupe App, requires no approving review, requires a check that is not a Loupe check, and forbids force pushes and deletion"
+                  - "Conflict check: branch rules. When GitHub can enforce rules on the base branch, through rulesets or classic branch protection, they require the check Loupe / Approval from the Loupe App, and they forbid force pushes and deletion. A required approving review is allowed: the report then says that a person approves each pull request on GitHub before Loupe merges it. When the repository has CI, the rules require one of its checks. When GitHub can enforce no rules, the check passes, and the report says that only Loupe enforces the agent review, and what makes rulesets available. The finding says who approves a merge on the repository and what enforces it. Each setting that fails is an action for the owner, and the action names the change"
                   - "Conflict check: merge method. The repository and the rules of the base branch allow squash, merge or rebase"
                   - "Conflict check: merge queue. No merge queue holds a merge that this rule or the merge stage expects to finish at once"
 
@@ -1031,8 +1041,8 @@ markers:
                     any:
                         - card.run.work_active: { kind: fix }
                         - card.run.worker_active: { kind: fix }
-                        - card.run.work_active: { kind: repair }
-                        - card.run.worker_active: { kind: repair }
+                        - card.run.work_active: { kind: recover }
+                        - card.run.worker_active: { kind: recover }
                         - card.rule.retry_scheduled: {}
     - key: conflicting
       kind: stuck
@@ -1046,8 +1056,8 @@ markers:
                     any:
                         - card.run.work_active: { kind: fix }
                         - card.run.worker_active: { kind: fix }
-                        - card.run.work_active: { kind: repair }
-                        - card.run.worker_active: { kind: repair }
+                        - card.run.work_active: { kind: recover }
+                        - card.run.worker_active: { kind: recover }
     - key: ready-not-merged
       kind: stuck
       label: marker.ready_not_merged

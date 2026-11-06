@@ -51,6 +51,9 @@ final readonly class GitHubRepositoryCheckLines
         $branch = $settings->defaultBranch ?? $this->translator->trans(self::KEY_PREFIX.'default_branch');
 
         $lines = [];
+        if (null !== $settings?->rulesUnavailable) {
+            $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'rules_unavailable.title', [], self::KEY_PREFIX.'rules_unavailable.detail', ['%message%' => $settings->rulesUnavailable]);
+        }
         foreach ($check->items as $item) {
             if (ForgeRepositoryCheck::STATE_FITS === $item['state']) {
                 $lines[] = $this->fitsLine($item['key'], $settings, $branch);
