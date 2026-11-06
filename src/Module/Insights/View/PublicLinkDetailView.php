@@ -15,6 +15,8 @@ final readonly class PublicLinkDetailView
         public InsightsSavedGraph $graph,
         /** Carries the numbered series names. */
         public ?DashboardGraphResult $result,
+        /** The code in the address, which the admin bar names. */
+        public string $code,
     ) {
     }
 }

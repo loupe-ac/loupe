@@ -2,6 +2,16 @@
 
 {% block title %}{{ 'analytics.public.title'|trans({'%graph%': view.graph.name, '%project%': view.project.name}) }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block public_bar %}
+    {% set takedownUrl = public_link_takedown_url(view.code) %}
+    {% if takedownUrl is not null %}
+        <div class="lp-public__admin-bar" data-admin-bar>
+            <span>{{ 'insights.public_link.admin_bar.text'|trans }}</span>
+            <twig:Ds:Button variant="outline" size="sm" href="{{ takedownUrl }}" data-turbo="false">{{ 'insights.public_link.admin_bar.action'|trans }}</twig:Ds:Button>
+        </div>
+    {% endif %}
+{% endblock %}
+
 {% block public_body %}
     {% set computedAt = view.result ? view.result.computedAt : null %}
     <div class="lp-public__item" data-controller="dashboard-age" data-dashboard-age-now-value="{{ date().timestamp }}" data-dashboard-age-text-value="{{ 'analytics.dashboard.updated'|trans({'%minutes%': '%minutes%'}) }}">

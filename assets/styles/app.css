@@ -7809,6 +7809,10 @@
     .lp-public__made-with {
         @apply text-fg-mute underline-offset-2 hover:text-fg hover:underline;
     }
+    /* The bar an admin sees on a shared page, above the item. */
+    .lp-public__admin-bar {
+        @apply flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-3 px-6 py-2 text-sm text-fg-mute;
+    }
     .lp-dashboard-notice {
         @apply mx-0 mt-4;
     }

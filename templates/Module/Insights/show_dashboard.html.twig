@@ -15,6 +15,10 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'dashboard'} only %}
 
+    {% if view.publicLinksTakenDown %}
+        <twig:Ds:Flash severity="warning" class="lp-dashboard-notice" data-public-links-taken-down>{{ 'insights.public_link.dashboard.taken_down'|trans }}</twig:Ds:Flash>
+    {% endif %}
+
     {% if view.removed is not null %}
         <twig:Ds:Flash severity="success" class="lp-dashboard-notice">
             <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_undo', {id: project.id, graphId: view.removed.id}) }}" token="insights-dashboard-graph-undo" class="lp-dashboard-undo" data-dashboard-undo>

@@ -437,6 +437,9 @@ The link shows "not found", the same page as an unknown address, in these cases:
   the graph is gone for good, the link is gone too.
 - You deleted the project.
 - An operator switched public links off for the instance.
+- An admin took down the public links of your project. The share dialog and the
+  Dashboard say so, and the switch is disabled. Your switches stay as they are,
+  so the links that were on work again when an admin lifts the takedown.
 
 The `insights.public_links.enabled` feature flag switches public links on or off
 for the whole instance. It is on by default. An operator changes it at

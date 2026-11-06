@@ -7,14 +7,11 @@ namespace App\Tests\Module\Insights\Service;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
-use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\GraphShareStates;
 use App\Module\Insights\Service\PublicShareBlock;
-use App\Module\Insights\Service\PublicShareGuard;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class GraphShareStatesTest extends KernelTestCase
@@ -80,14 +77,30 @@ final class GraphShareStatesTest extends KernelTestCase
         self::assertFalse($state->isPublic());
     }
 
+    public function test_a_takedown_blocks_the_share_but_keeps_the_action_and_the_owner_switch(): void
+    {
+        $project = $this->scenarioProject('states-takedown');
+        $graph = $this->seedSavedGraph($project);
+        $this->em()->persist(PublicLink::forGraph($graph));
+        $this->em()->flush();
+        $this->seedTakedown($project);
+
+        $state = $this->states()->for($graph);
+        $all = $this->states()->forGraphs($project, [$graph]);
+
+        self::assertSame(PublicShareBlock::TakenDown, $state->block);
+        self::assertSame(PublicShareBlock::TakenDown, $all[(string) $graph->id]->block);
+        self::assertTrue($state->isAvailable());
+        self::assertTrue($state->isEnabled());
+        self::assertFalse($state->isPublic());
+    }
+
     private function states(): GraphShareStates
     {
-        $links = self::getContainer()->get(PublicLinkRepository::class);
-        self::assertInstanceOf(PublicLinkRepository::class, $links);
-        $featureFlags = self::getContainer()->get(FeatureFlagService::class);
-        self::assertInstanceOf(FeatureFlagService::class, $featureFlags);
+        $states = self::getContainer()->get(GraphShareStates::class);
+        self::assertInstanceOf(GraphShareStates::class, $states);
 
-        return new GraphShareStates($links, new PublicShareGuard($featureFlags));
+        return $states;
     }
 
     /** @return list<InsightsSavedGraph> */

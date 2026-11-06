@@ -1,10 +1,11 @@
 {# The frame of a shared item: the site bar, the page body and the site footer, for every visitor.
-   It does not extend base.html.twig, whose signed-in branch draws the app frame. A page fills block public_body. #}
+   It does not extend base.html.twig, whose signed-in branch draws the app frame. A page fills block public_body, and may fill block public_bar for a bar above it. #}
 {% extends 'layout_base.html.twig' %}
 
 {% block page %}
 <div class="lp-home">
     {% include '@Landing/landing/_nav.html.twig' only %}
+    {% block public_bar %}{% endblock %}
     <main id="main-content" class="lp-public" tabindex="-1">
         <div class="lp-public__inner">{% block public_body %}{% endblock %}</div>
     </main>
