@@ -195,6 +195,12 @@ when@test:
         App\Tests\Support\HideDebugErrorPage:
             autoconfigure: true
 
+        # In the CLI runtime mode the default renderer dumps the exception, and
+        # that dump ignores the listener above. Render the visitor page in
+        # every mode, so a test never depends on which mode its process has.
+        error_renderer.default:
+            alias: 'error_renderer.html'
+
         # The export storage is private. Tests seed and assert on archives
         # through it rather than poking at var/exports, so that they keep
         # passing whichever adapter EXPORT_STORAGE selects.
