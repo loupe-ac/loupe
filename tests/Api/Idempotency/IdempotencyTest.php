@@ -178,8 +178,7 @@ final class IdempotencyTest extends KernelTestCase
         $get = Request::create(self::URL, Request::METHOD_GET, server: ['HTTP_IDEMPOTENCY_KEY' => 'k']);
         $none = Request::create(self::URL, Request::METHOD_POST);
         $private = Request::create('https://loupe.test/api/v1/bridge/bridges/x/heartbeat', Request::METHOD_POST, server: ['HTTP_IDEMPOTENCY_KEY' => 'k']);
-        $old = Request::create('https://loupe.test/api/projects', Request::METHOD_POST, server: ['HTTP_IDEMPOTENCY_KEY' => 'k']);
-        foreach ([$get, $none, $private, $old] as $request) {
+        foreach ([$get, $none, $private] as $request) {
             $listener($this->requestEvent($request));
         }
         $this->tokens->setToken(null);

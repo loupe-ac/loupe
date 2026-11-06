@@ -29,8 +29,8 @@ final class PreviewTokenApiTest extends WebTestCase
     /** @return iterable<string, array{string, string}> */
     public static function routes(): iterable
     {
-        yield 'mint' => [Request::METHOD_POST, '/api/projects/some-site/preview-tokens'];
-        yield 'revoke' => [Request::METHOD_DELETE, '/api/projects/some-site/preview-tokens/pr-12'];
+        yield 'mint' => [Request::METHOD_POST, '/api/v1/bridge/projects/some-site/preview-tokens'];
+        yield 'revoke' => [Request::METHOD_DELETE, '/api/v1/bridge/projects/some-site/preview-tokens/pr-12'];
     }
 
     #[DataProvider('routes')]
@@ -64,7 +64,7 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertEqualsWithDelta(time() + 14 * 86400, new \DateTimeImmutable($body['expiresAt'])->getTimestamp(), 60);
         self::assertSame(1, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM oauth_preview_tokens WHERE label = 'pr-12'"));
 
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $body['token']);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $body['token']);
         self::assertResponseIsSuccessful();
     }
 
@@ -75,11 +75,11 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertNull($this->connection->fetchOne('SELECT last_used_at FROM oauth_preview_tokens WHERE access_token_id = :id', ['id' => $id]));
 
         $previewJwt = $this->mintJwt();
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $previewJwt);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $previewJwt);
         self::assertResponseIsSuccessful();
         self::assertNotNull($this->connection->fetchOne('SELECT last_used_at FROM oauth_preview_tokens WHERE access_token_id = :id', ['id' => self::tokenIdOf($previewJwt)]));
 
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $preview);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $preview);
         self::assertResponseIsSuccessful();
         self::assertSame(2, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
@@ -103,9 +103,9 @@ final class PreviewTokenApiTest extends WebTestCase
         $this->call(Request::METHOD_POST, $path, $agent, '{"label":"pr-12"}');
         $second = $this->json()['token'];
 
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $first);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $first);
         self::assertResponseStatusCodeSame(401);
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $second);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $second);
         self::assertResponseIsSuccessful();
     }
 
@@ -117,7 +117,7 @@ final class PreviewTokenApiTest extends WebTestCase
         $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12"}');
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'project_not_found'], $this->json());
+        self::assertSame('project_not_found', $this->json()['code']);
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
 
@@ -128,7 +128,7 @@ final class PreviewTokenApiTest extends WebTestCase
         $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.Uuid::v7().'"}');
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'card_not_found'], $this->json());
+        self::assertSame('card_not_found', $this->json()['code']);
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
 
@@ -139,7 +139,7 @@ final class PreviewTokenApiTest extends WebTestCase
         $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.$this->cardOf($this->project, finished: true).'"}');
 
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['error' => 'card_finished'], $this->json());
+        self::assertSame('card_finished', $this->json()['code']);
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
 
@@ -173,7 +173,7 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(['revoked' => 1], $this->json());
 
-        $this->call(Request::METHOD_GET, '/api/live-review/review', $token);
+        $this->call(Request::METHOD_GET, '/api/v1/live-review-widget/review', $token);
         self::assertResponseStatusCodeSame(401);
 
         $this->call(Request::METHOD_DELETE, $this->mintPath((string) $this->project->id).'/pr%2012', $agent);
@@ -221,7 +221,7 @@ final class PreviewTokenApiTest extends WebTestCase
 
     private function mintPath(string $handle): string
     {
-        return '/api/projects/'.rawurlencode($handle).'/preview-tokens';
+        return '/api/v1/bridge/projects/'.rawurlencode($handle).'/preview-tokens';
     }
 
     private function call(string $method, string $path, string $token, ?string $body = null): void

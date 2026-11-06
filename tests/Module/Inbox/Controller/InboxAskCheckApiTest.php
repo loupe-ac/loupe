@@ -91,7 +91,7 @@ final class InboxAskCheckApiTest extends WebTestCase
         $this->check($this->agentToken($owner), (string) $project->id, (string) $ask->id);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'ask_not_found'], $this->body());
+        self::assertSame('ask_not_found', $this->body()['code'] ?? null);
     }
 
     public function test_an_unknown_ask_is_not_found(): void
@@ -102,7 +102,7 @@ final class InboxAskCheckApiTest extends WebTestCase
         $this->check($this->agentToken($owner), (string) $project->id, (string) Uuid::v4());
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'ask_not_found'], $this->body());
+        self::assertSame('ask_not_found', $this->body()['code'] ?? null);
     }
 
     public function test_another_users_project_is_not_found(): void
@@ -115,7 +115,7 @@ final class InboxAskCheckApiTest extends WebTestCase
         $this->check($this->agentToken($caller), (string) $theirProject->id, (string) $ask->id);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'project_not_found'], $this->body());
+        self::assertSame('project_not_found', $this->body()['code'] ?? null);
     }
 
     public function test_it_is_absent_while_the_inbox_is_switched_off(): void
@@ -150,7 +150,7 @@ final class InboxAskCheckApiTest extends WebTestCase
         $this->check($raw, (string) $project->id, (string) $ask->id);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame(['error' => 'insufficient_scope'], $this->body());
+        self::assertSame('credential_not_allowed', $this->body()['code']);
     }
 
     public function test_an_mcp_token_is_refused_by_the_firewall(): void
@@ -263,7 +263,7 @@ final class InboxAskCheckApiTest extends WebTestCase
 
     private function path(string $handle, string $askId): string
     {
-        return '/api/projects/'.rawurlencode($handle).'/inbox/asks/'.$askId;
+        return '/api/v1/bridge/projects/'.rawurlencode($handle).'/inbox/asks/'.$askId;
     }
 
     private function check(string $raw, string $handle, string $askId, string $ip = '127.0.0.1'): void

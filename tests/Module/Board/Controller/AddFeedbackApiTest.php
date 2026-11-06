@@ -116,7 +116,7 @@ final class AddFeedbackApiTest extends WebTestCase
         $data = $this->post($client, $raw, $this->note(['cardId' => (string) $done->id]));
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'target_closed'], $data);
+        self::assertSame('target_closed', $data['code'] ?? null);
     }
 
     /** @return iterable<string, array{mixed}> */
@@ -151,7 +151,7 @@ final class AddFeedbackApiTest extends WebTestCase
         $client = static::createClient();
         [$raw] = $this->projectWithToken($client, 'feedback-api-cors@example.com');
 
-        $client->request(Request::METHOD_OPTIONS, '/api/board/feedback', server: ['HTTP_ORIGIN' => 'https://app.localhost']);
+        $client->request(Request::METHOD_OPTIONS, '/api/v1/live-review-widget/feedback', server: ['HTTP_ORIGIN' => 'https://app.localhost']);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('https://app.localhost', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
 
@@ -248,7 +248,7 @@ final class AddFeedbackApiTest extends WebTestCase
         $data = $this->post($client, $raw, $this->nativeNote(['screenshot' => $screenshot]));
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => $error], $data);
+        self::assertSame($error, $data['code'] ?? null);
         self::assertCount(0, $this->service(CardRepository::class)->findBy(['project' => $project]));
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots'));
     }
@@ -292,18 +292,18 @@ final class AddFeedbackApiTest extends WebTestCase
         $web = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
         $native = $this->post($client, $raw, $this->nativeNote());
 
-        $ids = fn (string $query): array => array_column($this->get($client, $raw, '/api/live-review/review'.$query)['comments'] ?? [], 'id');
+        $ids = fn (string $query): array => array_column($this->get($client, $raw, '/api/v1/live-review-widget/review'.$query)['comments'] ?? [], 'id');
 
         self::assertSame([$web['commentId']], $ids(''));
         self::assertSame([$web['commentId']], $ids('?surface=web'));
         self::assertSame([$native['commentId']], $ids('?surface=ios-simulator'));
-        $listed = $this->get($client, $raw, '/api/live-review/review?surface=ios-simulator')['comments'][0];
+        $listed = $this->get($client, $raw, '/api/v1/live-review-widget/review?surface=ios-simulator')['comments'][0];
         self::assertNull($listed['url']);
         self::assertSame('ios-simulator', $listed['surface']);
         self::assertSame('com.example.treadmatic', $listed['native']['app']['bundleId']);
         self::assertSame([], $listed['anchors']);
 
-        $this->get($client, $raw, '/api/live-review/review?surface=android');
+        $this->get($client, $raw, '/api/v1/live-review-widget/review?surface=android');
         self::assertResponseStatusCodeSame(422);
     }
 
@@ -313,7 +313,7 @@ final class AddFeedbackApiTest extends WebTestCase
         [$raw] = $this->projectWithToken($client, 'feedback-api-list-legacy@example.com');
         $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
 
-        $listed = $this->get($client, $raw, '/api/live-review/review')['comments'][0];
+        $listed = $this->get($client, $raw, '/api/v1/live-review-widget/review')['comments'][0];
 
         self::assertArrayNotHasKey('selector', $listed);
         self::assertArrayNotHasKey('text', $listed);
@@ -377,7 +377,7 @@ final class AddFeedbackApiTest extends WebTestCase
      */
     private function post(KernelBrowser $client, string $raw, array $json): array
     {
-        $client->request(Request::METHOD_POST, '/api/board/feedback',
+        $client->request(Request::METHOD_POST, '/api/v1/live-review-widget/feedback',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'CONTENT_TYPE' => 'application/json', 'HTTP_ORIGIN' => 'https://app.localhost'],
             content: json_encode($json, \JSON_THROW_ON_ERROR));
 

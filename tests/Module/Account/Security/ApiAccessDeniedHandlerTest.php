@@ -11,7 +11,7 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 final class ApiAccessDeniedHandlerTest extends TestCase
 {
-    public function test_a_current_api_path_gets_a_credential_not_allowed_problem(): void
+    public function test_an_api_path_gets_a_credential_not_allowed_problem(): void
     {
         $response = new ApiAccessDeniedHandler()->handle(Request::create('/api/v1/bridge/card-holds'), new AccessDeniedException());
 
@@ -24,13 +24,5 @@ final class ApiAccessDeniedHandlerTest extends TestCase
         self::assertSame('Credential not allowed', $body['title']);
         self::assertSame(403, $body['status']);
         self::assertNotSame('', $body['detail']);
-    }
-
-    public function test_an_old_api_path_keeps_insufficient_scope(): void
-    {
-        $response = new ApiAccessDeniedHandler()->handle(Request::create('/api/live-review/comments'), new AccessDeniedException());
-
-        self::assertSame(403, $response->getStatusCode());
-        self::assertSame('{"error":"insufficient_scope"}', $response->getContent());
     }
 }

@@ -430,7 +430,6 @@ final class SentryEventScrubberTest extends TestCase
         yield 'coded 404 on a public route' => [new ApiProblemException(new ApiProblem(404, 'card_not_found', 'Card not found', 'No card.')), '/api/v1/projects/x/cards/9'];
         yield 'coded 422 on a public route' => [ApiProblemException::validationFailed([]), '/api/v1/projects/x/cards'];
         yield 'coded 4xx on a bridge route' => [new ApiProblemException(new ApiProblem(409, 'card_closed', 'Closed', 'Closed.')), '/api/v1/bridge/heartbeat'];
-        yield 'coded 4xx on an old path' => [new ApiProblemException(new ApiProblem(403, 'x', 'X', 'Y')), '/api/projects'];
         yield 'framework rate limit' => [new TooManyRequestsHttpException(30), '/api/v1/bridge/heartbeat'];
         yield 'framework refused body' => [new HttpException(422), '/api/v1/projects/x/cards'];
     }

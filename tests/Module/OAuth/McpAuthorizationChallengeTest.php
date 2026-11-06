@@ -64,11 +64,13 @@ final class McpAuthorizationChallengeTest extends WebTestCase
 
     public function test_the_api_keeps_its_plain_401(): void
     {
-        $this->browser->request(Request::METHOD_GET, '/api/projects');
+        $this->browser->request(Request::METHOD_GET, '/api/v1/bridge/projects');
 
         self::assertResponseStatusCodeSame(401);
         self::assertFalse($this->browser->getResponse()->headers->has('WWW-Authenticate'));
-        self::assertSame('{"error":"unauthorized"}', $this->browser->getResponse()->getContent());
+        $body = json_decode((string) $this->browser->getResponse()->getContent(), true);
+        self::assertIsArray($body);
+        self::assertSame('invalid_credentials', $body['code']);
     }
 
     #[DataProvider('metadataPaths')]

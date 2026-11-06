@@ -58,12 +58,6 @@ use Symfony\Contracts\Translation\TranslatorInterface;
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]
-#[Route(
-    '/api/projects/{handle}/artifacts',
-    name: 'api_legacy_project_artifact_store',
-    requirements: ['handle' => '[^/]+'],
-    methods: ['POST'],
-)]
 final class StoreArtifactVersionController extends AppController
 {
     public const string SESSION_HEADER = 'X-Loupe-Session';

@@ -39,11 +39,6 @@ use Symfony\Component\Uid\Uuid;
     name: 'api_site_review_comment_resolve',
     methods: ['POST'],
 )]
-#[Route(
-    '/api/live-review/comments/{id}/resolve',
-    name: 'api_legacy_site_review_comment_resolve',
-    methods: ['POST'],
-)]
 final class ResolveCommentController extends AppController
 {
     public function __construct(

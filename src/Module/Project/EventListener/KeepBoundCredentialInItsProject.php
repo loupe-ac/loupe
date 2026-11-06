@@ -22,7 +22,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 
 /**
  * Keeps a credential bound to one project inside that project on every
- * `/api/projects/{handle}` route. It answers the 404 a route gives for a
+ * `/api/v1/bridge/projects/{handle}` route. It answers the 404 a route gives for a
  * project the caller does not own. Refusals spend their own rate limit, because
  * a controller attribute limit only runs after this listener.
  */
@@ -49,7 +49,7 @@ final readonly class KeepBoundCredentialInItsProject
         $request = $event->getRequest();
         $handle = $request->attributes->get('handle');
         $path = $request->getPathInfo();
-        if (!\is_string($handle) || !(str_starts_with($path, '/api/projects/') || str_starts_with($path, '/api/v1/bridge/projects/'))) {
+        if (!\is_string($handle) || !str_starts_with($path, '/api/v1/bridge/projects/')) {
             return;
         }
 

@@ -59,12 +59,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
     methods: ['POST'],
 )]
-#[Route(
-    '/api/bridges/{bridgeId}/work-requests/{workRequestId}/claim',
-    name: 'api_legacy_bridge_work_request_claim',
-    requirements: ['bridgeId' => Requirement::UUID, 'workRequestId' => Requirement::UUID],
-    methods: ['POST'],
-)]
 final class ClaimWorkRequestController extends AppController
 {
     public function __construct(

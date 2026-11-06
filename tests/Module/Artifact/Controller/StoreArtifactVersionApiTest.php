@@ -149,22 +149,10 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['a.html']], ['a.html' => 'a']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('Artifacts are switched off', $this->json($client)['errors']['artifacts']);
-        self::assertSame(0, $this->artifactRepository()->count([]));
-    }
-
-    public function test_the_bridge_path_answers_a_refusal_as_a_map_of_field_to_reason(): void
-    {
-        $client = static::createClient();
-        $project = $this->project($this->em(), 'route-map@example.com', 'Artifacts');
-        $token = $this->token($project);
-
-        $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['a.html']], ['a.html' => 'a'], prefix: '/api/v1/bridge');
-
-        self::assertResponseStatusCodeSame(422);
         $body = $this->json($client);
         self::assertSame('artifact_refused', $body['code']);
         self::assertSame(['artifacts' => 'Artifacts are switched off'], $body['errors']);
+        self::assertSame(0, $this->artifactRepository()->count([]));
     }
 
     public function test_it_refuses_a_store_from_a_worker_session(): void
@@ -207,7 +195,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['../a.html']], ['a.html' => 'a']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('artifact_refused', $this->json($client)['error']);
+        self::assertSame('artifact_refused', $this->json($client)['code']);
         self::assertArrayHasKey('files', $this->json($client)['errors']);
     }
 
@@ -220,7 +208,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['Main.dc.html', 'support.js']], ['Main.dc.html' => '<x-dc></x-dc>', 'support.js' => 'x']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('artifact_refused', $this->json($client)['error']);
+        self::assertSame('artifact_refused', $this->json($client)['code']);
         self::assertSame(
             'A .dc.html file is a Design canvas, and it does not render outside claude.ai. Push it with loupe artifact push, which compiles the canvas to plain HTML.',
             $this->json($client)['errors']['files'],
@@ -320,7 +308,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
      * @param array<string, mixed>  $fields
      * @param array<string, string> $contentsByName file contents; the key only names the temp file
      */
-    private function post(KernelBrowser $client, Project $project, ?string $token, array $fields, array $contentsByName, ?string $session = null, string $prefix = '/api'): void
+    private function post(KernelBrowser $client, Project $project, ?string $token, array $fields, array $contentsByName, ?string $session = null): void
     {
         $files = [];
         foreach ($contentsByName as $name => $contents) {
@@ -339,7 +327,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
             $server['HTTP_X_LOUPE_SESSION'] = $session;
         }
 
-        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, \sprintf('%s/projects/%s/artifacts', $prefix, $project->id), $fields, ['files' => $files], $server);
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_POST, \sprintf('/api/v1/bridge/projects/%s/artifacts', $project->id), $fields, ['files' => $files], $server);
     }
 
     /** @return array<string, mixed> */

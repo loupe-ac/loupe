@@ -55,12 +55,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['handle' => '[^/]+', 'askId' => Requirement::UUID],
     methods: ['GET'],
 )]
-#[Route(
-    '/api/projects/{handle}/inbox/asks/{askId}',
-    name: 'api_legacy_project_inbox_ask_check',
-    requirements: ['handle' => '[^/]+', 'askId' => Requirement::UUID],
-    methods: ['GET'],
-)]
 final class CheckInboxAskController extends AppController
 {
     public function __construct(

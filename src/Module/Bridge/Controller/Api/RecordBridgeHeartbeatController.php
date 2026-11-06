@@ -62,12 +62,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['bridgeId' => Requirement::UUID],
     methods: ['PUT'],
 )]
-#[Route(
-    '/api/bridges/{bridgeId}/heartbeat',
-    name: 'api_legacy_bridge_heartbeat',
-    requirements: ['bridgeId' => Requirement::UUID],
-    methods: ['PUT'],
-)]
 final class RecordBridgeHeartbeatController extends AppController
 {
     public function __construct(
