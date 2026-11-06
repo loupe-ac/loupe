@@ -136,6 +136,15 @@ every failure, including ones that pre-date the change. `just ci` is the full
 check-only run in one command. A person can run it in a terminal, and a hook
 refuses it for an agent.
 
+The `prod-image` job builds the production image with `just build-prod`, on
+each push to `main`. It is no required check. The `build` stage of
+`docker/prod/Dockerfile` runs `bin/console app:check-controller-attributes`
+after the cache warm-up. The command creates every attribute of every routed
+controller, as a request would, and fails on a class that the image lacks. It
+fails when the router finds no controller too. A deploy from your machine runs
+the same step. To prove it, add `#[\Gone\NotInstalled]` to a controller class
+and run `just build-prod`. The build must stop at that step.
+
 **e2e runs against a dedicated target, never the dev host.** `just e2e-up`
 creates a disposable database and a sidecar serving this checkout; `just e2e`
 refuses to start without it. The suite is destructive by design — one project
