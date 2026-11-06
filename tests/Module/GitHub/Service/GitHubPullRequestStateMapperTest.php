@@ -264,26 +264,49 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->review);
     }
 
-    /** @return iterable<string, array{?string, list<string>, PullRequestReview}> */
+    /** @return iterable<string, array{?string, list<string>, PullRequestReview, bool}> */
     public static function latestOpinionatedReviews(): iterable
     {
-        yield 'no decision and an approval' => [null, ['APPROVED'], PullRequestReview::Approved];
-        yield 'no decision, a change request and an approval' => [null, ['APPROVED', 'CHANGES_REQUESTED'], PullRequestReview::ChangesRequested];
-        yield 'no decision and only comments or dismissals' => [null, ['COMMENTED', 'DISMISSED'], PullRequestReview::None];
-        yield 'no decision and no reviews' => [null, [], PullRequestReview::None];
-        yield 'a decision ignores the reviews' => ['REVIEW_REQUIRED', ['APPROVED'], PullRequestReview::Required];
-        yield 'an approval decision ignores a change request' => ['APPROVED', ['CHANGES_REQUESTED'], PullRequestReview::Approved];
+        yield 'no decision and an approval' => [null, ['APPROVED'], PullRequestReview::Approved, false];
+        yield 'no decision, a change request and an approval' => [null, ['APPROVED', 'CHANGES_REQUESTED'], PullRequestReview::ChangesRequested, false];
+        yield 'no decision and only comments or dismissals' => [null, ['COMMENTED', 'DISMISSED'], PullRequestReview::None, false];
+        yield 'no decision and no reviews' => [null, [], PullRequestReview::None, false];
+        yield 'a decision ignores the reviews' => ['REVIEW_REQUIRED', ['APPROVED'], PullRequestReview::Required, true];
+        yield 'an approval decision ignores a change request' => ['APPROVED', ['CHANGES_REQUESTED'], PullRequestReview::Approved, true];
+        yield 'a change request decision comes from the rules' => ['CHANGES_REQUESTED', ['CHANGES_REQUESTED'], PullRequestReview::ChangesRequested, true];
     }
 
     /** @param list<string> $states */
     #[DataProvider('latestOpinionatedReviews')]
-    public function test_without_a_review_decision_the_latest_opinionated_reviews_decide(?string $decision, array $states, PullRequestReview $expected): void
+    public function test_without_a_review_decision_the_latest_opinionated_reviews_decide(?string $decision, array $states, PullRequestReview $expected, bool $fromRules): void
     {
         $node = self::pullRequest604();
         $node['reviewDecision'] = $decision;
         $node['latestOpinionatedReviews'] = ['nodes' => array_map(static fn (string $state): array => ['state' => $state], $states)];
 
-        self::assertSame($expected, self::mapper()->map($node, self::rules604(), null)->review);
+        $snapshot = self::mapper()->map($node, self::rules604(), null);
+        self::assertSame($expected, $snapshot->review);
+        self::assertSame($fromRules, $snapshot->reviewFromRules);
+    }
+
+    /** @return iterable<string, array{string, bool, string, bool}> */
+    public static function changeRequestRules(): iterable
+    {
+        yield 'a ruleset that requires a review' => ['CHANGES_REQUESTED', true, 'CLEAN', true];
+        yield 'a merge that GitHub blocks, as classic branch protection does' => ['CHANGES_REQUESTED', false, 'BLOCKED', true];
+        yield 'an optional change request on a mergeable pull request' => ['CHANGES_REQUESTED', false, 'CLEAN', false];
+        yield 'a required review always comes from the rules' => ['REVIEW_REQUIRED', false, 'CLEAN', true];
+    }
+
+    #[DataProvider('changeRequestRules')]
+    public function test_a_review_decision_counts_as_a_rule_only_when_a_rule_backs_it(string $decision, bool $rulesetRequiresReview, string $mergeStateStatus, bool $expected): void
+    {
+        $node = self::pullRequest604();
+        $node['reviewDecision'] = $decision;
+        $node['mergeStateStatus'] = $mergeStateStatus;
+        $rules = new GitHubBranchRules(self::rules604()->requiredChecks, false, $rulesetRequiresReview);
+
+        self::assertSame($expected, self::mapper()->map($node, $rules, null)->reviewFromRules);
     }
 
     public function test_a_node_without_latest_opinionated_reviews_has_no_review(): void

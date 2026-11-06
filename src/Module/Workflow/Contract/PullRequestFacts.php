@@ -29,6 +29,7 @@ final readonly class PullRequestFacts
      * @param bool               $approvalCheckPassed Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
      * @param bool               $canPostCheck        the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
      * @param bool               $mergeBlocked        the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $reviewRequired      the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
      */
     public function __construct(
         public PullRequestState $state,
@@ -60,6 +61,7 @@ final readonly class PullRequestFacts
         public bool $approvalCheckPassed = false,
         public bool $canPostCheck = false,
         public bool $mergeBlocked = false,
+        public bool $reviewRequired = false,
     ) {
     }
 
@@ -127,6 +129,7 @@ final readonly class PullRequestFacts
             $this->behind,
             $this->approvalsCoveringHead,
             $this->changesRequested,
+            $this->reviewRequired,
             $this->baseIsMergeTarget,
             $this->baseIsEpicBranch,
             $this->stacked,

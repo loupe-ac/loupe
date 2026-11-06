@@ -1,5 +1,5 @@
 key: lifecycle
-version: 41
+version: 42
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
@@ -695,6 +695,7 @@ rules:
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
               - not: { pr.behind: {} }
+              - not: { pr.review_required: {} }
               - any:
                     - agent_review.passed: {}
                     - agent_review.overridden: {}
@@ -704,7 +705,7 @@ rules:
               methods: [squash, merge, rebase]
               fallback: merge
               checks:
-                  - "Conflict check: branch rules. The base branch has a pull request rule, requires the check Loupe / Approval from the Loupe App, requires no approving review, requires a check that is not a Loupe check, and forbids force pushes and deletion"
+                  - "Conflict check: branch rules. When GitHub can enforce rules on the base branch, through rulesets or classic branch protection, they require the check Loupe / Approval from the Loupe App, and they forbid force pushes and deletion. A required approving review is allowed: the report then says that a person approves each pull request on GitHub before Loupe merges it. When the repository has CI, the rules require one of its checks. When GitHub can enforce no rules, the check passes, and the report says that only Loupe enforces the agent review, and what makes rulesets available"
                   - "Conflict check: merge method. The repository and the rules of the base branch allow squash, merge or rebase"
                   - "Conflict check: merge queue. No merge queue holds a merge that this rule or the merge stage expects to finish at once"
 
