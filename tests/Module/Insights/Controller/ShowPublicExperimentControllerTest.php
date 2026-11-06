@@ -65,6 +65,9 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-public-experiment-panel] .lp-experiment-heading__name');
         self::assertSelectorTextContains('.lp-public__meta', 'Updated 0 min ago');
         self::assertSelectorTextContains('.lp-public__meta a.lp-public__made-with', 'Made with Loupe');
+        $stamp = $client->getCrawler()->filter('[data-controller~="dashboard-age"] [data-public-experiment]')->attr('data-computed-at');
+        self::assertIsNumeric($stamp, 'The age line hides itself when the item gives it no data-computed-at.');
+        self::assertEqualsWithDelta(time(), (int) $stamp, 120);
     }
 
     public function test_the_page_has_no_tabs_no_cards_link_no_analyse_button_and_no_unknown_metrics_list(): void

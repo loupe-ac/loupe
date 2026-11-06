@@ -3,7 +3,7 @@
    Props: experiment (PublicExperimentResult), noteHtml (sanitized HTML or null). #}
 {% set headline = experiment.headline %}
 {% set text = experiment_headline_text() %}
-<div class="lp-public__experiment" data-public-experiment>
+<div class="lp-public__experiment" data-public-experiment data-computed-at="{{ experiment.computedAt.timestamp }}">
     <h2 class="lp-experiment-heading__name">{{ experiment.experiment }}</h2>
     <twig:Ds:Panel class="lp-public__panel" data-public-experiment-panel>
         {% if noteHtml is not null %}
