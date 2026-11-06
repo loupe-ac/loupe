@@ -17,6 +17,7 @@ use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\HumanReviewFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
+use App\Module\Board\Workflow\WorkAtHeadFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
@@ -630,15 +631,16 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $slot = 'fix-in-review' === $id ? 'in-review' : 'implementation';
         $rule = $this->ruleOf($slot, $id);
+        $id7 = Uuid::v7();
         $moved = FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, headSha: 'bbb2222', number: 7),
-            provided: [WorkRequestFacts::class => new WorkRequestFacts(['fix'], [], ['fix'], [], ['fix' => [['number' => 7, 'headSha' => 'aaa1111']]])],
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, id: $id7, headSha: 'bbb2222', number: 7),
+            provided: [WorkAtHeadFacts::class => new WorkAtHeadFacts([], [$id7->toRfc4122() => 'bbb2222'], [$id7->toRfc4122() => ['fix']])],
         );
         $same = FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, headSha: 'aaa1111', number: 7),
-            provided: [WorkRequestFacts::class => new WorkRequestFacts(['fix'], [], ['fix'], [], ['fix' => [['number' => 7, 'headSha' => 'aaa1111']]])],
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, id: $id7, headSha: 'aaa1111', number: 7),
+            provided: [WorkAtHeadFacts::class => new WorkAtHeadFacts([], [$id7->toRfc4122() => 'aaa1111'])],
         );
 
         self::assertNotNull($rule->lead->cancelWhen);

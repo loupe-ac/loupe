@@ -34,6 +34,7 @@ use App\Module\Board\Service\AgentReviewComment;
 use App\Module\Board\Service\ApprovalCheckPublisher;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\FixRunCommentQueue;
+use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Board\Service\SiteReviewCheckPublisher;
 use App\Module\Board\Service\StaleApprovalNoticeQueue;
 use App\Module\Board\Service\VerdictReviewSettler;
@@ -1381,7 +1382,7 @@ final class ForgeWriteTest extends KernelTestCase
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
         $action = new ForgeWrite(
             $this->service(CardRepository::class),
-            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests, $this->service(FactsPass::class)),
+            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests, $this->service(FactsPass::class), $this->service(PullRequestUrlResolver::class)),
             $this->service(EpicBranches::class),
             new ForgePullRequestWrites(
                 new PullRequestMergers($registered),

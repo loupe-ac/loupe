@@ -78,7 +78,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.run.stopped' => 'workflow.source.bridge',
         'card.run.waits_on_answer' => 'workflow.source.inbox',
         'card.run.work_active' => 'workflow.source.bridge',
-        'card.run.work_head_moved' => 'workflow.source.bridge',
+        'card.run.work_head_moved' => 'workflow.source.board',
         'card.run.work_no_capable_taker' => 'workflow.source.bridge',
         'card.run.work_no_taker' => 'workflow.source.bridge',
         'card.run.work_open' => 'workflow.source.bridge',

@@ -12,7 +12,6 @@ use App\Module\Bridge\Workflow\Condition\RunFinishedWith;
 use App\Module\Bridge\Workflow\Condition\RunLastRefusal;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Bridge\Workflow\Condition\RunWorkerActive;
-use App\Module\Bridge\Workflow\Condition\RunWorkHeadMoved;
 use App\Module\Bridge\Workflow\Condition\RunWorkOpen;
 use App\Module\Bridge\Workflow\LatestWorkFacts;
 use App\Module\Bridge\Workflow\ParentWorkFacts;
@@ -55,14 +54,6 @@ final class RunConditionsTest extends TestCase
         yield 'worker active, origin rule, a rule started it' => [new RunWorkerActive(), ['origin' => 'rule', 'kind' => 'fix'], self::withOrigins(workers: new WorkerRunFacts(['fix', 'resume'], [], ['fix'], [])), true];
         yield 'worker active, origin rule, that kind by a person' => [new RunWorkerActive(), ['origin' => 'rule', 'kind' => 'resume'], self::withOrigins(workers: new WorkerRunFacts(['fix', 'resume'], [], ['fix'], [])), false];
         yield 'worker active, no origin, only a person started it' => [new RunWorkerActive(), [], self::withOrigins(workers: new WorkerRunFacts(['product-design'], [], [], [])), true];
-
-        yield 'head moved, the request named the old head' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['fix' => [['number' => 7, 'headSha' => 'aaa1111']]], 'bbb2222', 7), true];
-        yield 'head moved, the request named the current head' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['fix' => [['number' => 7, 'headSha' => 'aaa1111']]], 'AAA1111', 7), false];
-        yield 'head moved, the request named another pull request' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['fix' => [['number' => 8, 'headSha' => 'aaa1111']]], 'bbb2222', 7), false];
-        yield 'head moved, the request named no number' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['fix' => [['number' => null, 'headSha' => 'aaa1111']]], 'bbb2222', 7), true];
-        yield 'head moved, another kind named the old head' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['review' => [['number' => 7, 'headSha' => 'aaa1111']]], 'bbb2222', 7), false];
-        yield 'head moved, the request named no head' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads([], 'bbb2222', 7), false];
-        yield 'head moved, the pull request has no head' => [new RunWorkHeadMoved(), ['kind' => 'fix'], self::withHeads(['fix' => [['number' => 7, 'headSha' => 'aaa1111']]], null, 7), false];
 
         yield 'work open, an open request' => [new RunWorkOpen(), [], self::withReadings(['implement' => WorkTakerState::Available]), true];
         yield 'work open, an open request nobody can take' => [new RunWorkOpen(), [], self::withReadings(['implement' => WorkTakerState::None]), true];
@@ -120,21 +111,11 @@ final class RunConditionsTest extends TestCase
     public static function waiting(): iterable
     {
         yield 'card.run.work_active' => [new RunWorkActive(), ['kind' => 'fix'], 'run_work_active', [], [WorkRequestFacts::class]];
-        yield 'card.run.work_head_moved' => [new RunWorkHeadMoved(), ['kind' => 'fix'], 'run_work_head_moved', [], [WorkRequestFacts::class, EngineFact::PullRequest, EngineFact::PullRequestHead]];
         yield 'card.run.work_open' => [new RunWorkOpen(), [], 'run_work_open', [], [WorkTakerFacts::class]];
         yield 'card.run.worker_active' => [new RunWorkerActive(), ['kind' => 'breakdown'], 'run_worker_active', [], [WorkerRunFacts::class]];
         yield 'card.parent.run.active' => [new ParentWorkActive(), ['kind' => 'breakdown'], 'parent_work_active', [], [ParentWorkFacts::class]];
         yield 'card.run.last_refusal' => [new RunLastRefusal(), ['code' => 'no-worker'], 'run_last_refusal', ['%code%' => 'no-worker'], [RefusalFacts::class]];
         yield 'card.run.finished_with' => [new RunFinishedWith(), self::NOTHING_TO_BUILD, 'run_finished_with', ['%kind%' => 'implement', '%reason%' => 'nothing-to-build'], [LatestWorkFacts::class]];
-    }
-
-    /** @param array<string, list<array{number: ?int, headSha: string}>> $heads */
-    private static function withHeads(array $heads, ?string $head, int $number): Facts
-    {
-        return FactsMother::facts(
-            pullRequest: FactsMother::pullRequest(headSha: $head, number: $number),
-            provided: [WorkRequestFacts::class => new WorkRequestFacts(['fix'], [], ['fix'], [], $heads)],
-        );
     }
 
     private static function withOrigins(?WorkRequestFacts $requests = null, ?WorkerRunFacts $workers = null): Facts

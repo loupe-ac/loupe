@@ -77,6 +77,33 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
         self::assertSame([], $this->events());
     }
 
+    public function test_a_fix_for_another_repository_with_the_same_number_names_its_own_head(): void
+    {
+        $other = new ForgePullRequest($this->project, 'github', 'Acme/Gadgets', 5);
+        $other->headSha = 'ccccccc1112223';
+        $this->em->persist($other);
+        $this->em->persist(new CardPullRequest($this->card, 'https://github.com/Acme/Gadgets/pull/5', Forge::GitHub, 'Acme/Gadgets', 5));
+        $this->em->flush();
+
+        $this->announce($this->request('fix', self::NEW, 5, WorkRequestState::Cancelled));
+        self::assertSame([], $this->events());
+
+        $this->announce($this->request('fix', self::OLD, 5, WorkRequestState::Cancelled, repository: 'acme/gadgets'));
+        $events = $this->events();
+        self::assertCount(1, $events);
+        self::assertSame(['pullRequest' => 5, 'oldHeadSha' => self::OLD, 'newHeadSha' => 'ccccccc1112223'], $events[0]->detail);
+    }
+
+    public function test_a_fix_with_no_pull_request_url_leaves_no_row(): void
+    {
+        $request = $this->request('fix', self::OLD, 5, WorkRequestState::Cancelled);
+        $request->context = new WorkRequestContext(pullRequestNumber: 5, headSha: self::OLD);
+        $this->em->flush();
+        $this->announce($request);
+
+        self::assertSame([], $this->events());
+    }
+
     public function test_a_review_that_moved_head_leaves_no_row(): void
     {
         $this->announce($this->request('review', self::OLD, 5, WorkRequestState::Cancelled));
@@ -99,7 +126,7 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
         self::assertSame([], $this->events());
     }
 
-    private function request(string $kind, string $head, int $number, WorkRequestState $state, ?string $reason = WriteCardEventOnFixWithdrawn::REASON): WorkRequest
+    private function request(string $kind, string $head, int $number, WorkRequestState $state, ?string $reason = WriteCardEventOnFixWithdrawn::REASON, string $repository = 'Acme/Widgets'): WorkRequest
     {
         $request = new WorkRequest(
             project: AgentCredential::managed($this->em, $this->project, $this->project->id),
@@ -111,7 +138,7 @@ final class WriteCardEventOnFixWithdrawnTest extends KernelTestCase
             ruleId: 'fix-in-implementation',
             createdAt: new \DateTimeImmutable('2026-10-01 12:00:00'),
         );
-        $request->context = new WorkRequestContext(pullRequestNumber: $number, headSha: $head);
+        $request->context = new WorkRequestContext(pullRequestNumber: $number, pullRequestUrl: 'https://github.com/'.$repository.'/pull/'.$number, headSha: $head);
         $request->state = $state;
         $request->reason = $reason;
         $request->settledAt = new \DateTimeImmutable('2026-10-01 12:05:00');

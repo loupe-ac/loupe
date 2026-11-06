@@ -11,18 +11,16 @@ namespace App\Module\Bridge\Workflow;
 final readonly class WorkRequestFacts
 {
     /**
-     * @param list<string>                                              $activeKinds
-     * @param array<string, \DateTimeImmutable>                         $since           kind => the time of its live request
-     * @param list<string>                                              $activeRuleKinds
-     * @param array<string, \DateTimeImmutable>                         $ruleSince       kind => the time of its live request that a rule made
-     * @param array<string, list<array{number: ?int, headSha: string}>> $heads           kind => the pull request number and the head that each live request named
+     * @param list<string>                      $activeKinds
+     * @param array<string, \DateTimeImmutable> $since           kind => the time of its live request
+     * @param list<string>                      $activeRuleKinds
+     * @param array<string, \DateTimeImmutable> $ruleSince       kind => the time of its live request that a rule made
      */
     public function __construct(
         public array $activeKinds,
         public array $since,
         public array $activeRuleKinds,
         public array $ruleSince,
-        public array $heads = [],
     ) {
     }
 }

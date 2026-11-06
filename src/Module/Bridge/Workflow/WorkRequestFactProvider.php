@@ -33,19 +33,14 @@ final readonly class WorkRequestFactProvider extends BridgeFactProvider
     {
         $since = [];
         $ruleSince = [];
-        $heads = [];
         foreach ($this->workRequests->findLiveForCard($card->id) as $request) {
             $since[$request->kind] ??= $request->createdAt;
-            $headSha = $request->context->headSha;
-            if (null !== $headSha) {
-                $heads[$request->kind][] = ['number' => $request->context->pullRequestNumber, 'headSha' => $headSha];
-            }
             if (!PersonWork::owns($request->ruleId)) {
                 $ruleSince[$request->kind] ??= $request->createdAt;
             }
         }
 
-        return new WorkRequestFacts(array_map(strval(...), array_keys($since)), $since, array_map(strval(...), array_keys($ruleSince)), $ruleSince, $heads);
+        return new WorkRequestFacts(array_map(strval(...), array_keys($since)), $since, array_map(strval(...), array_keys($ruleSince)), $ruleSince);
     }
 
     #[\Override]
@@ -56,13 +51,6 @@ final readonly class WorkRequestFactProvider extends BridgeFactProvider
         $active = FingerprintValue::sorted($facts->activeKinds);
         $rule = FingerprintValue::sorted($facts->activeRuleKinds);
 
-        $kinds = $active === $rule ? $active : [$active, $rule];
-        if ([] === $facts->heads) {
-            return $kinds;
-        }
-        $heads = $facts->heads;
-        ksort($heads);
-
-        return [$kinds, $heads];
+        return $active === $rule ? $active : [$active, $rule];
     }
 }

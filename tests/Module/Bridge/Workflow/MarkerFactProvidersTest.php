@@ -11,7 +11,6 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerState;
@@ -66,24 +65,6 @@ final class MarkerFactProvidersTest extends KernelTestCase
 
         self::assertSame(['review', 'fix'], $facts->activeKinds);
         self::assertEquals(['review' => new \DateTimeImmutable('2026-10-02 09:30:00'), 'fix' => new \DateTimeImmutable('2026-10-02 09:40:00')], $facts->since);
-    }
-
-    public function test_a_live_request_gives_the_head_it_named_and_the_fingerprint_follows_it(): void
-    {
-        $fix = $this->requestWork($this->card, 'fix', '2026-10-02 09:40:00');
-        $provider = $this->provider(WorkRequestFactProvider::class);
-        $without = $provider->fingerprint($this->build(WorkRequestFactProvider::class, WorkRequestFacts::class));
-
-        $fix->context = new WorkRequestContext(pullRequestNumber: 7, headSha: 'aaa1111');
-        $this->em()->flush();
-        $facts = $this->build(WorkRequestFactProvider::class, WorkRequestFacts::class);
-
-        self::assertSame(['fix' => [['number' => 7, 'headSha' => 'aaa1111']]], $facts->heads);
-        self::assertNotSame($without, $provider->fingerprint($facts));
-
-        $fix->context = new WorkRequestContext(pullRequestNumber: 7, headSha: 'bbb2222');
-        $this->em()->flush();
-        self::assertNotSame($provider->fingerprint($facts), $provider->fingerprint($this->build(WorkRequestFactProvider::class, WorkRequestFacts::class)));
     }
 
     public function test_a_work_request_that_a_person_started_counts_as_active_but_not_as_rule_work(): void

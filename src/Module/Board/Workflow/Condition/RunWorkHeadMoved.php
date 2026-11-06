@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Module\Bridge\Workflow\Condition;
+namespace App\Module\Board\Workflow\Condition;
 
-use App\Module\Bridge\Workflow\WorkRequestFacts;
+use App\Module\Board\Workflow\WorkAtHeadFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
@@ -25,7 +25,7 @@ final readonly class RunWorkHeadMoved implements Condition
     #[\Override]
     public static function source(): string
     {
-        return 'workflow.source.bridge';
+        return 'workflow.source.board';
     }
 
     #[\Override]
@@ -37,23 +37,13 @@ final readonly class RunWorkHeadMoved implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [WorkRequestFacts::class, EngineFact::PullRequest, EngineFact::PullRequestHead];
+        return [WorkAtHeadFacts::class, EngineFact::PullRequest];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        $pullRequest = $facts->pullRequest;
-        $head = $pullRequest?->headSha;
-        if (null === $head) {
-            return false;
-        }
-        $kind = ParameterValue::string($params, 'kind');
-
-        return array_any(
-            $facts->get(WorkRequestFacts::class)->heads[$kind] ?? [],
-            static fn (array $named): bool => (null === $named['number'] || $named['number'] === $pullRequest->number) && 0 !== strcasecmp($named['headSha'], $head),
-        );
+        return $facts->get(WorkAtHeadFacts::class)->headMoved($facts, ParameterValue::string($params, 'kind'));
     }
 
     #[\Override]

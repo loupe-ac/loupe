@@ -12,6 +12,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\CardPullRequests;
+use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ChildrenFacts;
@@ -1074,7 +1075,7 @@ final class FactsBuilderTest extends KernelTestCase
 
     private function cardPullRequests(): CardPullRequests
     {
-        return new CardPullRequests($this->service(CardPullRequestRepository::class), $this->service(ForgePullRequestRepository::class), $this->service(FactsPass::class));
+        return new CardPullRequests($this->service(CardPullRequestRepository::class), $this->service(ForgePullRequestRepository::class), $this->service(FactsPass::class), $this->service(PullRequestUrlResolver::class));
     }
 
     /**

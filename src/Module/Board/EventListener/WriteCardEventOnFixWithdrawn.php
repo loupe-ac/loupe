@@ -42,26 +42,23 @@ final readonly class WriteCardEventOnFixWithdrawn
         }
         $request = $this->workRequests->find($event->workRequestId);
         $oldHead = $request?->context->headSha;
-        if (null === $request || self::KIND !== $request->kind || self::REASON !== $request->reason || null === $oldHead || null === $request->context->pullRequestNumber) {
+        if (null === $request || self::KIND !== $request->kind || self::REASON !== $request->reason || null === $oldHead) {
             return;
         }
         $card = $this->cards->find($cardId);
         if (null === $card) {
             return;
         }
-        foreach ($this->cardPullRequests->forCard($card) as $pullRequest) {
-            $newHead = $pullRequest->headSha;
-            if (PullRequestState::Open !== $pullRequest->state || $pullRequest->number !== $request->context->pullRequestNumber || null === $newHead || 0 === strcasecmp($newHead, $oldHead)) {
-                continue;
-            }
-            $this->cardEvents->record($card, CardEventKind::FixWithdrawn, Actor::System, null, [
-                'pullRequest' => $pullRequest->number,
-                'oldHeadSha' => $oldHead,
-                'newHeadSha' => $newHead,
-            ], $request->settledAt);
-            $this->em->flush();
-
+        $pullRequest = $this->cardPullRequests->namedBy($this->cardPullRequests->forCard($card), $request->context->pullRequestUrl);
+        $newHead = $pullRequest?->headSha;
+        if (null === $pullRequest || PullRequestState::Open !== $pullRequest->state || null === $newHead || 0 === strcasecmp($newHead, $oldHead)) {
             return;
         }
+        $this->cardEvents->record($card, CardEventKind::FixWithdrawn, Actor::System, null, [
+            'pullRequest' => $pullRequest->number,
+            'oldHeadSha' => $oldHead,
+            'newHeadSha' => $newHead,
+        ], $request->settledAt);
+        $this->em->flush();
     }
 }
