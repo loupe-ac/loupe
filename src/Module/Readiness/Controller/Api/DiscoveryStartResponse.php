@@ -23,7 +23,7 @@ final readonly class DiscoveryStartResponse
         #[OA\Property(description: 'The state of the run. A new run is `requested`.', enum: ['requested'])]
         public string $state,
 
-        #[OA\Property(description: 'The card page in the app. The report is linked there once the worker has written it.', format: 'uri')]
+        #[OA\Property(description: 'The Workshop page of the project in the app. Its discovery row shows the run, and opens the report once the worker has written it.', format: 'uri')]
         public string $url,
     ) {
     }

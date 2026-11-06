@@ -6877,7 +6877,7 @@
                         ]
                     },
                     "url": {
-                        "description": "The card page in the app. The report is linked there once the worker has written it.",
+                        "description": "The Workshop page of the project in the app. Its discovery row shows the run, and opens the report once the worker has written it.",
                         "type": "string",
                         "format": "uri"
                     }

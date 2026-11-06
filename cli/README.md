@@ -356,7 +356,7 @@ loupe init --reset               # write the first-run rules again
    `Start discovery now?` only when the profile is complete, the rule file
    reads, no account that a rule uses fails, `.loupe.yaml` and the profile are pushed, and a run is due:
    none started yet, or the profile agent ran in this command. A yes starts
-   discovery and prints `Discovery started: <link of the report>`. A no, or no
+   discovery and prints `Discovery started: <link of the Workshop page>`. A no, or no
    terminal, starts nothing and prints
    ``Start discovery with `loupe discovery start` when you are ready.`` When a
    condition fails, the command asks nothing and says to run `loupe init` again.
@@ -370,7 +370,8 @@ loupe init --reset               # write the first-run rules again
 
 ## `loupe discovery start`
 
-Starts a discovery run for the project, and prints the link of the report. It
+Starts a discovery run for the project, and prints the link of the Workshop
+page, which opens the report when the worker has written it. It
 needs a CLI released after v2.1.0.
 
 ```bash

@@ -56,8 +56,8 @@ final class StartDiscoveryApiTest extends WebTestCase
         self::assertSame(Actor::ApiKey, $runs[0]->card->reporter);
 
         $match = PageLink::match(static::getContainer(), $body['url']);
-        self::assertSame('app_board_card', $match['_route']);
-        self::assertSame($body['cardId'], $match['cardId']);
+        self::assertSame('app_project_workshop', $match['_route']);
+        self::assertSame((string) $project->id, $match['id']);
         $location = (string) $this->client->getResponse()->headers->get('Location');
         self::assertStringEndsWith('/api/v1/projects/'.$project->id.'/cards/'.$body['cardNumber'], $location);
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));

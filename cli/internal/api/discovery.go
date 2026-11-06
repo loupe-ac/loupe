@@ -16,8 +16,9 @@ type Discovery struct {
 	RunID      string
 	CardNumber int
 	CardID     string
-	// ReportURL is the address of the report, when the server sends one.
-	ReportURL string
+	// URL is the Workshop page of the project, where the discovery row opens
+	// the report once the worker has written it.
+	URL string
 }
 
 // StartDiscovery asks the server to start a discovery run for the project,
@@ -74,10 +75,7 @@ func parseDiscovery(body []byte) Discovery {
 
 		return ""
 	}
-	d := Discovery{RunID: str("runId"), CardID: str("cardId"), ReportURL: str("reportUrl")}
-	if d.ReportURL == "" {
-		d.ReportURL = str("url")
-	}
+	d := Discovery{RunID: str("runId"), CardID: str("cardId"), URL: str("url")}
 	var n int
 	if json.Unmarshal(raw["cardNumber"], &n) == nil {
 		d.CardNumber = n

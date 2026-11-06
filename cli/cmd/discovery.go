@@ -25,11 +25,11 @@ var startDiscovery = func(ctx context.Context, c *api.Client, project string) (a
 	return c.StartDiscovery(ctx, project)
 }
 
-// discoveryLink gives the address to print for a started run. It is the report
-// address when the server sends one, else the project page.
+// discoveryLink gives the address to print for a started run. It is the page
+// the server sends, else the Workshop page of the project.
 func discoveryLink(baseURL string, projectID string, d api.Discovery) string {
-	if d.ReportURL != "" {
-		return d.ReportURL
+	if d.URL != "" {
+		return d.URL
 	}
 
 	return strings.TrimRight(baseURL, "/") + "/projects/" + projectID
@@ -96,7 +96,7 @@ func newDiscoveryStartCmd() *cobra.Command {
 		Use:   "start",
 		Short: "Start a discovery run for the project",
 		Long: "Starts a discovery run. A worker checks the repository against the profile and lists " +
-			"what remains before each kind of work can run. It prints the link of the report.\n\n" +
+			"what remains before each kind of work can run. It prints the link of the Workshop page, which opens the report when it is written.\n\n" +
 			"Before the call, the command checks the gate that `loupe init` uses: the profile is " +
 			"complete, the rule file reads, no account that a rule uses fails for the project, and the setup files are " +
 			"committed and pushed. It reads the current folder, so run it in the repository. " +

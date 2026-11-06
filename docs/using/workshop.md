@@ -89,7 +89,7 @@ An agent can start discovery with the `discovery_start` MCP tool, and read the c
 
 You can also start discovery from the terminal.
 At its end, `loupe init` asks "Start discovery now?" when onboarding is ready: the profile is complete, the account check passes, and `.loupe.yaml` and the profile are pushed.
-A yes starts the run and prints the link of the report. A no, or no terminal, starts nothing.
+A yes starts the run and prints the link of the Workshop page. The discovery row of that page opens the report when the worker has written it. A no, or no terminal, starts nothing.
 When a condition fails, `loupe init` asks nothing, lists what remains, and says to run it again.
 `loupe discovery start` checks the same conditions and then starts a run. `--force` skips the check.
 See [the CLI reference](../reference/cli.md).

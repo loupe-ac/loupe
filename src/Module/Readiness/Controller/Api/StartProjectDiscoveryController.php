@@ -67,7 +67,7 @@ final class StartProjectDiscoveryController extends AppController
         $cardId = (string) $run->card->id;
 
         return new JsonResponse(
-            new DiscoveryStartResponse((string) $run->id, $cardId, $run->card->number, $run->state->value, $this->links->card((string) $project->id, $cardId)),
+            new DiscoveryStartResponse((string) $run->id, $cardId, $run->card->number, $run->state->value, $this->links->project((string) $project->id)),
             JsonResponse::HTTP_CREATED,
             ['Location' => $this->generateUrl('api_card_show', ['project' => (string) $project->id, 'number' => $run->card->number], UrlGeneratorInterface::ABSOLUTE_URL)],
         );

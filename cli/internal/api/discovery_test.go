@@ -10,7 +10,7 @@ import (
 
 func TestStartDiscoveryPostsAndParsesTheAnswer(t *testing.T) {
 	for name, body := range map[string]string{
-		"flat":    `{"runId":"r1","cardNumber":7,"cardId":"c1","reportUrl":"https://x/r"}`,
+		"flat":    `{"runId":"r1","cardNumber":7,"cardId":"c1","url":"https://x/r"}`,
 		"wrapped": `{"data":{"runId":"r1","cardNumber":7,"cardId":"c1","url":"https://x/r"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestStartDiscoveryPostsAndParsesTheAnswer(t *testing.T) {
 			if method != http.MethodPost || path != "/api/v1/projects/my proj/discovery" {
 				t.Errorf("request = %s %s", method, path)
 			}
-			if d.RunID != "r1" || d.CardNumber != 7 || d.CardID != "c1" || d.ReportURL != "https://x/r" {
+			if d.RunID != "r1" || d.CardNumber != 7 || d.CardID != "c1" || d.URL != "https://x/r" {
 				t.Errorf("discovery = %+v", d)
 			}
 		})

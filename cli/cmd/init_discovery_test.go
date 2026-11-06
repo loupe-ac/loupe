@@ -81,7 +81,7 @@ func TestInitWithACompleteProfileAndAYesStartsDiscovery(t *testing.T) {
 	dir := inRepo(t, w.server.URL)
 	completeProfile(t, dir)
 	w.gitClean = true
-	calls := stubDiscovery(t, api.Discovery{ReportURL: "https://app.test/report/1"}, nil)
+	calls := stubDiscovery(t, api.Discovery{URL: "https://app.test/projects/p1"}, nil)
 
 	out, err := runInitCmd(t, "1\nn\ny\n", "--no-mcp")
 	if err != nil {
@@ -91,7 +91,7 @@ func TestInitWithACompleteProfileAndAYesStartsDiscovery(t *testing.T) {
 	if len(*calls) != 1 || (*calls)[0].project != firstProject {
 		t.Errorf("calls = %v, want one for %s", *calls, firstProject)
 	}
-	for _, want := range []string{"Start discovery now? It runs a worker that checks the repository and lists what remains.", "Discovery started: https://app.test/report/1"} {
+	for _, want := range []string{"Start discovery now? It runs a worker that checks the repository and lists what remains.", "Discovery started: https://app.test/projects/p1"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
@@ -210,13 +210,13 @@ func TestDiscoveryStartStartsWhenTheGateHolds(t *testing.T) {
 	completeProfile(t, dir)
 	w.gitClean = true
 	writeDefaultRules(t, "projects:\n  dev:\n    dir: "+dir+"\nwork:\n  plan:\n    prompt: go\n")
-	calls := stubDiscovery(t, api.Discovery{ReportURL: "https://app.test/report/2"}, nil)
+	calls := stubDiscovery(t, api.Discovery{URL: "https://app.test/projects/p2"}, nil)
 
 	out, err := runDiscoveryCmd(t, "--project", "dev")
 	if err != nil {
 		t.Fatalf("err = %v, out = %q", err, out)
 	}
-	if len(*calls) != 1 || (*calls)[0].project != firstProject || !strings.Contains(out, "Discovery started: https://app.test/report/2") {
+	if len(*calls) != 1 || (*calls)[0].project != firstProject || !strings.Contains(out, "Discovery started: https://app.test/projects/p2") {
 		t.Errorf("calls = %v, out = %q", *calls, out)
 	}
 }

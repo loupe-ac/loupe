@@ -153,7 +153,7 @@ Step 10 asks `Start discovery now? It runs a worker that checks the repository a
 - `.loupe.yaml` and the profile are committed and pushed, because a worker reads only what the remote holds.
 - No discovery run started yet, or the profile agent ran in this `loupe init`, so a new report replaces one that predates the new profile.
 
-On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the report>`. The list of what remains arrives some minutes later, in the report. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
+On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the Workshop page>`. The list of what remains arrives some minutes later, in the report, and the discovery row of the Workshop opens it. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
 
 The last lines come after step 10, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a rule uses fails for this project. A failure in another project does not change the exit status.
 
@@ -178,7 +178,7 @@ The project list always shows when your login covers a project, also when it cov
 
 ## `loupe discovery start`
 
-Starts a discovery run for the project. A worker checks the repository against the profile and lists what remains before each kind of work can run. The command prints `Discovery started: <link of the report>`. It needs the next release of the CLI after v2.1.0.
+Starts a discovery run for the project. A worker checks the repository against the profile and lists what remains before each kind of work can run. The command prints `Discovery started: <link of the Workshop page>`. The discovery row of that page opens the report when the worker has written it. It needs the next release of the CLI after v2.1.0.
 
 Before the call, the command checks the gate of `loupe init`, in the current folder: the profile is complete, the rule file of the bridge reads, no account that a rule uses fails for the project, and `.loupe.yaml` and the profile are pushed. It does not check whether a run started before. When the gate fails, it lists what remains and exits with status 1. The gate needs a stored login.
 
