@@ -11,6 +11,7 @@ use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Insights\View\MetricChartScale;
 use App\Module\Insights\View\MetricChartTick;
 use App\Module\Insights\View\MetricValueFormatter;
+use App\Tests\Support\ChartSeries;
 use App\Tests\Support\TemplateMetricSets;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -75,6 +76,78 @@ final class MetricChartScaleTest extends TestCase
             new MetricChartTick(93.33, 2.0),
             new MetricChartTick(16.0, 4.0),
         ], MetricChartScale::yTicks($top, $step, $bottom));
+    }
+
+    public function test_the_largest_series_take_the_first_slots(): void
+    {
+        $slots = self::slots([2, 9, 5]);
+
+        self::assertSame([3, 1, 2], $slots);
+    }
+
+    public function test_a_negative_total_ranks_by_its_absolute_value(): void
+    {
+        self::assertSame([3, 1, 2], self::slots([1, -9, 4]));
+    }
+
+    public function test_a_series_with_no_total_comes_after_every_known_total(): void
+    {
+        self::assertSame([3, 1, 2], self::slots([null, 5, 0]));
+    }
+
+    public function test_a_tie_keeps_the_query_order(): void
+    {
+        self::assertSame([1, 2, 3], self::slots([4, 4, 4]));
+    }
+
+    public function test_the_smallest_series_past_the_palette_share_the_grey(): void
+    {
+        $totals = range(1, MetricChartScale::PALETTE_SIZE + 2);
+        $slots = self::slots($totals);
+
+        self::assertSame(0, $slots[0]);
+        self::assertSame(0, $slots[1]);
+        self::assertSame(0, $slots[2]);
+        self::assertSame(MetricChartScale::PALETTE_SIZE - 1, $slots[3]);
+        self::assertSame(1, $slots[\count($totals) - 1]);
+    }
+
+    public function test_every_series_keeps_a_named_slot_when_the_palette_fits_them(): void
+    {
+        $slots = self::slots(range(1, MetricChartScale::PALETTE_SIZE));
+
+        self::assertNotContains(0, $slots);
+    }
+
+    public function test_the_list_keeps_the_order_and_the_position_of_the_input(): void
+    {
+        $series = [ChartSeries::total('a', 1), ChartSeries::total('b', 9)];
+        $list = MetricChartScale::series($series);
+
+        self::assertSame(['a', 'b'], array_map(static fn ($item): ?string => $item->group, $list));
+        self::assertSame([0, 1], array_map(static fn ($item): int => $item->position, $list));
+    }
+
+    public function test_by_size_orders_the_series_from_the_largest_total(): void
+    {
+        $series = [ChartSeries::total('a', 1), ChartSeries::total('b', 9), ChartSeries::total('c', 5)];
+
+        self::assertSame(['b', 'c', 'a'], array_map(static fn ($item): ?string => $item->group, MetricChartScale::bySize($series)));
+    }
+
+    /**
+     * @param list<int|null> $totals
+     *
+     * @return list<int>
+     */
+    private static function slots(array $totals): array
+    {
+        $series = [];
+        foreach ($totals as $index => $total) {
+            $series[] = ChartSeries::total('g'.$index, $total);
+        }
+
+        return array_map(static fn ($item): int => $item->slot, MetricChartScale::series($series));
     }
 
     private static function duration(): MetricShape

@@ -174,18 +174,18 @@ final class BarLayoutTest extends TestCase
         self::assertSame('2', $layout->hoverTargets[1]->total);
     }
 
-    public function test_more_than_eight_series_stack_with_the_grey_past_the_seventh(): void
+    public function test_more_than_twelve_series_stack_with_the_grey_past_the_eleventh(): void
     {
         $series = [];
-        foreach (range(1, 9) as $index) {
+        foreach (range(1, 13) as $index) {
             $series[] = ChartSeries::of('group-'.$index, ['2026-09-28' => 1]);
         }
 
         $layout = self::build(MetricChartType::StackedBars, $series);
 
         self::assertNotNull($layout);
-        self::assertSame([1, 2, 3, 4, 5, 6, 7, 0, 0], array_map(static fn (MetricChartBar $bar): int => $bar->series->slot, $layout->buckets[0]->bars));
-        self::assertSame('9', $layout->hoverTargets[0]->total);
+        self::assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 0], array_map(static fn (MetricChartBar $bar): int => $bar->series->slot, $layout->buckets[0]->bars));
+        self::assertSame('13', $layout->hoverTargets[0]->total);
     }
 
     public function test_side_by_side_bars_of_a_sum_show_shares_and_totals_when_the_values_add_up(): void

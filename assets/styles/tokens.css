@@ -178,7 +178,15 @@
     --chart-7: #4a3aa7;
     /* Chart series 8, in order after `chart-7`. */
     --chart-8: #e34948;
-    /* The "other" bucket of a chart, after the eight series. */
+    /* Chart series 9, in order after `chart-8`. */
+    --chart-9: #0e7c8c;
+    /* Chart series 10, in order after `chart-9`. */
+    --chart-10: #8c5a2b;
+    /* Chart series 11, in order after `chart-10`. */
+    --chart-11: #a43fc4;
+    /* Chart series 12, in order after `chart-11`. */
+    --chart-12: #1d3f73;
+    /* The "other" bucket of a chart, after the last numbered series. */
     --chart-other: #898781;
 
     /* Ink dark enough to sit on `status-ok-border` used as a solid chip fill
@@ -341,6 +349,10 @@
     --color-chart-6: var(--chart-6);
     --color-chart-7: var(--chart-7);
     --color-chart-8: var(--chart-8);
+    --color-chart-9: var(--chart-9);
+    --color-chart-10: var(--chart-10);
+    --color-chart-11: var(--chart-11);
+    --color-chart-12: var(--chart-12);
     --color-chart-other: var(--chart-other);
     --color-strike: var(--strike);
     --color-strike-on-chrome: var(--strike-on-chrome);
