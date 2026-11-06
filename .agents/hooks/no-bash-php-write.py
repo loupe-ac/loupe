@@ -67,9 +67,24 @@ def tokenize(text):
         return re.findall(r"[;&|()<>\n]+|[^\s;&|()<>]+", text)
 
 
+def operator(text):
+    text = text.replace("\n", ";")
+    if text.rstrip(";") in ("|", "|&"):
+        return "|"
+    if text.startswith(("&&", "||")):
+        return "&&"
+    if text.startswith("&"):
+        return "&"
+    return ";"
+
+
+def new_command(pipe_in=False):
+    return {"words": [], "redirs": [], "hd": None, "pipe_in": pipe_in, "pipe_out": False}
+
+
 def split_commands(tokens):
     commands = []
-    current = {"words": [], "redirs": [], "hd": None, "pipe_in": False}
+    current = new_command()
     state = None
     for token in tokens:
         if state == "file":
@@ -80,17 +95,19 @@ def split_commands(tokens):
             state = None
             continue
         if re.fullmatch(r"[;&|()\n]+", token):
+            parts = re.findall(r"[()]|[^()]+", token)
+            current["pipe_out"] = parts[0] not in "()" and operator(parts[0]) == "|"
             if current["words"] or current["redirs"]:
                 commands.append(current)
-            commands += [char for char in token if char in "()"]
-            current = {"words": [], "redirs": [], "hd": None, "pipe_in": token in ("|", "|&")}
+            commands += [part if part in "()" else ("op", operator(part)) for part in parts]
+            current = new_command(operator(parts[-1]) == "|" and parts[-1] not in "()")
         elif re.fullmatch(r"&>>?|>>?\|?", token):
             state = "file"
         elif re.fullmatch(r"[<>]\(", token):
             if current["words"] or current["redirs"]:
                 commands.append(current)
             commands.append("(")
-            current = {"words": [], "redirs": [], "hd": None, "pipe_in": False}
+            current = new_command()
         elif "<" in token or ">" in token:
             state = "skip"
         elif HEREDOC_TOKEN.fullmatch(token):
@@ -137,14 +154,63 @@ def in_place_flag(name, argument):
     return re.fullmatch(r"-[nEersuzb]*i\S*", argument) is not None or argument.startswith("--in-place")
 
 
-def direct_write(name, args, redirs, is_php):
+def looks_like_folder(word):
+    return word.endswith("/") or os.path.basename(word) in (".", "..")
+
+
+def copy_targets(name, args, is_folder):
+    takes = "tS" if name == "cp" else "tmogS"
+    long_values = ("--suffix", "--mode", "--owner", "--group", "--strip-program")
+    files, folder, no_folder, index = [], None, False, 0
+    while index < len(args):
+        argument = args[index]
+        index += 1
+        if argument == "--":
+            files += args[index:]
+            break
+        if argument.startswith("--"):
+            key, equals, value = argument.partition("=")
+            if key == "--target-directory":
+                if not equals and index < len(args):
+                    value = args[index]
+                    index += 1
+                folder = value
+            elif key == "--no-target-directory":
+                no_folder = True
+            elif key in long_values and not equals:
+                index += 1
+            continue
+        if argument.startswith("-") and len(argument) > 1:
+            for position, char in enumerate(argument[1:], 1):
+                if char == "T":
+                    no_folder = True
+                if char in takes:
+                    value = argument[position + 1:]
+                    if not value and index < len(args):
+                        value = args[index]
+                        index += 1
+                    if char == "t":
+                        folder = value
+                    break
+            continue
+        files.append(argument)
+    if folder is None:
+        if not files:
+            return []
+        if no_folder or len(files) == 1 or not is_folder(files[-1]):
+            return [files[-1]]
+        folder, files = files[-1], files[:-1]
+    return [os.path.join(folder, os.path.basename(source.rstrip("/"))) for source in files]
+
+
+def direct_write(name, args, redirs, is_php, is_folder=looks_like_folder):
     if any(is_php(target) for target in redirs):
         return True
     files = [argument for argument in args if not argument.startswith("-")]
     if name == "tee":
         return any(is_php(argument) for argument in files)
     if name in ("cp", "install"):
-        return bool(files) and is_php(files[-1])
+        return any(is_php(target) for target in copy_targets(name, args, is_folder))
     if name in ("sed", "gsed", "perl"):
         return any(in_place_flag(name, argument) for argument in args) and any(is_php(argument) for argument in args)
     return False
@@ -202,15 +268,23 @@ def judge(command, cwd, root, depth=0):
     text, bodies = extract_heredocs(command)
     folder = os.path.realpath(cwd)
     written = {}
+    list_start = folder
     previous = None
     saved = []
     for item in split_commands(tokenize(text)):
         if item == "(":
-            saved.append(folder)
+            saved.append((folder, list_start))
+            list_start = folder
             continue
         if item == ")":
             if saved:
-                folder = saved.pop()
+                folder, list_start = saved.pop()
+            continue
+        if isinstance(item, tuple):
+            if item[1] == "&":
+                folder = list_start
+            if item[1] in ("&", ";"):
+                list_start = folder
             continue
         words = list(item["words"])
         while words and (re.fullmatch(r"\w+=.*", words[0]) or os.path.basename(words[0]) in WRAPPERS):
@@ -219,10 +293,24 @@ def judge(command, cwd, root, depth=0):
         def is_php(word, folder=folder):
             return is_php_path(word, folder, root)
 
+        def is_folder(word, folder=folder):
+            path = resolve(word, folder)
+            return looks_like_folder(word) or isinstance(path, str) and os.path.isdir(path)
+
+        def runs_on_files(sub, names_php, sources_inside, is_php=is_php, is_folder=is_folder):
+            def is_target(word):
+                if word == "{}":
+                    return names_php and sources_inside
+                return is_php(word.replace("{}", "x.php" if names_php else "x"))
+
+            arguments = sub[1:] + ([] if "{}" in sub else ["{}"])
+            return direct_write(os.path.basename(sub[0]), arguments, [], is_target, is_folder)
+
         name = os.path.basename(words[0]) if words else ""
         args = words[1:]
         if name in ("cd", "pushd"):
-            folder = next_folder(args, folder)
+            if not (item["pipe_in"] or item["pipe_out"]):
+                folder = next_folder(args, folder)
             previous = item
             continue
         if item["hd"] is not None:
@@ -232,7 +320,7 @@ def judge(command, cwd, root, depth=0):
                 path = resolve(target, folder)
                 if isinstance(path, str):
                     written[path] = body
-        if direct_write(name, args, item["redirs"], is_php):
+        if direct_write(name, args, item["redirs"], is_php, is_folder):
             return True
         if name == "find" and "-exec" in args or name == "find" and "-execdir" in args:
             start = []
@@ -241,15 +329,15 @@ def judge(command, cwd, root, depth=0):
                     break
                 start.append(argument)
             patterns = [args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-name", "-iname", "-path", "-ipath", "-wholename")]
-            if has_pattern(patterns) and folders_inside(start, folder, root):
-                for i, argument in enumerate(args):
-                    if argument in ("-exec", "-execdir"):
-                        end = i + 1
-                        while end < len(args) and args[end] not in (";", "+"):
-                            end += 1
-                        sub = args[i + 1:end]
-                        if sub and direct_write(os.path.basename(sub[0]), sub[1:] + ["{}"], [], lambda w: w == "{}" or is_php(w)):
-                            return True
+            inside = folders_inside(start, folder, root)
+            for i, argument in enumerate(args):
+                if argument in ("-exec", "-execdir"):
+                    end = i + 1
+                    while end < len(args) and args[end] not in (";", "+"):
+                        end += 1
+                    sub = args[i + 1:end]
+                    if sub and runs_on_files(sub, has_pattern(patterns), inside):
+                        return True
         if name == "xargs" and item["pipe_in"] and previous is not None:
             before = previous["words"]
             sub = list(args)
@@ -257,9 +345,8 @@ def judge(command, cwd, root, depth=0):
                 option = sub.pop(0)
                 if option in ("-n", "-I", "-P", "-L", "-s", "-d", "-E") and sub:
                     sub.pop(0)
-            if sub and has_pattern(before) and folders_inside(before, folder, root):
-                if direct_write(os.path.basename(sub[0]), sub[1:] + ["{}"], [], lambda w: w == "{}" or is_php(w)):
-                    return True
+            if sub and runs_on_files(sub, has_pattern(before), folders_inside(before, folder, root)):
+                return True
         if INTERPRETER.match(name):
             script = "\n".join(args)
             if item["hd"] is not None:

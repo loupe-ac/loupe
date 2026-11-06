@@ -778,6 +778,16 @@ describe('no-bash-php-write.py', () => {
             "python3 -c \"print('src/Foo.php'); open('README.md','w').write('x')\"",
         ],
         ['a mv of a PHP file', 'mv src/Foo.php src/Bar.php'],
+        ['a copy into a target folder outside', 'cp -t /tmp src/Foo.php'],
+        ['a copy into a folder outside', 'cp src/Foo.php /tmp'],
+        [
+            'a copy of found PHP files to a folder outside',
+            "find src -name '*.php' -exec cp {} /tmp \\;",
+        ],
+        [
+            'a copy of found text files into the repository',
+            "find /tmp -name '*.txt' -exec cp {} src/ \\;",
+        ],
     ])('allows %s', (_label, command) => {
         const result = run(command, join(root, 'repo'));
         expect(result.status).toBe(0);
@@ -831,6 +841,38 @@ describe('no-bash-php-write.py', () => {
         [
             'a redirect after a process substitution that changed directory',
             'diff <(cd /tmp && ls) x; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd in a pipeline',
+            'cd /tmp | cat; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd at the end of a pipeline',
+            'cat x | cd /tmp; echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a cd in a background job',
+            'cd /tmp & echo x > src/Foo.php',
+        ],
+        [
+            'a redirect after a background list that changed directory',
+            'cd /tmp && true & echo x > src/Foo.php',
+        ],
+        ['a copy into the current folder', 'cp /tmp/Foo.php .'],
+        ['a copy into a folder', 'cp /tmp/Foo.php src/'],
+        ['a copy into a target folder', 'cp -t . /tmp/Foo.php'],
+        [
+            'a copy into a long target folder',
+            'cp --target-directory=src /tmp/Foo.php',
+        ],
+        ['an install into a folder', 'install -m 644 /tmp/Foo.php src/'],
+        [
+            'a copy of found PHP files into the repository',
+            "find /tmp -name '*.php' -exec cp {} src/ \\;",
+        ],
+        [
+            'an xargs copy into the repository',
+            'ls /tmp/*.php | xargs -I {} cp {} src/',
         ],
         [
             'an absolute path inside the repository',
