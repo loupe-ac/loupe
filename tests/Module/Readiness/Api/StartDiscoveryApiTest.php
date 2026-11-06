@@ -186,7 +186,7 @@ final class StartDiscoveryApiTest extends WebTestCase
         if ($bound) {
             $shipped = static::getContainer()->get(ShippedTemplates::class);
             self::assertInstanceOf(ShippedTemplates::class, $shipped);
-            $this->em()->persist(new WorkflowBinding($project, 'simple', 1, $shipped->source('simple')));
+            $this->em()->persist(new WorkflowBinding($project, 'simple', '1', $shipped->source('simple')));
         }
         if ($bridge) {
             $live = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
