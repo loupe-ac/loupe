@@ -30,7 +30,8 @@ final readonly class InboxChangedPublisher
     }
 
     /**
-     * An item of the project opened or closed. The topics and payloads are built
+     * The open rows of the project changed: an item opened or closed, or a
+     * join added or merged an ask. The topics and payloads are built
      * now: after a rollback the EntityManager is closed and cannot load the owner.
      *
      * @param list<Uuid> $askIds the asks that changed, when the caller holds them
@@ -44,7 +45,7 @@ final readonly class InboxChangedPublisher
     }
 
     /**
-     * The view changed and no item opened or closed, so only the inbox pages
+     * The view changed and the open rows did not, so only the inbox pages
      * read it again.
      *
      * @param list<Uuid> $askIds the asks that changed, when the caller holds them

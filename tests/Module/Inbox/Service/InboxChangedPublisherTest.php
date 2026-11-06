@@ -179,6 +179,39 @@ final class InboxChangedPublisherTest extends KernelTestCase
         self::assertSame([0], $this->reload($item)->selectedOptions);
     }
 
+    public function test_a_join_that_takes_an_item_into_a_second_ask_signals_the_count(): void
+    {
+        $item = $this->item($this->em, $this->project, 1);
+        $first = $this->ask($this->em, $this->project);
+        $first->items->add(new InboxAskItem($first, $item));
+        $this->em->flush();
+
+        $joined = $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($item, Uuid::v4()));
+
+        // One open ask became two.
+        self::assertTrue($joined->added);
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0]);
+        $this->assertSignalsThePage($this->pagePublished[0], (string) $joined->ask->id);
+    }
+
+    public function test_a_join_that_takes_a_loose_item_into_an_open_ask_signals_the_count(): void
+    {
+        $asked = $this->item($this->em, $this->project, 1);
+        $ask = $this->ask($this->em, $this->project);
+        $ask->items->add(new InboxAskItem($ask, $asked));
+        $loose = $this->item($this->em, $this->project, 2);
+        $this->em->flush();
+
+        $joined = $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($loose, $ask->sessionId ?? throw new \LogicException('An ask of a session.')));
+
+        // The ask and the loose item were two rows, and now they are one.
+        self::assertTrue($joined->added);
+        self::assertTrue($joined->extended);
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0]);
+    }
+
     public function test_a_refused_join_signals_nothing(): void
     {
         $item = $this->item($this->em, $this->project, 1);

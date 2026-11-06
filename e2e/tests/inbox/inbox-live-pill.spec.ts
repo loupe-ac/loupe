@@ -5,7 +5,12 @@
  * delivers the signal, so the run needs a hub.
  */
 
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import {
+    test,
+    expect,
+    type APIRequestContext,
+    type Page,
+} from '@playwright/test';
 import { agentAccessToken, signedInPage } from '../fixtures';
 
 const RUN = Date.now();
@@ -20,6 +25,31 @@ async function setFlag(
         form: { name, enabled: enabled ? 1 : 0 },
     });
     expect(response.ok()).toBeTruthy();
+}
+
+/** Answers the question and completes the to-do of a seeded ask, which closes it. */
+async function closeAsk(
+    editor: Page,
+    projectId: string,
+    questionNumber: number,
+    todoNumber: number,
+): Promise<void> {
+    await editor.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
+    const question = editor.locator(`#inbox-item-${questionNumber}`);
+    await question.getByText('CSV', { exact: true }).click();
+    await question.getByRole('button', { name: 'Send answer' }).click();
+    await expect(editor.locator('[data-inbox-status]')).toContainText(
+        'Answer sent. 1 item of this ask is still open.',
+    );
+
+    const todo = editor.locator(`#inbox-item-${todoNumber}`);
+    await todo.getByRole('button', { name: 'Mark complete' }).click();
+    // The editor's own pill reloads on the answer, and requests of one session
+    // wait on its session lock, so this submit can queue behind that reload.
+    await expect(editor.locator('[data-inbox-status]')).toContainText(
+        'Marked done.',
+        { timeout: 15_000 },
+    );
 }
 
 // Two sign-ins, a seed, two answers and three frame loads took 28 seconds on a
@@ -45,10 +75,15 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     });
     expect(registered.status()).toBe(200);
 
+    // Two asks, so closing the first one lowers the pill and leaves it showing.
     const editor = await signedInPage(browser, email, PASSWORD);
-    const seeded = await editor.request.post('/dev/seed/inbox');
-    expect(seeded.status()).toBe(201);
-    const { projectId, questionNumber, todoNumber } = await seeded.json();
+    const seededFirst = await editor.request.post('/dev/seed/inbox');
+    expect(seededFirst.status()).toBe(201);
+    const first = await seededFirst.json();
+    const seededSecond = await editor.request.post('/dev/seed/inbox');
+    expect(seededSecond.status()).toBe(201);
+    const second = await seededSecond.json();
+    const projectId: string = first.projectId;
 
     const watcher = await signedInPage(browser, email, PASSWORD);
     await watcher.goto(`/projects/${projectId}/documents`);
@@ -66,13 +101,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
         (window as unknown as { stayed: boolean }).stayed = true;
     });
 
-    await editor.goto(`/projects/${projectId}/inbox`);
-    const question = editor.locator(`#inbox-item-${questionNumber}`);
-    await question.getByText('CSV', { exact: true }).click();
-    await question.getByRole('button', { name: 'Send answer' }).click();
-    await expect(editor.locator('[data-inbox-status]')).toContainText(
-        'Answer sent. 1 item of this ask is still open.',
-    );
+    await closeAsk(editor, projectId, first.questionNumber, first.todoNumber);
 
     await expect(pill).toHaveText('1');
     await expect(watcher).toHaveTitle(/^\(1\) /);
@@ -94,14 +123,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
             response.status() === 502,
     );
 
-    const todo = editor.locator(`#inbox-item-${todoNumber}`);
-    await todo.getByRole('button', { name: 'Mark complete' }).click();
-    // The editor's own pill reloads on the answer, and requests of one session
-    // wait on its session lock, so this submit can queue behind that reload.
-    await expect(editor.locator('[data-inbox-status]')).toContainText(
-        'Marked done.',
-        { timeout: 15_000 },
-    );
+    await closeAsk(editor, projectId, second.questionNumber, second.todoNumber);
 
     await failedReload;
     await expect(watcher).toHaveTitle(/^(?!\()/);
@@ -142,7 +164,7 @@ test('the full-screen artifact page updates the count in its tab title', async (
     const page = await signedInPage(browser, email, PASSWORD);
     const seeded = await page.request.post('/dev/seed/inbox');
     expect(seeded.status()).toBe(201);
-    const { projectId, todoNumber } = await seeded.json();
+    const { projectId, questionNumber, todoNumber } = await seeded.json();
 
     const token = await agentAccessToken(page);
     const stored = await request.post(
@@ -166,22 +188,17 @@ test('the full-screen artifact page updates the count in its tab title', async (
     await page.goto(
         `/projects/${projectId}/artifacts/${artifactId}/full-screen`,
     );
-    await expect(page).toHaveTitle(/^\(2\) /);
+    // The pill counts asks, and the seeded ask holds both items.
+    await expect(page).toHaveTitle(/^\(1\) /);
     // The hub keeps no history, so a change made before this connects is lost.
     await expect(
         page.locator('[data-live-pill-url-value$="/inbox/open-total"]'),
     ).toHaveAttribute('data-live-pill-connected', '');
 
     const editor = await signedInPage(browser, email, PASSWORD);
-    await editor.goto(`/projects/${projectId}/inbox`);
-    const todo = editor.locator(`#inbox-item-${todoNumber}`);
-    await todo.getByRole('button', { name: 'Mark complete' }).click();
-    await expect(editor.locator('[data-inbox-status]')).toContainText(
-        'Marked done.',
-        { timeout: 15_000 },
-    );
+    await closeAsk(editor, projectId, questionNumber, todoNumber);
 
-    await expect(page).toHaveTitle(/^\(1\) /);
+    await expect(page).toHaveTitle(/^(?!\()/);
 
     await editor.context().close();
     await page.context().close();

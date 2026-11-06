@@ -54,16 +54,19 @@ plain prose such as "card 1116", "PR #1295" and "pull request 1295".
 ## The inbox page
 
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
-many items are still open. The link is absent while the flag is off.
+many entries the **Open** side of the inbox page lists. Each open ask counts
+once, however many items it holds. Each open item that no open ask holds also
+counts once. The link is absent while the flag is off.
 
-The browser tab title starts with the number of open items over all your
-projects, such as `(3) Board`. The title has no number at zero.
+The browser tab title starts with the same count over all your projects, such
+as `(3) Board`. The title has no number at zero.
 
 The page has no header of its own. The activity page stays in the project
 sidebar.
 
 The count changes without a reload when an agent asks, when you or an agent
-close an item, and when a finished card makes an item obsolete. It goes away at
+close an item, when an agent joins an item to an ask, and when a finished card
+makes an item obsolete. It goes away at
 zero. This needs a Mercure hub and the `live_updates.enabled` flag. Without
 them, the count is correct each time a page loads. See
 [Mercure hub](../extending/mercure.md).
