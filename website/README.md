@@ -60,7 +60,7 @@ paths to `.md` files. Those cannot survive the build unchanged: a page written
 at `docs/known-gaps.md` is served from `/known-gaps/`, one level deeper than the
 file, so a relative link from it resolves one segment too far.
 
-`remark-docs-links.mjs` resolves each link against the file that wrote it and
+`docs-links.mjs` resolves each link against the file that wrote it and
 re-emits it as a root-relative route, lowercased to match Astro's own slugs
 (`SECURITY.md` → `/security/`). Links pointing outside `docs/` — to
 `examples/`, `cli/`, `LICENSE` — cannot be routes at all, so they become links
@@ -74,8 +74,12 @@ build that is quietly serving yesterday's HTML:
 rm -rf website/node_modules/.astro website/.astro
 ```
 
-Astro caches rendered Markdown, and a remark plugin changing is not something
+Astro caches rendered Markdown, and a Markdown plugin changing is not something
 it invalidates on.
+
+The plugin runs on Sätteri, the Markdown engine of Astro 7. `astro.config.mjs`
+sets it with `markdown.processor`, and `@astrojs/markdown-satteri` is a direct
+dependency because the config imports it.
 
 ## Live-review widget
 

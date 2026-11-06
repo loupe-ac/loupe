@@ -43,7 +43,7 @@ final class ShowBoardManifestControllerTest extends WebTestCase
 
     public function test_an_outsider_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $project = $this->project($em, $this->user($em, 'manifest-owner@example.com'));
         $this->addTriageColumn($project);
