@@ -59,6 +59,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     public const string EXPERIMENT = 'implement';
 
+    /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
+    public const string EMPTY_EXPERIMENT = 'implement-no-runs';
+
     /**
      * Name, headline and metrics of each experiment. The goal panel has three states and two problems.
      * The Simple template declares no fix-rounds, so a declared fix-rounds guard is unknown and shows a note.
@@ -138,6 +141,28 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         foreach (self::EXPERIMENTS as [$experiment, $headline, $metrics]) {
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
+        $this->seedEmptyExperiment($context, $project);
+    }
+
+    private function seedEmptyExperiment(SeedContext $context, Project $project): void
+    {
+        $definitionId = DevSeedId::of('bridge/experiment/'.self::EMPTY_EXPERIMENT);
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentDefinition) {
+                return;
+            }
+
+            $definition = new ExperimentDefinition($project, self::EMPTY_EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
+        }
+
+        $cardId = DevSeedId::of('board/card/'.self::EXPERIMENT.'/'.Slug::fromName(self::CARDS[0][0]));
+        if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentPin) {
+            $at = $context->now->modify('-1 day');
+            $this->em->persist(new ExperimentPin($project, $cardId, self::EMPTY_EXPERIMENT, 'opus', $at, $at));
+        }
+        $this->em->flush();
     }
 
     /**

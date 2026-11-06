@@ -6832,6 +6832,495 @@
                 "security": []
             }
         },
+        "/api/v1/projects/{project}/inbox/items": {
+            "post": {
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Put an item in the inbox of the owner",
+                "description": "Hands one question, to-do or notice to the owner of the project, who answers it in the Loupe inbox. Nothing waits on the item, so `blocking` is always false, and the owner can dismiss any item. With `dedupeKey`, a call returns the open item that holds the same key with 200 and creates nothing. `Location` names the item. Read the answer with `getInboxItem`. The item names the API key that made it.",
+                "operationId": "createInboxItem",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InboxItemCreate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new item.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Location": {
+                                "$ref": "#/components/headers/Location"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InboxItem"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "The open item that already holds the `dedupeKey`. Nothing was created.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Location": {
+                                "$ref": "#/components/headers/Location"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InboxItem"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `idempotency_key_reused`, `idempotency_in_progress`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/inbox/items/{itemId}": {
+            "get": {
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Read one inbox item and its answer",
+                "description": "Returns the item with the answer of the owner, the same fields as the `inbox_get` MCP tool. `selectedOptions` holds the indexes of the options the owner picked, and `note` holds the words of whoever closed the item. `apiKey` names the key that made an `api-key` item.",
+                "operationId": "getInboxItem",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "itemId",
+                        "in": "path",
+                        "description": "The item id, as `createInboxItem` returns it.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The item.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InboxItem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `inbox_item_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects": {
             "get": {
                 "tags": [
@@ -14512,6 +15001,360 @@
                 },
                 "type": "object"
             },
+            "InboxItem": {
+                "required": [
+                    "itemId",
+                    "number",
+                    "kind",
+                    "origin",
+                    "title",
+                    "state",
+                    "closedBy",
+                    "closeCause",
+                    "dismissible",
+                    "blocking",
+                    "createdAt",
+                    "updatedAt",
+                    "closedAt",
+                    "cardNumbers",
+                    "body",
+                    "options",
+                    "multiple",
+                    "freeText",
+                    "selectedOptions",
+                    "note",
+                    "review",
+                    "cards",
+                    "documents",
+                    "asks",
+                    "cardId",
+                    "waits",
+                    "suggestedActions",
+                    "actions",
+                    "apiKey"
+                ],
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The short label that counts from 1 inside this project.",
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "question",
+                            "todo",
+                            "review",
+                            "wait",
+                            "notice",
+                            "workflow"
+                        ]
+                    },
+                    "origin": {
+                        "description": "Who wrote the item: `agent`, `loupe`, or `api-key` for an item an API key created.",
+                        "type": "string",
+                        "enum": [
+                            "agent",
+                            "loupe",
+                            "api-key"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "declined",
+                            "cancelled"
+                        ]
+                    },
+                    "closedBy": {
+                        "description": "Who closed the item.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "owner",
+                            "owner-through-agent",
+                            "agent",
+                            "loupe",
+                            "rule"
+                        ]
+                    },
+                    "closeCause": {
+                        "description": "Why Loupe, a rule or an agent closed the item. Null for a response of the owner.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dismissible": {
+                        "description": "Whether the owner may dismiss the item.",
+                        "type": "boolean"
+                    },
+                    "blocking": {
+                        "description": "Whether an agent waits on the item. Always false for an item from the API.",
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "closedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cardNumbers": {
+                        "description": "The numbers of the linked cards, lowest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "body": {
+                        "description": "Markdown.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    },
+                    "freeText": {
+                        "type": "boolean"
+                    },
+                    "selectedOptions": {
+                        "description": "The indexes of the options the owner picked, counting from 0.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "note": {
+                        "description": "The words of whoever closed the item: a written answer, a dismiss note or a withdraw reason.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "review": {
+                        "description": "The target and the verdict of a review item, otherwise null.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "cards": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "number",
+                                "title"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "documentId",
+                                "title"
+                            ],
+                            "properties": {
+                                "documentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "title": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "asks": {
+                        "description": "Every ask that holds the item. An ask with no session is held by Loupe or made by the API.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "askId",
+                                "origin",
+                                "sessionId",
+                                "closedAt"
+                            ],
+                            "properties": {
+                                "askId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "origin": {
+                                    "type": "string"
+                                },
+                                "sessionId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                },
+                                "closedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "cardId": {
+                        "description": "The card of an automatic item, otherwise null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "waits": {
+                        "description": "Each reason the card of an automatic item waited, oldest first. Empty for other items.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "suggestedActions": {
+                        "description": "The built-in actions the asking agent suggests.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "actions": {
+                        "description": "Each action the owner ran on the item, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "apiKey": {
+                        "description": "The key that created the item when `origin` is `api-key`, otherwise null. The name is the one the key had then, and stays when the key is removed.",
+                        "required": [
+                            "id",
+                            "name"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemCreate": {
+                "required": [
+                    "kind",
+                    "title"
+                ],
+                "properties": {
+                    "kind": {
+                        "description": "A `question` takes options, freeText or both. A `todo` is marked done or declined. A `notice` only informs, and the owner dismisses it.",
+                        "type": "string",
+                        "enum": [
+                            "question",
+                            "todo",
+                            "notice"
+                        ]
+                    },
+                    "title": {
+                        "description": "One line.",
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "body": {
+                        "description": "Markdown. Write a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`.",
+                        "type": "string",
+                        "maxLength": 20000
+                    },
+                    "options": {
+                        "description": "The answers the owner picks from. A question only.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 500
+                        },
+                        "maxItems": 20
+                    },
+                    "multiple": {
+                        "description": "Whether the owner may pick several options. It needs at least two options.",
+                        "type": "boolean"
+                    },
+                    "freeText": {
+                        "description": "Whether the owner may write an answer.",
+                        "type": "boolean"
+                    },
+                    "blocking": {
+                        "description": "Always false. Nothing waits on an item from the API, so `true` is refused.",
+                        "type": "boolean",
+                        "enum": [
+                            false
+                        ]
+                    },
+                    "cardIds": {
+                        "description": "Cards of this project. Any other id is refused.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 20
+                    },
+                    "documentIds": {
+                        "description": "Documents of this project. Any other id is refused.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 20
+                    },
+                    "dedupeKey": {
+                        "title": "The trimmed key, or null when it is absent or blank.",
+                        "description": "A key of your choice. While an open item of the project holds the same key, the call returns that item with 200 and creates nothing. Once that item closes, the next call creates a new item. Blank counts as no key.",
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                },
+                "type": "object"
+            },
             "DocumentLink": {
                 "required": [
                     "documentId",
@@ -16978,6 +17821,10 @@
         {
             "name": "Experiments",
             "description": "Experiments"
+        },
+        {
+            "name": "Inbox",
+            "description": "Inbox"
         },
         {
             "name": "Projects",

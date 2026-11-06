@@ -17,6 +17,7 @@ var Commands = []Command{
 	{Path: []string{"document", "review"}, Op: "getDocumentReview"},
 	{Path: []string{"document", "version", "list"}, Op: "listDocumentVersions", Columns: []string{"versionNumber", "createdAt", "threadCount", "description"}},
 	{Path: []string{"document", "version", "get"}, Op: "getDocumentVersion", LongText: "markdown"},
+	{Path: []string{"inbox", "get"}, Op: "getInboxItem", LongText: "body"},
 	{Path: []string{"artifact", "list"}, Op: "listArtifacts", Columns: []string{"artifactId", "name", "selectedVersion", "archived", "createdAt"}},
 	{Path: []string{"artifact", "get"}, Op: "getArtifact"},
 	{Path: []string{"artifact", "update"}, Op: "updateArtifact"},
@@ -48,6 +49,7 @@ var Commands = []Command{
 	{Path: []string{"document", "decision-clear"}, Op: "clearDocumentDecision"},
 	{Path: []string{"document", "reply"}, Op: "replyToDocumentComment", LongText: "body"},
 	{Path: []string{"document", "address"}, Op: "markDocumentCommentAddressed"},
+	{Path: []string{"inbox", "create"}, Op: "createInboxItem", LongText: "body"},
 }
 
 // Exceptions names each operation that has no command, with the reason.

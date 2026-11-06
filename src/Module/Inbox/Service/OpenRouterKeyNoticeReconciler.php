@@ -73,7 +73,8 @@ final readonly class OpenRouterKeyNoticeReconciler
             if (null !== $existing) {
                 $this->inboxItems->reloadChangeableColumns([$existing->item]);
             }
-            if (null !== $existing && InboxItemState::Open === $existing->item->state) {
+            // A dismissed notice stays the notice of this refusal, so the next refusal opens none.
+            if (null !== $existing && (InboxItemState::Open === $existing->item->state || $existing->item->isDismissed())) {
                 return null;
             }
             // Doctrine inserts before it updates, so a notice whose item closed

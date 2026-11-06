@@ -100,6 +100,10 @@ This project has no experiment with this name. No pin and no run of the project 
 
 This project has no such feedback item.
 
+### inbox_item_not_found
+
+This project has no inbox item with this id.
+
 ### project_not_found
 
 The credential reaches no project with this id or slug.

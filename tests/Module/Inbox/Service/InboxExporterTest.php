@@ -53,7 +53,7 @@ final class InboxExporterTest extends KernelTestCase
             kind: InboxItemKind::Question,
             title: 'Which column?',
             blocking: true,
-            origin: InboxAskOrigin::Agent,
+            origin: InboxAskOrigin::ApiKey,
             body: 'The card is ready.',
             options: ['next', 'done'],
             multiple: true,
@@ -65,6 +65,10 @@ final class InboxExporterTest extends KernelTestCase
         $item->closedBy = InboxCloser::OwnerThroughAgent;
         $item->closeCause = InboxCloseCause::Withdrawn;
         $item->note = 'Done, it shipped.';
+        $keyId = Uuid::v7();
+        $item->apiKeyId = $keyId;
+        $item->apiKeyName = 'CI';
+        $item->dedupeKey = 'weekly-ci';
         $item->updatedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->closedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->cards->add(new InboxItemCard($item, $card));
@@ -92,6 +96,9 @@ final class InboxExporterTest extends KernelTestCase
             'closeCause' => 'withdrawn',
             'note' => 'Done, it shipped.',
             'dismissible' => true,
+            'origin' => 'api-key',
+            'apiKey' => ['id' => (string) $keyId, 'name' => 'CI'],
+            'dedupeKey' => 'weekly-ci',
             'createdAt' => new \DateTimeImmutable('2026-09-01 09:00:00')->format(\DateTimeInterface::ATOM),
             'updatedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),
             'closedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),

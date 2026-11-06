@@ -246,6 +246,8 @@ when@dev: &generator
                 - { alias: ExperimentCardRow, type: App\Module\Bridge\Controller\Api\ExperimentCardRowResponse }
                 - { alias: ExperimentCardList, type: App\Module\Bridge\Controller\Api\ExperimentCardListResponse }
                 - { alias: ExperimentCardExclude, type: App\Module\Bridge\Controller\Api\ExcludeExperimentCardRequest }
+                - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
+                - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }

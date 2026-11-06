@@ -5890,6 +5890,7 @@
             <trans-unit id="inbox.run_command.log_cut"><source>inbox.run_command.log_cut</source><target>Loupe stopped storing the log at 1 MiB</target></trans-unit>
             <trans-unit id="inbox.run_command.run_again"><source>inbox.run_command.run_again</source><target>Run again</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="inbox.action.dismiss.confirm"><source>inbox.action.dismiss.confirm</source><target>Dismiss this item? You cannot reopen it.</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
             <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
             <trans-unit id="inbox.action.error.session_prompt_too_long"><source>inbox.action.error.session_prompt_too_long</source><target>The session prompt is too long. Shorten it.</target></trans-unit>
@@ -6171,10 +6172,6 @@
                 <source>inbox.item.error.final</source>
                 <target>This item is closed, so its response is final.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.error.notice">
-                <source>inbox.item.error.notice</source>
-                <target>A notice takes no response. Loupe closes it when the fact ends.</target>
-            </trans-unit>
             <trans-unit id="inbox.bridge_outage.title">
                 <source>inbox.bridge_outage.title</source>
                 <target>No bridge can take work</target>
@@ -6405,6 +6402,7 @@
             <trans-unit id="inbox.thread.you_verb.submit-review"><source>inbox.thread.you_verb.submit-review</source><target>submitted a review at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.thread.api_key"><source>inbox.thread.api_key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
@@ -8186,12 +8184,14 @@
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.row.source.loupe"><source>inbox.row.source.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.row.source.api-key"><source>inbox.row.source.api-key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
             <trans-unit id="inbox.answer.write"><source>inbox.answer.write</source><target>Write an answer</target></trans-unit>
             <trans-unit id="inbox.answer.write_placeholder"><source>inbox.answer.write_placeholder</source><target>Write your answer for the agent</target></trans-unit>
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
+            <trans-unit id="inbox.from.api-key"><source>inbox.from.api-key</source><target>From API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.linked.menu_label"><source>inbox.linked.menu_label</source><target>Linked items</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.card"><source>inbox.linked.menu_heading.card</source><target>Linked cards (%count%)</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.document"><source>inbox.linked.menu_heading.document</source><target>Linked documents (%count%)</target></trans-unit>
@@ -8632,6 +8632,7 @@
             <trans-unit id="bridge.agents.skills.summary.failed"><source>bridge.agents.skills.summary.failed</source><target>%failed% of %count% failed</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.ready"><source>bridge.agents.accounts.state.ready</source><target>Ready</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.failing"><source>bridge.agents.accounts.state.failing</source><target>Failing</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.state.project_failing"><source>bridge.agents.accounts.state.project_failing</source><target>Failing for this project</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.unused"><source>bridge.agents.accounts.state.unused</source><target>Unused</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.unused_hint"><source>bridge.agents.accounts.unused_hint</source><target>No rule uses this account, so nothing is turned off.</target></trans-unit>
             <trans-unit id="bridge.agents.worker_pools.summary"><source>bridge.agents.worker_pools.summary</source><target>%inUse% of %size% in use · %queued% queued</target></trans-unit>
@@ -8644,12 +8645,14 @@
             <trans-unit id="bridge.agents.usage.window.session"><source>bridge.agents.usage.window.session</source><target>Session</target></trans-unit>
             <trans-unit id="bridge.agents.usage.window.week"><source>bridge.agents.usage.window.week</source><target>Week</target></trans-unit>
             <trans-unit id="bridge.agents.usage.percent"><source>bridge.agents.usage.percent</source><target>%percent% %</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.percent_at_stop"><source>bridge.agents.usage.percent_at_stop</source><target>%percent% %, at its stop value</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.percent_at_limit"><source>bridge.agents.usage.percent_at_limit</source><target>%percent% %, at its limit</target></trans-unit>
             <trans-unit id="bridge.agents.usage.at_limit"><source>bridge.agents.usage.at_limit</source><target>At its limit</target></trans-unit>
             <trans-unit id="bridge.agents.usage.not_reported"><source>bridge.agents.usage.not_reported</source><target>Use not reported</target></trans-unit>
             <trans-unit id="bridge.agents.usage.unknown"><source>bridge.agents.usage.unknown</source><target>Unknown</target></trans-unit>
             <trans-unit id="bridge.agents.usage.read"><source>bridge.agents.usage.read</source><target>Read %age%</target></trans-unit>
-            <trans-unit id="bridge.agents.accounts.project_failed"><source>bridge.agents.accounts.project_failed</source><target>This account fails for this project: %reason%. The work of this project waits on it. Other projects are not affected.</target></trans-unit>
-            <trans-unit id="bridge.agents.accounts.other_projects_failed"><source>bridge.agents.accounts.other_projects_failed</source><target>Projects you cannot see here that also fail on this account: %count%.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.project_failed"><source>bridge.agents.accounts.project_failed</source><target>This account fails for this project: %reason%. The work of this project waits on it.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.other_projects_failed"><source>bridge.agents.accounts.other_projects_failed</source><target>{0}It does not fail for another project.|{1}It also fails for one project that you cannot see here.|]1,Inf[It also fails for %count% projects that you cannot see here.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.failing_hint"><source>bridge.agents.accounts.failing_hint</source><target>The rules that use this account stay off until the account passes its check and the bridge reloads.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.action"><source>bridge.agents.accounts.try_now.action</source><target>Try now</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.trying"><source>bridge.agents.accounts.try_now.trying</source><target>Trying now</target></trans-unit>
@@ -8762,6 +8765,7 @@
             <trans-unit id="analytics.metrics.metric.account-usage"><source>analytics.metrics.metric.account-usage</source><target>Account usage</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.session-usage"><source>analytics.metrics.metric.session-usage</source><target>Session usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.week-usage"><source>analytics.metrics.metric.week-usage</source><target>Week usage of a run</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.peak-context"><source>analytics.metrics.metric.peak-context</source><target>Peak context</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>

@@ -61,7 +61,8 @@ final readonly class RepositoryMisfitReconciler
             $misfit = $this->inboxRepositoryMisfits->findOpenForProject($project);
 
             // Doctrine inserts before it updates, so a misfit whose item closed elsewhere must end before a new one is inserted.
-            if (null !== $misfit && InboxItemState::Open !== $misfit->item->state) {
+            // A dismissed item keeps its misfit until the hold ends, so the same hold opens no new notice.
+            if (null !== $misfit && InboxItemState::Open !== $misfit->item->state && !$misfit->item->isDismissed()) {
                 $misfit->endedAt = $now;
                 $misfit = null;
                 $this->em->flush();
@@ -87,7 +88,7 @@ final readonly class RepositoryMisfitReconciler
                 return true;
             }
 
-            if ($misfit->repositories === $repositories) {
+            if ($misfit->item->isDismissed() || $misfit->repositories === $repositories) {
                 return null;
             }
             $this->rewrite($misfit, $repositories, $now);

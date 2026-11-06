@@ -25,12 +25,17 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_inbox_items_project_search_language', columns: ['project_id', 'search_language'])]
 #[ORM\Table(name: 'inbox_items')]
 #[ORM\UniqueConstraint(name: 'uniq_inbox_item_project_number', columns: ['project_id', 'number'])]
+// One open item per dedupe key in a project. The predicate is written the way
+// Postgres stores it, or the schema comparator reads it as changed on every migrate-diff.
+#[ORM\UniqueConstraint(name: 'uniq_inbox_item_open_dedupe_key', columns: ['project_id', 'dedupe_key'], options: ['where' => "((state)::text = 'open'::text)"])]
 class InboxItem implements ProjectScopedSubject
 {
     /** The subject type of a work request that an inbox item opened and that no card carries. */
     public const string SUBJECT_TYPE = 'inbox-item';
 
     public const int MAX_TITLE_LENGTH = 255;
+
+    public const int MAX_DEDUPE_KEY_LENGTH = 200;
 
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
@@ -56,7 +61,7 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $note = null;
 
-    /** Whether the owner may dismiss the item. Loupe never offers it on a notice or a workflow question. */
+    /** Whether the owner may dismiss the item. Loupe never offers it on a workflow question, because the rule needs one of its options. */
     #[ORM\Column(options: ['default' => true])]
     public bool $dismissible;
 
@@ -76,6 +81,18 @@ class InboxItem implements ProjectScopedSubject
      */
     #[ORM\Column(name: 'search_vector', type: PostgresType::TSVECTOR, nullable: true, insertable: false, updatable: false)]
     public ?string $searchVector = null;
+
+    /** The API key behind an `api-key` item. No foreign key: the item outlives a revoked or deleted key. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $apiKeyId = null;
+
+    /** The name of the key when the item was made, because a key can be deleted later. */
+    #[ORM\Column(length: 100, nullable: true)]
+    public ?string $apiKeyName = null;
+
+    /** A key of the caller. While this item is open, a create with the same key in the project returns it. */
+    #[ORM\Column(length: self::MAX_DEDUPE_KEY_LENGTH, nullable: true)]
+    public ?string $dedupeKey = null;
 
     /** @var Collection<int, InboxItemCard> */
     #[ORM\OneToMany(targetEntity: InboxItemCard::class, mappedBy: 'item', cascade: ['persist'], orphanRemoval: true)]
@@ -109,7 +126,7 @@ class InboxItem implements ProjectScopedSubject
         #[ORM\Column]
         public bool $blocking,
 
-        /** Who wrote the item. Loupe writes every wait, notice and workflow item, and an agent every item it asks. */
+        /** Who wrote the item. Loupe writes every wait, workflow item and its own notices, an agent every item it asks, and an API key every item it creates. */
         #[ORM\Column(length: 20, enumType: InboxAskOrigin::class)]
         public readonly InboxAskOrigin $origin,
 
@@ -135,7 +152,7 @@ class InboxItem implements ProjectScopedSubject
         $this->cards = new ArrayCollection();
         $this->documents = new ArrayCollection();
         $this->updatedAt = $this->createdAt;
-        $this->dismissible = !\in_array($kind, [InboxItemKind::Notice, InboxItemKind::Workflow], true);
+        $this->dismissible = InboxItemKind::Workflow !== $kind;
     }
 
     /** An agent question takes a note beside its options. A workflow question takes a note only when text alone answers it. */
@@ -148,6 +165,12 @@ class InboxItem implements ProjectScopedSubject
     public function isAutomatic(): bool
     {
         return InboxAskOrigin::Loupe === $this->origin && \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Review], true);
+    }
+
+    /** The owner dismissed it. A notice of Loupe stays dismissed until its fact ends, and opens again only when the fact returns. */
+    public function isDismissed(): bool
+    {
+        return InboxItemState::Declined === $this->state;
     }
 
     #[\Override]

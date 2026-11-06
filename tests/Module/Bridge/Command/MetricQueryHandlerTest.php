@@ -521,6 +521,23 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertSame(3, \count($week->series[0]->rows));
     }
 
+    public function test_the_peak_context_reads_the_stored_peak_of_the_run_fact(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', peakContextTokens: 120_000);
+        $this->fact($card, endedAt: '2026-10-01 17:00:00', peakContextTokens: 246_540);
+        $this->fact($card, endedAt: '2026-10-02 08:00:00');
+
+        $max = $this->query(MetricUnit::Run, Metric::PeakContext, MetricStatistic::Max);
+        $median = $this->query(MetricUnit::Run, Metric::PeakContext, MetricStatistic::Median);
+
+        self::assertEquals(new MetricPoint(null, 246_540, 2), $max->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 183_270.0, 2), $median->series[0]->total);
+        $values = array_map(static fn (MetricRow $row): int|float|null => $row->value, $max->series[0]->rows);
+        sort($values);
+        self::assertSame([null, 120_000, 246_540], $values);
+    }
+
     private function request(Uuid $card, string $kind, ?string $role, ?string $reason): void
     {
         $request = $this->seedWorkRequest($this->em, $this->project, $card, $kind, state: WorkRequestState::Done, subject: WorkSubject::card($card));
@@ -880,6 +897,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?string $variant = null,
         ?float $sessionUsageDelta = null,
         ?float $weekUsageDelta = null,
+        ?int $peakContextTokens = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -904,6 +922,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'variant' => $variant,
             'session_usage_delta' => $sessionUsageDelta,
             'week_usage_delta' => $weekUsageDelta,
+            'peak_context_tokens' => $peakContextTokens,
         ]);
 
         return $runId;

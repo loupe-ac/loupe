@@ -393,6 +393,7 @@ final readonly class MetricRowSource
             Metric::CacheWriteTokens => $fact->tokensCacheWrite,
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
+            Metric::PeakContext => $fact->peakContextTokens,
             Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach, Metric::HarnessEvents, Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }

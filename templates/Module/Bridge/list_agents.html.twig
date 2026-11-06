@@ -91,12 +91,12 @@
                     <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('j M Y, H:i') : 'bridge.agents.never'|trans }}</strong>
                 </div>
                 {% if connection.status.quiet %}
-                <p class="lp-agent-card__name-clash-hint" data-agent-quiet-hint>{{ (connection.status.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': bridge.label}) }}</p>
+                <p class="lp-agent-card__name-clash-hint" data-agent-quiet-hint>{{ (connection.status.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': bridge.label})|inline_code }}</p>
                 {% endif %}
                 {% if connection.refusalChip %}
                 <div class="lp-agent-card__current" data-agent-refused>
                     <twig:Ds:StatusChip :modifier="connection.refusalChip.tone">{{ connection.refusalChip.label|trans }}</twig:Ds:StatusChip>
-                    <p class="lp-agent-card__name-clash-hint">{{ connection.refusalChip.cause|trans(connection.refusalChip.parameters) }}</p>
+                    <p class="lp-agent-card__name-clash-hint">{{ connection.refusalChip.cause|trans(connection.refusalChip.parameters)|inline_code }}</p>
                 </div>
                 {% endif %}
                 {% if bridge.nameClashes() %}
@@ -152,11 +152,12 @@
                     <span>{{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}</span>
                     {% endif %}
                     {% for account in connection.bridge.accounts %}
-                    <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
+                    {% set projectFailure = connection.projectFailure(account.name) %}
+                    <div class="lp-agent-card__account{% if account.state == 'failing' or projectFailure is not null %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
                         <div class="lp-agent-card__account-line">
                             <strong>{{ account.name }}</strong>
                             <span>{{ account.harness }}</span>
-                            <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : 'bridge.agents.accounts.state.ready')|trans }}</span>
+                            <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : (projectFailure is not null ? 'bridge.agents.accounts.state.project_failing' : 'bridge.agents.accounts.state.ready'))|trans }}</span>
                             {% if account.used ?? true %}{% else %}<span data-agent-account-unused>{{ 'bridge.agents.accounts.state.unused'|trans }}</span>{% endif %}
                             {% set tryNowState = connection.tryNowState(account.name) %}
                             {% if tryNowState == 'trying' %}
@@ -180,7 +181,6 @@
                         {% endif %}
                         <p class="lp-agent-card__account-hint">{{ ((account.used ?? true) ? 'bridge.agents.accounts.failing_hint' : 'bridge.agents.accounts.unused_hint')|trans }}</p>
                         {% endif %}
-                        {% set projectFailure = connection.projectFailure(account.name) %}
                         {% if projectFailure is not null %}
                         <p class="lp-agent-card__account-hint" data-agent-account-project-failure>{{ 'bridge.agents.accounts.project_failed'|trans({'%reason%': projectFailure}) }}</p>
                         {% endif %}

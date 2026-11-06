@@ -95,6 +95,29 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertCount(5, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
+    public function test_a_stored_run_with_no_peak_gets_one_and_its_fact_row_follows(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-peak');
+        $this->seed($project, self::NOW);
+        $id = DevSeedId::of('insights/run/2026-10-28/1');
+        $connection = $this->em()->getConnection();
+        $connection->executeStatement('UPDATE bridge_worker_runs SET peak_context_tokens = NULL WHERE id = ?', [$id->toRfc4122()]);
+        $connection->executeStatement('UPDATE bridge_worker_run_facts SET peak_context_tokens = NULL WHERE run_id = ?', [$id->toRfc4122()]);
+        $this->em()->clear();
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        $peak = $this->service(WorkerRunRepository::class)->find($id)?->peakContextTokens;
+        self::assertNotNull($peak);
+        self::assertGreaterThanOrEqual(90_000, $peak);
+        self::assertLessThanOrEqual(260_000, $peak);
+        self::assertSame($peak, $this->service(WorkerRunFactRepository::class)->find($id)?->peakContextTokens);
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW), 'A run with a peak has nothing left to do.');
+    }
+
     public function test_a_run_on_a_later_day_fills_only_the_new_days(): void
     {
         $project = $this->projectWithColumns('dev-metrics-later');

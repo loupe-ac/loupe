@@ -87,6 +87,7 @@ not counted.
 | **Harness events: &lt;kind&gt;** | the number of [harness events](#harness-events) of one kind in a run, such as **Harness events: diagnostics** | run, card |
 | **Session usage of a run** | how many points of the 5-hour [usage window](#account-usage) a run used, from its first to its last reading | run |
 | **Week usage of a run** | how many points of the weekly usage window a run used, from its first to its last reading | run |
+| **Peak context** | the largest context of the main session in one turn of a run, in tokens. Subagents do not count, and a run with no value is unknown | run |
 | **Account usage** | the [use of a usage window](#account-usage) of a bridge account, as a percentage | reading |
 
 The workflow template of the project can declare more metrics. They appear
@@ -176,7 +177,7 @@ do not pay this amount. A duration shows in milliseconds, seconds, minutes or
 hours. A duration that a template declares shows in hours. A rate shows as a percentage. With
 **Count**, the summary and the chart show a number of rows for every metric.
 
-**Account usage** takes **Maximum**, **Mean**, **Median**, **90th percentile** and **Count**. **Stop rate** takes only **Mean** and **Count**. A rate that a template declares
+**Account usage** takes **Maximum**, **Mean**, **Median**, **90th percentile** and **Count**. **Peak context** takes **Maximum**, **Median**, **Mean**, **90th percentile** and **Count**, and no **Sum**, because a sum of peaks means nothing. Group it **By model** with care: a run counts under the model with the highest cost, which can differ from the model at the peak. **Stop rate** takes only **Mean** and **Count**. A rate that a template declares
 takes the same two statistics.
 
 ## Statistics, groups, ranges and buckets
@@ -186,7 +187,7 @@ takes the same two statistics.
 | **Median** | the middle value |
 | **Mean** | the average value |
 | **Sum** | the total of the values |
-| **Maximum** | the highest value. Only a percentage metric offers it |
+| **Maximum** | the highest value. Only a percentage metric and **Peak context** offer it |
 | **90th percentile** | the value that 90% of the rows do not pass |
 | **Count** | the number of rows with a known value |
 

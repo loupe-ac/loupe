@@ -35,7 +35,6 @@ final class InboxToolErrorMessagesTest extends TestCase
         yield 'not an agent item' => [JoinInboxAskHandler::NOT_AGENT_ITEM, 'Loupe opened this item for a card wait, a fact or a rule, so no agent can join it. Only an item that an agent or a person asked is joinable.'];
         yield 'not the caller' => [CallerSessionGuard::NOT_CALLER, 'Pass your own session id. This call comes from another session.'];
         yield 'final' => [InboxItemCloser::ERROR_FINAL, 'The item is closed, so its response is final.'];
-        yield 'notice' => [InboxItemCloser::ERROR_NOTICE, 'A notice takes no response.'];
         yield 'review on the page' => [InboxToolErrorMessages::REVIEW_ON_PAGE, 'A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.'];
     }
 

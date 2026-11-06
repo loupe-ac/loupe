@@ -20,7 +20,7 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    public function test_the_six_oldest_open_items_show_oldest_first_and_a_wait_item_is_about_loupe(): void
+    public function test_the_six_oldest_open_items_show_oldest_first_and_name_who_made_each(): void
     {
         self::bootKernel();
         $em = self::getContainer()->get(EntityManagerInterface::class);
@@ -30,7 +30,8 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
         $wait = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: 'Waits for your review', blocking: true, origin: InboxAskOrigin::Loupe);
         $em->persist($wait);
         $em->persist(new InboxItemCard($wait, $this->card($em, $project, 4)));
-        foreach (range(3, 8) as $number) {
+        $em->persist(new InboxItem(project: $project, number: 3, kind: InboxItemKind::Notice, title: 'Item 3', blocking: false, origin: InboxAskOrigin::ApiKey));
+        foreach (range(4, 8) as $number) {
             $this->item($em, $project, $number, 'Item '.$number);
         }
         $em->flush();
@@ -46,7 +47,7 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
             array_map(static fn (WorkshopAttentionItem $item): string => $item->title, $attention),
         );
         self::assertSame(
-            ['loupe', 'agent', 'agent', 'agent', 'agent', 'agent'],
+            ['loupe', 'api-key', 'agent', 'agent', 'agent', 'agent'],
             array_map(static fn (WorkshopAttentionItem $item): string => $item->subject, $attention),
         );
         self::assertSame(

@@ -19,6 +19,10 @@
         <ini name="memory_limit" value="512M" />
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
+        <!-- WebTestCase sets web=1 when this is unset, and an error page then
+             quotes the test source around the request, so a test that asserts
+             a value is absent from a refused response finds it there. -->
+        <server name="APP_RUNTIME_MODE" value="web=0" />
     </php>
 
     <testsuites>

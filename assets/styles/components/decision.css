@@ -200,7 +200,7 @@
         @apply text-ink;
     }
     .lp-decision__option:has(input:focus-visible) {
-        @apply outline-2 outline-offset-2 outline-accent;
+        @apply outline-2 outline-offset-2 outline-accent-ink;
     }
     .lp-decision__option,
     .lp-decision__option input {

@@ -1,5 +1,5 @@
 {% for label, messages in flashes %}
     {% for message in messages %}
-    <twig:Ds:Flash :severity="label" :dismissLabel="'flash.dismiss'|trans">{{ message }}</twig:Ds:Flash>
+    <twig:Ds:Flash :severity="label" :dismissLabel="'flash.dismiss'|trans">{{ message|inline_code }}</twig:Ds:Flash>
     {% endfor %}
 {% endfor %}
