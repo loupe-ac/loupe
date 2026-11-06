@@ -31,6 +31,8 @@ tags:
   description: The columns of a board, and its card types.
 - name: Cards
   description: The cards of a board. There is no card delete.
+- name: Experiments
+  description: The cards of an experiment, and the manual exclusion of a card from it.
 - name: Documents
   description: Documents for human review. There is no document delete.
 - name: Versions
@@ -1852,6 +1854,150 @@ paths:
           $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/experiments/{experiment}/cards:
+    get:
+      operationId: listExperimentCards
+      summary: List the cards of an experiment
+      tags:
+      - Experiments
+      description: The cards that the Cards tab of the experiment lists, the latest run first and the cards with no run last.
+        Each card names its variant, its pull request URLs, why the comparison leaves it out, and its manual exclusion. The
+        state of the experiment can change between two pages of a walk, so a card can repeat or be missed.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/ExperimentName'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      - name: variant
+        in: query
+        description: Only the cards that count and ran this variant.
+        schema:
+          type: string
+      - name: leftOut
+        in: query
+        description: True for only the cards the comparison leaves out, and false for only the cards that count.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: One page of cards.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentCardList'
+        '400':
+          $ref: '#/components/responses/E400InvalidCursor'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundExperimentNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/experiments/{experiment}/cards/{number}/exclusion:
+    put:
+      operationId: excludeExperimentCard
+      summary: Leave a card out of an experiment
+      tags:
+      - Experiments
+      description: 'The comparison then drops the card from every figure, metric, control and headline of every variant, and
+        lists it with the left-out reason `excluded`. A second call replaces the reason, the author and the time. The experiment
+        must list the card, and a listed card with no number cannot be reached. `DELETE` on the same path puts the card back.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/ExperimentName'
+      - $ref: '#/components/parameters/CardNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentCardExclude'
+      responses:
+        '200':
+          description: The card, now excluded.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentCardRow'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundExperimentNotFoundCardNotInExperimentAnd1More'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    delete:
+      operationId: includeExperimentCard
+      summary: Put a card back into an experiment
+      tags:
+      - Experiments
+      description: Clears the manual exclusion of the card. The card counts again, unless an automatic left-out reason still
+        applies to it. A card with no exclusion is left as it is, and the call still succeeds.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/ExperimentName'
+      - $ref: '#/components/parameters/CardNumber'
+      responses:
+        '200':
+          description: The card, with no exclusion.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentCardRow'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundExperimentNotFoundCardNotInExperimentAnd1More'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/projects/{project}/feedback:
     get:
       operationId: listFeedback
@@ -2023,6 +2169,14 @@ components:
       schema:
         type: string
       example: my-project
+    ExperimentName:
+      name: experiment
+      in: path
+      required: true
+      description: The name of the experiment, as the runs name it.
+      example: php-lsp-4
+      schema:
+        type: string
     CardNumber:
       name: number
       in: path
@@ -4140,6 +4294,96 @@ components:
           description: The URL of the next page, or null on the last page.
           nullable: true
           format: uri
+    ExperimentCardRow:
+      type: object
+      required:
+      - cardId
+      - number
+      - title
+      - variant
+      - pullRequestUrls
+      - leftOut
+      - exclusion
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          description: The card number, or null for a card that the experiment lists but the board and the runs no longer name.
+            A card with no number cannot be excluded.
+          nullable: true
+          minimum: 1
+        title:
+          type: string
+          description: The card title, or null when the card is gone.
+          nullable: true
+        variant:
+          type: string
+          description: The variant that did the work, or null when none is known.
+          nullable: true
+        pullRequestUrls:
+          type: array
+          description: Every pull request link of the card, oldest first.
+          items:
+            type: string
+            format: uri
+        leftOut:
+          type: array
+          description: Why the comparison leaves the card out. Empty for a card that counts.
+          items:
+            type: string
+            enum:
+            - switched
+            - mixed
+            - before-test
+            - covered-without-variant
+            - no-history
+            - no-run
+            - excluded
+        exclusion:
+          type: object
+          description: The manual exclusion of the card, or null.
+          nullable: true
+          required:
+          - reason
+          - excludedBy
+          - excludedAt
+          properties:
+            reason:
+              type: string
+            excludedBy:
+              type: string
+              description: The full name of the author, or null when the account is gone.
+              nullable: true
+            excludedAt:
+              type: string
+              format: date-time
+    ExperimentCardList:
+      type: object
+      required:
+      - items
+      - next
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentCardRow'
+        next:
+          type: string
+          description: The URL of the next page, or null on the last page.
+          nullable: true
+          format: uri
+    ExperimentCardExclude:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          description: Why the card does not fit the question of the experiment. Surrounding blanks are cut off.
+          minLength: 1
+          maxLength: 500
     CardHoldResult:
       type: object
       required:
@@ -6688,6 +6932,22 @@ components:
         status: 409
         code: child_design_refused
         detail: The workflow cannot carry out the childDesign choice for this card.
+    ExperimentNotFound:
+      summary: experiment_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#experiment_not_found
+        title: Experiment not found
+        status: 404
+        code: experiment_not_found
+        detail: This project has no experiment with this name.
+    CardNotInExperiment:
+      summary: card_not_in_experiment
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#card_not_in_experiment
+        title: Card not in experiment
+        status: 404
+        code: card_not_in_experiment
+        detail: The experiment does not list a card with this number.
     CardNotFound:
       summary: card_not_found
       value:
@@ -7340,6 +7600,48 @@ components:
               $ref: '#/components/examples/IdempotencyKeyReused'
             idempotency_in_progress:
               $ref: '#/components/examples/IdempotencyInProgress'
+    E404ProjectNotFoundExperimentNotFoundRouteNotFound:
+      description: 'Refused: `project_not_found`, `experiment_not_found`, `route_not_found`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            experiment_not_found:
+              $ref: '#/components/examples/ExperimentNotFound'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
+    E404ProjectNotFoundExperimentNotFoundCardNotInExperimentAnd1More:
+      description: 'Refused: `project_not_found`, `experiment_not_found`, `card_not_in_experiment`, `route_not_found`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            experiment_not_found:
+              $ref: '#/components/examples/ExperimentNotFound'
+            card_not_in_experiment:
+              $ref: '#/components/examples/CardNotInExperiment'
+            route_not_found:
+              $ref: '#/components/examples/RouteNotFound'
     E404ProjectNotFoundCardNotFoundRouteNotFound:
       description: 'Refused: `project_not_found`, `card_not_found`, `route_not_found`.'
       headers:

@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback and artifacts. The API is in **beta**.
+reviews, feedback, artifacts and the cards of an experiment. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.

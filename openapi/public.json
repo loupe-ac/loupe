@@ -6056,6 +6056,734 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/experiments/{experiment}/cards/{number}/exclusion": {
+            "put": {
+                "tags": [
+                    "Experiments"
+                ],
+                "summary": "Leave a card out of an experiment",
+                "description": "The comparison then drops the card from every figure, metric, control and headline of every variant, and lists it with the left-out reason `excluded`. A second call replaces the reason, the author and the time. The experiment must list the card, and a listed card with no number cannot be reached. `DELETE` on the same path puts the card back.",
+                "operationId": "excludeExperimentCard",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "description": "The name of the experiment, as the runs name it.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[a-z0-9][a-z0-9_-]{0,63}"
+                        },
+                        "example": "php-lsp-4"
+                    },
+                    {
+                        "name": "number",
+                        "in": "path",
+                        "description": "The card number, the short label that counts from 1 inside this project.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "[1-9][0-9]{0,8}",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExperimentCardExclude"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The card, now excluded.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExperimentCardRow"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `experiment_not_found`, `card_not_in_experiment`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Experiments"
+                ],
+                "summary": "Put a card back into an experiment",
+                "description": "Clears the manual exclusion of the card. The card counts again, unless an automatic left-out reason still applies to it. A card with no exclusion is left as it is, and the call still succeeds.",
+                "operationId": "includeExperimentCard",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "description": "The name of the experiment, as the runs name it.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[a-z0-9][a-z0-9_-]{0,63}"
+                        },
+                        "example": "php-lsp-4"
+                    },
+                    {
+                        "name": "number",
+                        "in": "path",
+                        "description": "The card number, the short label that counts from 1 inside this project.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "[1-9][0-9]{0,8}",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The card, with no exclusion.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExperimentCardRow"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `experiment_not_found`, `card_not_in_experiment`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/experiments/{experiment}/cards": {
+            "get": {
+                "tags": [
+                    "Experiments"
+                ],
+                "summary": "List the cards of an experiment",
+                "description": "The cards that the Cards tab of the experiment lists, the latest run first and the cards with no run last. Each card names its variant, its pull request URLs, why the comparison leaves it out, and its manual exclusion. The state of the experiment can change between two pages of a walk, so a card can repeat or be missed.",
+                "operationId": "listExperimentCards",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "description": "The name of the experiment, as the runs name it.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[a-z0-9][a-z0-9_-]{0,63}"
+                        },
+                        "example": "php-lsp-4"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "variant",
+                        "in": "query",
+                        "description": "Only the cards that count and ran this variant.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "leftOut",
+                        "in": "query",
+                        "description": "True for only the cards the comparison leaves out, and false for only the cards that count.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of cards.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExperimentCardList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `experiment_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/versions": {
             "get": {
                 "tags": [
@@ -13667,6 +14395,123 @@
                 },
                 "type": "object"
             },
+            "ExperimentCardRow": {
+                "required": [
+                    "cardId",
+                    "number",
+                    "title",
+                    "variant",
+                    "pullRequestUrls",
+                    "leftOut",
+                    "exclusion"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The card number, or null for a card that the experiment lists but the board and the runs no longer name. A card with no number cannot be excluded.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "title": {
+                        "description": "The card title, or null when the card is gone.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant that did the work, or null when none is known.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pullRequestUrls": {
+                        "description": "Every pull request link of the card, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        }
+                    },
+                    "leftOut": {
+                        "description": "Why the comparison leaves the card out. Empty for a card that counts.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "switched",
+                                "mixed",
+                                "before-test",
+                                "covered-without-variant",
+                                "no-history",
+                                "no-run",
+                                "excluded"
+                            ]
+                        }
+                    },
+                    "exclusion": {
+                        "description": "The manual exclusion of the card, or null.",
+                        "required": [
+                            "reason",
+                            "excludedBy",
+                            "excludedAt"
+                        ],
+                        "properties": {
+                            "reason": {
+                                "type": "string"
+                            },
+                            "excludedBy": {
+                                "description": "The full name of the author, or null when the account is gone.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "excludedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExperimentCardRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardExclude": {
+                "required": [
+                    "reason"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "Why the card does not fit the question of the experiment. Surrounding blanks are cut off.",
+                        "type": "string",
+                        "maxLength": 500,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
             "DocumentLink": {
                 "required": [
                     "documentId",
@@ -16129,6 +16974,10 @@
         {
             "name": "Feedback",
             "description": "Feedback"
+        },
+        {
+            "name": "Experiments",
+            "description": "Experiments"
         },
         {
             "name": "Projects",

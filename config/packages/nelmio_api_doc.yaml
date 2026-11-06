@@ -243,6 +243,9 @@ when@dev: &generator
                 - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }
                 - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
                 - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
+                - { alias: ExperimentCardRow, type: App\Module\Bridge\Controller\Api\ExperimentCardRowResponse }
+                - { alias: ExperimentCardList, type: App\Module\Bridge\Controller\Api\ExperimentCardListResponse }
+                - { alias: ExperimentCardExclude, type: App\Module\Bridge\Controller\Api\ExcludeExperimentCardRequest }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }

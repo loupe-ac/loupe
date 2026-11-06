@@ -7973,6 +7973,13 @@
     .lp-experiment-reasons {
         @apply flex flex-wrap gap-1;
     }
+    /* The Excluded tag, with the reason, the author and the date on hover and on keyboard focus. */
+    .lp-experiment-excluded {
+        @apply relative inline-flex rounded-full outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-experiment-excluded .lp-tooltip {
+        @apply right-0 left-auto;
+    }
 
     /* ── Inbox page ─────────────────────────────────────────────────────
        An ask is one block: the agent's context above its items. A closed ask
@@ -8009,6 +8016,8 @@
     /* Show the tooltip of these anchors on hover and on keyboard focus. */
     .lp-presence:hover .lp-tooltip,
     .lp-presence:focus-visible .lp-tooltip,
+    .lp-experiment-excluded:hover .lp-tooltip,
+    .lp-experiment-excluded:focus-visible .lp-tooltip,
     .lp-status-chip--reason:hover .lp-tooltip,
     .lp-status-chip--reason:focus-visible .lp-tooltip {
         @apply visible opacity-100;

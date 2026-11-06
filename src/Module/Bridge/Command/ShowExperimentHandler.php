@@ -13,6 +13,7 @@ use App\Module\Bridge\Experiment\ControlEvaluator;
 use App\Module\Bridge\Experiment\ExperimentArchiveState;
 use App\Module\Bridge\Experiment\ExperimentCard;
 use App\Module\Bridge\Experiment\ExperimentControl;
+use App\Module\Bridge\Experiment\ExperimentExclusionView;
 use App\Module\Bridge\Experiment\ExperimentHeadlineBuilder;
 use App\Module\Bridge\Experiment\ExperimentMetric;
 use App\Module\Bridge\Experiment\ExperimentVariant;
@@ -30,6 +31,7 @@ use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
@@ -72,6 +74,7 @@ final readonly class ShowExperimentHandler
     public function __construct(
         private WorkerRunRepository $workerRuns,
         private ExperimentPinRepository $experimentPins,
+        private ExperimentExclusionRepository $experimentExclusions,
         private ExperimentDefinitionRepository $experimentDefinitions,
         private ExperimentArchiveRepository $experimentArchives,
         private WorkerRunFactRepository $workerRunFacts,
@@ -138,6 +141,12 @@ final readonly class ShowExperimentHandler
         $fixCounts = $this->templateValues->countsOf($ids);
         $columns = $this->cardReports->columnsFor($project, $ids);
         $titles = $this->cardTitles->titlesFor($project, $ids);
+        $numbers = $this->cardReports->numbersFor($project, $ids);
+        /** @var array<string, ExperimentExclusionView> $exclusions */
+        $exclusions = [];
+        foreach ($this->experimentExclusions->findOfExperiment($project, $experiment) as $exclusion) {
+            $exclusions[(string) $exclusion->cardId] = new ExperimentExclusionView($exclusion->reason, $exclusion->excludedBy?->fullName, $exclusion->excludedAt);
+        }
         /** @var array<string, list<WorkerRunFact>> $facts every worker fact of a card */
         $facts = [];
         foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
@@ -188,6 +197,9 @@ final readonly class ShowExperimentHandler
                 $variantNames[] = $variant;
             }
             $leftOut = self::leftOut($experiment, $runs, $own, $pinVariants[$id] ?? null, $historyStart, $covered);
+            if (isset($exclusions[$id])) {
+                $leftOut[] = LeftOutReason::Excluded;
+            }
             $isDelivered = null !== $delivered && \in_array($delivered, $outcomes[$id] ?? [], true);
             $column = $columns[$id] ?? null;
             $costMicros = MetricRowSource::cardSum($allFacts, Metric::Cost);
@@ -198,7 +210,7 @@ final readonly class ShowExperimentHandler
             $cards[] = [
                 'card' => new ExperimentCard(
                     cardId: $cardId,
-                    number: $last?->cardNumber,
+                    number: $last->cardNumber ?? $numbers[$id] ?? null,
                     title: $titles[$id] ?? null,
                     variant: $variant,
                     column: $column,
@@ -207,6 +219,8 @@ final readonly class ShowExperimentHandler
                     costMicros: $costMicros,
                     coveredCostMicros: $coveredCostMicros,
                     leftOut: $leftOut,
+                    exclusion: $exclusions[$id] ?? null,
+                    lastRunAt: $last?->receivedAt,
                 ),
                 'lastRunAt' => $last?->receivedAt,
             ];
@@ -264,16 +278,32 @@ final readonly class ShowExperimentHandler
             $metrics[$key] = $computed[$key];
         }
 
-        $filtered = array_values(array_filter($cards, static fn (array $row): bool => (null === $command->variant || ($row['card']->included() && $command->variant === $row['card']->variant))
-            && (!$command->leftOutOnly || !$row['card']->included())));
+        $filtered = array_values(array_filter($cards, static fn (array $row): bool => (null === $command->onlyCard || $command->onlyCard->equals($row['card']->cardId))
+            && (null === $command->variant || ($row['card']->included() && $command->variant === $row['card']->variant))
+            && (!$command->leftOutOnly || !$row['card']->included())
+            && (!$command->keptOnly || $row['card']->included())));
         // The latest run first, and a card with a pin and no run last.
-        usort($filtered, static fn (array $a, array $b): int => [null === $a['lastRunAt'], $b['lastRunAt'], (string) $a['card']->cardId] <=> [null === $b['lastRunAt'], $a['lastRunAt'], (string) $b['card']->cardId]);
+        usort($filtered, static fn (array $a, array $b): int => self::walkOrder($a['lastRunAt'], $a['card']->cardId, $b['lastRunAt'], $b['card']->cardId));
 
         $total = \count($filtered);
         $totalPages = max(1, (int) ceil($total / self::PER_PAGE));
         // A page near PHP_INT_MAX overflows the offset multiplication to a float.
         $page = min(max(1, $command->page), intdiv(\PHP_INT_MAX, self::PER_PAGE));
         $included = \count(array_filter($cards, static fn (array $row): bool => $row['card']->included()));
+
+        $hasMore = false;
+        if (null === $command->limit) {
+            $pageCards = array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card');
+        } else {
+            $after = $command->after;
+            $rest = null === $after ? $filtered : array_values(array_filter($filtered, static fn (array $row): bool => self::walkOrder($row['lastRunAt'], $row['card']->cardId, $after->lastRunAt, $after->cardId) > 0));
+            $hasMore = \count($rest) > $command->limit;
+            $pageCards = array_column(\array_slice($rest, 0, $command->limit), 'card');
+        }
+        if ($command->withPullRequestUrls && [] !== $pageCards) {
+            $urls = $this->cardReports->pullRequestUrlsFor($project, array_map(static fn (ExperimentCard $card): Uuid => $card->cardId, $pageCards));
+            $pageCards = array_map(static fn (ExperimentCard $card): ExperimentCard => $card->withPullRequestUrls($urls[(string) $card->cardId] ?? []), $pageCards);
+        }
 
         $archive = $this->experimentArchives->findOneByName($project, $experiment);
 
@@ -299,7 +329,7 @@ final readonly class ShowExperimentHandler
             unknownGuards: $unknownGuards,
             includedCards: $included,
             leftOutCards: \count($cards) - $included,
-            cards: array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card'),
+            cards: $pageCards,
             filteredTotal: $total,
             totalPages: $totalPages,
             pageList: PageList::build($page, $totalPages),
@@ -308,7 +338,14 @@ final readonly class ShowExperimentHandler
             variantFilter: $command->variant,
             leftOutOnly: $command->leftOutOnly,
             archived: null !== $archive && ExperimentArchiveState::isArchived($archive, $this->workerRuns->findExperimentRunIdsReceivedFrom($project, $experiment, $archive->archivedAt)),
+            hasMore: $hasMore,
         );
+    }
+
+    /** The walk order of the Cards tab: the latest run first, a card with no run last, then the card id. */
+    private static function walkOrder(?\DateTimeImmutable $aRunAt, Uuid $aId, ?\DateTimeImmutable $bRunAt, Uuid $bId): int
+    {
+        return [null === $aRunAt, $bRunAt, (string) $aId] <=> [null === $bRunAt, $aRunAt, (string) $bId];
     }
 
     /**

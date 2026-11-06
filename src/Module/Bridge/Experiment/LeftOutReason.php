@@ -24,4 +24,7 @@ enum LeftOutReason: string
 
     /** A pin names the card, and no experiment run worked it. */
     case NoRun = 'no-run';
+
+    /** The owner left the card out by hand. */
+    case Excluded = 'excluded';
 }

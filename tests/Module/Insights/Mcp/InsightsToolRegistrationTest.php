@@ -95,8 +95,8 @@ final class InsightsToolRegistrationTest extends KernelTestCase
         self::assertIsInt($start);
 
         self::assertSame(
-            [MetricQueryTool::NAME, GraphListTool::NAME, GraphSaveTool::NAME, GraphUpdateTool::NAME, GraphMoveTool::NAME, GraphRemoveTool::NAME, GraphRestoreTool::NAME, ExperimentGetTool::NAME, 'experiment_archive', 'experiment_unarchive', AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BucketRuleListTool::NAME, BucketRuleCreateTool::NAME, BucketRuleMoveTool::NAME, BucketRuleDeleteTool::NAME, BridgeListTool::NAME],
-            \array_slice($names, $start, 19),
+            [MetricQueryTool::NAME, GraphListTool::NAME, GraphSaveTool::NAME, GraphUpdateTool::NAME, GraphMoveTool::NAME, GraphRemoveTool::NAME, GraphRestoreTool::NAME, ExperimentGetTool::NAME, 'experiment_archive', 'experiment_unarchive', 'experiment_card_exclude', 'experiment_card_include', AnalysisGetTool::NAME, AnalysisReportTool::NAME, AnalyticsSettingsGetTool::NAME, AnalyticsSettingsUpdateTool::NAME, BucketRuleListTool::NAME, BucketRuleCreateTool::NAME, BucketRuleMoveTool::NAME, BucketRuleDeleteTool::NAME, BridgeListTool::NAME],
+            \array_slice($names, $start, 21),
         );
     }
 

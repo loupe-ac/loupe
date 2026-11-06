@@ -68,6 +68,10 @@ This artifact has no version with this number.
 
 This project has no card with this number.
 
+### card_not_in_experiment
+
+The experiment does not list a card with this number. Only a card that a pin, a run or a stored run record of the experiment names counts as listed.
+
 ### column_not_found
 
 This board has no column with this slug.
@@ -87,6 +91,10 @@ This project has no such document.
 ### document_version_not_found
 
 This document has no version with this number.
+
+### experiment_not_found
+
+This project has no experiment with this name. No pin and no run of the project names it.
 
 ### feedback_not_found
 

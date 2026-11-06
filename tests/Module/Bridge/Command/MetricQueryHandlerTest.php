@@ -796,6 +796,24 @@ final class MetricQueryHandlerTest extends KernelTestCase
             }
 
             #[\Override]
+            public function numbersFor(Project $project, array $cardIds): array
+            {
+                return [];
+            }
+
+            #[\Override]
+            public function cardIdForNumber(Project $project, int $number): ?Uuid
+            {
+                return null;
+            }
+
+            #[\Override]
+            public function pullRequestUrlsFor(Project $project, array $cardIds): array
+            {
+                return [];
+            }
+
+            #[\Override]
             public function historyStartFor(Project $project): ?\DateTimeImmutable
             {
                 return null;
