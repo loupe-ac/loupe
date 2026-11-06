@@ -35,7 +35,7 @@ final class DonutLayoutTest extends TestCase
         self::assertSame([0.0, 90.0, 180.0], array_map(static fn (MetricChartSlice $slice): float => $slice->startAngle, $layout->slices));
         self::assertSame([90.0, 180.0, 360.0], array_map(static fn (MetricChartSlice $slice): float => $slice->endAngle, $layout->slices));
         self::assertEqualsWithDelta(1.0, array_sum(array_map(static fn (MetricChartSlice $slice): float => $slice->share, $layout->slices)), 0.0000001);
-        self::assertSame([1, 2, 3], array_map(static fn (MetricChartSlice $slice): int => $slice->series->slot, $layout->slices));
+        self::assertSame([2, 3, 1], array_map(static fn (MetricChartSlice $slice): int => $slice->series->slot, $layout->slices));
         self::assertSame('4', $layout->total);
     }
 
@@ -109,17 +109,17 @@ final class DonutLayoutTest extends TestCase
         self::assertSame(['25%', '75%'], array_map(static fn ($row): ?string => $row->share, $layout->table));
     }
 
-    public function test_more_than_eight_series_share_the_grey_past_the_seventh(): void
+    public function test_more_than_twelve_series_share_the_grey_past_the_eleventh(): void
     {
         $series = [];
-        foreach (range(1, 9) as $index) {
+        foreach (range(1, 13) as $index) {
             $series[] = ChartSeries::total('group-'.$index, 1);
         }
 
         $layout = self::build($series);
 
         self::assertNotNull($layout);
-        self::assertSame([1, 2, 3, 4, 5, 6, 7, 0, 0], array_map(static fn (MetricChartSlice $slice): int => $slice->series->slot, $layout->slices));
+        self::assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 0], array_map(static fn (MetricChartSlice $slice): int => $slice->series->slot, $layout->slices));
     }
 
     /** @param list<MetricSeries> $series */

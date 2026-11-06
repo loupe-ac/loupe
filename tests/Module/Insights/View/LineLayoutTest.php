@@ -166,17 +166,17 @@ final class LineLayoutTest extends TestCase
         self::assertSame('↓', $row->change?->direction->arrow());
     }
 
-    public function test_more_than_eight_series_share_the_grey_past_the_seventh(): void
+    public function test_more_than_twelve_series_share_the_grey_past_the_eleventh(): void
     {
         $series = [];
-        foreach (range(1, 9) as $index) {
+        foreach (range(1, 13) as $index) {
             $series[] = ChartSeries::of('group-'.$index, ['2026-09-28' => 1.0]);
         }
 
         $layout = self::build($series);
 
         self::assertNotNull($layout);
-        self::assertSame([1, 2, 3, 4, 5, 6, 7, 0, 0], array_map(static fn (MetricChartSeries $item): int => $item->slot, $layout->series));
+        self::assertSame([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 0], array_map(static fn (MetricChartSeries $item): int => $item->slot, $layout->series));
     }
 
     public function test_a_bucket_a_series_has_no_row_in_is_a_gap_in_its_line(): void

@@ -145,9 +145,9 @@ final class ShowMetricsControllerChartsTest extends WebTestCase
         self::assertSame(['none'], $crawler->filter('select[name="group"] option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
         self::assertSame('Time in each bucket', trim($crawler->filter('select[name="metric"] option[value="bucket-time-each"]')->text()));
         self::assertCount(1, $crawler->filter('figure.lp-chart--donut'));
-        self::assertSame(['git', 'tests'], $crawler->filter('[data-metrics-chart] .lp-chart__legend li')->each(static fn (Crawler $item): string => trim($item->text())));
+        self::assertSame(['tests', 'git'], $crawler->filter('[data-metrics-chart] .lp-chart__legend li')->each(static fn (Crawler $item): string => trim($item->text())));
         $shares = $crawler->filter('[data-metrics-chart] .lp-data-table__row')->each(static fn (Crawler $row): string => trim($row->filter('.lp-data-table__cell')->eq(2)->text()));
-        self::assertSame(['20%', '80%'], $shares);
+        self::assertSame(['80%', '20%'], $shares);
         self::assertCount(0, $crawler->filter('[data-metrics-note="switched"]'));
     }
 

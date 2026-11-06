@@ -73,6 +73,10 @@
   --chart-6: #008300;
   --chart-7: #4a3aa7;
   --chart-8: #e34948;
+  --chart-9: #0e7c8c;
+  --chart-10: #8c5a2b;
+  --chart-11: #a43fc4;
+  --chart-12: #1d3f73;
   --chart-other: #898781;
   --status-ok-ink: #0f3d20;
   --status-danger-chip: #ffd9d5;
@@ -177,6 +181,10 @@
   --color-chart-6: var(--chart-6);
   --color-chart-7: var(--chart-7);
   --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
+  --color-chart-11: var(--chart-11);
+  --color-chart-12: var(--chart-12);
   --color-chart-other: var(--chart-other);
   --color-strike: var(--strike);
   --color-strike-on-chrome: var(--strike-on-chrome);
