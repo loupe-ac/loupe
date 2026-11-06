@@ -12,6 +12,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardValueRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardValueKeys;
+use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\TemplateValueKey;
 
 /** Sets the value of a card for a key of its workflow template, and records the change in its history. */
@@ -19,6 +20,7 @@ final readonly class CardValueWriter
 {
     public const string UNDECLARED_KEY = 'board.card.error.value_key_undeclared';
     public const string UNDECLARED_KEY_NONE = 'board.card.error.value_key_undeclared_none';
+    public const string INTERNAL_KEY = 'board.card.error.value_key_internal';
     public const string WRONG_TYPE_PREFIX = 'board.card.error.value_type_';
 
     public function __construct(
@@ -34,9 +36,10 @@ final readonly class CardValueWriter
      *
      * @param array<array-key, mixed> $values key => value
      */
-    public function refusal(Card $card, array $values): ?DomainErrors
+    public function refusal(Card $card, array $values, Actor $actor): ?DomainErrors
     {
         $declared = $this->declared($card);
+        $writable = array_filter($declared, static fn (TemplateValueKey $key): bool => CardValueVisibility::Public === $key->visibility);
 
         $errors = [];
         $parameters = [];
@@ -45,8 +48,11 @@ final readonly class CardValueWriter
             $field = 'values.'.$key;
             $template = $declared[$key] ?? null;
             if (null === $template) {
-                $errors[$field] = [] === $declared ? self::UNDECLARED_KEY_NONE : self::UNDECLARED_KEY;
-                $parameters[$field] = ['%key%' => $key, '%declared%' => implode(', ', array_keys($declared))];
+                $errors[$field] = [] === $writable ? self::UNDECLARED_KEY_NONE : self::UNDECLARED_KEY;
+                $parameters[$field] = ['%key%' => $key, '%declared%' => implode(', ', array_keys($writable))];
+            } elseif (CardValueVisibility::Internal === $template->visibility && Actor::System !== $actor) {
+                $errors[$field] = self::INTERNAL_KEY;
+                $parameters[$field] = ['%key%' => $key];
             } elseif (!$template->type->accepts($value)) {
                 $errors[$field] = self::WRONG_TYPE_PREFIX.$template->type->value;
             }
@@ -66,8 +72,8 @@ final readonly class CardValueWriter
     public function set(Card $card, string $key, mixed $value, Actor $actor): bool
     {
         $template = $this->declared($card)[$key] ?? null;
-        if (null === $template || !$template->type->accepts($value)) {
-            throw $this->refusal($card, [$key => $value]) ?? new \LogicException('A refused value has errors.');
+        if (null === $template || !$template->type->accepts($value) || (CardValueVisibility::Internal === $template->visibility && Actor::System !== $actor)) {
+            throw $this->refusal($card, [$key => $value], $actor) ?? new \LogicException('A refused value has errors.');
         }
 
         $row = $this->cardValues->findOneForCardFresh($card, $key);

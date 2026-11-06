@@ -118,10 +118,11 @@ final readonly class CardRowResponse
         public bool $requiresHumanReview,
 
         #[OA\Property(description: 'One row for each key the workflow template declares.', type: 'array', items: new OA\Items(
-            required: ['key', 'type', 'value', 'writer', 'updatedAt'],
+            required: ['key', 'type', 'visibility', 'value', 'writer', 'updatedAt'],
             properties: [
                 new OA\Property(property: 'key', type: 'string'),
                 new OA\Property(property: 'type', type: 'string', enum: ['bool']),
+                new OA\Property(property: 'visibility', description: 'Who may write the key: any caller for public, only the workflow for internal.', type: 'string', enum: ['public', 'internal']),
                 new OA\Property(property: 'value', description: 'The value of the key, or null when it is unset.', type: 'boolean', nullable: true),
                 new OA\Property(property: 'writer', description: 'Who last wrote the value: kind and name.', type: 'object', nullable: true, additionalProperties: true),
                 new OA\Property(property: 'updatedAt', type: 'string', format: 'date-time', nullable: true),

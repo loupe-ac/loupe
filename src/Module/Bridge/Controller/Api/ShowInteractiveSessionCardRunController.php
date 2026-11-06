@@ -50,11 +50,6 @@ use Symfony\Component\Uid\Uuid;
     name: 'api_interactive_session_card_run',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/interactive-sessions/{sessionId}/card-run',
-    name: 'api_legacy_interactive_session_card_run',
-    methods: ['GET'],
-)]
 final class ShowInteractiveSessionCardRunController extends AppController
 {
     public function __construct(

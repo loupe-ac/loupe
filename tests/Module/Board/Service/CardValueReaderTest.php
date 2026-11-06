@@ -123,7 +123,7 @@ final class CardValueReaderTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('values-reader');
-        $this->bindLifecycle($project);
+        $this->bindLifecyclePublicOnly($project);
 
         return $this->card($project);
     }

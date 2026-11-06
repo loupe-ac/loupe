@@ -62,11 +62,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     name: 'api_event_replay',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/events/replay',
-    name: 'api_legacy_event_replay',
-    methods: ['GET'],
-)]
 final class ShowEventReplayController extends AppController
 {
     public function __construct(
@@ -88,7 +83,7 @@ final class ShowEventReplayController extends AppController
         try {
             $view = ($this->showEventReplay)(new ShowEventReplayCommand($user, $request->headers->get(EventStreamGate::HEADER), $after));
         } catch (BridgeUpgradeRequired $e) {
-            throw new ApiProblemException(new ApiProblem(Response::HTTP_UPGRADE_REQUIRED, $e->reason, 'Upgrade required', $e->getMessage(), legacyError: $e->getMessage()));
+            throw new ApiProblemException(new ApiProblem(Response::HTTP_UPGRADE_REQUIRED, $e->reason, 'Upgrade required', $e->getMessage()));
         }
 
         return new JsonResponse([

@@ -25,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
  * An instance with no hub sets no MERCURE_JWT_SECRET, and the Mercure JWT
  * factory reads it while it is built. Injected directly, the container cannot
  * build this handler, so it cannot build the controller that holds it, and
- * GET /api/events answers 500 from ControllerResolver before
+ * GET /api/v1/bridge/events answers 500 from ControllerResolver before
  * RequireFeatureFlag can answer the 404 it is there to answer.
  *
  * Production ran exactly that on 2026-09-22.

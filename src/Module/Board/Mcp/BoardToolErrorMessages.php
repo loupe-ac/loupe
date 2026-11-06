@@ -84,6 +84,7 @@ final readonly class BoardToolErrorMessages
             CardValueWriter::WRONG_TYPE_PREFIX.CardValueType::Bool->value => 'This key takes true or false.',
             CardValueWriter::UNDECLARED_KEY => \sprintf('The workflow template declares no key %s. Declared keys: %s.', $parameters['%key%'] ?? '', $parameters['%declared%'] ?? ''),
             CardValueWriter::UNDECLARED_KEY_NONE => \sprintf('The workflow template declares no key %s. Declared keys: none.', $parameters['%key%'] ?? ''),
+            CardValueWriter::INTERNAL_KEY => \sprintf('The key %s is internal. Only the workflow writes it.', $parameters['%key%'] ?? ''),
             BoardColumns::SLUG_EMPTY => 'A column label needs at least one letter or digit, because the slug comes from the label.',
             BoardColumns::SLUG_INVALID => 'The slug that comes from this label is not valid. Use letters, digits and spaces in the label.',
             BoardColumns::SLUG_TAKEN => 'Another column on this board already has the slug that comes from this label. Choose another label.',

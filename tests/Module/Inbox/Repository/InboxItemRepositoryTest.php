@@ -30,6 +30,23 @@ final class InboxItemRepositoryTest extends KernelTestCase
         $this->items = $items;
     }
 
+    public function test_it_counts_the_rows_the_open_side_of_the_inbox_lists(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-rows');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $project, [$this->question($this->em, $project, 1), $this->question($this->em, $project, 2)]);
+        $this->askHolding($this->em, $project, [$this->todo($this->em, $project, 3)], closedAt: new \DateTimeImmutable());
+        $this->askHolding($this->em, $project, [$this->answered($this->em, $this->question($this->em, $project, 4))]);
+        $this->todo($this->em, $project, 5);
+        $this->answered($this->em, $this->question($this->em, $project, 6));
+        $this->askHolding($this->em, $project, []);
+        $quiet = $this->inboxProject($this->em, $owner);
+
+        self::assertSame(4, $this->items->countOpenRowsByProject($project));
+        self::assertSame([(string) $project->id => 4], $this->items->countOpenRowsByProjects([$project, $quiet]));
+        self::assertSame(0, $this->items->countOpenRowsByProject($quiet));
+    }
+
     public function test_a_stale_managed_item_reads_the_stored_close_record_after_the_reload(): void
     {
         $project = $this->inboxProject($this->em, $this->signedUpUser($this->em, 'inbox-repo'));

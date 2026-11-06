@@ -190,6 +190,38 @@ func TestParseCommandRejectsASessionUsageRequestWithNoWindow(t *testing.T) {
 	}
 }
 
+// A usage request names an interactive run by its free-text name, up to the
+// server limit in characters. Another kind keeps the work kind shape.
+func TestParseCommandTakesARunNameInASessionUsageRequest(t *testing.T) {
+	for name, kind := range map[string]string{
+		"a colon name":     "loupe:lifecycle-session",
+		"accented, at 100": strings.Repeat("é", MaxRunNameLength),
+		"plain, at 100":    strings.Repeat("a", MaxRunNameLength),
+	} {
+		t.Run(name, func(t *testing.T) {
+			payload := strings.Replace(sessionUsagePayload, `"workKind":"plan"`, `"workKind":"`+kind+`"`, 1)
+			c, err := ParseCommand([]byte(payload))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.WorkKind != kind {
+				t.Fatalf("workKind = %q, want %q", c.WorkKind, kind)
+			}
+		})
+	}
+
+	long := strings.Replace(sessionUsagePayload, `"workKind":"plan"`, `"workKind":"`+strings.Repeat("é", MaxRunNameLength+1)+`"`, 1)
+	if _, err := ParseCommand([]byte(long)); err == nil {
+		t.Fatal("expected a run name of 101 characters to be rejected")
+	}
+
+	resume := strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run"`, 1)
+	resume = strings.Replace(resume, `"workKind":"plan"`, `"workKind":"loupe:lifecycle-session"`, 1)
+	if _, err := ParseCommand([]byte(resume)); err == nil {
+		t.Fatal("expected a resume with a session run name to be rejected")
+	}
+}
+
 // A command has its own parser, so Parse drops it as an unknown type.
 // A command carries the context of the work request of its run. An older
 // server sends none, and a malformed value rejects the command.

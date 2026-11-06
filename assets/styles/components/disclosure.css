@@ -1,0 +1,52 @@
+/* The disclosure: a native details element with a summary row and a body.
+   `templates/components/Ds/Disclosure.html.twig` renders it. */
+@layer components {
+    .lp-disclosure__summary {
+        @apply flex cursor-pointer list-none items-center gap-1 rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-disclosure__summary::-webkit-details-marker {
+        display: none;
+    }
+    .lp-disclosure__caret {
+        @apply shrink-0 transition-transform duration-100;
+    }
+    .lp-disclosure[open] > .lp-disclosure__summary .lp-disclosure__caret {
+        @apply rotate-90;
+    }
+    .lp-disclosure[open] > .lp-disclosure__summary {
+        @apply mb-2;
+    }
+    .lp-disclosure__body {
+        @apply grid gap-1;
+    }
+
+    /* The body folds to nothing and unfolds on the grid-template-rows transition.
+       `allow-discrete` keeps the content visible until the fold ends. */
+    @media (prefers-reduced-motion: no-preference) {
+        .lp-disclosure::details-content {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition:
+                grid-template-rows var(--duration-base) var(--ease-standard),
+                content-visibility var(--duration-base) allow-discrete;
+        }
+        .lp-disclosure[open]::details-content {
+            grid-template-rows: 1fr;
+        }
+        .lp-disclosure__body {
+            @apply min-h-0 overflow-hidden;
+        }
+        .lp-disclosure[open] > .lp-disclosure__body {
+            @apply overflow-visible;
+            animation: lp-disclosure-clip var(--duration-base) step-end;
+        }
+    }
+}
+
+/* The body clips while it folds or unfolds, then lets a tooltip inside it spill out. */
+@keyframes lp-disclosure-clip {
+    from,
+    to {
+        overflow: hidden;
+    }
+}

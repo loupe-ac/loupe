@@ -136,6 +136,15 @@ every failure, including ones that pre-date the change. `just ci` is the full
 check-only run in one command. A person can run it in a terminal, and a hook
 refuses it for an agent.
 
+The `prod-image` job builds the production image with `just build-prod`, on
+each push to `main`. It is no required check. The `build` stage of
+`docker/prod/Dockerfile` runs `bin/console app:check-controller-attributes`
+after the cache warm-up. The command creates every attribute of every routed
+controller, as a request would, and fails on a class that the image lacks. It
+fails when the router finds no controller too. A deploy from your machine runs
+the same step. To prove it, add `#[\Gone\NotInstalled]` to a controller class
+and run `just build-prod`. The build must stop at that step.
+
 **e2e runs against a dedicated target, never the dev host.** `just e2e-up`
 creates a disposable database and a sidecar serving this checkout; `just e2e`
 refuses to start without it. The suite is destructive by design — one project
@@ -167,10 +176,11 @@ line no test reaches, which `--with-uncovered` in both recipes keeps visible.
 you added or changed against `origin/main`, which takes minutes. Pass another base
 as its argument, such as `just mutation-diff main~5`.
 
-A weekly GitHub Action named "Mutation testing" runs the full pass and attaches
-its log as an artifact. It is informational, not a required check. That run takes
-15 to 25 minutes on a hosted runner and much longer on a development machine, for
-the reason below.
+The weekly "Coverage report" GitHub Action runs the full pass in its `infection`
+job and attaches the log as an artifact. The job reuses the coverage of the
+PHPUnit job in the same workflow. It is informational, not a required check. A
+red run adds a to-do to the Loupe inbox. The mutation step takes much longer on a
+development machine than on a hosted runner, for the reason below.
 
 ### Why a local timing is not a CI timing
 

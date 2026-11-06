@@ -43,12 +43,6 @@ use Symfony\Component\Routing\Attribute\Route;
     requirements: ['handle' => '[^/]+', 'cardId' => '[^/]+'],
     methods: ['GET'],
 )]
-#[Route(
-    '/api/projects/{handle}/board/cards/{cardId}',
-    name: 'api_legacy_project_board_card_show',
-    requirements: ['handle' => '[^/]+', 'cardId' => '[^/]+'],
-    methods: ['GET'],
-)]
 final class ShowProjectCardController extends AppController
 {
     public function __construct(

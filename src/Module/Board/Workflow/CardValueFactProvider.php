@@ -41,15 +41,17 @@ final readonly class CardValueFactProvider extends BoardFactProvider
         }
 
         $values = [];
+        $writes = [];
         if ([] !== $declared) {
             foreach ($this->cardValues->findForCard($stored) as $row) {
                 if (isset($declared[$row->key]) && $declared[$row->key]->accepts($row->value)) {
                     $values[$row->key] = $row->value;
+                    $writes[$row->key] = new CardValueWrite($row->updatedAt, $row->writerKind);
                 }
             }
         }
 
-        return new CardValueFacts($values);
+        return new CardValueFacts($values, $writes);
     }
 
     #[\Override]

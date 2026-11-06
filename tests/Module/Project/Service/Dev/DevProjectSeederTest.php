@@ -43,7 +43,7 @@ final class DevProjectSeederTest extends KernelTestCase
         $this->runSeeder($owner);
         $this->runSeeder($owner);
 
-        self::assertCount(1, $this->projects()->findBy(['owner' => $owner]));
+        self::assertCount(2, $this->projects()->findBy(['owner' => $owner]));
     }
 
     public function test_it_renames_an_old_dev_project_that_has_another_id(): void

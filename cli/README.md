@@ -292,14 +292,28 @@ loupe init --name "Docs" --domain docs.example.com --origin https://docs.example
 loupe init --url https://loupe.example.com   # sign in to a self-hosted instance
 loupe init --rules ~/loupe-rules.yaml        # read and write another rule file
 loupe init --reset               # write the first-run rules again
+loupe init --folder root         # below the repository root, set up the root without asking
+loupe init --repoint             # point a rule file entry that maps another folder at this one
 ```
 
 `--force`, `--mcp`, `--no-mcp` and `--mcp-json` work as they do for
 `loupe project link`. The command prints one line for each step, which says
 `done` or `skipped` and why.
 
-1. Sign in with `loupe login`, when you are not signed in.
-2. Choose the project. `--project` names it. `--name` creates a project
+1. Check the folder. A bridge worker starts at the root of a copy of the
+   repository, so it finds `.loupe.yaml` and `.loupe/lifecycle.md` only at the
+   root. When you run `loupe init` below the root of the git repository, the
+   command lists the root as choice 1, the default, and the current folder as
+   choice 2, and asks which to set up. Choice 2 prints a warning that a worker
+   cannot find that setup. `--folder root` or `--folder current` gives the
+   answer and skips the question. With no terminal and no `--folder`, the
+   command stops before it writes anything, and the error names the root and
+   the flag. The root as the answer runs every later step at the root, also for a
+   relative `--rules` path. At the root, or outside a git repository, the step
+   prints `Folder: skipped`. These flags and questions are in the CLI releases
+   after 2.0.2.
+2. Sign in with `loupe login`, when you are not signed in.
+3. Choose the project. `--project` names it. `--name` creates a project
    with that name, and `--domain` and `--origin` (repeatable) set its domain and
    allowed origins. Both need `--name`, and `--name` cannot go with `--project`.
    Else `.loupe.yaml` names it. Else the command lists your projects, also when
@@ -307,19 +321,23 @@ loupe init --reset               # write the first-run rules again
    Enter takes the name of the `origin` remote. With no terminal, the command
    prints the list and stops. A `--project` or `--name` that differs from the
    project of an existing `.loupe.yaml` stops the command, unless you pass
-   `--force`. When your login covers none, it creates a project from the `origin`
+   `--force`. When the name is taken and your login lists that project, the
+   command asks `You already have a project named <name>. Use it? [Y/n]` (from
+   `--name` and from the create row). A yes uses that project, and a no asks for
+   another name. With no terminal, `--name` stops with the error that names
+   `--project <slug>`. When your login covers none, it creates a project from the `origin`
    remote of the repository. With no remote, it stops and asks for `--project`
    or `--name`.
-3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
-4. Install in Claude Code the plugins that this project needs, when `claude` is on
+4. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
+5. Install in Claude Code the plugins that this project needs, when `claude` is on
    your `PATH` and `claude plugin list` does not show them: `loupe`, and
    `loupe-lifecycle` when the workflow of the project uses it. A failed command is printed for
    you to run, and never fails the step. When only `codex` is on your `PATH`,
    the step declares `loupe mcp` to Codex instead, sets
    `default_tools_approval_mode = "approve"` for each Codex account of the rule
    file, and installs the Loupe plugins in each Codex home of the rule file. The
-   Codex part runs after step 5, because it reads the Codex accounts of the rule file.
-5. Write the rule file. A new file holds the first-run rules: app prompts on,
+   Codex part runs after step 6, because it reads the Codex accounts of the rule file.
+6. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
    terminal, a product-design entry. With no known terminal, the step says
    that product design waits for a person, and names the keys to add by hand.
@@ -327,29 +345,34 @@ loupe init --reset               # write the first-run rules again
    lacks, and its comments stay. A file with no account gets the account of the
    agent it finds. `--reset` writes the first-run rules again and keeps the
    `projects` map. When that map holds the project under another directory,
-   the command stops and names the entry to change.
-6. Ask `Turn on automatic updates? [y/N]`, when the rule file has no
+   the command asks `projects.<slug> maps <old>. Point it at <folder>? [Y/n]`. A
+   yes changes only that `dir`, and a no stops with the entry to change. With no
+   terminal, the command stops with the same error, and `--repoint` gives the
+   yes. A running worker keeps its folder after the reload, and a queued run takes
+   the new one. A later teardown of a card worktree fails when the new folder is
+   a clone other than the old one.
+7. Ask `Turn on automatic updates? [y/N]`, when the rule file has no
    `autoUpdate` key. A session with no terminal answers no, and the command
    writes `autoUpdate: false`.
-7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge
-   that runs already reloads the rule file when step 5 changed it, as
+8. Start the bridge in the background, as `loupe bridge run -d` does. A bridge
+   that runs already reloads the rule file when step 6 changed it, as
    `loupe bridge reload` does, and is left alone otherwise. A bridge that fails
    to start or to reload is reported, the later steps still run, and the
    command exits with an error.
-8. Install the Playwright browser, when `package.json` lists `@playwright/test`
+9. Install the Playwright browser, when `package.json` lists `@playwright/test`
    or `playwright` and the Playwright cache does not hold the Chromium
    revision of the installed `playwright-core`. The command reads
    the `package.json` of the repository root first, then the one of each direct
    subfolder, such as `e2e/`. It asks first, and runs
    `npx playwright install chromium` in the folder of that `package.json`, so
    the browser matches the Playwright version of that package.
-9. Write the repository profile with an agent, when the workflow of the project
+10. Write the repository profile with an agent, when the workflow of the project
    needs one and `.loupe/lifecycle.md` is missing, lacks a section or holds a
    value that reads "owner to fill in". `--review-profile` starts the agent also
    for a complete file. `--agent` picks `claude` or `codex`. With both on the
    `PATH` and a terminal, the command asks once. With no terminal or no agent,
    it prints the prompt to paste.
-10. Report the account check and print what remains. Before step 9, the
+11. Report the account check and print what remains. Before step 10, the
    command prints each account of the rule file as `ready`, or one line for
    each failure with its project, the reason and the fix. A failing account
    never stops the agent. After the agent exits, the last lines name only the steps that remain:
@@ -535,7 +558,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `feedback`, `document` and `artifact` groups
+The `project`, `column`, `card`, `experiment`, `feedback`, `document`, `artifact` and `inbox` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -547,9 +570,14 @@ loupe card list --status next --format json
 loupe card list --state working
 loupe card get 42 --fields url
 loupe card update 42 --status done
+loupe experiment cards php-lsp-4 --format json
+loupe experiment exclude php-lsp-4 42 --reason "Changes no PHP"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
+loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
+
+The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
 
 1. **Credential.** `LOUPE_API_KEY` wins over the login, and `LOUPE_URL` names the
    instance. The CLI never stores a key. Bridge commands ignore the key.

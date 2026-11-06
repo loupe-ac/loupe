@@ -45,7 +45,7 @@ test('the owner stops a run, which holds nothing, then pauses and releases the a
     const token = await agentAccessToken(page);
     const bridgeId = crypto.randomUUID();
     const heartbeat = await page.request.put(
-        `/api/bridges/${bridgeId}/heartbeat`,
+        `/api/v1/bridge/bridges/${bridgeId}/heartbeat`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {
@@ -57,7 +57,7 @@ test('the owner stops a run, which holds nothing, then pauses and releases the a
     );
     expect(heartbeat.status()).toBe(200);
     const report = await page.request.put(
-        `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+        `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

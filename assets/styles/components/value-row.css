@@ -1,0 +1,31 @@
+/* The value row: a label with a control or a read-only value, an optional help mark and a meta line.
+   `templates/components/Ds/ValueRow.html.twig` renders it. */
+@layer components {
+    .lp-value-row {
+        @apply flex flex-col gap-1;
+    }
+    .lp-value-row__label {
+        @apply text-sm font-semibold text-ink;
+    }
+    .lp-value-row--read-only .lp-value-row__label {
+        @apply font-normal;
+    }
+    .lp-value-row__line {
+        @apply flex items-center justify-between gap-3;
+    }
+    .lp-value-row__end {
+        @apply flex min-w-0 items-center gap-1.5;
+    }
+    .lp-value-row__value {
+        @apply min-w-0 text-right text-sm font-semibold text-ink;
+    }
+    .lp-value-row__control {
+        @apply flex items-center gap-1.5;
+    }
+    .lp-value-row__help {
+        @apply inline-flex cursor-help text-fg-mute;
+    }
+    .lp-value-row__meta {
+        @apply m-0 text-xs font-normal text-fg-mute;
+    }
+}

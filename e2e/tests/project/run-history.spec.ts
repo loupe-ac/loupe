@@ -31,7 +31,7 @@ test('a resume that gave up shows its place in the series and the run it resumes
     };
     const report = async (runId: string, data: Record<string, unknown>) => {
         const response = await page.request.put(
-            `/api/projects/${projectId}/worker-runs/${runId}`,
+            `/api/v1/bridge/projects/${projectId}/worker-runs/${runId}`,
             {
                 headers: { Authorization: `Bearer ${token}` },
                 data: {
@@ -157,7 +157,7 @@ test('completed reports retain outcomes and escaped output at enlarged text size
         };
         const put = (data: Record<string, unknown>) =>
             page.request.put(
-                `/api/projects/${projectId}/worker-runs/${runId}`,
+                `/api/v1/bridge/projects/${projectId}/worker-runs/${runId}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     data: { ...run, ...data },

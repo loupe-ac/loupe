@@ -17,6 +17,7 @@ var Commands = []Command{
 	{Path: []string{"document", "review"}, Op: "getDocumentReview"},
 	{Path: []string{"document", "version", "list"}, Op: "listDocumentVersions", Columns: []string{"versionNumber", "createdAt", "threadCount", "description"}},
 	{Path: []string{"document", "version", "get"}, Op: "getDocumentVersion", LongText: "markdown"},
+	{Path: []string{"inbox", "get"}, Op: "getInboxItem", LongText: "body"},
 	{Path: []string{"artifact", "list"}, Op: "listArtifacts", Columns: []string{"artifactId", "name", "selectedVersion", "archived", "createdAt"}},
 	{Path: []string{"artifact", "get"}, Op: "getArtifact"},
 	{Path: []string{"artifact", "update"}, Op: "updateArtifact"},
@@ -34,6 +35,9 @@ var Commands = []Command{
 	{Path: []string{"card", "hold"}, Op: "holdCard"},
 	{Path: []string{"card", "release"}, Op: "releaseCard"},
 	{Path: []string{"card", "pause-release"}, Op: "releaseCardPause"},
+	{Path: []string{"experiment", "cards"}, Op: "listExperimentCards"},
+	{Path: []string{"experiment", "exclude"}, Op: "excludeExperimentCard"},
+	{Path: []string{"experiment", "include"}, Op: "includeExperimentCard"},
 	{Path: []string{"feedback", "address"}, Op: "markFeedbackAddressed"},
 	{Path: []string{"document", "create"}, Op: "createDocument", LongText: "markdown"},
 	{Path: []string{"document", "update"}, Op: "updateDocument"},
@@ -45,6 +49,7 @@ var Commands = []Command{
 	{Path: []string{"document", "decision-clear"}, Op: "clearDocumentDecision"},
 	{Path: []string{"document", "reply"}, Op: "replyToDocumentComment", LongText: "body"},
 	{Path: []string{"document", "address"}, Op: "markDocumentCommentAddressed"},
+	{Path: []string{"inbox", "create"}, Op: "createInboxItem", LongText: "body"},
 }
 
 // Exceptions names each operation that has no command, with the reason.

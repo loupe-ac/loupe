@@ -98,6 +98,7 @@ final readonly class CardApiProblems
             return match (true) {
                 'board.card.error.value_key_undeclared' === $key => ['field' => $field, 'code' => 'value_undeclared_key', 'message' => \sprintf('The workflow template declares no key %s. Declared keys: %s.', $parameters['%key%'] ?? '', $parameters['%declared%'] ?? '')],
                 'board.card.error.value_key_undeclared_none' === $key => ['field' => $field, 'code' => 'value_undeclared_key', 'message' => \sprintf('The workflow template declares no key %s. Declared keys: none.', $parameters['%key%'] ?? '')],
+                'board.card.error.value_key_internal' === $key => ['field' => $field, 'code' => 'value_internal_key', 'message' => \sprintf('The key %s is internal. Only the workflow writes it.', $parameters['%key%'] ?? '')],
                 str_starts_with($key, 'board.card.error.value_type_') => ['field' => $field, 'code' => 'value_wrong_type', 'message' => 'This key takes true or false.'],
                 default => null,
             };

@@ -75,6 +75,7 @@ A key is a separate kind of actor. Each change that a key makes names the key.
 1. A card history row reads "API key 'CI' (your name)". The row keeps the key name after you remove the key.
 2. A verdict that a key records reads "Recorded through API key 'CI'".
 3. A comment that a key writes has you as author, and reads "API key 'CI' (your name)".
+4. An inbox item that a key creates names the key as its sender, such as "From API key 'CI'".
 
 An action through a CLI sign-in is not a key action. Loupe records it as an agent.
 

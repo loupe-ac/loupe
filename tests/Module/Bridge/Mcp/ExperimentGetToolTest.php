@@ -107,6 +107,8 @@ final class ExperimentGetToolTest extends KernelTestCase
             'costUsd' => null,
             'coveredCostUsd' => null,
             'leftOut' => ['switched'],
+            'pullRequestUrls' => [],
+            'exclusion' => null,
         ], $result['cards'][0]);
         self::assertSame(2.0, $this->cardOf($result['cards'], 1)['costUsd']);
         self::assertSame(2.0, $this->cardOf($result['cards'], 1)['coveredCostUsd']);

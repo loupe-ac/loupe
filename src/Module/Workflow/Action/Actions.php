@@ -46,10 +46,10 @@ final class Actions
     /**
      * Builds the call of an action with the traits and the `from` slot its declarations give.
      *
-     * @param array<string, int|string>   $params
-     * @param list<string>                $checks
-     * @param list<AskOption>             $options
-     * @param array<string, list<string>> $lists
+     * @param array<string, bool|int|string> $params
+     * @param list<string>                   $checks
+     * @param list<AskOption>                $options
+     * @param array<string, list<string>>    $lists
      */
     public function call(string $key, array $params, ?Expression $until = null, array $checks = [], ?Expression $refill = null, array $options = [], ?Expression $cancelWhen = null, array $lists = []): ActionCall
     {

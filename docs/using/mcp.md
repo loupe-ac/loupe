@@ -360,6 +360,7 @@ Roughly in the order an agent uses them:
 | `graph_remove` | Remove a saved graph in two calls. The first call has no `confirmation`. It removes nothing, and it answers `preview` with the graph and a `confirmation` code. After the owner agrees, the second call passes the `graphId` and the `confirmation`. The code works for one removal only, and it stops working when the graph changes or when anything removes or restores the graph. A session that a bridge started as a worker is refused at both calls. The answer of the removal gives `removedGraphId`, `undoUntil` and the list |
 | `graph_restore` | Bring a removed graph back to its old place, as Undo does, for one day after its removal. A full Dashboard and a graph past the day give a tool error. The answer gives the `graph` and the list |
 | `experiment_get` | Read the comparison of one experiment: the variants, each metric with its likely range per variant and whether it gives a clear answer, and one page of the cards, with the reasons a card is left out |
+| `experiment_card_exclude` / `experiment_card_include` | Leave a card out of one experiment by hand with a reason, or put it back. The comparison drops an excluded card from every figure. `experiment_get` lists each card with its `pullRequestUrls` and its `exclusion` |
 | `experiment_archive` / `experiment_unarchive` | Take an experiment out of the main Experiments list, or put it back. A run that Loupe first records after the archive brings the experiment back. `experiment_get` reports `archived` |
 | `analysis_get` | Read one analysis, with its topic, its range, the experiment that an experiment analysis compares, its model and effort, its state and reason, its cost so far and its proposals |
 | `analysis_report` | Finish an analysis with its report document and at most 20 proposals, each a `card` or a `bucket-rule` |
@@ -691,19 +692,24 @@ card. A child counts as done when it sits in a terminal column.
 
 The full card also carries `values`, a list with one entry for each key that
 the workflow template declares. The list is empty when the template declares no
-key. An entry holds `key`, `type`, `value`, `writer` and `updatedAt`. `type` is
-`bool`. `value` is null while nobody has set the key. `writer` holds `kind` and
-`name`, as `actor` does in the history, and `writer` and `updatedAt` are null
-for an unset key.
+key. An entry holds `key`, `type`, `visibility`, `value`, `writer` and
+`updatedAt`. `type` is `bool`. `visibility` is `public` or `internal`. `value`
+is null while nobody has set the key. `writer` holds `kind` and `name`, as
+`actor` does in the history, and `writer` and `updatedAt` are null for an unset
+key.
 
 `card_update` takes `values`, an object that maps a declared key to its value,
-such as `{"tech-design-interactive": true}`. Any caller may write a value,
-including a bridge worker. A key you leave out keeps its value. A call that
-names a key the template does not declare is refused, and so is a value of the
-wrong type. The error names the field, such as
-`values.size: The workflow template declares no key size. Declared keys:
-tech-design-interactive.`. One bad entry refuses the whole call, and the card
-keeps its other fields. A change writes a `value-changed` event in the history
+such as `{"tech-design-interactive": true}`. Any caller may write a value of
+`public` visibility, including a bridge worker. Only the workflow writes a
+value of `internal` visibility, so `card_update` refuses it for every caller.
+A key you leave out keeps its value. A call that names a key the template does
+not declare is refused, and so is a value of the wrong type. The error names the
+field, such as `values.size: The workflow template declares no key size.
+Declared keys: tech-design-interactive.`. The list of declared keys leaves out
+the internal keys. A refused internal key reads
+`values.session-start-approved: The key session-start-approved is internal.
+Only the workflow writes it.`. One bad entry refuses the whole call, and the
+card keeps its other fields. A change writes a `value-changed` event in the history
 of the card, and `card_get_history` returns it with `valueChange`.
 
 The full card also carries `pause`, the active workflow pause of the card, or

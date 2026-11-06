@@ -4,12 +4,13 @@ import starlight from '@astrojs/starlight';
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
-import { remarkDocsLinks } from './remark-docs-links.mjs';
+import { satteri } from '@astrojs/markdown-satteri';
+import { docsLinks } from './docs-links.mjs';
 import { OG_IMAGE_URL } from './src/chrome-markers.mjs';
 
 const docsDir = fileURLToPath(new URL('../docs', import.meta.url));
 
-// The docs are served under /docs on the site host. remarkDocsLinks rewrites
+// The docs are served under /docs on the site host. docsLinks rewrites
 // Markdown links to absolute routes and Astro does not touch those, so it has
 // to prefix the base itself.
 const base = '/docs';
@@ -39,7 +40,7 @@ export default defineConfig({
     '/using/site-review': '/using/live-review',
   },
   markdown: {
-    remarkPlugins: [[remarkDocsLinks, { docsDir, base }]],
+    processor: satteri({ mdastPlugins: [docsLinks({ docsDir, base })] }),
   },
   integrations: [
     starlight({

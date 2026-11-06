@@ -118,7 +118,7 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()), $raw, $body);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_baseline"}', $this->body($client));
+        self::assertSame('invalid_baseline', $this->code($client));
         self::assertCount(1, $this->allPins());
         self::assertSame('opus', $this->allDefinitions()[0]->baseline);
     }
@@ -315,7 +315,7 @@ final class ExperimentPinApiTest extends WebTestCase
             $this->put($client, $this->path($handle, 'impl-model', (string) Uuid::v7()), $raw, self::BODY);
 
             self::assertResponseStatusCodeSame(404, $handle);
-            self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', $this->body($client));
+            self::assertSame('project_not_found', $this->code($client));
         }
 
         self::assertSame([], $this->allPins());
@@ -332,7 +332,7 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, 'impl-model', 'not-a-uuid'), $raw, self::BODY);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_card_id"}', $this->body($client));
+        self::assertSame('invalid_card_id', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
@@ -358,7 +358,7 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, $experiment, (string) Uuid::v7()), $raw, self::BODY);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_experiment"}', $this->body($client));
+        self::assertSame('invalid_experiment', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
@@ -393,7 +393,7 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()), $raw, $body);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertJsonStringEqualsJsonString('{"error":"invalid_variants"}', $this->body($client));
+        self::assertSame('invalid_variants', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
@@ -428,7 +428,7 @@ final class ExperimentPinApiTest extends WebTestCase
         );
 
         self::assertResponseStatusCodeSame(415);
-        self::assertStringNotContainsString('"error"', $this->body($client));
+        self::assertSame('unsupported_media_type', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
@@ -463,11 +463,11 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()), $raw, self::BODY);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertJsonStringEqualsJsonString('{"error":"insufficient_scope"}', $this->body($client));
+        self::assertSame('credential_not_allowed', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
-    /** The bridge reads a 404 with no error code as a server with no pin endpoint. */
+    /** The bridge reads a generic 404 code as a server with no pin endpoint. */
     public function test_it_is_absent_with_no_error_code_while_push_is_switched_off(): void
     {
         $client = static::createClient();
@@ -480,7 +480,7 @@ final class ExperimentPinApiTest extends WebTestCase
         $this->put($client, $this->path((string) $project->id, 'impl-model', (string) Uuid::v7()), $raw, self::BODY);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('"error"', $this->body($client));
+        self::assertSame('http_404', $this->code($client));
         self::assertSame([], $this->allPins());
     }
 
@@ -507,7 +507,7 @@ final class ExperimentPinApiTest extends WebTestCase
 
     private function path(string $handle, string $experiment, string $cardId): string
     {
-        return '/api/projects/'.$handle.'/experiments/'.$experiment.'/pins/'.$cardId;
+        return '/api/v1/bridge/projects/'.$handle.'/experiments/'.$experiment.'/pins/'.$cardId;
     }
 
     private function put(KernelBrowser $client, string $path, string $raw, string $body): void
@@ -522,6 +522,14 @@ final class ExperimentPinApiTest extends WebTestCase
             ],
             content: $body,
         );
+    }
+
+    private function code(KernelBrowser $client): mixed
+    {
+        $decoded = json_decode($this->body($client), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+
+        return $decoded['code'] ?? null;
     }
 
     private function body(KernelBrowser $client): string

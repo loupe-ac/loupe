@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -269,7 +270,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $project = $this->project($em, $owner);
         $this->addTriageColumn($project);
         $em->flush();
-        $card = $this->card($em, $project, 'Private');
+        $card = $this->card($em, $project, 'Outsider-hidden placement card');
         $url = $this->placementUrl((string) $project->id, (string) $card->id);
         $em->clear();
 
@@ -277,7 +278,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $url);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Private', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Outsider-hidden placement card', RefusedPage::body($client->getResponse()));
     }
 
     public function test_an_outsider_learns_nothing_about_a_card_that_does_not_exist(): void

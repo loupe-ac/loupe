@@ -37,7 +37,7 @@
 
     /* Nav counts are plain numerals, not pills. */
     .lp-sidebar__pill {
-        @apply ml-auto text-xs font-bold leading-none;
+        @apply ml-auto font-mono text-xs font-bold leading-none tabular-nums;
     }
     .lp-sidebar__pill--amber {
         @apply text-accent;

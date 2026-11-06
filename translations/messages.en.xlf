@@ -5731,7 +5731,7 @@
             </trans-unit>
             <trans-unit id="inbox.nav.open_items">
                 <source>inbox.nav.open_items</source>
-                <target>{0}No open items|{1}1 open item|]1,Inf[%count% open items</target>
+                <target>{0}No open entries|{1}1 open entry|]1,Inf[%count% open entries</target>
             </trans-unit>
             <trans-unit id="inbox.page.title">
                 <source>inbox.page.title</source>
@@ -5890,6 +5890,7 @@
             <trans-unit id="inbox.run_command.log_cut"><source>inbox.run_command.log_cut</source><target>Loupe stopped storing the log at 1 MiB</target></trans-unit>
             <trans-unit id="inbox.run_command.run_again"><source>inbox.run_command.run_again</source><target>Run again</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="inbox.action.dismiss.confirm"><source>inbox.action.dismiss.confirm</source><target>Dismiss this item? You cannot reopen it.</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
             <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
             <trans-unit id="inbox.action.error.session_prompt_too_long"><source>inbox.action.error.session_prompt_too_long</source><target>The session prompt is too long. Shorten it.</target></trans-unit>
@@ -6171,10 +6172,6 @@
                 <source>inbox.item.error.final</source>
                 <target>This item is closed, so its response is final.</target>
             </trans-unit>
-            <trans-unit id="inbox.item.error.notice">
-                <source>inbox.item.error.notice</source>
-                <target>A notice takes no response. Loupe closes it when the fact ends.</target>
-            </trans-unit>
             <trans-unit id="inbox.bridge_outage.title">
                 <source>inbox.bridge_outage.title</source>
                 <target>No bridge can take work</target>
@@ -6405,6 +6402,7 @@
             <trans-unit id="inbox.thread.you_verb.submit-review"><source>inbox.thread.you_verb.submit-review</source><target>submitted a review at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.thread.api_key"><source>inbox.thread.api_key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
@@ -6731,6 +6729,10 @@
             <trans-unit id="board.card.error.value_key_undeclared_none">
                 <source>board.card.error.value_key_undeclared_none</source>
                 <target>The workflow template declares no key %key%. Declared keys: none.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.value_key_internal">
+                <source>board.card.error.value_key_internal</source>
+                <target>The key %key% is internal. Only the workflow writes it.</target>
             </trans-unit>
             <trans-unit id="board.card.error.title_blank">
                 <source>board.card.error.title_blank</source>
@@ -7529,6 +7531,11 @@
             <trans-unit id="bridge.experiments.left_out_reason.covered-without-variant"><source>bridge.experiments.left_out_reason.covered-without-variant</source><target>Covered work without the variant</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-history"><source>bridge.experiments.left_out_reason.no-history</source><target>Run before the card history</target></trans-unit>
             <trans-unit id="bridge.experiments.left_out_reason.no-run"><source>bridge.experiments.left_out_reason.no-run</source><target>No experiment run</target></trans-unit>
+            <trans-unit id="bridge.experiments.left_out_reason.excluded"><source>bridge.experiments.left_out_reason.excluded</source><target>Excluded</target></trans-unit>
+            <trans-unit id="bridge.experiments.excluded.by"><source>bridge.experiments.excluded.by</source><target>Excluded by %name% on %date%</target></trans-unit>
+            <trans-unit id="bridge.experiments.excluded.deleted_user"><source>bridge.experiments.excluded.deleted_user</source><target>a deleted account</target></trans-unit>
+            <trans-unit id="bridge.experiments.exclusion.error.unknown_experiment"><source>bridge.experiments.exclusion.error.unknown_experiment</source><target>No run and no card pin names this experiment.</target></trans-unit>
+            <trans-unit id="bridge.experiments.exclusion.error.card_not_in_experiment"><source>bridge.experiments.exclusion.error.card_not_in_experiment</source><target>The experiment does not list a card with this number.</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.filter_label"><source>bridge.experiments.cards.filter_label</source><target>Show cards</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.all"><source>bridge.experiments.cards.all</source><target>All</target></trans-unit>
             <trans-unit id="bridge.experiments.cards.left_out"><source>bridge.experiments.cards.left_out</source><target>Left out</target></trans-unit>
@@ -8095,6 +8102,9 @@
             <trans-unit id="board.card.human_review.rules_link"><source>board.card.human_review.rules_link</source><target>See the rules</target></trans-unit>
             <trans-unit id="board.card.human_review.error.not_saved"><source>board.card.human_review.error.not_saved</source><target>The review setting was not saved. Reload the page and try again.</target></trans-unit>
             <trans-unit id="board.card.values.title"><source>board.card.values.title</source><target>Values</target></trans-unit>
+            <trans-unit id="board.card.values.internal"><source>board.card.values.internal</source><target>Internal values</target></trans-unit>
+            <trans-unit id="board.card.values.on"><source>board.card.values.on</source><target>On</target></trans-unit>
+            <trans-unit id="board.card.values.off"><source>board.card.values.off</source><target>Off</target></trans-unit>
             <trans-unit id="board.card.values.help_label"><source>board.card.values.help_label</source><target>About this setting</target></trans-unit>
             <trans-unit id="board.card.values.set_by"><source>board.card.values.set_by</source><target>Set by %writer%</target></trans-unit>
             <trans-unit id="board.card.values.not_set"><source>board.card.values.not_set</source><target>Not set</target></trans-unit>
@@ -8181,12 +8191,14 @@
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.row.source.loupe"><source>inbox.row.source.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.row.source.api-key"><source>inbox.row.source.api-key</source><target>API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
             <trans-unit id="inbox.answer.write"><source>inbox.answer.write</source><target>Write an answer</target></trans-unit>
             <trans-unit id="inbox.answer.write_placeholder"><source>inbox.answer.write_placeholder</source><target>Write your answer for the agent</target></trans-unit>
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
+            <trans-unit id="inbox.from.api-key"><source>inbox.from.api-key</source><target>From API key '%name%'</target></trans-unit>
             <trans-unit id="inbox.linked.menu_label"><source>inbox.linked.menu_label</source><target>Linked items</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.card"><source>inbox.linked.menu_heading.card</source><target>Linked cards (%count%)</target></trans-unit>
             <trans-unit id="inbox.linked.menu_heading.document"><source>inbox.linked.menu_heading.document</source><target>Linked documents (%count%)</target></trans-unit>
@@ -8627,6 +8639,7 @@
             <trans-unit id="bridge.agents.skills.summary.failed"><source>bridge.agents.skills.summary.failed</source><target>%failed% of %count% failed</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.ready"><source>bridge.agents.accounts.state.ready</source><target>Ready</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.failing"><source>bridge.agents.accounts.state.failing</source><target>Failing</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.state.project_failing"><source>bridge.agents.accounts.state.project_failing</source><target>Failing for this project</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.state.unused"><source>bridge.agents.accounts.state.unused</source><target>Unused</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.unused_hint"><source>bridge.agents.accounts.unused_hint</source><target>No rule uses this account, so nothing is turned off.</target></trans-unit>
             <trans-unit id="bridge.agents.worker_pools.summary"><source>bridge.agents.worker_pools.summary</source><target>%inUse% of %size% in use · %queued% queued</target></trans-unit>
@@ -8639,12 +8652,14 @@
             <trans-unit id="bridge.agents.usage.window.session"><source>bridge.agents.usage.window.session</source><target>Session</target></trans-unit>
             <trans-unit id="bridge.agents.usage.window.week"><source>bridge.agents.usage.window.week</source><target>Week</target></trans-unit>
             <trans-unit id="bridge.agents.usage.percent"><source>bridge.agents.usage.percent</source><target>%percent% %</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.percent_at_stop"><source>bridge.agents.usage.percent_at_stop</source><target>%percent% %, at its stop value</target></trans-unit>
+            <trans-unit id="bridge.agents.usage.percent_at_limit"><source>bridge.agents.usage.percent_at_limit</source><target>%percent% %, at its limit</target></trans-unit>
             <trans-unit id="bridge.agents.usage.at_limit"><source>bridge.agents.usage.at_limit</source><target>At its limit</target></trans-unit>
             <trans-unit id="bridge.agents.usage.not_reported"><source>bridge.agents.usage.not_reported</source><target>Use not reported</target></trans-unit>
             <trans-unit id="bridge.agents.usage.unknown"><source>bridge.agents.usage.unknown</source><target>Unknown</target></trans-unit>
             <trans-unit id="bridge.agents.usage.read"><source>bridge.agents.usage.read</source><target>Read %age%</target></trans-unit>
-            <trans-unit id="bridge.agents.accounts.project_failed"><source>bridge.agents.accounts.project_failed</source><target>This account fails for this project: %reason%. The work of this project waits on it. Other projects are not affected.</target></trans-unit>
-            <trans-unit id="bridge.agents.accounts.other_projects_failed"><source>bridge.agents.accounts.other_projects_failed</source><target>Projects you cannot see here that also fail on this account: %count%.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.project_failed"><source>bridge.agents.accounts.project_failed</source><target>This account fails for this project: %reason%. The work of this project waits on it.</target></trans-unit>
+            <trans-unit id="bridge.agents.accounts.other_projects_failed"><source>bridge.agents.accounts.other_projects_failed</source><target>{0}It does not fail for another project.|{1}It also fails for one project that you cannot see here.|]1,Inf[It also fails for %count% projects that you cannot see here.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.failing_hint"><source>bridge.agents.accounts.failing_hint</source><target>The rules that use this account stay off until the account passes its check and the bridge reloads.</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.action"><source>bridge.agents.accounts.try_now.action</source><target>Try now</target></trans-unit>
             <trans-unit id="bridge.agents.accounts.try_now.trying"><source>bridge.agents.accounts.try_now.trying</source><target>Trying now</target></trans-unit>
@@ -8757,6 +8772,7 @@
             <trans-unit id="analytics.metrics.metric.account-usage"><source>analytics.metrics.metric.account-usage</source><target>Account usage</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.session-usage"><source>analytics.metrics.metric.session-usage</source><target>Session usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.week-usage"><source>analytics.metrics.metric.week-usage</source><target>Week usage of a run</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.peak-context"><source>analytics.metrics.metric.peak-context</source><target>Peak context</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
@@ -9557,6 +9573,17 @@
             <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.label"><source>workflow.value.session_start_approved.label</source><target>Tech design</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.caption"><source>workflow.value.session_start_approved.caption</source><target>Session start approved</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.help"><source>workflow.value.session_start_approved.help</source><target>On when you let the workflow open a terminal for the tech design session. The workflow turns it off when the session opens.</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.history"><source>workflow.value.session_start_approved.history</source><target>the start approval of the tech design session</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session"><source>workflow.ask.tech_design_session</source><target>The product design of card #%card% approved itself. Start the tech design session? It opens a terminal on your bridge.</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session.start"><source>workflow.ask.tech_design_session.start</source><target>Start the session for card #%card%</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session.agent"><source>workflow.ask.tech_design_session.agent</source><target>Let an agent write the tech design of card #%card%</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.label"><source>dev.value.internal_demo.label</source><target>Dev demo</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.caption"><source>dev.value.internal_demo.caption</source><target>Dev demo, written by the workflow</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.help"><source>dev.value.internal_demo.help</source><target>A demo value that only the workflow writes. The dev seed declares it for one project.</target></trans-unit>
+            <trans-unit id="dev.value.internal_demo.history"><source>dev.value.internal_demo.history</source><target>the dev demo value</target></trans-unit>
             <trans-unit id="workflow.waiting.card_in_slot"><source>workflow.waiting.card_in_slot</source><target>Waiting: the card is not in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_in_slot"><source>workflow.waiting.not.card_in_slot</source><target>Waiting: the card is still in the %slot% slot.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_in_slot"><source>workflow.waiting.parent_in_slot</source><target>Waiting: the parent card is not in the %slot% slot.</target></trans-unit>
@@ -9699,6 +9726,12 @@
             <trans-unit id="workflow.waiting.not.card_document_rejected_before"><source>workflow.waiting.not.card_document_rejected_before</source><target>Waiting: a %tag% document of the card got a change request or a withdrawal.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_published_in_column"><source>workflow.waiting.card_document_published_in_column</source><target>Waiting: a %tag% document in review was published before the card arrived in its column, or has no entry check.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document_published_in_column"><source>workflow.waiting.not.card_document_published_in_column</source><target>Waiting: every %tag% document in review was published after the card arrived in its column.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_newest_approval_by_workflow"><source>workflow.waiting.card_document_newest_approval_by_workflow</source><target>Waiting: the newest approval of the %tag% documents did not come from the Workflow account.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_newest_approval_by_workflow"><source>workflow.waiting.not.card_document_newest_approval_by_workflow</source><target>Waiting: the Workflow account gave the newest approval of the %tag% documents.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value_written_since_approval"><source>workflow.waiting.card_value_written_since_approval</source><target>Waiting: nobody wrote the card value "%key%" after the card arrived and after the newest approval of the %tag% documents.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value_written_since_approval"><source>workflow.waiting.not.card_value_written_since_approval</source><target>Waiting: the card value "%key%" was written after the card arrived and after the newest approval of the %tag% documents.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_value_written_since_approval_by_person"><source>workflow.waiting.card_value_written_since_approval_by_person</source><target>Waiting: no person wrote the card value "%key%" after the card arrived and after the newest approval of the %tag% documents.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_value_written_since_approval_by_person"><source>workflow.waiting.not.card_value_written_since_approval_by_person</source><target>Waiting: a person wrote the card value "%key%" after the card arrived and after the newest approval of the %tag% documents.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_approval_withdrawn"><source>workflow.waiting.card_document_approval_withdrawn</source><target>Waiting: no %tag% document of the card had its approval withdrawn.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document_approval_withdrawn"><source>workflow.waiting.not.card_document_approval_withdrawn</source><target>Waiting: a %tag% document of the card had its approval withdrawn.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_quiet_for"><source>workflow.waiting.card_quiet_for</source><target>Waiting: something happened on the card in the last %delay% minutes.</target></trans-unit>
@@ -9882,6 +9915,7 @@
             <trans-unit id="workflow.settings.action.ask"><source>workflow.settings.action.ask</source><target>Ask the owner</target></trans-unit>
             <trans-unit id="workflow.settings.action.link_document"><source>workflow.settings.action.link_document</source><target>Link a document of the parent</target></trans-unit>
             <trans-unit id="workflow.settings.action.detach"><source>workflow.settings.action.detach</source><target>Remove the parent of the card</target></trans-unit>
+            <trans-unit id="workflow.settings.action.set_value"><source>workflow.settings.action.set_value</source><target>Set a value of the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.missing"><source>workflow.settings.action.missing</source><target>An action this version does not know</target></trans-unit>
             <trans-unit id="workflow.settings.moves.heading"><source>workflow.settings.moves.heading</source><target>Manual moves</target></trans-unit>
             <trans-unit id="workflow.settings.moves.description"><source>workflow.settings.moves.description</source><target>A managed card may move along these paths outside the rules.</target></trans-unit>
@@ -9950,6 +9984,7 @@
             <trans-unit id="workflow.panel.action.ask"><source>workflow.panel.action.ask</source><target>Ask the owner what to do with the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.link_document"><source>workflow.panel.action.link_document</source><target>Link a document of the parent to the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.detach"><source>workflow.panel.action.detach</source><target>Remove the parent of the card</target></trans-unit>
+            <trans-unit id="workflow.panel.action.set_value"><source>workflow.panel.action.set_value</source><target>Turn the value %key% %value%</target></trans-unit>
             <trans-unit id="workflow.panel.action.missing"><source>workflow.panel.action.missing</source><target>An action this version does not know</target></trans-unit>
             <trans-unit id="workflow.pause.failed"><source>workflow.pause.failed</source><target>The work failed.</target></trans-unit>
             <trans-unit id="workflow.pause.timeout"><source>workflow.pause.timeout</source><target>The work timed out.</target></trans-unit>

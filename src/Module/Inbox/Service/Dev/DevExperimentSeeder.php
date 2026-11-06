@@ -16,10 +16,12 @@ use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Bridge\Entity\ExperimentExclusion;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -57,6 +59,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     public const string EXPERIMENT = 'implement';
 
+    /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
+    public const string EMPTY_EXPERIMENT = 'implement-no-runs';
+
     /**
      * Name, headline and metrics of each experiment. The goal panel has three states and two problems.
      * The Simple template declares no fix-rounds, so a declared fix-rounds guard is unknown and shows a note.
@@ -74,6 +79,9 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         ['implement-simple-default', null, ['cost', 'merge-rate', 'duration', 'input-tokens']],
         ['implement-template-metrics', ['goal' => ['metric' => 'hours-to-merge', 'better' => 'lower']], ['cost', 'merge-rate', 'hours-to-merge']],
     ];
+
+    /** The card of the first experiment that the owner left out by hand. */
+    private const string EXCLUDED_CARD = 'Mute a noisy bridge';
 
     private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5'];
 
@@ -104,6 +112,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private CardEventRepository $cardEvents,
         private ExperimentDefinitionRepository $experimentDefinitions,
         private ExperimentPinRepository $experimentPins,
+        private ExperimentExclusionRepository $experimentExclusions,
         private WorkerRunRepository $workerRuns,
         private WorkRequestRepository $workRequests,
         private ForgePullRequestRepository $forgePullRequests,
@@ -132,6 +141,28 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         foreach (self::EXPERIMENTS as [$experiment, $headline, $metrics]) {
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
+        $this->seedEmptyExperiment($context, $project);
+    }
+
+    private function seedEmptyExperiment(SeedContext $context, Project $project): void
+    {
+        $definitionId = DevSeedId::of('bridge/experiment/'.self::EMPTY_EXPERIMENT);
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentDefinition) {
+                return;
+            }
+
+            $definition = new ExperimentDefinition($project, self::EMPTY_EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
+        }
+
+        $cardId = DevSeedId::of('board/card/'.self::EXPERIMENT.'/'.Slug::fromName(self::CARDS[0][0]));
+        if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentPin) {
+            $at = $context->now->modify('-1 day');
+            $this->em->persist(new ExperimentPin($project, $cardId, self::EMPTY_EXPERIMENT, 'opus', $at, $at));
+        }
+        $this->em->flush();
     }
 
     /**
@@ -171,6 +202,15 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
             if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
                 $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
+            }
+
+            if (self::EXPERIMENT === $experiment && self::EXCLUDED_CARD === $title) {
+                $exclusionId = DevSeedId::of('bridge/experiment-exclusion/'.$key);
+                if (!$this->experimentExclusions->find($exclusionId) instanceof ExperimentExclusion && !$this->experimentExclusions->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentExclusion) {
+                    $exclusion = new ExperimentExclusion($project, $cardId, $experiment, 'The card does not touch the code the experiment tests.', $project->owner, $context->now);
+                    $context->ids->assign($exclusion, $exclusionId);
+                    $this->em->persist($exclusion);
+                }
             }
 
             foreach ($runs as $position => [$cost, $minutes]) {

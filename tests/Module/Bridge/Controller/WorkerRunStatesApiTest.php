@@ -560,7 +560,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertInstanceOf(WorkerRunRepository::class, $repository);
         $emptyId = $runs[$empty]->id ?? throw new \LogicException('A stored run has an id.');
         $absentId = $runs[$absent]->id ?? throw new \LogicException('A stored run has an id.');
-        self::assertSame(
+        self::assertEquals(
             [(string) $emptyId => 0, (string) $absentId => null],
             $repository->findHarnessEventCountsOfRuns([$emptyId, $absentId], 'diagnostics'),
         );
@@ -1085,10 +1085,10 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $raw = $this->agentToken($client, $caller);
 
         foreach ([(string) $other->id, (string) Uuid::v7()] as $handle) {
-            $this->put($client, '/api/projects/'.$handle.'/worker-runs/'.Uuid::v4(), $raw, $this->payload());
+            $this->put($client, '/api/v1/bridge/projects/'.$handle.'/worker-runs/'.Uuid::v4(), $raw, $this->payload());
 
             self::assertResponseStatusCodeSame(404, $handle);
-            self::assertJsonStringEqualsJsonString('{"error":"project_not_found"}', (string) $client->getResponse()->getContent());
+            $this->assertProblemCode($client, 'project_not_found');
         }
 
         self::assertSame([], $this->allRuns());
@@ -1361,7 +1361,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
 
         $client->request(
             Request::METHOD_POST,
-            '/api/projects/'.$project->id.'/worker-runs',
+            '/api/v1/bridge/projects/'.$project->id.'/worker-runs',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
             content: json_encode($this->payload(), \JSON_THROW_ON_ERROR),
         );
@@ -1418,7 +1418,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
 
     private function path(?Uuid $projectId, string $runId): string
     {
-        return '/api/projects/'.$projectId.'/worker-runs/'.$runId;
+        return '/api/v1/bridge/projects/'.$projectId.'/worker-runs/'.$runId;
     }
 
     /**
@@ -1501,5 +1501,12 @@ final class WorkerRunStatesApiTest extends WebTestCase
             ),
             ['term' => $term, 'id' => $id],
         );
+    }
+
+    private function assertProblemCode(KernelBrowser $client, string $code): void
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+        self::assertSame($code, $body['code'] ?? null);
     }
 }

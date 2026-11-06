@@ -17,6 +17,8 @@ final readonly class DocumentFacts
      * @param ?int                $entryOpenThreads             the threads that were not resolved in the entry check, null with no entry check
      * @param bool                $rejectedBefore               whether any version of the document ever got a change request or a withdrawal
      * @param bool                $newestReviewWithdrewApproval whether the newest review of the newest version is a withdrawal of an approval
+     * @param ?\DateTimeImmutable $newestApprovalAt             when the newest approval of any version was given, null with no approval; rows from before the column kept microseconds hold whole seconds
+     * @param bool                $newestApprovalByWorkflow     whether the Workflow account gave that approval
      */
     public function __construct(
         public array $tags,
@@ -32,6 +34,8 @@ final readonly class DocumentFacts
         public ?int $entryOpenThreads = null,
         public bool $rejectedBefore = false,
         public bool $newestReviewWithdrewApproval = false,
+        public ?\DateTimeImmutable $newestApprovalAt = null,
+        public bool $newestApprovalByWorkflow = false,
     ) {
     }
 

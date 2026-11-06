@@ -77,7 +77,8 @@ final readonly class BridgeOutageReconciler
 
             // Doctrine inserts before it updates, so an outage whose item closed
             // elsewhere must end in the database before a new one is inserted.
-            if (null !== $outage && InboxItemState::Open !== $outage->item->state) {
+            // A dismissed item keeps its outage until the outage ends.
+            if (null !== $outage && InboxItemState::Open !== $outage->item->state && !$outage->item->isDismissed()) {
                 $outage->endedAt = $now;
                 $outage = null;
                 $this->em->flush();
@@ -117,7 +118,7 @@ final readonly class BridgeOutageReconciler
                 return true;
             }
 
-            if (!$this->extend($outage->item, $cards, $now, $expired, $refused)) {
+            if ($outage->item->isDismissed() || !$this->extend($outage->item, $cards, $now, $expired, $refused)) {
                 return null;
             }
             $this->em->flush();

@@ -10,6 +10,6 @@ namespace App\Module\Workflow\Contract;
  */
 interface RefiresOnFactChange
 {
-    /** @param array<string, int|string> $params */
+    /** @param array<string, bool|int|string> $params */
     public static function refiresOnFactChange(array $params): bool;
 }

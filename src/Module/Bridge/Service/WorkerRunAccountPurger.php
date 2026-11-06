@@ -11,8 +11,9 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Removes the card holds, the run rows, the usage rows, the fact rows, the
- * experiment pins and the experiment weights of every project the departing
- * account owned, and unnames the account on the holds it placed elsewhere.
+ * experiment pins, the experiment exclusions and the experiment weights of
+ * every project the departing account owned, and unnames the account on the
+ * holds and the exclusions it placed elsewhere.
  *
  * ProjectAccountPurger runs first and deletes those projects, which fires
  * DeleteWorkerRunsOnProjectDeleting, so this normally finds nothing. It stays
@@ -68,6 +69,14 @@ final readonly class WorkerRunAccountPurger implements AccountDataPurgerInterfac
         );
         $connection->executeStatement(
             'DELETE FROM bridge_experiment_pins WHERE project_id IN (SELECT id FROM projects WHERE owner_id = :id)',
+            ['id' => $id],
+        );
+        $connection->executeStatement(
+            'DELETE FROM bridge_experiment_exclusions WHERE project_id IN (SELECT id FROM projects WHERE owner_id = :id)',
+            ['id' => $id],
+        );
+        $connection->executeStatement(
+            'UPDATE bridge_experiment_exclusions SET excluded_by_id = NULL WHERE excluded_by_id = :id',
             ['id' => $id],
         );
         $connection->executeStatement(

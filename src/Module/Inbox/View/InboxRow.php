@@ -80,6 +80,12 @@ final readonly class InboxRow
         return $this->items[0]->origin;
     }
 
+    /** The name of the key behind an `api-key` row, as the item stored it. */
+    public function apiKeyName(): ?string
+    {
+        return $this->items[0]->apiKeyName;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->ask->createdAt ?? $this->items[0]->createdAt;

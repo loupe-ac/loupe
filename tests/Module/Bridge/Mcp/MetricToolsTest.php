@@ -72,6 +72,9 @@ final class MetricToolsTest extends KernelTestCase
             self::assertSame('percent', $metrics[$key]['valueType'], $key);
             self::assertNotContains('account-window', $metrics[$key]['groups'], $key);
         }
+        self::assertSame(['run'], $metrics['peak-context']['units']);
+        self::assertSame('tokens', $metrics['peak-context']['valueType']);
+        self::assertSame(['max', 'median', 'mean', 'p90', 'count'], $metrics['peak-context']['statistics']);
     }
 
     public function test_the_query_reads_the_account_usage_of_the_bridges_that_follow_the_project(): void
@@ -408,7 +411,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time-each, bucket-time-all-each, bucket-calls-each, account-usage, session-usage, week-usage, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time-each, bucket-time-all-each, bucket-calls-each, account-usage, session-usage, week-usage, peak-context, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(

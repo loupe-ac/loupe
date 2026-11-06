@@ -30,7 +30,7 @@ test('a touch screen hides the tooltip and the help icon of a chip', async ({
     const token = await agentAccessToken(page);
     const runId = crypto.randomUUID();
     const response = await page.request.put(
-        `/api/projects/${projectId}/worker-runs/${runId}`,
+        `/api/v1/bridge/projects/${projectId}/worker-runs/${runId}`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

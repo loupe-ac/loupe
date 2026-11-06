@@ -76,9 +76,10 @@ final readonly class AccountLimitReconciler
             $episodes = $this->inboxAccountLimits->findOpenForProject($project);
 
             // Doctrine inserts before it updates, so an episode whose item closed elsewhere must end first.
+            // A dismissed item keeps its episode until the account recovers.
             $ended = false;
             foreach ($episodes as $account => $episode) {
-                if (InboxItemState::Open !== $episode->item->state) {
+                if (InboxItemState::Open !== $episode->item->state && !$episode->item->isDismissed()) {
                     $episode->endedAt = $now;
                     unset($episodes[$account]);
                     $ended = true;
@@ -117,7 +118,7 @@ final readonly class AccountLimitReconciler
                     $reindex[] = $episode->item;
                     continue;
                 }
-                if ($this->extend($episode->item, $row['limit'], $row['cards'], $now)) {
+                if (!$episode->item->isDismissed() && $this->extend($episode->item, $row['limit'], $row['cards'], $now)) {
                     $edited = true;
                     $reindex[] = $episode->item;
                 }

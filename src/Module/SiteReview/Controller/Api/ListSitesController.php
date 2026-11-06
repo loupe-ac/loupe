@@ -47,11 +47,6 @@ use Symfony\Component\Routing\Attribute\Route;
     name: 'api_projects',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/projects',
-    name: 'api_legacy_projects',
-    methods: ['GET'],
-)]
 final class ListSitesController extends AppController
 {
     public function __construct(

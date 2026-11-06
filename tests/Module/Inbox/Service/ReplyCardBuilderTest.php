@@ -161,9 +161,15 @@ final class ReplyCardBuilderTest extends KernelTestCase
         self::assertNull($card->dismiss);
     }
 
-    public function test_a_notice_takes_no_response_and_has_no_card(): void
+    public function test_a_notice_takes_no_response_and_offers_its_dismiss_alone(): void
     {
-        self::assertNull($this->builder->build($this->agentItem(InboxItemKind::Notice, [], InboxAskOrigin::Loupe)));
+        $card = $this->builder->build($this->agentItem(InboxItemKind::Notice, [], InboxAskOrigin::Loupe));
+
+        self::assertNotNull($card);
+        self::assertSame([], $card->fields);
+        self::assertNull($card->main);
+        self::assertSame([], $card->menu);
+        self::assertSame(InboxActionKind::Dismiss, $card->dismiss?->action->kind);
     }
 
     public function test_a_wait_takes_a_note_and_offers_the_action_of_its_wait(): void

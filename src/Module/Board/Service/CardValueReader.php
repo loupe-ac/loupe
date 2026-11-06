@@ -86,6 +86,7 @@ final readonly class CardValueReader
                 $held ? $row->writerKind : null,
                 $held ? $row->writerUser : null,
                 $held ? $row->updatedAt : null,
+                $key->visibility,
             );
         }
 
