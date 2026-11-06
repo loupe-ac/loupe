@@ -19,7 +19,7 @@ final class Version20261106030000 extends AbstractMigration
     /** The epic branch and the approval rule belong to the project, so each copy keeps its own value, or keeps none. */
     public function up(Schema $schema): void
     {
-        $this->addSql("UPDATE work_requests SET kind = 'recover' WHERE kind = 'repair'");
+        $this->addSql("UPDATE work_requests SET kind = 'recover', prompt = CASE WHEN settled_at IS NULL THEN REPLACE(prompt, 'loupe-stage-repair', 'loupe-stage-recover') ELSE prompt END WHERE kind = 'repair'");
         $this->addSql("UPDATE bridge_worker_runs SET work_kind = 'recover' WHERE work_kind = 'repair'");
         $this->addSql("UPDATE bridge_worker_run_facts SET work_kind = 'recover' WHERE work_kind = 'repair'");
         $this->addSql("UPDATE bridge_worker_run_usage SET work_kind = 'recover' WHERE work_kind = 'repair'");

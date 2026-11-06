@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Migrations;
 
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Tests\Module\Workflow\Action\ActionScenario;
@@ -20,13 +21,21 @@ final class RecoveryRenameMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_stored_repair_request_and_the_binding_copy_take_the_recovery_names(): void
+    public function test_a_stored_repair_request_its_open_prompt_and_the_binding_copy_take_the_recovery_names(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('migration-recovery-rename');
         $this->bindLifecycle($project);
         $card = $this->card($project, 'in-progress');
-        $this->em()->persist(new WorkRequest($project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'repair', null, 'work', new \DateTimeImmutable('2026-11-06 12:00:00')));
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $prompt = "Use the loupe-stage-repair skill.\nCard {$card->number} in project loupe.";
+        $open = new WorkRequest($project, WorkSubject::CARD, $cardId, $card->number, 'repair', null, 'work', new \DateTimeImmutable('2026-11-06 12:00:00'));
+        $open->prompt = $prompt;
+        $settled = new WorkRequest($project, WorkSubject::CARD, $cardId, $card->number, 'repair', null, 'work', new \DateTimeImmutable('2026-11-06 11:00:00'));
+        $settled->prompt = $prompt;
+        $settled->withdraw(WorkRequestState::Cancelled, new \DateTimeImmutable('2026-11-06 11:30:00'));
+        $this->em()->persist($open);
+        $this->em()->persist($settled);
         $this->em()->flush();
         $projectId = ($project->id ?? throw new \LogicException('The project is not flushed.'))->toRfc4122();
         $connection = $this->em()->getConnection();
@@ -39,7 +48,9 @@ final class RecoveryRenameMigrationTest extends KernelTestCase
 
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}'], $this->definition($connection, $projectId));
-        self::assertSame(1, $connection->fetchOne("SELECT COUNT(*) FROM work_requests WHERE kind = 'recover' AND subject_id = ?", [$card->id->toRfc4122()]));
+        self::assertSame(2, $connection->fetchOne("SELECT COUNT(*) FROM work_requests WHERE kind = 'recover' AND subject_id = ?", [$cardId->toRfc4122()]));
+        self::assertSame("Use the loupe-stage-recover skill.\nCard {$card->number} in project loupe.", $connection->fetchOne('SELECT prompt FROM work_requests WHERE id = ?', [$open->id?->toRfc4122()]));
+        self::assertSame($prompt, $connection->fetchOne('SELECT prompt FROM work_requests WHERE id = ?', [$settled->id?->toRfc4122()]));
         self::assertSame(0, $connection->fetchOne("SELECT COUNT(*) FROM work_requests WHERE kind = 'repair'"));
     }
 
