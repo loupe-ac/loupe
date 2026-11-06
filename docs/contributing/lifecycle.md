@@ -428,8 +428,9 @@ that change from one setup to the next.
    of `workflow_get`.
    After the grouped view, the skill runs a "Merge setup" step. It reads the rules of the base
    branch, the classic branch protection and the repository visibility. It says who approves a
-   merge, and whether GitHub rulesets, classic protection or Loupe alone enforces it. It lists each
-   setting that conflicts with the Loupe merge path. It asks nothing and changes no GitHub setting.
+   merge, and the highest approval count across every source. It names each source that enforces
+   it: GitHub rulesets, classic protection, or both. It reports Loupe alone only when it confirms
+   that no source applies. It lists each setting that conflicts with the Loupe merge path. It asks nothing and changes no GitHub setting.
 2. The unattended run notes cover what differs when a worker runs with no
    person: connect to Loupe, run a long command, read a linked prototype, and
    keep the final reply short. The generic notes are
