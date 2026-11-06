@@ -31,7 +31,7 @@ final class CardValueRowTest extends KernelTestCase
     {
         $row = $this->row(new CardValueView('tech-design-interactive', CardValueType::Bool, 'l', 'c', 'h', 'hi', false, Actor::System, null, new \DateTimeImmutable('-2 hours')));
 
-        self::assertSame('Set by Loupe · 2h ago', preg_replace('/\s+/', ' ', trim($row->filter('.lp-card-value__meta')->text())));
+        self::assertSame('Set by Loupe · 2h ago', preg_replace('/\s+/', ' ', trim($row->filter('.lp-value-row__meta')->text())));
         self::assertNull($row->filter('input.lp-switch')->attr('checked'));
     }
 

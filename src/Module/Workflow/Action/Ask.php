@@ -84,7 +84,7 @@ final readonly class Ask implements Action
             return ActionOutcome::pause(PauseKind::Rule, self::INBOX_OFF);
         }
 
-        $parameters = ['%child%' => $card->number, '%epic%' => $card->parentNumber ?? ''];
+        $parameters = ['%card%' => $card->number, '%child%' => $card->number, '%epic%' => $card->parentNumber ?? ''];
         $itemId = $this->asks->open(
             $projectId,
             $card->id,

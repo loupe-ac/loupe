@@ -6,6 +6,7 @@ namespace App\Tests\Module\Board\Controller;
 
 use App\Module\Project\Entity\Project;
 use App\Session\ReadOnlyAwareSessionHandler;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -41,7 +42,7 @@ final class ShowBoardListControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $this->listUrl($project));
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Private card', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Private card', RefusedPage::body($client->getResponse()));
     }
 
     public function test_the_list_route_does_not_write_the_session(): void

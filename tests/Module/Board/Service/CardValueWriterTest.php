@@ -21,6 +21,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\DispatchedEvents;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -29,6 +30,7 @@ final class CardValueWriterTest extends KernelTestCase
     use WorkflowProjects;
 
     private const string KEY = 'tech-design-interactive';
+    private const string INTERNAL_KEY = 'session-start-approved';
 
     public function test_it_stores_a_value_and_records_the_change(): void
     {
@@ -158,11 +160,107 @@ final class CardValueWriterTest extends KernelTestCase
     {
         [$card] = $this->lifecycleCard();
 
-        $refusal = $this->writer()->refusal($card, ['nope' => true, self::KEY => 'yes']);
+        $refusal = $this->writer()->refusal($card, ['nope' => true, self::KEY => 'yes'], Actor::Human);
 
         self::assertInstanceOf(DomainErrors::class, $refusal);
         self::assertSame(['values.nope', 'values.'.self::KEY], array_keys($refusal->errors));
-        self::assertNull($this->writer()->refusal($card, [self::KEY => true]));
+        self::assertNull($this->writer()->refusal($card, [self::KEY => true], Actor::Human));
+    }
+
+    /** @return iterable<string, array{Actor}> */
+    public static function callersThatAreNotTheWorkflow(): iterable
+    {
+        yield 'a person' => [Actor::Human];
+        yield 'an agent' => [Actor::Agent];
+        yield 'an api key' => [Actor::ApiKey];
+    }
+
+    #[DataProvider('callersThatAreNotTheWorkflow')]
+    public function test_an_internal_key_is_refused_for_every_caller_but_the_workflow(Actor $actor): void
+    {
+        [$card] = $this->internalCard();
+
+        $refusal = $this->writer()->refusal($card, [self::INTERNAL_KEY => true], $actor);
+        self::assertInstanceOf(DomainErrors::class, $refusal);
+        self::assertSame(CardValueWriter::INTERNAL_KEY, $refusal->errors['values.'.self::INTERNAL_KEY]);
+        try {
+            $this->writer()->set($card, self::INTERNAL_KEY, true, $actor);
+            self::fail('The key was not refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame('The key '.self::INTERNAL_KEY.' is internal. Only the workflow writes it.', $this->translate($e, 'values.'.self::INTERNAL_KEY));
+        }
+        $this->em()->flush();
+        self::assertSame(0, $this->rowCount($card, self::INTERNAL_KEY));
+        self::assertSame([], $this->events($card));
+    }
+
+    public function test_the_workflow_writes_an_internal_key_and_the_row_names_the_system(): void
+    {
+        [$card] = $this->internalCard();
+        $writer = $this->writer();
+
+        self::assertNull($writer->refusal($card, [self::INTERNAL_KEY => true], Actor::System));
+        self::assertTrue($writer->set($card, self::INTERNAL_KEY, true, Actor::System));
+        $this->em()->flush();
+
+        self::assertSame(1, $this->rowCount($card, self::INTERNAL_KEY));
+        $events = $this->events($card);
+        self::assertCount(1, $events);
+        self::assertSame(Actor::System, $events[0]->actorKind);
+    }
+
+    public function test_the_workflow_still_gets_the_refusals_of_an_undeclared_key_and_a_wrong_type(): void
+    {
+        [$card] = $this->internalCard();
+
+        $refusal = $this->writer()->refusal($card, ['nope' => true, self::INTERNAL_KEY => 'yes'], Actor::System);
+
+        self::assertInstanceOf(DomainErrors::class, $refusal);
+        self::assertSame(['values.nope', 'values.'.self::INTERNAL_KEY], array_keys($refusal->errors));
+        self::assertSame('board.card.error.value_type_bool', $refusal->errors['values.'.self::INTERNAL_KEY]);
+    }
+
+    public function test_the_declared_keys_in_an_undeclared_key_error_leave_out_the_internal_ones(): void
+    {
+        [$card] = $this->internalCard();
+
+        $refusal = $this->writer()->refusal($card, ['nope' => true], Actor::Human);
+
+        self::assertInstanceOf(DomainErrors::class, $refusal);
+        self::assertSame(['%key%' => 'nope', '%declared%' => self::KEY], $refusal->parameters['values.nope']);
+    }
+
+    public function test_the_handler_refuses_an_internal_key_from_a_person_and_writes_it_for_the_system(): void
+    {
+        [$card] = $this->internalCard();
+        $changes = DispatchedEvents::of(self::getContainer(), CardChanged::class);
+
+        try {
+            ($this->update())(new UpdateCardCommand($card, Actor::Human, title: 'Renamed', values: [self::KEY => true, self::INTERNAL_KEY => true]));
+            self::fail('The update was not refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['values.'.self::INTERNAL_KEY], array_keys($e->errors));
+        }
+        self::assertSame('A card', $card->title);
+        self::assertSame(0, $this->rowCount($card, self::KEY));
+        self::assertSame([], $changes->events());
+
+        ($this->update())(new UpdateCardCommand($card, Actor::System, values: [self::INTERNAL_KEY => true]));
+
+        self::assertSame(1, $this->rowCount($card, self::INTERNAL_KEY));
+        self::assertCount(1, $changes->events());
+    }
+
+    public function test_a_card_value_keeps_the_microseconds_of_its_write(): void
+    {
+        [$card] = $this->internalCard();
+        $this->writer()->set($card, self::INTERNAL_KEY, true, Actor::System);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $stored = $this->em()->getConnection()->fetchOne('SELECT updated_at FROM board_card_values WHERE card_id = :id', ['id' => (string) $card->id]);
+
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,6}$/', (string) $stored, 'A whole second would mean the column dropped the microseconds.');
     }
 
     public function test_the_handler_writes_the_values_and_dispatches_one_card_change(): void
@@ -232,6 +330,16 @@ final class CardValueWriterTest extends KernelTestCase
         return [$this->card($project), $project];
     }
 
+    /** @return array{0: Card, 1: Project} */
+    private function internalCard(): array
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('values-internal');
+        $this->bindLifecycleWithInternalValue($project, self::INTERNAL_KEY);
+
+        return [$this->card($project), $project];
+    }
+
     private function card(Project $project): Card
     {
         $create = self::getContainer()->get(CreateCardHandler::class);
@@ -271,9 +379,12 @@ final class CardValueWriterTest extends KernelTestCase
         return $repository->findOneForCardFresh($card, self::KEY);
     }
 
-    private function rowCount(Card $card): int
+    private function rowCount(Card $card, ?string $key = null): int
     {
-        return (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM board_card_values WHERE card_id = :id', ['id' => (string) $card->id]);
+        return (int) $this->em()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM board_card_values WHERE card_id = :id AND (CAST(:key AS VARCHAR) IS NULL OR key = :key)',
+            ['id' => (string) $card->id, 'key' => $key],
+        );
     }
 
     /** @return list<CardEvent> newest first */

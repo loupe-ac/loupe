@@ -270,6 +270,17 @@ Test the `code`, and never the `detail`, because the wording can change. The
 `validation_failed`) adds an `errors` list. Each entry has a `field`, a `code`
 and a `message`.
 
+## Card values
+
+A card holds one value for each key that its workflow template declares. The
+`values` list of a card has an entry for each declared key, with `key`, `type`,
+`visibility`, `value`, `writer` and `updatedAt`. `visibility` is `public` or
+`internal`. A key with `public` visibility takes a write in `values` on
+`PATCH /api/v1/projects/{project}/cards/{number}`. Only the workflow writes a key
+with `internal` visibility, so the same write gets `422` with the field
+`values.<key>` and the code `value_internal_key`. The list of declared keys in
+the `value_undeclared_key` message leaves out internal keys.
+
 ## Inbox items
 
 A script, such as a CI job, can put an item in the inbox of the owner of a

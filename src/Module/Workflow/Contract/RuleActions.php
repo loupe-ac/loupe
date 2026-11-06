@@ -14,7 +14,7 @@ interface RuleActions
      * A condition under `not` or `any` does not make the rule fire on it, so only the top level counts.
      * The list is empty while the automation of the project is off, and for a project with no template.
      *
-     * @return list<array<string, int|string>>
+     * @return list<array<string, bool|int|string>>
      */
     public function onCondition(Uuid $projectId, string $conditionKey, string $actionKey): array;
 }

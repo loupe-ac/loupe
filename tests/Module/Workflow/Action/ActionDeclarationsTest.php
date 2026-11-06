@@ -13,6 +13,7 @@ use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestChanges;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Board\Workflow\RequireHumanReview;
+use App\Module\Board\Workflow\SetCardValue;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
@@ -22,6 +23,7 @@ use App\Module\Workflow\Contract\Action;
 use App\Module\Workflow\Contract\ActionDescription;
 use App\Module\Workflow\Contract\ActionTraits;
 use App\Module\Workflow\Contract\Parameter;
+use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Template\TemplateParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +48,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'stop-work' => [StopWork::class, 'stop-work', 'workflow.source.board', new ActionTraits(refreshesFacts: true, listable: true)];
         yield 'require-human-review' => [RequireHumanReview::class, 'require-human-review', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
+        yield 'set-value' => [SetCardValue::class, 'set-value', 'workflow.source.board', new ActionTraits(refreshesFacts: true, option: true)];
     }
 
     /** @param class-string<Action> $class */
@@ -95,6 +98,21 @@ final class ActionDeclarationsTest extends TestCase
 
         self::assertEquals(new ActionDescription('workflow.settings.action.request', 'workflow.panel.action.request', panelParams: ['%kind%' => 'fix'], settingsDetail: 'fix'), $request);
         self::assertEquals(new ActionDescription('workflow.settings.action.forge_write', 'workflow.panel.action.forge_write', panelParams: ['%write%' => 'merge'], settingsDetail: 'merge'), $write);
+    }
+
+    public function test_set_value_takes_a_value_key_and_a_boolean_and_words_both(): void
+    {
+        $parameters = SetCardValue::parameters();
+
+        self::assertSame(['key', 'value'], array_map(static fn (Parameter $parameter): string => $parameter->name, $parameters));
+        self::assertSame([ParameterType::ValueKey, ParameterType::Bool], array_map(static fn (Parameter $parameter): ParameterType => $parameter->type, $parameters));
+        self::assertTrue($parameters[0]->required && $parameters[1]->required);
+        self::assertNull(self::action(SetCardValue::class)->workKind(['key' => 'k', 'value' => true]));
+        self::assertEquals(
+            new ActionDescription('workflow.settings.action.set_value', 'workflow.panel.action.set_value', panelParams: ['%key%' => 'k', '%value%' => 'on'], settingsDetail: 'k'),
+            self::action(SetCardValue::class)->describe(['key' => 'k', 'value' => true]),
+        );
+        self::assertSame('off', self::action(SetCardValue::class)->describe(['key' => 'k', 'value' => false])->panelParams['%value%']);
     }
 
     public function test_the_other_actions_have_fixed_texts(): void

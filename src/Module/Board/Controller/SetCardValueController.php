@@ -49,7 +49,7 @@ final class SetCardValueController extends AppController
         string $key,
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(cardId, projectId)')] Card $card,
     ): Response {
-        if (!array_any($this->values->forCard($card), static fn (CardValueView $view): bool => $view->key === $key)) {
+        if (!array_any($this->values->forCard($card), static fn (CardValueView $view): bool => $view->key === $key && !$view->isInternal())) {
             throw $this->createNotFoundException();
         }
 

@@ -13795,6 +13795,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -13807,6 +13808,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {
@@ -14210,6 +14219,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -14222,6 +14232,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {
@@ -17267,6 +17285,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -17279,6 +17298,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {

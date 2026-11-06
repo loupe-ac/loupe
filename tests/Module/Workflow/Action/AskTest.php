@@ -59,7 +59,7 @@ final class AskTest extends KernelTestCase
             #[\Override]
             public function trans(string $id, array $parameters = [], ?string $domain = null, ?string $locale = null): string
             {
-                return \sprintf('%s|%s|%s|%s', $id, $locale, $parameters['%child%'], $parameters['%epic%']);
+                return \sprintf('%s|%s|%s|%s|%s', $id, $locale, $parameters['%child%'], $parameters['%epic%'], $parameters['%card%']);
             }
 
             #[\Override]
@@ -73,8 +73,8 @@ final class AskTest extends KernelTestCase
 
         $number = $card->number;
         $parentNumber = $parent->number;
-        self::assertSame(\sprintf('q|fr|%d|%d', $number, $parentNumber), $this->asks->opened[0]['question']);
-        self::assertSame([\sprintf('first|fr|%d|%d', $number, $parentNumber), \sprintf('second|fr|%d|%d', $number, $parentNumber)], $this->asks->opened[0]['options']);
+        self::assertSame(\sprintf('q|fr|%d|%d|%d', $number, $parentNumber, $number), $this->asks->opened[0]['question']);
+        self::assertSame([\sprintf('first|fr|%d|%d|%d', $number, $parentNumber, $number), \sprintf('second|fr|%d|%d|%d', $number, $parentNumber, $number)], $this->asks->opened[0]['options']);
     }
 
     public function test_with_the_inbox_off_it_pauses_the_card_and_opens_nothing(): void

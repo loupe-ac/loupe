@@ -10,6 +10,6 @@ namespace App\Module\Workflow\Contract;
  */
 interface RetriesWhileTrue
 {
-    /** @param array<string, int|string> $params */
+    /** @param array<string, bool|int|string> $params */
     public static function retriesWhileTrue(array $params): bool;
 }

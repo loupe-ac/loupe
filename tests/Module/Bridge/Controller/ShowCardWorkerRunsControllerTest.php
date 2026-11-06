@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RefusedPage;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
@@ -492,8 +493,8 @@ final class ShowCardWorkerRunsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs/card/'.$cardId);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('private rule', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('data-card-usage-total', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('private rule', RefusedPage::body($client->getResponse()));
+        self::assertStringNotContainsString('data-card-usage-total', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_card_id_that_is_not_a_uuid_is_not_found(): void

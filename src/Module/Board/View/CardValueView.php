@@ -7,6 +7,7 @@ namespace App\Module\Board\View;
 use App\Module\Account\Entity\User;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardValueType;
+use App\Module\Workflow\Contract\CardValueVisibility;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /**
@@ -29,7 +30,13 @@ final readonly class CardValueView
         public ?Actor $writerKind = null,
         public ?User $writerUser = null,
         public ?\DateTimeImmutable $updatedAt = null,
+        public CardValueVisibility $visibility = CardValueVisibility::Public,
     ) {
+    }
+
+    public function isInternal(): bool
+    {
+        return CardValueVisibility::Internal === $this->visibility;
     }
 
     /** Who wrote the value, named as the card history names an actor. Null when the card holds no value. */

@@ -23,6 +23,7 @@ final readonly class TemplateValueKey
         public string $caption,
         public string $help,
         public string $history,
+        public CardValueVisibility $visibility = CardValueVisibility::Public,
     ) {
     }
 }
