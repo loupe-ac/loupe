@@ -25,7 +25,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. Base branch: `main`. A child of an epic with an epic branch uses `epic/<n>` instead, as the `Epics` section says. A branch that stacks on an open pull request uses that pull request's head branch instead, as the stage `commands.md` says.
 2. Run `just cs`, and commit what it changes.
-3. Run `just phpstan`, `just arkitect` and `just gamache`. These check the whole project.
+3. Run `just phpstan`, `just arkitect` and `just gamache`. These check the whole project. Then run `just prepush <base>`. It fails on a stale `openapi/` file and on a changed plugin without a greater version.
 4. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or `just phpunit --filter <name>`. A hook refuses `just ci` and a full PHPUnit run.
 5. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed.
 6. CI's required checks are the full gate. Run no Codex review. Push, then read them on the pull request. The board `checks-failed` fix round covers a failed one.

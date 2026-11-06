@@ -13,7 +13,8 @@ path skips this.
 1. `just cs` applies the formatter and rector fixes. Commit anything it
    changed. It works from a worktree.
 2. Run `just phpstan`, `just arkitect` and `just gamache`. These check the
-   whole project.
+   whole project. Then run `just prepush <base>`, which fails on a stale
+   `openapi/` file or a changed plugin without a greater version.
 3. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or
    `just phpunit --filter <name>`.
 4. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/`
