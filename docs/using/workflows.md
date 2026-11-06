@@ -244,6 +244,12 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   for good. A new head tries the update again.
 - `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
+- `card.run.work_head_moved`: an open or claimed work request of the given `kind`
+  named a head of a pull request, and that pull request now has another head.
+  The request names its pull request by the forge, the repository and the
+  number, so a pull request of another repository with the same number does
+  not count. It reads every open pull request of the card, also one that is no
+  longer the pull request the rule acts on.
 - `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move to another column clears it. A new rank in the same column keeps it.
 - `design_review.running` with a `tag` and `rounds`: a draft document with that
   tag has an agent review that is not finished. The label of the marker shows
@@ -1528,6 +1534,15 @@ holds the same reason. A request rule can set the reason with the optional
 pull request gives, in the context and in the event. The fix rules for the
 [agent review](#agent-review) use `reason: agent-review`.
 
+The fix rules of the Lifecycle template withdraw a fix request that no bridge has
+taken yet when the head of its pull request moves. They use the condition
+`card.run.work_head_moved` in `cancelWhen`, with `cancelOnly: open` and
+`cancelReason: head-moved`. The card history then shows a `fix-withdrawn` event
+with the old and the new head. A fix request that the workflow cancels for
+another reason writes no such event. The
+rule opens a new request only when the checks of the new head fail. A request that
+a bridge claimed keeps running.
+
 A request rule can set the optional `onNoTaker` parameter to `fail`. The engine
 then expires an open request of the rule as soon as no online bridge that
 follows the project could take it. The card does not pause, and the module that
@@ -1548,6 +1563,11 @@ rules use it, so that a person who publishes or reviews the draft cancels the
 agent work on it. With `cancelOnly: open` the engine withdraws only a request
 that no bridge has taken. A request that a bridge claimed stays. The Product
 design session rule uses it.
+
+A rule with `cancelWhen` can also set `cancelReason`, a code of lowercase
+letters, digits and hyphens. The engine stores the code on each request that
+`cancelWhen` withdraws. A request that the engine withdraws for another cause
+carries no code.
 
 A request rule can name a prompt with the optional `prompt` parameter. The value
 is a name of lowercase letters, digits and hyphens, such as `implement`. The

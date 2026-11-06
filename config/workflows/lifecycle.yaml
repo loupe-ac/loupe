@@ -562,6 +562,7 @@ rules:
               - any:
                     - all:
                           - pr.checks_failed: {}
+                          - pr.checks_on_head: {}
                           - not: { fact.fix-waits-for-base-update: {} }
                     - pr.conflicting: {}
                     - pr.changes_requested: {}
@@ -570,6 +571,9 @@ rules:
               kind: fix
               role: fix
               limit: 3
+              cancelWhen: { card.run.work_head_moved: { kind: fix } }
+              cancelOnly: open
+              cancelReason: head-moved
               checks:
                   - The worktree of the card is still available, or the agent can make it again
                   - The gate commands of .loupe/lifecycle.md
@@ -656,6 +660,7 @@ rules:
               - any:
                     - all:
                           - pr.checks_failed: {}
+                          - pr.checks_on_head: {}
                           - not: { fact.fix-waits-for-base-update: {} }
                     - pr.conflicting: {}
                     - pr.changes_requested: {}
@@ -664,6 +669,9 @@ rules:
               kind: fix
               role: fix
               limit: 3
+              cancelWhen: { card.run.work_head_moved: { kind: fix } }
+              cancelOnly: open
+              cancelReason: head-moved
               checks:
                   - The worktree of the card is still available, or the agent can make it again
                   - The gate commands of .loupe/lifecycle.md

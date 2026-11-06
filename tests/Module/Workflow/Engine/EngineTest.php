@@ -1797,6 +1797,22 @@ final class EngineTest extends KernelTestCase
         self::assertSame(WorkRequestState::Cancelled, $request->state);
     }
 
+    public function test_a_request_cancelled_by_its_cancel_when_carries_the_cancel_reason_of_its_rule(): void
+    {
+        $rule = self::requestRule('work', self::ALWAYS);
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['types' => ['epic']]];
+        $rule['then']['request']['cancelReason'] = 'became-epic';
+        $card = $this->boundCard([$rule]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+        self::assertSame('became-epic', $request->reason);
+    }
+
     public function test_a_live_request_stays_when_its_rule_turns_false_and_its_cancel_when_does_not_hold(): void
     {
         $rule = self::requestRule('work', self::NOT_EPIC);

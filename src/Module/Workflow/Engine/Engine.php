@@ -536,7 +536,7 @@ final readonly class Engine
     }
 
     /**
-     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`).
+     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`), with the `cancelReason` of the rule.
      * An open request otherwise waits for a bridge with no time limit.
      * A rule with `onNoTaker: fail` expires an open request at once when no online bridge could take it, with no pause.
      * A baseline expires nothing, so it leaves such a request to the next pass.
@@ -558,7 +558,7 @@ final readonly class Engine
                 // `cancelOnly: open` leaves a request that a bridge claimed alone, because that claim serves a live launch.
                 $openOnly = 'open' === ActionParams::optionalString($rule, 'cancelOnly');
                 if (!$openOnly || WorkState::Open === $request->state) {
-                    $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled, onlyIfOpen: $openOnly) || $withdrawn;
+                    $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled, ActionParams::optionalString($rule, 'cancelReason'), onlyIfOpen: $openOnly) || $withdrawn;
                     continue;
                 }
             }
