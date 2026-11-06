@@ -8,7 +8,7 @@
 # whose project directory is this repository, one of its .worktrees or a bridge card worktree,
 # modified in the last n days (default 30).
 # Loads: each Skill tool call counts once by its tool-use id. AGENTS.md loads once per top-level session.
-# Words: the current "wc -w" of AGENTS.md and of .agents/skills/<name>/SKILL.md. Cost: loads x words.
+# Words: the current "wc -w" of AGENTS.md and of <name>/SKILL.md under .agents/skills, plugins/loupe/skills or plugins/loupe-lifecycle/skills. Cost: loads x words.
 # --with <skill>: per skill, the top-level sessions that load it and those that also load <skill>.
 # Prints counts and skill names only, never transcript content.
 # Requires: git, find, grep, awk, wc
@@ -39,28 +39,59 @@ for root in "$HOME/.claude/projects" "$HOME/.claude-worker/projects"; do
 done
 [[ ${#DIRS[@]} -gt 0 ]] || { echo "No transcripts found for $SLUG" >&2; exit 1; }
 
+SKILL_DIRS=(.agents/skills plugins/loupe/skills plugins/loupe-lifecycle/skills)
+
 FILES=$(mktemp)
 HITS=$(mktemp)
-trap 'rm -f "$FILES" "$HITS"' EXIT
+ALIASES=$(mktemp)
+trap 'rm -f "$FILES" "$HITS" "$ALIASES"' EXIT
+
+# "<name>\t<folder>" for each skill whose frontmatter name differs from its folder, such as product-design.
+for d in "${SKILL_DIRS[@]}"; do
+  for f in "$MAIN/$d"/*/SKILL.md; do
+    [[ -f "$f" ]] || continue
+    name=$(awk '/^name:/ { gsub(/["\047]/, "", $2); print $2; exit }' "$f")
+    folder=$(basename "$(dirname "$f")")
+    if [[ -n "$name" && "$name" != "$folder" ]]; then printf '%s\t%s\n' "$name" "$folder" >>"$ALIASES"; fi
+  done
+done
 
 find "${DIRS[@]}" -type f -name '*.jsonl' -mtime "-$DAYS" -print0 >"$FILES"
 LC_ALL=C xargs -0 grep -oHE '"type":"tool_use","id":"[^"]+","name":"Skill","input":\{"skill":"[^"]+"' <"$FILES" >"$HITS" || true
 
 SESSIONS=$(tr '\0' '\n' <"$FILES" | grep -vc '/subagents/' || true)
 
-# Emits "<path>\t<id>\t<skill>" once per tool-use id, with the loupe: plugin prefix stripped.
+# Maps a recorded skill name to its folder name: a plugin prefix such as loupe-lifecycle: is stripped,
+# and a frontmatter name such as product-design maps to its folder. Load the alias file as ARGV[1] first.
+NORMALIZE='
+  FILENAME == ARGV[1] { split($0, a, "\t"); folder[a[1]] = a[2]; next }
+  function folder_of(skill) {
+    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^[A-Za-z0-9_.-]+:/, "", skill)
+    return (skill in folder) ? folder[skill] : skill
+  }'
+
+# Emits "<path>\t<id>\t<skill>" once per tool-use id, with the skill as its folder name.
 calls() {
-  awk '{
+  awk "$NORMALIZE"'
+  {
     at = index($0, ":\"type\":\"tool_use\"")
     path = substr($0, 1, at - 1)
     split(substr($0, at), f, "\"")
-    id = f[8]; skill = f[18]
-    sub(/^[^:]*\/[^:]*:/, "", skill); sub(/^loupe:/, "", skill)
+    id = f[8]; skill = folder_of(f[18])
     if (!(id in seen)) { seen[id] = 1; print path "\t" id "\t" skill }
-  }' "$HITS"
+  }' "$ALIASES" "$HITS"
 }
 
 words() { [[ -f "$1" ]] && wc -w <"$1" | tr -d ' ' || echo ""; }
+
+skill_words() {
+  local d w
+  for d in "${SKILL_DIRS[@]}"; do
+    w=$(words "$MAIN/$d/$1/SKILL.md")
+    if [[ -n "$w" ]]; then echo "$w"; return; fi
+  done
+  echo ""
+}
 
 echo "Window: last $DAYS days. Top-level sessions: $SESSIONS."
 echo
@@ -68,7 +99,7 @@ echo
 {
   printf 'AGENTS.md\t%s\t%s\n' "$SESSIONS" "$(words "$MAIN/AGENTS.md")"
   calls | cut -f3 | sort | uniq -c | while read -r n skill; do
-    printf '%s\t%s\t%s\n' "$skill" "$n" "$(words "$MAIN/.agents/skills/$skill/SKILL.md")"
+    printf '%s\t%s\t%s\n' "$skill" "$n" "$(skill_words "$skill")"
   done
 } | awk -F'\t' '
   $3 == "" { missing = missing sprintf("%s%s (%d)", missing == "" ? "" : ", ", $1, $2); next }
@@ -86,10 +117,11 @@ echo
       if (i <= 7) top += cost[i]
     }
     printf "\nTotal load cost: %d words. Top 7 share: %.1f%%.\n", total, total ? 100 * top / total : 0
-    if (missing != "") printf "Not in .agents/skills (loads): %s\n", missing
+    if (missing != "") printf "Not in a skills folder (loads): %s\n", missing
   }'
 
 if [[ -n "$WITH" ]]; then
+  WITH=$(printf '%s\n' "$WITH" | awk "$NORMALIZE"' { print folder_of($0) }' "$ALIASES" -)
   echo
   echo "Top-level sessions per skill, and those that also load $WITH:"
   calls | grep -v '/subagents/' | awk -F'\t' -v with="$WITH" '
