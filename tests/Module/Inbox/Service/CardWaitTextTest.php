@@ -342,6 +342,62 @@ final class CardWaitTextTest extends KernelTestCase
         self::assertSame([$pullRequest, $pause], $this->text->pageWaits([$pause, $pullRequest]));
     }
 
+    public function test_a_pause_after_a_failed_before_command_quotes_the_command_and_the_error_line(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 45);
+        $em->flush();
+        $output = "the before command exited with code 1\ncommand: 'bin/worktrees/bridge-before.sh' '45'\nERROR: duplicate key (id)=(41)";
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:00:00'), 'the before command exited with code 1', $output);
+        $wait = $this->pauseWait($card, 'failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 10:01:00'));
+
+        $detail = $this->text->line($wait, false)->detail;
+
+        self::assertNotNull($detail);
+        self::assertStringContainsString("The before command `'bin/worktrees/bridge-before.sh' '45'` failed with: `ERROR: duplicate key (id)=(41)`", $detail);
+        self::assertStringContainsString('Open the failed run', $detail);
+    }
+
+    public function test_a_pause_after_a_failed_recovery_quotes_the_before_command_of_the_run_it_recovered(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 47);
+        $em->flush();
+        $output = "the before command exited with code 1\ncommand: 'bin/worktrees/bridge-before.sh' '47'\nERROR: duplicate key (id)=(41)";
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:00:00'), 'the before command exited with code 1', $output);
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:02:00'), 'the before command exited with code 1', $output);
+        $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:05:00'), 'could not repair');
+        $wait = $this->pauseWait($card, 'failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 10:06:00'));
+
+        $detail = (string) $this->text->line($wait, false)->detail;
+
+        self::assertStringContainsString("The before command `'bin/worktrees/bridge-before.sh' '47'` failed with: `ERROR: duplicate key (id)=(41)`", $detail);
+    }
+
+    public function test_a_pause_after_a_failed_recovery_of_another_failure_quotes_no_before_command(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 48);
+        $em->flush();
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:00:00'), 'the before command exited with code 1', "the before command exited with code 1\nnpm ci failed");
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:02:00'), 'boom', 'boom');
+        $this->workerRun($card->id, 'repair', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:05:00'), 'could not repair');
+        $wait = $this->pauseWait($card, 'failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 10:06:00'));
+
+        self::assertStringNotContainsString('before command', (string) $this->text->line($wait, false)->detail);
+    }
+
+    public function test_a_pause_after_a_failed_before_command_of_an_older_bridge_quotes_the_error_line_alone(): void
+    {
+        $em = $this->em();
+        $card = $this->card($em, $this->wait->watch->project, 46);
+        $em->flush();
+        $this->workerRun($card->id, 'implement', WorkerRunState::Failed, new \DateTimeImmutable('2026-10-26 10:00:00'), 'the before command exited with code 1', "the before command exited with code 1\nnpm ci failed");
+        $wait = $this->pauseWait($card, 'failed', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 10:01:00'));
+
+        self::assertStringContainsString('The before command failed with: `npm ci failed`', (string) $this->text->line($wait, false)->detail);
+    }
+
     public function test_a_rule_pause_names_no_run_and_words_an_unknown_code(): void
     {
         $em = $this->em();

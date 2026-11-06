@@ -46,6 +46,10 @@ class WorkflowRuleState
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $lastRefusalAt = null;
 
+    /** The fingerprint of the last failed `before` command that the rule saw. Null when the last refusal was no setup failure. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $lastSetupFailure = null;
+
     /** The Forge pull request the rule acted on while it was true. No foreign key, as the row may go. */
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $subjectPullRequestId = null;
@@ -108,6 +112,7 @@ class WorkflowRuleState
         $this->dueAt = null;
         $this->lastRefusal = null;
         $this->lastRefusalAt = null;
+        $this->lastSetupFailure = null;
         $this->subjectPullRequestId = null;
         $this->workRequestId = null;
         $this->causesAtOpen = null;

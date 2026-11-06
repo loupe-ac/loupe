@@ -18,6 +18,9 @@ interface WorkLedger
 
     public function find(Uuid $requestId): ?WorkView;
 
+    /** The output of the newest run that the request started, or null when it started none. */
+    public function runOutput(Uuid $requestId): ?string;
+
     /**
      * Answers false when the work is unknown or already settled. The reason is a code that the module of the work reads.
      * With onlyIfOpen, it also answers false when a bridge claimed the work since the caller read it.

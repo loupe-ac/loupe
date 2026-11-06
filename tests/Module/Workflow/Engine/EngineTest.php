@@ -820,6 +820,86 @@ final class EngineTest extends KernelTestCase
         self::assertCount(1, $this->paused, 'A counted refusal pauses the card once.');
     }
 
+    public function test_a_repeated_setup_failure_skips_the_retries_and_opens_the_recovery_at_once(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30], 'repeatGoesToRepair' => true]);
+        $this->evaluate($card);
+
+        $first = $this->liveRequests($card)[0];
+        $this->failSetup($card, $first, "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing", '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertSame(1, $this->ruleState($card, 'work')->attempts);
+        self::assertSame([], $this->liveRequests($card));
+
+        $this->evaluate($card, '2026-10-02 12:31:00');
+        $second = $this->liveRequests($card)[0];
+        self::assertSame('work', $second->kind);
+        $this->failSetup($card, $second, "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing", '2026-10-02 12:40:00');
+        $this->evaluate($card, '2026-10-02 12:41:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertSame('recover', $live[0]->kind, 'The second identical failure opens the repair with two retries left.');
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_setup_failure_that_differs_in_its_error_line_keeps_the_retries(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30], 'repeatGoesToRepair' => true]);
+        $this->evaluate($card);
+        $this->failSetup($card, $this->liveRequests($card)[0], "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing", '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $this->failSetup($card, $this->liveRequests($card)[0], "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 42 is missing", '2026-10-02 12:40:00');
+        $this->evaluate($card, '2026-10-02 12:41:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(2, $this->ruleState($card, 'work')->attempts);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_the_first_setup_failure_after_the_rule_turned_false_and_true_again_keeps_the_retries(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::NOT_EPIC)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30], 'repeatGoesToRepair' => true]);
+        $this->evaluate($card);
+        $output = "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing";
+        $this->failSetup($card, $this->liveRequests($card)[0], $output, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'work')->lastSetupFailure);
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:22:00');
+        self::assertNull($this->ruleState($card, 'work')->lastSetupFailure, 'A new rule cycle compares from scratch.');
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:23:00');
+        $request = $this->liveRequests($card)[0];
+        self::assertSame('work', $request->kind);
+
+        $this->failSetup($card, $request, $output, '2026-10-02 12:30:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame([], $this->liveRequests($card), 'The first failure of the new cycle earns a retry, not the repair.');
+        self::assertSame(1, $this->ruleState($card, 'work')->attempts);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_repeated_setup_failure_retries_as_before_when_the_template_does_not_ask_for_the_repair(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: [...self::RECOVERY, 'retries' => 3, 'backoffMinutes' => [10, 20, 30]]);
+        $this->evaluate($card);
+        $output = "the before command exited with code 1\ncommand: 'bin/before.sh' '7'\nrow 41 is missing";
+        $this->failSetup($card, $this->liveRequests($card)[0], $output, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $this->failSetup($card, $this->liveRequests($card)[0], $output, '2026-10-02 12:40:00');
+        $this->evaluate($card, '2026-10-02 12:41:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(2, $this->ruleState($card, 'work')->attempts);
+    }
+
     public function test_a_refusal_code_that_the_template_does_not_retry_pauses_the_card_at_once(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [10, 60]]);
@@ -5286,6 +5366,24 @@ final class EngineTest extends KernelTestCase
         $request->state = WorkRequestState::Claimed;
         $request->settle(WorkRequestState::Refused, $code, new \DateTimeImmutable($at));
         $this->em()->flush();
+    }
+
+    /** Refuses the request as the bridge does when the before command fails: a failed run holds the output. */
+    private function failSetup(Card $card, WorkRequest $request, string $output, string $at): void
+    {
+        $this->em()->persist(new WorkerRun(
+            project: $card->project,
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A flushed card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'work',
+            state: WorkerRunState::Failed,
+            output: $output,
+            workRequestId: $request->id,
+        ));
+        $this->em()->flush();
+        $this->refuse($request, 'failed', $at);
     }
 
     private function finish(WorkRequest $request, string $at = '2026-10-02 12:20:00'): void

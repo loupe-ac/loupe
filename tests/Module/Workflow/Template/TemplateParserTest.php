@@ -745,6 +745,15 @@ final class TemplateParserTest extends TestCase
         self::assertSame('recover', $policy?->recoveryKind);
     }
 
+    public function test_a_retry_policy_reads_the_repeat_option_and_defaults_it_to_false(): void
+    {
+        $base = ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2]];
+
+        self::assertFalse($this->parser->parse(self::valid() + ['onWorkFailed' => $base])->onWorkFailed?->repeatGoesToRepair);
+        self::assertTrue($this->parser->parse(self::valid() + ['onWorkFailed' => $base + ['repeatGoesToRepair' => true]])->onWorkFailed?->repeatGoesToRepair);
+        self::assertTrue($this->parser->parse(self::valid() + ['onWorkFailed' => $base + ['repeatGoesToRepair' => true, 'recover' => ['kind' => 'recover']]])->onWorkFailed?->repeatGoesToRepair);
+    }
+
     public function test_an_evaluate_action_names_the_children(): void
     {
         $template = self::valid();
@@ -1121,6 +1130,7 @@ final class TemplateParserTest extends TestCase
         yield 'wrongly typed backoff' => [static fn (array $t): array => ['backoffMinutes' => [10, '60']] + $t, 'backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with no list' => [static fn (array $t): array => ['onWorkFailed' => ['retries' => 1, 'backoffMinutes' => [2]]] + $t, 'onWorkFailed: must be a map with a list "retryOn"'];
         yield 'retry policy with a bad code' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['Not A Code'], 'retries' => 1, 'backoffMinutes' => [2]]] + $t, 'onWorkFailed.retryOn: each entry must be a refusal code'];
+        yield 'repeat option that is no boolean' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'repeatGoesToRepair' => 'yes']] + $t, 'onWorkFailed.repeatGoesToRepair: must be true or false'];
         yield 'recover that is not a map' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => 'recover']] + $t, 'onWorkFailed.recover: must be a map with a string "kind"'];
         yield 'recover with no kind' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => []]] + $t, 'onWorkFailed.recover: must be a map with a string "kind"'];
         yield 'recover with a bad kind' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => ['kind' => 'Not A Kind']]] + $t, 'onWorkFailed.recover.kind: must be a work request kind'];

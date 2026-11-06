@@ -6004,6 +6004,22 @@
                 <source>inbox.wait.pause_run_link</source>
                 <target>Open the failed run</target>
             </trans-unit>
+            <trans-unit id="inbox.wait.pause_setup">
+                <source>inbox.wait.pause_setup</source>
+                <target>The before command %command% failed with: %error%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_setup_silent">
+                <source>inbox.wait.pause_setup_silent</source>
+                <target>The before command %command% failed and printed nothing.</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_setup_unnamed">
+                <source>inbox.wait.pause_setup_unnamed</source>
+                <target>The before command failed with: %error%</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.pause_setup_unnamed_silent">
+                <source>inbox.wait.pause_setup_unnamed_silent</source>
+                <target>The before command failed and printed nothing.</target>
+            </trans-unit>
             <trans-unit id="inbox.wait.action.document">
                 <source>inbox.wait.action.document</source>
                 <target>Review the document</target>
