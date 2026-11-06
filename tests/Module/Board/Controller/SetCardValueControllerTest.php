@@ -313,7 +313,7 @@ final class SetCardValueControllerTest extends WebTestCase
     {
         $client = static::createClient();
         $project = $this->workflowProject($name);
-        $this->bindLifecycle($project);
+        $this->bindLifecyclePublicOnly($project);
         $this->signIn($client, $project->owner);
 
         return [$client, $project, $this->card($project)];

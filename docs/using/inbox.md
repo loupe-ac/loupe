@@ -735,6 +735,9 @@ A workflow question comes from a rule of the board workflow, not from an agent.
 Loupe opens it when a rule needs a decision about a card. Today the
 `unplanned-child` rule of the Lifecycle template asks it. See
 [Asking about an unplanned child](workflows.md#asking-about-an-unplanned-child).
+The `tech-design-session-ask` rule asks it too, before a tech design session
+starts on a product design that approved itself. See
+[Ask before a session on a self-approved design](workflows.md#ask-before-a-session-on-a-self-approved-design).
 
 The item has the kind **Workflow question**. It always blocks, links the card,
 and names **Loupe** as the sender. It has two or more options. You pick one

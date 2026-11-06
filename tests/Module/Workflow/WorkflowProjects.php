@@ -84,11 +84,28 @@ trait WorkflowProjects
         return $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'lifecycle', $this->lifecycleColumns($project)));
     }
 
-    /** Lifecycle with one more value key, internal, so a test can write it as the workflow. */
+    /** Lifecycle with the internal value keys of the shipped copy taken out, so a test sees the public keys alone. */
+    private function bindLifecyclePublicOnly(Project $project): WorkflowBinding
+    {
+        $binding = $this->bindLifecycle($project);
+        $definition = $binding->definition;
+        $definition['values'] = array_values(array_filter(
+            $definition['values'],
+            static fn (array $value): bool => 'internal' !== ($value['visibility'] ?? 'public'),
+        ));
+        $binding->definition = $definition;
+        $this->em()->flush();
+        $this->forgetValueKeys();
+
+        return $binding;
+    }
+
+    /** Lifecycle with one internal value key under a test label, in place of any shipped key of that name, so a test can write it as the workflow. */
     private function bindLifecycleWithInternalValue(Project $project, string $key = 'session-start-approved'): WorkflowBinding
     {
         $binding = $this->bindLifecycle($project);
         $definition = $binding->definition;
+        $definition['values'] = array_values(array_filter($definition['values'], static fn (array $value): bool => $key !== $value['key']));
         $definition['values'][] = [
             'key' => $key,
             'type' => 'bool',
@@ -100,6 +117,13 @@ trait WorkflowProjects
         ];
         $binding->definition = $definition;
         $this->em()->flush();
+        $this->forgetValueKeys();
+
+        return $binding;
+    }
+
+    private function forgetValueKeys(): void
+    {
         $source = self::getContainer()->get(TemplateSource::class);
         if ($source instanceof ProjectTemplateCopy) {
             $source->reset();
@@ -108,7 +132,5 @@ trait WorkflowProjects
         if ($keys instanceof ResetInterface) {
             $keys->reset();
         }
-
-        return $binding;
     }
 }

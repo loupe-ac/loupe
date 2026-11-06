@@ -9571,6 +9571,13 @@
             <trans-unit id="workflow.value.tech_design_interactive.caption"><source>workflow.value.tech_design_interactive.caption</source><target>Interactive session</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.help"><source>workflow.value.tech_design_interactive.help</source><target>Turn this on to write the tech design in a session with you. The workflow then asks your bridge for a terminal in place of an autonomous agent.</target></trans-unit>
             <trans-unit id="workflow.value.tech_design_interactive.history"><source>workflow.value.tech_design_interactive.history</source><target>the interactive session for tech design</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.label"><source>workflow.value.session_start_approved.label</source><target>Tech design</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.caption"><source>workflow.value.session_start_approved.caption</source><target>Session start approved</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.help"><source>workflow.value.session_start_approved.help</source><target>On when you let the workflow open a terminal for the tech design session. The workflow turns it off when the session opens.</target></trans-unit>
+            <trans-unit id="workflow.value.session_start_approved.history"><source>workflow.value.session_start_approved.history</source><target>the start approval of the tech design session</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session"><source>workflow.ask.tech_design_session</source><target>The product design of card #%card% approved itself, and the interactive session is on for its tech design. Start the session now?</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session.start"><source>workflow.ask.tech_design_session.start</source><target>Start the session for card #%card%</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session.agent"><source>workflow.ask.tech_design_session.agent</source><target>Let an agent write the tech design of card #%card%</target></trans-unit>
             <trans-unit id="dev.value.internal_demo.label"><source>dev.value.internal_demo.label</source><target>Dev demo</target></trans-unit>
             <trans-unit id="dev.value.internal_demo.caption"><source>dev.value.internal_demo.caption</source><target>Written by the workflow</target></trans-unit>
             <trans-unit id="dev.value.internal_demo.help"><source>dev.value.internal_demo.help</source><target>A demo value that only the workflow writes. The dev seed declares it for one project.</target></trans-unit>
