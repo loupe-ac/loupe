@@ -32,7 +32,7 @@ final class ShowBoardStructureControllerTest extends WebTestCase
 
     public function test_an_outsider_is_refused(): void
     {
-        $client = static::createClient();
+        $client = static::createClient(['debug' => false]);
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $project = $this->project($em, $this->user($em, 'structure-owner@example.com'));
         $outsider = $this->user($em, 'structure-outsider@example.com');

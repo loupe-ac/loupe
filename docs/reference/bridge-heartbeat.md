@@ -474,7 +474,7 @@ holds, by `commandId`. Each command carries these fields:
 | `runKey`, `sessionId` | the run and its session, or `null` when the run has none |
 | `subjectType`, `subjectId` | the subject of the run, such as `card` and the card id |
 | `cardNumber` | the number of the card of a `card` subject, as a label for a person, or `null` for any other subject |
-| `workRequestId`, `workKind`, `ruleId` | the work request of the run, or `null` for a run from before the work map |
+| `workRequestId`, `workKind`, `ruleId` | the work request of the run, or `null` for a run from before the work map. An interactive run opened with `card_run_open` carries its run name in `workKind`, such as `loupe:lifecycle-session`, up to 100 characters. A bridge takes that name in a `collect-session-usage` command from CLI 2.0.3. Any other command needs the work kind shape |
 | `startedAt`, `endedAt` | the start and the end of the run, as RFC 3339 dates to the second, or `null` when the run has none |
 | `expiresAt` | the time the command expires, as an RFC 3339 date |
 | `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, or `inbox-action` when the owner clicked an action on an inbox item. The bridge words the resume prompt from it. An `inbox-action` resume uses the prompt of a person's resume |
