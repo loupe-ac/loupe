@@ -7,6 +7,8 @@ namespace App\Tests\Module\Workflow\Mcp;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Module\Workflow\Mcp\WorkflowGetTool;
+use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
 use Mcp\Exception\ToolCallException;
@@ -45,7 +47,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 44], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle'))], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         self::assertArrayHasKey('githubAppId', $answer);
@@ -98,7 +100,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 15], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('simple'))], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],

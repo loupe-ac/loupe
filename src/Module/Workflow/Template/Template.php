@@ -57,7 +57,7 @@ final readonly class Template
      */
     public function __construct(
         public string $key,
-        public int $version,
+        public string $version,
         public array $slots,
         public array $rules,
         public array $manualMoves,

@@ -85,7 +85,7 @@ final class BoardCardsSourceMigrationTest extends KernelTestCase
         $this->em->persist($column);
         $card = new Card(project: $project, column: $column, title: 'Old', body: '', number: 1);
         $this->em->persist($card);
-        $this->em->persist(new WorkflowBinding($project, 'custom', 1, ['defaultType' => 'story']));
+        $this->em->persist(new WorkflowBinding($project, 'custom', '1', ['defaultType' => 'story']));
         $this->em->flush();
         $this->em->clear();
 
@@ -106,7 +106,7 @@ final class BoardCardsSourceMigrationTest extends KernelTestCase
         $this->em->persist($column);
         $card = new Card(project: $project, column: $column, title: 'Custom', body: '', number: 1);
         $this->em->persist($card);
-        $this->em->persist(new WorkflowBinding($project, 'custom', 1, ['defaultType' => 'story', 'types' => [['key' => 'story'], ['key' => 'site-review']]]));
+        $this->em->persist(new WorkflowBinding($project, 'custom', '1', ['defaultType' => 'story', 'types' => [['key' => 'story'], ['key' => 'site-review']]]));
         $this->em->flush();
         $this->em->clear();
 

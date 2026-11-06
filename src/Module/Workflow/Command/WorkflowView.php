@@ -15,7 +15,7 @@ final readonly class WorkflowView
      */
     public function __construct(
         public string $templateKey,
-        public int $templateVersion,
+        public string $templateVersion,
         public array $columns,
         public array $kinds,
         public bool $approvalCoversConflictResolution,

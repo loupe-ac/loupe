@@ -45,7 +45,7 @@ final class TemplateRepositorySettingsMigrationTest extends KernelTestCase
             $source = $shipped->source($key);
             self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
             self::assertNotSame([], $this->row($connection, $projectId)['repositorySettings']);
-            self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+            self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         }
         $migrated = [$this->binding($connection, $lifecycleId), $this->binding($connection, $simpleId)];
 

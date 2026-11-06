@@ -164,7 +164,7 @@ final class MarkerPassFlowTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('marker-flow');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',
@@ -190,7 +190,7 @@ final class MarkerPassFlowTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('marker-flow-retry');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',

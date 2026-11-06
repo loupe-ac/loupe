@@ -49,7 +49,7 @@ final class LifecycleApprovalCheckMigrationTest extends KernelTestCase
         self::assertContains('approval-check-revoke', $ids);
         self::assertNotContains('pull-request-auto-approve', $ids);
         self::assertNotContains('dismiss-app-approval', $ids);
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);
 

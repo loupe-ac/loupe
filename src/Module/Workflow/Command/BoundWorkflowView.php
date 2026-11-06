@@ -21,7 +21,7 @@ final readonly class BoundWorkflowView
         public string $key,
         public string $labelKey,
         public string $descriptionKey,
-        public int $version,
+        public string $version,
         public \DateTimeImmutable $boundAt,
         public array $types,
         public array $slots,

@@ -44,7 +44,7 @@ final class LifecycleCardTypesListMigrationTest extends KernelTestCase
 
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertStringNotContainsString('{"type": "epic"}', (string) $connection->fetchOne('SELECT definition FROM workflow_bindings WHERE project_id = ?', [$projectId]));
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);

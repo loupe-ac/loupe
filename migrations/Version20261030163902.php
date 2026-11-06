@@ -44,7 +44,7 @@ final class Version20261030163902 extends AbstractMigration
             "UPDATE workflow_bindings
             SET template_version = 30,
                 definition = (definition - 'values') || jsonb_build_object('version', 30)
-            WHERE template_key = :key AND template_version = 31",
+            WHERE template_key = :key AND CAST(template_version AS TEXT) = '31'",
             ['key' => 'lifecycle'],
         );
     }

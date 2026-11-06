@@ -150,7 +150,7 @@ final class StartDiscoveryControllerTest extends WebTestCase
         if ($bound) {
             $shipped = static::getContainer()->get(ShippedTemplates::class);
             self::assertInstanceOf(ShippedTemplates::class, $shipped);
-            $this->em()->persist(new WorkflowBinding($project, 'simple', 1, $shipped->source('simple')));
+            $this->em()->persist(new WorkflowBinding($project, 'simple', '1', $shipped->source('simple')));
         }
         $this->em()->flush();
 

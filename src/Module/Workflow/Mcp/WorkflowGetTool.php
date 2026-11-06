@@ -31,7 +31,7 @@ final readonly class WorkflowGetTool
 
     /**
      * @return array{
-     *     template: array{key: string, version: int},
+     *     template: array{key: string, version: string},
      *     approvalCoversConflictResolution: bool,
      *     epicBranch: string|null,
      *     githubAppId: string|null,

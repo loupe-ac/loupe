@@ -46,7 +46,7 @@ final class DocumentMarkerTemplateCopiesMigrationTest extends KernelTestCase
 
         $source = $this->service(ShippedTemplates::class)->source($key);
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         $migrated = $this->binding($connection, $projectId);
         $otherAfter = $this->binding($connection, $otherId);
         self::assertSame($otherBefore, $otherAfter);

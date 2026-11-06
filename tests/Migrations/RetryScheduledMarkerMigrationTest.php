@@ -55,14 +55,14 @@ final class RetryScheduledMarkerMigrationTest extends KernelTestCase
         $source = $this->service(ShippedTemplates::class)->source($key);
         $migrated = $this->row($connection, $projectId);
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $migrated);
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         $markers = array_column($migrated['markers'], null, 'key');
         self::assertSame(self::RETRY, $markers['retry-scheduled']['when']);
         foreach (['run-stopped', 'checks-failed'] as $stuck) {
             $last = array_key_last($markers[$stuck]['when']['all']);
             self::assertContains(self::RETRY, $markers[$stuck]['when']['all'][$last]['not']['any'], $stuck);
         }
-        self::assertSame($this->service(ShippedTemplates::class)->source($otherKey)['version'], $this->binding($connection, $otherId)['template_version']);
+        self::assertSame((string) $this->service(ShippedTemplates::class)->source($otherKey)['version'], $this->binding($connection, $otherId)['template_version']);
         $after = $this->binding($connection, $projectId);
 
         $this->migrate($connection);

@@ -8,6 +8,8 @@ use App\Module\Workflow\Contract\ApprovalRuleChanged;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Service\TemplateApprovalRules;
+use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -50,7 +52,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
         $binding = self::getContainer()->get(WorkflowBindingRepository::class)->findOneByProjectId($id);
         self::assertInstanceOf(WorkflowBinding::class, $binding);
         self::assertFalse($binding->definition[TemplateApprovalRules::KEY]);
-        self::assertSame(44, $binding->templateVersion);
+        self::assertSame(TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle')), $binding->templateVersion);
     }
 
     public function test_a_write_announces_a_change_of_the_value_only(): void

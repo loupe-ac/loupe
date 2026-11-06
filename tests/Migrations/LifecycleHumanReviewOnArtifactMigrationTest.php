@@ -42,7 +42,7 @@ final class LifecycleHumanReviewOnArtifactMigrationTest extends KernelTestCase
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
         self::assertEquals([...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $projectId));
         self::assertContains('human-review-on-artifact', array_column($this->row($connection, $projectId)['rules'], 'id'));
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);
 

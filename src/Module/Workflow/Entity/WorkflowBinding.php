@@ -6,6 +6,7 @@ namespace App\Module\Workflow\Entity;
 
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Template\TemplateVersion;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -30,8 +31,8 @@ class WorkflowBinding
         #[ORM\Column(length: 100)]
         public string $templateKey,
 
-        #[ORM\Column]
-        public int $templateVersion,
+        #[ORM\Column(length: TemplateVersion::LENGTH)]
+        public string $templateVersion,
 
         /** @var array<mixed> the template array that passed the parser, parsed again on each read */
         #[ORM\Column(type: Types::JSON, options: ['jsonb' => true])]

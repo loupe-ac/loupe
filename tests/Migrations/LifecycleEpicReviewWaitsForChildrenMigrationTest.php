@@ -50,7 +50,7 @@ final class LifecycleEpicReviewWaitsForChildrenMigrationTest extends KernelTestC
                 self::assertContains(['card.children.finished' => []], $rule['when']['all'], $rule['id']);
             }
         }
-        self::assertSame($source['version'], $this->binding($connection, $projectId)['template_version']);
+        self::assertSame((string) $source['version'], $this->binding($connection, $projectId)['template_version']);
         self::assertSame($otherBefore, $this->binding($connection, $otherId));
         $migrated = $this->binding($connection, $projectId);
 
