@@ -133,8 +133,8 @@ trait ActionScenario
     }
 
     /**
-     * @param array<string, int|string>   $params
-     * @param array<string, list<string>> $lists
+     * @param array<string, bool|int|string> $params
+     * @param array<string, list<string>>    $lists
      */
     private function rule(string $key, array $params, string $id = 'test-rule', RuleOrigin $origin = RuleOrigin::Template, array $lists = []): Rule
     {
