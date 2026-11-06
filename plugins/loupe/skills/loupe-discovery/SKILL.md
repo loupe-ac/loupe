@@ -41,6 +41,18 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
      - Write one proposal for each wrong value. The body names the section, the line, the value and the correct value. The proposal fixes that line.
      - A value that is right needs no card, so list it in the evidence.
    - Each setup step that an agent cannot do through the MCP. For example, only the owner can install the GitHub App in a browser, and no tool changes the workflow template.
+   - The onboarding checks. Each one follows "Actor and action" below.
+     - The bridge commands of each kind resolve for this project and exist in its folder. Run `loupe bridge check --project <slug> --json` on the bridge machine. It reports each command, the configuration folder of each worker account and the MCP servers that the account declares. A kind with `action` `missing` is a kind that another project lists and this project does not. The bridge advertises it, and a request of that kind for this project runs no work entry here. Each such kind is an action of the `owner`: add a work entry for it to the project, or accept that the kind does not run. When the command is missing from the machine, or fails, the finding says the bridge could not be read, and the actor is `owner`.
+     - Each tool that the profile names exists for the worker account. Compare the profile with the same `loupe bridge check` output.
+     - The merge setup. Read the `Conflict check: branch rules` check. The finding says who approves a merge on the repository and what enforces it: GitHub rulesets, classic branch protection, or Loupe alone. Each setting that fails the check is an action of the `owner`.
+     - The `Environment` section of the profile matches the folder that the bridge gives a worker.
+     - A gate step that serves the main checkout, such as an e2e run against a shared stack, tests the code of the worker folder.
+     - Each fact that a worker needs is in the repository, and not in the personal memory of another account.
+     - The GitHub App is installed on the repository. Use the `github` row of `readiness_get`.
+     - A new worktree has what the gate needs, such as installed dependencies.
+     - A preview URL per branch. When it fails, the actor is `owner`. The action says to give each worker folder its own URL, or to remove the preview steps from the profile.
+     - One e2e run at a time on a shared stack. A gate step that uses a shared stack never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is `owner`, and the action names the step and the lock or the limit to add.
+     - The design system, for a project with a user interface. These are the two design system checks of the `product-design` kind. When one fails, the actor is `owner`, and the action names the missing part: a design system that an agent can read, or a Design System artifact that the profile or the agent instructions name.
 7. Apply each check of each kind against the repository. A kind can have an empty `checks` list. Write no finding for such a kind. Name it in the `summary` as a kind that only the generic checks cover.
    - Some checks start with a condition, such as "When the project has a user interface". Such a check gets no finding when the project does not meet the condition. Name it in the `summary` as skipped, with the reason.
    - A check for a Design System artifact that mirrors the design system looks for three marks. Look in `.loupe/lifecycle.md`, the agent instruction files and the skills they name.
@@ -57,11 +69,22 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
    - Write the body so that a session with no context can act on it. Say what to do, why, and where.
 9. Call `card_search` with the key words of each suggestion before you write its proposal. `card_search` returns finished cards too, so read each row's `status`. When an open card covers the suggestion, set `openCardNumber` to its number.
 10. Some suggestions need the owner on a settings page or in a browser. Do not propose a card for such a suggestion. Say what the owner must do in the evidence of the finding.
-11. Call `readiness_report_submit` with `runId`, `workflow`, `findings`, `proposals` and `summary`. Set `workflow` to the template `key`. Each finding has a `check`, a `status` of `ready` or `suggested`, and an `evidence` in short Markdown. Keep the `summary` to a few sentences. The tool returns the `documentId` and the `url` of the report.
+11. Call `readiness_report_submit` with `runId`, `workflow`, `findings`, `proposals` and `summary`. Set `workflow` to the template `key`. Each finding has a `check`, a `status` of `ready` or `suggested`, an `evidence` in short Markdown, an `actor` and an `action`. Keep the `summary` to a few sentences. The tool returns the `documentId` and the `url` of the report.
 12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`, and `cardIds` set to the `cardId`.
     - Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". When the prompt has no such line, the inbox is off, so skip this step.
     - Leave `blocking` false, so the ask closes at once. Loupe does not put the report in the inbox for you.
 13. End with a short reply that gives the report `url` and the number of suggestions.
+
+## Actor and action
+
+Every finding carries an `actor` and an `action`. The report lists them under "What remains", grouped by actor.
+
+- `owner` is a person. Use it for a change in a browser, on a settings page, on the bridge machine, or in a GitHub setting.
+- `agent` is a coding agent. Use it for a change in the repository that a card can make.
+- `none` is for a finding that needs no action. Use it for each `ready` finding, and leave the `action` empty.
+- The `action` is one sentence in the imperative. It names the thing to change and where, such as "Install the codex-cli MCP server in the worker account."
+- A `suggested` finding with the actor `none` is not listed under "What remains". Give each suggested finding an owner or an agent, unless nobody can act on it.
+- The checks that exist already get an actor too. A preview URL that fails is an `owner` action. A missing design system or Design System artifact is an `owner` action. A `Conflict check` that fails on a GitHub setting is an `owner` action. A `Conflict check` that fails on a file of the repository is an `agent` action, unless it needs the owner's choice.
 
 ## Conflict check
 
@@ -69,7 +92,7 @@ The checks of `workflow_get` that start `Conflict check:` name what the workflow
 
 Read what is there, and assume that none of it exists. Change nothing. Pick the forge adapter as `references/commands.md` of the `loupe-stage-implementation` skill (plugin `loupe-lifecycle`) says. With no adapter, each check that reads the forge is a finding that says the setting could not be read.
 
-1. `Conflict check: branch rules`. The `merge-ready` rule needs `pr.approval_check_passed`, `pr.checks_passed` and `pr.base_is_merge_target`. Read "Read the rules of the base branch" in the forge adapter. A conflict is a gap in the rules that the check names. A required approving review is one, because the app posts `Loupe / Approval` as the approval.
+1. `Conflict check: branch rules`. The `merge-ready` rule needs `pr.approval_check_passed`, `pr.checks_passed`, `pr.base_is_merge_target` and no `pr.review_required`. Read "Read the rules of the base branch" in the forge adapter. When GitHub can enforce rules on the base branch, a conflict is a gap in the rules that the check names. A required approving review is not a conflict: the evidence then says that a person approves each pull request on GitHub before Loupe merges it. When GitHub refuses rulesets for the plan, or the repository, the check passes, and the evidence says that only Loupe enforces the agent review, with the GitHub message about what makes rulesets available. In every case the evidence says who approves a merge and what enforces it.
 2. `Conflict check: merge method`. The `merge` write takes the first method of its `methods` list that the repository and the rules of the base branch allow. Read the same forge section. A conflict is a base branch that allows none. A profile `Merge` or `Epics` method that the base branch does not allow is also a conflict.
 3. `Conflict check: merge queue`. The merge stage accepts only the state `merged`, and never turns on auto-merge. Read the same forge section. A merge queue on the base branch is a conflict. Name the "Merge" section of the forge adapter in the evidence.
 4. `Conflict check: other review bots`. The `fix-*` rules run on `pr.changes_requested`, and the merge rules wait while it holds. A required check of another bot also holds `pr.checks_passed`. Read the CI config, the required checks and the reviews on the recent pull requests. A conflict is another reviewer that requests changes on its own, or a bot that merges or marks ready.

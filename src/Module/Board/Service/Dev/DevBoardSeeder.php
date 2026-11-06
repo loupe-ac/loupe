@@ -322,6 +322,7 @@ final readonly class DevBoardSeeder implements DevSeederInterface
         $state->failedChecks = $failedChecks;
         $state->mergeability = $mergeability;
         $state->review = $review;
+        $state->reviewFromRules = PullRequestReview::Required === $review;
         $state->changesRequestedAt = PullRequestReview::ChangesRequested === $review ? $context->at(1_800) : null;
         $state->refreshedAt = $context->at(300);
         if (null !== $adjust) {

@@ -49,6 +49,8 @@ final readonly class PullRequestSnapshot
         public ?string $title = null,
         /** When the forge closed the pull request, whether merged or not. equals() leaves it out. */
         public ?\DateTimeImmutable $closedAt = null,
+        /** The forge gave $review as its own review decision, which GitHub does only while the rules of the base branch require reviews. A change counts, because it decides whether the pull request waits for a review. */
+        public bool $reviewFromRules = false,
     ) {
     }
 
@@ -75,6 +77,7 @@ final readonly class PullRequestSnapshot
             && $this->failedChecks === $other->failedChecks
             && $this->mergeability === $other->mergeability
             && $this->review === $other->review
+            && $this->reviewFromRules === $other->reviewFromRules
             && $this->readyToMerge === $other->readyToMerge
             && $this->changesRequestedAt == $other->changesRequestedAt
             && (null === $this->defaultBranch || null === $other->defaultBranch || $this->defaultBranch === $other->defaultBranch);

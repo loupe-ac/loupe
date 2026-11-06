@@ -74,6 +74,14 @@ final class ApiAccessControlTest extends KernelTestCase
         }
     }
 
+    public function test_the_public_scope_reaches_the_discovery_route_and_no_other_scope_does(): void
+    {
+        self::assertTrue($this->decide('/api/v1/projects/my-project/discovery', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/discovery', ['ROLE_USER', 'ROLE_API_AGENT', 'ROLE_API_MCP', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/discovery/', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+        self::assertFalse($this->decide('/api/v1/projects/my-project/discovery/1', ['ROLE_USER', 'ROLE_API_PUBLIC']));
+    }
+
     public function test_the_public_scope_reaches_the_column_routes_and_no_other_scope_does(): void
     {
         foreach (['/api/v1/projects/my-project/board/columns', '/api/v1/projects/my-project/board/columns/order', '/api/v1/projects/my-project/board/columns/next'] as $path) {

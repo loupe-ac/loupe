@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 # Tells whether a GitHub pull request is approved, as the rules of its base branch require, up to <sha>.
 # The rules can require the check "Loupe / Approval" from a GitHub App, a number of approving reviews, or both.
-# With neither, one current approval is required, because this script reads rulesets only.
-# Usage: github-approval-covers.sh [--conflicts covered|hold] <pull request url> <sha>. Run it from a checkout of the repository.
+# When no rule names the check, the script needs a success of "Loupe / Approval" from the Loupe App on the head, so
+# the agent review decides, as it does in the app. A review count that the rules name still applies.
+# GitHub sets reviewDecision to REVIEW_REQUIRED while rulesets or branch protection want more approvals. The script holds then.
+# GitHub can refuse the rules on a plan without rulesets ("Upgrade to GitHub ..."). The script then reads no rules.
+# Usage: github-approval-covers.sh [--conflicts covered|hold] [--app-id <id>] <pull request url> <sha>. Run it from a checkout of the repository.
+# --app-id is the githubAppId of workflow_get. It is needed when no rule names the check.
 # --conflicts covered (the default) lets a review cover a merge from the base that holds a conflict resolution.
 # --conflicts hold holds such a merge. It is the value false of approvalCoversConflictResolution in workflow_get.
 # Prints COVERED, or HOLD with the reason. Exits 0 on COVERED, 1 on HOLD, 2 when a read fails.
 # APPROVER=<login> adds a condition: that reviewer must hold a current approval that covers the head. It lowers no count.
 # AS_OF=<ISO time> ignores later reviews, to replay a decision.
 set -o pipefail
-usage="usage: github-approval-covers.sh [--conflicts covered|hold] <pull request url> <sha>"
+usage="usage: github-approval-covers.sh [--conflicts covered|hold] [--app-id <id>] <pull request url> <sha>"
 conflicts=covered
-if [ "${1:-}" = "--conflicts" ]; then
-  conflicts=${2:-}
-  [ "$conflicts" = covered ] || [ "$conflicts" = hold ] || { echo "UNREAD: --conflicts takes covered or hold"; exit 2; }
+app_id=
+while [ "${1:-}" = "--conflicts" ] || [ "${1:-}" = "--app-id" ]; do
+  if [ "$1" = "--conflicts" ]; then
+    conflicts=${2:-}
+    [ "$conflicts" = covered ] || [ "$conflicts" = hold ] || { echo "UNREAD: --conflicts takes covered or hold"; exit 2; }
+  else
+    app_id=${2:-}
+    [[ $app_id =~ ^[0-9]+$ ]] || { echo "UNREAD: --app-id takes a number"; exit 2; }
+  fi
   shift 2
-fi
+done
 url=${1:?$usage}
 sha=${2:?$usage}
 [[ $url =~ ^https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)/?$ ]] || { echo "UNREAD: not a GitHub pull request URL: $url"; exit 2; }
@@ -23,15 +33,23 @@ host=${BASH_REMATCH[1]} repo="${BASH_REMATCH[2]}/${BASH_REMATCH[3]}" pr=${BASH_R
 auth=$(gh auth status --hostname "$host" 2>&1) || { echo "UNREAD: gh auth status failed for $host: $(head -n1 <<<"$auth")"; exit 2; }
 export GH_HOST=$host
 
-view=$(gh pr view "$url" --json headRefOid,headRefName,baseRefName 2>/dev/null) || { echo "UNREAD: gh pr view failed"; exit 2; }
+view=$(gh pr view "$url" --json headRefOid,headRefName,baseRefName,reviewDecision 2>/dev/null) || { echo "UNREAD: gh pr view failed"; exit 2; }
 head=$(jq -r .headRefOid <<<"$view") branch=$(jq -r .headRefName <<<"$view") base=$(jq -r .baseRefName <<<"$view")
 [ "$head" = "$sha" ] || { echo "HOLD head moved: ${head:0:8}, not ${sha:0:8}"; exit 1; }
+[ "$(jq -r '.reviewDecision // ""' <<<"$view")" != REVIEW_REQUIRED ] || { echo "HOLD GitHub requires more approvals"; exit 1; }
 commits=$(gh api --paginate "repos/$repo/pulls/$pr/commits?per_page=100" 2>/dev/null | jq -sc '[.[][]|{oid:.sha,parents:(.parents|length),headline:(.commit.message|split("\n")[0])}]') || { echo "UNREAD: commit list failed"; exit 2; }
 reviews=$(gh api --paginate "repos/$repo/pulls/$pr/reviews?per_page=100" 2>/dev/null | jq -sc '[.[][]|{login:.user.login,state,at:.submitted_at}]') || { echo "UNREAD: review list failed"; exit 2; }
 [ "$(jq length <<<"$commits")" -lt 250 ] || { echo "HOLD 250 commits or more, GitHub truncates the list"; exit 1; }
 
 check_name='Loupe / Approval'
-rules=$(gh api "repos/$repo/rules/branches/$(jq -rn --arg b "$base" '$b|@uri')" 2>/dev/null) || { echo "UNREAD: rules read failed"; exit 2; }
+if rules=$(gh api "repos/$repo/rules/branches/$(jq -rn --arg b "$base" '$b|@uri')" 2>&1); then
+  :
+elif grep -Eq '^gh: Upgrade to GitHub.*\(HTTP 403\)|"message": ?"Upgrade to GitHub' <<<"$rules"; then
+  # The plan has no rulesets. GitHub enforces none, so the check of the Loupe App decides.
+  rules='[]'
+else
+  echo "UNREAD: rules read failed"; exit 2
+fi
 jq -e type <<<"$rules" >/dev/null 2>&1 || { echo "UNREAD: rules read failed"; exit 2; }
 # GitHub combines every ruleset that applies to the branch and enforces the most restrictive review count.
 need=$(jq -r '[.[]|select(.type=="pull_request")|.parameters.required_approving_review_count // 0]|max // 0' <<<"$rules")
@@ -39,15 +57,15 @@ named=$(jq -r --arg n "$check_name" '[.[]|select(.type=="required_status_checks"
 apps=$(jq -c --arg n "$check_name" '[.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[]?|select(.context==$n)|.integration_id]|unique' <<<"$rules")
 
 result=
-if [ "$named" -gt 0 ]; then
-  jq -e 'index(null) == null' <<<"$apps" >/dev/null || { echo "HOLD the rules select no App for $check_name"; exit 1; }
-  runs=$(gh api --paginate "repos/$repo/commits/$sha/check-runs?check_name=$(jq -rn --arg n "$check_name" '$n|@uri')&per_page=100" 2>/dev/null | jq -sc '[.[].check_runs[]|{app:.app.id,slug:.app.slug,conclusion,sha:.head_sha}]') || { echo "UNREAD: check run list failed"; exit 2; }
-  jq -e --arg sha "$sha" --argjson apps "$apps" '. as $r | $apps | all(. as $id | $r | any(.app == $id and .conclusion == "success" and .sha == $sha))' <<<"$runs" >/dev/null || { echo "HOLD no approval check on the head"; exit 1; }
-  result="check=$(jq -r --argjson apps "$apps" '[.[]|select(.app|IN($apps[]))|.slug]|unique|join(",")' <<<"$runs")"
-  [ "$need" -gt 0 ] || [ -n "${APPROVER:-}" ] || { echo "COVERED $result head=${head:0:8}"; exit 0; }
-elif [ "$need" -eq 0 ]; then
-  need=1
+if [ "$named" -eq 0 ]; then
+  [ -n "$app_id" ] || { echo "UNREAD: no rule names $check_name and --app-id is missing"; exit 2; }
+  apps="[$app_id]"
 fi
+jq -e 'index(null) == null' <<<"$apps" >/dev/null || { echo "HOLD the rules select no App for $check_name"; exit 1; }
+runs=$(gh api --paginate "repos/$repo/commits/$sha/check-runs?check_name=$(jq -rn --arg n "$check_name" '$n|@uri')&per_page=100" 2>/dev/null | jq -sc '[.[].check_runs[]|{app:.app.id,slug:.app.slug,conclusion,sha:.head_sha}]') || { echo "UNREAD: check run list failed"; exit 2; }
+jq -e --arg sha "$sha" --argjson apps "$apps" '. as $r | $apps | all(. as $id | $r | any(.app == $id and .conclusion == "success" and .sha == $sha))' <<<"$runs" >/dev/null || { echo "HOLD no approval check on the head"; exit 1; }
+result="check=$(jq -r --argjson apps "$apps" '[.[]|select(.app|IN($apps[]))|.slug]|unique|join(",")' <<<"$runs")"
+[ "$need" -gt 0 ] || [ -n "${APPROVER:-}" ] || { echo "COVERED $result head=${head:0:8}"; exit 0; }
 
 # Each reviewer's last approving or blocking review counts. The current approvals sort newest first.
 approvals=$(jq -c --arg asof "${AS_OF:-9999}" '[.[]|select(.at <= $asof and (.state|IN("APPROVED","CHANGES_REQUESTED","DISMISSED")))]

@@ -223,10 +223,11 @@ final readonly class SubmitReadinessReportHandler
         $texts = [$command->workflow, $command->summary];
         foreach ($command->findings as $finding) {
             if ('' === trim($finding->check) || '' === trim($finding->evidence)
-                || !\in_array($finding->status, [ReadinessReportWriter::READY, ReadinessReportWriter::SUGGESTED, ReadinessReportWriter::GAP], true)) {
+                || !\in_array($finding->status, [ReadinessReportWriter::READY, ReadinessReportWriter::SUGGESTED, ReadinessReportWriter::GAP], true)
+                || !\in_array($finding->actor, ReportFinding::ACTORS, true)) {
                 throw new DomainErrors(['findings' => self::FINDING_INVALID]);
             }
-            array_push($texts, $finding->check, $finding->evidence);
+            array_push($texts, $finding->check, $finding->evidence, $finding->action);
         }
 
         $accepted = $this->proposalTypes->acceptedFor($command->project);

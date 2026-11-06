@@ -162,6 +162,28 @@ final class ReadinessToolsTest extends KernelTestCase
         self::assertStringEndsWith('/projects/'.$project->id.'/documents/'.$document->id.'/review', $answer['url']);
     }
 
+    public function test_readiness_report_submit_takes_an_actor_and_an_action_and_defaults_them_for_an_older_plugin(): void
+    {
+        $project = $this->workflowProject('report-submit-tool-actor');
+        $run = $this->discoveryRun($this->discoveryCard($project));
+        $this->actAsMcpTokenBoundTo($project);
+
+        $answer = $this->reportSubmit()(
+            (string) $run->id,
+            'lifecycle',
+            [
+                ['check' => 'GitHub App', 'status' => 'suggested', 'evidence' => 'Not installed.', 'actor' => 'owner', 'action' => 'Install the GitHub App.'],
+                ['check' => 'Old', 'status' => 'suggested', 'evidence' => 'No actor sent.'],
+            ],
+        );
+
+        $document = $this->em()->find(Document::class, $answer['documentId']);
+        self::assertNotNull($document);
+        $markdown = $document->currentVersion()->markdownSource;
+        self::assertStringContainsString("### For the owner\n\n1. Install the GitHub App.\n", $markdown);
+        self::assertStringNotContainsString('1. Old', $markdown);
+    }
+
     public function test_readiness_report_submit_accepts_the_gap_status_of_an_older_plugin(): void
     {
         $project = $this->workflowProject('report-submit-tool-gap');
