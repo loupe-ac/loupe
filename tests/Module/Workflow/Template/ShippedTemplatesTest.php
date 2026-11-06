@@ -597,7 +597,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $facts = FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, baseAhead: $change['baseAhead'] ?? true, canPostCheck: $change['canPostCheck'] ?? true, conflicting: $change['conflicting'] ?? false, updateRefusedOnHead: $change['updateRefusedOnHead'] ?? false),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, conflicting: $change['conflicting'] ?? false, canPostCheck: $change['canPostCheck'] ?? true, baseAhead: $change['baseAhead'] ?? true, updateRefusedOnHead: $change['updateRefusedOnHead'] ?? false),
             run: FactsMother::run(activeWorkerKinds: $workerKinds),
         );
         $suffix = 'in-review' === $slot ? '-in-review' : '';
