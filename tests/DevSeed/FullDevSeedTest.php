@@ -29,6 +29,7 @@ use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Bridge\ValueObject\WindowLimitState;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
+use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
 use App\Module\Insights\Service\SavedGraphCap;
@@ -38,6 +39,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Service\Dev\DevDocumentSeeder;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Service\Dev\DevSiteFeedbackSeeder;
 use App\Module\Workflow\Contract\Actor;
@@ -273,6 +275,27 @@ final class FullDevSeedTest extends KernelTestCase
         $title = $em->getConnection()->fetchOne("SELECT title FROM board_cards WHERE title LIKE 'Demo runs from %' ORDER BY title LIMIT 1");
         self::assertIsString($title);
         self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/demo-runs-'.substr($title, -10))));
+    }
+
+    public function test_the_comment_panel_and_the_experiment_table_each_have_a_seeded_state_and_an_empty_twin(): void
+    {
+        $this->seed(self::DAY);
+
+        $connection = $this->em()->getConnection();
+        $comments = static fn (string $slug): int => (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM comments c JOIN document_versions v ON v.id = c.version_id WHERE v.document_id = ?',
+            [DevDocumentSeeder::documentId($slug)->toRfc4122()],
+        );
+        self::assertSame(1, $comments('worker-run-history'));
+        self::assertSame(0, $comments('column-rules'));
+
+        $experiment = static fn (string $table): int => (int) $connection->fetchOne(
+            \sprintf('SELECT COUNT(*) FROM %s WHERE project_id = ? AND experiment = ?', $table),
+            [DevProjectSeeder::devProjectId()->toRfc4122(), DevExperimentSeeder::EMPTY_EXPERIMENT],
+        );
+        self::assertSame(1, $experiment('bridge_experiment_definitions'));
+        self::assertSame(1, $experiment('bridge_experiment_pins'));
+        self::assertSame(0, $experiment('bridge_worker_runs'));
     }
 
     public function test_the_showcase_exists_with_fixed_ids_and_its_requests_do_not_need_the_inbox_flag(): void
