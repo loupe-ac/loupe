@@ -319,6 +319,25 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertNull($read['cardId']);
         self::assertSame([], $read['waits']);
         self::assertNull($read['review']);
+        self::assertNull($read['apiKey']);
+    }
+
+    public function test_an_item_of_an_api_key_names_its_key(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-get-api-key');
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Todo, title: 'Rerun the weekly report', blocking: false, origin: InboxAskOrigin::ApiKey);
+        $keyId = Uuid::v7();
+        $item->apiKeyId = $keyId;
+        $item->apiKeyName = 'Weekly CI';
+        $this->em->persist($item);
+        $this->em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $read = ($this->tool)((string) $item->id);
+
+        self::assertSame('api-key', $read['origin']);
+        self::assertSame(['id' => (string) $keyId, 'name' => 'Weekly CI'], $read['apiKey']);
     }
 
     public function test_a_malformed_id_is_reported_rather_than_fatal(): void

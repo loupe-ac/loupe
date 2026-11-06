@@ -6,6 +6,7 @@ namespace App\Tests\Module\Board\Controller;
 
 use App\Module\Project\Entity\Project;
 use App\Session\ReadOnlyAwareSessionHandler;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -42,7 +43,7 @@ final class ShowBoardStructureControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $this->structureUrl($project));
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('board-structure', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('board-structure', RefusedPage::body($client->getResponse()));
     }
 
     public function test_the_structure_route_does_not_write_the_session(): void

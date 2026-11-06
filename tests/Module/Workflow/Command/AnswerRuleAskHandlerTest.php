@@ -4,26 +4,51 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Command;
 
+use App\Module\Account\Repository\UserRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Repository\CardDocumentRepository;
+use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Repository\CardValueRepository;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Command\CreateDocumentCommand;
+use App\Module\Review\Command\CreateDocumentHandler;
+use App\Module\Review\Command\PublishDocumentCommand;
+use App\Module\Review\Command\PublishDocumentHandler;
+use App\Module\Review\Command\SubmitReviewCommand;
+use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
 use App\Module\Workflow\Command\AnswerRuleAskCommand;
 use App\Module\Workflow\Command\AnswerRuleAskHandler;
+use App\Module\Workflow\Command\EvaluateWorkflowCardHandler;
+use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
 use App\Module\Workflow\Messenger\EvaluateCard;
+use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class AnswerRuleAskHandlerTest extends KernelTestCase
 {
@@ -164,6 +189,41 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
         self::assertNotNull($this->em()->find(Card::class, $card->id)?->parent);
     }
 
+    public function test_the_start_answer_of_the_session_ask_stores_the_approval_and_the_session_request_follows(): void
+    {
+        [$card, $itemId] = $this->askedSession('answer-session-start');
+        self::assertSame([], $this->requestsOf($card, 'tech-design-session'), 'The ask holds the session back.');
+
+        $this->answer($itemId, 0);
+
+        self::assertTrue($this->value($card, 'session-start-approved'));
+        self::assertTrue($this->value($card, 'tech-design-interactive'), 'The switch stays on.');
+        self::assertNull($this->state_($card, 'tech-design-session-ask')->lastRefusal);
+        self::assertContains($card->id?->toRfc4122(), $this->queuedEvaluations());
+
+        $this->evaluate($card);
+
+        self::assertCount(1, $this->requestsOf($card, 'tech-design-session'));
+        self::assertSame([], $this->requestsOf($card, 'tech-design-write'));
+    }
+
+    public function test_the_agent_answer_of_the_session_ask_turns_the_switch_off_and_the_agent_request_follows(): void
+    {
+        [$card, $itemId] = $this->askedSession('answer-session-agent');
+
+        $this->answer($itemId, 1);
+
+        self::assertFalse($this->value($card, 'tech-design-interactive'));
+        self::assertNull($this->value($card, 'session-start-approved'), 'The agent answer writes no start approval.');
+        self::assertNull($this->state_($card, 'tech-design-session-ask')->lastRefusal);
+        self::assertContains($card->id?->toRfc4122(), $this->queuedEvaluations());
+
+        $this->evaluate($card);
+
+        self::assertCount(1, $this->requestsOf($card, 'tech-design-write'));
+        self::assertSame([], $this->requestsOf($card, 'tech-design-session'));
+    }
+
     private function answer(Uuid $itemId, int $optionIndex): void
     {
         $this->em()->clear();
@@ -226,11 +286,70 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
         $this->em()->flush();
     }
 
-    private function state_(Card $card): WorkflowRuleState
+    private function state_(Card $card, ?string $ruleId = null): WorkflowRuleState
     {
         $this->em()->clear();
+        $criteria = null === $ruleId ? ['cardId' => $card->id] : ['cardId' => $card->id, 'ruleId' => $ruleId];
 
-        return $this->service(WorkflowRuleStateRepository::class)->findOneBy(['cardId' => $card->id]) ?? throw new \LogicException('The rule state exists.');
+        return $this->service(WorkflowRuleStateRepository::class)->findOneBy($criteria) ?? throw new \LogicException('The rule state exists.');
+    }
+
+    /**
+     * A Lifecycle card in Tech design with the switch on and a product design that the Workflow account approved,
+     * after the engine opened the session ask.
+     *
+     * @return array{Card, Uuid} the card and the item id of the ask
+     */
+    private function askedSession(string $name): array
+    {
+        $this->enableInbox();
+        $project = $this->workflowProject($name);
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'tech-design');
+        $this->service(CardEventRepository::class)->record($card, CardEventKind::Moved, Actor::Human, $project->owner, [], new \DateTimeImmutable('-2 hours'));
+        $this->em()->persist(new CardValue($card, 'tech-design-interactive', true, Actor::Human, $project->owner, new \DateTimeImmutable('-1 hour')));
+        $document = $this->service(CreateDocumentHandler::class)(new CreateDocumentCommand($project, 'Product design', "# Design\n\nNothing to decide.", tagNames: ['product-design'], draft: true));
+        $this->em()->persist(new CardDocument($card, $document));
+        $this->em()->flush();
+        $this->service(PublishDocumentHandler::class)(new PublishDocumentCommand($document));
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($this->service(UserRepository::class)->workflow(), $document, 'approved', 1, 'Auto.', workflowRule: 'product-design-auto-approve'));
+
+        $this->evaluate($card);
+
+        $itemId = $this->state_($card, 'tech-design-session-ask')->askItemId;
+        self::assertNotNull($itemId, 'The engine opened the ask.');
+
+        return [$card, $itemId];
+    }
+
+    private function enableInbox(): void
+    {
+        $this->service(FeatureFlagRepository::class)->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
+        $this->em()->flush();
+        $reader = $this->service(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+    }
+
+    private function evaluate(Card $card): void
+    {
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock()), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
+        $handler(new EvaluateCard((string) $card->id));
+        $this->em()->flush();
+    }
+
+    private function value(Card $card, string $key): mixed
+    {
+        $this->em()->clear();
+        $reloaded = $this->em()->find(Card::class, $card->id) ?? throw new \LogicException('The card exists.');
+
+        return $this->service(CardValueRepository::class)->findOneForCardFresh($reloaded, $key)?->value;
+    }
+
+    /** @return list<WorkRequest> */
+    private function requestsOf(Card $card, string $ruleId): array
+    {
+        return $this->service(WorkRequestRepository::class)->findBy(['subjectType' => WorkSubject::CARD, 'subjectId' => $card->id, 'ruleId' => $ruleId]);
     }
 
     /** @return list<string> */

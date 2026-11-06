@@ -9,12 +9,12 @@
     <div class="lp-inbox-ask__main">
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}
-            <h2 class="lp-inbox-ask__title">{{ row.title|reference_plain }}</h2>
+            <h2 class="lp-inbox-ask__title" tabindex="-1">{{ row.title|reference_plain }}</h2>
             <div class="lp-inbox-ask__byline">
                 {# Who and when, then what it is, in the order of the document review byline. #}
                 <span class="lp-inbox-ask__head">
                     {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}
-                    <span class="lp-inbox-ask__source" data-inbox-source="{{ origin.value }}">{{ ('inbox.from.' ~ origin.value)|trans }}</span>
+                    <span class="lp-inbox-ask__source" data-inbox-source="{{ origin.value }}">{{ ('inbox.from.' ~ origin.value)|trans({'%name%': row.apiKeyName}) }}</span>
                 </span>
                 <span aria-hidden="true">·</span>
                 <twig:Ds:RelativeTime :datetime="row.createdAt" />

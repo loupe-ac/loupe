@@ -48,7 +48,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
         $data = $this->delete($client, $raw, $commentId);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'not_found'], $data);
+        self::assertSame('not_found', $data['code'] ?? null);
         $this->em()->clear();
         self::assertNotNull($this->service(SiteReviewCommentRepository::class)->find($commentId));
     }
@@ -63,7 +63,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
         $data = $this->delete($client, $raw, $commentId);
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'not_found'], $data);
+        self::assertSame('not_found', $data['code'] ?? null);
         self::assertNotNull($this->service(SiteReviewCommentRepository::class)->find($commentId));
     }
 
@@ -75,7 +75,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
         $data = $this->delete($client, $raw, 'nope');
 
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(['error' => 'not_found'], $data);
+        self::assertSame('not_found', $data['code'] ?? null);
     }
 
     public function test_the_widget_can_call_it_from_another_origin(): void
@@ -84,7 +84,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
         [$raw] = $this->projectWithToken($client, 'delete-feedback-api-cors@example.com');
         $commentId = $this->addNote($client, $raw);
 
-        $client->request(Request::METHOD_OPTIONS, '/api/board/feedback/'.$commentId, server: [
+        $client->request(Request::METHOD_OPTIONS, '/api/v1/live-review-widget/feedback/'.$commentId, server: [
             'HTTP_ORIGIN' => 'https://app.localhost',
             'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'DELETE',
         ]);
@@ -115,7 +115,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
 
     private function addNote(KernelBrowser $client, string $raw): string
     {
-        $client->request(Request::METHOD_POST, '/api/board/feedback',
+        $client->request(Request::METHOD_POST, '/api/v1/live-review-widget/feedback',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'CONTENT_TYPE' => 'application/json', 'HTTP_ORIGIN' => 'https://app.localhost'],
             content: json_encode([
                 'body' => 'Footer overlaps the launcher',
@@ -135,7 +135,7 @@ final class DeleteFeedbackApiTest extends WebTestCase
     /** @return array<string, mixed> */
     private function delete(KernelBrowser $client, string $raw, string $commentId): array
     {
-        $client->request(Request::METHOD_DELETE, '/api/board/feedback/'.$commentId,
+        $client->request(Request::METHOD_DELETE, '/api/v1/live-review-widget/feedback/'.$commentId,
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ORIGIN' => 'https://app.localhost']);
 
         $data = json_decode((string) $client->getResponse()->getContent(), true);

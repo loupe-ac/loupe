@@ -8,10 +8,9 @@ enum ParameterType: string
 {
     case String = 'string';
     case Int = 'int';
-    /** A condition parameter alone. */
     case Bool = 'bool';
     case Slot = 'slot';
-    /** A condition parameter alone: a string that names a value key the template declares in its `values` list. */
+    /** A string that names a value key the template declares in its `values` list. */
     case ValueKey = 'value-key';
     /** A string that names an outcome the template declares in its `outcomes` list. */
     case Outcome = 'outcome';

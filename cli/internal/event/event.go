@@ -61,8 +61,33 @@ const CommandType = "bridge.command"
 // ParseWorkRequest reads it.
 const WorkRequestType = "bridge.work_request"
 
+// checkCommandWorkKind lets a usage request carry the free-text name of an
+// interactive run, such as loupe:lifecycle-session. The bridge only logs that
+// name. Every other request keeps the work kind shape.
+func checkCommandWorkKind(c api.Command) error {
+	if c.WorkKind == "" {
+		return nil
+	}
+	if c.Kind == api.CommandCollectSessionUsage {
+		if n := utf8.RuneCountInString(c.WorkKind); n > MaxRunNameLength {
+			return fmt.Errorf("command has a workKind of %d characters, over %d", n, MaxRunNameLength)
+		}
+
+		return nil
+	}
+	if !KindPattern.MatchString(c.WorkKind) {
+		return fmt.Errorf("command has an invalid workKind %q", c.WorkKind)
+	}
+
+	return nil
+}
+
 // KindPattern is the shape of a work request kind, and of a capability.
 var KindPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
+
+// MaxRunNameLength is the longest run name, in characters. It matches the
+// server limit WorkerRun::MAX_WORK_KIND_LENGTH.
+const MaxRunNameLength = 100
 
 // ruleIDPattern is the shape of the id of the server rule that opened a work
 // request.
@@ -273,8 +298,8 @@ func CheckCommand(c api.Command) (api.Command, error) {
 			return c, fmt.Errorf("command %s %w", c.CommandID, err)
 		}
 	}
-	if c.WorkKind != "" && !KindPattern.MatchString(c.WorkKind) {
-		return c, fmt.Errorf("command has an invalid workKind %q", c.WorkKind)
+	if err := checkCommandWorkKind(c); err != nil {
+		return c, err
 	}
 	if c.ExpiresAt.IsZero() {
 		return c, errors.New("command has no expiresAt")

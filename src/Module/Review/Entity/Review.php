@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Review\Repository\ReviewRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -35,14 +36,15 @@ class Review
         public readonly User $reviewer,
 
         // Position in this version's verdict log, 1-based and gapless. It is what
-        // orders the log: submitted_at is TIMESTAMP(0), so a verdict and the
-        // withdrawal a moment later carry the same value. Assigned under the
-        // document's write lock, which is what keeps two appends from claiming one
-        // position; the UNIQUE index above says so out loud if they ever do.
+        // orders the log inside one version: two verdicts can share a submitted_at.
+        // Assigned under the document's write lock, which is what keeps two appends
+        // from claiming one position; the UNIQUE index above says so out loud if
+        // they ever do.
         #[ORM\Column]
         public readonly int $sequence = 1,
 
-        #[ORM\Column]
+        /** Kept to the microsecond, because a rule compares the approvals of several documents. A row from before the widening holds whole seconds. */
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public readonly \DateTimeImmutable $submittedAt = new \DateTimeImmutable(),
 
         #[ORM\Column(type: 'text', nullable: true)]

@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ExperimentReportView;
 use App\Module\Bridge\Command\ShowExperimentCommand;
 use App\Module\Bridge\Command\ShowExperimentHandler;
 use App\Module\Bridge\Entity\ExperimentDefinition;
+use App\Module\Bridge\Entity\ExperimentExclusion;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunUsage;
@@ -17,6 +18,7 @@ use App\Module\Bridge\Experiment\Confidence;
 use App\Module\Bridge\Experiment\ControlResult;
 use App\Module\Bridge\Experiment\ExperimentArm;
 use App\Module\Bridge\Experiment\ExperimentCard;
+use App\Module\Bridge\Experiment\ExperimentCardPosition;
 use App\Module\Bridge\Experiment\ExperimentComparison;
 use App\Module\Bridge\Experiment\ExperimentControl;
 use App\Module\Bridge\Experiment\ExperimentGuard;
@@ -34,6 +36,7 @@ use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Bridge\Metric\TemplateMetricValues;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
+use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
@@ -1069,6 +1072,71 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame('b', $this->card($view, $pinOnly)->variant);
     }
 
+    public function test_an_excluded_card_leaves_every_figure_and_shows_who_excluded_it(): void
+    {
+        $kept = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($kept, 'a', at: '+1 hour'), costUsd: '1.000000');
+        $excluded = Uuid::v7();
+        $this->seedUsage($this->em, $this->experimentRun($excluded, 'a', at: '+2 hours'), costUsd: '5.000000');
+        $this->outcomes[(string) $kept] = new CardOutcomeFixture(merged: true);
+        $this->outcomes[(string) $excluded] = new CardOutcomeFixture(merged: true);
+        $author = $this->user($this->em, 'excluder-'.uniqid().'@example.com');
+        $this->em->persist(new ExperimentExclusion($this->project, $excluded, self::EXPERIMENT, 'Changes no PHP', $author, new \DateTimeImmutable('2026-09-02 09:00:00')));
+        $this->em->flush();
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame(1, $view->includedCards);
+        self::assertSame(1, $view->leftOutCards);
+        self::assertSame([LeftOutReason::Excluded], $this->card($view, $excluded)->leftOut);
+        self::assertSame('Changes no PHP', $this->card($view, $excluded)->exclusion?->reason);
+        self::assertSame($author->fullName, $this->card($view, $excluded)->exclusion->authorName);
+        self::assertNull($this->card($view, $kept)->exclusion);
+        self::assertSame(1, $view->variants[0]->cards);
+        self::assertSame(1_000_000, $view->variants[0]->costMicros);
+        self::assertEquals(new Interval(1.0, 1.0, 1.0), $view->metrics[ExperimentMetric::COST]->for('a'));
+        $leftOut = $this->show(leftOutOnly: true);
+        self::assertNotNull($leftOut);
+        self::assertSame([(string) $excluded], array_map(static fn (ExperimentCard $card): string => (string) $card->cardId, $leftOut->cards));
+    }
+
+    public function test_an_excluded_card_keeps_its_automatic_reasons_beside_the_exclusion(): void
+    {
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a', at: '+1 hour');
+        $this->em->persist(new ExperimentPin($this->project, $card, self::EXPERIMENT, 'b'));
+        $this->em->persist(new ExperimentExclusion($this->project, $card, self::EXPERIMENT, 'Not a fit', null, new \DateTimeImmutable('2026-09-02 09:00:00')));
+        $this->em->flush();
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([LeftOutReason::Mixed, LeftOutReason::Excluded], $this->card($view, $card)->leftOut);
+        $exclusion = $this->card($view, $card)->exclusion;
+        self::assertNotNull($exclusion);
+        self::assertNull($exclusion->authorName);
+    }
+
+    public function test_a_walk_by_position_pages_the_cards_in_the_order_of_the_cards_tab(): void
+    {
+        $ids = [];
+        foreach (['+1 hour', '+2 hours', '+3 hours'] as $at) {
+            $ids[] = $card = Uuid::v7();
+            $this->experimentRun($card, 'a', at: $at);
+        }
+        $this->outcomes = [];
+
+        $first = $this->show(limit: 2);
+        self::assertNotNull($first);
+        $second = $this->show(limit: 2, after: new ExperimentCardPosition($first->cards[1]->lastRunAt, $first->cards[1]->cardId));
+        self::assertNotNull($second);
+        self::assertSame([(string) $ids[2], (string) $ids[1]], array_map(static fn (ExperimentCard $card): string => (string) $card->cardId, $first->cards));
+        self::assertTrue($first->hasMore);
+        self::assertSame([(string) $ids[0]], array_map(static fn (ExperimentCard $card): string => (string) $card->cardId, $second->cards));
+        self::assertFalse($second->hasMore);
+    }
+
     /**
      * @param array<string, array{cost: string, cards: int}>                             $arms     variant => the cost of each of its merged cards, and how many there are
      * @param list<array{metric: string, variant: string, expect: string, share: float}> $controls
@@ -1529,7 +1597,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->em->persist($definition);
     }
 
-    private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true): ?ExperimentReportView
+    private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true, ?int $limit = null, ?ExperimentCardPosition $after = null): ?ExperimentReportView
     {
         $this->storeOutcomes();
         $this->em->clear();
@@ -1559,6 +1627,24 @@ final class ShowExperimentHandlerTest extends KernelTestCase
 
             #[\Override]
             public function typesFor(Project $project, array $cardIds): array
+            {
+                return [];
+            }
+
+            #[\Override]
+            public function numbersFor(Project $project, array $cardIds): array
+            {
+                return [];
+            }
+
+            #[\Override]
+            public function cardIdForNumber(Project $project, int $number): ?Uuid
+            {
+                return null;
+            }
+
+            #[\Override]
+            public function pullRequestUrlsFor(Project $project, array $cardIds): array
             {
                 return [];
             }
@@ -1595,6 +1681,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $handler = new ShowExperimentHandler(
             $container->get(WorkerRunRepository::class),
             $container->get(ExperimentPinRepository::class),
+            $container->get(ExperimentExclusionRepository::class),
             $container->get(ExperimentDefinitionRepository::class),
             $container->get(ExperimentArchiveRepository::class),
             $container->get(WorkerRunFactRepository::class),
@@ -1607,7 +1694,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             $this->bucketRuleSources,
         );
 
-        return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics));
+        return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics, $limit, $after));
     }
 
     /** Writes the fix rounds and the pull request times of the declared outcomes where the handler reads them. */

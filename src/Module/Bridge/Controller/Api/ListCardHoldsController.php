@@ -45,11 +45,6 @@ use Symfony\Component\Routing\Attribute\Route;
     name: 'api_card_holds',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/card-holds',
-    name: 'api_legacy_card_holds',
-    methods: ['GET'],
-)]
 final class ListCardHoldsController extends AppController
 {
     public function __construct(

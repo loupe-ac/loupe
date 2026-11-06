@@ -46,14 +46,17 @@ final readonly class JoinInboxAskHandler
             throw new DomainErrors(['itemId' => self::NOT_AGENT_ITEM]);
         }
 
+        $rowsChanged = false;
         try {
-            $view = $this->em->wrapInTransaction(function () use ($command, $item, $project): JoinInboxAskView|InboxRefusal {
+            $view = $this->em->wrapInTransaction(function () use ($command, $item, $project, &$rowsChanged): JoinInboxAskView|InboxRefusal {
                 // The project first and the item second, the order a card move
                 // takes them in, so the two never wait on each other.
                 $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
                 if (InboxItemState::Open !== $this->inboxItems->lockedState($item)) {
                     return new InboxRefusal('itemId', InboxItemCloser::ITEM_NOT_OPEN);
                 }
+                // An open ask counts as one row, so a join can add a row or merge two.
+                $rowsBefore = $this->inboxItems->countOpenRowsByProject($project);
 
                 $sessionAsk = $this->sessionAsks->openOrExtend($project, $command->sessionId, $command->bridgeId, null);
                 if ($sessionAsk instanceof InboxRefusal) {
@@ -63,6 +66,7 @@ final readonly class JoinInboxAskHandler
                 $added = $this->sessionAsks->add($sessionAsk->ask, $item);
                 $this->sessionAsks->closeWhenNothingBlocks($sessionAsk, new \DateTimeImmutable());
                 $this->em->flush();
+                $rowsChanged = $rowsBefore !== $this->inboxItems->countOpenRowsByProject($project);
 
                 return new JoinInboxAskView($sessionAsk->ask, $item, extended: !$sessionAsk->opened, added: $added);
             });
@@ -77,7 +81,12 @@ final readonly class JoinInboxAskHandler
         if ($view instanceof InboxRefusal) {
             throw new DomainErrors([$view->field => $view->key]);
         }
-        $this->inboxChanged->pageChanged($project, [$view->ask->id ?? throw new \LogicException('A stored ask has an id.')]);
+        $askIds = [$view->ask->id ?? throw new \LogicException('A stored ask has an id.')];
+        if ($rowsChanged) {
+            $this->inboxChanged->changed($project, $askIds);
+        } else {
+            $this->inboxChanged->pageChanged($project, $askIds);
+        }
 
         $this->auditor->record(
             'inbox.item_joined',

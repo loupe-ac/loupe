@@ -8,6 +8,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositorySettings;
+use App\Tests\Support\RefusedPage;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -84,7 +85,7 @@ final class DownloadGitHubRulesetControllerTest extends WebTestCase
         $this->fetch($client, $project->id, $repository->id);
 
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
-        self::assertStringNotContainsString('Loupe / Approval', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Loupe / Approval', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_repository_of_another_project_is_not_found(): void

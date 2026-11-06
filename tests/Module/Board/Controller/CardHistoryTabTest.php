@@ -12,6 +12,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\Actor;
+use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -250,7 +251,7 @@ final class CardHistoryTabTest extends WebTestCase
         $client->request(Request::METHOD_GET, $this->cardUrl($card).'/history');
 
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('created it', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('created it', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_card_of_another_project_is_not_found_under_this_project(): void
@@ -270,7 +271,7 @@ final class CardHistoryTabTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects/'.$ownProject->id.'/board/cards/'.$card->id.'/history');
 
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('created it', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('created it', RefusedPage::body($client->getResponse()));
     }
 
     public function test_a_finished_run_links_to_the_run_until_the_run_is_purged(): void

@@ -5756,6 +5756,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -5768,6 +5769,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {
@@ -6171,6 +6180,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -6183,6 +6193,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {
@@ -6880,6 +6898,477 @@
                         "description": "The Workshop page of the project in the app. Its discovery row shows the run, and opens the report once the worker has written it.",
                         "type": "string",
                         "format": "uri"
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardRow": {
+                "required": [
+                    "cardId",
+                    "number",
+                    "title",
+                    "variant",
+                    "pullRequestUrls",
+                    "leftOut",
+                    "exclusion"
+                ],
+                "properties": {
+                    "cardId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The card number, or null for a card that the experiment lists but the board and the runs no longer name. A card with no number cannot be excluded.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "title": {
+                        "description": "The card title, or null when the card is gone.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant that did the work, or null when none is known.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pullRequestUrls": {
+                        "description": "Every pull request link of the card, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uri"
+                        }
+                    },
+                    "leftOut": {
+                        "description": "Why the comparison leaves the card out. Empty for a card that counts.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "switched",
+                                "mixed",
+                                "before-test",
+                                "covered-without-variant",
+                                "no-history",
+                                "no-run",
+                                "excluded"
+                            ]
+                        }
+                    },
+                    "exclusion": {
+                        "description": "The manual exclusion of the card, or null.",
+                        "required": [
+                            "reason",
+                            "excludedBy",
+                            "excludedAt"
+                        ],
+                        "properties": {
+                            "reason": {
+                                "type": "string"
+                            },
+                            "excludedBy": {
+                                "description": "The full name of the author, or null when the account is gone.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "excludedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExperimentCardRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentCardExclude": {
+                "required": [
+                    "reason"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "Why the card does not fit the question of the experiment. Surrounding blanks are cut off.",
+                        "type": "string",
+                        "maxLength": 500,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItem": {
+                "required": [
+                    "itemId",
+                    "number",
+                    "kind",
+                    "origin",
+                    "title",
+                    "state",
+                    "closedBy",
+                    "closeCause",
+                    "dismissible",
+                    "blocking",
+                    "createdAt",
+                    "updatedAt",
+                    "closedAt",
+                    "cardNumbers",
+                    "body",
+                    "options",
+                    "multiple",
+                    "freeText",
+                    "selectedOptions",
+                    "note",
+                    "review",
+                    "cards",
+                    "documents",
+                    "asks",
+                    "cardId",
+                    "waits",
+                    "suggestedActions",
+                    "actions",
+                    "apiKey"
+                ],
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The short label that counts from 1 inside this project.",
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "question",
+                            "todo",
+                            "review",
+                            "wait",
+                            "notice",
+                            "workflow"
+                        ]
+                    },
+                    "origin": {
+                        "description": "Who wrote the item: `agent`, `loupe`, or `api-key` for an item an API key created.",
+                        "type": "string",
+                        "enum": [
+                            "agent",
+                            "loupe",
+                            "api-key"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "declined",
+                            "cancelled"
+                        ]
+                    },
+                    "closedBy": {
+                        "description": "Who closed the item.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "owner",
+                            "owner-through-agent",
+                            "agent",
+                            "loupe",
+                            "rule"
+                        ]
+                    },
+                    "closeCause": {
+                        "description": "Why Loupe, a rule or an agent closed the item. Null for a response of the owner.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dismissible": {
+                        "description": "Whether the owner may dismiss the item.",
+                        "type": "boolean"
+                    },
+                    "blocking": {
+                        "description": "Whether an agent waits on the item. Always false for an item from the API.",
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "closedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cardNumbers": {
+                        "description": "The numbers of the linked cards, lowest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "body": {
+                        "description": "Markdown.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    },
+                    "freeText": {
+                        "type": "boolean"
+                    },
+                    "selectedOptions": {
+                        "description": "The indexes of the options the owner picked, counting from 0.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "note": {
+                        "description": "The words of whoever closed the item: a written answer, a dismiss note or a withdraw reason.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "review": {
+                        "description": "The target and the verdict of a review item, otherwise null.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "cards": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "cardId",
+                                "number",
+                                "title"
+                            ],
+                            "properties": {
+                                "cardId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "number": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "documentId",
+                                "title"
+                            ],
+                            "properties": {
+                                "documentId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "title": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "asks": {
+                        "description": "Every ask that holds the item. An ask with no session is held by Loupe or made by the API.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "askId",
+                                "origin",
+                                "sessionId",
+                                "closedAt"
+                            ],
+                            "properties": {
+                                "askId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "origin": {
+                                    "type": "string"
+                                },
+                                "sessionId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                },
+                                "closedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "cardId": {
+                        "description": "The card of an automatic item, otherwise null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "waits": {
+                        "description": "Each reason the card of an automatic item waited, oldest first. Empty for other items.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "suggestedActions": {
+                        "description": "The built-in actions the asking agent suggests.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "actions": {
+                        "description": "Each action the owner ran on the item, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "apiKey": {
+                        "description": "The key that created the item when `origin` is `api-key`, otherwise null. The name is the one the key had then, and stays when the key is removed.",
+                        "required": [
+                            "id",
+                            "name"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemCreate": {
+                "required": [
+                    "kind",
+                    "title"
+                ],
+                "properties": {
+                    "kind": {
+                        "description": "A `question` takes options, freeText or both. A `todo` is marked done or declined. A `notice` only informs, and the owner dismisses it.",
+                        "type": "string",
+                        "enum": [
+                            "question",
+                            "todo",
+                            "notice"
+                        ]
+                    },
+                    "title": {
+                        "description": "One line.",
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "body": {
+                        "description": "Markdown. Write a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`.",
+                        "type": "string",
+                        "maxLength": 20000
+                    },
+                    "options": {
+                        "description": "The answers the owner picks from. A question only.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 500
+                        },
+                        "maxItems": 20
+                    },
+                    "multiple": {
+                        "description": "Whether the owner may pick several options. It needs at least two options.",
+                        "type": "boolean"
+                    },
+                    "freeText": {
+                        "description": "Whether the owner may write an answer.",
+                        "type": "boolean"
+                    },
+                    "blocking": {
+                        "description": "Always false. Nothing waits on an item from the API, so `true` is refused.",
+                        "type": "boolean",
+                        "enum": [
+                            false
+                        ]
+                    },
+                    "cardIds": {
+                        "description": "Cards of this project. Any other id is refused.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 20
+                    },
+                    "documentIds": {
+                        "description": "Documents of this project. Any other id is refused.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 20
+                    },
+                    "dedupeKey": {
+                        "title": "The trimmed key, or null when it is absent or blank.",
+                        "description": "A key of your choice. While an open item of the project holds the same key, the call returns that item with 200 and creates nothing. Once that item closes, the next call creates a new item. Blank counts as no key.",
+                        "type": "string",
+                        "maxLength": 200
                     }
                 },
                 "type": "object"
@@ -12536,6 +13025,7 @@
                             "required": [
                                 "key",
                                 "type",
+                                "visibility",
                                 "value",
                                 "writer",
                                 "updatedAt"
@@ -12548,6 +13038,14 @@
                                     "type": "string",
                                     "enum": [
                                         "bool"
+                                    ]
+                                },
+                                "visibility": {
+                                    "description": "Who may write the key: any caller for public, only the workflow for internal.",
+                                    "type": "string",
+                                    "enum": [
+                                        "public",
+                                        "internal"
                                     ]
                                 },
                                 "value": {

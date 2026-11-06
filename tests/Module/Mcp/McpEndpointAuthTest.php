@@ -140,6 +140,8 @@ final class McpEndpointAuthTest extends WebTestCase
             'document_verdict_submit',
             'document_verdict_withdraw',
             'experiment_archive',
+            'experiment_card_exclude',
+            'experiment_card_include',
             'experiment_get',
             'experiment_unarchive',
             'feedback_list',

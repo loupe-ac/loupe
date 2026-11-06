@@ -44,8 +44,8 @@ class ReviewRepository extends ServiceEntityRepository
      * A withdrawal is a row like any other, so this may be one — read
      * findStandingVerdictByVersion() for "what the verdict currently is".
      *
-     * Ordered by sequence, never by submittedAt: that column is TIMESTAMP(0), so
-     * rows written in the same second are indistinguishable by it.
+     * Ordered by sequence, never by submittedAt: two verdicts can share a time,
+     * and a row from before the column kept microseconds holds whole seconds.
      */
     public function findNewestByVersion(DocumentVersion $version): ?Review
     {
@@ -107,8 +107,8 @@ class ReviewRepository extends ServiceEntityRepository
             ->setParameter('document', $document)
             ->setParameter('reviewer', $reviewer)
             ->orderBy('review.submittedAt', 'DESC')
-            // submittedAt is TIMESTAMP(0), so two verdicts can tie. Both are this
-            // reviewer's own, which means they saw the later version.
+            // Two verdicts can still tie, on rows from before the column kept
+            // microseconds. Both are this reviewer's own, which means they saw the later version.
             ->addOrderBy('v.versionNumber', 'DESC')
             ->setMaxResults(1)
             ->getQuery()

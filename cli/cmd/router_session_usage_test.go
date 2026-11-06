@@ -86,6 +86,29 @@ func TestASessionUsageRequestSendsTheUsageOfTheRun(t *testing.T) {
 	}
 }
 
+// An interactive run carries its skill name, with a colon, as its work kind.
+// The check lets the usage request through to the collection.
+func TestASessionUsageRequestTakesTheNameOfAnInteractiveRun(t *testing.T) {
+	claudeHome(t, testSession, early, streamed1, streamed2, second)
+	h := newHarness(t)
+	acks := h.withAcks()
+	usage := withRunUsage(h)
+	c := sessionUsageCommand()
+	c.WorkKind = "loupe:lifecycle-session"
+
+	h.reply(api.HeartbeatReply{Commands: []api.Command{c}})
+
+	if calls := usage.recorded(); len(calls) != 1 || calls[0].runID != usageRunID {
+		t.Fatalf("usage calls = %+v", calls)
+	}
+	if got := acks.recorded(); len(got) != 1 || got[0] != testBridgeID+" "+testCommandID+" done " {
+		t.Fatalf("acks = %q", got)
+	}
+	if h.runs() != 0 {
+		t.Fatalf("workers = %d, want none", h.runs())
+	}
+}
+
 // The transcript of a run on an account with its own config folder is in that
 // folder, not in the default one.
 func TestASessionUsageRequestReadsTheConfigFolderOfTheAccount(t *testing.T) {

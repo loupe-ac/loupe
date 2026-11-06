@@ -228,8 +228,8 @@ class InboxItemRepository extends ServiceEntityRepository
     }
 
     /**
-     * The open items of an agent linked to the card whose other linked cards
-     * all sit in terminal columns, locked for update. An item with no other
+     * The open items of an agent or an API key linked to the card whose other
+     * linked cards all sit in terminal columns, locked for update. An item with no other
      * card matches. The caller holds a transaction.
      *
      * @return list<InboxItem>
@@ -240,11 +240,11 @@ class InboxItemRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->andWhere(\sprintf('EXISTS (SELECT m.id FROM %s m WHERE m.item = i AND m.card = :card)', InboxItemCard::class))
             ->andWhere('i.state = :open')
-            ->andWhere('i.origin = :agent')
+            ->andWhere('i.origin IN (:asked)')
             ->andWhere(\sprintf('NOT EXISTS (SELECT u.id FROM %s u JOIN u.card uc JOIN uc.column k WHERE u.item = i AND u.card <> :card AND k.terminal = false)', InboxItemCard::class))
             ->setParameter('card', $card)
             ->setParameter('open', InboxItemState::Open)
-            ->setParameter('agent', InboxAskOrigin::Agent)
+            ->setParameter('asked', [InboxAskOrigin::Agent->value, InboxAskOrigin::ApiKey->value])
             ->orderBy('i.number', 'ASC')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
@@ -298,6 +298,12 @@ class InboxItemRepository extends ServiceEntityRepository
     public function findOneByProjectAndNumber(Project $project, int $number): ?InboxItem
     {
         return $this->findOneBy(['project' => $project, 'number' => $number]);
+    }
+
+    /** The open item of the project that holds this dedupe key, or null. The caller holds the project lock. */
+    public function findOpenByDedupeKey(Project $project, string $dedupeKey): ?InboxItem
+    {
+        return $this->findOneBy(['project' => $project, 'dedupeKey' => $dedupeKey, 'state' => InboxItemState::Open]);
     }
 
     /**
@@ -563,18 +569,6 @@ class InboxItemRepository extends ServiceEntityRepository
             ->execute();
     }
 
-    public function countOpenByProject(Project $project): int
-    {
-        return (int) $this->createQueryBuilder('i')
-            ->select('COUNT(i.id)')
-            ->andWhere('i.project = :project')
-            ->andWhere('i.state = :open')
-            ->setParameter('project', $project)
-            ->setParameter('open', InboxItemState::Open)
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
     /**
      * @param list<Project> $projects
      *
@@ -600,6 +594,47 @@ class InboxItemRepository extends ServiceEntityRepository
         $counts = [];
         foreach ($rows as $row) {
             $counts[(string) $row['id']] = (int) $row['total'];
+        }
+
+        return $counts;
+    }
+
+    /** How many rows the open side of the inbox page lists: the open asks, plus the open items that no open ask holds. */
+    public function countOpenRowsByProject(Project $project): int
+    {
+        return $this->countOpenRowsByProjects([$project])[(string) $project->id] ?? 0;
+    }
+
+    /**
+     * @param list<Project> $projects
+     *
+     * @return array<string, int> keyed by project id; a project with no open row is absent
+     */
+    public function countOpenRowsByProjects(array $projects): array
+    {
+        if ([] === $projects) {
+            return [];
+        }
+
+        /** @var list<array{project_id: string, total: int|string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT project_id, COUNT(*) AS total FROM (
+                 SELECT a.project_id FROM inbox_asks a
+                 WHERE a.project_id IN (:projects) AND a.closed_at IS NULL
+                   AND EXISTS (SELECT 1 FROM inbox_ask_items l WHERE l.ask_id = a.id)
+                 UNION ALL
+                 SELECT i.project_id FROM inbox_items i
+                 WHERE i.project_id IN (:projects) AND i.state = 'open'
+                   AND NOT EXISTS (SELECT 1 FROM inbox_ask_items l JOIN inbox_asks a ON a.id = l.ask_id WHERE l.item_id = i.id AND a.closed_at IS NULL)
+             ) open_rows
+             GROUP BY project_id",
+            ['projects' => array_map(static fn (Project $project): string => (string) ($project->id ?? throw new \LogicException('Project has no id.')), $projects)],
+            ['projects' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[Uuid::fromString($row['project_id'])->toRfc4122()] = (int) $row['total'];
         }
 
         return $counts;

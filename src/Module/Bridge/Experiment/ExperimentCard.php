@@ -10,7 +10,8 @@ use Symfony\Component\Uid\Uuid;
 final readonly class ExperimentCard
 {
     /**
-     * @param list<LeftOutReason> $leftOut in display order, empty when the report keeps the card
+     * @param list<LeftOutReason> $leftOut         in display order, empty when the report keeps the card
+     * @param list<string>        $pullRequestUrls
      */
     public function __construct(
         public Uuid $cardId,
@@ -28,7 +29,19 @@ final readonly class ExperimentCard
         /** Millionths of a dollar, over the runs of the experiment of a covered kind. Null when none reported usage or one has no price. */
         public ?int $coveredCostMicros,
         public array $leftOut,
+        /** Set when the owner excluded the card by hand. */
+        public ?ExperimentExclusionView $exclusion = null,
+        /** Every pull request link of the card. Filled for a page of the read API only. */
+        public array $pullRequestUrls = [],
+        /** When the last run of the experiment reached Loupe. Null when the card has none. */
+        public ?\DateTimeImmutable $lastRunAt = null,
     ) {
+    }
+
+    /** @param list<string> $urls */
+    public function withPullRequestUrls(array $urls): self
+    {
+        return clone ($this, ['pullRequestUrls' => $urls]);
     }
 
     public function included(): bool

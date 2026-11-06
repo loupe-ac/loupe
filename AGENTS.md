@@ -57,6 +57,10 @@ A subagent does not inherit the skills you have loaded. When you delegate PHP, e
 
 Submit a document that the user reads at their own pace to the Loupe app with `document_create` or `document_revise`. Examples are a plan, a spec or an RFC. Give the user the review URL. Invoke `loupe-documents` before you write it, and `project-tech-design` as well when it settles an architecture. Keep a turn in a discussion in the chat.
 
+## Interviewing the owner
+
+Ask the owner one question per turn, also when an installed skill such as `grilling` asks a round of questions at once. Keep the rest of that skill's method, such as its design tree and its recommended answers. Ask the next ready question only after the owner answers. This rule overrides the question format of any installed skill, in a Loupe design session too. Use AskUserQuestion when the answer has clear options.
+
 ## Tracking open work
 
 The project board in the Loupe app holds open work that has an addressee. Invoke the `loupe-board` skill before you write a card. It says what earns a card, and that the board is public text. An observation gets no card. A lesson goes into the skill that covers its area. A fact about how the system behaves goes into `docs/`, or into the skill. A record of what happened goes into the commit message or the pull request body.

@@ -55,12 +55,6 @@ use Symfony\Component\Routing\Attribute\Route;
     requirements: ['handle' => '[^/]+'],
     methods: ['POST'],
 )]
-#[Route(
-    '/api/projects/{handle}/preview-tokens',
-    name: 'api_legacy_project_preview_token_mint',
-    requirements: ['handle' => '[^/]+'],
-    methods: ['POST'],
-)]
 final class MintPreviewTokenController extends AppController
 {
     public function __construct(

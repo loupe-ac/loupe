@@ -188,7 +188,7 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         return $this->unauthorized($request);
     }
 
-    /** Problem JSON on a /api/v1 path, and the old flat body on any other. */
+    /** Problem JSON on an /api path, and the flat body on any other, such as /mcp. */
     private function unauthorized(Request $request): Response
     {
         return new ApiProblem(

@@ -37,7 +37,7 @@ test('Workshop shows reported connections and opens the matching details', async
     const bridgeId = crypto.randomUUID();
     const version = 'v'.repeat(100);
     const heartbeat = await page.request.put(
-        `/api/bridges/${bridgeId}/heartbeat`,
+        `/api/v1/bridge/bridges/${bridgeId}/heartbeat`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: { projects: [projectId], cliVersion: version },

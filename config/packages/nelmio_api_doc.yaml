@@ -244,6 +244,11 @@ when@dev: &generator
                 - { alias: CardReleaseResult, type: App\Module\Board\Controller\Api\CardReleaseResponse }
                 - { alias: CardPauseReleaseResult, type: App\Module\Board\Controller\Api\CardPauseReleaseResponse }
                 - { alias: DiscoveryStartResult, type: App\Module\Readiness\Controller\Api\DiscoveryStartResponse }
+                - { alias: ExperimentCardRow, type: App\Module\Bridge\Controller\Api\ExperimentCardRowResponse }
+                - { alias: ExperimentCardList, type: App\Module\Bridge\Controller\Api\ExperimentCardListResponse }
+                - { alias: ExperimentCardExclude, type: App\Module\Bridge\Controller\Api\ExcludeExperimentCardRequest }
+                - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
+                - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }

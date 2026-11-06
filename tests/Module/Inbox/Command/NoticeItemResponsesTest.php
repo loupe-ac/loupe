@@ -17,13 +17,13 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
-use App\Module\Inbox\Service\InboxItemCloser;
+use App\Module\Inbox\Service\ReplyCardBuilder;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
-/** Loupe closes a notice when its fact ends, so no person and no agent responds to it. */
+/** A notice takes no answer and no agent withdraws it. The owner may dismiss it. */
 final class NoticeItemResponsesTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -60,13 +60,21 @@ final class NoticeItemResponsesTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->notice->state);
     }
 
-    public function test_decline_refuses_a_notice(): void
+    public function test_the_owner_dismisses_a_notice_and_the_reply_card_offers_it(): void
     {
+        $builder = self::getContainer()->get(ReplyCardBuilder::class);
+        self::assertInstanceOf(ReplyCardBuilder::class, $builder);
         $handler = self::getContainer()->get(DeclineInboxItemHandler::class);
         self::assertInstanceOf(DeclineInboxItemHandler::class, $handler);
 
-        self::assertSame(['closeNote' => InboxItemCloser::ERROR_NOTICE], $this->refusal(fn () => $handler(new DeclineInboxItemCommand($this->notice, ''))));
-        self::assertSame(InboxItemState::Open, $this->notice->state);
+        self::assertTrue($this->notice->dismissible);
+        self::assertNotNull($builder->build($this->notice)?->dismiss);
+
+        $handler(new DeclineInboxItemCommand($this->notice, 'Seen'));
+
+        self::assertSame(InboxItemState::Declined, $this->notice->state);
+        self::assertSame('Seen', $this->notice->note);
+        self::assertTrue($this->notice->isDismissed());
     }
 
     public function test_withdraw_refuses_a_notice(): void

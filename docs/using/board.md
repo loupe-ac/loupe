@@ -459,6 +459,16 @@ key shows no **Values** group. The card history shows each change, for example
 makes the workflow check the card again. An agent reads the declared keys in the
 `values` field of `card_get`, and writes them with `values` on `card_update`.
 
+A key has a visibility, `public` or `internal`. The default is `public`. A
+public value is a switch that any person or agent with write access can turn on
+or off. An internal value is for the workflow alone. The page shows it read-only
+in a closed **Internal values** section under the switches. Each row there
+shows the label, **On** or **Off**, and who set it and when, or **Not set**. A
+rule of the workflow writes an internal value, and the history names the writer
+as Loupe. A person, an agent or an API key that tries to write an internal value
+gets a refusal. `card_get` and the public API show the `visibility` of each
+value.
+
 The card page and the drawer update live, with no reload. They update when the
 card moves, when one of its pull requests changes, when the automation acts,
 and when a worker run of the project changes. The open tab stays open. A form

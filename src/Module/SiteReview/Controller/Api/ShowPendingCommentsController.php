@@ -56,11 +56,6 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
     name: 'api_site_review_pending_comments',
     methods: ['GET'],
 )]
-#[Route(
-    '/api/live-review/review',
-    name: 'api_legacy_site_review_pending_comments',
-    methods: ['GET'],
-)]
 final class ShowPendingCommentsController extends AppController
 {
     public function __construct(

@@ -109,7 +109,7 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
 
         $this->client->request(
             Request::METHOD_PUT,
-            '/api/bridges/'.$bridgeId->toRfc4122().'/heartbeat',
+            '/api/v1/bridge/bridges/'.$bridgeId->toRfc4122().'/heartbeat',
             server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
             content: json_encode(['projects' => [(string) $this->project->id], 'cliVersion' => 'b4e39aa7'], \JSON_THROW_ON_ERROR),
         );

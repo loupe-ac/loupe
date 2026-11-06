@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Repository;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Project\Entity\Project;
@@ -173,9 +175,10 @@ final class CardDocumentRepository extends ServiceEntityRepository
      * The id, the status, the title, the time and the number of the newest version and the tag names of each unarchived
      * document linked to the card, as the database holds them now, in link order. Each row also holds the entry check of the
      * newest version, the id of its newest review, whether any version ever got a change request or a withdrawal, and whether the
-     * newest review of the newest version withdraws an approval.
+     * newest review of the newest version withdraws an approval. It holds the time and the reviewer of the newest approval of any
+     * version too, ordered by time, then version number, then position in the verdict log.
      *
-     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, tags: list<string>}>
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, newestApprovalAt: ?\DateTimeImmutable, newestApprovalByWorkflow: bool, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
     {
@@ -191,13 +194,20 @@ final class CardDocumentRepository extends ServiceEntityRepository
                 EXISTS (
                     SELECT 1 FROM reviews r JOIN document_versions rv ON rv.id = r.version_id
                     WHERE rv.document_id = d.id AND r.verdict IN (\'changes-requested\', \'withdrawn\')
-                ) AS rejected_before
+                ) AS rejected_before,
+                approval.submitted_at AS newest_approval_at, approval.reviewer_id AS newest_approval_reviewer
              FROM board_card_documents cd
              JOIN documents d ON d.id = cd.document_id
              LEFT JOIN LATERAL (
                  SELECT v.id, v.published_at, v.entry_unanswered_decisions, v.entry_open_threads
                  FROM document_versions v WHERE v.document_id = d.id ORDER BY v.version_number DESC LIMIT 1
              ) newest ON TRUE
+             LEFT JOIN LATERAL (
+                 SELECT r.submitted_at, r.reviewer_id
+                 FROM reviews r JOIN document_versions rv ON rv.id = r.version_id
+                 WHERE rv.document_id = d.id AND r.verdict = \'approved\'
+                 ORDER BY r.submitted_at DESC, rv.version_number DESC, r.sequence DESC LIMIT 1
+             ) approval ON TRUE
              LEFT JOIN document_tags dt ON dt.document_id = d.id
              LEFT JOIN tags t ON t.id = dt.tag_id
              WHERE cd.card_id = :card AND d.archived_at IS NULL
@@ -206,11 +216,13 @@ final class CardDocumentRepository extends ServiceEntityRepository
         );
         $platform = $connection->getDatabasePlatform();
         $type = Type::getType(Types::DATETIME_IMMUTABLE);
+        $microsecondType = Type::getType(MicrosecondDateTimeImmutableType::NAME);
 
         $documents = [];
         foreach ($rows as $row) {
             $documentId = (string) $row['document_id'];
             $published = $type->convertToPHPValue($row['published_at'], $platform);
+            $approvedAt = $microsecondType->convertToPHPValue($row['newest_approval_at'], $platform);
             $documents[$documentId] ??= [
                 'id' => $documentId,
                 'status' => (string) $row['status'],
@@ -223,6 +235,8 @@ final class CardDocumentRepository extends ServiceEntityRepository
                 'newestReviewId' => null === $row['newest_review_id'] ? null : (string) $row['newest_review_id'],
                 'rejectedBefore' => (bool) $row['rejected_before'],
                 'newestReviewWithdrewApproval' => (bool) $row['newest_review_withdrew_approval'],
+                'newestApprovalAt' => $approvedAt instanceof \DateTimeImmutable ? $approvedAt : null,
+                'newestApprovalByWorkflow' => User::WORKFLOW_ID === $row['newest_approval_reviewer'],
                 'tags' => [],
             ];
             if (null !== $row['tag_name']) {

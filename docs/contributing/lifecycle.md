@@ -435,14 +435,14 @@ that change from one setup to the next.
 2. The unattended run notes cover what differs when a worker runs with no
    person: connect to Loupe, run a long command, read a linked prototype, and
    keep the final reply short. The generic notes are
-   `.agents/skills/loupe-stage-implementation/references/unattended/generic.md`.
+   `plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/unattended/generic.md`.
    The notes for Claude Code are
-   `.agents/skills/loupe-stage-implementation/references/unattended/claude-code.md`.
+   `plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/unattended/claude-code.md`.
    The notes for Codex are
-   `.agents/skills/loupe-stage-implementation/references/unattended/codex.md`.
+   `plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/unattended/codex.md`.
 3. A forge adapter maps the pull request operations to the commands of one
    forge. The adapter for GitHub is
-   `.agents/skills/loupe-stage-implementation/references/forges/github.md`.
+   `plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/forges/github.md`.
    Each read section of an adapter ends with a Report line, which translates
    the values of that forge into words that every forge shares, so a stage
    skill reads no value of one forge. A forge-only script, such as the GitHub

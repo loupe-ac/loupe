@@ -27,6 +27,7 @@ final class SetCardValueControllerTest extends WebTestCase
     use WorkflowProjects;
 
     private const string KEY = 'tech-design-interactive';
+    private const string INTERNAL_KEY = 'session-start-approved';
 
     public function test_the_details_tab_shows_the_values_group_with_an_unset_row(): void
     {
@@ -41,7 +42,7 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertSame('Values', trim($group->filter('[data-card-values-heading]')->text()));
         $row = $group->filter('#card-value-'.self::KEY);
         self::assertCount(1, $row);
-        self::assertSame('Tech design', trim($row->filter('.lp-card-value__label')->text()));
+        self::assertSame('Tech design', trim($row->filter('.lp-value-row__label')->text()));
         $switch = $row->filter('input.lp-switch[role="switch"]');
         self::assertCount(1, $switch);
         self::assertNull($switch->attr('checked'));
@@ -51,7 +52,7 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/board/cards/'.$card->id.'/values/'.self::KEY, $row->filter('form')->attr('action'));
         self::assertStringContainsString('Turn this on to write the tech design in a session with you.', $row->filter('[role="tooltip"]')->text());
         self::assertCount(1, $row->filter('[role="tooltip"]#'.$switch->attr('aria-describedby')));
-        self::assertSame('Not set', trim($row->filter('.lp-card-value__meta')->text()));
+        self::assertSame('Not set', trim($row->filter('.lp-value-row__meta')->text()));
     }
 
     public function test_the_row_shows_the_stored_state_and_who_set_it(): void
@@ -65,7 +66,7 @@ final class SetCardValueControllerTest extends WebTestCase
 
         $row = $crawler->filter('#card-value-'.self::KEY);
         self::assertNotNull($row->filter('input.lp-switch')->attr('checked'));
-        self::assertStringStartsWith('Set by Riley', trim($row->filter('.lp-card-value__meta')->text()));
+        self::assertStringStartsWith('Set by Riley', trim($row->filter('.lp-value-row__meta')->text()));
     }
 
     public function test_a_project_whose_template_declares_no_key_shows_no_values_group(): void
@@ -232,12 +233,88 @@ final class SetCardValueControllerTest extends WebTestCase
         self::assertStringContainsString('Riley turned off the interactive session for tech design.', $text);
     }
 
+    public function test_an_internal_key_is_not_found_and_no_caller_writes_it(): void
+    {
+        [$client, $project, $card] = $this->internalScenario('values-internal-post');
+        $cardId = (string) $card->id;
+        $this->em()->clear();
+
+        $this->post($client, (string) $project->id, $cardId, self::INTERNAL_KEY, true);
+
+        self::assertResponseStatusCodeSame(404);
+        $this->em()->clear();
+        $values = static::getContainer()->get(CardValueRepository::class);
+        self::assertInstanceOf(CardValueRepository::class, $values);
+        self::assertNull($values->findOneForCardFresh($this->em()->find(Card::class, $cardId) ?? throw new \LogicException('The card is gone.'), self::INTERNAL_KEY));
+        self::assertSame(0, $this->events($cardId));
+    }
+
+    public function test_an_internal_value_sits_read_only_in_one_closed_section_after_the_public_rows(): void
+    {
+        [$client, $project, $card] = $this->internalScenario('values-internal-show');
+        $this->em()->clear();
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+
+        self::assertResponseIsSuccessful();
+        $group = $crawler->filter('#card-panel-details [data-card-values]');
+        self::assertCount(1, $group);
+        self::assertCount(1, $group->filter('#card-value-'.self::KEY), 'The public row stays a row with a switch.');
+        self::assertCount(0, $group->filter('#card-value-'.self::INTERNAL_KEY.' input'), 'An internal value has no control.');
+        $section = $group->filter('details[data-card-internal-values]');
+        self::assertCount(1, $section);
+        self::assertNull($section->attr('open'), 'The section starts closed.');
+        self::assertSame('Internal values', trim($section->filter('summary')->text()));
+        self::assertCount(1, $section->filter('#card-value-'.self::INTERNAL_KEY));
+        self::assertCount(0, $group->filter('details #card-value-'.self::KEY), 'A public value stays out of the section.');
+        $row = $section->filter('#card-value-'.self::INTERNAL_KEY);
+        self::assertSame('workflow.value.internal.caption', trim($row->filter('.lp-value-row__label')->text()), 'The row reads the caption, which names the value on its own.');
+        self::assertSame('Off', trim($row->filter('.lp-value-row__value')->text()));
+        self::assertSame('Not set', trim($row->filter('.lp-value-row__meta')->text()));
+    }
+
+    public function test_an_internal_value_the_workflow_wrote_names_loupe_and_the_time(): void
+    {
+        [$client, $project, $card] = $this->internalScenario('values-internal-set');
+        $this->em()->persist(new CardValue($card, self::INTERNAL_KEY, true, Actor::System, null, new \DateTimeImmutable('-2 hours')));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+
+        $row = $crawler->filter('details[data-card-internal-values] #card-value-'.self::INTERNAL_KEY);
+        self::assertSame('On', trim($row->filter('.lp-value-row__value')->text()));
+        self::assertSame('Set by Loupe · 2h ago', preg_replace('/\s+/', ' ', trim($row->filter('.lp-value-row__meta')->text())));
+    }
+
+    public function test_a_template_with_only_public_values_draws_no_internal_section(): void
+    {
+        [$client, $project, $card] = $this->scenario('values-no-internal');
+        $this->em()->clear();
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+
+        self::assertCount(1, $crawler->filter('[data-card-values]'));
+        self::assertCount(0, $crawler->filter('[data-card-internal-values]'));
+    }
+
+    /** @return array{KernelBrowser, Project, Card} */
+    private function internalScenario(string $name): array
+    {
+        $client = static::createClient();
+        $project = $this->workflowProject($name);
+        $this->bindLifecycleWithInternalValue($project, self::INTERNAL_KEY);
+        $this->signIn($client, $project->owner);
+
+        return [$client, $project, $this->card($project)];
+    }
+
     /** @return array{KernelBrowser, Project, Card} */
     private function scenario(string $name): array
     {
         $client = static::createClient();
         $project = $this->workflowProject($name);
-        $this->bindLifecycle($project);
+        $this->bindLifecyclePublicOnly($project);
         $this->signIn($client, $project->owner);
 
         return [$client, $project, $this->card($project)];

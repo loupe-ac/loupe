@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback and artifacts. The API is in **beta**.
+reviews, feedback, artifacts, inbox items and the cards of an experiment. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.
@@ -300,6 +300,47 @@ The request takes no body. The credential must manage the project. The answer is
    `discovery_running`. `discovery_running` adds `cardNumber`, the card of the
    open run. The `detail` says what to change.
 4. The route takes the `Idempotency-Key` header, as the other creates do.
+
+## Card values
+
+A card holds one value for each key that its workflow template declares. The
+`values` list of a card has an entry for each declared key, with `key`, `type`,
+`visibility`, `value`, `writer` and `updatedAt`. `visibility` is `public` or
+`internal`. A key with `public` visibility takes a write in `values` on
+`PATCH /api/v1/projects/{project}/cards/{number}`. Only the workflow writes a key
+with `internal` visibility, so the same write gets `422` with the field
+`values.<key>` and the code `value_internal_key`. The list of declared keys in
+the `value_undeclared_key` message leaves out internal keys.
+
+## Inbox items
+
+A script, such as a CI job, can put an item in the inbox of the owner of a
+project. The routes work only while the inbox flag is on. With the flag off,
+they answer `404`.
+
+1. `POST /api/v1/projects/{project}/inbox/items` makes one item. `kind` is
+   `question`, `todo` or `notice`. The item takes `title`, and optionally `body`,
+   `options`, `multiple`, `freeText`, `cardIds` and `documentIds`, with the
+   same rules as the `inbox_ask` MCP tool. The answer is `201` with the item and
+   a `Location` header.
+2. An item from the API never blocks, because nothing waits for its answer.
+   `blocking: true` gets `422`. A non-blocking question about a card does not
+   make the card wait for a person.
+3. `dedupeKey` is a key of your choice, up to 200 characters. While an open
+   item of the project holds the same key, the call answers `200` with that
+   item and makes nothing. After the owner closes it, the next call makes a new
+   item. A failing nightly job can send the same key each night, and the owner
+   sees one item.
+4. `GET /api/v1/projects/{project}/inbox/items/{itemId}` reads the item with
+   the answer of the owner, the same fields as the `inbox_get` MCP tool. Poll
+   it to learn the answer. `selectedOptions` holds the indexes of the options
+   that the owner picked, and `note` holds a written answer.
+5. The owner can dismiss every item from the API, a notice too.
+
+An item from an API key has `origin: "api-key"`, and `apiKey` holds the id and
+the name of the key. The inbox shows the name of the key as the sender. The
+name stays when the key is removed later. An item from a signed-in CLI has
+`origin: "agent"` and no key.
 
 ## Who made a change
 

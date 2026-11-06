@@ -1,11 +1,20 @@
-{#- The Values group of the Details tab, drawn inside the card field list. Props: card (Card), values (list of CardValueView). Nothing is drawn for an empty list. -#}
+{#- The Values group of the Details tab, drawn inside the card field list. Props: card (Card), values (list of CardValueView). Public values are rows with a control. Internal values sit read-only in one closed section. Nothing is drawn for an empty list. -#}
 {% if values is not empty %}
+    {% set internalValues = values|filter(value => value.internal) %}
     <div class="lp-card-field lp-card-field--wide" data-card-values>
         <dt data-card-values-heading>{{ 'board.card.values.title'|trans }}</dt>
         <dd class="lp-card-values">
-            {% for value in values %}
+            {% for value in values|filter(value => not value.internal) %}
                 {% include '@Board/_card_value.html.twig' with {card: card, value: value, error: null} only %}
             {% endfor %}
+            {% if internalValues is not empty %}
+                <twig:Ds:Disclosure class="lp-card-values__internal" data-controller="details-memory" data-details-memory-key-value="internal-values-{{ card.id }}" data-card-internal-values>
+                    <twig:block name="summary">{{ 'board.card.values.internal'|trans }}</twig:block>
+                    {% for value in internalValues %}
+                        {% include '@Board/_card_internal_value.html.twig' with {value: value} only %}
+                    {% endfor %}
+                </twig:Ds:Disclosure>
+            {% endif %}
         </dd>
     </div>
 {% endif %}

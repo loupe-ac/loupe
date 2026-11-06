@@ -1809,7 +1809,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
 
         $client->request(
             Request::METHOD_PUT,
-            '/api/bridges/'.Uuid::v4().'/heartbeat',
+            '/api/v1/bridge/bridges/'.Uuid::v4().'/heartbeat',
             server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode(['projects' => [], 'cliVersion' => 'b4e39aa7'], \JSON_THROW_ON_ERROR),
         );
@@ -2021,7 +2021,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
     {
         $client->request(
             Request::METHOD_PUT,
-            '/api/bridges/'.$bridgeId.'/heartbeat',
+            '/api/v1/bridge/bridges/'.$bridgeId.'/heartbeat',
             server: [
                 'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
                 'CONTENT_TYPE' => 'application/json',

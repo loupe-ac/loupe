@@ -603,6 +603,26 @@ class WorkerRunRepository extends ServiceEntityRepository
         );
     }
 
+    /** The card that a run of the experiment names with this card number. Null when no run does. */
+    public function findExperimentCardIdByNumber(Project $project, string $experiment, int $number): ?Uuid
+    {
+        $id = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT subject_id FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment AND subject_type = :subject AND card_number = :number ORDER BY received_at DESC LIMIT 1',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'subject' => WorkSubject::CARD, 'number' => $number],
+        );
+
+        return false === $id ? null : Uuid::fromString((string) $id);
+    }
+
+    /** Whether a run of the experiment worked the card. */
+    public function experimentHasCard(Project $project, string $experiment, Uuid $cardId): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM bridge_worker_runs WHERE project_id = :project AND experiment = :experiment AND subject_type = :subject AND subject_id = :card LIMIT 1',
+            ['project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(), 'experiment' => $experiment, 'subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122()],
+        );
+    }
+
     /**
      * The ids of every run of the project received at $from or later, whatever
      * experiment the run names.

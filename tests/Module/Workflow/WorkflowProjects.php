@@ -9,10 +9,14 @@ use App\Module\Board\Entity\BoardColumn;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
+use App\Module\Workflow\Contract\CardValueKeys;
 use App\Module\Workflow\Entity\WorkflowBinding;
+use App\Module\Workflow\Template\ProjectTemplateCopy;
+use App\Module\Workflow\Template\TemplateSource;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
 /** Projects with one column per Lifecycle slot, for the tests that bind a template. */
 trait WorkflowProjects
@@ -78,5 +82,55 @@ trait WorkflowProjects
     private function bindLifecycle(Project $project): WorkflowBinding
     {
         return $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'lifecycle', $this->lifecycleColumns($project)));
+    }
+
+    /** Lifecycle with the internal value keys of the shipped copy taken out, so a test sees the public keys alone. */
+    private function bindLifecyclePublicOnly(Project $project): WorkflowBinding
+    {
+        $binding = $this->bindLifecycle($project);
+        $definition = $binding->definition;
+        $definition['values'] = array_values(array_filter(
+            $definition['values'],
+            static fn (array $value): bool => 'internal' !== ($value['visibility'] ?? 'public'),
+        ));
+        $binding->definition = $definition;
+        $this->em()->flush();
+        $this->forgetValueKeys();
+
+        return $binding;
+    }
+
+    /** Lifecycle with one internal value key under a test label, in place of any shipped key of that name, so a test can write it as the workflow. */
+    private function bindLifecycleWithInternalValue(Project $project, string $key = 'session-start-approved'): WorkflowBinding
+    {
+        $binding = $this->bindLifecycle($project);
+        $definition = $binding->definition;
+        $definition['values'] = array_values(array_filter($definition['values'], static fn (array $value): bool => $key !== $value['key']));
+        $definition['values'][] = [
+            'key' => $key,
+            'type' => 'bool',
+            'visibility' => 'internal',
+            'label' => 'workflow.value.internal.label',
+            'caption' => 'workflow.value.internal.caption',
+            'help' => 'workflow.value.internal.help',
+            'history' => 'workflow.value.internal.history',
+        ];
+        $binding->definition = $definition;
+        $this->em()->flush();
+        $this->forgetValueKeys();
+
+        return $binding;
+    }
+
+    private function forgetValueKeys(): void
+    {
+        $source = self::getContainer()->get(TemplateSource::class);
+        if ($source instanceof ProjectTemplateCopy) {
+            $source->reset();
+        }
+        $keys = self::getContainer()->get(CardValueKeys::class);
+        if ($keys instanceof ResetInterface) {
+            $keys->reset();
+        }
     }
 }

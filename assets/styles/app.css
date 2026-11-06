@@ -46,6 +46,8 @@
 @import './components/stepper.css';
 @import './components/chart.css';
 @import './components/graph-tile.css';
+@import './components/disclosure.css';
+@import './components/value-row.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -231,6 +233,8 @@
         border: 0;
         background: var(--border);
         color: var(--text-mute);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
         font-size: var(--text-xs);
     }
 
@@ -951,6 +955,9 @@
     .lp-agent-card__current {
         @apply grid gap-1 rounded-lg bg-surface-2 p-3 text-xs text-fg-mute;
     }
+    .lp-agent-card__current.lp-disclosure {
+        @apply block;
+    }
     .lp-agent-card__current strong {
         @apply text-sm font-semibold text-accent-ink;
     }
@@ -983,13 +990,7 @@
     .lp-agent-card__account-hint {
         @apply m-0;
     }
-    /* A collapsing section of the agent card. It opens on its own when it holds a problem. */
-    .lp-agent-section__summary {
-        @apply flex cursor-pointer list-none items-center gap-1 text-xs text-fg-mute;
-    }
-    .lp-agent-section__summary::-webkit-details-marker {
-        display: none;
-    }
+    /* The title, text and state dot of a section summary of the agent card. A section opens on its own when it holds a problem. */
     .lp-agent-section__title {
         @apply font-semibold text-fg;
     }
@@ -1006,17 +1007,6 @@
     .lp-agent-section__dot--danger {
         @apply bg-status-danger;
     }
-    .lp-agent-section__caret {
-        @apply shrink-0 transition-transform duration-100;
-    }
-    .lp-agent-section[open]
-        > .lp-agent-section__summary
-        .lp-agent-section__caret {
-        @apply rotate-90;
-    }
-    .lp-agent-section[open] > .lp-agent-section__summary {
-        @apply mb-1;
-    }
     /* The usage bars of an account on the Agents page, `templates/Module/Bridge/_account_usage.html.twig`. */
     /* The bars of one account, side by side. */
     .lp-usage {
@@ -1024,7 +1014,7 @@
     }
     /* One window. Its tooltip, the age of the reading, shows on hover and focus. */
     .lp-usage-bar {
-        @apply relative grid min-w-0 gap-1 rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+        @apply relative grid min-w-0 gap-1 rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-usage-bar:hover > .lp-tooltip,
     .lp-usage-bar:focus-visible > .lp-tooltip {
@@ -1037,7 +1027,7 @@
         @apply text-xs text-fg-mute;
     }
     .lp-usage-bar__value {
-        @apply text-sm font-semibold tabular-nums;
+        @apply text-sm font-semibold font-mono tabular-nums;
     }
     /* The track is a progress element, so the fill needs no inline style. */
     .lp-usage-bar__track {
@@ -2045,7 +2035,7 @@
     @apply ml-0 flex-none justify-end gap-0.5 text-fg-label;
 }
 .lp-review .lp-diff-nav__count {
-    @apply m-0 mr-1.5 font-sans text-sm tracking-normal text-fg-label normal-case tabular-nums;
+    @apply m-0 mr-1.5 text-sm tracking-normal text-fg-label normal-case font-mono tabular-nums;
 }
 .lp-review .lp-diff-nav .lp-btn--icon {
     @apply size-8 min-h-8 rounded-lg border-transparent bg-transparent text-fg-label hover:bg-surface-3;
@@ -2085,7 +2075,7 @@
         @apply sr-only;
     }
     .lp-review .lp-diff-nav__position {
-        @apply m-0 block font-sans text-sm text-fg-label tabular-nums;
+        @apply m-0 block text-sm text-fg-label font-mono tabular-nums;
     }
     .lp-review .lp-diff-nav .lp-btn--icon {
         @apply size-tap min-h-tap;
@@ -2346,7 +2336,7 @@
         @apply sr-only;
     }
     .lp-skip-link:focus {
-        @apply not-sr-only fixed top-2 left-2 z-100 max-w-full rounded-lg border border-line bg-surface-1 px-4 py-2 text-base font-semibold text-ink outline-2 outline-offset-2 outline-accent;
+        @apply not-sr-only fixed top-2 left-2 z-100 max-w-full rounded-lg border border-line bg-surface-1 px-4 py-2 text-base font-semibold text-ink outline-2 outline-offset-2 outline-accent-ink;
     }
 
     .auth-error {
@@ -2625,7 +2615,7 @@
         @apply flex flex-auto min-w-0 flex-wrap items-center gap-x-3 gap-y-2 min-h-9;
     }
     .lp-board-backlog__count {
-        @apply inline-flex items-center justify-center min-w-6 rounded-full bg-surface-3 px-2 py-0.5 text-xs font-bold text-fg-mute;
+        @apply inline-flex items-center justify-center min-w-6 rounded-full bg-surface-3 px-2 py-0.5 font-mono text-xs font-bold text-fg-mute tabular-nums;
     }
     /* The Backlog button, while a card that can go there is in a drag. */
     .lp-board--dragging:not(:has(.lp-deck .lp-board-card--dragging))
@@ -2652,7 +2642,7 @@
         @apply bg-surface-1 font-bold text-ink;
     }
     .lp-board-toolbar__count {
-        @apply text-sm font-semibold text-fg-dim;
+        @apply font-mono text-sm font-semibold text-fg-dim tabular-nums;
     }
     /* Says the board no longer receives changes from others. Empty while live,
        and out of the layout but still a live region, so the text is announced. */
@@ -2928,14 +2918,16 @@
     .lp-card-drawer__icon {
         @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
     }
-    /* On a phone the card page keeps one 36 px bar under the 64 px top bar, so the two take 100 px.
-       The buttons keep their 44 px tap size and reach past the bar. The icon and the source tag leave. */
+    /* On a phone the card page keeps a bar of at least 36 px, border included, under the 64 px top bar.
+       The bar grows to a second line when the number and the status tag do not fit on one.
+       The buttons keep their 44 px tap size and reach 6 px past the bar on each side, so one line stays 36 px.
+       The icon and the source tag leave. */
     @media (width < 40rem) {
         .lp-card-drawer__header {
-            @apply h-9 gap-2 px-4 py-0;
+            @apply min-h-9 flex-wrap gap-2 px-4 py-0;
         }
         .lp-card-drawer__identity {
-            @apply min-w-0 flex-1 gap-2 overflow-hidden whitespace-nowrap;
+            @apply min-w-0 flex-1 flex-wrap gap-2;
         }
         .lp-card-drawer__icon {
             @apply hidden;
@@ -2944,7 +2936,7 @@
             @apply hidden;
         }
         .lp-card-drawer__header-actions .lp-btn {
-            @apply -my-1;
+            @apply -my-1.5;
         }
     }
     .lp-card-drawer__body {
@@ -2994,26 +2986,28 @@
         @apply m-0 text-sm font-semibold text-ink whitespace-nowrap;
     }
     /* The review switch of a card, with the help mark that sits beside its label. */
-    .lp-card-review,
-    .lp-card-value__control {
+    .lp-card-review {
         @apply flex items-center gap-1.5;
     }
-    .lp-card-review__help,
-    .lp-card-value__help {
+    .lp-card-review__help {
         @apply inline-flex cursor-help text-fg-mute;
     }
     /* The value rows of a card, one for each key its workflow template declares. */
     .lp-card-values {
         @apply flex flex-col gap-3;
     }
-    .lp-card-value {
-        @apply flex flex-col gap-1;
+    /* The closed section of internal values, set apart under the switches. */
+    .lp-card-values__internal {
+        @apply border-t border-line pt-3;
     }
-    .lp-card-value__label {
-        @apply text-sm font-semibold text-ink;
+    .lp-card-values__internal > .lp-disclosure__summary {
+        @apply text-xs text-fg-label;
     }
-    .lp-card-value__meta {
-        @apply text-xs font-normal text-fg-mute;
+    /* The internal rows take one column of the field grid. A phone keeps the full width, so a long caption fits. */
+    .lp-card-values__internal > .lp-disclosure__body {
+        @variant sm {
+            width: calc((100% - var(--spacing) * 6) / 2);
+        }
     }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {
@@ -3837,7 +3831,7 @@
         @apply flex items-center justify-end gap-3 pt-2;
     }
     .lp-review-doc__back {
-        @apply inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-1 text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+        @apply inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-1 text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-review-doc__back svg {
         @apply size-4;
@@ -4413,7 +4407,7 @@
         @apply relative ml-auto;
     }
     .lp-review-filter__toggle {
-        @apply inline-flex size-8 cursor-pointer list-none items-center justify-center rounded-lg text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+        @apply inline-flex size-8 cursor-pointer list-none items-center justify-center rounded-lg text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-review-filter__toggle::-webkit-details-marker {
         display: none;
@@ -4689,7 +4683,7 @@
     /* One thread in the Comments panel: the quoted text in grey on one line,
        then the comment on up to two. A click opens the thread's card. */
     .lp-comment-row {
-        @apply flex w-full flex-col gap-0.5 rounded-md border-0 bg-transparent px-2 py-1.5 text-left cursor-pointer transition-colors hover:bg-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+        @apply flex w-full flex-col gap-0.5 rounded-md border-0 bg-transparent px-2 py-1.5 text-left cursor-pointer transition-colors hover:bg-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-comment-row[hidden] {
         @apply hidden;
@@ -4828,7 +4822,7 @@
         @apply flex flex-wrap items-center gap-1 border-t border-line pt-3;
     }
     .lp-comment-action {
-        @apply inline-flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg border border-transparent bg-transparent px-1 py-1.5 text-sm font-semibold text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+        @apply inline-flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg border border-transparent bg-transparent px-1 py-1.5 text-sm font-semibold text-fg-mute transition-colors hover:bg-tint hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-comment-action::-webkit-details-marker {
         display: none;
@@ -5911,7 +5905,7 @@
     }
 
     .admin-detail-value {
-        @apply text-sm font-semibold text-fg tabular-nums;
+        @apply text-sm font-semibold text-fg font-mono tabular-nums;
     }
 
     /* ── Admin danger zone ──────────────────────────────────────────── */
@@ -7880,7 +7874,7 @@
         @apply py-1.5 pr-3 border-b border-line-faint;
     }
     .lp-metric-table__table .lp-metric-table__number {
-        @apply text-right tabular-nums;
+        @apply text-right font-mono tabular-nums;
     }
 
     /* ── Experiments ───────────────────────────────────────────────── */
@@ -7948,7 +7942,7 @@
         @apply font-semibold text-ink;
     }
     .lp-experiment-table__table .lp-experiment-table__number {
-        @apply text-right tabular-nums whitespace-nowrap;
+        @apply text-right font-mono tabular-nums whitespace-nowrap;
     }
     .lp-experiment-table__table tbody .lp-experiment-table__number {
         @apply font-mono text-xs;
@@ -7972,6 +7966,13 @@
     }
     .lp-experiment-reasons {
         @apply flex flex-wrap gap-1;
+    }
+    /* The Excluded tag, with the reason, the author and the date on hover and on keyboard focus. */
+    .lp-experiment-excluded {
+        @apply relative inline-flex rounded-full outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-experiment-excluded .lp-tooltip {
+        @apply right-0 left-auto;
     }
 
     /* ── Inbox page ─────────────────────────────────────────────────────
@@ -8009,6 +8010,8 @@
     /* Show the tooltip of these anchors on hover and on keyboard focus. */
     .lp-presence:hover .lp-tooltip,
     .lp-presence:focus-visible .lp-tooltip,
+    .lp-experiment-excluded:hover .lp-tooltip,
+    .lp-experiment-excluded:focus-visible .lp-tooltip,
     .lp-status-chip--reason:hover .lp-tooltip,
     .lp-status-chip--reason:focus-visible .lp-tooltip {
         @apply visible opacity-100;
@@ -8624,7 +8627,7 @@
         @apply min-w-0 break-words;
     }
     .lp-workshop-work-card__elapsed {
-        @apply ml-auto tabular-nums;
+        @apply ml-auto font-mono tabular-nums;
     }
     .lp-workshop-work-grid__empty {
         @apply col-span-full;

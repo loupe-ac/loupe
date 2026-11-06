@@ -41,6 +41,6 @@ final class CredentialRateLimitKeyTest extends TestCase
 
     private function request(): Request
     {
-        return Request::create('/api/agent/sites', server: ['REMOTE_ADDR' => '203.0.113.7']);
+        return Request::create('/api/v1/live-review-widget/feedback', server: ['REMOTE_ADDR' => '203.0.113.7']);
     }
 }

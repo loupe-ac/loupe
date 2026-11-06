@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Security;
 
 use App\Module\Account\Entity\User;
-use App\Tests\Api\Bridge\BridgeRoutesTwoPathsTest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,7 +15,7 @@ use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
 /**
  * Guards the deny-by-default rule on ^/api in config/packages/security.yaml.
  *
- * The api firewall matches every /api path but only /api/live-review names a
+ * The api firewall matches every /api path but only /api/v1/live-review-widget names a
  * scope, and every API-token user also carries ROLE_USER — so an /api endpoint
  * added without its own access_control rule would be authorized by the ^/
  * catch-all for any scoped token. These tests assert the decision itself rather
@@ -176,11 +175,6 @@ final class ApiAccessControlTest extends KernelTestCase
         }
     }
 
-    public function test_the_deny_rule_does_not_shadow_the_site_review_scope(): void
-    {
-        self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
-    }
-
     public function test_the_site_review_scope_reaches_the_private_widget_prefix_and_no_other_scope_does(): void
     {
         self::assertTrue($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
@@ -195,58 +189,83 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertFalse($this->decide('/api/other', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
     }
 
-    #[DataProvider('bridgeRoutes')]
-    public function test_a_bridge_path_admits_the_agent_scope_and_no_other_on_both_prefixes(string $controller, string $method, string $oldPath, string $newPath): void
+    #[DataProvider('bridgePaths')]
+    public function test_a_bridge_path_admits_the_agent_scope_and_no_other(string $template): void
     {
         $sample = ['{bridgeId}' => 'b1', '{commandId}' => 'c1', '{workRequestId}' => 'w1', '{sessionId}' => 's1', '{handle}' => 'loupe', '{runId}' => 'r1', '{cardId}' => 'k1', '{askId}' => 'a1', '{experiment}' => 'e1', '{label}' => 'l1'];
-        foreach ([$oldPath, $newPath] as $template) {
-            $path = strtr($template, $sample);
-            self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT']), $path);
-            self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']), $path);
-            self::assertFalse($this->decide($path.'/x/y', self::ALL_ROLES), $path);
-        }
+        $path = strtr($template, $sample);
+        self::assertTrue($this->decide($path, ['ROLE_USER', 'ROLE_API_AGENT']), $path);
+        self::assertFalse($this->decide($path, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']), $path);
+        self::assertFalse($this->decide($path.'/x/y', self::ALL_ROLES), $path);
     }
 
-    /** @return array<string, array{class-string, string, string, string}> */
-    public static function bridgeRoutes(): array
+    /** @return array<string, array{string}> */
+    public static function bridgePaths(): array
     {
-        return BridgeRoutesTwoPathsTest::routes();
+        $paths = [
+            '/api/v1/bridge/bridges/{bridgeId}/commands/{commandId}',
+            '/api/v1/bridge/bridges/{bridgeId}/heartbeat',
+            '/api/v1/bridge/bridges/{bridgeId}/runs',
+            '/api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/claim',
+            '/api/v1/bridge/bridges/{bridgeId}/work-requests/{workRequestId}/result',
+            '/api/v1/bridge/card-holds',
+            '/api/v1/bridge/events',
+            '/api/v1/bridge/events/replay',
+            '/api/v1/bridge/projects',
+            '/api/v1/bridge/projects/{handle}/cards/{cardId}',
+            '/api/v1/bridge/projects/{handle}/columns',
+            '/api/v1/bridge/interactive-sessions/{sessionId}/close',
+            '/api/v1/bridge/interactive-sessions/{sessionId}/card-run',
+            '/api/v1/bridge/projects/{handle}/worker-runs/{runId}',
+            '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage',
+            '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls',
+            '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/output',
+            '/api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}',
+            '/api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}',
+            '/api/v1/bridge/projects/{handle}/inbox/asks/{askId}',
+            '/api/v1/bridge/projects/{handle}/git-token',
+            '/api/v1/bridge/projects/{handle}/preview-tokens',
+            '/api/v1/bridge/projects/{handle}/preview-tokens/{label}',
+            '/api/v1/bridge/projects/{handle}/artifacts',
+        ];
+
+        return array_combine($paths, array_map(static fn (string $path): array => [$path], $paths));
     }
 
     public function test_the_deny_rule_does_not_shadow_the_agent_scope(): void
     {
-        self::assertTrue($this->decide('/api/projects', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertTrue($this->decide('/api/events', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertTrue($this->decide('/api/projects/loupe/board/columns', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertTrue($this->decide('/api/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertTrue($this->decide('/api/projects/loupe/inbox/asks/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertTrue($this->decide('/api/bridges/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f/heartbeat', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/projects', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/events', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/columns', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/inbox/asks/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertTrue($this->decide('/api/v1/bridge/bridges/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f/heartbeat', ['ROLE_USER', 'ROLE_API_AGENT']));
     }
 
     /** The ask check rule grants one route, so a path near it stays denied by default. */
     public function test_the_inbox_ask_check_rule_does_not_open_the_rest_of_a_project(): void
     {
         $ask = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
-        self::assertFalse($this->decide('/api/projects/loupe/inbox', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/inbox/asks', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/inbox/asks/', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/inbox/asks/'.$ask.'/items', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/client/app/inbox/asks/'.$ask, self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/inbox/asks/'.$ask, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/inbox', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/inbox/asks', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/inbox/asks/', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/inbox/asks/'.$ask.'/items', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/client/app/inbox/asks/'.$ask, self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/inbox/asks/'.$ask, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
     }
 
-    /** The heartbeat rule grants one route, so nothing beside it under /api/bridges opens. */
+    /** The heartbeat rule grants one route, so nothing beside it under /api/v1/bridge/bridges opens. */
     public function test_the_heartbeat_rule_does_not_open_the_rest_of_a_bridge(): void
     {
         $bridge = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
-        self::assertFalse($this->decide('/api/bridges', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge, self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/heartbeat/extra', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/a/b/heartbeat', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/heartbeat', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/runs/extra', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/runs', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
-        self::assertTrue($this->decide('/api/bridges/'.$bridge.'/runs', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge, self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/heartbeat/extra', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/a/b/heartbeat', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/heartbeat', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/runs/extra', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/runs', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertTrue($this->decide('/api/v1/bridge/bridges/'.$bridge.'/runs', ['ROLE_USER', 'ROLE_API_AGENT']));
     }
 
     /** The ack rule grants one command of one bridge, and to an agent token alone. */
@@ -254,18 +273,18 @@ final class ApiAccessControlTest extends KernelTestCase
     {
         $bridge = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
         $command = '1a2b3c4d-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
-        self::assertTrue($this->decide('/api/bridges/'.$bridge.'/commands/'.$command, ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/commands/'.$command, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/commands', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/commands/', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/'.$bridge.'/commands/'.$command.'/extra', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/a/b/commands/'.$command, self::ALL_ROLES));
+        self::assertTrue($this->decide('/api/v1/bridge/bridges/'.$bridge.'/commands/'.$command, ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/commands/'.$command, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/commands', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/commands/', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/'.$bridge.'/commands/'.$command.'/extra', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/a/b/commands/'.$command, self::ALL_ROLES));
     }
 
     /** The work request rules grant the claim and the result of one request, and to an agent token alone. */
     public function test_the_work_request_rules_do_not_open_the_rest_of_a_bridge(): void
     {
-        $prefix = '/api/bridges/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f/work-requests/1a2b3c4d-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
+        $prefix = '/api/v1/bridge/bridges/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f/work-requests/1a2b3c4d-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
         foreach (['claim', 'result'] as $action) {
             self::assertTrue($this->decide($prefix.'/'.$action, ['ROLE_USER', 'ROLE_API_AGENT']));
             self::assertFalse($this->decide($prefix.'/'.$action, ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
@@ -273,50 +292,50 @@ final class ApiAccessControlTest extends KernelTestCase
         }
         self::assertFalse($this->decide($prefix, self::ALL_ROLES));
         self::assertFalse($this->decide($prefix.'/withdraw', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/bridges/a/b/work-requests/c/claim', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/bridges/a/b/work-requests/c/claim', self::ALL_ROLES));
     }
 
     /** The bridge rule report route is gone, so an agent token no longer opens it. */
     public function test_no_bridge_rules_route_stays_open(): void
     {
         $bridge = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
-        self::assertFalse($this->decide('/api/projects/loupe/bridges/'.$bridge, self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/bridges/'.$bridge.'/rules', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/bridges/'.$bridge, self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/bridges/'.$bridge.'/rules', self::ALL_ROLES));
     }
 
     /** The run rules grant one route each, so a path near them stays denied by default. */
     public function test_the_worker_run_rule_does_not_open_the_rest_of_a_project(): void
     {
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/1/extra', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/client/app/worker-runs/1', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
-        self::assertTrue($this->decide('/api/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1/extra', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/client/app/worker-runs/1', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs', self::ALL_ROLES));
     }
 
     public function test_the_tool_call_rule_grants_the_agent_scope_one_route(): void
     {
-        self::assertTrue($this->decide('/api/projects/loupe/worker-runs/1/tool-calls', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/1/tool-calls', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/1/tool-calls/2', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/worker-runs/1/2/tool-calls', self::ALL_ROLES));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1/tool-calls', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1/tool-calls', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1/tool-calls/2', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/worker-runs/1/2/tool-calls', self::ALL_ROLES));
     }
 
     /**
      * The agent grant names each route, so a new route under
-     * /api/projects starts denied rather than inheriting the agent scope.
+     * /api/v1/bridge/projects starts denied rather than inheriting the agent scope.
      */
     public function test_the_agent_grant_covers_its_routes_and_nothing_near_them(): void
     {
         $agent = ['ROLE_USER', 'ROLE_API_AGENT'];
-        self::assertFalse($this->decide('/api/projects/', $agent));
-        self::assertFalse($this->decide('/api/projects/my-app', $agent));
-        self::assertFalse($this->decide('/api/projects/my-app/stream', $agent));
-        self::assertFalse($this->decide('/api/events/', $agent));
-        self::assertFalse($this->decide('/api/events/more', $agent));
-        self::assertFalse($this->decide('/api/eventsx', $agent));
-        self::assertFalse($this->decide('/api/projects/my-app/comments', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/my-app', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/my-app/stream', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/events/', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/events/more', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/eventsx', $agent));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/my-app/comments', $agent));
         self::assertFalse($this->decide('/api/agent/sites', $agent));
         self::assertFalse($this->decide('/api/agent/stream', $agent));
     }
@@ -328,31 +347,31 @@ final class ApiAccessControlTest extends KernelTestCase
      */
     public function test_the_agent_scope_and_the_site_review_scope_do_not_reach_each_other(): void
     {
-        self::assertFalse($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/board/cards', ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/projects', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
-        self::assertFalse($this->decide('/api/events', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
-        self::assertFalse($this->decide('/api/projects/loupe/board/columns', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
-        self::assertFalse($this->decide('/api/projects/loupe/board/cards/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
+        self::assertFalse($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/live-review-widget/cards', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/bridge/events', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/columns', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/cards/0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f', ['ROLE_USER', 'ROLE_API_SITE_REVIEW', 'ROLE_API_MCP']));
     }
 
     /** The card rule grants one route, so a path near it stays denied by default. */
     public function test_the_card_rule_does_not_open_the_rest_of_a_board(): void
     {
         $card = '0f6e6b9e-8f1c-4c4e-9a3a-1d2b3c4d5e6f';
-        self::assertTrue($this->decide('/api/projects/loupe/board/cards/'.$card, ['ROLE_USER', 'ROLE_API_AGENT']));
-        self::assertFalse($this->decide('/api/projects/loupe/board/cards/', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/board/cards/'.$card.'/move', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/client/app/board/cards/'.$card, self::ALL_ROLES));
+        self::assertTrue($this->decide('/api/v1/bridge/projects/loupe/cards/'.$card, ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/cards/', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/cards/'.$card.'/move', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/client/app/cards/'.$card, self::ALL_ROLES));
     }
 
     /** The column rule grants one route, so another path under a project stays denied by default. */
     public function test_the_column_rule_does_not_open_the_rest_of_a_project(): void
     {
-        self::assertFalse($this->decide('/api/projects/loupe/board/cards', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/loupe/board/columns/extra', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/client/app/board/columns', self::ALL_ROLES));
-        self::assertFalse($this->decide('/api/projects/client%2Fapp/board/columns', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/cards', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/loupe/columns/extra', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/client/app/columns', self::ALL_ROLES));
+        self::assertFalse($this->decide('/api/v1/bridge/projects/client%2Fapp/columns', self::ALL_ROLES));
     }
 
     /**

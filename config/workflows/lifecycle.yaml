@@ -58,6 +58,13 @@ values:
       caption: workflow.value.tech_design_interactive.caption
       help: workflow.value.tech_design_interactive.help
       history: workflow.value.tech_design_interactive.history
+    - key: session-start-approved
+      type: bool
+      visibility: internal
+      label: workflow.value.session_start_approved.label
+      caption: workflow.value.session_start_approved.caption
+      help: workflow.value.session_start_approved.help
+      history: workflow.value.session_start_approved.history
 slots:
     - { key: next, label: workflow.slot.next, tone: lime }
     - { key: product-design, label: workflow.slot.product_design, tone: sky }
@@ -104,6 +111,22 @@ facts:
                   - card.review.needs_person: {}
                   - not: { pr.can_post_check: {} }
                   - agent_review.failed: {}
+    tech-design-sent-agent:
+        any:
+            - all:
+                  - card.run.work_active: { kind: tech-design }
+                  - not: { card.run.work_active: { kind: tech-design, origin: rule } }
+            - all:
+                  - card.run.worker_active: { kind: tech-design }
+                  - not: { card.run.worker_active: { kind: tech-design, origin: rule } }
+    tech-design-grant-current:
+        all:
+            - card.value: { key: session-start-approved, equals: true }
+            - card.value.written_since_approval: { key: session-start-approved, tag: product-design }
+    tech-design-needs-answer:
+        all:
+            - card.document.newest_approval_by_workflow: { tag: product-design }
+            - not: { fact.tech-design-grant-current: {} }
 rules:
     # These two come first and have no slot. A person who withdraws an approval undoes the stage it opened.
     # A card in a terminal column keeps its place, and a card already in the slot of the design has nothing to undo.
@@ -221,6 +244,49 @@ rules:
               - not: { card.document.changes_requested: { tag: product-design } }
       then: { move: { to: tech-design } }
 
+    # The next three rules run in this order. A person's switch write counts as presence, the clear rule drops an answer
+    # that no longer holds, and the ask then sees the final value.
+    - id: tech-design-session-presence
+      slot: tech-design
+      when:
+          all:
+              - card.value: { key: tech-design-interactive, equals: true }
+              - card.value.written_since_approval: { key: tech-design-interactive, tag: product-design, byPerson: true }
+              - card.document.newest_approval_by_workflow: { tag: product-design }
+              - not: { card.document.linked: { tag: tech-design } }
+      then: { set-value: { key: session-start-approved, value: true } }
+
+    - id: tech-design-session-clear
+      when:
+          all:
+              - card.value: { key: session-start-approved, equals: true }
+              - any:
+                    - card.run.session_open: {}
+                    - not: { card.in_slot: { slot: tech-design } }
+                    - not: { card.value: { key: tech-design-interactive, equals: true } }
+                    - card.document.linked: { tag: tech-design }
+                    - fact.tech-design-sent-agent: {}
+                    - fact.tech-design-needs-answer: {}
+      then: { set-value: { key: session-start-approved, value: false } }
+
+    - id: tech-design-session-ask
+      slot: tech-design
+      when:
+          all:
+              - card.value: { key: tech-design-interactive, equals: true }
+              - not: { card.document.linked: { tag: tech-design } }
+              - not: { card.run.session_open: {} }
+              - not: { card.run.work_active: { kind: tech-design } }
+              - not: { card.run.worker_active: { kind: tech-design } }
+              - not: { card.run.work_active: { kind: tech-design-session } }
+              - fact.tech-design-needs-answer: {}
+      then:
+          ask:
+              question: workflow.ask.tech_design_session
+              options:
+                  - { label: workflow.ask.tech_design_session.start, then: [{ set-value: { key: session-start-approved, value: true } }] }
+                  - { label: workflow.ask.tech_design_session.agent, then: [{ set-value: { key: tech-design-interactive, value: false } }] }
+
     - id: tech-design-handover
       slot: tech-design
       when:
@@ -241,6 +307,7 @@ rules:
               - not: { card.run.session_open: {} }
               - not: { card.run.work_active: { kind: tech-design } }
               - not: { card.run.worker_active: { kind: tech-design } }
+              - not: { fact.tech-design-needs-answer: {} }
       then:
           request:
               kind: tech-design-session
@@ -250,6 +317,7 @@ rules:
                   any:
                       - card.run.session_open: {}
                       - not: { card.value: { key: tech-design-interactive, equals: true } }
+                      - fact.tech-design-needs-answer: {}
               checks:
                   - A bridge work entry for the tech-design-session kind
                   - An interactive session that the owner can join

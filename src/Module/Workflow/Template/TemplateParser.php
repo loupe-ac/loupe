@@ -11,6 +11,7 @@ use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
 use App\Module\Workflow\Contract\CardValueType;
+use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\ChecksParameters;
 use App\Module\Workflow\Contract\ChildFacts;
 use App\Module\Workflow\Contract\Condition;
@@ -317,7 +318,7 @@ final readonly class TemplateParser
 
             return [];
         }
-        $fields = ['key', 'type', 'label', 'caption', 'help', 'history'];
+        $fields = ['key', 'type', 'label', 'caption', 'help', 'history', 'visibility'];
         $values = [];
         $listed = [];
         foreach ($given as $index => $entry) {
@@ -340,9 +341,19 @@ final readonly class TemplateParser
                         break;
                     }
                 }
+                $visibility = CardValueVisibility::Public;
+                if (null === $error && \array_key_exists('visibility', $entry)) {
+                    $word = $entry['visibility'];
+                    $parsed = \is_string($word) ? CardValueVisibility::tryFrom($word) : null;
+                    if (null === $parsed) {
+                        $error = \sprintf('%s: unknown visibility "%s"; use public or internal', $where, \is_scalar($word) ? $word : get_debug_type($word));
+                    } else {
+                        $visibility = $parsed;
+                    }
+                }
                 if (null === $error) {
                     $listed[$entry['key']] = true;
-                    $values[] = new TemplateValueKey($entry['key'], $type, $entry['label'], $entry['caption'], $entry['help'], $entry['history']);
+                    $values[] = new TemplateValueKey($entry['key'], $type, $entry['label'], $entry['caption'], $entry['help'], $entry['history'], $visibility);
 
                     continue;
                 }
@@ -1213,7 +1224,24 @@ final readonly class TemplateParser
                     }
                     continue 2;
                 case ParameterType::Bool:
-                    throw new \LogicException(\sprintf('The action "%s" declares the parameter "%s" with a type that only a condition takes.', $name, $param));
+                    if (\is_bool($given)) {
+                        $params[$param] = $given;
+                    } else {
+                        $errors[] = \sprintf('%s: parameter "%s" must be true or false', $where, $param);
+                    }
+                    continue 2;
+                case ParameterType::ValueKey:
+                    $error = match (true) {
+                        !\is_string($given) || '' === $given => \sprintf('parameter "%s" must be a non-empty string', $param),
+                        !$lenient && null !== $facts->valueKeys && !array_any($facts->valueKeys, static fn (TemplateValueKey $declared): bool => $declared->key === $given) => self::unknownValueKey($given, $facts->valueKeys),
+                        default => null,
+                    };
+                    if (null === $error && \is_string($given)) {
+                        $params[$param] = $given;
+                    } elseif (null !== $error) {
+                        $errors[] = $where.': '.$error;
+                    }
+                    continue 2;
                 default:
                     break;
             }

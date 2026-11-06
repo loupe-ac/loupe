@@ -704,7 +704,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
         self::assertStringContainsString('<div className="lp-menu lp-menu--chrome lp-menu--stretch">', $jsx);
         self::assertStringContainsString('className="lp-menu__item"', $jsx);
-        self::assertStringContainsString('lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--danger', $jsx);
+        self::assertStringContainsString('lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--chrome', $jsx);
         self::assertStringContainsString('lp-avatar lp-avatar--xs lp-avatar--round lp-avatar--chrome', $jsx);
         self::assertStringContainsString('<Icon name="plus" className="lp-icon lp-icon--md" />', $jsx);
     }

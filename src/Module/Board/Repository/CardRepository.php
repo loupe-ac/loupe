@@ -142,6 +142,46 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, int> card id => card number
+     */
+    public function findNumbersByIds(Project $project, array $ids): array
+    {
+        /** @var list<array{id: Uuid, number: int}> $rows */
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id, c.number')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('project', $project)
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getArrayResult();
+
+        $numbers = [];
+        foreach ($rows as $row) {
+            $numbers[(string) $row['id']] = $row['number'];
+        }
+
+        return $numbers;
+    }
+
+    public function findIdByProjectAndNumber(Project $project, int $number): ?Uuid
+    {
+        /** @var array{id: Uuid}|null $row */
+        $row = $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.number = :number')
+            ->setParameter('project', $project)
+            ->setParameter('number', $number)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $row['id'] ?? null;
+    }
+
+    /**
      * @param non-empty-list<Uuid> $ids
      *
      * @return list<array{id: Uuid, label: string, terminal: bool}>

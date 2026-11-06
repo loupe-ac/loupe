@@ -131,6 +131,7 @@ final readonly class DevMetricsSeeder
 
         $runs = [];
         $usageRestored = false;
+        $peakFilled = false;
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
             foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
@@ -141,12 +142,16 @@ final readonly class DevMetricsSeeder
                     $run = $this->run($context, $project, $card, $day, $daysAgo, $index, $model, $minutes);
                     $runs[] = $run;
                 }
+                if (null === $run->peakContextTokens) {
+                    $run->peakContextTokens = self::peakContext($daysAgo, $index);
+                    $peakFilled = true;
+                }
                 $costUsd = \sprintf('%.6f', $cost * self::wave($daysAgo, $index) * self::trend($daysAgo));
                 $tokens = (int) round((float) $costUsd * 60_000);
                 $usageRestored = $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd) || $usageRestored;
             }
         }
-        if ([] === $runs && !$usageRestored) {
+        if ([] === $runs && !$usageRestored && !$peakFilled) {
             return [] !== $stale || [] !== $restored;
         }
 
@@ -164,6 +169,12 @@ final readonly class DevMetricsSeeder
     private static function runsOf(\DateTimeImmutable $day): array
     {
         return self::spanStart($day)->format('Y-m-d') === $day->format('Y-m-d') ? [...self::MODELS, self::MODELS[1]] : self::MODELS;
+    }
+
+    /** A fixed spread from 90,000 to 260,000 tokens, so a chart of the peak has a shape. */
+    private static function peakContext(int $daysAgo, int $index): int
+    {
+        return 90_000 + (($daysAgo * 37 + $index * 53) % 18) * 10_000;
     }
 
     private static function wave(int $daysAgo, int $index): float

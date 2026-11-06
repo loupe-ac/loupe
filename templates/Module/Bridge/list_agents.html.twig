@@ -91,12 +91,12 @@
                     <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('j M Y, H:i') : 'bridge.agents.never'|trans }}</strong>
                 </div>
                 {% if connection.status.quiet %}
-                <p class="lp-agent-card__name-clash-hint" data-agent-quiet-hint>{{ (connection.status.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': bridge.label}) }}</p>
+                <p class="lp-agent-card__name-clash-hint" data-agent-quiet-hint>{{ (connection.status.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': bridge.label})|inline_code }}</p>
                 {% endif %}
                 {% if connection.refusalChip %}
                 <div class="lp-agent-card__current" data-agent-refused>
                     <twig:Ds:StatusChip :modifier="connection.refusalChip.tone">{{ connection.refusalChip.label|trans }}</twig:Ds:StatusChip>
-                    <p class="lp-agent-card__name-clash-hint">{{ connection.refusalChip.cause|trans(connection.refusalChip.parameters) }}</p>
+                    <p class="lp-agent-card__name-clash-hint">{{ connection.refusalChip.cause|trans(connection.refusalChip.parameters)|inline_code }}</p>
                 </div>
                 {% endif %}
                 {% if bridge.nameClashes() %}
@@ -116,14 +116,13 @@
                 </div>
                 {% endif %}
                 {% if connection.bridge.workerPools is not empty %}
-                <details class="lp-agent-card__current lp-agent-card__pools lp-agent-section" data-controller="details-memory" data-details-memory-key-value="pools-{{ bridge.id }}" data-agent-worker-pools{% if connection.poolsNeedAttention %} open{% endif %}>
-                    <summary class="lp-agent-section__summary">
-                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                <twig:Ds:Disclosure class="lp-agent-card__current lp-agent-card__pools" :open="connection.poolsNeedAttention" data-controller="details-memory" data-details-memory-key-value="pools-{{ bridge.id }}" data-agent-worker-pools>
+                    <twig:block name="summary">
                         <span class="lp-agent-section__title">{{ 'bridge.agents.worker_pools.heading'|trans }}</span>
                         <span class="lp-agent-section__dot lp-agent-section__dot--{{ connection.poolsTone }}" aria-hidden="true"></span>
                         {% set totals = connection.poolTotals %}
                         <span class="lp-agent-section__text" data-agent-section-summary>{{ 'bridge.agents.worker_pools.summary'|trans({'%inUse%': totals.inUse, '%size%': totals.size, '%queued%': totals.queued}) }}</span>
-                    </summary>
+                    </twig:block>
                     {% if connection.bridge.workerPoolsReportedAt %}
                     <span>{{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('j M Y, H:i')}) }}</span>
                     {% endif %}
@@ -133,12 +132,11 @@
                         <span>{{ 'bridge.agents.worker_pools.in_use'|trans({'%inUse%': pool.inUse, '%size%': pool.size}) }} · {{ 'bridge.agents.worker_pools.queued'|trans({'%queued%': pool.queued}) }}</span>
                     </p>
                     {% endfor %}
-                </details>
+                </twig:Ds:Disclosure>
                 {% endif %}
                 {% if connection.bridge.accounts is not empty %}
-                <details class="lp-agent-card__current lp-agent-card__accounts lp-agent-section" data-controller="details-memory" data-details-memory-key-value="accounts-{{ bridge.id }}" data-agent-accounts{% if connection.accountsNeedAttention %} open{% endif %}>
-                    <summary class="lp-agent-section__summary">
-                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                <twig:Ds:Disclosure class="lp-agent-card__current lp-agent-card__accounts" :open="connection.accountsNeedAttention" data-controller="details-memory" data-details-memory-key-value="accounts-{{ bridge.id }}" data-agent-accounts>
+                    <twig:block name="summary">
                         <span class="lp-agent-section__title">{{ 'bridge.agents.accounts.heading'|trans }}</span>
                         <span class="lp-agent-section__dot lp-agent-section__dot--{{ connection.accountsTone }}" aria-hidden="true"></span>
                         <span class="lp-agent-section__text" data-agent-section-summary>
@@ -147,16 +145,17 @@
                                 {{ status.name }} {{ ('bridge.agents.accounts.summary.' ~ status.status)|trans -}}
                             {%- endfor -%}
                         </span>
-                    </summary>
+                    </twig:block>
                     {% if connection.bridge.accountsReportedAt %}
                     <span>{{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}</span>
                     {% endif %}
                     {% for account in connection.bridge.accounts %}
-                    <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
+                    {% set projectFailure = connection.projectFailure(account.name) %}
+                    <div class="lp-agent-card__account{% if account.state == 'failing' or projectFailure is not null %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
                         <div class="lp-agent-card__account-line">
                             <strong>{{ account.name }}</strong>
                             <span>{{ account.harness }}</span>
-                            <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : 'bridge.agents.accounts.state.ready')|trans }}</span>
+                            <span>{{ (account.state == 'failing' ? 'bridge.agents.accounts.state.failing' : (projectFailure is not null ? 'bridge.agents.accounts.state.project_failing' : 'bridge.agents.accounts.state.ready'))|trans }}</span>
                             {% if account.used ?? true %}{% else %}<span data-agent-account-unused>{{ 'bridge.agents.accounts.state.unused'|trans }}</span>{% endif %}
                             {% set tryNowState = connection.tryNowState(account.name) %}
                             {% if tryNowState == 'trying' %}
@@ -180,7 +179,6 @@
                         {% endif %}
                         <p class="lp-agent-card__account-hint">{{ ((account.used ?? true) ? 'bridge.agents.accounts.failing_hint' : 'bridge.agents.accounts.unused_hint')|trans }}</p>
                         {% endif %}
-                        {% set projectFailure = connection.projectFailure(account.name) %}
                         {% if projectFailure is not null %}
                         <p class="lp-agent-card__account-hint" data-agent-account-project-failure>{{ 'bridge.agents.accounts.project_failed'|trans({'%reason%': projectFailure}) }}</p>
                         {% endif %}
@@ -190,13 +188,12 @@
                         {% endif %}
                     </div>
                     {% endfor %}
-                </details>
+                </twig:Ds:Disclosure>
                 {% endif %}
                 {% if connection.bridge.skills is not empty %}
                 {% set failedSkills = connection.bridge.skills|filter(skill => skill.state == 'failed') %}
-                <details class="lp-agent-card__current lp-agent-card__accounts lp-agent-section" data-controller="details-memory" data-details-memory-key-value="skills-{{ bridge.id }}" data-agent-skills{% if failedSkills is not empty %} open{% endif %}>
-                    <summary class="lp-agent-section__summary">
-                        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-section__caret" aria-hidden="true" />
+                <twig:Ds:Disclosure class="lp-agent-card__current lp-agent-card__accounts" :open="failedSkills is not empty" data-controller="details-memory" data-details-memory-key-value="skills-{{ bridge.id }}" data-agent-skills>
+                    <twig:block name="summary">
                         <span class="lp-agent-section__title">{{ 'bridge.agents.skills.heading'|trans }}</span>
                         <span class="lp-agent-section__dot{% if failedSkills is not empty %} lp-agent-section__dot--danger{% endif %}" aria-hidden="true"></span>
                         <span class="lp-agent-section__text" data-agent-section-summary>
@@ -206,7 +203,7 @@
                                 {{ 'bridge.agents.skills.summary.current'|trans({'%count%': connection.bridge.skills|length}) }}
                             {%- endif -%}
                         </span>
-                    </summary>
+                    </twig:block>
                     {% for skill in connection.bridge.skills %}
                     <div class="lp-agent-card__account{% if skill.state == 'failed' %} lp-agent-card__account--failing{% endif %}" data-agent-skill="{{ skill.package }}" data-agent-skill-state="{{ skill.state }}">
                         <div class="lp-agent-card__account-line">
@@ -219,7 +216,7 @@
                         {% endif %}
                     </div>
                     {% endfor %}
-                </details>
+                </twig:Ds:Disclosure>
                 {% endif %}
                 <footer>
                     <span>{{ connection.bridge.cliVersion|short_sha }}</span>

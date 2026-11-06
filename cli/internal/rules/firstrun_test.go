@@ -557,3 +557,47 @@ func TestResetKeepsTheAutoUpdateKey(t *testing.T) {
 		}
 	}
 }
+
+func TestRepointReplacesOnlyTheDirOfTheMismatchedEntry(t *testing.T) {
+	o := firstRunOptions(t, "darwin", "claude")
+	other, keep := t.TempDir(), t.TempDir()
+	body := "projects:\n  my-app:\n    dir: " + other + "\n  blog:\n    dir: " + keep + "\n"
+
+	_, _, err := Merge([]byte(body), o)
+	var mismatch *DirMismatchError
+	if !errors.As(err, &mismatch) || mismatch.Slug != "my-app" || mismatch.Mapped != other || mismatch.Dir != o.Dir {
+		t.Fatalf("err = %v, want a DirMismatchError for my-app", err)
+	}
+
+	o.Repoint = true
+	for name, build := range map[string]func() (string, error){
+		"Merge": func() (string, error) {
+			out, added, err := Merge([]byte(body), o)
+			if err == nil && !slices.Contains(added, "projects.my-app.dir") {
+				t.Errorf("Merge added %v, want projects.my-app.dir", added)
+			}
+
+			return string(out), err
+		},
+		"Reset": func() (string, error) {
+			out, err := Reset([]byte(body), o)
+
+			return string(out), err
+		},
+	} {
+		out, err := build()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if strings.Contains(out, other) || !strings.Contains(out, "dir: "+o.Dir) || !strings.Contains(out, "dir: "+keep) {
+			t.Errorf("%s: want my-app repointed and blog kept:\n%s", name, out)
+		}
+	}
+
+	o.ID = "01a0c0d9-905c-7922-a586-ccc8ce043704"
+	byID := "projects:\n  " + o.ID + ":\n    dir: " + other + "\n"
+	out, added, err := Merge([]byte(byID), o)
+	if err != nil || strings.Contains(string(out), other) || !slices.Contains(added, "projects."+o.Slug+".dir") {
+		t.Errorf("id entry: err = %v, added = %v\n%s", err, added, out)
+	}
+}

@@ -1411,10 +1411,11 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $lifecycle = $this->lifecycle();
 
-        self::assertSame(['product-design'], $lifecycle->documentTagsFor('product-design'));
-        self::assertSame(['tech-design'], $lifecycle->documentTagsFor('tech-design'));
-        self::assertSame([], $lifecycle->documentTagsFor('implementation'));
-        self::assertSame([], $lifecycle->documentTagsFor(null));
+        // The rule that clears the start approval has no slot, so every slot also reads the tag of the tech design.
+        self::assertSame(['product-design', 'tech-design'], $lifecycle->documentTagsFor('product-design'));
+        self::assertSame(['product-design', 'tech-design'], $lifecycle->documentTagsFor('tech-design'));
+        self::assertSame(['tech-design', 'product-design'], $lifecycle->documentTagsFor('implementation'));
+        self::assertSame(['tech-design', 'product-design'], $lifecycle->documentTagsFor(null));
         self::assertSame([], $this->template('simple')->documentTagsFor(null));
     }
 

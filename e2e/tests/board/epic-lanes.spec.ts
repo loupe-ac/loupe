@@ -396,7 +396,7 @@ test('a lane head shows the state mark of its epic, placed live', async ({
     await markBoard(livePage);
 
     const response = await page.request.put(
-        `/api/projects/${board.projectId}/worker-runs/${crypto.randomUUID()}`,
+        `/api/v1/bridge/projects/${board.projectId}/worker-runs/${crypto.randomUUID()}`,
         {
             headers: { Authorization: `Bearer ${token}` },
             data: {

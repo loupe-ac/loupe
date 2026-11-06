@@ -132,21 +132,22 @@ done, so a second run changes nothing.
 
 The steps, in order:
 
-1. Sign in, when you are not signed in.
-2. Choose the project.
-3. Link the repository, as `loupe project link` does.
-4. Install the Loupe plugins that the project needs in Claude Code, or declare `loupe mcp` to Codex.
-5. Write the rule file.
-6. Ask whether to turn on automatic updates.
-7. Start the bridge in the background.
-8. Install the Playwright browser, when the repository uses Playwright.
-9. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
-10. Offer to start discovery, when onboarding is ready.
-11. Report what remains, and print the project link.
+1. Check the folder, as the next section says.
+2. Sign in, when you are not signed in.
+3. Choose the project.
+4. Link the repository, as `loupe project link` does.
+5. Install the Loupe plugins that the project needs in Claude Code, or declare `loupe mcp` to Codex.
+6. Write the rule file.
+7. Ask whether to turn on automatic updates.
+8. Start the bridge in the background.
+9. Install the Playwright browser, when the repository uses Playwright.
+10. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
+11. Offer to start discovery, when onboarding is ready.
+12. Report what remains, and print the project link.
 
-Before step 9, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent.
+Before step 10, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent.
 
-Step 10 asks `Start discovery now? It runs a worker that checks the repository and lists what remains.` It asks only when all of these hold:
+Step 11 asks `Start discovery now? It runs a worker that checks the repository and lists what remains.` It asks only when all of these hold:
 
 - The profile is complete, or the workflow needs none.
 - No account that a work entry of this project uses fails for this project.
@@ -155,7 +156,7 @@ Step 10 asks `Start discovery now? It runs a worker that checks the repository a
 
 On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the Workshop page>`. The list of what remains arrives some minutes later, in the report, and the discovery row of the Workshop opens it. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
 
-The last lines come after step 10, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
+The last lines come after step 11, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
 
 This ending needs the next release of the CLI after v2.1.0, and a Loupe instance that has the discovery route.
 
@@ -165,6 +166,8 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--name` | Create a project with this name and link the repository to it. It cannot go with `--project`. A linked project needs `--force` |
 | `--domain` | The domain of the new project. It needs `--name` |
 | `--origin` | An allowed origin of the new project for the site-review widget. Repeat it for more. It needs `--name` |
+| `--folder` | `root` or `current`. The folder to set up when you run `loupe init` below the root of the git repository. It skips the question |
+| `--repoint` | Point the `projects` entry of the rule file at this folder, when it maps another directory. It skips the question |
 | `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
@@ -173,6 +176,24 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
+
+### The folder question
+
+A bridge worker starts at the root of a copy of the repository. It finds the project file and the repository profile only at the root. So `loupe init` checks the folder first, before it writes anything.
+
+- At the root, or outside a git repository, the step prints `Folder: skipped` and goes on.
+- Below the root, on a terminal, it lists the root as choice 1, the default, and the current folder as choice 2. Choice 2 prints a warning that a worker cannot find that setup.
+- `--folder root` runs every later step at the root, as if you ran `loupe init` there. A relative `--rules` path then resolves against the root. `--folder current` sets up the current folder and prints the warning.
+- With no terminal and no `--folder`, the command stops before it writes anything. The error names the root and the flag.
+
+### Two questions that replace an error
+
+On a terminal, `loupe init` asks instead of stopping in two cases. With no terminal, it keeps the error.
+
+- A `projects` entry of the rule file maps this project to another directory. The question is `projects.<slug> maps <old>. Point it at <folder>? [Y/n]`. A yes changes only that `dir`. A no stops the command. With no terminal, `--repoint` gives the yes. A bridge that runs reloads the rule file. A running worker keeps its folder. A queued run takes the new folder. A later teardown of a card worktree fails when the new folder is a clone other than the old one.
+- A project name is taken, from `--name` or from the create row. When your login lists that project, the question is `You already have a project named <name>. Use it? [Y/n]`. A yes uses it. A no asks for another name. `--domain` and `--origin` apply to a new project only. With no terminal, `--name` stops with `pass --project <slug>`.
+
+These flags and questions are in the CLI releases after 2.0.2.
 
 [`loupe init`](../../cli/README.md#loupe-init) gives each step in full.
 
@@ -274,9 +295,11 @@ names the ways to choose. It never guesses.
 | `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
 | `loupe card` | `list`, `get`, `history`, `create`, `update`, `hold`, `release`, `pause-release` |
+| `loupe experiment` | `cards`, `exclude`, `include` |
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
+| `loupe inbox` | `create`, `get` |
 
 `loupe card list` filters by the state of a card with `--state` and
 `--state-code`: `loupe card list --state working` lists the cards with the
@@ -285,6 +308,20 @@ working mark, and `--state-code run-open` narrows them to the running workers.
 terminal column has no state. The flags need a CLI release after `cli/v2.0.1`
 and a server that has the filters. A server without them ignores the flags and
 answers every card.
+
+`loupe experiment cards <experiment>` lists the cards of an experiment, with
+their variant, pull request URLs and left-out reasons. `loupe experiment exclude
+<experiment> <number> --reason "..."` leaves a card out of the comparison, and
+`loupe experiment include <experiment> <number>` puts it back. These commands
+need CLI 2.1.0 or later and a server that has the experiment routes.
+
+`loupe inbox create` puts one item in the inbox of the owner, and `loupe inbox
+get <itemId>` reads it with the answer. A CI job can run
+`loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci`
+with an API key, and the owner sees one open item for repeated failures.
+The [API reference](api/index.md#inbox-items) gives the rules. The commands
+need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
+the inbox flag on.
 
 The verbs are the words of the MCP tools, so `document_revise` is
 `loupe document revise`. A flag is the API parameter in kebab-case:
