@@ -6,6 +6,7 @@
 # --base is the base ref of the pull request. --prototype is yes when the card, its parent, its source card or a linked design links an artifact.
 # Prints one line for each gap: "gap: <text>" or "not-proven: <text>". Prints "clean" when there is none.
 # Exits 0 when clean, 1 when a gap needs a fix, 2 when the only gaps are "Not proven" lines.
+# Exits 64 on a bad argument or an input it cannot read, such as a base ref with no merge base.
 set -o pipefail
 usage="usage: prepush-check.sh --profile <file> --body <file> --notes <file> --base <ref> --card-type <type> --prototype yes|no"
 profile= body= notes= base= card_type= prototype=
@@ -57,9 +58,12 @@ if [ -n "$preview_profile" ] && [ "$card_type" != epic ]; then
   paths_line=$(grep -m1 -E '^[0-9]+\. Paths:' <<<"$preview_profile")
   first_sentence=$(sed -E 's/^[0-9]+\. Paths: //; s/\. .*$//' <<<"$paths_line")
   prefixes=$(grep -oE '`[^`]+/`' <<<"$first_sentence" | tr -d '`')
+  [ -n "$prefixes" ] || { echo "the Preview section of $profile has no Paths item with a folder in backticks" >&2; exit 64; }
   excluded=$(grep -m1 -E '^[0-9]+\. Excluded paths:' <<<"$preview_profile" | grep -oE '`[^`]+`' | tr -d '`')
-  mb=$(git merge-base "$base" HEAD 2>/dev/null) || mb=$base
-  changed=$( { git diff --name-only "$mb" 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } | sort -u)
+  mb=$(git merge-base "$base" HEAD) || { echo "cannot find the merge base of $base and HEAD" >&2; exit 64; }
+  diffed=$(git diff --name-only "$mb") || { echo "cannot read the diff against $base" >&2; exit 64; }
+  untracked=$(git ls-files --others --exclude-standard) || { echo "cannot list the untracked files" >&2; exit 64; }
+  changed=$(printf '%s\n%s\n' "$diffed" "$untracked" | sort -u)
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     hit=no
@@ -106,6 +110,8 @@ if [ $applies = yes ]; then
   done <<<"$lines"
 
   # Each state of the Preview list in the build notes needs a line in the body.
+  # When the profile has Data line patterns, a state that the notes mark "records" needs a body line that fits one.
+  data_patterns=$(awk '/Data line patterns:/ { go = 1 } go' <<<"$preview_profile" | fenced)
   notes_lines=$(section "$notes" "## Preview" | grep -E '^- ')
   while IFS= read -r nl; do
     [ -n "$nl" ] || continue
@@ -114,7 +120,25 @@ if [ $applies = yes ]; then
     if [[ $item =~ ^\[([^]]+)\] ]]; then label=${BASH_REMATCH[1]}
     else label=$(sed -E 's/[`:,].*$//; s/ [-—] .*$//; s/[[:space:]]+$//' <<<"$item"); fi
     [ -n "$label" ] || continue
-    grep -qF -- "[$label]" <<<"$body_section" || gaps+=("the build notes Preview list names \"$label\", and the body has no line for it")
+    body_line=$(grep -F -m1 -- "[$label]" <<<"$lines")
+    if [ -z "$body_line" ]; then
+      gaps+=("the build notes Preview list names \"$label\", and the body has no line for it")
+      continue
+    fi
+    [ -n "$data_patterns" ] || continue
+    grep -qi 'not proven' <<<"$body_line" && continue
+    kind=$(sed -E 's/`[^`]*`//g; s/\[[^]]*\]\([^)]*\)//g' <<<"$item")
+    if grep -qiE '(^|[^[:alnum:]])no records([^[:alnum:]]|$)' <<<"$kind"; then continue; fi
+    if ! grep -qiE '(^|[^[:alnum:]])records([^[:alnum:]]|$)' <<<"$kind"; then
+      gaps+=("the build notes Preview list does not say whether \"$label\" shows records or no records")
+      continue
+    fi
+    ok=no
+    while IFS= read -r pattern; do
+      [ -n "$pattern" ] || continue
+      if grep -Eq -- "$pattern" <<<"$body_line"; then ok=yes; break; fi
+    done <<<"$data_patterns"
+    [ $ok = yes ] || gaps+=("\"$label\" shows records, and its Preview line fits no data line pattern of the profile, such as the empty twin: $body_line")
   done <<<"$notes_lines"
 fi
 

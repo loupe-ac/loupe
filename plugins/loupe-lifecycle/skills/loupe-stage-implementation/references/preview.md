@@ -29,7 +29,7 @@ For each required state:
 1. Seed it as the `Seed` item of the profile says.
 2. Mint the link with the `Mint` item. Check the path against `^/[A-Za-z0-9/._~%?=&-]*$` before it reaches a shell, and pass it in single quotes as one argument. The link is a credential.
 3. Prove it with the `Prove` item. Pick a marker that the diff adds to the page. On a state whose page shows records, pick a marker that the page renders only from those records. Prove it as the `Prove` item says, so an empty page never passes.
-4. Record the label, the path and the marker of each proven state in a "Preview" list in the build notes. The build notes never holds the signed link.
+4. Record each proven state in a "Preview" list in the build notes, as `` - [<label>](<path>), marker `<marker>`, records `` or `` - [<label>](<path>), marker `<marker>`, no records ``. Write `records` when the page of the state shows records. The build notes never holds the signed link.
 
 ## The body file
 
@@ -47,10 +47,11 @@ Run `prepush-check.sh`, which sits next to this file, before each push that open
 
 1. Save the build notes to a file: call `document_get` on them, and write the Markdown to a file in the `mktemp -d` folder of "The body file". Write the body file in the same folder.
 2. Run it from the worker folder: `prepush-check.sh --profile .loupe/lifecycle.md --body <body file> --notes <notes file> --base origin/<base> --card-type <type> --prototype yes|no`. `<type>` is the `type` of `card_get`. Pass `--prototype yes` when the card, its parent, its source card or a linked design links an artifact, as `prototype-map.md` "Collect the artifacts" says. The script needs `bash` and `git`.
-3. Exit 0 means no gap. Exit 1 lists `gap:` lines. Fix each one, write the body file again, and run the script again. Push only after exit 0.
+3. Exit 0 means no gap. Exit 64 means a bad argument or an input that the script cannot read, such as a base with no merge base. Fix the call, and never push on exit 64. Exit 1 lists `gap:` lines. Fix each one, write the body file again, and run the script again. Push only after exit 0.
 4. Exit 2 lists only `not-proven:` lines. That is the result of "Block, never skip", so push on exit 2 only on that path. Any other run with exit 2 proves the state and runs the script again.
-5. The profile `Preview` section can give two optional items. `Line patterns` holds one extended regex for each accepted line form, in a fenced block. `Excluded paths` holds regexes for changed paths that do not count. With no `Line patterns`, a line needs a Markdown link and a marker in backticks.
-6. Remove the `mktemp -d` folder after the forge command, as "The body file" says.
+5. The profile `Preview` section can give three optional items. `Line patterns` holds one extended regex for each accepted line form, in a fenced block. `Data line patterns` holds, in a fenced block, the line forms that a state with records accepts. `Excluded paths` holds regexes for changed paths that do not count. With no `Line patterns`, a line needs a Markdown link and a marker in backticks.
+6. With `Data line patterns`, each state of the build notes Preview list must say `records` or `no records`. The body line of a `records` state must match a data line pattern. The script compares the build notes with the body only. The review checks that the build notes say the truth about each page.
+7. Remove the `mktemp -d` folder after the forge command, as "The body file" says.
 
 ## Block, never skip
 

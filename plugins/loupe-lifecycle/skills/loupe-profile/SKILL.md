@@ -44,7 +44,7 @@ A section starts with a `##` heading of the exact name and holds a numbered list
 | `Changelog` | no | The changelog file and its check, or "none" | The repository |
 | `Forge` | no | The forge name, only when the remote host does not show it | The remote |
 | `Epics` | no | The epic branch pattern, the merge method of a child, the epic preview | `workflow_get` |
-| `Visual check` and `Preview` | no | How a worker proves a changed page. `Preview` can also hold `Line patterns`, one extended regex for each accepted line form in a fenced block, and `Excluded paths`, regexes for changed paths that do not count. The pre-push check reads both | The repository, only when it has pages |
+| `Visual check` and `Preview` | no | How a worker proves a changed page. `Preview` can also hold `Line patterns`, one extended regex for each accepted line form in a fenced block, `Data line patterns`, the line forms that a state with records accepts in a fenced block, and `Excluded paths`, regexes for changed paths that do not count. The pre-push check reads all three | The repository, only when it has pages |
 | `Documents` | no | The tags of design documents | `workflow_get`, only when they differ from the default |
 
 ## Unknown values

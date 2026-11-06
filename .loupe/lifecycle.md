@@ -76,6 +76,13 @@ The Loupe stage skills read this file. It holds the values that belong to this r
    ^- \[[^]]+\]\([^)]+\), marker `[^`]+`\. Signed out\.[[:space:]]*$
    ```
 
+10. Data line patterns: a state that the build notes Preview list marks `records` needs a body line that matches one extended regex of the fenced block below. The block holds the data state with its empty twin, and the signed-out state.
+
+    ```
+    ^- \[[^]]+\]\([^)]+\), marker `[^`]+`, empty `[^`]+`[[:space:]]*$
+    ^- \[[^]]+\]\([^)]+\), marker `[^`]+`\. Signed out\.[[:space:]]*$
+    ```
+
 ## Visual check
 
 1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change under `templates/Module/DesignSystem/export/` does not count, because no page shows those files.

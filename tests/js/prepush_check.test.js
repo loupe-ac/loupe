@@ -55,7 +55,7 @@ function write(name, text) {
 
 function run(
     body,
-    { notes = '', cardType = 'feature', prototype = 'no' } = {},
+    { notes = '', cardType = 'feature', prototype = 'no', base = 'base' } = {},
 ) {
     write('body.md', body);
     write('notes.md', notes);
@@ -70,7 +70,7 @@ function run(
             '--notes',
             join(dir, 'notes.md'),
             '--base',
-            'base',
+            base,
             '--card-type',
             cardType,
             '--prototype',
@@ -126,6 +126,53 @@ describe('prepush-check.sh', () => {
         expect(r.status).toBe(1);
         expect(r.out).toContain('fits no line pattern');
         expect(r.out).toContain('Run list 2');
+    });
+
+    it('names a records state whose line has no empty twin', () => {
+        const r = run(
+            '## Preview\n\n- [Run list](https://x.test/p), marker `data-run-id`, no data\n',
+            {
+                notes: '## Preview\n\n- [Run list](/projects/p/runs), marker `data-run-id`, records\n',
+            },
+        );
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('"Run list" shows records');
+        expect(r.out).toContain('empty twin');
+    });
+
+    it('accepts a records state with its empty twin', () => {
+        const r = run(`## Preview\n\n${dataLine}\n${noDataLine}\n`, {
+            notes: '## Preview\n\n- [Run list](/projects/p/runs), marker `data-run-id`, records\n- [New form](/f), marker `data-records`, no records\n',
+        });
+        expect(r.out).toBe('clean\n');
+        expect(r.status).toBe(0);
+    });
+
+    it('names a notes state that says neither records nor no records', () => {
+        const r = run(`## Preview\n\n${dataLine}\n`, {
+            notes: '## Preview\n\n- [Run list](/projects/p/runs), marker `data-records`\n',
+        });
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('does not say whether "Run list"');
+    });
+
+    it('refuses a base it cannot read instead of returning clean', () => {
+        const r = run('## Summary\n', { base: 'no-such-ref' });
+        expect(r.status).toBe(64);
+        expect(r.out).not.toContain('clean');
+    });
+
+    it('refuses a Preview section with no Paths folder', () => {
+        write(
+            'profile.md',
+            readFileSync(repoProfile, 'utf8').replace(
+                /^1\. Paths: .*$/m,
+                '1. Paths: none.',
+            ),
+        );
+        const r = run('## Summary\n');
+        expect(r.status).toBe(64);
+        expect(r.out).not.toContain('clean');
     });
 
     it('exits 2 when the only gaps are Not proven lines', () => {
@@ -188,7 +235,7 @@ describe('prepush-check.sh', () => {
         write(
             'profile.md',
             readFileSync(repoProfile, 'utf8').replace(
-                /\n {3}```[\s\S]*?```\n/,
+                /\n {3,4}```[\s\S]*?```\n/g,
                 '\n',
             ),
         );
