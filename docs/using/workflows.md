@@ -900,9 +900,20 @@ pushes, it reviews its own fix with the same checklist as the reviewer.
 
 The fix worker fixes a failed `spec` finding as any other finding. When the
 implementer chose on purpose to depart from a design, the build notes record
-the departure under a "Departures" section, with the reason. The review then
-shows it as a nit, which never fails the review, and the fix worker leaves it
-alone. A departure with no record fails the review.
+the departure under a "Departures" section, with the reason. The review raises
+no finding for it and names it in one line of its summary, so the fix worker
+leaves it alone. A recorded departure that breaks the design or a requirement
+still gets an `important` finding that names what it breaks. A departure with
+no record fails the review.
+
+Before each push, the implement and fix workers run a pre-push check. It reads
+the pull request body, the build notes and the project profile as text, and
+opens no link. It fails when the Preview applies and the body has no Preview
+section, no proven line, a line that fits none of the line forms of the
+profile, or no line for a state that the build notes list. It also fails when
+the card links a prototype and the build notes have no "Prototype map". The
+worker fixes each gap and runs the check again. A line that says "Not proven"
+is the one gap that the blocked Preview path may push.
 
 The fix worker answers a finding that needs evidence instead of code, and a
 finding that it judges wrong, in the build notes. It writes one subsection per
