@@ -172,6 +172,33 @@ func TestBridgeCheckProjectJSONReportsCommandsAndAccounts(t *testing.T) {
 	}
 }
 
+func TestBridgeCheckProjectReportsVariantAndAppPromptAccounts(t *testing.T) {
+	loupe := t.TempDir()
+	body := "appPrompts: true\naccounts:\n  claude:\n    harness: claude-code\n    configDir: " + t.TempDir() + "\n" +
+		"  work:\n    harness: claude-code\n  alt:\n    harness: claude-code\ndefaults:\n  account: claude\n" +
+		"projects:\n  loupe:\n    dir: " + loupe + "\n" +
+		"work:\n  implement:\n    prompt: x\n    account: work\n" +
+		"experiments:\n  trial:\n    covers: [implement]\n    baseline: a\n    variants:\n" +
+		"      - {name: a, weight: 1, model: opus}\n      - {name: b, weight: 1, model: sonnet, account: alt}\n"
+	path := writeCheckRules(t, body)
+
+	out, err := runBridgeCheck(t, "--rules", path, "--project", "loupe", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got projectCheck
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out)
+	}
+	var names []string
+	for _, a := range got.Accounts {
+		names = append(names, a.Name)
+	}
+	if !slices.Equal(names, []string{"work", "alt", "claude"}) {
+		t.Errorf("accounts = %v, want the entry, the variant and the app prompt account", names)
+	}
+}
+
 func TestBridgeCheckProjectRefusesAnUnknownProject(t *testing.T) {
 	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\nwork:\n  fix:\n    prompt: x\n")
 

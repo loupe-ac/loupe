@@ -74,7 +74,7 @@ func buildProjectCheck(set *rules.Set, path, slug string) projectCheck {
 
 	kinds := slices.Concat(set.SharedWorkKinds(), set.ProjectWorkKinds(slug))
 	slices.Sort(kinds)
-	seen := map[string]bool{}
+	var runs []rules.RunSettings
 	for _, kind := range slices.Compact(kinds) {
 		entry, ok := set.WorkEntryFor(slug, kind)
 		if !ok {
@@ -93,10 +93,16 @@ func buildProjectCheck(set *rules.Set, path, slug string) projectCheck {
 			k.Commands = append(k.Commands, checkCommand(dir, c))
 		}
 		report.Kinds = append(report.Kinds, k)
-
-		if run.Account != "" && !seen[run.Account] {
-			seen[run.Account] = true
-			report.Accounts = append(report.Accounts, accountFolders(run, dir))
+		runs = append(runs, entry.Runs()...)
+	}
+	if app, ok := set.AppRun(); ok {
+		runs = append(runs, app)
+	}
+	seen := map[string]bool{}
+	for _, r := range runs {
+		if r.Account != "" && !seen[r.Account] {
+			seen[r.Account] = true
+			report.Accounts = append(report.Accounts, accountFolders(r, dir))
 		}
 	}
 
@@ -129,7 +135,7 @@ func checkCommand(dir string, c rules.EntryCommand) commandCheck {
 	return out
 }
 
-// checkAccount reads the config folder of an account and the MCP servers that
+// accountFolders reads the config folder of an account and the MCP servers that
 // it declares. A file that cannot be read goes into MCPError.
 func accountFolders(run rules.RunSettings, projectDir string) accountCheck {
 	out := accountCheck{Name: run.Account, Harness: run.Harness, ConfigDir: run.ConfigDir, MCPServers: []string{}}

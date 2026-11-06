@@ -208,6 +208,23 @@ func (w WorkEntry) RunSettings() RunSettings {
 	return w.run.clone()
 }
 
+// Runs lists the account settings the entry can run with: its own, then those
+// of each variant of its experiment. An entry that runs no agent lists none.
+func (w WorkEntry) Runs() []RunSettings {
+	var out []RunSettings
+	for _, r := range w.runs() {
+		out = append(out, r.clone())
+	}
+
+	return out
+}
+
+// AppRun gives the account settings of an app prompt, and false when the set
+// runs no app prompt.
+func (s *Set) AppRun() (RunSettings, bool) {
+	return s.appRun.clone(), s.appPrompts
+}
+
 type entryCommand struct {
 	field string
 	argv  []string
