@@ -60,7 +60,7 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class Engine
 {
-    public const string REPAIR_FAILED = 'repair-failed';
+    public const string RECOVER_FAILED = 'recover-failed';
 
     public const string STILL_TRUE = 'still-true';
 
@@ -287,7 +287,7 @@ final readonly class Engine
                 $state->lastRefusalAt = null;
                 $state->workRequestId = null;
                 $state->answeringRunId = null;
-                $state->repaired = false;
+                $state->recovered = false;
             });
         }
     }
@@ -305,7 +305,7 @@ final readonly class Engine
             }
             $request = $this->ledger->find($state->workRequestId);
             $bound = $this->ruleSubject->bind($rule, $run->facts);
-            if (null === $request || WorkState::Done !== $request->state || !$bound->truth || $request->kind === $run->template->onWorkFailed?->repairKind) {
+            if (null === $request || WorkState::Done !== $request->state || !$bound->truth || $request->kind === $run->template->onWorkFailed?->recoveryKind) {
                 continue;
             }
             $stored = $state->subjectPullRequestId;
@@ -336,7 +336,7 @@ final readonly class Engine
     /**
      * Reads how the last request of each rule settled. A done request clears the attempts. A refused one earns a retry after
      * the next delay of the onWorkFailed block, or pauses the card when its code earns none or the retries or delays are used up.
-     * When they are used up, a template with a repair kind first opens one repair request. A template with no onWorkFailed block reads nothing.
+     * When they are used up, a template with a recovery kind first opens one recovery request. A template with no onWorkFailed block reads nothing.
      */
     private function readSettledRequests(Evaluation $run): void
     {
@@ -355,10 +355,10 @@ final readonly class Engine
             if (null === $request || !$bound->truth) {
                 continue;
             }
-            // The repair carries the rule id of the failed rule, so its kind tells it apart.
-            $repair = $request->kind === $policy->repairKind;
-            if ($repair && \in_array($request->state, [WorkState::Open, WorkState::Claimed], true)) {
-                $run->repairing[$rule->id] = true;
+            // The recovery carries the rule id of the failed rule, so its kind tells it apart.
+            $recovery = $request->kind === $policy->recoveryKind;
+            if ($recovery && \in_array($request->state, [WorkState::Open, WorkState::Claimed], true)) {
+                $run->recovering[$rule->id] = true;
                 continue;
             }
             // The rule now acts on another pull request, so runRule() starts that work and the old refusal counts for nothing.
@@ -366,8 +366,8 @@ final readonly class Engine
             if ($bound->binds && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject)) {
                 continue;
             }
-            if ($repair && WorkState::Done === $request->state) {
-                // The rule fires its last try in this pass. The cleared id keeps the next pass from reading the repair again.
+            if ($recovery && WorkState::Done === $request->state) {
+                // The rule fires its last try in this pass. The cleared id keeps the next pass from reading the recovery again.
                 $this->write($run, $state, static function (WorkflowRuleState $state) use ($run): void {
                     $state->dueAt = $run->now;
                     $state->workRequestId = null;
@@ -391,7 +391,7 @@ final readonly class Engine
                     $state->lastRefusal = null;
                     $state->lastRefusalAt = null;
                     $state->workRequestId = null;
-                    $state->repaired = false;
+                    $state->recovered = false;
                 });
                 continue;
             }
@@ -400,12 +400,12 @@ final readonly class Engine
                 continue;
             }
 
-            if ($repair) {
+            if ($recovery) {
                 $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $bound): void {
-                    $state->lastRefusal = self::REPAIR_FAILED;
+                    $state->lastRefusal = self::RECOVER_FAILED;
                     $state->lastRefusalAt = $run->now;
                     $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
-                    $this->pause($run, PauseKind::Retries, self::REPAIR_FAILED, $rule->id);
+                    $this->pause($run, PauseKind::Retries, self::RECOVER_FAILED, $rule->id);
                 });
                 continue;
             }
@@ -465,7 +465,7 @@ final readonly class Engine
         }
     }
 
-    /** Earns a retry after the next delay, or opens the repair, or pauses the card, as the failure block says. */
+    /** Earns a retry after the next delay, or opens the recovery, or pauses the card, as the failure block says. */
     private function refuse(Evaluation $run, Rule $rule, WorkflowRuleState $state, WorkFailurePolicy $policy, string $code, BoundRule $bound): void
     {
         $state->lastRefusal = $code;
@@ -483,8 +483,8 @@ final readonly class Engine
         $backoff = $policy->backoffMinutes[$state->attempts - 1] ?? null;
         if ($state->attempts > $policy->retries || null === $backoff) {
             $state->dueAt = null;
-            if (null !== $policy->repairKind && !$state->repaired) {
-                // The prompt of an app rule asks for the work of that rule, so the repair carries the prompt of its own kind.
+            if (null !== $policy->recoveryKind && !$state->recovered) {
+                // The prompt of an app rule asks for the work of that rule, so the recovery carries the prompt of its own kind.
                 $context = $rule->context($run->card, $bound->facts, $state->fires, $this->contexts->columns($rule, $run->card->projectId));
                 // The hold read shares this transaction, so the mark below is flushed before a hold end can read it.
                 if (null !== $this->workHolds->heldProject($run->card->projectId)) {
@@ -492,12 +492,12 @@ final readonly class Engine
 
                     return;
                 }
-                $outcome = $this->opener->open($context, $policy->repairKind, null, $code);
+                $outcome = $this->opener->open($context, $policy->recoveryKind, null, $code);
                 if (null !== $outcome->requestId) {
                     $state->workRequestId = $outcome->requestId;
-                    $state->repaired = true;
-                    $run->repairing[$rule->id] = true;
-                    $this->logger->info('workflow.repair_requested', ['cardId' => $run->card->id->toRfc4122(), 'ruleId' => $rule->id, 'code' => $code]);
+                    $state->recovered = true;
+                    $run->recovering[$rule->id] = true;
+                    $this->logger->info('workflow.recovery_requested', ['cardId' => $run->card->id->toRfc4122(), 'ruleId' => $rule->id, 'code' => $code]);
                     // The rules after this one read the new request.
                     $run->facts = $this->facts($run->card, $run->now, $run->facts);
 
@@ -593,7 +593,7 @@ final readonly class Engine
                 $state->attempts = 0;
                 $state->dueAt = null;
                 $state->workRequestId = null;
-                $state->repaired = false;
+                $state->recovered = false;
             });
         }
 
@@ -642,7 +642,7 @@ final readonly class Engine
             $state->dueAt = null;
             $state->lastRefusal = null;
             $state->lastRefusalAt = $run->now;
-            $state->repaired = false;
+            $state->recovered = false;
         });
     }
 
@@ -752,9 +752,9 @@ final readonly class Engine
             $state->fires = 0;
         }
         if (!$bound->truth) {
-            // The reset forgets the repair, so its live request ends with it.
-            $tracked = $state->repaired && null !== $state->workRequestId ? $this->ledger->find($state->workRequestId) : null;
-            if (null !== $tracked && $tracked->kind === $run->template->onWorkFailed?->repairKind
+            // The reset forgets the recovery, so its live request ends with it.
+            $tracked = $state->recovered && null !== $state->workRequestId ? $this->ledger->find($state->workRequestId) : null;
+            if (null !== $tracked && $tracked->kind === $run->template->onWorkFailed?->recoveryKind
                 && $this->ledger->withdraw($state->workRequestId, WithdrawKind::Cancelled)) {
                 // The rules after this one read the cancelled request.
                 $run->facts = $this->facts($run->card, $run->now, $run->facts);
@@ -769,7 +769,7 @@ final readonly class Engine
             $state->lastRefusalAt = null;
             $state->workRequestId = null;
             $state->answeringRunId = null;
-            $state->repaired = false;
+            $state->recovered = false;
             // The subject stays, so a later true pass on another pull request starts a fresh budget.
             $state->fingerprint = $fingerprint;
 
@@ -779,22 +779,22 @@ final readonly class Engine
         // A state with no subject adopts the bound one with no edge.
         $stored = $state->subjectPullRequestId;
         $newSubject = $bound->binds && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject);
-        $fire = !isset($run->repairing[$rule->id])
+        $fire = !isset($run->recovering[$rule->id])
             && ($newSubject || !$state->truth || ($state->attempts > 0 && ((null !== $state->dueAt && $state->dueAt <= $run->now) || !$this->fingerprint->sameAs($state->fingerprint, $bound->facts, $rule->when->reads()))));
         // A release rule that turned true before its pause existed would otherwise wait for a new edge.
         if (!$fire && ReleasePause::KEY === $rule->lead->key) {
             $fire = null !== $run->holdingPause && $run->holdingPause->reason === ActionOutcome::code(ActionParams::string($rule, 'reason'));
         }
         // A true rule whose action asks for it fires again when its facts change, so no new item waits for a false pass.
-        if (!$fire && !isset($run->repairing[$rule->id]) && $this->refiresOnFactChange($rule)
+        if (!$fire && !isset($run->recovering[$rule->id]) && $this->refiresOnFactChange($rule)
             && !$this->fingerprint->sameAs($state->fingerprint, $bound->facts, $rule->when->reads())) {
             $fire = true;
         }
         $state->truth = true;
         $this->markBlockerHold($run, $rule, $state, $bound);
         $state->fingerprint = $fingerprint;
-        // A live repair still serves the old subject.
-        if (!isset($run->repairing[$rule->id])) {
+        // A live recovery still serves the old subject.
+        if (!isset($run->recovering[$rule->id])) {
             self::adoptSubject($state, $bound->subject);
         }
         if (!$fire) {
@@ -802,15 +802,15 @@ final readonly class Engine
         }
         // Another pull request gets its own request budget.
         $firesBefore = $state->fires;
-        $repairedBefore = $state->repaired;
+        $recoveredBefore = $state->recovered;
         if ($newSubject) {
             $state->fires = 0;
-            $state->repaired = false;
+            $state->recovered = false;
         }
 
         // A retry keeps its attempts while its request runs, so the count reaches the limit of the template.
-        // The last try after a repair keeps them too, so its refusal pauses the card.
-        $retrying = !$newSubject && (null !== $state->workRequestId || $state->repaired) && $state->attempts > 0;
+        // The last try after a recovery keeps them too, so its refusal pauses the card.
+        $retrying = !$newSubject && (null !== $state->workRequestId || $state->recovered) && $state->attempts > 0;
         // The list stops at the first refusal and after a move, which queues the next evaluation.
         // An action that changes the facts gives the next action of the list the facts as they are then.
         $facts = $bound->facts;
@@ -831,7 +831,7 @@ final readonly class Engine
         if ($newSubject && $outcome->alreadyLive) {
             self::adoptSubject($state, $stored);
             $state->fires = $firesBefore;
-            $state->repaired = $repairedBefore;
+            $state->recovered = $recoveredBefore;
         }
         $run->fired[] = ['rule' => $rule->id, 'outcome' => $outcome->kind->value, 'code' => $outcome->code];
         if (ActionOutcomeKind::Held !== $outcome->kind) {
@@ -895,8 +895,8 @@ final readonly class Engine
                 $state->lastRefusal = $code;
                 $state->lastRefusalAt = $run->now;
                 $backoff = $run->template->backoffMinutes[$state->attempts - 1] ?? null;
-                // The last try after a repair gets no further try.
-                if (null !== $backoff && !$state->repaired) {
+                // The last try after a recovery gets no further try.
+                if (null !== $backoff && !$state->recovered) {
                     $state->dueAt = $run->now->add(new \DateInterval(\sprintf('PT%dM', $backoff)));
 
                     return true;
@@ -1073,7 +1073,7 @@ final readonly class Engine
     /** @return list<mixed> */
     private static function snapshot(WorkflowRuleState $state): array
     {
-        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u'), $state->heldByWorkHoldSince?->format('U.u'), $state->answeringRunId?->toRfc4122()];
+        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->recovered, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u'), $state->heldByWorkHoldSince?->format('U.u'), $state->answeringRunId?->toRfc4122()];
     }
 
     private function pause(Evaluation $run, PauseKind $kind, string $code, string $ruleId): void

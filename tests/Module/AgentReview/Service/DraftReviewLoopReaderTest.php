@@ -141,12 +141,12 @@ final class DraftReviewLoopReaderTest extends KernelTestCase
     {
         $card = $this->cardIn('tech-design');
         $document = $this->draft($card, ['tech-design']);
-        $this->pause($card, 'repair-failed');
+        $this->pause($card, 'recover-failed');
 
         $loop = $this->loops()->of($document);
 
         self::assertNotNull($loop);
-        self::assertSame('The repair worker could not fix the failure.', $loop->pauseReason);
+        self::assertSame('The recovery run could not clear the failure.', $loop->pauseReason);
         self::assertTrue($loop->paused());
     }
 
@@ -223,7 +223,7 @@ final class DraftReviewLoopReaderTest extends KernelTestCase
         $document = $this->draft($paused, ['tech-design']);
         $this->em->persist(new CardDocument($running, $document));
         $this->em->flush();
-        $this->pause($paused, 'repair-failed');
+        $this->pause($paused, 'recover-failed');
 
         self::assertSame(5, $this->loops()->of($document)?->cardNumber);
     }
@@ -238,8 +238,8 @@ final class DraftReviewLoopReaderTest extends KernelTestCase
 
         self::assertSame(3, $this->loops()->of($document)?->cardNumber);
 
-        $this->pause($high, 'repair-failed');
-        $this->pause($low, 'repair-failed');
+        $this->pause($high, 'recover-failed');
+        $this->pause($low, 'recover-failed');
 
         self::assertSame(3, $this->loops()->of($document)?->cardNumber);
     }

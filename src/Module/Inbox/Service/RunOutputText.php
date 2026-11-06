@@ -34,7 +34,7 @@ final class RunOutputText
      */
     public static function params(?string $workKind, string $output): array
     {
-        $worker = null === $workKind || '' === $workKind ? 'worker' : str_replace('-', ' ', $workKind).' worker';
+        $worker = null === $workKind || '' === $workKind ? 'worker' : ('recover' === $workKind ? 'recovery worker' : str_replace('-', ' ', $workKind).' worker');
 
         return ['%worker%' => $worker, '%Worker%' => ucfirst($worker), '%headline%' => self::headline($output)];
     }

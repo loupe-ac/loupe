@@ -103,8 +103,8 @@ final class CardPauseWaitTest extends KernelTestCase
 
     public function test_inbox_get_reads_the_pause_reason_and_the_failed_run_link_in_the_body(): void
     {
-        $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $this->cardId(), 7, 'repair', WorkerRunState::Failed, failureReason: 'the before command exited with code 141', receivedAt: new \DateTimeImmutable('2026-10-26 18:57:17'), ruleId: 'implement');
-        $pause = new CardPause($this->card, $this->project, 'repair-failed', 'implement', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
+        $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $this->cardId(), 7, 'recover', WorkerRunState::Failed, failureReason: 'the before command exited with code 141', receivedAt: new \DateTimeImmutable('2026-10-26 18:57:17'), ruleId: 'implement');
+        $pause = new CardPause($this->card, $this->project, 'recover-failed', 'implement', PauseKind::Retries, new \DateTimeImmutable('2026-10-26 18:57:20'));
         $this->em->persist($run);
         $this->em->persist($pause);
         $this->em->flush();
@@ -115,8 +115,8 @@ final class CardPauseWaitTest extends KernelTestCase
         self::assertInstanceOf(InboxItemPayload::class, $payload);
         $item = $payload->forItem($this->onlyWatch()->item, []);
 
-        self::assertSame('Paused: The repair worker could not fix the failure', $item['title']);
-        self::assertStringContainsString('The last repair worker run failed: the before command exited with code 141.', $item['body'] ?? '');
+        self::assertSame('Paused: The recovery run could not clear the failure', $item['title']);
+        self::assertStringContainsString('The last recovery worker run failed: the before command exited with code 141.', $item['body'] ?? '');
         self::assertMatchesRegularExpression('~\[Open the failed run\]\(https?://[^)]+search='.preg_quote($run->id?->toRfc4122() ?? '', '~').'\)~', $item['body'] ?? '');
     }
 
