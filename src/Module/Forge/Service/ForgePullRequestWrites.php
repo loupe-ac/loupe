@@ -188,6 +188,18 @@ final readonly class ForgePullRequestWrites
         }
     }
 
+    /** The forge refused an update of this head for good, so no update of it can succeed. A new head makes the mark stale. */
+    public function recordUpdateRefused(ForgePullRequest $pullRequest, string $headSha): void
+    {
+        $id = $pullRequest->id ?? throw new \LogicException('A stored pull request has an id.');
+        $this->em->wrapInTransaction(function () use ($id, $headSha): void {
+            $row = $this->forgePullRequests->findForUpdate($id);
+            if (null !== $row) {
+                $row->updateRefusedSha = $headSha;
+            }
+        });
+    }
+
     private static function fresh(?\DateTimeImmutable $requestedAt, \DateTimeImmutable $now): bool
     {
         return null !== $requestedAt && $requestedAt > $now->modify(\sprintf('-%d seconds', self::MARKER_LIFETIME_SECONDS));

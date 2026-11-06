@@ -251,6 +251,8 @@ final class FactsMother
         bool $canPostCheck = false,
         bool $mergeBlocked = false,
         bool $reviewRequired = false,
+        bool $baseAhead = false,
+        bool $updateRefusedOnHead = false,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -283,6 +285,8 @@ final class FactsMother
             canPostCheck: $canPostCheck,
             mergeBlocked: $mergeBlocked,
             reviewRequired: $reviewRequired,
+            baseAhead: $baseAhead,
+            updateRefusedOnHead: $updateRefusedOnHead,
         );
     }
 

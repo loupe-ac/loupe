@@ -127,6 +127,18 @@ final class FactFingerprintTest extends TestCase
         }
     }
 
+    public function test_each_base_update_fact_changes_its_own_group_and_leaves_the_shared_pull_request_group_as_it_was(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $plain = FactsMother::facts(pullRequest: FactsMother::pullRequest());
+        foreach (['baseAhead', 'updateRefusedOnHead'] as $field) {
+            $changed = FactsMother::facts(pullRequest: FactsMother::pullRequest(...[$field => true]));
+
+            self::assertNotSame($fingerprint->of($plain, [EngineFact::PullRequestBaseUpdate]), $fingerprint->of($changed, [EngineFact::PullRequestBaseUpdate]), $field);
+            self::assertSame($fingerprint->of($plain, [EngineFact::PullRequest]), $fingerprint->of($changed, [EngineFact::PullRequest]), $field);
+        }
+    }
+
     public function test_a_contract_interface_reads_the_fingerprint_of_the_class_that_implements_it(): void
     {
         $fingerprint = new FactFingerprint();

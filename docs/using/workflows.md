@@ -237,6 +237,11 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   conclusion success on the head commit, and has not revoked it.
 - `pr.can_post_check`: Loupe can post a check run on the pull request, because its
   repository has an active GitHub App installation.
+- `pr.base_ahead`: the base branch holds commits that the head lacks. Unlike `pr.behind`,
+  it does not need a rule that requires an up-to-date branch.
+- `pr.can_update_branch`: Loupe can update the branch of the pull request. The repository has
+  an active GitHub App installation, and GitHub has not refused an update of the current head
+  for good. A new head tries the update again.
 - `pr.merge_blocked`: GitHub reads the merge state of the pull request as blocked.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `card.arrived_in_session`: a session that opened its run with the move brought the card into its column. Any other move to another column clears it. A new rank in the same column keeps it.
@@ -546,6 +551,11 @@ the repository and its rules allow none of them, the write refuses with the caus
 changes the repository settings or the ruleset. A project that wants a different order edits the list in the template.
 A write can also take `checks`, which name what its fallback work needs. `workflow_get` returns them for a discovery run, as it does for a `request`.
 
+The `update-branch` write may name no fallback. The rules `update-before-fix` and `update-before-fix-in-review` use it
+this way. When GitHub refuses the update for good, such as when the App has no write access to the head repository,
+Loupe stores the refused head on the pull request. `pr.can_update_branch` then reads false for that head, and the fix
+rule starts the agent. A conflict, a moved head or a transient failure stores nothing, and a new head tries again.
+
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each
 repository where such a blocker merged a pull request, then records on the
@@ -698,7 +708,7 @@ When you withdraw the approval of a design, the card goes back to that design. S
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document and no interactive session is open. A session that opens withdraws a waiting request that no bridge has taken. It also asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it |
 | Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you. A clean tech design [approves itself](#automatic-approval-of-a-design) in the pass that publishes it. When the card value `tech-design-interactive` is on, the workflow asks for an interactive tech design session in place of the agent. When the product design approved itself, the workflow first asks you whether the session may start. See [Interactive tech design](#interactive-tech-design) |
-| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
+| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. When the checks failed, the base branch holds newer commits and the branch has no conflict, the app first asks GitHub to merge the base into the branch, and the fix starts only if the checks fail again. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
 ### Work a card in a session

@@ -180,6 +180,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
                 && (null === $pullRequest->approvalCheckPassedAt || $pullRequest->refreshedAt > $pullRequest->approvalCheckPassedAt),
             // A rejected review keeps the merge blocked after a fix run answers it, until GitHub reads a new review.
             reviewRequired: $pullRequest->reviewFromRules && \in_array($pullRequest->review, [PullRequestReview::Required, PullRequestReview::ChangesRequested], true),
+            baseAhead: $open && $pullRequest->behindBy > 0,
+            updateRefusedOnHead: null !== $headSha && $pullRequest->updateRefusedSha === $headSha,
         );
     }
 

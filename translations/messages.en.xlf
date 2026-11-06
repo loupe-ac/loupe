@@ -9692,6 +9692,10 @@
             <trans-unit id="workflow.waiting.not.pr_approval_covers_head"><source>workflow.waiting.not.pr_approval_covers_head</source><target>Waiting: %min% or more approvals cover the head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_approval_check_passed"><source>workflow.waiting.pr_approval_check_passed</source><target>Waiting: Loupe has not posted the approval check on the head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_approval_check_passed"><source>workflow.waiting.not.pr_approval_check_passed</source><target>Waiting: Loupe has posted the approval check on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_base_ahead"><source>workflow.waiting.pr_base_ahead</source><target>Waiting: the base has no commits that the pull request lacks.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_base_ahead"><source>workflow.waiting.not.pr_base_ahead</source><target>Waiting: the base has commits that the pull request lacks.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_can_update_branch"><source>workflow.waiting.pr_can_update_branch</source><target>Waiting: Loupe cannot update the branch of the pull request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_can_update_branch"><source>workflow.waiting.not.pr_can_update_branch</source><target>Waiting: Loupe can update the branch of the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_can_post_check"><source>workflow.waiting.pr_can_post_check</source><target>Waiting: Loupe cannot post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>

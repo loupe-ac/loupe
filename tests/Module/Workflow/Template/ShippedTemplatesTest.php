@@ -575,6 +575,48 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure], waitingAskIds: $waiting)));
     }
 
+    /** @return iterable<string, array{string, array<string, bool>, list<string>, bool, bool}> */
+    public static function failedChecksOnABehindBranch(): iterable
+    {
+        foreach (['implementation', 'in-review'] as $slot) {
+            yield $slot.', the base is ahead and the update can run' => [$slot, [], [], true, false];
+            yield $slot.', the forge refused an update of this head' => [$slot, ['updateRefusedOnHead' => true], [], false, true];
+            yield $slot.', no installation can update the branch' => [$slot, ['canPostCheck' => false], [], false, true];
+            yield $slot.', the branch conflicts with the base' => [$slot, ['conflicting' => true], [], false, true];
+            yield $slot.', the base is not ahead' => [$slot, ['baseAhead' => false], [], false, true];
+            yield $slot.', a worker runs' => [$slot, [], ['review'], false, false];
+        }
+    }
+
+    /**
+     * @param array<string, bool> $change      the fields that differ from a failed head with the base ahead and an installation
+     * @param list<string>        $workerKinds
+     */
+    #[DataProvider('failedChecksOnABehindBranch')]
+    public function test_a_fix_waits_for_the_update_of_a_behind_branch_and_starts_when_the_update_cannot_run(string $slot, array $change, array $workerKinds, bool $updates, bool $fixes): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, baseAhead: $change['baseAhead'] ?? true, canPostCheck: $change['canPostCheck'] ?? true, conflicting: $change['conflicting'] ?? false, updateRefusedOnHead: $change['updateRefusedOnHead'] ?? false),
+            run: FactsMother::run(activeWorkerKinds: $workerKinds),
+        );
+        $suffix = 'in-review' === $slot ? '-in-review' : '';
+        $firing = $this->firingRuleIds($facts);
+
+        self::assertSame($updates, \in_array('update-before-fix'.$suffix, $firing, true));
+        self::assertSame($fixes, \in_array('in-review' === $slot ? 'fix-in-review' : 'fix-in-implementation', $firing, true));
+    }
+
+    public function test_the_update_rule_names_no_fallback_and_comes_before_the_fix_rule_of_its_slot(): void
+    {
+        foreach (['implementation' => ['update-before-fix', 'fix-in-implementation'], 'in-review' => ['update-before-fix-in-review', 'fix-in-review']] as $slot => [$update, $fix]) {
+            $ids = array_map(static fn (Rule $rule): string => $rule->id, $this->lifecycle()->rulesFor($slot));
+
+            self::assertLessThan(array_search($fix, $ids, true), array_search($update, $ids, true));
+            self::assertEquals($this->call('forge-write', ['write' => 'update-branch']), $this->ruleOf($slot, $update)->then[0]);
+        }
+    }
+
     /** @return iterable<string, array{string, list<string>, bool}> */
     public static function activeWorkDuringReview(): iterable
     {
