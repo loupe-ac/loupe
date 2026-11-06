@@ -9575,7 +9575,7 @@
             <trans-unit id="workflow.value.session_start_approved.caption"><source>workflow.value.session_start_approved.caption</source><target>Session start approved</target></trans-unit>
             <trans-unit id="workflow.value.session_start_approved.help"><source>workflow.value.session_start_approved.help</source><target>On when you let the workflow open a terminal for the tech design session. The workflow turns it off when the session opens.</target></trans-unit>
             <trans-unit id="workflow.value.session_start_approved.history"><source>workflow.value.session_start_approved.history</source><target>the start approval of the tech design session</target></trans-unit>
-            <trans-unit id="workflow.ask.tech_design_session"><source>workflow.ask.tech_design_session</source><target>The product design of card #%card% approved itself, and the interactive session is on for its tech design. Start the session now?</target></trans-unit>
+            <trans-unit id="workflow.ask.tech_design_session"><source>workflow.ask.tech_design_session</source><target>The product design of card #%card% approved itself. Start the tech design session? It opens a terminal on your bridge.</target></trans-unit>
             <trans-unit id="workflow.ask.tech_design_session.start"><source>workflow.ask.tech_design_session.start</source><target>Start the session for card #%card%</target></trans-unit>
             <trans-unit id="workflow.ask.tech_design_session.agent"><source>workflow.ask.tech_design_session.agent</source><target>Let an agent write the tech design of card #%card%</target></trans-unit>
             <trans-unit id="dev.value.internal_demo.label"><source>dev.value.internal_demo.label</source><target>Dev demo</target></trans-unit>
