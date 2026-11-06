@@ -53,10 +53,9 @@ A section starts with a `##` heading of the exact name and holds a numbered list
 
 1. List each line of an agent instruction file or a project skill that conflicts with the Loupe workflow. Also list each line that a worker would follow and that is false in the repository.
 2. Give each entry the file, the line, the new text and the reason. An example of a conflict is a rule that tells every agent to merge its own pull request. An example of a false line is a command that the repository no longer has.
-3. Add the rename of a `## Repair` heading to `## Recovery` as an entry, when the profile holds it.
-4. Ask the owner to approve each entry on its own. Never ask for one approval for the whole list.
-5. Apply the approved entries only. Get them to the remote as rule 6 says.
-6. Name every entry the owner declined in the report. Never apply it later.
+3. Ask the owner to approve each entry on its own. Never ask for one approval for the whole list.
+4. Apply the approved entries only. Get them to the remote as rule 6 says.
+5. Name every entry the owner declined in the report. Never apply it later.
 
 ## Moved work
 
