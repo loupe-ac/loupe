@@ -8,16 +8,18 @@ namespace App\Module\Workflow\Template;
 final readonly class WorkFailurePolicy
 {
     /**
-     * @param list<string> $retryOn        the refusal codes that earn a retry, and any other code pauses the card at once
-     * @param int          $retries        how many retries run before the card pauses
-     * @param list<int>    $backoffMinutes the wait before each retry
-     * @param ?string      $recoveryKind   the kind of the one recovery request that opens when the retries run out, before the card pauses
+     * @param list<string> $retryOn            the refusal codes that earn a retry, and any other code pauses the card at once
+     * @param int          $retries            how many retries run before the card pauses
+     * @param list<int>    $backoffMinutes     the wait before each retry
+     * @param ?string      $recoveryKind       the kind of the one recovery request that opens when the retries run out, before the card pauses
+     * @param bool         $repeatGoesToRepair true opens the recovery at once when a failed `before` command repeats the command, the exit code and the error line of the last refusal
      */
     public function __construct(
         public array $retryOn,
         public int $retries,
         public array $backoffMinutes,
         public ?string $recoveryKind = null,
+        public bool $repeatGoesToRepair = false,
     ) {
     }
 

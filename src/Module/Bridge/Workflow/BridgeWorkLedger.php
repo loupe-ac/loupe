@@ -55,6 +55,12 @@ final readonly class BridgeWorkLedger implements WorkLedger
     }
 
     #[\Override]
+    public function runOutput(Uuid $requestId): ?string
+    {
+        return ($this->workerRuns->findNewestOfWorkRequests([$requestId])[$requestId->toRfc4122()] ?? null)?->output;
+    }
+
+    #[\Override]
     public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null, bool $onlyIfOpen = false): bool
     {
         return ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand(

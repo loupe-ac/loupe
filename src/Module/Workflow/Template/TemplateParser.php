@@ -1599,9 +1599,15 @@ final readonly class TemplateParser
 
             return null;
         }
+        $repeatGoesToRepair = $value['repeatGoesToRepair'] ?? false;
+        if (!\is_bool($repeatGoesToRepair)) {
+            $errors[] = 'onWorkFailed.repeatGoesToRepair: must be true or false';
+
+            return null;
+        }
         $recovery = $value['recover'] ?? null;
         if (null === $recovery) {
-            return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes);
+            return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, repeatGoesToRepair: $repeatGoesToRepair);
         }
         $recoveryKind = \is_array($recovery) ? ($recovery['kind'] ?? null) : null;
         if (!\is_string($recoveryKind)) {
@@ -1615,7 +1621,7 @@ final readonly class TemplateParser
             return null;
         }
 
-        return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, $recoveryKind);
+        return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, $recoveryKind, $repeatGoesToRepair);
     }
 
     /**

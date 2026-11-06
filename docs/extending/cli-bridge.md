@@ -1946,6 +1946,16 @@ directory. It also fails when the bridge cannot read the command's output. The c
 starts in the folder its transcript records. It starts in the printed folder
 only when the session has no transcript on this machine, or when the recorded
 folder is gone. A recorded folder that the bridge cannot read fails the resume.
+
+A failed `before` command reports its reason on the first line of the run output.
+The second line is `command: <argv>`, the command with its placeholders filled.
+Each argument is shell-quoted, and the line is cut at 300 bytes. The output of the
+command follows. Loupe reads the command and the last output line to find a
+setup failure that repeats (see [workflows](../using/workflows.md)). Pass a
+secret to the `before` command through the environment, never as an argument,
+because the argument now reaches Loupe in this line. A bridge older than this
+release sends no `command:` line, and Loupe then names no command. This release
+is the first CLI version that sends it.
 [The before command](../../cli/README.md#the-before-command) in
 `cli/README.md` gives the fields, the timeouts and the folder contract.
 
