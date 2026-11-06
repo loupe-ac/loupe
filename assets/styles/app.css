@@ -3003,6 +3003,12 @@
     .lp-card-values__internal > .lp-disclosure__summary {
         @apply text-xs text-fg-label;
     }
+    /* The internal rows take one column of the field grid. A phone keeps the full width, so a long caption fits. */
+    .lp-card-values__internal > .lp-disclosure__body {
+        @variant sm {
+            width: calc((100% - var(--spacing) * 6) / 2);
+        }
+    }
     /* A field whose value is a sentence, so it wraps. */
     .lp-card-field--prose dd {
         @apply whitespace-normal font-normal;
