@@ -60,11 +60,15 @@ func isColor(out io.Writer) bool {
 	return ok && term.IsTerminal(int(f.Fd()))
 }
 
-// Write flushes the pending steps, then writes p.
+// Write flushes the pending steps, then writes p with each home path shown
+// as ~/…
 func (w *Writer) Write(p []byte) (int, error) {
 	w.Flush()
+	if _, err := io.WriteString(w.out, ShortPath(string(p))); err != nil {
+		return 0, err
+	}
 
-	return w.out.Write(p)
+	return len(p), nil
 }
 
 // Record adds a step to the pending lines.
@@ -121,7 +125,7 @@ func (w *Writer) render(steps []Step) string {
 func (w *Writer) renderVerbose(steps []Step) string {
 	var b strings.Builder
 	for _, s := range steps {
-		b.WriteString(s.Name + ": " + s.State + ", " + s.Reason + ".\n")
+		b.WriteString(s.Name + ": " + s.State + ", " + ShortPath(s.Reason) + ".\n")
 	}
 
 	return b.String()
@@ -161,18 +165,46 @@ func Table(out io.Writer, header []string, rows [][]string) string {
 	return t.Render() + "\n"
 }
 
-// ShortPath shows a path under the home folder as ~/…
+// ShortPath shows a path under the home folder as ~/… It leaves a path that
+// only holds the home path, such as /home/ann2 or /srv/home/ann.
 func ShortPath(s string) string {
 	home, err := os.UserHomeDir()
-	if err != nil || home == "" || home == "/" {
+	home = strings.TrimSuffix(home, "/")
+	if err != nil || home == "" {
 		return s
 	}
 
-	return strings.ReplaceAll(s, home, "~")
+	var b strings.Builder
+	rest := 0
+	for from := 0; ; {
+		i := strings.Index(s[from:], home)
+		if i < 0 {
+			break
+		}
+		start, end := from+i, from+i+len(home)
+		from = end
+		if start > 0 && (isNameChar(s[start-1]) || s[start-1] == '/' || s[start-1] == '.') {
+			continue
+		}
+		if end < len(s) && isNameChar(s[end]) {
+			continue
+		}
+		b.WriteString(s[rest:start] + "~")
+		rest = end
+	}
+	b.WriteString(s[rest:])
+
+	return b.String()
+}
+
+// isNameChar reports whether c can continue a folder name, so the home path
+// is only the start of a longer name.
+func isNameChar(c byte) bool {
+	return c >= 0x80 || c == '-' || c == '_' || c >= '0' && c <= '9' || c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z'
 }
 
 // Brief is the short result of a step: the first sentence of its reason, cut
-// at 60 characters, with paths under the home folder shortened.
+// at 100 characters, with paths under the home folder shortened.
 func Brief(reason string) string {
 	s := ShortPath(reason)
 	for _, sep := range []string{". ", "; "} {

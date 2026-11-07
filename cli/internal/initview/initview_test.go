@@ -77,3 +77,41 @@ func TestTableHasNoEscapeCodesOutsideATerminal(t *testing.T) {
 		t.Errorf("table = %q", out)
 	}
 }
+
+func TestHomePathsShortenInPromptsAndVerboseSteps(t *testing.T) {
+	t.Setenv("HOME", "/home/ann")
+
+	var out bytes.Buffer
+	w := NewWriter(&out, true)
+	n, err := w.Write([]byte("Set up /home/ann/code/app or /home/ann/code?\n"))
+	if err != nil || n != len("Set up /home/ann/code/app or /home/ann/code?\n") {
+		t.Errorf("Write = %d, %v", n, err)
+	}
+	w.Record(Step{Name: "Codex approval", State: "done", Reason: "wrote /home/ann/.codex/config.toml"})
+	w.Flush()
+
+	want := "Set up ~/code/app or ~/code?\nCodex approval: done, wrote ~/.codex/config.toml.\n"
+	if out.String() != want {
+		t.Errorf("output = %q, want %q", out.String(), want)
+	}
+}
+
+func TestShortPathKeepsAFolderThatOnlySharesTheStart(t *testing.T) {
+	t.Setenv("HOME", "/home/ann")
+
+	cases := map[string]string{
+		"/home/ann":                "~",
+		"/home/ann/x":              "~/x",
+		"in /home/ann.":            "in ~.",
+		"/home/ann2/x":             "/home/ann2/x",
+		"/home/ann_b, /home/ann/c": "/home/ann_b, ~/c",
+		"/home/annü/x":             "/home/annü/x",
+		"/srv/home/ann/x":          "/srv/home/ann/x",
+		"(/home/ann/x)":            "(~/x)",
+	}
+	for in, want := range cases {
+		if got := ShortPath(in); got != want {
+			t.Errorf("ShortPath(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

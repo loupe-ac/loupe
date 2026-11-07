@@ -21,6 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -947,7 +948,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if w.reloads != 1 || w.bridgeStarts != 0 || !strings.Contains(out, "Bridge: done, it reloaded "+path) {
+	if w.reloads != 1 || w.bridgeStarts != 0 || !strings.Contains(out, "Bridge: done, it reloaded "+initview.ShortPath(path)) {
 		t.Errorf("reloads = %d, starts = %d, want 1 and 0:\n%s", w.reloads, w.bridgeStarts, out)
 	}
 
