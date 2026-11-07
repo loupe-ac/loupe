@@ -141,14 +141,14 @@ final class UpdateCommentHandlerTest extends KernelTestCase
         $comment = ($this->addHandler)(new AddCommentCommand($project, 'orig', 'https://app/x'));
         $commentId = $comment->id ?? throw new \LogicException('comment id must not be null');
 
-        $order = [];
+        $order = new \ArrayObject();
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
         $recordingComments = new class($registry, $order) extends SiteReviewCommentRepository {
-            /** @param list<string> $order */
+            /** @param \ArrayObject<int, string> $order */
             public function __construct(
                 ManagerRegistry $registry,
-                private array &$order,
+                private readonly \ArrayObject $order,
             ) {
                 parent::__construct($registry);
             }
@@ -162,10 +162,10 @@ final class UpdateCommentHandlerTest extends KernelTestCase
             }
         };
         $recordingEm = new class($this->em, $order) extends EntityManagerDecorator {
-            /** @param list<string> $order */
+            /** @param \ArrayObject<int, string> $order */
             public function __construct(
                 EntityManagerInterface $em,
-                private array &$order,
+                private readonly \ArrayObject $order,
             ) {
                 parent::__construct($em);
             }
@@ -189,7 +189,7 @@ final class UpdateCommentHandlerTest extends KernelTestCase
 
         $handler(new UpdateCommentCommand($project, $commentId, 'edited'));
 
-        self::assertSame(['lock', 'read'], $order);
+        self::assertSame(['lock', 'read'], $order->getArrayCopy());
     }
 
     public function test_a_locked_comment_is_refused_and_keeps_its_body(): void
