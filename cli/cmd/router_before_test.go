@@ -340,6 +340,40 @@ func TestAnotherCardStartsWhileABeforeCommandRuns(t *testing.T) {
 	}
 }
 
+// The before commands of one project run one at a time, from the list of
+// worktrees until the guard has judged the printed folder. So a new worktree
+// that is not on the list of a run comes from that run alone.
+func TestTheBeforeCommandsOfOneProjectRunOneAtATime(t *testing.T) {
+	h, f, _ := withBefore(t, "1m")
+	f.started = make(chan procSpec, 2)
+	judging, release := make(chan string, 2), make(chan struct{})
+	h.router.worker.folder = func(_ context.Context, c folderCheck) string {
+		judging <- c.card
+		if c.card == cardUUID(1) {
+			<-release
+		}
+
+		return ""
+	}
+
+	h.router.onData([]byte(cardMoved(1)))
+	<-f.started
+	<-judging
+	h.router.onData([]byte(cardMoved(2)))
+	select {
+	case <-f.started:
+		t.Fatal("the before command of card 2 started while the guard judged the folder of card 1")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	<-f.started
+	h.router.wg.Wait()
+
+	if got := startedCards(t, h); !slices.Equal(got, []int{1, 2}) {
+		t.Fatalf("started = %v", got)
+	}
+}
+
 // A work request that resumes the session of an unfinished run runs the
 // before command again, and starts in the folder it prints then.
 func TestAResumeRunsTheBeforeCommandAgain(t *testing.T) {

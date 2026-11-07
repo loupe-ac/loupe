@@ -196,12 +196,15 @@ type workerOps struct {
 	// worktree returns the worktree of a card of a project, and makes it first
 	// when it is missing. A nil one is ensureWorktree.
 	worktree func(ctx context.Context, projectDir, slug string, card int) (string, error)
+	// folder judges the folder a before command printed, and returns the
+	// reason to refuse it, or "". A nil one is checkFolder.
+	folder func(ctx context.Context, c folderCheck) string
 }
 
 func defaultWorkerOps() workerOps {
 	return workerOps{
 		run: runWorker, adopt: adoptWorker, sessionID: config.NewUUID, before: runBefore, adoptBefore: adoptBeforeProc,
-		command: runRuleCommand, adoptCommand: adoptRuleCommand, worktree: ensureWorktree,
+		command: runRuleCommand, adoptCommand: adoptRuleCommand, worktree: ensureWorktree, folder: checkFolder,
 	}
 }
 

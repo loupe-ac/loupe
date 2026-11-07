@@ -43,10 +43,37 @@ type Site struct {
 	// DiscoveryRemains says whether the owner still has to start discovery. nil
 	// means the app sent none, as an older app or the create call does.
 	DiscoveryRemains *bool `json:"discoveryRemains"`
+	// GitHub holds the GitHub facts of the project. nil means the app sent
+	// none, as an older app or the create call does, and every fact reads as
+	// unknown.
+	GitHub *GitHubFacts `json:"github"`
 	// Domain and AllowedOrigins come back from the create call only. An
 	// instance that predates them leaves both empty.
 	Domain         string   `json:"domain"`
 	AllowedOrigins []string `json:"allowedOrigins"`
+}
+
+// GitHubFacts is what the app knows of the GitHub repositories of a project.
+type GitHubFacts struct {
+	// AppInstalled says the Loupe GitHub App is installed for the project.
+	AppInstalled bool               `json:"appInstalled"`
+	Repositories []GitHubRepository `json:"repositories"`
+}
+
+// GitHubRepository is one GitHub repository of a project. A nil pointer
+// means the app does not know the fact yet.
+type GitHubRepository struct {
+	Path string `json:"path"`
+	// AppInstalled says a live installation of the Loupe GitHub App
+	// delivers this repository. nil means an older app sent no value.
+	AppInstalled  *bool   `json:"appInstalled"`
+	DefaultBranch *string `json:"defaultBranch"`
+	// RulesRead is "ok", "plan-limited" or "refused".
+	RulesRead      *string `json:"rulesRead"`
+	ReviewRequired *bool   `json:"reviewRequired"`
+	// MergeApproval is "agent" or "person". nil means no source sets it.
+	MergeApproval       *string `json:"mergeApproval"`
+	MergeApprovalSource string  `json:"mergeApprovalSource"`
 }
 
 // PackagesIn returns the skill packages a worker of the site needs, from the

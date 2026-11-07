@@ -253,6 +253,8 @@ final class FactsMother
         bool $reviewRequired = false,
         bool $baseAhead = false,
         bool $updateRefusedOnHead = false,
+        bool $mergeApprovalUnanswered = false,
+        bool $mergeApprovalNeedsPerson = false,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -287,6 +289,8 @@ final class FactsMother
             reviewRequired: $reviewRequired,
             baseAhead: $baseAhead,
             updateRefusedOnHead: $updateRefusedOnHead,
+            mergeApprovalUnanswered: $mergeApprovalUnanswered,
+            mergeApprovalNeedsPerson: $mergeApprovalNeedsPerson,
         );
     }
 

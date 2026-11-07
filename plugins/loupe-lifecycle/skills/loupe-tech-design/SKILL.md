@@ -15,8 +15,8 @@ Never move the card. The workflow asked for this session, and the owner's approv
 
 ## Procedure
 
-1. Load the `loupe-board`, `loupe-documents` and `loupe-interviewing` instructions. Load the tech design instructions that the profile `Instruction files` section names, and read the design inputs they name. They are required inputs.
-2. Read `.loupe/lifecycle.md` for the writing style and the `Documents` tags. When the file is missing, write plainly.
+1. Load the `loupe-board`, `loupe-documents` and `loupe-interviewing` instructions. Run the routing check, and load the skills that the `### Tech design` heading routes. Read the design inputs they name. They are required inputs.
+2. Read the `Documents` tags in `.loupe/lifecycle.md`. The writing style comes from the routed skills and the instruction files. When they name none, write plainly.
 3. Read `references/session-flow.md`, `../loupe-stage-tech-design/references/tech-document.md`, `../loupe-interviewing/SKILL.md` and `../loupe-interviewing/references/delegation.md`. Follow them for the whole session.
 4. Call `card_get`. Read the tags of each linked document with `document_get`, as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
    - With an approved tech design, stop and tell the owner.

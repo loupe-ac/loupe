@@ -18,7 +18,7 @@ A card that needs no product design does not use this skill. The owner moves it 
 
 ## Phases
 
-1. P0: Start. Get the card into the Product design column, with the slug from the profile, and open an interactive run on it.
+1. P0: Start. Get the card into the Product design column, with the slug `product-design`, and open an interactive run on it.
    - With no card, call `card_search` first with words from the prompt, when the tool exists. Show the owner each close match. When the owner picks one, use that card, and follow the rules for a card below.
    - With no card that the owner picks, call `card_create` with `status` set to the slug and `reporter` set to `human`. Take the title and the body from the prompt. Set `type` to `feature`, or to the type the prompt names. A create writes no move event.
    - When `card_create` refuses the slug, create the card with no `status`. Tell the owner that an approval will not move the card. Then open the run as below.
@@ -41,7 +41,7 @@ A card that needs no product design does not use this skill. The owner moves it 
    - In a Full session, first find two or three products, also when the solution is obvious. Choose products that solve the same problem. Use a subagent or a web search, when the tools exist. The findings go in "How others do it".
 5. P5: Scope. Fix the first slice, which is the smallest end-to-end slice that works. Fix the no-gos, and what waits for later.
    - In a Full session, then name two or three trade-offs that this feature faces. Ask the owner to pick a side on each (Q7). The answers go in "Priorities".
-6. P6: Behaviour. Settle the main journeys, the empty and error states, and who may act. Work through the coverage checklist of `question-rules.md`. Ask about the documentation checks that the profile names. With no profile, ask none.
+6. P6: Behaviour. Settle the main journeys, the empty and error states, and who may act. Work through the coverage checklist of `question-rules.md`. Ask about the documentation checks that the routed skills and the instruction files name. When they name none, ask none.
 7. P7: Human review. Ask one question: "Must a person review the pull request for this card?"
    - Ask with AskUserQuestion, with the options "Yes, a person reviews it" and "No, the agent review is enough". Recommend "Yes" when the change alters what a person sees and the session made or linked a prototype. Recommend "No" otherwise. Mark the recommended option "(Recommended)".
    - Read the card with `card_get` before you ask. When `requiresHumanReview` is already true, say so in the question, and keep "Yes" as the first option.

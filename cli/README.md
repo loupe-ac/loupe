@@ -278,6 +278,10 @@ Opens the Live review panel for the current folder, beside the iOS Simulator in 
 
 A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
 
+## `loupe hook` (hidden helpers)
+
+`loupe hook worktree-create` and `loupe hook worktree-remove` run the `WorktreeCreate` and `WorktreeRemove` hooks of a project's `.claude/settings.json` as bridge commands. They are hidden, because the bridge runs them and a person seldom does. They need the first CLI release after 2.3.0. [Reuse the worktree hooks of Claude Code](../docs/extending/cli-bridge.md#reuse-the-worktree-hooks-of-claude-code) gives the rule file entries, the payload and the claim.
+
 ## `loupe init`
 
 Sets Loupe up for the repository you stand in. Run it once after you install the
@@ -366,10 +370,10 @@ loupe init --repoint             # point a rule file entry that maps another fol
    subfolder, such as `e2e/`. It asks first, and runs
    `npx playwright install chromium` in the folder of that `package.json`, so
    the browser matches the Playwright version of that package.
-10. Write the repository profile with an agent, when the workflow of the project
-   needs one and `.loupe/lifecycle.md` is missing, lacks a section or holds a
-   value that reads "owner to fill in". `--review-profile` starts the agent also
-   for a complete file. `--agent` picks `claude` or `codex`. With both on the
+10. Start an agent that looks for blockers, when the workflow of the project
+   needs a profile and `.loupe/lifecycle.md` is missing. The agent writes
+   nothing to that file. `--review-profile` starts the agent also when the file
+   exists. `--agent` picks `claude` or `codex`. With both on the
    `PATH` and a terminal, the command asks once. With no terminal or no agent,
    it prints the prompt to paste.
 11. Report the account check. Before step 10, the command prints each account
@@ -417,7 +421,7 @@ belongs to. `loupe init` runs it for you.
 ```bash
 loupe project link                       # choose from the projects your login covers
 loupe project link --project <uuid>      # name the project yourself
-loupe project link --force               # replace an existing file
+loupe project link --force               # set the project in an existing file, keep other keys
 loupe project link --mcp                 # declare `loupe mcp` to Claude Code without asking
 loupe project link --no-mcp              # leave the MCP server alone without asking
 loupe project link --mcp-json            # write .mcp.json instead, to commit the server
@@ -1311,6 +1315,13 @@ names the folder where the worker starts. A relative path resolves against the
 project's `dir`. When the command prints nothing, the worker starts in the
 project's `dir`. Claude Code's `WorktreeCreate` hook uses the same contract, so
 one script can serve both.
+
+A printed folder must pass the folder guard. It must be the top of a linked worktree of the
+project repository, no other live run of the bridge may work in it, and it must
+belong to the card. The bridge keeps the card id in the file `loupe-card` in the
+git directory of the worktree. A failed check ends the run with a reason that
+starts `folder-refused`. The [folder guard](../docs/extending/cli-bridge.md#folder-guard)
+documents the claim and the adoption of worktrees that existed before the guard.
 
 The command runs after the run leaves the queue. It holds the run's worker slot
 and its card, so no other run of the card starts while it runs. Other cards

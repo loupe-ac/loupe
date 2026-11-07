@@ -13,12 +13,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const script = fileURLToPath(
     new URL(
-        '../../plugins/loupe-lifecycle/skills/loupe-stage-implementation/references/prepush-check.sh',
+        '../../.agents/skills/project-review/references/prepush-check.sh',
         import.meta.url,
     ),
 );
 const repoProfile = fileURLToPath(
-    new URL('../../.loupe/lifecycle.md', import.meta.url),
+    new URL('../../.agents/skills/project-review/SKILL.md', import.meta.url),
 );
 
 const gitEnv = {

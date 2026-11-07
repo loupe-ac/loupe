@@ -26,6 +26,25 @@ final class ForgeRepositoryCheckRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<ForgeRepository> $repositories
+     *
+     * @return array<string, ForgeRepositoryCheck> the stored check of each repository that has one, by repository id
+     */
+    public function findByRepositories(array $repositories): array
+    {
+        if ([] === $repositories) {
+            return [];
+        }
+
+        $byRepository = [];
+        foreach ($this->findBy(['repository' => $repositories]) as $check) {
+            $byRepository[(string) $check->repository->id] = $check;
+        }
+
+        return $byRepository;
+    }
+
+    /**
      * Reads the rows from the database and skips the identity map, because a
      * row can change in another session while this one holds the project lock.
      *

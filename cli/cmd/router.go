@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -94,7 +95,17 @@ type router struct {
 	// sampler is the running host sampler, or nil. samplerMu guards it, and
 	// is taken before mu.
 	samplerMu sync.Mutex
-	sampler   *hostSampler
+	// folderMu runs one folder guard check at a time.
+	folderMu sync.Mutex
+	// beforeLocks holds one lock per project folder, under mu. A run holds
+	// the lock of its project from its list of worktrees until the guard has
+	// judged the folder it printed, so a new worktree that is not on the list
+	// comes from this run and from no other before command of the bridge.
+	beforeLocks map[string]chan struct{}
+	// adoptedBefore counts, per project folder, the runs adopted in their
+	// before phase that share the before lock of that project, under mu.
+	adoptedBefore map[string]int
+	sampler       *hostSampler
 	// hostAfter and hostSample stand in for time.After and the host reader in
 	// a test. Nil uses the real ones.
 	hostAfter  func(time.Duration) <-chan time.Time
@@ -229,6 +240,10 @@ type router struct {
 	paused bool
 	frozen bool
 	live   map[string]liveRun
+	// folders maps a run to the folder the guard let it start in, from the
+	// check until the run ends. A run between its before command and its
+	// worker is in no live list, so the guard reads this map instead.
+	folders map[string]string
 	// rulesPath and logPath are the files the bridge reads and writes, and
 	// lastError tracks the last warning of its log. The status op reports them.
 	rulesPath, logPath string
@@ -1240,7 +1255,8 @@ func (r *router) freshSession(p pending, msg, why string) (pending, string) {
 
 // prepare runs the before command of the run's rule in the project dir, in
 // the slot the run holds, and reports preparing once it exists. A person's
-// stop reaches it as it reaches a worker.
+// stop reaches it as it reaches a worker. It holds the before lock of the
+// project until the folder guard has judged the printed folder.
 func (r *router) prepare(p pending) {
 	began := time.Now()
 	onStart := func(proc workerProc) {
@@ -1258,11 +1274,92 @@ func (r *router) prepare(p pending) {
 	if run == nil {
 		run = runBefore
 	}
+	unlock, err := r.lockProject(r.workerContext(), p.spec.dir)
+	if err != nil {
+		// Only a shutdown ends the wait, and afterBefore reports it as one.
+		r.afterBefore(p, began, procResult{guarded: true})
+
+		return
+	}
+	if runs, err := config.RunsDir(); err == nil {
+		writeWorktreeSnapshot(r.workerContext(), p.spec.dir, filepath.Join(runs, p.runID))
+	}
 	timeout := cmp.Or(p.spec.before.Timeout, rules.DefaultBeforeTimeout)
 	ctx, cancel := context.WithTimeout(r.workerContext(), timeout)
 	res := run(ctx, procSpec{argv: p.spec.before.Argv, dir: p.spec.dir, runID: p.runID}, onStart)
 	cancel()
+	res = r.guardFolder(p, res)
+	unlock()
 	r.afterBefore(p, began, res)
+}
+
+// lockProject waits for the before lock of the project folder dir, and
+// returns its release. It fails when ctx ends first.
+func (r *router) lockProject(ctx context.Context, dir string) (func(), error) {
+	key := realPath(dir)
+	r.mu.Lock()
+	lock := r.beforeLockLocked(key)
+	r.mu.Unlock()
+	select {
+	case lock <- struct{}{}:
+		return func() { <-lock }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// beforeLockLocked returns the before lock of the project folder key, and
+// makes it on first use. The caller holds mu.
+func (r *router) beforeLockLocked(key string) chan struct{} {
+	if r.beforeLocks == nil {
+		r.beforeLocks = map[string]chan struct{}{}
+	}
+	lock, ok := r.beforeLocks[key]
+	if !ok {
+		lock = make(chan struct{}, 1)
+		r.beforeLocks[key] = lock
+	}
+
+	return lock
+}
+
+// reserveProjectLocked takes the before lock of the project folder dir for a
+// run adopted in its before phase, and returns its release. The adopted runs
+// of one project share the lock, and the last release frees it. adopt runs
+// before the router subscribes, so no new run holds the lock and the take
+// never waits. The caller holds mu.
+func (r *router) reserveProjectLocked(dir string) func() {
+	key := realPath(dir)
+	lock := r.beforeLockLocked(key)
+	if r.adoptedBefore == nil {
+		r.adoptedBefore = map[string]int{}
+	}
+	if r.adoptedBefore[key] == 0 {
+		lock <- struct{}{}
+	}
+	r.adoptedBefore[key]++
+
+	return sync.OnceFunc(func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.adoptedBefore[key]--
+		if r.adoptedBefore[key] == 0 {
+			delete(r.adoptedBefore, key)
+			<-lock
+		}
+	})
+}
+
+// guardFolder runs the folder guard once on the folder that res names, and
+// records a refusal as the failure of the before command.
+func (r *router) guardFolder(p pending, res procResult) procResult {
+	if res.guarded || res.failure() != "" || res.dir == "" || res.noFolder {
+		return res
+	}
+	res.guarded = true
+	res.reason = r.refuseFolder(p, res)
+
+	return res
 }
 
 // afterBefore starts claude in the folder the before command printed, or ends
@@ -1270,6 +1367,7 @@ func (r *router) prepare(p pending) {
 // shuts down. A handover in progress holds the start back and keeps the run
 // in its before phase, so the next image adopts it from its files.
 func (r *router) afterBefore(p pending, began time.Time, res procResult) {
+	res = r.guardFolder(p, res)
 	failure := res.failure()
 	r.quiesce.RLock()
 	r.mu.Lock()
@@ -1319,6 +1417,46 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	}
 	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+}
+
+// refuseFolder runs the folder guard on the folder the before command printed,
+// and returns the reason to refuse it, or "". A before command that printed no
+// folder keeps the project dir and is not judged.
+func (r *router) refuseFolder(p pending, res procResult) string {
+	check := checkFolder
+	if r.worker.folder != nil {
+		check = r.worker.folder
+	}
+	card, _ := cardOf(p.event)
+	c := folderCheck{folder: res.dir, project: p.spec.dir, card: card, runDir: res.runDir}
+	// One check at a time, so two runs cannot both find a folder free and
+	// both start in it. The git calls of a check stay outside mu.
+	r.folderMu.Lock()
+	defer r.folderMu.Unlock()
+	r.mu.Lock()
+	for id, run := range r.live {
+		if id != p.runID && !run.before {
+			c.busy = append(c.busy, run.p.spec.dir)
+		}
+	}
+	for id, dir := range r.folders {
+		if id != p.runID {
+			c.busy = append(c.busy, dir)
+		}
+	}
+	r.mu.Unlock()
+
+	why := check(r.workerContext(), c)
+	if why == "" {
+		r.mu.Lock()
+		if r.folders == nil {
+			r.folders = map[string]string{}
+		}
+		r.folders[p.runID] = realPath(res.dir)
+		r.mu.Unlock()
+	}
+
+	return why
 }
 
 // resolveVariant is the settings and the variant of a run in an experiment. The
@@ -1415,6 +1553,7 @@ func (r *router) settle(p pending, e endedRun) {
 		close(run.ended)
 		delete(r.live, p.runID)
 	}
+	delete(r.folders, p.runID)
 	if r.frozen {
 		r.wg.Add(1)
 		r.heldFinishes = append(r.heldFinishes, func() {

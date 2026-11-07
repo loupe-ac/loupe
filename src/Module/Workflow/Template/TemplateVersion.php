@@ -10,7 +10,7 @@ final readonly class TemplateVersion
     public const int LENGTH = 12;
 
     /** The keys that each project owns, so a stored copy and its shipped source give the same hash. */
-    private const array IGNORED_KEYS = ['version', 'epicBranch', 'approvalCoversConflictResolution'];
+    private const array IGNORED_KEYS = ['version', 'settingValues', 'approvalCoversConflictResolution'];
 
     /** @param array<mixed> $definition a template array, from a shipped YAML file or from a stored copy */
     public static function of(array $definition): string

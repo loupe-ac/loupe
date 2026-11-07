@@ -10,6 +10,7 @@ use App\Module\Workflow\Contract\ReadsDocumentTag;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
 
 final readonly class Template
@@ -20,6 +21,11 @@ final readonly class Template
 
     /** A Git branch name that holds the epic number placeholder exactly once. */
     public const string EPIC_BRANCH_RULE = '/^(?!.*\{number\}.*\{number\})(?!.*\.\.)(?!.*\.lock(?:\/|$))(?=.*\{number\})(?:[A-Za-z0-9_]|\{number\})(?:[A-Za-z0-9._-]|\{number\}|\/(?![\/.-]))*(?<![.\/])$/D';
+
+    /** The settings that name the epic branches of a project. */
+    public const string SETTING_EPIC_BRANCHES = 'epic-branches';
+
+    public const string SETTING_EPIC_BRANCH_PATTERN = 'epic-branch-pattern';
 
     /** A metric or an outcome key: lowercase words joined with hyphens, at most 64 characters. */
     public const string KEY_PATTERN = '/^(?=.{1,64}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/D';
@@ -43,7 +49,6 @@ final readonly class Template
      * @param list<ManualMove>                $manualMoves
      * @param list<int>                       $backoffMinutes
      * @param array<string, list<ActionCall>> $childChoices                     the actions of each choice an agent states for a card it files under a parent, by `inherit` or `own`
-     * @param ?string                         $epicBranch                       the branch of an epic, with the card number as the placeholder, or null when the template has no epic branches
      * @param list<string>                    $agentReviewFailingSeverities     the severities of a finding that fail an agent review
      * @param list<TemplateMarker>            $markers                          the card markers, in template order
      * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
@@ -54,6 +59,9 @@ final readonly class Template
      * @param list<TemplateValueKey>          $values                           the value keys a card can hold, in template order
      * @param ?list<string>                   $skillPackages                    the skill packages a worker of the project needs, or null when the stored copy names none
      * @param ?bool                           $needsProfile                     whether the project needs a repository profile, or null when the stored copy says nothing
+     * @param list<TemplateSetting>           $settings                         the settings the template declares, in template order
+     * @param list<string>                    $requirements                     the written requirements of the workflow, in template order
+     * @param array<string, bool|string>      $settingValues                    the values this project states for its settings of the project scope
      */
     public function __construct(
         public string $key,
@@ -66,7 +74,6 @@ final readonly class Template
         public string $defaultType,
         public ?WorkFailurePolicy $onWorkFailed = null,
         public array $childChoices = [],
-        public ?string $epicBranch = null,
         public array $agentReviewFailingSeverities = self::DEFAULT_AGENT_REVIEW_FAILING_SEVERITIES,
         public array $markers = [],
         public bool $approvalCoversConflictResolution = true,
@@ -77,6 +84,9 @@ final readonly class Template
         public array $values = [],
         public ?array $skillPackages = null,
         public ?bool $needsProfile = null,
+        public array $settings = [],
+        public array $requirements = [],
+        public array $settingValues = [],
     ) {
     }
 
@@ -94,9 +104,34 @@ final readonly class Template
             && \count($value) === \count(array_unique($value));
     }
 
+    public function setting(string $key): ?TemplateSetting
+    {
+        return array_find($this->settings, static fn (TemplateSetting $setting): bool => $setting->key === $key);
+    }
+
+    /** The value this project states for a setting of the project scope, else the declared default, else null. */
+    public function projectSettingValue(string $key): string|bool|null
+    {
+        return $this->settingValues[$key] ?? $this->setting($key)?->default;
+    }
+
+    /** The epic branch pattern of the project with {number} for the card number, or null when the project has no epic branches. */
+    public function epicBranchPattern(): ?string
+    {
+        return self::epicBranchPatternOf($this->projectSettingValue(self::SETTING_EPIC_BRANCHES), $this->projectSettingValue(self::SETTING_EPIC_BRANCH_PATTERN));
+    }
+
+    /** The pattern when the project has epic branches on and a pattern, else null. */
+    public static function epicBranchPatternOf(mixed $enabled, mixed $pattern): ?string
+    {
+        return true === $enabled && \is_string($pattern) ? $pattern : null;
+    }
+
     public function epicBranchOf(int $number): ?string
     {
-        return null === $this->epicBranch ? null : str_replace(self::EPIC_BRANCH_NUMBER, (string) $number, $this->epicBranch);
+        $pattern = $this->epicBranchPattern();
+
+        return null === $pattern ? null : str_replace(self::EPIC_BRANCH_NUMBER, (string) $number, $pattern);
     }
 
     /** @return list<string> the document tag of each rule whose request has the design review role, each once */

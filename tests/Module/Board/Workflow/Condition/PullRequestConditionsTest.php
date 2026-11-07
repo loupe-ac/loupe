@@ -24,6 +24,8 @@ use App\Module\Board\Workflow\Condition\PullRequestDraft;
 use App\Module\Board\Workflow\Condition\PullRequestDraftOpen;
 use App\Module\Board\Workflow\Condition\PullRequestForgeRequestPending;
 use App\Module\Board\Workflow\Condition\PullRequestLinked;
+use App\Module\Board\Workflow\Condition\PullRequestMergeApprovalNeedsPerson;
+use App\Module\Board\Workflow\Condition\PullRequestMergeApprovalUnanswered;
 use App\Module\Board\Workflow\Condition\PullRequestMergeBlocked;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestParentMerged;
@@ -87,6 +89,10 @@ final class PullRequestConditionsTest extends TestCase
         yield 'approval check passed' => [new PullRequestApprovalCheckPassed(), [], self::current(approvalCheckPassed: true), true];
         yield 'approval check not passed' => [new PullRequestApprovalCheckPassed(), [], self::current(approvalCheckPassed: false), false];
         yield 'can post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: true), true];
+        yield 'merge approval needs a person' => [new PullRequestMergeApprovalNeedsPerson(), [], self::current(mergeApprovalNeedsPerson: true), true];
+        yield 'merge approval needs no person' => [new PullRequestMergeApprovalNeedsPerson(), [], self::current(mergeApprovalNeedsPerson: false), false];
+        yield 'merge approval unanswered' => [new PullRequestMergeApprovalUnanswered(), [], self::current(mergeApprovalUnanswered: true), true];
+        yield 'merge approval answered' => [new PullRequestMergeApprovalUnanswered(), [], self::current(mergeApprovalUnanswered: false), false];
         yield 'cannot post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: false), false];
         yield 'base ahead' => [new PullRequestBaseAhead(), [], self::current(baseAhead: true), true];
         yield 'base not ahead' => [new PullRequestBaseAhead(), [], self::current(baseAhead: false), false];
@@ -188,6 +194,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), []];
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), []];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), []];
+        yield 'pr.merge_approval_needs_person' => [new PullRequestMergeApprovalNeedsPerson(), []];
+        yield 'pr.merge_approval_unanswered' => [new PullRequestMergeApprovalUnanswered(), []];
         yield 'pr.base_ahead' => [new PullRequestBaseAhead(), []];
         yield 'pr.can_update_branch' => [new PullRequestCanUpdateBranch(), []];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), []];
@@ -234,6 +242,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.behind' => [new PullRequestBehind(), [], 'pr_behind', [], [EngineFact::PullRequest, EngineFact::PullRequestHead]];
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), [], 'pr_approval_check_passed', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), [], 'pr_can_post_check', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
+        yield 'pr.merge_approval_needs_person' => [new PullRequestMergeApprovalNeedsPerson(), [], 'pr_merge_approval_needs_person', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
+        yield 'pr.merge_approval_unanswered' => [new PullRequestMergeApprovalUnanswered(), [], 'pr_merge_approval_unanswered', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.base_ahead' => [new PullRequestBaseAhead(), [], 'pr_base_ahead', [], [EngineFact::PullRequest, EngineFact::PullRequestBaseUpdate]];
         yield 'pr.can_update_branch' => [new PullRequestCanUpdateBranch(), [], 'pr_can_update_branch', [], [EngineFact::PullRequest, EngineFact::PullRequestBaseUpdate, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), [], 'pr_merge_blocked', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
@@ -280,6 +290,8 @@ final class PullRequestConditionsTest extends TestCase
         bool $reviewRequired = false,
         bool $baseAhead = false,
         bool $updateRefusedOnHead = false,
+        bool $mergeApprovalUnanswered = false,
+        bool $mergeApprovalNeedsPerson = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -302,6 +314,8 @@ final class PullRequestConditionsTest extends TestCase
             reviewRequired: $reviewRequired,
             baseAhead: $baseAhead,
             updateRefusedOnHead: $updateRefusedOnHead,
+            mergeApprovalUnanswered: $mergeApprovalUnanswered,
+            mergeApprovalNeedsPerson: $mergeApprovalNeedsPerson,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

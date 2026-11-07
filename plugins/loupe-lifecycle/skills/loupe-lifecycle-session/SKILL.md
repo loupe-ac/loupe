@@ -15,7 +15,7 @@ Call `workflow_get` first. The skill applies only when the answer has the templa
 
 ## Procedure
 
-1. Load the `loupe-board` instruction. Read the `Board` section of `.loupe/lifecycle.md` for the Implementation slug. With no such line, use `implementation`.
+1. Load the `loupe-board` instruction. The Implementation slug is `implementation`. Run the routing check, and load the skills that the `### Implementation` heading routes, at the moments its lines name.
 2. Call `card_search` for the work. Reuse a card that exists. Otherwise call `card_create` with no `status`, so the card lands in Backlog. Never create the card in Implementation, because a worker would start before you open the run.
 3. Call `card_run_open` with `status` set to the Implementation slug, and the name `loupe:lifecycle-session`. Pass your session id as `loupe-board` and the tool say.
 4. Read the answer.
