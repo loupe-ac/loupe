@@ -13,8 +13,19 @@ file=${1:-.loupe/lifecycle.md}
 [ -r "$file" ] || exit 0
 
 rows=$(awk '
+  BEGIN {
+    n = split("Product design|Tech design|Implementation|Fix round|Review|Design review|Merge|Epic preview|Discovery", k, "|")
+    for (i = 1; i <= n; i++) known[k[i]] = 1
+  }
   /^## / { routing = ($0 == "## Routing"); next }
-  !routing || /^### / || /^[[:space:]]*$/ { next }
+  /^### / {
+    if (!routing) next
+    h = substr($0, 5); sub(/[[:space:]]+$/, "", h)
+    if (!(h in known)) { print "bad " NR ": " $0 " (unknown stage heading)"; next }
+    if (h in seen) { print "bad " NR ": " $0 " (repeated stage heading)"; next }
+    seen[h] = 1; next
+  }
+  !routing || /^[[:space:]]*$/ { next }
   /^Load skill `[^`]+` .*[^[:space:]]\.[[:space:]]*$/ { split($0, p, "`"); print "name " p[2]; next }
   { print "bad " NR ": " $0 }
 ' "$file")
