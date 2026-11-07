@@ -385,6 +385,213 @@ describe('the delivery id', () => {
     });
 });
 
+const BACKLOG = { id: 'col-backlog', name: 'Backlog', hint: null };
+const TECH = {
+    id: 'col-tech',
+    name: 'Tech design',
+    hint: 'An agent writes the tech design.',
+};
+const START_COLUMNS = [
+    BACKLOG,
+    { id: 'col-next', name: 'Next', hint: null },
+    TECH,
+];
+
+/** A boot answer that offers start columns, and a save answer built by `saved`. */
+const bootWithColumns = (columns, saved) => (url, init) => {
+    if (init && init.method === 'POST') {
+        return ok(
+            saved || {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: null,
+                url: 'https://loupe.example/card',
+            },
+        );
+    }
+
+    return ok({ comments: [], context: null, startColumns: columns });
+};
+
+describe('the start column', () => {
+    it('shows the select for a per-note choice with its hint', async () => {
+        bootWidget({
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        const select = root.getElementById('lp-picker-start-select');
+        expect(root.getElementById('lp-picker-start').style.display).toBe('');
+        expect([...select.options].map((option) => option.textContent)).toEqual(
+            ['Backlog', 'Next', 'Tech design'],
+        );
+        select.value = TECH.id;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(root.getElementById('lp-picker-start-hint').textContent).toBe(
+            TECH.hint,
+        );
+        root.getElementById('lp-destination-save').click();
+        await settle();
+
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: TECH.id,
+        });
+    });
+
+    it('hides the select when only the Backlog is offered', async () => {
+        bootWidget({ respond: bootWithColumns([BACKLOG]) });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        expect(root.getElementById('lp-picker-start').style.display).toBe(
+            'none',
+        );
+    });
+
+    it('hides the select for a preview token, which gets no columns', async () => {
+        bootWidget({ respond: bootWithColumns([]) });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        expect(root.getElementById('lp-picker-start').style.display).toBe(
+            'none',
+        );
+    });
+
+    it('names the kept column in the composer line and sends it with the save', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'The hero image is blurry');
+
+        expect(targetText(root)).toBe('a new card in Tech design');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({
+            newCard: { startColumnId: TECH.id },
+        });
+        expect(savedNotice()).toBe('Note saved to #12 Note');
+    });
+
+    it('sends no column for the Backlog', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: null },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        expect(targetText(root)).toBe('a new card');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
+    });
+
+    it('drops a kept column that the server no longer offers', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: 'gone' },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('says which column was refused and clears the kept column', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns(START_COLUMNS, {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: 'Tech design',
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('keeps the same delivery id when only the column changes', async () => {
+        let attempt = 0;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: (url, init) => {
+                if (init && init.method === 'POST') {
+                    attempt += 1;
+                    if (attempt === 1) return rejected(500, {});
+                }
+
+                return bootWithColumns(START_COLUMNS)(url, init);
+            },
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+        const select = () => root.getElementById('lp-picker-start-select');
+        root.getElementById('lp-context').querySelector('button').click();
+        await settle();
+        select().value = BACKLOG.id;
+        select().dispatchEvent(new Event('change', { bubbles: true }));
+        root.getElementById('lp-destination-save').click();
+        await settle();
+        root.getElementById('lp-save').click();
+        await settle();
+
+        const saves = fetchMock.mock.calls
+            .filter(
+                ([url, init]) =>
+                    init && init.method === 'POST' && url.endsWith('/feedback'),
+            )
+            .map(([, init]) => JSON.parse(init.body));
+        expect(saves).toHaveLength(2);
+        expect(saves[1].deliveryId).toBe(saves[0].deliveryId);
+        expect(saves[1].target).toEqual({ newCard: {} });
+    });
+});
+
 describe('the mode picker', () => {
     it('keeps focus in the visible view after Back and after a choice', async () => {
         bootWidget({ respond: () => ok({ comments: [], context: null }) });

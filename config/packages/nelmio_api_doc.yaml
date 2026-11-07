@@ -1241,6 +1241,8 @@ when@dev: &generator
                                 - cardId
                                 - number
                                 - label
+                                - column
+                                - startRefused
                                 - url
                                 properties:
                                     commentId:
@@ -1253,6 +1255,13 @@ when@dev: &generator
                                         type: integer
                                     label:
                                         type: string
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                                    startRefused:
+                                        type: string
+                                        nullable: true
+                                        description: The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.
                                     url:
                                         type: string
                                         format: uri
@@ -1270,6 +1279,7 @@ when@dev: &generator
                                 - projectId
                                 - drawingEnabled
                                 - parentTypes
+                                - startColumns
                                 - context
                                 - comments
                                 properties:
@@ -1291,6 +1301,24 @@ when@dev: &generator
                                                     type: string
                                                 label:
                                                     type: string
+                                    startColumns:
+                                        type: array
+                                        description: The columns a new card may start in, with Backlog first. It is empty for a preview token.
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - name
+                                            - hint
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                name:
+                                                    type: string
+                                                hint:
+                                                    type: string
+                                                    nullable: true
                                     context:
                                         type: object
                                         required:

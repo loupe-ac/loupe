@@ -228,7 +228,7 @@ final class PublishCardChangedOnCardChangedTest extends KernelTestCase
             $this->project,
             'the launcher overlaps the footer',
             'https://preview/x',
-        ));
+        ))->link;
 
         // Guard: the note made the card, so the create is the only message.
         self::assertTrue($link->createdCard);
@@ -347,7 +347,7 @@ final class PublishCardChangedOnCardChangedTest extends KernelTestCase
                 'the launcher overlaps the footer',
                 'https://preview/x',
                 cardId: (string) $card->id,
-            ))->comment;
+            ))->link->comment;
         }
 
         return $this->service(AddCommentHandler::class)(new AddCommentCommand(

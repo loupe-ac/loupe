@@ -17,6 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AddFeedbackApiTest extends WebTestCase
 {
@@ -45,18 +46,62 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertSame($data['commentId'], (string) $links[0]->comment->id);
     }
 
-    public function test_a_note_goes_under_an_epic(): void
+    public function test_a_note_starts_its_card_in_the_chosen_column(): void
     {
         $client = static::createClient();
-        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-epic@example.com');
-        $epic = $this->card($project, 'backlog', 1, 'epic');
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-start@example.com');
+        $column = $this->column($project, 'in-progress');
 
-        $data = $this->post($client, $raw, $this->note(['newCard' => ['parentCardId' => (string) $epic->id]]));
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $column->id]]));
 
         self::assertResponseStatusCodeSame(201);
+        self::assertNull($data['startRefused']);
+        self::assertSame($this->translated($column->label), $data['column']);
         $card = $this->service(CardRepository::class)->find($data['cardId']);
         self::assertInstanceOf(Card::class, $card);
-        self::assertSame((string) $epic->id, (string) $card->parent?->id);
+        self::assertSame('in-progress', $card->column->slug);
+    }
+
+    public function test_a_note_with_no_start_column_lands_in_backlog(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-backlog@example.com');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
+
+        self::assertNull($data['startRefused']);
+        self::assertSame($this->translated($this->column($project, 'backlog')->label), $data['column']);
+    }
+
+    public function test_a_column_of_another_project_lands_in_backlog_and_is_named_as_refused(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-foreign-column@example.com');
+        [, $other] = $this->projectWithToken($client, 'feedback-api-foreign-column-other@example.com');
+        $foreign = $this->column($other, 'in-progress');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $foreign->id]]));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('', $data['startRefused']);
+        $card = $this->service(CardRepository::class)->find($data['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
+        self::assertSame($project->id?->toRfc4122(), $card->project->id?->toRfc4122());
+    }
+
+    public function test_a_terminal_column_is_refused_as_a_start(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-terminal-start@example.com');
+        $done = $this->column($project, 'done');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $done->id]]));
+
+        self::assertSame($this->translated($done->label), $data['startRefused']);
+        $card = $this->service(CardRepository::class)->find($data['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
     }
 
     /**
@@ -411,6 +456,14 @@ final class AddFeedbackApiTest extends WebTestCase
         $this->em()->flush();
 
         return $card;
+    }
+
+    private function translated(string $label): string
+    {
+        $translator = self::getContainer()->get(TranslatorInterface::class);
+        self::assertInstanceOf(TranslatorInterface::class, $translator);
+
+        return $translator->trans($label);
     }
 
     /**

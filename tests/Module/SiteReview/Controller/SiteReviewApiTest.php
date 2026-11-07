@@ -716,11 +716,15 @@ final class SiteReviewApiTest extends WebTestCase
         $em = $this->em();
 
         $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/review', $raw);
+        $boot = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($boot);
+        self::assertSame('Backlog', $boot['startColumns'][0]['name']);
+        unset($boot['startColumns']);
         self::assertSame(
             // context is always present and null on a page with no marker, so
             // the widget never has to tell an absent key from a resolved one.
             ['projectId' => (string) $project->id, 'drawingEnabled' => true, 'parentTypes' => [], 'context' => null, 'comments' => []],
-            json_decode((string) $client->getResponse()->getContent(), true),
+            $boot,
         );
 
         $this->addComment($client, $raw, ['body' => 'one', 'url' => 'https://app/x']);

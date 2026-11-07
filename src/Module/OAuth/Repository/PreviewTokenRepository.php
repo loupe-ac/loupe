@@ -60,6 +60,16 @@ class PreviewTokenRepository extends ServiceEntityRepository
         ])[0] ?? null;
     }
 
+    /** Whether a live preview row exists for the access token. A token with no row, a revoked one and an expired one answer false. */
+    public function isLive(string $accessTokenId): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM oauth_preview_tokens p JOIN oauth2_access_token a ON a.identifier = p.access_token_id
+             WHERE p.access_token_id = :accessTokenId AND a.revoked = false AND a.expiry > NOW()',
+            ['accessTokenId' => $accessTokenId],
+        );
+    }
+
     /**
      * Whether the card of the project sits in a terminal column, or null when
      * the project has no such card. Reads by SQL, because OAuth must not depend on Board.
