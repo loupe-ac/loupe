@@ -658,7 +658,12 @@ final readonly class TemplateParser
                     $errors[] = \sprintf('%s tone: must be one of %s', $where, implode(', ', array_map(static fn (LabelTone $case): string => $case->value, LabelTone::cases())));
                 }
             }
-            $slots[] = new Slot($key, $label, $stageWork, $tone);
+            $hint = $entry['hint'] ?? null;
+            if (\array_key_exists('hint', $entry) && (!\is_string($hint) || '' === $hint)) {
+                $errors[] = $where.' hint: must be a non-empty translation key';
+                $hint = null;
+            }
+            $slots[] = new Slot($key, $label, $stageWork, $tone, $hint);
         }
 
         return $slots;

@@ -182,6 +182,17 @@ final class TemplateParserTest extends TestCase
         self::assertNull($template->slot('review')?->stageWork);
     }
 
+    public function test_a_slot_names_the_hint_of_its_column(): void
+    {
+        $source = self::valid();
+        $source['slots'][0]['hint'] = 'workflow.slot_hint.build';
+
+        $template = $this->parser->parse($source);
+
+        self::assertSame('workflow.slot_hint.build', $template->slot('build')?->hint);
+        self::assertNull($template->slot('review')?->hint);
+    }
+
     public function test_a_slot_names_the_tone_of_its_column(): void
     {
         $source = self::valid();
@@ -1332,6 +1343,16 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'slots[0] tone: must be one of '.self::TONES];
+        yield 'a hint that is not a string' => [static function (array $t): array {
+            $t['slots'][0]['hint'] = 12;
+
+            return $t;
+        }, 'slots[0] hint: must be a non-empty translation key'];
+        yield 'a hint that is empty' => [static function (array $t): array {
+            $t['slots'][0]['hint'] = '';
+
+            return $t;
+        }, 'slots[0] hint: must be a non-empty translation key'];
         yield 'stage work that is not a string' => [static function (array $t): array {
             $t['slots'][0]['stageWork'] = 12;
 
