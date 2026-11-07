@@ -17,8 +17,9 @@ func newBridgeCheckCmd() *cobra.Command {
 		Long: "Loads the rule file as the bridge does, and makes no network call. It then lists " +
 			"what the file gets wrong without failing to load: a before, refresh, reset or " +
 			"command path that its project folder lacks, a work kind that one project lists and " +
-			"another does not, and a project entry that runs without the variants of an " +
-			"experiment.\n\n" +
+			"another does not, a project entry that runs without the variants of a " +
+			"top-level experiment, and a project experiment that covers a kind a top-level " +
+			"experiment also covers.\n\n" +
 			"The command exits with status 1 when the file does not load, and 0 otherwise.\n\n" +
 			"With --project <slug> --json, it prints one JSON object for that project instead, " +
 			"for discovery to read. The slug is the key of the project in the rule file. The object " +
