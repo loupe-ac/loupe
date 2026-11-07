@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -1258,6 +1259,9 @@ func (r *router) prepare(p pending) {
 	if run == nil {
 		run = runBefore
 	}
+	if runs, err := config.RunsDir(); err == nil && r.worker.folder == nil {
+		writeWorktreeSnapshot(r.workerContext(), p.spec.dir, filepath.Join(runs, p.runID))
+	}
 	timeout := cmp.Or(p.spec.before.Timeout, rules.DefaultBeforeTimeout)
 	ctx, cancel := context.WithTimeout(r.workerContext(), timeout)
 	res := run(ctx, procSpec{argv: p.spec.before.Argv, dir: p.spec.dir, runID: p.runID}, onStart)
@@ -1271,6 +1275,12 @@ func (r *router) prepare(p pending) {
 // in its before phase, so the next image adopts it from its files.
 func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	failure := res.failure()
+	if failure == "" && res.dir != "" && !samePath(res.dir, p.spec.dir) {
+		failure = r.refuseFolder(p, res)
+		if failure != "" {
+			res.exitCode = -1
+		}
+	}
 	r.quiesce.RLock()
 	r.mu.Lock()
 	stopped, shut := r.stops[p.runID], r.shut()
@@ -1319,6 +1329,32 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	}
 	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+}
+
+// samePath reports whether a and b name the same folder.
+func samePath(a, b string) bool {
+	return realPath(a) == realPath(b)
+}
+
+// refuseFolder runs the folder guard on the folder the before command printed,
+// and returns the reason to refuse it, or "". A before command that printed no
+// folder keeps the project dir and is not judged.
+func (r *router) refuseFolder(p pending, res procResult) string {
+	check := checkFolder
+	if r.worker.folder != nil {
+		check = r.worker.folder
+	}
+	card, _ := cardOf(p.event)
+	c := folderCheck{folder: res.dir, project: p.spec.dir, card: card, runDir: res.runDir}
+	r.mu.Lock()
+	for id, run := range r.live {
+		if id != p.runID && !run.before {
+			c.busy = append(c.busy, run.p.spec.dir)
+		}
+	}
+	r.mu.Unlock()
+
+	return check(r.workerContext(), c)
 }
 
 // resolveVariant is the settings and the variant of a run in an experiment. The
