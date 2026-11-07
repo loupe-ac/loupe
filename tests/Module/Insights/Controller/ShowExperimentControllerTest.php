@@ -462,6 +462,7 @@ final class ShowExperimentControllerTest extends WebTestCase
         self::assertSame('worse', $crawler->filter('li[data-experiment-goal-row="c"]')->attr('data-experiment-result-tone'));
         self::assertSame('−50%', trim($crawler->filter('li[data-experiment-goal-row="b"] .lp-experiment-result__change--better')->text()));
         self::assertSame('+25%', trim($crawler->filter('li[data-experiment-goal-row="c"] .lp-experiment-result__change--worse')->text()));
+        self::assertSame('b: $2.00, change −50%, likely range 50% to 50% lower, Clear', $crawler->filter('li[data-experiment-goal-row="b"]')->attr('aria-label'));
         self::assertCount(2, $crawler->filter('li[data-experiment-goal-row] svg[data-experiment-result-strip]'));
         self::assertCount(1, $crawler->filter('.lp-range-strip__label'));
         self::assertSame('Each variant against a ($4.00)', trim($crawler->filter('[data-experiment-result-header]')->text()));

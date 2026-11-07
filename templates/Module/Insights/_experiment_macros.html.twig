@@ -33,17 +33,7 @@
 
 {# The result chip of one comparison. Props: comparison (ExperimentComparison), text (ExperimentHeadlineText), baselineArm (ExperimentArm). #}
 {% macro goal_chip(comparison, text, baselineArm) %}
-    {% if comparison.state.value == 'held' %}
-        {% if comparison.hold.reason.value == 'failed' %}
-            <twig:Ds:StatusChip modifier="failed" :label="'bridge.experiments.goal.hold.chip_failed'|trans" />
-        {% else %}
-            <twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.controls.result.no_data'|trans" />
-        {% endif %}
-    {% elseif comparison.state.value == 'not-enough-cards' %}
-        <twig:Ds:StatusChip modifier="neutral" :label="text.needs(comparison, baselineArm)" />
-    {% elseif comparison.state.value == 'clear' %}
-        <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
-    {% else %}
-        <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
-    {% endif %}
+    {% set state = comparison.state.value %}
+    {% set modifier = state == 'held' ? (comparison.hold.reason.value == 'failed' ? 'failed' : 'neutral') : (state == 'not-enough-cards' ? 'neutral' : (state == 'clear' ? 'ok' : 'pending')) %}
+    <twig:Ds:StatusChip :modifier="modifier" :label="text.resultLabel(comparison, baselineArm)" />
 {% endmacro %}

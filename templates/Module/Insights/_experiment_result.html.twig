@@ -6,7 +6,9 @@
 <ol class="lp-experiment-result" data-experiment-result>
     {% for row in result.rows %}
         {% set comparison = row.comparison %}
-        <li class="lp-experiment-result__row" data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}" data-experiment-result-tone="{{ row.tone.value }}">
+        {% set value = text.point(goal.metric, comparison.arm.point) ?? '–' %}
+        {% set change = text.signedChange(comparison) ?? '–' %}
+        <li class="lp-experiment-result__row" aria-label="{{ 'bridge.experiments.goal.row_label'|trans({'%variant%': comparison.variant, '%value%': value, '%change%': change, '%range%': text.range(comparison) ?? '–', '%result%': text.resultLabel(comparison, result.baselineArm)}) }}" data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}" data-experiment-result-tone="{{ row.tone.value }}">
             <span class="lp-experiment-result__name">{{ comparison.variant }}</span>
             <div class="lp-experiment-result__strip">
                 {% if row.strip is not null %}
@@ -14,8 +16,8 @@
                 {% endif %}
             </div>
             <div class="lp-experiment-result__figures">
-                <span class="lp-experiment-result__value">{{ text.point(goal.metric, comparison.arm.point) ?? '–' }}</span>
-                <span class="lp-experiment-result__change lp-experiment-result__change--{{ row.tone.value }}">{{ text.signedChange(comparison) ?? '–' }}</span>
+                <span class="lp-experiment-result__value">{{ value }}</span>
+                <span class="lp-experiment-result__change lp-experiment-result__change--{{ row.tone.value }}">{{ change }}</span>
                 <span class="lp-experiment-result__chip">{{ experimentRows.goal_chip(comparison, text, result.baselineArm) }}</span>
                 <span class="lp-experiment-result__range">{{ text.range(comparison) }}</span>
             </div>

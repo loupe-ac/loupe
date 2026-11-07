@@ -7486,6 +7486,7 @@ workflow:
             <trans-unit id="bridge.experiments.tabs.cards"><source>bridge.experiments.tabs.cards</source><target>Cards</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.label"><source>bridge.experiments.goal.label</source><target>Goal · %metric% · %direction% is better</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.result_header"><source>bridge.experiments.goal.result_header</source><target>Each variant against %baseline% (%value%)</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.row_label"><source>bridge.experiments.goal.row_label</source><target>%variant%: %value%, change %change%, likely range %range%, %result%</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.baseline_label"><source>bridge.experiments.goal.baseline_label</source><target>baseline</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.show_table"><source>bridge.experiments.goal.show_table</source><target>Show as a table</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.column.change"><source>bridge.experiments.goal.column.change</source><target>Change against %baseline%</target></trans-unit>

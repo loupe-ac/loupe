@@ -232,6 +232,16 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertNull(self::text()->signedChange($none[1]));
     }
 
+    public function test_the_result_label_names_the_chip_of_each_state(): void
+    {
+        $baseline = new ExperimentArm('opus', 4.0, 9);
+        $clear = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(-0.4, -0.2, -0.31), [4.0, 2.76]);
+        $unclear = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::NotClear, new Interval(-0.4, 0.2, -0.1), [4.0, 3.6]);
+
+        self::assertSame('Clear', self::text()->resultLabel($clear[1], $baseline));
+        self::assertSame('Not clear yet', self::text()->resultLabel($unclear[1], $baseline));
+    }
+
     private static function text(): ExperimentHeadlineText
     {
         $translator = new Translator('en');
