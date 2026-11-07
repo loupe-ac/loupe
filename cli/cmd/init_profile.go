@@ -53,7 +53,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 	out := cmd.OutOrStdout()
 
 	if !site.ProfileNeeded() {
-		step(out, "Profile", "skipped", "the workflow of this project needs no profile")
+		stepSet(out, "Profile", "the workflow of this project needs no profile")
 
 		return "", agentRan
 	}
@@ -64,7 +64,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 		return "the check failed: " + err.Error(), agentRan
 	}
 	if status.Complete() && !o.reviewProfile {
-		step(out, "Profile", "skipped", profile.Path+" is complete. Pass --review-profile to review it")
+		stepSet(out, "Profile", profile.Path+" is complete. Pass --review-profile to review it")
 
 		return "", agentRan
 	}

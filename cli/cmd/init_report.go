@@ -15,6 +15,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -73,8 +74,12 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 		sites = append(slices.Clone(sites), site)
 	}
 
+	var rows [][]string
+	var details []string
 	for _, a := range initCheckAccounts(ctx, set, sites) {
-		printAccount(out, a, slug)
+		row, extra := accountRow(a, slug)
+		rows = append(rows, row)
+		details = append(details, extra...)
 		if !slices.Contains(a.usedIn, slug) {
 			continue
 		}
@@ -82,22 +87,27 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 			failing = append(failing, a.name+": "+strings.Join(reasons, "; "))
 		}
 	}
+	if len(rows) > 0 {
+		fmt.Fprint(out, initview.Table(out, []string{"Account", "Agent", "State"}, rows))
+	}
+	for _, d := range details {
+		fmt.Fprintf(out, "  %s\n", d)
+	}
 
 	return failing, ""
 }
 
-// printAccount prints one line for each problem of the account: the problems of
-// the whole account, then those of this project, then those of the other
-// projects by slug. An account with no problem prints one ready line.
-func printAccount(out io.Writer, a accountResult, slug string) {
+// accountRow gives the table row of one account: its name, its agent, and its
+// state. The state lists each problem of the whole account, then those of this
+// project, then those of the other projects by slug. An account with no problem
+// is ready. The second value holds the detail lines of the problems.
+func accountRow(a accountResult, slug string) ([]string, []string) {
 	label := a.harness
 	if !a.used {
 		label += ", unused"
 	}
 	if len(a.problems) == 0 {
-		fmt.Fprintf(out, "Account: %s (%s): ready\n", a.name, label)
-
-		return
+		return []string{a.name, label, "ready"}, nil
 	}
 	rank := func(p harn.Problem) int {
 		switch p.Project {
@@ -113,6 +123,7 @@ func printAccount(out io.Writer, a accountResult, slug string) {
 	slices.SortStableFunc(problems, func(x, y harn.Problem) int {
 		return cmp.Or(cmp.Compare(rank(x), rank(y)), cmp.Compare(x.Project, y.Project))
 	})
+	var states, details []string
 	for _, p := range problems {
 		state := "failing"
 		switch rank(p) {
@@ -121,11 +132,13 @@ func printAccount(out io.Writer, a accountResult, slug string) {
 		case 2:
 			state = "failing for project " + p.Project
 		}
-		fmt.Fprintf(out, "Account: %s (%s): %s: %s\n", a.name, label, state, p.Reason)
+		states = append(states, state+": "+p.Reason)
 		if p.Detail != "" {
-			fmt.Fprintf(out, "         %s\n", p.Detail)
+			details = append(details, a.name+": "+p.Detail)
 		}
 	}
+
+	return []string{a.name, label, strings.Join(states, "; ")}, details
 }
 
 func nonEmpty(values ...string) []string {

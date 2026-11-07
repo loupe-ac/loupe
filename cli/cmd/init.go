@@ -21,6 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
@@ -104,6 +105,7 @@ type initOptions struct {
 
 	agent         string
 	reviewProfile bool
+	verbose       bool
 }
 
 func newInitCmd() *cobra.Command {
@@ -178,6 +180,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
 	cmd.Flags().StringVar(&o.agent, "agent", "", "agent that writes the repository profile: claude or codex; else init asks when both are on the PATH")
 	cmd.Flags().BoolVar(&o.reviewProfile, "review-profile", false, "start the profile agent also when "+profile.Path+" is complete, to review each value")
+	cmd.Flags().BoolVar(&o.verbose, "verbose", false, "print one line for each step with its reason, the form a script reads")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
 	cmd.MarkFlagsMutuallyExclusive("name", "project")
@@ -190,6 +193,10 @@ func newInitCmd() *cobra.Command {
 // runInit runs the steps in order. A step that cannot go on returns its
 // error. The bridge is the one step that reports its error after the last.
 func runInit(cmd *cobra.Command, o initOptions) error {
+	view := initview.NewWriter(cmd.OutOrStdout(), o.verbose)
+	cmd.SetOut(view)
+	defer view.Flush()
+
 	if err := checkNameFlags(cmd, &o); err != nil {
 		return err
 	}
@@ -255,6 +262,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	left.accounts, left.accountCheck = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
 	left.profile, left.profileRan = initProfile(cmd, dir, site, o)
 	initDiscovery(cmd, cfg, dir, site, &left)
+	view.Flush()
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 
 	var accountErr error
@@ -295,9 +303,31 @@ func skipSharedStep(cmd *cobra.Command, name string) {
 	step(cmd.OutOrStdout(), name, "skipped", "a second setup leaves shared files alone")
 }
 
-// step prints the one line a step owes: its name, whether it ran, and why.
+// step records the line a step owes: its name, whether it ran, and why. A
+// writer from initview draws the line later, with the others. Any other
+// writer gets the plain line at once.
 func step(out io.Writer, name, state, detail string) {
-	fmt.Fprintf(out, "%s: %s, %s.\n", name, state, detail)
+	recordStep(out, initview.Step{Name: name, State: state, Reason: detail})
+}
+
+// stepSet records a step that was set up already. The output folds these into
+// one line.
+func stepSet(out io.Writer, name, detail string) {
+	recordStep(out, initview.Step{Name: name, State: "skipped", Reason: detail, Fold: true})
+}
+
+func recordStep(out io.Writer, s initview.Step) {
+	w, ok := out.(*initview.Writer)
+	if !ok {
+		fmt.Fprintf(out, "%s: %s, %s.\n", s.Name, s.State, s.Reason)
+
+		return
+	}
+	s.Short = initview.ShortPath(s.Reason)
+	if s.State == "done" || s.Fold {
+		s.Short = initview.Brief(s.Short)
+	}
+	w.Record(s)
 }
 
 // initSignIn signs in when no login is stored.
@@ -313,7 +343,7 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 				return config.Config{}, fmt.Errorf("you are signed in to %s, not %s: run `loupe login --url %s` to switch, then run `loupe init` again", cfg.BaseURL, want, want)
 			}
 		}
-		step(out, "Sign in", "skipped", "you are signed in to "+cfg.BaseURL)
+		stepSet(out, "Sign in", "you are signed in to "+cfg.BaseURL)
 
 		return cfg, nil
 	}
@@ -396,7 +426,7 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		if !ok {
 			return api.Site{}, fmt.Errorf("%s names %s, which your login does not cover: sign in with the login that covers it, or pass --force to replace the file", projectfile.Name, linked)
 		}
-		step(out, "Project", "skipped", projectfile.Name+" names "+describe(site))
+		stepSet(out, "Project", projectfile.Name+" names "+describe(site))
 
 		return site, nil
 	}
@@ -718,7 +748,7 @@ func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 		if err := offerServer(cmd, dir, step, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
 			return err
 		}
-		step(out, "Link", "skipped", projectfile.Name+" exists already")
+		stepSet(out, "Link", projectfile.Name+" exists already")
 
 		return nil
 	}
@@ -743,7 +773,7 @@ func initSetupLink(cmd *cobra.Command, dir, projectID string) error {
 		return err
 	}
 	if strings.EqualFold(current, projectID) {
-		step(cmd.OutOrStdout(), "Link", "skipped", "the setup links this folder to the project already")
+		stepSet(cmd.OutOrStdout(), "Link", "the setup links this folder to the project already")
 
 		return nil
 	}
@@ -779,7 +809,7 @@ func initPlugin(cmd *cobra.Command, dir string, site api.Site) bool {
 		})
 	}
 	if len(missing) == 0 {
-		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugins")
+		stepSet(out, "Plugin", "Claude Code has the Loupe plugins")
 
 		return false
 	}
@@ -862,7 +892,7 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 	decl, parseErr := codex.ParseDeclaration(raw)
 	switch {
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp() && decl.Enabled:
-		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already"+t.suffix())
+		stepSet(out, "Codex", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already"+t.suffix())
 
 		return true
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
@@ -1098,7 +1128,7 @@ func initCodexApproval(out io.Writer, t codexTarget) {
 	case changed:
 		step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking, as "+path+" says")
 	default:
-		step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already, as "+path+" says")
+		stepSet(out, "Codex approval", "Codex runs the Loupe tools without asking already, as "+path+" says")
 	}
 }
 
@@ -1271,14 +1301,14 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, o initOption
 		return false, err
 	}
 	if detail == "" {
-		step(out, "Rules", "skipped", path+" has what the first run needs")
+		stepSet(out, "Rules", path+" has what the first run needs")
 		noteNoProductDesign(out, path, next, opts)
 
 		return false, nil
 	}
 
 	if !missing && bytes.Equal(existing, next) {
-		step(out, "Rules", "skipped", path+" is the same already")
+		stepSet(out, "Rules", path+" is the same already")
 		noteNoProductDesign(out, path, next, opts)
 
 		return false, nil
@@ -1362,7 +1392,7 @@ func initAutoUpdate(cmd *cobra.Command, path string) bool {
 		return false
 	}
 	if present {
-		step(out, "Auto-update", "skipped", "the rule file sets autoUpdate to "+fmt.Sprint(on))
+		stepSet(out, "Auto-update", "the rule file sets autoUpdate to "+fmt.Sprint(on))
 
 		return false
 	}
@@ -1392,7 +1422,7 @@ func initBridge(cmd *cobra.Command, rulesFlag, path string, changed bool) error 
 	}
 	if initBridgeRuns(path) {
 		if !changed {
-			step(out, "Bridge", "skipped", "it runs already and reads "+path)
+			stepSet(out, "Bridge", "it runs already and reads "+path)
 
 			return nil
 		}
@@ -1432,12 +1462,12 @@ func initPlaywright(cmd *cobra.Command, dir string) {
 	out := cmd.OutOrStdout()
 	pkg, ok := playwrightPackage(dir)
 	if !ok {
-		step(out, "Playwright", "skipped", "no package.json lists it")
+		stepSet(out, "Playwright", "no package.json lists it")
 
 		return
 	}
 	if playwrightBrowserInstalled(pkg) {
-		step(out, "Playwright", "skipped", "the Chromium browser is installed")
+		stepSet(out, "Playwright", "the Chromium browser is installed")
 
 		return
 	}
