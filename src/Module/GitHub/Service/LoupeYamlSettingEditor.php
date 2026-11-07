@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Service\PullRequestWriteFailed;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
  * Sets one key of the `workflow:` map in `.loupe.yaml` with a line edit, so every other line and comment stays.
- * The result is parsed again and compared with the input before it is returned.
+ * The result is parsed again and compared with the input before it is returned. An existing file must name the
+ * project, because Loupe ignores a file that names no project or another one.
  */
 final class LoupeYamlSettingEditor
 {
@@ -27,6 +29,9 @@ final class LoupeYamlSettingEditor
         $before = null === $existing ? null : self::parse($existing);
         if (null !== $before && !\is_array($before)) {
             throw new PullRequestWriteFailed('file_unparsable', permanent: true);
+        }
+        if (null !== $existing && null === WorkflowFileSettings::forProject($existing, Uuid::fromString($projectId))) {
+            throw new PullRequestWriteFailed('project_mismatch', permanent: true);
         }
 
         $result = null === $existing

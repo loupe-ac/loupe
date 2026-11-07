@@ -148,10 +148,10 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     {
         $repository = $this->repository(74_003);
         $this->responses = [
-            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([]),
             $this->answer(['message' => 'Reference already exists'], 422),
-            $this->fileAnswer("project: x\nworkflow:\n  merge-approval: old\n", self::BRANCH_BLOB),
+            $this->fileAnswer("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: old\n", self::BRANCH_BLOB),
             $this->answer([], 200),
             $this->answer(['html_url' => 'https://github.com/acme/app/pull/11'], 201),
         ];
@@ -166,7 +166,7 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     {
         $repository = $this->repository(74_007);
         $this->responses = [
-            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([]),
             $this->answer(['message' => 'Reference already exists'], 422),
             $this->answer(['message' => 'Not Found'], 404),
@@ -183,10 +183,10 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     {
         $repository = $this->repository(74_008);
         $this->responses = [
-            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([]),
             $this->answer(['message' => 'Reference already exists'], 422),
-            $this->fileAnswer("project: x\nworkflow:\n  merge-approval: person\n", self::BRANCH_BLOB),
+            $this->fileAnswer("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: person\n", self::BRANCH_BLOB),
             $this->answer(['html_url' => 'https://github.com/acme/app/pull/13'], 201),
         ];
 
@@ -198,7 +198,7 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     {
         $repository = $this->repository(74_004);
         $this->responses = [
-            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([['html_url' => 'https://github.com/acme/app/pull/5']]),
         ];
 
@@ -210,7 +210,7 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     {
         $repository = $this->repository(74_005);
         $this->responses = [
-            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: person\n"),
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: person\n"),
             $this->answer([]),
         ];
 
@@ -218,6 +218,21 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
 
         self::assertSame('already_set', $e->cause);
         self::assertTrue($e->permanent);
+    }
+
+    public function test_a_file_that_names_another_project_is_refused_with_no_write(): void
+    {
+        $repository = $this->repository(74_010);
+        $this->responses = [
+            ...$this->readAnswers("project: 0190a2b4-0000-7000-8000-000000000002\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([]),
+        ];
+
+        $e = $this->failure(fn () => $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+
+        self::assertSame('project_mismatch', $e->cause);
+        self::assertTrue($e->permanent);
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'GET' !== $r['method'] && !str_ends_with($r['url'], '/access_tokens')));
     }
 
     public function test_a_refused_api_call_is_a_permanent_permission_failure(): void

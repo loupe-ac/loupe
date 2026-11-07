@@ -54,7 +54,7 @@ final readonly class ProposeMergeApprovalHandler
             return;
         }
 
-        $parameters = ['%repository%' => $repository->path, '%value%' => $question->answer, '%key%' => MergeApprovals::SETTING];
+        $parameters = ['%repository%' => $repository->path, '%value%' => $question->answer, '%key%' => MergeApprovals::SETTING, '%project%' => $item->project->requireId()->toRfc4122()];
         try {
             $url = $proposer->propose(
                 $repository,

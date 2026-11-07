@@ -702,13 +702,16 @@ Loupe opens the question **May Loupe merge in "repository"?** when the Loupe Git
 installed on a repository, the rules of its default branch require no approving review, and
 `.loupe.yaml` on the default branch sets no valid `merge-approval`. The question has two options:
 "Let Loupe merge when the agent review passes" and "I approve each pull request on GitHub before
-Loupe merges it". Until the setting is stated, every pull request of the repository waits for a
-person to merge it. A project has one such question for each repository.
+Loupe merges it". Until the setting is stated, every pull request into the default branch of the
+repository waits for a person to merge it. A child pull request into its epic branch still merges
+when the agent review passes, and the epic pull request waits for the person. A project has one such
+question for each repository.
 
 Your answer closes the item as **resolved** at once. Loupe then opens a pull request on the
 repository that adds `merge-approval` to the `workflow:` key of `.loupe.yaml`, and the closed item
 names the pull request. Merge it to make the answer count. When Loupe cannot open the pull request,
-the item shows the lines to add by hand. Until `.loupe.yaml` on the default branch holds a valid
+the item shows the lines to add by hand, with the `project:` line. Loupe opens no pull request when
+`.loupe.yaml` names no project or another project, because Loupe ignores that file. Until `.loupe.yaml` on the default branch holds a valid
 value, Loupe keeps your answer and opens no second question for the repository. An open question
 that nobody answered closes as **resolved** when `.loupe.yaml` gets a valid value, or when the
 repository no longer fits the case. If you dismiss the question, Loupe opens none again while the

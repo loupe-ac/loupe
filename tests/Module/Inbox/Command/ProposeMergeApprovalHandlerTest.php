@@ -82,7 +82,7 @@ final class ProposeMergeApprovalHandlerTest extends WorkflowSettingsTestCase
         $this->handle($question, $proposer);
 
         self::assertNull($question->pullRequestUrl);
-        self::assertStringContainsString("Add these lines to `.loupe.yaml` on the default branch of acme/app:\n\nworkflow:\n  merge-approval: agent", (string) $question->item->body);
+        self::assertStringContainsString("project: {$this->project->requireId()->toRfc4122()}\nworkflow:\n  merge-approval: agent", (string) $question->item->body);
     }
 
     public function test_a_failure_that_a_retry_can_fix_reaches_the_queue(): void

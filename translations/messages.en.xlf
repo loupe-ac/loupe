@@ -6301,8 +6301,9 @@ Your answer counts when `.loupe.yaml` on the default branch holds it. Loupe open
             <trans-unit id="inbox.merge_approval.pull_request.title"><source>inbox.merge_approval.pull_request.title</source><target>Set %key% in .loupe.yaml</target></trans-unit>
             <trans-unit id="inbox.merge_approval.pull_request.body"><source>inbox.merge_approval.pull_request.body</source><target>This pull request sets `%key%` to `%value%` under `workflow:` in `.loupe.yaml`. You answered the merge question of %repository% in the Loupe inbox. The answer counts when this pull request is on the default branch.</target></trans-unit>
             <trans-unit id="inbox.merge_approval.opened"><source>inbox.merge_approval.opened</source><target>Loupe opened %url%. Merge it to make your answer count.</target></trans-unit>
-            <trans-unit id="inbox.merge_approval.refused"><source>inbox.merge_approval.refused</source><target>Loupe could not open the pull request. Add these lines to `.loupe.yaml` on the default branch of %repository%:
+            <trans-unit id="inbox.merge_approval.refused"><source>inbox.merge_approval.refused</source><target>Loupe could not open the pull request. Add these lines to `.loupe.yaml` on the default branch of %repository%. The file must name this project, and Loupe ignores a file that names another one:
 
+project: %project%
 workflow:
   %key%: %value%</target></trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
