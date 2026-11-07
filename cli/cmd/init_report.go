@@ -61,12 +61,12 @@ type initLeft struct {
 func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Site, sites []api.Site) (failing []string, unchecked string) {
 	set, err := rules.Load(path, rules.Defaults{})
 	if err != nil {
-		fmt.Fprintf(out, "Accounts: failed, cannot read %s: %v.\n", path, err)
+		fmt.Fprintln(out, initview.ShortPath(fmt.Sprintf("Accounts: failed, cannot read %s: %v.", path, err)))
 		if errors.Is(err, rules.ErrMissing) {
-			return nil, "no rule file at " + path
+			return nil, initview.ShortPath("no rule file at " + path)
 		}
 
-		return nil, "cannot read " + path + ": " + err.Error()
+		return nil, initview.ShortPath("cannot read " + path + ": " + err.Error())
 	}
 	slug := siteRuleSlug(site)
 
@@ -84,14 +84,19 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 			continue
 		}
 		if reasons := nonEmpty(a.reason(), a.projectReasons()[slug]); len(reasons) > 0 {
-			failing = append(failing, a.name+": "+strings.Join(reasons, "; "))
+			failing = append(failing, initview.ShortPath(a.name+": "+strings.Join(reasons, "; ")))
+		}
+	}
+	for _, row := range rows {
+		for i := range row {
+			row[i] = initview.ShortPath(row[i])
 		}
 	}
 	if len(rows) > 0 {
 		fmt.Fprint(out, initview.Table(out, []string{"Account", "Agent", "State"}, rows))
 	}
 	for _, d := range details {
-		fmt.Fprintf(out, "  %s\n", d)
+		fmt.Fprintf(out, "  %s\n", initview.ShortPath(d))
 	}
 
 	return failing, ""
@@ -243,7 +248,7 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 		fmt.Fprintln(out, "What remains:")
 	}
 	for i, t := range todo {
-		fmt.Fprintf(out, "%d. %s\n", i+1, t)
+		fmt.Fprintf(out, "%d. %s\n", i+1, initview.ShortPath(t))
 	}
 	fmt.Fprintf(out, "Open %s/projects/%s\n", strings.TrimRight(baseURL, "/"), site.ID)
 }

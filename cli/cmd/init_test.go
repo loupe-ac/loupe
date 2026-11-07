@@ -2506,3 +2506,38 @@ func TestInitFoldsEveryStepThatIsSetUpAlready(t *testing.T) {
 		}
 	}
 }
+
+// Init shows each path under the home folder as ~/…, in the account table, its
+// detail lines and the lines of what remains.
+func TestReportAccountsShortensHomePaths(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	missing := filepath.Join(home, "rules.yaml")
+
+	var out strings.Builder
+	_, unchecked := reportAccounts(context.Background(), &out, missing, api.Site{ID: "p1", Slug: "simple"}, nil)
+	if strings.Contains(out.String()+unchecked, home) || !strings.Contains(unchecked, "~/rules.yaml") {
+		t.Errorf("unchecked = %q, output:\n%s", unchecked, out.String())
+	}
+
+	path := reportWorld(t)
+	home = os.Getenv("HOME")
+	old := initCheckAccounts
+	t.Cleanup(func() { initCheckAccounts = old })
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult {
+		return []accountResult{{name: "main", harness: "claude", used: true, usedIn: []string{"simple"}, problems: []harn.Problem{
+			{Reason: "no folder " + home + "/a", Detail: "clone into " + home + "/a", Project: "simple"},
+		}}}
+	}
+	out.Reset()
+	failing, _ := reportAccounts(context.Background(), &out, path, api.Site{ID: "p1", Slug: "simple"}, nil)
+	if strings.Contains(out.String(), home) || !strings.Contains(out.String(), "~/a") {
+		t.Errorf("output keeps the home path:\n%s", out.String())
+	}
+
+	out.Reset()
+	initNext(&out, "https://app.example", t.TempDir(), api.Site{ID: "p1"}, initLeft{accounts: []string{"main: in " + home + "/a"}, accountCheck: "no rule file at " + missing})
+	if strings.Contains(out.String(), home) || len(failing) != 1 || strings.Contains(failing[0], home) {
+		t.Errorf("failing = %v, output keeps the home path:\n%s", failing, out.String())
+	}
+}
