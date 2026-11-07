@@ -1,14 +1,20 @@
 {#
   Props:  @comment-budget-ignore
     open   bool   The section starts open. False by default.
+    caret  string Where the caret sits: start (default), end or none. With none, the page can draw its own icon with the class lp-disclosure__caret inside the summary block.
   The content is the body. The summary block holds what the closed section shows beside the caret.
   Any other attribute, class included, is passed to the details element, so a controller such as details-memory still fits.
 #}
-{%- props open = false -%}
+{%- props open = false, caret = 'start' -%}
 <details{{ attributes.defaults({class: 'lp-disclosure'}) }}{{ open ? ' open' }}>
     <summary class="lp-disclosure__summary">
-        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret" aria-hidden="true" />
+        {%- if caret == 'start' -%}
+            <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret" aria-hidden="true" />
+        {%- endif -%}
         {% block summary %}{% endblock %}
+        {%- if caret == 'end' -%}
+            <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret lp-disclosure__caret--end" aria-hidden="true" />
+        {%- endif -%}
     </summary>
     <div class="lp-disclosure__body">{% block content %}{% endblock %}</div>
 </details>

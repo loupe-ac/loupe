@@ -60,16 +60,23 @@ export default class extends Controller {
 
     keepTablesOpen(event) {
         const render = event.detail.render;
-        event.detail.render = async (stream) => {
-            const open = [
-                ...this.element.querySelectorAll('[data-chart-table][open]'),
-            ].map((table) => table.dataset.chartTable);
-            await render(stream);
-            open.forEach((name) => {
-                this.element
-                    .querySelector(`[data-chart-table="${CSS.escape(name)}"]`)
-                    ?.setAttribute('open', '');
-            });
+        event.detail.render = (stream) => {
+            const open = new Set(
+                [
+                    ...this.element.querySelectorAll(
+                        '[data-chart-table][open]',
+                    ),
+                ].map((table) => table.dataset.chartTable),
+            );
+            stream.templateElement.content
+                .querySelectorAll('[data-chart-table]')
+                .forEach((table) => {
+                    if (open.has(table.dataset.chartTable)) {
+                        table.setAttribute('open', '');
+                    }
+                });
+
+            return render(stream);
         };
     }
 

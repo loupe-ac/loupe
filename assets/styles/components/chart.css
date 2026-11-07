@@ -226,17 +226,8 @@
     }
 
     /* The table stays closed until a person opens it. */
-    .lp-chart__table-toggle {
-        @apply inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-xs font-medium text-fg-mute outline-none select-none hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
-    }
-    .lp-chart__table-toggle::-webkit-details-marker {
-        display: none;
-    }
-    .lp-chart__table[open] > .lp-chart__table-toggle {
-        @apply mb-2;
-    }
-    .lp-chart__table[open] .lp-chart__table-chevron {
-        @apply rotate-90;
+    .lp-chart__table > .lp-disclosure__summary {
+        @apply w-fit text-xs font-medium text-fg-mute select-none hover:text-ink;
     }
 
     /* A figure fills the room it gets, and several figures share the width. */
@@ -270,9 +261,6 @@
         .lp-chart__guide,
         .lp-chart__slice {
             @apply transition-opacity;
-        }
-        .lp-chart__table-chevron {
-            @apply transition-transform;
         }
     }
 }

@@ -16,12 +16,14 @@
     {% set meta = meta|merge([('review.document.agent_review.meta.open.' ~ (severity|replace({'-': '_'})))|trans({'%count%': count})]) %}
 {% endfor %}
 <section class="lp-agent-review" aria-label="{{ 'review.document.agent_review.label'|trans }}" data-testid="agent-review-summary" data-state="{{ summary.state }}">
-    <details class="lp-agent-review__details">
-        <summary class="lp-agent-review__line">
-            <twig:Ds:StatusChip :modifier="stateModifier" :label="('review.document.agent_review.state.' ~ summary.state)|trans" class="lp-agent-review__chip" />
-            <span class="lp-agent-review__meta">{{ meta|join(' · ') }}</span>
-            <span class="{{ ds_button_class('ghost', 'sm') }} lp-agent-review__toggle">{{ 'review.document.agent_review.show_rounds'|trans }} <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-review__chevron" aria-hidden="true" /></span>
-        </summary>
+    <twig:Ds:Disclosure class="lp-agent-review__details" caret="none">
+        <twig:block name="summary">
+            <span class="lp-agent-review__line">
+                <twig:Ds:StatusChip :modifier="stateModifier" :label="('review.document.agent_review.state.' ~ summary.state)|trans" class="lp-agent-review__chip" />
+                <span class="lp-agent-review__meta">{{ meta|join(' · ') }}</span>
+                <span class="{{ ds_button_class('ghost', 'sm') }} lp-agent-review__toggle">{{ 'review.document.agent_review.show_rounds'|trans }} <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret" aria-hidden="true" /></span>
+            </span>
+        </twig:block>
         <div class="lp-agent-review__rounds">
             {% for round in summary.roundList %}
                 <h3 class="lp-agent-review__round-title">
@@ -66,6 +68,6 @@
                 {% endif %}
             {% endfor %}
         </div>
-    </details>
+    </twig:Ds:Disclosure>
 </section>
 {% endif %}

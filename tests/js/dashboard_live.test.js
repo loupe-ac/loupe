@@ -278,17 +278,27 @@ it('keeps an open table open when a stream replaces its tile', async () => {
     await mount(
         '<details data-chart-table="tile-a" open></details><details data-chart-table="tile-b"></details>',
     );
+    const template = document.createElement('template');
+    template.innerHTML =
+        '<details data-chart-table="tile-a"></details><details data-chart-table="tile-b"></details>';
+    const stream = { templateElement: template };
+    let openWhenInserted = null;
     const event = new CustomEvent('turbo:before-stream-render', {
         detail: {
-            render: async () => {
-                document.getElementById('dashboard-grid').innerHTML =
-                    '<details data-chart-table="tile-a"></details><details data-chart-table="tile-b"></details>';
+            render: (rendered) => {
+                openWhenInserted = rendered.templateElement.content
+                    .querySelector('[data-chart-table="tile-a"]')
+                    .hasAttribute('open');
+                document
+                    .getElementById('dashboard-grid')
+                    .replaceChildren(rendered.templateElement.content);
             },
         },
     });
     document.dispatchEvent(event);
-    await event.detail.render(null);
+    await event.detail.render(stream);
 
+    expect(openWhenInserted).toBe(true);
     expect(
         document
             .querySelector('[data-chart-table="tile-a"]')

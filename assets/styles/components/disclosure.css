@@ -10,6 +10,9 @@
     .lp-disclosure__caret {
         @apply shrink-0 transition-transform duration-100;
     }
+    .lp-disclosure__caret--end {
+        @apply ml-auto;
+    }
     .lp-disclosure[open] > .lp-disclosure__summary .lp-disclosure__caret {
         @apply rotate-90;
     }

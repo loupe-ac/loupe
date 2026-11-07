@@ -22,6 +22,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -710,6 +711,9 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->flush();
         $this->workerRun($project, $card, $resumed, WorkerRunState::Blocked);
         $this->workerRun($project, $card, $resumed, WorkerRunState::Succeeded);
+        $waiting = $this->fix($project, $card, '2026-10-21 01:30:00', $url, WorkRequestState::Refused);
+        $em->flush();
+        $this->workerRun($project, $card, $waiting, WorkerRunState::WaitingOnForge);
         $this->workerRun($project, $card, $blocked, WorkerRunState::Blocked);
         $this->workerRun($project, $card, $stopped, WorkerRunState::Failed);
         $this->workerRun($project, $card, $review, WorkerRunState::Succeeded);
@@ -717,7 +721,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
 
         $found = $this->repository()->findFinishedFixesOpenedAt([$cardId])[$cardId->toRfc4122()] ?? [];
 
-        self::assertSame(['2026-10-21 01:01:00'], array_map(static fn (array $fix): string => $fix['openedAt']->format('Y-m-d H:i:s'), $found));
+        self::assertSame(['2026-10-21 01:30:00'], array_map(static fn (array $fix): string => $fix['openedAt']->format('Y-m-d H:i:s'), $found));
     }
 
     public function test_the_counts_of_cards_group_every_request_by_role_kind_and_reason(): void
@@ -752,7 +756,63 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->findCountsOfCards([]));
     }
 
-    private function workerRun(Project $project, Card $card, WorkRequest $request, WorkerRunState $state): void
+    /** @return iterable<string, array{WorkerRunState}> */
+    public static function finishedRunStates(): iterable
+    {
+        yield 'waiting on the forge' => [WorkerRunState::WaitingOnForge];
+        yield 'succeeded' => [WorkerRunState::Succeeded];
+    }
+
+    #[DataProvider('finishedRunStates')]
+    public function test_a_resumed_run_that_finished_answers_an_agent_review_fix_that_was_refused(WorkerRunState $finished): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'resumed-review-'.$finished->value.'@example.com'), 'Resumed Review');
+        $column = new BoardColumn($project, 'Implementation', 'implementation', 1);
+        $card = new Card($project, $column, 'Card', '', 1);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+
+        $request = $this->fix($project, $card, '2026-10-21 02:00:00', null, WorkRequestState::Refused);
+        $request->context = new WorkRequestContext(pullRequestNumber: 7, reason: 'agent-review');
+        $request->settledAt = new \DateTimeImmutable('2026-10-21 02:10:00');
+        $em->flush();
+        $this->workerRun($project, $card, $request, WorkerRunState::Blocked, '2026-10-21 02:10:00');
+        $this->workerRun($project, $card, $request, $finished, '2026-10-21 02:30:00');
+        $em->flush();
+
+        $settled = $this->repository()->findAgentReviewFixesSettled($cardId);
+
+        self::assertSame([7], array_keys($settled));
+        self::assertSame('2026-10-21 02:30:00', $settled[7]->format('Y-m-d H:i:s'));
+    }
+
+    public function test_an_agent_review_fix_with_only_blocked_and_unfinished_runs_is_not_settled(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'unfinished-review@example.com'), 'Unfinished Review');
+        $column = new BoardColumn($project, 'Implementation', 'implementation', 1);
+        $card = new Card($project, $column, 'Card', '', 1);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+
+        $request = $this->fix($project, $card, '2026-10-21 02:00:00', null, WorkRequestState::Refused);
+        $request->context = new WorkRequestContext(pullRequestNumber: 7, reason: 'agent-review');
+        $em->flush();
+        $this->workerRun($project, $card, $request, WorkerRunState::Blocked, '2026-10-21 02:10:00');
+        $this->workerRun($project, $card, $request, WorkerRunState::Unfinished, '2026-10-21 02:20:00');
+        $em->flush();
+
+        self::assertSame([], $this->repository()->findAgentReviewFixesSettled($cardId));
+    }
+
+    private function workerRun(Project $project, Card $card, WorkRequest $request, WorkerRunState $state, ?string $endedAt = null): void
     {
         $this->em()->persist(new WorkerRun(
             project: AgentCredential::managed($this->em(), $project, $project->id),
@@ -762,6 +822,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
             cardNumber: 1,
             workKind: 'fix',
             state: $state,
+            endedAt: null === $endedAt ? null : new \DateTimeImmutable($endedAt),
             receivedAt: new \DateTimeImmutable('2026-10-21 05:00:00'),
             workRequestId: $request->id,
         ));

@@ -113,6 +113,21 @@ final class PullRequestTrackerTest extends KernelTestCase
         self::assertSame([(string) $open->id], $this->queuedIds());
     }
 
+    public function test_refresh_delays_a_number_target_and_requests_the_read_for_when_it_runs(): void
+    {
+        $project = $this->project();
+        $this->row($project, 42);
+
+        $this->tracker->refreshAll($project, FakePullRequestStateReader::FORGE, 'acme/widgets', [PullRequestRefreshTarget::number(42, delayMilliseconds: 30_000)]);
+
+        $sent = $this->sent();
+        self::assertCount(1, $sent);
+        self::assertSame(30_000, $sent[0]->last(DelayStamp::class)?->getDelay());
+        $message = $sent[0]->getMessage();
+        self::assertInstanceOf(RefreshPullRequestState::class, $message);
+        self::assertEquals(new \DateTimeImmutable('2026-09-27 12:00:30'), $message->requestedAt);
+    }
+
     public function test_refresh_carries_the_review_verdict_and_leaves_it_off_by_default(): void
     {
         $project = $this->project();
