@@ -1374,6 +1374,10 @@ case. A repository that a project claimed before this feature, through an active
 merging on the agent review until `.loupe.yaml` states the setting. The `waits-for-merge-approval-answer` marker shows
 on a card in the unanswered case.
 
+The hold covers only a pull request into the default branch. A child pull request into its epic branch merges through
+`merge-ready-epic-child` when the agent review passes, whatever the answer. The epic pull request then carries the whole
+change to the default branch, and the hold applies to it.
+
 A card with the **Requires human review** switch on never gets the automatic check. If a success already stands on the
 head, the rule `approval-check-revoke` changes it to failure. It has no slot, so it also runs while the card sits in
 another column. A person's approval on GitHub then posts the success again.
