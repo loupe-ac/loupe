@@ -24,6 +24,11 @@ export default class extends Controller {
             return;
         }
         const slow = this.slowTarget.content.cloneNode(true);
-        this.element.replaceChildren(slow);
+        for (const child of [...this.element.children]) {
+            if (!child.matches('form[data-graph-drag-form], template')) {
+                child.remove();
+            }
+        }
+        this.element.prepend(slow);
     }
 }

@@ -8,6 +8,7 @@ let application;
 async function mount() {
     document.body.innerHTML = `<div id="frame" data-controller="slow-notice" data-slow-notice-delay-value="30">
         <p id="spinner">Loading</p>
+        <form hidden data-graph-drag-form id="drag"></form>
         <template data-slow-notice-target="slow"><p id="notice">Slow</p></template>
     </div>`;
     await vi.advanceTimersByTimeAsync(0);
@@ -36,6 +37,15 @@ it('keeps the spinner until the delay passes, then shows the slow tile', async (
     await vi.advanceTimersByTimeAsync(1);
     expect(document.querySelector('#spinner')).toBeNull();
     expect(document.querySelector('#notice')).not.toBeNull();
+});
+
+it('keeps the move form in the cell when the slow tile appears', async () => {
+    await mount();
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(
+        document.querySelector('#frame form[data-graph-drag-form]'),
+    ).not.toBeNull();
 });
 
 it('shows nothing when a result replaced the frame before the delay', async () => {
