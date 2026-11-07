@@ -124,7 +124,7 @@ Say in the plan which of the checks below the change needs.
 
 **Deploy notes.** A card can link a document tagged `deploy-notes`. `project-deploy` "What deploy notes hold" lists the items a deploy must handle. Revise the notes when the change adds, changes or removes one.
 
-The third check is the changelog entry. Write it on the same branch, in `changelog.d/<pull request number>.md`, and never in `docs/CHANGELOG.md`. `working-with-prs` and `changelog.d/README.md` carry the format.
+The fourth check is the changelog entry. Write it on the same branch, in `changelog.d/<pull request number>.md`, and never in `docs/CHANGELOG.md`. `working-with-prs` and `changelog.d/README.md` carry the format.
 
 ### Register what the feature adds
 

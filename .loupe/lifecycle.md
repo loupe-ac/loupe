@@ -159,6 +159,8 @@ Load skill `project-review` when the diff changes `templates/`, `assets/styles/`
 
 Load skill `working-with-prs` before the gate, a push or a pull request.
 
+Load skill `project-deploy` when you compare the diff with the deploy notes.
+
 Load skill `project-review` when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`, before the push.
 
 ### Review

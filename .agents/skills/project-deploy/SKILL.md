@@ -20,7 +20,7 @@ The platform works as designed. `variable "image_tag"` says so: "A fixed tag mea
 
 ## What deploy notes hold
 
-A card can link a Loupe document titled `Deploy notes: <card title>`, tagged `deploy-notes`. The tech design and implementation stages of the Loupe plugin write it. The routing table of `.loupe/lifecycle.md` sends them to this section.
+A card can link a Loupe document titled `Deploy notes: <card title>`, tagged `deploy-notes`. The tech design, implementation and fix round stages of the Loupe plugin write it. The routing table of `.loupe/lifecycle.md` sends them to this section.
 
 Record each item of the change that the deploy must handle:
 
