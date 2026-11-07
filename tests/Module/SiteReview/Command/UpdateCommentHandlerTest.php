@@ -46,7 +46,13 @@ final class UpdateCommentHandlerTest extends KernelTestCase
         $events = self::getContainer()->get(EventDispatcherInterface::class);
         self::assertInstanceOf(EventDispatcherInterface::class, $events);
         $this->audit = new RecordingAuditor($actors);
-        $this->handler = new UpdateCommentHandler($comments, $this->em, $this->audit->auditor, $events);
+        $this->handler = new UpdateCommentHandler($comments, new class implements \App\Module\SiteReview\Context\CommentEditLockInterface {
+            #[\Override]
+            public function isLocked(SiteReviewComment $comment): bool
+            {
+                return false;
+            }
+        }, $this->em, $this->audit->auditor, $events);
     }
 
     public function test_edits_a_pending_comment_body(): void

@@ -10,6 +10,7 @@ use App\Controller\AppController;
 use App\Module\Board\Command\DeleteFeedbackCommand;
 use App\Module\Board\Command\DeleteFeedbackHandler;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
+use App\Module\SiteReview\Command\CommentLocked;
 use App\Module\SiteReview\Command\CommentNotFound;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,6 +36,7 @@ use Symfony\Component\Uid\Uuid;
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 404, description: 'Refused: `not_found`, `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 409, description: 'Refused: `note_locked`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new RateLimitedResponse(),
     ],
@@ -69,6 +71,8 @@ final class DeleteFeedbackController extends AppController
             $cardDeleted = ($this->handler)(new DeleteFeedbackCommand($project, $commentId));
         } catch (CommentNotFound) {
             throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'not_found', 'No such record exists for this token.');
+        } catch (CommentLocked) {
+            throw ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'note_locked', 'The card of this note started work, so the note no longer goes.');
         }
 
         return $this->json(['cardDeleted' => $cardDeleted]);

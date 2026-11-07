@@ -86,6 +86,13 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
+    /**
+     * Whether the card has ever sat outside the Backlog. The column hook sets it and nothing clears it, so a card
+     * that went back to the Backlog stays started.
+     */
+    #[ORM\Column(name: 'left_backlog', options: ['default' => false])]
+    public bool $leftBacklog = false;
+
     /** Whether a session run brought the card into its column. Any other move to another column clears it. */
     #[ORM\Column(name: 'arrived_in_session', options: ['default' => false])]
     public bool $arrivedInSession = false;
@@ -177,7 +184,14 @@ class Card implements ProjectScopedSubject
 
         #[ORM\JoinColumn(name: 'column_id', nullable: false)]
         #[ORM\ManyToOne(targetEntity: BoardColumn::class)]
-        public BoardColumn $column,
+        public BoardColumn $column {
+            set {
+                $this->column = $value;
+                if (!$value->backlog) {
+                    $this->leftBacklog = true;
+                }
+            }
+        },
 
         #[ORM\Column(length: self::MAX_TITLE_LENGTH)]
         public string $title,
