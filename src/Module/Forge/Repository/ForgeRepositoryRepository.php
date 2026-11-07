@@ -79,6 +79,18 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
     }
 
     /** @return list<ForgeRepository> */
+    public function findByProjectId(Uuid $projectId): array
+    {
+        return array_values($this->createQueryBuilder('r')
+            ->andWhere('IDENTITY(r.project) = :project')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->orderBy('r.createdAt', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** @return list<ForgeRepository> */
     public function findByOwner(User $user): array
     {
         return array_values($this->createQueryBuilder('r')
