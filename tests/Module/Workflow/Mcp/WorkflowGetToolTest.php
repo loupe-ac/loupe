@@ -31,7 +31,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
     private const array CODE_CHECKS = [
         'The worktree of the card is still available, or the agent can make it again',
-        'The gate commands of .loupe/lifecycle.md',
+        'The push gate of the instruction files',
         'Read access to the CI check logs',
         'Conflict check: CI and the gate. The push gate of the instruction files runs each check that CI requires',
         'A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add',
