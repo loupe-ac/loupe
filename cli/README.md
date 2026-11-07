@@ -366,10 +366,10 @@ loupe init --repoint             # point a rule file entry that maps another fol
    subfolder, such as `e2e/`. It asks first, and runs
    `npx playwright install chromium` in the folder of that `package.json`, so
    the browser matches the Playwright version of that package.
-10. Write the repository profile with an agent, when the workflow of the project
-   needs one and `.loupe/lifecycle.md` is missing, lacks a section or holds a
-   value that reads "owner to fill in". `--review-profile` starts the agent also
-   for a complete file. `--agent` picks `claude` or `codex`. With both on the
+10. Start an agent that looks for blockers, when the workflow of the project
+   needs a profile and `.loupe/lifecycle.md` is missing. The agent writes
+   nothing to that file. `--review-profile` starts the agent also when the file
+   exists. `--agent` picks `claude` or `codex`. With both on the
    `PATH` and a terminal, the command asks once. With no terminal or no agent,
    it prints the prompt to paste.
 11. Report the account check. Before step 10, the command prints each account

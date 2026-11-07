@@ -154,9 +154,9 @@ func newInitCmd() *cobra.Command {
 			"9. Install the Playwright browser, when the package.json of the repository root or of one of " +
 			"its direct subfolders lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
-			"10. Write the repository profile with an agent, when the workflow of the project needs one and " +
-			profile.Path + " is missing, lacks a section or holds a value marked \"" + profile.OpenQuestion + "\". " +
-			"--review-profile starts the agent also for a complete file. --agent picks claude or codex; with both on the PATH " +
+			"10. Start an agent that looks for blockers, when the workflow of the project needs a profile and " +
+			profile.Path + " is missing. It writes nothing to that file. " +
+			"--review-profile starts the agent also when the file exists. --agent picks claude or codex; with both on the PATH " +
 			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
 			"11. Offer to start discovery, only when the profile is complete and pushed and the accounts pass. It asks once, and starts nothing without a terminal.\n" +
 			"12. Print what remains and the project page. The accounts are reported before step 10, so a failing account never stops the agent.\n\n" +
@@ -179,7 +179,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.link.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
 	cmd.Flags().StringVar(&o.agent, "agent", "", "agent that writes the repository profile: claude or codex; else init asks when both are on the PATH")
-	cmd.Flags().BoolVar(&o.reviewProfile, "review-profile", false, "start the profile agent also when "+profile.Path+" is complete, to review each value")
+	cmd.Flags().BoolVar(&o.reviewProfile, "review-profile", false, "start the blocker agent also when "+profile.Path+" exists")
 	cmd.Flags().BoolVar(&o.verbose, "verbose", false, "print one line for each step with its reason, the form a script reads")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
