@@ -79,7 +79,7 @@ When an instance upgrades, a project that has a card outside Backlog starts with
 ## Run discovery
 
 Discovery reads the repository and the workflow of the project, and writes a readiness report.
-The worker only reads. It changes no file and opens no pull request.
+The worker only reads, with one exception. After you agree in the inbox, it writes the `## Routing` table of `.loupe/lifecycle.md` on a new branch.
 
 To start it, select **Run discovery** in the Run discovery row.
 Loupe creates a new tooling card in the Backlog, named "Discover what Acme needs for agents".
