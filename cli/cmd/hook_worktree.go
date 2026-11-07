@@ -52,7 +52,7 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
 			"It writes a claim into the git dir of the worktree at the folder the hook printed, so worktree-remove can tell it from a worktree a person made. " +
 			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
-			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that name and slug, in any folder and on any branch.",
+			"It does not claim that worktree, nor a worktree that existed before the hook ran, and it refuses a folder that another claim names. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that name and slug, in any folder and on any branch.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -282,6 +282,14 @@ func runWorktreeCreate(ctx context.Context, project, slug, name string, stdout, 
 	if len(hooks) == 0 {
 		return fmt.Errorf("no %s command hook in .claude/settings.json or .claude/settings.local.json of %s", hookCreateEvent, project)
 	}
+	before, err := listProjectWorktrees(ctx, project)
+	if err != nil {
+		return err
+	}
+	existing := map[string]bool{}
+	for _, w := range before {
+		existing[resolvePath(w.Path)] = true
+	}
 	path, err := runHookCommands(ctx, project, hooks, hookPayload(hookCreateEvent, project, map[string]string{"name": name}), stderr)
 	if err != nil {
 		return err
@@ -289,7 +297,24 @@ func runWorktreeCreate(ctx context.Context, project, slug, name string, stdout, 
 	if path == "" {
 		return fmt.Errorf("the %s hook printed no folder", hookCreateEvent)
 	}
-	if err := writeHookClaim(ctx, project, slug, name, path); err != nil {
+	abs := path
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(project, abs)
+	}
+	if existing[resolvePath(abs)] {
+		claims, err := readHookClaims(ctx, project)
+		if err != nil {
+			return err
+		}
+		for at, c := range claims {
+			if resolvePath(at) != resolvePath(abs) {
+				continue
+			}
+
+			return fmt.Errorf("refusing %s: the %s hook printed a worktree that worktree-create made for %q of project %q", abs, hookCreateEvent, c.Name, c.Project)
+		}
+		fmt.Fprintf(stderr, "not claiming %s: the worktree existed before the %s hook ran\n", abs, hookCreateEvent)
+	} else if err := writeHookClaim(ctx, project, slug, name, path); err != nil {
 		return err
 	}
 	fmt.Fprintln(stdout, path)
@@ -375,7 +400,8 @@ type hookClaim struct {
 // writeHookClaim marks the worktree at path, the folder that the hook
 // printed, as made by worktree-create for name and the project slug. A
 // relative path counts from project. A folder that is no linked worktree of
-// project keeps no claim, so teardown leaves it.
+// project keeps no claim, so teardown leaves it. A claim for another name or
+// project is never overwritten.
 func writeHookClaim(ctx context.Context, project, slug, name, path string) error {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(project, path)
@@ -392,12 +418,24 @@ func writeHookClaim(ctx context.Context, project, slug, name, path string) error
 		if err != nil {
 			return err
 		}
-		b, err := json.Marshal(hookClaim{Name: name, Project: slug})
+		file := filepath.Join(dir, hookClaimFile)
+		want := hookClaim{Name: name, Project: slug}
+		if raw, err := os.ReadFile(file); err == nil {
+			var c hookClaim
+			if json.Unmarshal(raw, &c) != nil || c != want {
+				return fmt.Errorf("refusing to claim %s: it carries the claim of another worktree", w.Path)
+			}
+
+			return nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		b, err := json.Marshal(want)
 		if err != nil {
 			return err
 		}
 
-		return os.WriteFile(filepath.Join(dir, hookClaimFile), append(b, '\n'), 0o600)
+		return os.WriteFile(file, append(b, '\n'), 0o600)
 	}
 
 	return nil

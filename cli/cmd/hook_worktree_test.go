@@ -529,3 +529,94 @@ esac
 		t.Fatal("teardown must remove the claimed worktree")
 	}
 }
+
+// An idempotent hook can print a worktree that already exists. The adapter
+// claims only a worktree that the hook added, so it never takes the hook
+// worktree of another project, nor a worktree that a person made.
+func TestWorktreeCreateNeverClaimsAnExistingWorktree(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	log := filepath.Join(t.TempDir(), "log")
+	t.Setenv("LOG", log)
+	script := filepath.Join(t.TempDir(), "hook.sh")
+	body := `#!/bin/sh
+cat > "$LOG.stdin"
+case "$(cat "$LOG.stdin")" in
+*WorktreeCreate*)
+  [ -d shared/wt ] || git worktree add -q -b shared-wt shared/wt >&2
+  echo shared/wt
+  ;;
+esac
+`
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"`+script+`"}]}],"WorktreeRemove":[{"hooks":[{"type":"command","command":"`+script+`"}]}]}}`)
+	ctx := context.Background()
+	wt := filepath.Join(project, "shared", "wt")
+	if err := runWorktreeCreate(ctx, project, "alpha", "card-16", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if owned, err := ownsWorktree(ctx, project, wt, "alpha", "card-16"); err != nil || !owned {
+		t.Fatalf("alpha must claim the worktree its hook added: %v %v", owned, err)
+	}
+
+	err := runWorktreeCreate(ctx, project, "beta", "card-16", &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "refusing") {
+		t.Fatalf("beta must refuse the hook worktree of alpha, got %v", err)
+	}
+	if owned, err := ownsWorktree(ctx, project, wt, "alpha", "card-16"); err != nil || !owned {
+		t.Fatalf("alpha must keep its claim: %v %v", owned, err)
+	}
+	if owned, err := ownsWorktree(ctx, project, wt, "beta", "card-16"); err != nil || owned {
+		t.Fatalf("beta must not own the hook worktree of alpha: %v %v", owned, err)
+	}
+	if err := runWorktreeRemove(ctx, project, "beta", "card-16", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(wt); err != nil {
+		t.Fatal("beta teardown removed the hook worktree of alpha")
+	}
+
+	// A worktree that a person made, under another name, stays unclaimed.
+	person := filepath.Join(project, "shared", "mine")
+	runGit(t, project, "worktree", "add", "-q", "-b", "mine", person)
+	personal := filepath.Join(t.TempDir(), "hook2.sh")
+	if err := os.WriteFile(personal, []byte("#!/bin/sh\ncat >/dev/null\necho shared/mine\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"`+personal+`"}]}]}}`)
+	var out bytes.Buffer
+	if err := runWorktreeCreate(ctx, project, "alpha", "card-17", &out, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(out.String()) != "shared/mine" {
+		t.Fatalf("worktree-create printed %q", out.String())
+	}
+	if owned, err := ownsWorktree(ctx, project, person, "alpha", "card-17"); err != nil || owned {
+		t.Fatalf("a worktree that existed before the hook must stay unclaimed: %v %v", owned, err)
+	}
+}
+
+// writeHookClaim never overwrites the claim of another name or project.
+func TestWriteHookClaimKeepsAnotherClaim(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	wt := filepath.Join(project, "wt")
+	runGit(t, project, "worktree", "add", "-q", "-b", "wt", wt)
+	ctx := context.Background()
+	if err := writeHookClaim(ctx, project, "alpha", "card-1", wt); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeHookClaim(ctx, project, "alpha", "card-1", wt); err != nil {
+		t.Fatalf("the same claim again must pass: %v", err)
+	}
+	if err := writeHookClaim(ctx, project, "beta", "card-1", wt); err == nil {
+		t.Fatal("a claim of another project must be refused")
+	}
+	if owned, err := ownsWorktree(ctx, project, wt, "alpha", "card-1"); err != nil || !owned {
+		t.Fatalf("alpha must keep its claim: %v %v", owned, err)
+	}
+}
