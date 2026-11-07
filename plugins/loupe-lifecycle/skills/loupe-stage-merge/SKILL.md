@@ -40,7 +40,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 
 ### Epic branches
 
-This section applies only when the profile has an `Epics` section. Fill its epic branch pattern with an epic number to get the epic branch.
+This section applies only when `workflow_get` returns `epic-branches` as true. Fill its `epic-branch-pattern` with an epic number to get the epic branch.
 
 1. An epic child is a pull request whose base is the epic branch of the card `parent.number`.
 2. An epic pull request is a pull request on a card of type `epic`, whose head is the epic branch of that card's number.
@@ -70,7 +70,7 @@ Merge only when every item holds. The first item that fails ends the run with `S
 1. The head commit equals the SHA of the prompt.
 2. The pull request is not a draft.
 3. The approval covers every commit up to the SHA of the prompt. It is the `Loupe / Approval` check of the Loupe App, plus the reviews that the rules of the base branch require. With no rules, the check alone is the approval. Call `workflow_get` and read `approvalCoversConflictResolution` and `githubAppId`. Check the approval with the forge adapter, and pass it both values. When the profile `Merge` section names an approver, that reviewer must also hold a covering approval.
-4. The checks are `passed`: every required check of the base branch passes on the head, and none fails or is pending. The forge adapter reads the required names live, also for a check that has not started. A repository with no required check is `passed`. An epic branch has no required checks of its own. For an epic child, read the required checks of the base branch of the profile `Merge` section, as the forge adapter says. When the read is `UNREAD`, stop with `STAGE RESULT: blocked: required checks unreadable <url>`.
+4. The checks are `passed`: every required check of the base branch passes on the head, and none fails or is pending. The forge adapter reads the required names live, also for a check that has not started. A repository with no required check is `passed`. An epic branch has no required checks of its own. For an epic child, read the required checks of the default branch of the repository, as the forge adapter says. When the read is `UNREAD`, stop with `STAGE RESULT: blocked: required checks unreadable <url>`.
 5. The mergeability is `mergeable`.
 6. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 3. The app sends no behind event for a base with no strict rule, so this item replaces that event. A sync of the epic branch with a merge of its base puts each open child behind. The forge adapter's update then merges the epic branch into the child.
 

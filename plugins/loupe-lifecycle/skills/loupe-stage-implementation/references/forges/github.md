@@ -75,10 +75,10 @@ gh pr checks <url> --required --json name,bucket,link
 
 A stacked pull request has no required checks when no ruleset covers its base. For it, drop `--required`, and count every check. `--required` fails there with "No required checks reported".
 
-A pull request into an epic branch takes the required checks of the base branch of the profile `Merge` section, by name. Read the names, then every check:
+A pull request into an epic branch takes the required checks of the default branch of the repository, by name. Read the names, then every check:
 
 ```bash
-gh api repos/<nameWithOwner>/rules/branches/<merge base> --jq '.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
+gh api repos/<nameWithOwner>/rules/branches/<default branch> --jq '.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
 gh pr checks <url> --json name,bucket,link
 ```
 
@@ -151,7 +151,7 @@ gh pr view <url> --json state,isDraft,headRefOid,baseRefName,mergeable,mergeStat
 gh pr checks <url> --json name,bucket,link
 ```
 
-`<forge dir>` is the directory of this file. The second command prints the names of the required checks of the base branch, one for each line. It reads the rulesets and the classic branch protection live, so no profile count can go stale. It leaves out `Loupe / Approval`, which "Check the approval covers the head" reads. It exits 2 and prints `UNREAD` with a reason when a read fails. An epic child passes `--base <merge base>` with the base branch of the profile `Merge` section, because an epic branch has no rules of its own.
+`<forge dir>` is the directory of this file. The second command prints the names of the required checks of the base branch, one for each line. It reads the rulesets and the classic branch protection live, so no profile count can go stale. It leaves out `Loupe / Approval`, which "Check the approval covers the head" reads. It exits 2 and prints `UNREAD` with a reason when a read fails. An epic child passes `--base <default branch>` with the default branch of the repository, because an epic branch has no rules of its own.
 
 The third command lists every check of the head. Read its JSON whatever the exit code. Each required name must have a check with the `bucket` `pass`. A name with no check counts as pending, also when the check has not started yet. An empty list of names is green.
 
