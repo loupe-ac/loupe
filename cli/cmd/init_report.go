@@ -218,7 +218,7 @@ func discoveryBlockers(left initLeft, files []string) []string {
 		out = append(out, "Fix the account "+a+". Then run `loupe init` again to check it.")
 	}
 	if left.profile != "" {
-		out = append(out, "Finish the profile: "+left.profile+". Run `loupe init` again to go on.")
+		out = append(out, "Look for blockers: "+left.profile+". Run `loupe init` again to go on.")
 	}
 	if len(files) > 0 {
 		out = append(out, "Commit and push "+strings.Join(files, " and ")+", because a worker sees only what you push.")

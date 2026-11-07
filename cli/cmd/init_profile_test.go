@@ -106,11 +106,7 @@ func no() *bool  { v := false; return &v }
 
 func completeProfile(t *testing.T, dir string) {
 	t.Helper()
-	var b strings.Builder
-	for _, name := range profile.Sections {
-		b.WriteString("## " + name + "\n\n1. A value.\n\n")
-	}
-	writeFile(t, filepath.Join(dir, profile.Path), b.String())
+	writeFile(t, filepath.Join(dir, profile.Path), "# Lifecycle profile\n")
 }
 
 func TestInitProfileSkipsAProjectThatNeedsNone(t *testing.T) {
@@ -121,11 +117,11 @@ func TestInitProfileSkipsAProjectThatNeedsNone(t *testing.T) {
 	}
 }
 
-func TestInitProfileSkipsACompleteFile(t *testing.T) {
+func TestInitProfileSkipsAFileThatExists(t *testing.T) {
 	w, dir := newProfileWorld(t)
 	completeProfile(t, dir)
 	out := runProfileStep(t, dir, api.Site{ID: "p", NeedsProfile: yes()}, initOptions{})
-	if len(w.calls) != 0 || !strings.Contains(out, "is complete") {
+	if len(w.calls) != 0 || !strings.Contains(out, "exists. Pass --review-profile") {
 		t.Fatalf("calls %v, out %q", w.calls, out)
 	}
 }
@@ -231,8 +227,8 @@ func TestInitProfileRunsCodexWithThePromptAlone(t *testing.T) {
 	if !strings.Contains(w.calls[0][1], filepath.Join("loupe-profile", "SKILL.md")) {
 		t.Errorf("prompt lacks the skill path: %s", w.calls[0][1])
 	}
-	if !strings.Contains(out, "Profile: open") {
-		t.Errorf("an agent that left the file missing must report open: %s", out)
+	if !strings.Contains(out, "Profile: done") {
+		t.Errorf("an agent that writes no file still finishes: %s", out)
 	}
 }
 
@@ -315,14 +311,14 @@ func TestInitProfileAfterTheCodexStepLeavesNoServer(t *testing.T) {
 	}
 }
 
-func TestInitProfileReviewFlagStartsTheAgentOnACompleteFile(t *testing.T) {
+func TestInitProfileReviewFlagStartsTheAgentWhenTheFileExists(t *testing.T) {
 	w, dir := newProfileWorld(t)
 	completeProfile(t, dir)
 	store := os.Getenv(config.EnvVar)
 	writeFile(t, filepath.Join(store, "skills", "loupe-lifecycle", "1.0.0", "skills", "loupe-profile", "SKILL.md"), "x")
 
 	runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude, reviewProfile: true})
-	if len(w.calls) != 1 || !strings.Contains(w.calls[0][len(w.calls[0])-1], "Review every value") {
+	if len(w.calls) != 1 || !strings.Contains(w.calls[0][len(w.calls[0])-1], "Leave it as it is") {
 		t.Fatalf("calls = %v", w.calls)
 	}
 }
@@ -442,5 +438,21 @@ func TestInitProfileDevelopmentBuildMeetsEveryMinCli(t *testing.T) {
 	runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
 	if len(w.calls) != 1 {
 		t.Fatalf("calls = %v", w.calls)
+	}
+}
+
+func TestProfilePromptCarriesTheGitHubFacts(t *testing.T) {
+	main, ok, no := "main", "ok", false
+	site := api.Site{ID: "p", GitHub: &api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{
+		{Path: "o/r", DefaultBranch: &main, RulesRead: &ok, ReviewRequired: &no},
+	}}}
+	prompt := profilePrompt(site, "", false)
+	for _, want := range []string{"the Loupe GitHub App is installed", "Repository o/r:", "default branch main", "rulesRead ok", "reviewRequired no", "mergeApproval unknown"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("prompt lacks %q: %s", want, prompt)
+		}
+	}
+	if unknown := profilePrompt(api.Site{ID: "p"}, "", false); !strings.Contains(unknown, "GitHub facts: unknown") {
+		t.Errorf("prompt = %s", unknown)
 	}
 }

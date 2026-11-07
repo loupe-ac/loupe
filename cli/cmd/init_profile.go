@@ -43,12 +43,12 @@ var initAgent = func(dir string, in io.Reader, out io.Writer, name string, args 
 // initExecutable finds this binary. A test replaces it.
 var initExecutable = os.Executable
 
-// initProfile starts the agent that writes the repository profile with the
-// owner. It runs only for a project whose workflow needs a profile, and only
-// when the file is missing, lacks a section or holds an open value. It never
-// fails init: when it cannot start the agent, it prints the prompt to paste. It
-// returns why the profile is not finished, and an empty string when it is. It
-// also says whether the agent ran, so a new discovery can replace an old report.
+// initProfile starts the agent that looks for blockers with the owner. It runs
+// only for a project whose workflow needs a profile, and only when the file is
+// missing or --review-profile asks for it. It never fails init: when it cannot
+// start the agent, it prints the prompt to paste. It returns why the run is not
+// finished, and an empty string when it is. It also says whether the agent ran,
+// so a new discovery can replace an old report.
 func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (left string, agentRan bool) {
 	out := cmd.OutOrStdout()
 
@@ -63,8 +63,8 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 
 		return "the check failed: " + err.Error(), agentRan
 	}
-	if status.Complete() && !o.reviewProfile {
-		stepSet(out, "Profile", profile.Path+" is complete. Pass --review-profile to review it")
+	if !status.Missing && !o.reviewProfile {
+		stepSet(out, "Profile", profile.Path+" exists. Pass --review-profile to look for blockers again")
 
 		return "", agentRan
 	}
@@ -74,7 +74,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 	if dir := paths[profilePackage]; dir != "" {
 		skillPath = filepath.Join(dir, "skills", profileSkill, "SKILL.md")
 	}
-	prompt := profilePrompt(site, skillPath, o.reviewProfile)
+	prompt := profilePrompt(site, skillPath, !status.Missing)
 
 	agent, why := pickProfileAgent(cmd, o.agent, skillPath != "")
 	if agent == "" {
@@ -111,7 +111,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 		}
 		args = append(args, "--mcp-config", mcpConfig, "--", prompt)
 	}
-	step(out, "Profile", "started", status.Reason()+". The "+agent+" agent writes it with you")
+	step(out, "Profile", "started", "The "+agent+" agent looks for blockers with you")
 	agentRan = true
 	if err := initAgent(dir, cmd.InOrStdin(), out, agent, args...); err != nil {
 		step(out, "Profile", "failed", agent+" stopped: "+err.Error()+". Paste this prompt into an agent in this folder:")
@@ -121,21 +121,14 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 		return agent + " stopped: " + err.Error(), agentRan
 	}
 
-	after, err := profile.Check(dir)
-	switch {
-	case err != nil:
+	if _, err := profile.Check(dir); err != nil {
 		step(out, "Profile", "failed", err.Error())
 
 		return "the check failed: " + err.Error(), agentRan
-	case after.Complete():
-		step(out, "Profile", "done", profile.Path+" is complete")
-
-		return "", agentRan
-	default:
-		step(out, "Profile", "open", after.Reason()+". Run `loupe init --review-profile` to go on")
-
-		return after.Reason(), agentRan
 	}
+	step(out, "Profile", "done", "the agent looked for blockers")
+
+	return "", agentRan
 }
 
 // profileMcpConfig is the value of --mcp-config. It names the installed path of
@@ -232,20 +225,70 @@ func askAgent(out io.Writer, in io.Reader, found []string) string {
 }
 
 // profilePrompt is the first message to the agent. It names the skill by a
-// path too, because Codex has no way to load a package folder.
-func profilePrompt(site api.Site, skillPath string, review bool) string {
+// path too, because Codex has no way to load a package folder. It also carries
+// the GitHub facts that the app knows, so the agent asks no question that a fact
+// answers.
+func profilePrompt(site api.Site, skillPath string, fileExists bool) string {
 	var b strings.Builder
-	b.WriteString("Write the Loupe repository profile, " + profile.Path + ", for this repository with me. ")
+	b.WriteString("Look for blockers in this repository with me. A blocker makes a worker fail on its first run, or does damage. ")
 	b.WriteString("Use the " + profilePackage + ":" + profileSkill + " skill")
 	if skillPath != "" {
 		b.WriteString(", at " + skillPath)
 	}
 	b.WriteString(". The Loupe project is " + site.ID + ".")
-	if review {
-		b.WriteString(" The file exists. Review every value of it against the repository.")
+	if fileExists {
+		b.WriteString(" " + profile.Path + " exists. Leave it as it is.")
+	}
+	b.WriteString(" " + githubFacts(site))
+
+	return b.String()
+}
+
+// githubFacts says in one paragraph what the app knows of the GitHub
+// repositories of the project. An app that sent none gives the unknown line.
+func githubFacts(site api.Site) string {
+	g := site.GitHub
+	if g == nil {
+		return "GitHub facts: unknown. The app sent none."
+	}
+	var b strings.Builder
+	if g.AppInstalled {
+		b.WriteString("GitHub facts: the Loupe GitHub App is installed.")
+	} else {
+		b.WriteString("GitHub facts: the Loupe GitHub App is not installed.")
+	}
+	if len(g.Repositories) == 0 {
+		b.WriteString(" The project claims no GitHub repository.")
+	}
+	for _, r := range g.Repositories {
+		b.WriteString(" Repository " + r.Path + ":")
+		b.WriteString(" default branch " + factText(r.DefaultBranch) + ",")
+		b.WriteString(" rulesRead " + factText(r.RulesRead) + ",")
+		switch {
+		case r.ReviewRequired == nil:
+			b.WriteString(" reviewRequired unknown,")
+		case *r.ReviewRequired:
+			b.WriteString(" reviewRequired yes,")
+		default:
+			b.WriteString(" reviewRequired no,")
+		}
+		b.WriteString(" mergeApproval " + factText(r.MergeApproval))
+		if r.MergeApprovalSource != "" {
+			b.WriteString(" (source " + r.MergeApprovalSource + ")")
+		}
+		b.WriteString(".")
 	}
 
 	return b.String()
+}
+
+// factText is the value of an optional fact, or "unknown".
+func factText(v *string) string {
+	if v == nil || *v == "" {
+		return "unknown"
+	}
+
+	return *v
 }
 
 // profilePackageDirs unpacks the starting copy into the store, and returns the

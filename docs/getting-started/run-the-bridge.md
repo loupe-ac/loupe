@@ -31,9 +31,10 @@ loupe init
 7. It starts the bridge in the background.
 8. It offers to install the Playwright browser, when the repository uses
    Playwright.
-9. It starts an agent that writes the repository profile, `.loupe/lifecycle.md`,
-   with you. This step runs only when the workflow of the project needs a
-   profile and the file is missing or unfinished.
+9. It starts an agent that looks for blockers with you. A blocker makes a worker
+   fail on its first run, or does damage. The agent writes nothing to
+   `.loupe/lifecycle.md`. This step runs only when the workflow of the project
+   needs a profile and the file is missing.
 10. It reports the state of each account, and prints what remains.
 
 The account report comes before the agent starts. It names each failure with its
