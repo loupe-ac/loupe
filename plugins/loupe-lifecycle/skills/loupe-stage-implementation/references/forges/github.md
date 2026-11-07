@@ -95,16 +95,16 @@ gh run view <run id> --log-failed
 ```bash
 git push -u origin HEAD
 gh pr list --head <branch> --state open --json url
-gh pr create --base <base> --title "<title>" --body-file <file> [--draft]
+gh pr create --base <base> --title "<title>" --body-file <file> --draft
 ```
 
-Link a pull request that `gh pr list` returns, and create none. Pass `--draft` when the profile `Pull request` section says to open a draft.
+Link a pull request that `gh pr list` returns, and create none. Always pass `--draft`.
 
 A branch that the checkout is not on, such as an epic branch, takes another form. Skip the push, and name the head:
 
 ```bash
 gh pr list --head <branch> --base <base> --state open --json url
-gh pr create --head <branch> --base <base> --title "<title>" --body-file <file> [--draft]
+gh pr create --head <branch> --base <base> --title "<title>" --body-file <file> --draft
 ```
 
 When `gh pr create` fails because the pull request already exists, run `gh pr list` again, and link the one it returns. GitHub refuses a pull request with no commits between the two branches.

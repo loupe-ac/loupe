@@ -34,7 +34,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 4. The URL must be one of the card `pullRequests`. Otherwise stop with `STAGE RESULT: blocked: pull request not linked to the card`.
 5. Find and validate the pull request with the forge adapter. When it is outside this repository, stop with `STAGE RESULT: blocked: pull request outside this repository`. When its state is `merged`, stop with `STAGE RESULT: merged <url>`. When it is `closed`, stop with `STAGE RESULT: no open pull request`.
 6. Read the merge state with the forge adapter. Read its Report words only, as `../loupe-stage-implementation/references/commands.md` "Report words" lists them. From this step on, post the refusal comment before each `not ready` or `blocked:` stop. Follow "Post a refusal comment" in `../loupe-stage-implementation/references/commands.md`.
-7. Sort the pull request, as "Epic branches" says. An epic child skips the stacked check. For any other pull request, compare the base with the base branch of the profile `Merge` section. When they differ, stop with `STAGE RESULT: not ready <url>: stacked on <base>`. A stacked pull request never merges into its parent.
+7. Sort the pull request, as "Epic branches" says. An epic child skips the stacked check. For any other pull request, compare the base with the default branch of the repository (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`). When they differ, stop with `STAGE RESULT: not ready <url>: stacked on <base>`. A stacked pull request never merges into its parent.
 8. For an update, take "Update". For a merge, take "Merge".
 
 ### Epic branches
@@ -102,9 +102,9 @@ The parent of a stacked pull request merged, so the pull request needs the base 
 
 A blocker outside the epic merged code into the base branch, and the epic branch of the parent card does not hold it yet. This step serves a project whose forge has no connection that writes the merge. The card of the request is a child of the epic.
 
-1. When the card `parent` is null, or the profile has no `Epics` section, stop with `STAGE RESULT: unchanged`.
-2. Fill the epic branch pattern of the profile `Epics` section with `parent.number`. When the forge has no such branch, stop with `STAGE RESULT: unchanged`, because the children start from the base branch.
-3. Merge the base branch of the profile `Gate` section into the epic branch, with "Merge a branch into the epic branch" in the forge adapter. The forge makes the merge commit, so nothing changes in a local folder.
+1. When the card `parent` is null, or the prompt names no epic branch, stop with `STAGE RESULT: unchanged`.
+2. Take the epic branch from the prompt line `Epic branch: <name>.`. When the forge has no such branch, stop with `STAGE RESULT: unchanged`, because the children start from the base branch.
+3. Merge the default branch of the repository into the epic branch, with "Merge a branch into the epic branch" in the forge adapter. The forge makes the merge commit, so nothing changes in a local folder.
 4. When the forge reports a conflict, stop with `STAGE RESULT: blocked: merge conflict with <base> in <epic branch>`, and record the block on the card.
 5. Stop with `STAGE RESULT: epic branch synced <epic branch>`.
 

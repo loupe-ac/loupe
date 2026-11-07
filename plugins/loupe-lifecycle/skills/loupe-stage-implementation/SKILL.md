@@ -41,7 +41,7 @@ Build the approved tech design of one card into a ready, linked pull request. An
    - Every other card continues at step 6.
 6. Read each linked pull request with the forge adapter. An open one on a card branch (`references/commands.md` "Card branch"): take step 7, restore it per "Reruns", and skip to the gate. Any other open one: stop with `STAGE RESULT: open pull request exists <url>`.
 7. Read `references/commands.md` and the profile, and load its `Instruction files`.
-8. Find the base branch. Check the worker folder, and put it on a card branch, per `references/commands.md`. A child of an epic with an epic branch takes that branch as its base.
+8. Find the base branch, check the worker folder, and put it on a card branch, per `references/commands.md`. The check stops on the main checkout and on a folder that another card claims. A child of an epic with an epic branch takes that branch as its base.
 9. Load `loupe-documents`. Then collect the artifacts and write the build notes.
    - When the card, its parent, the source card of a follow-up or a linked design links an artifact, follow `references/prototype-map.md` before you write the build notes.
    - Write the build notes, titled "Build notes: <card title>". Give them these `##` sections in this order, each only when it has content: Decisions from the answers, Prototype map, Tasks, Visual check, Preview, Departures, Review answers, Deploy notes.
