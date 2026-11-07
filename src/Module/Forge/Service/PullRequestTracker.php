@@ -59,7 +59,7 @@ final readonly class PullRequestTracker
         $plans = [];
         foreach ($targets as $target) {
             [$criteria, $openOnly, $delay] = match (true) {
-                null !== $target->number => [['number' => $target->number], false, 0],
+                null !== $target->number => [['number' => $target->number], false, $target->delayMilliseconds],
                 null !== $target->headSha => [['headSha' => $target->headSha], true, 0],
                 default => [['baseBranch' => $target->baseBranch ?? throw new \LogicException('A target sets one field.')], true, self::BASE_DELAY_MILLISECONDS],
             };

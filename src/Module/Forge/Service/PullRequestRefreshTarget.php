@@ -15,12 +15,13 @@ final readonly class PullRequestRefreshTarget
         public ?string $baseBranch = null,
         public ?PullRequestReview $verdict = null,
         public ?string $reviewId = null,
+        public int $delayMilliseconds = 0,
     ) {
     }
 
-    public static function number(int $number, ?PullRequestReview $verdict = null, ?string $reviewId = null): self
+    public static function number(int $number, ?PullRequestReview $verdict = null, ?string $reviewId = null, int $delayMilliseconds = 0): self
     {
-        return new self(number: $number, verdict: $verdict, reviewId: $reviewId);
+        return new self(number: $number, verdict: $verdict, reviewId: $reviewId, delayMilliseconds: $delayMilliseconds);
     }
 
     public static function head(string $sha): self
