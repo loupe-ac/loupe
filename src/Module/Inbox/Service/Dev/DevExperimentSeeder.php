@@ -250,6 +250,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
                 $tokens = (int) round((float) $cost * 40_000);
                 $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $cost);
                 if (!$stored instanceof Card) {
+                    $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
                     $this->runCardLinks->relink($project, $cardId, $card->number);
                     $card->completedAt = $at->modify('+2 hours');
                 }
