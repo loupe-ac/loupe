@@ -63,6 +63,8 @@ type procResult struct {
 	output   string
 	reason   string
 	runDir   string
+	// guarded says that the folder guard judged dir, so it runs no second time.
+	guarded bool
 }
 
 // failure says why the before command failed, and "" when it succeeded.

@@ -97,7 +97,12 @@ type router struct {
 	samplerMu sync.Mutex
 	// folderMu runs one folder guard check at a time.
 	folderMu sync.Mutex
-	sampler   *hostSampler
+	// beforeLocks holds one lock per project folder, under mu. A run holds
+	// the lock of its project from its list of worktrees until the guard has
+	// judged the folder it printed, so a new worktree that is not on the list
+	// comes from this run and from no other before command of the bridge.
+	beforeLocks map[string]chan struct{}
+	sampler     *hostSampler
 	// hostAfter and hostSample stand in for time.After and the host reader in
 	// a test. Nil uses the real ones.
 	hostAfter  func(time.Duration) <-chan time.Time
@@ -1247,7 +1252,8 @@ func (r *router) freshSession(p pending, msg, why string) (pending, string) {
 
 // prepare runs the before command of the run's rule in the project dir, in
 // the slot the run holds, and reports preparing once it exists. A person's
-// stop reaches it as it reaches a worker.
+// stop reaches it as it reaches a worker. It holds the before lock of the
+// project until the folder guard has judged the printed folder.
 func (r *router) prepare(p pending) {
 	began := time.Now()
 	onStart := func(proc workerProc) {
@@ -1265,6 +1271,13 @@ func (r *router) prepare(p pending) {
 	if run == nil {
 		run = runBefore
 	}
+	unlock, err := r.lockProject(r.workerContext(), p.spec.dir)
+	if err != nil {
+		// Only a shutdown ends the wait, and afterBefore reports it as one.
+		r.afterBefore(p, began, procResult{guarded: true})
+
+		return
+	}
 	if runs, err := config.RunsDir(); err == nil {
 		writeWorktreeSnapshot(r.workerContext(), p.spec.dir, filepath.Join(runs, p.runID))
 	}
@@ -1272,7 +1285,43 @@ func (r *router) prepare(p pending) {
 	ctx, cancel := context.WithTimeout(r.workerContext(), timeout)
 	res := run(ctx, procSpec{argv: p.spec.before.Argv, dir: p.spec.dir, runID: p.runID}, onStart)
 	cancel()
+	res = r.guardFolder(p, res)
+	unlock()
 	r.afterBefore(p, began, res)
+}
+
+// lockProject waits for the before lock of the project folder dir, and
+// returns its release. It fails when ctx ends first.
+func (r *router) lockProject(ctx context.Context, dir string) (func(), error) {
+	key := realPath(dir)
+	r.mu.Lock()
+	if r.beforeLocks == nil {
+		r.beforeLocks = map[string]chan struct{}{}
+	}
+	lock, ok := r.beforeLocks[key]
+	if !ok {
+		lock = make(chan struct{}, 1)
+		r.beforeLocks[key] = lock
+	}
+	r.mu.Unlock()
+	select {
+	case lock <- struct{}{}:
+		return func() { <-lock }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// guardFolder runs the folder guard once on the folder that res names, and
+// records a refusal as the failure of the before command.
+func (r *router) guardFolder(p pending, res procResult) procResult {
+	if res.guarded || res.failure() != "" || res.dir == "" || res.noFolder {
+		return res
+	}
+	res.guarded = true
+	res.reason = r.refuseFolder(p, res)
+
+	return res
 }
 
 // afterBefore starts claude in the folder the before command printed, or ends
@@ -1280,13 +1329,8 @@ func (r *router) prepare(p pending) {
 // shuts down. A handover in progress holds the start back and keeps the run
 // in its before phase, so the next image adopts it from its files.
 func (r *router) afterBefore(p pending, began time.Time, res procResult) {
+	res = r.guardFolder(p, res)
 	failure := res.failure()
-	if failure == "" && res.dir != "" && !res.noFolder {
-		failure = r.refuseFolder(p, res)
-		if failure != "" {
-			res.exitCode = -1
-		}
-	}
 	r.quiesce.RLock()
 	r.mu.Lock()
 	stopped, shut := r.stops[p.runID], r.shut()

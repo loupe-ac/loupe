@@ -2111,6 +2111,12 @@ with no claim file passes and gets the claim when the command made it in this
 run. A folder that already existed and has no claim fails, because a person or
 another tool can have made it.
 
+The `before` commands of one project run one at a time, from that list until
+the check of the printed folder. So a worktree that another card's `before`
+command makes cannot pass as the worktree of this run. Cards of one project
+therefore wait for each other's `before` command. Cards of different projects
+do not wait.
+
 At its first start with the guard, the bridge stores the worktrees of each
 project in `adoption.json` in its config folder. Such a worktree passes once and
 gets its claim, so a card worktree that an older CLI made resumes with no step
