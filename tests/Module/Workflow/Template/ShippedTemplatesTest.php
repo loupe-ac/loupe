@@ -109,7 +109,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'an `actor` and an `action`'] as $text) {
             self::assertStringContainsString($text, $skill);
         }
-        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The Environment section', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
+        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The before command of the bridge work entry gives the worker', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
             self::assertStringContainsString($check, $source);
         }
     }
