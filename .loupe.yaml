@@ -1,3 +1,8 @@
 # The Loupe project this repository belongs to. `loupe mcp` sends it with
 # every request, so an agent acts on this project and no other.
 project: 01a007cc-5419-7085-a0a2-23a0875be12c
+
+# How this repository changes Loupe's workflow settings.
+workflow:
+  # The agent review approves a merge, with no person in the loop.
+  merge-approval: agent
