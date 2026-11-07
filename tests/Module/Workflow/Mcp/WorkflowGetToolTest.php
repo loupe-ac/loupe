@@ -4,15 +4,25 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Mcp;
 
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Contract\ApprovalRuleWriter;
+use App\Module\Workflow\Entity\WorkflowRepositorySetting;
 use App\Module\Workflow\Mcp\WorkflowGetTool;
+use App\Module\Workflow\Repository\WorkflowRepositorySettingRepository;
+use App\Module\Workflow\Repository\WorkflowSettingOverrideRepository;
+use App\Module\Workflow\Service\ProjectTemplates;
+use App\Module\Workflow\Service\SettingValues;
+use App\Module\Workflow\Service\WorkflowSettingsWriter;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class WorkflowGetToolTest extends KernelTestCase
 {
@@ -50,6 +60,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame(['key' => 'lifecycle', 'version' => TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle'))], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
+        self::assertSame(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle')['requirements'], $answer['requirements']);
         self::assertArrayHasKey('githubAppId', $answer);
         self::assertNull($answer['githubAppId'], 'An empty GITHUB_APP_ID reads as no App.');
         $kinds = array_column($answer['kinds'], null, 'kind');
@@ -131,6 +142,109 @@ final class WorkflowGetToolTest extends KernelTestCase
         $this->expectExceptionMessage('This project has no workflow yet.');
 
         $this->tool()();
+    }
+
+    public function test_it_resolves_each_setting_for_each_repository_and_for_the_project(): void
+    {
+        $project = $this->workflowProject('workflow-get-settings');
+        $this->bindLifecycle($project);
+        $stored = $this->repository($project, 'acme/stored');
+        $file = $this->repository($project, 'acme/file');
+        $invalid = $this->repository($project, 'acme/invalid');
+        $this->em()->persist(new WorkflowRepositorySetting($this->em()->getReference(Project::class, $project->requireId()) ?? throw new \LogicException('No project.'), $stored, 'merge-approval', SettingValues::encode('agent')));
+        $this->em()->flush();
+        $this->writer()->apply($project->requireId(), $file, 'blob-a', 'head-a', ['merge-approval' => 'person', 'epic-branch-pattern' => 'a/{number}'], true);
+        $this->writer()->apply($project->requireId(), $invalid, 'blob-b', 'head-b', ['merge-approval' => 'maybe', 'epic-branch-pattern' => 'b/{number}'], true);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $settings = $this->tool()()['settings'];
+
+        $byRepository = static function (string $key) use ($settings): array {
+            $entries = [];
+            foreach ($settings as $setting) {
+                if ($key === $setting['key']) {
+                    $entries[$setting['repository']['path'] ?? '-'] = $setting;
+                }
+            }
+
+            return $entries;
+        };
+        $approval = $byRepository('merge-approval');
+        self::assertSame(['acme/stored', 'acme/file', 'acme/invalid'], array_keys($approval));
+        self::assertSame(['key' => 'merge-approval', 'scope' => 'repository', 'repository' => ['path' => 'acme/stored', 'forge' => 'github'], 'value' => 'agent', 'source' => 'stored', 'warnings' => []], $approval['acme/stored']);
+        self::assertSame(['person', 'file'], [$approval['acme/file']['value'], $approval['acme/file']['source']]);
+        self::assertNull($approval['acme/invalid']['value']);
+        self::assertSame('invalid', $approval['acme/invalid']['source']);
+        self::assertCount(1, $approval['acme/invalid']['warnings']);
+        $method = $byRepository('epic-child-merge-method');
+        self::assertSame(['squash', 'default'], [$method['acme/file']['value'], $method['acme/file']['source']]);
+        $pattern = $byRepository('epic-branch-pattern');
+        self::assertSame(['-'], array_keys($pattern));
+        self::assertNull($pattern['-']['repository']);
+        self::assertSame('conflict', $pattern['-']['source']);
+        self::assertSame('epic/{number}', $pattern['-']['value']);
+        self::assertCount(1, $pattern['-']['warnings']);
+        self::assertTrue($byRepository('epic-branches')['-']['value']);
+    }
+
+    public function test_epic_branch_follows_the_project_settings_of_the_repository_file(): void
+    {
+        $project = $this->workflowProject('workflow-get-epic-branch');
+        $this->bindLifecycle($project);
+        $this->writer()->apply($project->requireId(), $this->repository($project, 'acme/file'), 'blob-a', 'head-a', ['epic-branch-pattern' => 'work/{number}'], true);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame('work/{number}', $this->tool()()['epicBranch']);
+
+        $off = $this->workflowProject('workflow-get-epic-off');
+        $this->bindLifecycle($off);
+        $this->writer()->apply($off->requireId(), $this->repository($off, 'acme/off'), 'blob-b', 'head-b', ['epic-branches' => false], true);
+        $this->actAsMcpTokenBoundTo($off);
+
+        self::assertNull($this->tool()()['epicBranch']);
+    }
+
+    public function test_a_project_without_repositories_lists_its_project_settings_only(): void
+    {
+        $project = $this->workflowProject('workflow-get-no-repositories');
+        $this->bindLifecycle($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $settings = $this->tool()()['settings'];
+
+        self::assertSame(['epic-branches', 'epic-branch-pattern'], array_column($settings, 'key'));
+        self::assertSame([null, null], array_column($settings, 'repository'));
+        self::assertSame(['default', 'default'], array_column($settings, 'source'));
+    }
+
+    public function test_a_simple_project_lists_only_the_settings_its_template_declares(): void
+    {
+        $project = $this->workflowProject('workflow-get-simple-settings');
+        $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(['epic-branches', 'epic-branch-pattern'], array_column($this->tool()()['settings'], 'key'));
+    }
+
+    private function repository(Project $project, string $path): Uuid
+    {
+        $repository = new ForgeRepository($this->em()->getReference(Project::class, $project->requireId()) ?? throw new \LogicException('No project.'), 'github', 'ext-'.uniqid(), $path, ForgeRepositorySource::Hook);
+        $this->em()->persist($repository);
+        $this->em()->flush();
+
+        return $repository->id ?? throw new \LogicException('The repository is not flushed.');
+    }
+
+    private function writer(): WorkflowSettingsWriter
+    {
+        $container = self::getContainer();
+
+        return new WorkflowSettingsWriter(
+            $container->get(ProjectTemplates::class),
+            $container->get(WorkflowSettingOverrideRepository::class),
+            $container->get(WorkflowRepositorySettingRepository::class),
+            $this->em(),
+        );
     }
 
     private function tool(): WorkflowGetTool

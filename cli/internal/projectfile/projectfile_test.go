@@ -135,3 +135,92 @@ func TestAFileLargerThanTheCapIsRefused(t *testing.T) {
 		t.Fatalf("error must name the file, got %v", err)
 	}
 }
+
+func readBack(t *testing.T, dir string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, Name))
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+
+	return string(b)
+}
+
+func assertNoTempFiles(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != Name {
+		t.Fatalf("directory must hold only %s, got %v", Name, entries)
+	}
+}
+
+func TestWriteKeepsOtherKeysOrderAndComments(t *testing.T) {
+	dir := write(t, "# top note\nworkflow:\n  # inner note\n  review: true\nproject: 11111111-1111-4111-8111-111111111111 # old\nzeta: 1\n")
+	if err := Write(dir, strings.ToUpper(validID)); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	got := readBack(t, dir)
+	want := "# top note\nworkflow:\n  # inner note\n  review: true\nproject: " + validID + " # old\nzeta: 1\n"
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	assertNoTempFiles(t, dir)
+}
+
+func TestWriteAddsTheProjectWhenMissing(t *testing.T) {
+	dir := write(t, "# note\nworkflow:\n  review: true\n")
+	if err := Write(dir, validID); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	got := readBack(t, dir)
+	if got != "# note\nworkflow:\n  review: true\nproject: "+validID+"\n" {
+		t.Fatalf("unexpected content:\n%s", got)
+	}
+	f, err := Load(dir)
+	if err != nil || f.Project != validID {
+		t.Fatalf("Load = %+v, %v", f, err)
+	}
+}
+
+func TestWriteWithNoFileWritesTheFreshFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := Write(dir, validID); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	want := "# The Loupe project this repository belongs to. `loupe mcp` sends it with\n" +
+		"# every request, so an agent acts on this project and no other.\n" +
+		"project: " + validID + "\n"
+	if got := readBack(t, dir); got != want {
+		t.Fatalf("got:\n%s", got)
+	}
+	assertNoTempFiles(t, dir)
+}
+
+func TestWriteRefusesAFileItCannotEditAndLeavesItAlone(t *testing.T) {
+	cases := map[string]string{
+		"garbage":      "project: [unclosed\n  : :\n",
+		"oversized":    strings.Repeat("# padding\n", maxSize/10+16),
+		"list root":    "- a\n- b\n",
+		"scalar root":  "just text\n",
+		"comment only": "# nothing here\n",
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := write(t, body)
+			err := Write(dir, validID)
+			if err == nil {
+				t.Fatal("Write: got no error")
+			}
+			if !strings.Contains(err.Error(), Name) {
+				t.Fatalf("error must name the file, got %v", err)
+			}
+			if got := readBack(t, dir); got != body {
+				t.Fatal("file must stay untouched")
+			}
+			assertNoTempFiles(t, dir)
+		})
+	}
+}

@@ -44,7 +44,10 @@ use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\SettingType;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
@@ -306,12 +309,174 @@ final class TemplateParserTest extends TestCase
         self::assertCount(5, $this->parser->parse($template)->rules);
     }
 
-    public function test_a_template_reads_its_epic_branch(): void
+    public function test_a_template_reads_its_settings_in_order(): void
     {
-        $template = $this->parser->parse(self::valid() + ['epicBranch' => 'feature/epic-{number}']);
+        $template = $this->parser->parse(self::valid() + ['settings' => self::settings()]);
 
-        self::assertSame('feature/epic-{number}', $template->epicBranch);
+        self::assertEquals([
+            new TemplateSetting('merge-approval', SettingType::Choice, SettingScope::Repository, ['agent', 'person']),
+            new TemplateSetting('epic-branches', SettingType::Boolean, SettingScope::Project, default: true),
+            new TemplateSetting('epic-branch-pattern', SettingType::Text, SettingScope::Project, default: 'epic/{number}', format: 'epic-branch'),
+        ], $template->settings);
+        self::assertNull($template->setting('merge-approval')?->default);
+        self::assertNull($template->setting('unknown'));
+    }
+
+    public function test_the_epic_branch_comes_from_the_settings(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['settings' => self::settings()]);
+
+        self::assertSame('epic/{number}', $template->epicBranchPattern());
+        self::assertSame('epic/42', $template->epicBranchOf(42));
+        self::assertSame('epic/{number}', $template->projectSettingValue('epic-branch-pattern'));
+    }
+
+    public function test_a_stored_copy_states_the_epic_branch_of_its_project(): void
+    {
+        $source = self::valid() + ['settings' => self::settings(), 'settingValues' => ['epic-branch-pattern' => 'feature/epic-{number}']];
+
+        $template = $this->parser->parseStored($source);
+
+        self::assertSame('feature/epic-{number}', $template->projectSettingValue('epic-branch-pattern'));
         self::assertSame('feature/epic-42', $template->epicBranchOf(42));
+        self::assertSame($this->parser->parse(self::valid() + ['settings' => self::settings()])->version, $template->version);
+    }
+
+    public function test_a_project_can_turn_the_epic_branches_off(): void
+    {
+        $template = $this->parser->parseStored(self::valid() + ['settings' => self::settings(), 'settingValues' => ['epic-branches' => false]]);
+
+        self::assertNull($template->epicBranchPattern());
+        self::assertNull($template->epicBranchOf(42));
+    }
+
+    public function test_a_template_with_no_epic_branch_settings_has_none(): void
+    {
+        $template = $this->parser->parse(self::valid());
+
+        self::assertSame([], $template->settings);
+        self::assertNull($template->epicBranchPattern());
+        self::assertNull($template->epicBranchOf(42));
+        self::assertNull($template->projectSettingValue('epic-branches'));
+    }
+
+    public function test_a_template_with_epic_branches_off_by_default_has_none(): void
+    {
+        $settings = self::settings();
+        $settings[1]['default'] = false;
+
+        self::assertNull($this->parser->parse(self::valid() + ['settings' => $settings])->epicBranchOf(42));
+    }
+
+    /** @param list<mixed> $settings */
+    #[DataProvider('invalidSettings')]
+    public function test_a_setting_that_is_not_valid_is_refused_and_a_stored_copy_drops_it(array $settings, string $error, int $kept = 0): void
+    {
+        $source = self::valid() + ['settings' => $settings];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame([$error], $e->errors);
+        }
+        self::assertCount($kept, $this->parser->parseStored($source)->settings);
+    }
+
+    /** @return iterable<string, array{list<mixed>, string, 2?: int}> */
+    public static function invalidSettings(): iterable
+    {
+        $bool = ['key' => 'on', 'type' => 'bool', 'scope' => 'project'];
+        yield 'an entry that is not a map' => [[['on']], 'settings[0]: must be a map'];
+        yield 'an unknown field' => [[$bool + ['note' => 'x']], 'settings[0]: unknown field "note"'];
+        yield 'a key with capitals' => [[['key' => 'Bad'] + $bool], 'settings[0]: key "Bad" must be lowercase letters, digits and hyphens'];
+        yield 'a missing key' => [[['type' => 'bool', 'scope' => 'project']], 'settings[0]: key "null" must be lowercase letters, digits and hyphens'];
+        yield 'a duplicate key' => [[$bool, $bool], 'settings[1]: duplicate key "on"', 1];
+        yield 'an unknown type' => [[['type' => 'int'] + $bool], 'settings[0]: type must be bool, string or enum'];
+        yield 'an unknown scope' => [[['scope' => 'user'] + $bool], 'settings[0]: scope must be repository or project'];
+        yield 'an enum with no values' => [[['key' => 'm', 'type' => 'enum', 'scope' => 'project']], 'settings[0]: values must be a list of one or more different non-empty strings'];
+        yield 'an enum with a repeated value' => [[['key' => 'm', 'type' => 'enum', 'scope' => 'project', 'values' => ['a', 'a']]], 'settings[0]: values must be a list of one or more different non-empty strings'];
+        yield 'values on a bool' => [[$bool + ['values' => ['a']]], 'settings[0]: values are for an enum only'];
+        yield 'a default that the enum does not allow' => [[['key' => 'm', 'type' => 'enum', 'scope' => 'project', 'values' => ['a'], 'default' => 'b']], 'settings[0]: default is not an allowed value'];
+        yield 'a default of the wrong type' => [[$bool + ['default' => 'yes']], 'settings[0]: default is not an allowed value'];
+        yield 'a format on a bool' => [[$bool + ['format' => 'epic-branch']], 'settings[0]: format must be "epic-branch" and belongs to a string'];
+        yield 'an unknown format' => [[['key' => 'p', 'type' => 'string', 'scope' => 'project', 'format' => 'url']], 'settings[0]: format must be "epic-branch" and belongs to a string'];
+        yield 'a default that breaks the format' => [[['key' => 'p', 'type' => 'string', 'scope' => 'project', 'format' => 'epic-branch', 'default' => 'epic']], 'settings[0]: default is not an allowed value'];
+    }
+
+    public function test_settings_that_are_not_a_list_are_refused(): void
+    {
+        try {
+            $this->parser->parse(self::valid() + ['settings' => ['key' => 'on']]);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['settings: must be a list of settings'], $e->errors);
+        }
+    }
+
+    #[DataProvider('invalidSettingValues')]
+    public function test_a_value_that_no_project_setting_accepts_is_refused_and_a_stored_copy_drops_it(mixed $values, string $error): void
+    {
+        $source = self::valid() + ['settings' => self::settings(), 'settingValues' => $values];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame([$error], $e->errors);
+        }
+        self::assertSame([], $this->parser->parseStored($source)->settingValues);
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidSettingValues(): iterable
+    {
+        yield 'a list' => [['x'], 'settingValues: must be a map of setting keys to values'];
+        yield 'an unknown key' => [['nope' => true], 'settingValues: "nope" is not a setting of the project scope'];
+        yield 'a repository setting' => [['merge-approval' => 'agent'], 'settingValues: "merge-approval" is not a setting of the project scope'];
+        yield 'the wrong type' => [['epic-branches' => 'yes'], 'settingValues: "epic-branches" is not an allowed value'];
+        yield 'a pattern with no placeholder' => [['epic-branch-pattern' => 'epic'], 'settingValues: "epic-branch-pattern" is not an allowed value'];
+    }
+
+    public function test_a_template_reads_its_requirements(): void
+    {
+        $template = $this->parser->parse(self::valid() + ['requirements' => ['A pull request opens as a draft', 'Open work goes to the board']]);
+
+        self::assertSame(['A pull request opens as a draft', 'Open work goes to the board'], $template->requirements);
+        self::assertSame([], $this->parser->parse(self::valid())->requirements);
+    }
+
+    #[DataProvider('invalidRequirements')]
+    public function test_requirements_that_are_not_a_list_of_text_are_refused_and_a_stored_copy_has_none(mixed $value): void
+    {
+        $source = self::valid() + ['requirements' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['requirements: must be a list of non-empty strings'], $e->errors);
+        }
+        self::assertSame([], $this->parser->parseStored($source)->requirements);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidRequirements(): iterable
+    {
+        yield 'a string' => ['draft'];
+        yield 'a map' => [['a' => 'draft']];
+        yield 'a blank entry' => [['draft', ' ']];
+        yield 'an entry that is not text' => [['draft', 3]];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private static function settings(): array
+    {
+        return [
+            ['key' => 'merge-approval', 'type' => 'enum', 'scope' => 'repository', 'values' => ['agent', 'person']],
+            ['key' => 'epic-branches', 'type' => 'bool', 'scope' => 'project', 'default' => true],
+            ['key' => 'epic-branch-pattern', 'type' => 'string', 'scope' => 'project', 'default' => 'epic/{number}', 'format' => 'epic-branch'],
+        ];
     }
 
     public function test_a_template_reads_its_repository_settings_in_order(): void
@@ -579,14 +744,6 @@ final class TemplateParserTest extends TestCase
         yield 'a duplicate key' => [[['key' => 'ci-checks', 'mark' => 'warning'], ['key' => 'ci-checks', 'mark' => 'blocking']], ['repositorySettings[1]: duplicate key "ci-checks"'], 1];
     }
 
-    public function test_a_template_with_no_epic_branch_has_none(): void
-    {
-        $template = $this->parser->parse(self::valid());
-
-        self::assertNull($template->epicBranch);
-        self::assertNull($template->epicBranchOf(42));
-    }
-
     public function test_a_template_reads_its_skill_packages_and_its_profile_need(): void
     {
         $template = $this->parser->parse(self::valid() + ['skillPackages' => ['loupe', 'loupe-lifecycle'], 'needsProfile' => false]);
@@ -663,17 +820,17 @@ final class TemplateParserTest extends TestCase
     }
 
     #[DataProvider('invalidEpicBranches')]
-    public function test_an_epic_branch_that_is_not_a_branch_name_with_one_placeholder_is_refused_and_a_stored_copy_has_none(mixed $value): void
+    public function test_an_epic_branch_pattern_that_is_not_a_branch_name_with_one_placeholder_is_refused(mixed $value): void
     {
-        $source = self::valid() + ['epicBranch' => $value];
+        $source = self::valid() + ['settings' => self::settings(), 'settingValues' => ['epic-branch-pattern' => $value]];
 
         try {
             $this->parser->parse($source);
             self::fail('The template should be refused.');
         } catch (InvalidTemplate $e) {
-            self::assertContains('epicBranch: must be a Git branch name that holds the placeholder {number} exactly once', $e->errors);
+            self::assertSame(['settingValues: "epic-branch-pattern" is not an allowed value'], $e->errors);
         }
-        self::assertNull($this->parser->parseStored($source)->epicBranch);
+        self::assertSame('epic/{number}', $this->parser->parseStored($source)->projectSettingValue('epic-branch-pattern'));
     }
 
     /** @return iterable<string, array{mixed}> */

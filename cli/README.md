@@ -417,7 +417,7 @@ belongs to. `loupe init` runs it for you.
 ```bash
 loupe project link                       # choose from the projects your login covers
 loupe project link --project <uuid>      # name the project yourself
-loupe project link --force               # replace an existing file
+loupe project link --force               # set the project in an existing file, keep other keys
 loupe project link --mcp                 # declare `loupe mcp` to Claude Code without asking
 loupe project link --no-mcp              # leave the MCP server alone without asking
 loupe project link --mcp-json            # write .mcp.json instead, to commit the server

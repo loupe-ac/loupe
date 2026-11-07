@@ -3,7 +3,17 @@ version: 44
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
-epicBranch: 'epic/{number}'
+settings:
+    - { key: merge-approval, type: enum, scope: repository, values: [agent, person] }
+    - { key: epic-branches, type: bool, scope: project, default: true }
+    - { key: epic-branch-pattern, type: string, scope: project, default: 'epic/{number}', format: epic-branch }
+    - { key: epic-child-merge-method, type: enum, scope: repository, values: [squash, merge, rebase], default: squash }
+requirements:
+    - A pull request opens as a draft
+    - An agent never merges its own pull request
+    - An agent never approves its own pull request
+    - Open work goes to the board
+    - A worker works in its own folder
 outcomes:
     - { key: merged, delivered: true }
 metrics:

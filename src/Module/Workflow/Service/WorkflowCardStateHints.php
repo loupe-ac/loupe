@@ -8,6 +8,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\BlockerHold;
 use App\Module\Workflow\Contract\CardStateHints;
 use App\Module\Workflow\Contract\EngineFact;
+use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\StageDocumentTags;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
@@ -24,6 +25,7 @@ final readonly class WorkflowCardStateHints implements CardStateHints
         private WorkflowRuleStateRepository $workflowRuleStates,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private TemplateSource $templates,
+        private EpicBranches $epicBranches,
     ) {
     }
 
@@ -104,14 +106,14 @@ final readonly class WorkflowCardStateHints implements CardStateHints
             return [];
         }
         try {
-            $template = $this->templates->forProject($projectId);
+            $this->templates->forProject($projectId);
         } catch (TemplateMissing) {
             return [];
         }
 
         $branches = [];
         foreach ($numbers as $number) {
-            $branch = $template->epicBranchOf($number);
+            $branch = $this->epicBranches->of($projectId, $number);
             if (null !== $branch) {
                 $branches[$number] = $branch;
             }

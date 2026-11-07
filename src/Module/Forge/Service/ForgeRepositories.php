@@ -65,7 +65,9 @@ final readonly class ForgeRepositories
                 return ForgeClaim::owned($repository);
             }
 
+            $tookOver = false;
             if (ForgeRepositorySource::Installation === $source) {
+                $tookOver = ForgeRepositorySource::Installation !== $existing->source;
                 $existing->source = ForgeRepositorySource::Installation;
                 $existing->sourceRef = $sourceRef;
             }
@@ -83,7 +85,7 @@ final readonly class ForgeRepositories
                 ]);
             }
 
-            return ForgeClaim::alreadyOwned($existing, $movedFrom);
+            return ForgeClaim::alreadyOwned($existing, $movedFrom, $tookOver);
         });
     }
 
