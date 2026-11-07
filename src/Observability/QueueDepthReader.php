@@ -20,6 +20,7 @@ final readonly class QueueDepthReader
         'jobs' => 'jobs',
         'card_eval' => 'card_eval',
         'card_sweep' => 'card_sweep',
+        'insights' => 'insights',
         'failed' => 'failed',
     ];
 
