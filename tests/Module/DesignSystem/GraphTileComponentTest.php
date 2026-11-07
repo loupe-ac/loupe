@@ -33,4 +33,15 @@ final class GraphTileComponentTest extends KernelTestCase
         self::assertCount(1, $crawler->filter('.lp-graph-tile__settings [data-graph-public]'));
         self::assertCount(0, $crawler->filter('.lp-tag'));
     }
+
+    public function test_a_slow_tile_has_the_broken_layout_a_clock_and_its_footer(): void
+    {
+        $crawler = new Crawler($this->render('<twig:Ds:GraphTile name="Cost" state="slow" brokenTitle="Slow" brokenBody="Wait"><twig:block name="footer"><button>Retry</button></twig:block></twig:Ds:GraphTile>'));
+
+        self::assertCount(1, $crawler->filter('article.lp-graph-tile.lp-graph-tile--broken.lp-graph-tile--slow'));
+        self::assertSame('Slow', trim($crawler->filter('.lp-graph-tile__broken-title')->text()));
+        self::assertSame('Wait', trim($crawler->filter('.lp-graph-tile__broken-body')->text()));
+        self::assertCount(1, $crawler->filter('.lp-graph-tile__broken-actions button'));
+        self::assertCount(0, $crawler->filter('.lp-chart'));
+    }
 }

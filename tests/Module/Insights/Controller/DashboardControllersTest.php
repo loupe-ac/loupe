@@ -117,6 +117,85 @@ final class DashboardControllersTest extends WebTestCase
         self::assertCount(0, $this->insightsTransport()->getSent());
     }
 
+    public function test_the_waiting_tile_carries_the_notice_delay_and_the_slow_tile(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('page-slow');
+        $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
+        $graph->metric = 'cost';
+        $this->em()->flush();
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.self::BASE);
+
+        $waiting = $crawler->filter('[data-dashboard-tile="waiting"]');
+        self::assertSame('slow-notice', $waiting->attr('data-controller'));
+        self::assertSame('30', $waiting->attr('data-slow-notice-delay-value'));
+        $slow = (new \Symfony\Component\DomCrawler\Crawler($waiting->filter('template[data-slow-notice-target="slow"]')->html()));
+        self::assertSame('This graph is taking longer than usual.', trim($slow->filter('.lp-graph-tile__broken-title')->text()));
+        self::assertSame('The numbers are still being worked out.', trim($slow->filter('.lp-graph-tile__broken-body')->text()));
+        self::assertSame('/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh', $slow->filter('form')->attr('action'));
+        self::assertCount(1, $slow->filter('form button'));
+        self::assertCount(1, $slow->filter('[data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > article [data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > form[data-graph-drag-form] [data-graph-drag-steps]'));
+        self::assertCount(0, $slow->filter('form[data-graph-drag-form]'));
+        self::assertNotSame('', trim($slow->filter('.lp-graph-tile__settings')->text()));
+        self::assertNotSame('', trim($waiting->filter('turbo-frame > article .lp-graph-tile__settings')->text()));
+    }
+
+    public function test_retry_asks_the_worker_again_and_answers_the_waiting_tile_as_a_stream(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('retry-stream');
+        $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
+        $graph->metric = 'cost';
+        $this->em()->flush();
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+        $path = '/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh';
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_POST, $path, ['_csrf_token' => 'csrf-token'], [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'] + self::HEADERS);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        self::assertStringContainsString('<turbo-stream action="replace" target="dashboard-graph-'.$graphId.'">', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('data-dashboard-tile="waiting"', (string) $client->getResponse()->getContent());
+        $sent = $this->insightsTransport()->getSent();
+        self::assertCount(1, $sent);
+        $message = $sent[0]->getMessage();
+        self::assertInstanceOf(RefreshInsightsItem::class, $message);
+        self::assertSame($graphId, $message->graphId);
+
+        $client->request(Request::METHOD_POST, $path, ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseRedirects('/projects/'.$project->id.self::BASE);
+    }
+
+    public function test_retry_is_refused_for_a_stranger_and_not_found_for_a_removed_graph(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('retry-refused');
+        $graph = $this->seedSavedGraph($project, 'Theirs', 0);
+        $removed = $this->seedSavedGraph($project, 'Gone', 1, new \DateTimeImmutable('-1 hour'));
+        $stranger = $this->user($this->em(), 'retry-stranger-'.uniqid().'@example.com');
+        $base = '/projects/'.$project->id.self::BASE.'/graphs/';
+        $paths = [$base.$graph->id.'/refresh', $base.$removed->id.'/refresh'];
+        $owner = $project->owner;
+        $this->em()->clear();
+
+        $client->loginUser($stranger);
+        $client->request(Request::METHOD_POST, $paths[0], ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseStatusCodeSame(403);
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_POST, $paths[1], ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseStatusCodeSame(404);
+        self::assertCount(0, $this->insightsTransport()->getSent());
+    }
+
     public function test_the_forms_of_a_tile_post_what_the_controllers_read(): void
     {
         $client = static::createClient();

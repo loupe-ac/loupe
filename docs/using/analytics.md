@@ -386,11 +386,27 @@ gone, such as a time bucket that a bucket rule change removed, or a metric that
 the workflow template dropped. It offers **Open in Metrics** and **Remove**. The
 tile draws again when the metric comes back.
 
-The Dashboard keeps the result of each graph for up to 15 minutes, and a line
-under the tabs reads "Updated 4 min ago". The Metrics tab always computes live.
-When you save, edit, rename, resize, move or remove a graph in another tab, an
-open Dashboard follows the change at once, if the instance runs live updates.
-The numbers refresh on the next load.
+A tile that has no result yet shows a spinner. When the numbers take longer than
+30 seconds, the tile reads **This graph is taking longer than usual.** and offers
+**Retry**. **Retry** asks for the numbers again and starts the wait over. An
+admin sets the wait with the `insights.slow_notice_seconds` feature flag at
+`/admin/feature-flags`. A reload also starts the wait over.
+
+The Dashboard shows the last result that a worker kept for each graph, and a
+line under the tabs reads "Updated 4 min ago". A worker computes the result
+again in the background. New data for the project shows within about a minute.
+A sweep refreshes the graphs with a rolling range, such as 7 days, every 15
+minutes, also when no new data arrived. The sweep skips a dormant project, which
+has had no new data and no view of its Dashboard or its share links for 7 days.
+A view or new data wakes the project, and its Dashboard first draws the old
+charts with their real age, such as "Updated 9 days ago". A save, an edit or a
+change of the metrics queues the graph at once. An admin sets the sweep with the
+`insights.sweep_interval_minutes` feature flag at
+`/admin/feature-flags`. The Metrics tab always computes live. When you save,
+edit, rename, resize, move or remove a graph in another tab, an open Dashboard
+follows the change at once, if the instance runs live updates. A new result
+reaches an open Dashboard when the worker keeps it, and a load shows the kept
+result.
 
 ## Share a graph publicly
 
@@ -417,8 +433,9 @@ A tile with a working link carries a **Public** tag after its settings line.
 
 The page shows the project name, the name of the graph, its settings line and
 the chart with its totals. It reads "Updated 4 min ago", because the page keeps
-the result of the graph for up to 15 minutes. A visitor cannot change the
-settings.
+the kept result of the graph. When the kept result is older than the sweep
+interval, or no result exists yet, the page computes the numbers in its own
+request. A visitor cannot change the settings.
 
 Account names and bridge names never reach the page. A split by account shows
 **Account 1**, **Account 2** and so on. A split by bridge shows **Bridge 1**,
