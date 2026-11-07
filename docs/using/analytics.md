@@ -394,9 +394,14 @@ admin sets the wait with the `insights.slow_notice_seconds` feature flag at
 
 The Dashboard shows the last result that a worker kept for each graph, and a
 line under the tabs reads "Updated 4 min ago". A worker computes the result
-again in the background. A sweep queues every graph every 15 minutes, and a
-save, an edit or a change of the metrics queues the graph at once. An admin sets
-the sweep with the `insights.sweep_interval_minutes` feature flag at
+again in the background. New data for the project shows within about a minute.
+A sweep refreshes the graphs with a rolling range, such as 7 days, every 15
+minutes, also when no new data arrived. The sweep skips a dormant project, which
+has had no new data and no view of its Dashboard or its share links for 7 days.
+A view or new data wakes the project, and its Dashboard first draws the old
+charts with their real age, such as "Updated 9 days ago". A save, an edit or a
+change of the metrics queues the graph at once. An admin sets the sweep with the
+`insights.sweep_interval_minutes` feature flag at
 `/admin/feature-flags`. The Metrics tab always computes live. When you save,
 edit, rename, resize, move or remove a graph in another tab, an open Dashboard
 follows the change at once, if the instance runs live updates. A new result

@@ -1,13 +1,7 @@
 {# A ready or broken tile in its frame. The single tile route answers with it too. Props: project (Project), tile (DashboardTileView). #}
 {% set graph = tile.graph %}
 {% set forms = dashboard_graph_forms(graph) %}
-{% set settings = [
-    ('analytics.metrics.unit.' ~ graph.unit.value)|trans,
-    ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans,
-    ('analytics.metrics.range.' ~ graph.range.value)|trans,
-    ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
-    ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
-]|join(' · ') %}
+{% set settings = include('@Insights/_dashboard_tile_settings.html.twig', {graph: graph})|trim %}
 <turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ graph.width.value }}" data-graph-id="{{ graph.id }}" data-dashboard-tile="{{ tile.broken ? 'broken' : 'ready' }}"{% if tile.result is not null %} data-kept-result{% endif %}{% if tile.broken %} data-dashboard-broken="{{ tile.broken.reason.value }}"{% endif %}>
     {# The name is text that a person wrote, so the component prints it escaped. Never add |raw here. #}
     <twig:Ds:GraphTile

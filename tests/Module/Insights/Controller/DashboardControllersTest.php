@@ -138,6 +138,10 @@ final class DashboardControllersTest extends WebTestCase
         self::assertSame('The numbers are still being worked out.', trim($slow->filter('.lp-graph-tile__broken-body')->text()));
         self::assertSame('/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh', $slow->filter('form')->attr('action'));
         self::assertCount(1, $slow->filter('form button'));
+        self::assertCount(1, $slow->filter('[data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > article [data-graph-grip]'));
+        self::assertNotSame('', trim($slow->filter('.lp-graph-tile__settings')->text()));
+        self::assertNotSame('', trim($waiting->filter('turbo-frame > article .lp-graph-tile__settings')->text()));
     }
 
     public function test_retry_asks_the_worker_again_and_answers_the_waiting_tile_as_a_stream(): void
