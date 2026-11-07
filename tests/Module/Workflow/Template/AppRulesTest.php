@@ -9,9 +9,12 @@ use App\Module\Workflow\Contract\CountFilter;
 use App\Module\Workflow\Contract\MetricType;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\SettingType;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\InvalidTemplate;
@@ -164,7 +167,6 @@ final class AppRulesTest extends KernelTestCase
             ...get_object_vars($parsed),
             'onWorkFailed' => new WorkFailurePolicy(['timeout'], 1, [5]),
             'childChoices' => ['inherit' => []],
-            'epicBranch' => 'epic/{number}',
             'agentReviewFailingSeverities' => ['important', 'nit'],
             'approvalCoversConflictResolution' => false,
             'inbox' => ['paused'],
@@ -172,6 +174,9 @@ final class AppRulesTest extends KernelTestCase
             'metrics' => [new TemplateMetric('fix-rounds-2', 'Fix rounds', 'The fix rounds.', MetricType::Count, new CountFilter(role: 'fix'))],
             'repositorySettings' => [new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning)],
             'values' => [new TemplateValueKey('interactive', CardValueType::Bool, 'a.label', 'a.caption', 'a.help', 'a.history')],
+            'settings' => [new TemplateSetting('epic-branches', SettingType::Boolean, SettingScope::Project, default: true)],
+            'requirements' => ['A pull request opens as a draft'],
+            'settingValues' => ['epic-branches' => false],
         ]);
         foreach (new \ReflectionMethod(Template::class, '__construct')->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {

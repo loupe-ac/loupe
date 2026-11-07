@@ -22,7 +22,9 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Entity\PullRequestNotice;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -37,6 +39,7 @@ use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AgentReviewFactProviderTest extends KernelTestCase
@@ -254,7 +257,44 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
     }
 
-    private function fix(Card $card, int $number, string $settledAt, string $reason = 'agent-review', WorkRequestState $state = WorkRequestState::Done, string $kind = 'fix', ?string $role = 'fix'): void
+    /** @return iterable<string, array{WorkerRunState, string, bool}> */
+    public static function resumedRuns(): iterable
+    {
+        yield 'it waits on the forge after the review' => [WorkerRunState::WaitingOnForge, '+1 hour', true];
+        yield 'it succeeded after the review' => [WorkerRunState::Succeeded, '+1 hour', true];
+        yield 'it ended before the review' => [WorkerRunState::WaitingOnForge, '-1 hour', false];
+        yield 'it ended blocked' => [WorkerRunState::Blocked, '+1 hour', false];
+    }
+
+    #[DataProvider('resumedRuns')]
+    public function test_a_resumed_run_of_a_refused_fix_round_answers_the_review_when_it_ended_well_after_it(WorkerRunState $state, string $endedAt, bool $answered): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $request = $this->fix($card, 7, '-2 hours', state: WorkRequestState::Refused);
+        $this->em->flush();
+        $this->em->persist(new WorkerRun(
+            project: AgentCredential::managed($this->em, $this->project, $this->project->id),
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('The card is flushed.'),
+            cardNumber: $card->number,
+            workKind: 'fix',
+            state: $state,
+            endedAt: new \DateTimeImmutable($endedAt),
+            receivedAt: new \DateTimeImmutable('-3 hours'),
+            workRequestId: $request->id,
+        ));
+        $this->em->flush();
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertSame($answered, $this->build($card)->heads[0]->answered);
+        self::assertSame($answered, new AgentReviewDue()->evaluate($facts, []));
+    }
+
+    private function fix(Card $card, int $number, string $settledAt, string $reason = 'agent-review', WorkRequestState $state = WorkRequestState::Done, string $kind = 'fix', ?string $role = 'fix'): WorkRequest
     {
         $subject = WorkSubject::card($card->id ?? throw new \LogicException('The card is flushed.'));
         $request = new WorkRequest(AgentCredential::managed($this->em, $this->project, $this->project->id), $subject->type, $subject->id, $card->number, $kind, null, 'fix-agent-review', new \DateTimeImmutable());
@@ -263,6 +303,8 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $request->settledAt = new \DateTimeImmutable($settledAt);
         $request->context = new WorkRequestContext(pullRequestNumber: $number, reason: $reason);
         $this->em->persist($request);
+
+        return $request;
     }
 
     /** A posted review of the head aaaa… with the fingerprint change-1, and a new head whose fingerprint is $headChange. */

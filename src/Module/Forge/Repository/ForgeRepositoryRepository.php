@@ -9,6 +9,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -51,6 +52,24 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** The newest row of the project under this path, compared without case. An installation row comes first. */
+    public function findOneByPath(Project $project, string $forge, string $path): ?ForgeRepository
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.forge = :forge')
+            ->andWhere('LOWER(r.path) = :path')
+            ->setParameter('project', $project)
+            ->setParameter('forge', $forge)
+            ->setParameter('path', mb_strtolower($path))
+            ->orderBy("CASE WHEN r.source = 'installation' THEN 0 ELSE 1 END", 'ASC')
+            ->addOrderBy('r.createdAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** @return list<ForgeRepository> */
     public function findByInstallation(string $forge, string $sourceRef): array
     {
@@ -79,6 +98,18 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
     }
 
     /** @return list<ForgeRepository> */
+    public function findByProjectId(Uuid $projectId): array
+    {
+        return array_values($this->createQueryBuilder('r')
+            ->andWhere('IDENTITY(r.project) = :project')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->orderBy('r.createdAt', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** @return list<ForgeRepository> */
     public function findByOwner(User $user): array
     {
         return array_values($this->createQueryBuilder('r')
@@ -90,6 +121,17 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
             ->addOrderBy('r.id', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    /** Locks the row until the transaction ends. It does not reload the entity, because the readonly fields of a managed row cannot refresh. */
+    public function findOneLocked(Uuid $id): ?ForgeRepository
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.id = :id')
+            ->setParameter('id', $id, UuidType::NAME)
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
     }
 
     /** Serialises concurrent claims of one repository until the transaction ends. */

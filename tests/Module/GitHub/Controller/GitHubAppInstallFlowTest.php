@@ -14,6 +14,7 @@ use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Command\ConnectGitHubInstallationHandler;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
+use App\Module\GitHub\Messenger\ReadRepositoryWorkflowSettings;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\DeliveryAnnouncer;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
@@ -30,6 +31,8 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -278,6 +281,13 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertSame('acme', $installation->accountLogin);
         self::assertSame(GitHubRepositorySelection::Selected, $installation->repositorySelection);
         self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
+        $transport = static::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $queued = array_values(array_filter(
+            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof ReadRepositoryWorkflowSettings,
+        ));
+        self::assertCount(2, $queued, 'Each claimed repository queues one read, and the refused one queues none.');
         self::assertSame(AuditOutcome::Success, $audit->record('github.installation_connected')->outcome);
 
         $text = $this->followedText();

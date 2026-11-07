@@ -368,9 +368,9 @@ it makes or keeps `.worktrees/card-<number>` with git alone, and provisions no
 app. The failed step is often the provisioning of the app, so the recovery must
 not depend on it. The
 worker finds the failed run of the rule with `worker_run_list` and
-`worker_run_get`. The `Recovery` section of `.loupe/lifecycle.md` lists what it
-may change: the card branch, the card worktree, and a sync of the epic branch
-with `main`. To remove a broken card worktree, it runs `loupe env reset`, which
+`worker_run_get`. The skill carries its three actions: it resets the card
+branch to its base, it syncs the epic branch with `main`, and it removes the
+card worktree. It reads no profile section. To remove a broken card worktree, it runs `loupe env reset`, which
 runs the `reset` command of the entry in the main checkout. When the recovery ends
 done, the rule gets one last try.
 [Workflows](../using/workflows.md#pauses-and-retries) describes the escalation.
@@ -414,24 +414,24 @@ The stage skills hold the procedure, and three kinds of file hold the values
 that change from one setup to the next.
 
 1. The repository profile, `.loupe/lifecycle.md`, belongs to the repository. Its
-   sections are `Instruction files`, `Environment`, `Gate`, `Code review`,
-   `Changelog`, `Pull request`, `Board`, `Merge` and `Recovery`. It can also hold the optional
-   `Forge`, `Visual check` and `Epics` sections. The profile of this repository names
-   `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
-   the column slugs that a stage moves a card to or reads. The slugs live there because a stage
-   skill never reads the column list, which can be missing.
-   `loupe init` starts an agent with the `loupe-lifecycle:loupe-profile` skill when the
-   repository has no complete profile. The skill writes only what a stage reads,
-   and it marks each value that it cannot know "owner to fill in". The discovery
-   run asks the owner for each open value. Its conflict check also
-   compares a hand-written profile and the rest of the repository with the checks
-   of `workflow_get`.
-   After the grouped view, the skill runs a "Merge setup" step. It reads the rules of the base
-   branch, the classic branch protection, the classic rule of the branch through GraphQL, and the
-   repository visibility. It says who approves a
-   merge, and the highest approval count across every source. It names each source that enforces
-   it: GitHub rulesets, classic protection, or both. It reports Loupe alone only when it confirms
-   that no source applies. It lists each setting that conflicts with the Loupe merge path. It asks nothing and changes no GitHub setting.
+   `## Routing` section is a skill routing table. It has one `###` heading per stage:
+   `Product design`, `Tech design`, `Implementation`, `Fix round`, `Review`,
+   `Design review`, `Merge`, `Epic preview` and `Discovery`. Each line under a heading
+   has one form, ``Load skill `<name>` <when>.``, where `<when>` says when, such as
+   "before the push". The repository holds its own rules in `AGENTS.md` and its
+   skills, and the table points at them. The optional `Forge` and `Documents`
+   sections stay. A stage reads no other section. It ignores an old `Gate`,
+   `Board` or `Merge` section, so a repository removes them in its own time.
+   The preview and visual check method lives in the repository skill
+   `project-review`, which the table routes for the implementation, fix round, review
+   and epic preview stages. The plugin holds no preview method.
+   Each stage first runs `routing-check.sh`, which sits beside `stage-contract.md`. It
+   prints a malformed line, and each routed skill that the repository lacks, and the
+   stage then stops with `blocked: routed skill <name> missing`. It skips a plugin skill
+   such as `loupe:loupe-board`, because the repository cannot hold it. A file with no
+   `## Routing` section passes.
+   `loupe init` starts an agent with the `loupe-lifecycle:loupe-profile` skill. The
+   skill looks for blockers only and writes nothing to the profile.
 2. The unattended run notes cover what differs when a worker runs with no
    person: connect to Loupe, run a long command, read a linked prototype, and
    keep the final reply short. The generic notes are
@@ -451,7 +451,7 @@ that change from one setup to the next.
    the card's pull request link when it is not `other`, then from the host of
    the git remote.
 
-When the profile, one of its sections, or a forge adapter is missing, the
+When a routed skill or a forge adapter is missing, the
 worker stops with a `STAGE RESULT: blocked:` line that names it. A harness with
 no dedicated notes uses the generic notes.
 

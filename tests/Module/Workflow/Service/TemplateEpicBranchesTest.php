@@ -18,20 +18,18 @@ final class TemplateEpicBranchesTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject('epic-branches-bound');
         $binding = $this->bindLifecycle($project);
-        $binding->definition = [...$binding->definition, 'epicBranch' => 'feature/epic-{number}'];
+        $binding->definition = [...$binding->definition, 'settingValues' => ['epic-branch-pattern' => 'feature/epic-{number}']];
         $this->em()->flush();
 
         self::assertSame('feature/epic-12', $this->branches()->of($project->requireId(), 12));
     }
 
-    public function test_a_copy_with_no_epic_branch_has_none(): void
+    public function test_a_copy_with_epic_branches_off_has_none(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('epic-branches-none');
         $binding = $this->bindLifecycle($project);
-        $definition = $binding->definition;
-        unset($definition['epicBranch']);
-        $binding->definition = $definition;
+        $binding->definition = [...$binding->definition, 'settingValues' => ['epic-branches' => false]];
         $this->em()->flush();
 
         self::assertNull($this->branches()->of($project->requireId(), 12));

@@ -50,7 +50,7 @@ Record each question that the session asked, with its answer. When an agent wrot
 
 ## Design system
 
-Write it when the `Instruction files` section of the repository profile names a design system, and the change touches the user interface.
+Write it when a skill that the `### Product design` heading routes, or an instruction file, names a design system, and the change touches the user interface.
 
 1. List each component that the change reuses.
 2. List each component that it must change, and say what changes, such as a new option or a new state. A change to the look or the behaviour of a component goes into the component. The position on the page stays a page rule.
@@ -81,7 +81,7 @@ When a revision folds an answer in, keep the fence and add a `**Decided:**` line
 
 ## Documentation impact
 
-Answer only the checks that the `Instruction files` section of the repository profile names. When the profile names none, or is missing, write "No documentation check".
+Answer only the checks that the instruction files and the skills of the `### Product design` heading name. When they name none, write "No documentation check".
 
 For a documentation check, say whether the change alters what a user or an operator does, sees or configures. Name the page that covers it. When no page changes, say so and give the reason.
 

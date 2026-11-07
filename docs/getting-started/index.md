@@ -46,14 +46,15 @@ nothing that is done already.
 `loupe project link` writes `.loupe.yaml`, which holds the project id. Commit
 the file, so everyone in the repository reaches the same project.
 
-At the end, `loupe init` starts an agent that writes `.loupe/lifecycle.md`, the
-repository profile that every stage skill reads. The agent reads the repository,
-shows every value in one grouped view with the source of each, and asks one
-question for each value that it cannot find. It then gets the profile and
-`.loupe.yaml` to the remote in the way your repository usually works. A project
-whose workflow needs no profile skips this step. With no terminal or no agent,
-`loupe init` prints a prompt for you to paste into an agent. A profile that is
-complete is left alone. Pass `--review-profile` to review it.
+At the end, `loupe init` starts an agent that looks for blockers. A blocker
+makes a worker fail on its first run, or does damage. The agent reads the
+repository and the facts that Loupe knows of its GitHub rules. It shows one
+summary with a table of what it found, and asks one question at a time, only
+about a blocker. It writes nothing to `.loupe/lifecycle.md`. It gets `.loupe.yaml`
+to the remote in the way your repository usually works. A project whose workflow
+needs no profile skips this step. With no terminal or no agent, `loupe init`
+prints a prompt for you to paste into an agent. The agent runs when
+`.loupe/lifecycle.md` is missing. Pass `--review-profile` to run it again.
 
 The last lines name only what remains. They end with the link to the project
 page. Start discovery from there.
@@ -119,7 +120,18 @@ review. It calls `document_get_review` and sends a new version. [Documents and r
 
 [Run discovery](../using/workshop.md#run-discovery) before agents work the cards
 of this project. It compares the way the repository already works with what the
-workflow needs, and it changes nothing. You get a readiness report.
+workflow needs, and it changes nothing except the routing table, which it writes
+only after you agree. You get a readiness report.
+
+Discovery also runs the deep checks that `loupe init` leaves out. They cover the
+push gate, the pull request target, the conventions, rules that live only in
+your user files, instruction lines that are false, tooling that breaks in a
+worker folder, what the merge worker cannot read, who approves a merge, the merge
+method, the skills of the repository, and the preview tooling. Discovery also
+drafts the first `## Routing` table of `.loupe/lifecycle.md`, which says which
+skill each stage loads. The draft is in the report. Discovery then asks you in
+the inbox whether to write it. On a yes, discovery adds the table on a new branch
+and gets it to the remote as your instruction files say.
 
 Each finding that starts `Conflict check:` has one of these results:
 
@@ -131,8 +143,6 @@ Each finding that starts `Conflict check:` has one of these results:
 - A suggestion that names options means a conflict. Choose one of the options:
   change the repository, change `.loupe/lifecycle.md`, or change the workflow
   template.
-
-Also write each value of `.loupe/lifecycle.md` that reads "owner to fill in".
 
 A change that only you can make, such as a branch rule, has no proposed card. Make
 it on the forge. Each other change is a proposed card. Tick the proposals that you

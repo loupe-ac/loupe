@@ -15,7 +15,9 @@ use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState as ForgePullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\ForgePullRequestWrites;
+use App\Module\Forge\Service\MergeApprovals;
 use App\Module\Forge\Service\PullRequestCheckWriters;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\ChecksState;
@@ -39,6 +41,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         private CardPullRequestRepository $cardPullRequests,
         private WorkRequestRepository $workRequests,
         private PullRequestCheckWriters $checkWriters,
+        private ForgeRepositoryRepository $forgeRepositories,
+        private MergeApprovals $mergeApprovals,
     ) {
     }
 
@@ -126,6 +130,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             && 'success' === $pullRequest->approvalCheckConclusion
             && $pullRequest->approvalCheckSha === $headSha;
         $installed = $open && ($this->checkWriters->for($pullRequest->forge)?->canPublish($pullRequest) ?? false);
+        $repository = $open ? $this->forgeRepositories->findOneByPath($pullRequest->project, $pullRequest->forge, $pullRequest->repository) : null;
+        $mergeApproval = null === $repository ? null : $this->mergeApprovals->of($repository);
         $personApprovalCoversHead = PullRequestReview::Approved === $pullRequest->review
             && null !== $pullRequest->coveredSha
             && $pullRequest->coveredSha === $headSha;
@@ -182,6 +188,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             reviewRequired: $pullRequest->reviewFromRules && \in_array($pullRequest->review, [PullRequestReview::Required, PullRequestReview::ChangesRequested], true),
             baseAhead: $open && $pullRequest->behindBy > 0,
             updateRefusedOnHead: null !== $headSha && $pullRequest->updateRefusedSha === $headSha,
+            mergeApprovalUnanswered: true === $mergeApproval?->unanswered($installed),
+            mergeApprovalNeedsPerson: true === $mergeApproval?->needsPerson($installed),
         );
     }
 

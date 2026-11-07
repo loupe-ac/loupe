@@ -27,7 +27,7 @@ func initFolder(cmd *cobra.Command, dir, choice string) (string, error) {
 
 		return dir, nil
 	case !below:
-		step(out, "Folder", "skipped", dir+" is the repository root")
+		stepSet(out, "Folder", dir+" is the repository root")
 
 		return dir, nil
 	}
