@@ -40,9 +40,10 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
         self::assertSame('Share this experiment', trim($dialog->filter('.lp-dialog-title')->text()));
         self::assertCount(1, $dialog->filter('input.lp-switch[role="switch"]'));
         self::assertCount(0, $dialog->filter('input.lp-switch[checked]'));
-        self::assertCount(1, $dialog->filter('textarea[data-share-note]'));
+        self::assertCount(1, $dialog->filter('[data-share-note-field][hidden] textarea[data-share-note]'), 'The note hides while the link is off, and stays in the form.');
         self::assertCount(0, $dialog->filter('input[readonly]'));
         self::assertCount(0, $dialog->filter('[data-experiment-share-archived]'));
+        self::assertSame('Saving…', trim($dialog->filter('form .lp-dashboard-share__saving[role="status"]')->text()));
         self::assertCount(0, $crawler->filter('[data-experiment-public] .lp-tag'));
     }
 
@@ -63,14 +64,14 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
 
         $dialog = $crawler->filter('.lp-experiment-heading [data-share-dialog] dialog');
         self::assertCount(1, $dialog->filter('input.lp-switch[checked]'));
-        self::assertSame('Why we ran it.', trim($dialog->filter('textarea[data-share-note]')->text()));
+        self::assertSame('Why we ran it.', trim($dialog->filter('[data-share-note-field]:not([hidden]) textarea[data-share-note]')->text()));
         $input = $dialog->filter('input[readonly]');
         self::assertMatchesRegularExpression('#^https?://[^/]+/s/'.$code.'$#', (string) $input->attr('value'));
         self::assertSame('Copy link', trim($dialog->filter('[data-clipboard-target="button"]')->text()));
         self::assertSame('Public', trim($crawler->filter('.lp-experiment-heading [data-experiment-public="trial"] .lp-tag')->text()));
     }
 
-    public function test_a_link_that_is_switched_off_hides_its_address_and_keeps_the_note_field(): void
+    public function test_a_link_that_is_switched_off_hides_its_address_and_its_note_field(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('xrender-off');
@@ -89,7 +90,7 @@ final class ShareExperimentDialogRenderTest extends WebTestCase
         self::assertCount(0, $dialog->filter('input.lp-switch[checked]'));
         self::assertCount(0, $dialog->filter('input[readonly]'));
         self::assertStringNotContainsString('Turn the switch off', $dialog->text());
-        self::assertCount(1, $dialog->filter('textarea[data-share-note]'));
+        self::assertCount(1, $dialog->filter('[data-share-note-field][hidden] textarea[data-share-note]'));
         self::assertCount(0, $crawler->filter('[data-experiment-public] .lp-tag'));
     }
 

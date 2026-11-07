@@ -35,6 +35,7 @@ final class ShareDialogRenderTest extends WebTestCase
         self::assertSame('Share this graph', trim($dialog->filter('.lp-dialog-title')->text()));
         self::assertCount(1, $dialog->filter('input.lp-switch[role="switch"]'));
         self::assertCount(0, $dialog->filter('input.lp-switch[checked]'));
+        self::assertSame('Saving…', trim($dialog->filter('form .lp-dashboard-share__saving[role="status"]')->text()));
         self::assertCount(0, $dialog->filter('input[readonly]'));
         self::assertCount(0, $crawler->filter('[data-graph-public] .lp-tag'));
         self::assertStringContainsString('Account names show as Account 1, Account 2.', $dialog->text());

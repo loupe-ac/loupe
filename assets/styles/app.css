@@ -7850,6 +7850,19 @@
     .lp-dashboard-share__link {
         @apply flex items-center gap-2;
     }
+    /* The line that shows while the share form saves. Turbo sets aria-busy on the form during the request. */
+    .lp-dashboard-share__saving {
+        @apply m-0 hidden items-center gap-2 text-sm text-fg-mute;
+    }
+    .lp-dashboard-share__form[aria-busy='true'] .lp-dashboard-share__saving {
+        @apply flex;
+    }
+    .lp-dashboard-share__spinner {
+        @apply motion-safe:animate-spin;
+    }
+    .lp-dashboard-share__form [hidden] {
+        @apply hidden;
+    }
     .lp-dashboard-share__link > .lp-input {
         @apply min-w-0 flex-1;
     }

@@ -9037,6 +9037,7 @@
             <trans-unit id="insights.public_link.dialog.link"><source>insights.public_link.dialog.link</source><target>Public link</target></trans-unit>
             <trans-unit id="insights.public_link.dialog.copy"><source>insights.public_link.dialog.copy</source><target>Copy link</target></trans-unit>
             <trans-unit id="insights.public_link.dialog.copied"><source>insights.public_link.dialog.copied</source><target>Copied!</target></trans-unit>
+            <trans-unit id="insights.public_link.dialog.saving"><source>insights.public_link.dialog.saving</source><target>Saving…</target></trans-unit>
             <trans-unit id="insights.public_link.dialog.note"><source>insights.public_link.dialog.note</source><target>Turn the switch off and the link shows "not found". Turn it on again and the same link works again.</target></trans-unit>
             <trans-unit id="insights.public_link.dialog.done"><source>insights.public_link.dialog.done</source><target>Done</target></trans-unit>
             <trans-unit id="insights.public_link.tag"><source>insights.public_link.tag</source><target>Public</target></trans-unit>

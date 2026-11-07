@@ -8,6 +8,7 @@
     {% endif %}
     {{ form_start(shareForm, {attr: {'class': 'lp-dashboard-share__form', 'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
         <twig:Ds:Switch :fieldView="shareForm.enabled" :help="'insights.form.share_graph_form.enabled.help'|trans" />
+        <p class="lp-dashboard-share__saving" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--sm lp-dashboard-share__spinner" />{{ 'insights.public_link.dialog.saving'|trans }}</p>
     {{ form_end(shareForm) }}
     {% if share.isEnabled %}
         {% set linkUrl = public_link_url(share.link.code) %}

@@ -1,6 +1,7 @@
 {# The part of the experiment share dialog that a share changes. The share stream replaces it.
    Props: project (Project), experiment (string), share (PublicLinkShareView), error (string or null), archived (bool).
-   An archived experiment waits for the owner to confirm, because sharing it also unarchives it. #}
+   An archived experiment waits for the owner to confirm, because sharing it also unarchives it.
+   The note shows only while the link is on, and a line shows while the form saves. #}
 {% set shareForm = experiment_share_form(project, experiment, share) %}
 <div class="lp-dashboard-share__body" id="share-experiment-body-{{ experiment_share_key(experiment) }}">
     {% if share.block is not null %}
@@ -22,7 +23,11 @@
     {% else %}
     {{ form_start(shareForm, {attr: {'class': 'lp-dashboard-share__form', 'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}
         <twig:Ds:Switch :fieldView="shareForm.enabled" :help="'insights.form.share_experiment_form.enabled.help'|trans" />
-        <twig:Ds:FormField :fieldView="shareForm.note" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-share-note': ''}" :hintText="'insights.form.share_experiment_form.note.help'|trans" />
+        <p class="lp-dashboard-share__saving" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--sm lp-dashboard-share__spinner" />{{ 'insights.public_link.dialog.saving'|trans }}</p>
+        {# The note stays in the form while the link is off, so a switch does not clear a saved note. #}
+        <div data-share-note-field{% if not share.isEnabled %} hidden{% endif %}>
+            <twig:Ds:FormField :fieldView="shareForm.note" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-share-note': ''}" :hintText="'insights.form.share_experiment_form.note.help'|trans" />
+        </div>
     {{ form_end(shareForm) }}
     {% endif %}
     {% if share.isEnabled and not archived %}

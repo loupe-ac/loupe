@@ -1,10 +1,12 @@
-{# The goal table of an experiment and its notes. Props: headline (ExperimentHeadline), text (ExperimentHeadlineText). #}
+{# The goal table of an experiment and its notes. Props: headline (ExperimentHeadline), text (ExperimentHeadlineText),
+   public (bool, false by default). A public page hides the notes that tell the owner how to set up the bridge rule. #}
 {% set goal = headline.goal %}
 {% set baselineArm = headline.baselineArm %}
+{% set setupNotes = not public|default(false) %}
 {% if baselineArm is null %}
-    <p class="lp-experiment-note" data-experiment-no-baseline>{{ 'bridge.experiments.goal.no_baseline'|trans({'%key%': '<code class="lp-experiment-config-key">baseline:</code>'})|raw }}</p>
+    {% if setupNotes %}<p class="lp-experiment-note" data-experiment-no-baseline>{{ 'bridge.experiments.goal.no_baseline'|trans({'%key%': '<code class="lp-experiment-config-key">baseline:</code>'})|raw }}</p>{% endif %}
 {% elseif goal.problem is not null %}
-    <p class="lp-experiment-note" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.problem.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>
+    {% if setupNotes %}<p class="lp-experiment-note" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.problem.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>{% endif %}
 {% else %}
     {% set goalName = text.metricName(goal.metric) %}
     <h3 class="lp-experiment-section" data-experiment-goal-heading>{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalName, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</h3>

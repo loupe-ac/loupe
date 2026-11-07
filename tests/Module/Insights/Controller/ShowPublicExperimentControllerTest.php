@@ -64,7 +64,8 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-goal]');
         self::assertSelectorTextContains('[data-public-experiment-panel] > [data-public-experiment-privacy]:last-child', 'Totals only. The cards of each variant stay private.');
         self::assertSelectorNotExists('[data-public-experiment-panel] .lp-experiment-heading__name');
-        self::assertSelectorNotExists('[data-public-experiment] .lp-panel');
+        self::assertCount(1, $client->getCrawler()->filter('[data-public-experiment] .lp-panel'), 'Only the note sits in a panel.');
+        self::assertSelectorExists('[data-public-experiment-panel] .lp-panel[data-public-experiment-note]');
         self::assertSelectorTextContains('.lp-public__meta', 'Updated 0 min ago');
         self::assertSelectorTextContains('.lp-public__meta a.lp-public__made-with', 'Made with Loupe');
         $stamp = $client->getCrawler()->filter('[data-controller~="dashboard-age"] [data-public-experiment]')->attr('data-computed-at');
@@ -121,6 +122,30 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertStringNotContainsString('<script>alert', $source);
         self::assertSelectorTextContains('[data-public-experiment-note] [data-ref-card="3"]', 'card #3');
         self::assertSelectorNotExists('[data-public-experiment-note] a');
+    }
+
+    /** @return iterable<string, array{string|null, array<string, mixed>|null, string}> */
+    public static function setupProblems(): iterable
+    {
+        yield 'no baseline' => [null, null, '[data-experiment-no-baseline]'];
+        yield 'goal with no direction' => ['a', ['goal' => ['metric' => 'cost']], '[data-experiment-goal-problem]'];
+        yield 'goal with an unknown metric' => ['a', ['goal' => ['metric' => 'nonsense', 'better' => 'higher']], '[data-experiment-goal-problem]'];
+    }
+
+    /** @param array<string, mixed>|null $headline */
+    #[DataProvider('setupProblems')]
+    public function test_the_page_hides_the_notes_that_tell_the_owner_how_to_set_up_the_bridge_rule(?string $baseline, ?array $headline, string $ownerNote): void
+    {
+        $client = $this->client('');
+        $link = $this->sharedExperiment('public-x-setup', note: null, baseline: $baseline, headline: $headline);
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists($ownerNote);
+        self::assertSelectorNotExists('.lp-experiment-config-key');
+        self::assertStringNotContainsString('bridge rule', (string) $client->getResponse()->getContent());
+        self::assertSelectorExists('[data-public-experiment-panel] [data-experiment-variants]');
     }
 
     /** @return iterable<string, array{string, string}> */
@@ -187,7 +212,8 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertSame($first, $client->getCrawler()->filter('[data-experiment-variants]')->html());
     }
 
-    private function sharedExperiment(string $name, ?string $note): PublicLink
+    /** @param array<string, mixed>|null $headline */
+    private function sharedExperiment(string $name, ?string $note, ?string $baseline = 'a', ?array $headline = null): PublicLink
     {
         $em = $this->em();
         $owner = $this->user($em, $name.'-'.uniqid().'@example.com');
@@ -195,7 +221,8 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         $project->name = 'Project '.$name;
         $this->bindLifecycle($em, $project);
         $definition = new ExperimentDefinition($project, 'model-test', [['name' => 'a', 'weight' => 1], ['name' => 'b', 'weight' => 1]]);
-        $definition->baseline = 'a';
+        $definition->baseline = $baseline;
+        $definition->headline = $headline;
         $em->persist($definition);
         $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id]);
         $bridge->name = self::SECRET_BRIDGE;
