@@ -366,7 +366,7 @@ final readonly class UpdateCardHandler
             // process dies after it.
             if (null !== $move) {
                 $cause = $command->cause ?? (null === $openedRun ? null : CardEventCause::run($openedRun->id ?? throw new \LogicException('A persisted run has an id.'), $openedRun->workKind));
-                $this->events->dispatch(new CardMoved($card, $move, $command->actor, $cause));
+                $this->events->dispatch(new CardMoved($card, $move, $command->actor, $cause, $card->updatedAt));
             }
             if (null !== $documents) {
                 $this->events->dispatch(new CardDocumentsChanged(

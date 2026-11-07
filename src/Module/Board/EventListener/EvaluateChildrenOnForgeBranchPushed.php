@@ -31,6 +31,6 @@ final readonly class EvaluateChildrenOnForgeBranchPushed
             $this->cards->findOpenChildren([$event->projectId->toRfc4122()]),
             fn (array $child): bool => $event->branch === $this->epicBranches->of($event->projectId, $child['parentNumber']),
         );
-        $this->trigger->forCards(array_values(array_column($children, 'id')));
+        $this->trigger->forCards(array_values(array_column($children, 'id')), self::class);
     }
 }

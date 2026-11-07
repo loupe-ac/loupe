@@ -86,7 +86,7 @@ final readonly class InboxAskCloser
 
         $cardIds = array_values(array_filter(array_map(static fn (InboxAsk $ask): ?Uuid => $ask->card?->id, $closing)));
         if ([] !== $cardIds) {
-            $this->evaluations->forCards($cardIds);
+            $this->evaluations->forCards($cardIds, self::class);
         }
     }
 

@@ -68,7 +68,7 @@ final readonly class EvaluateChildren implements Action
     {
         $ids = $this->cards->childIds($context->card->id);
         if ([] !== $ids) {
-            $this->evaluations->forCards($ids);
+            $this->evaluations->forCards($ids, self::class);
         }
 
         return ActionOutcome::done();

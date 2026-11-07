@@ -29,12 +29,12 @@ final readonly class EvaluateCardsOnCardMoved
         $cardId = (string) ($event->card->id ?? throw new \LogicException('A moved card has an id.'));
         $related = $this->cards->findRelatedForEvaluation([$cardId]);
         if (Actor::Human === $event->actor) {
-            $this->trigger->forPersonWaiting([$cardId]);
-            $this->trigger->forCards($related);
+            $this->trigger->forPersonWaiting([$cardId], self::class, $event->occurredAt);
+            $this->trigger->forCards($related, self::class, $event->occurredAt);
 
             return;
         }
 
-        $this->trigger->forCards([$cardId, ...$related]);
+        $this->trigger->forCards([$cardId, ...$related], self::class, $event->occurredAt);
     }
 }

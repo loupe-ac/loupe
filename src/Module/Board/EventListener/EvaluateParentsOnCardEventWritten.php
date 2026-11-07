@@ -51,7 +51,7 @@ final class EvaluateParentsOnCardEventWritten implements ResetInterface
         $cardIds = array_keys($this->cardIds);
         $this->cardIds = [];
         if ($this->trigger->isOn()) {
-            $this->trigger->forCards($this->cards->findParentIds($cardIds));
+            $this->trigger->forCards($this->cards->findParentIds($cardIds), self::class);
         }
     }
 

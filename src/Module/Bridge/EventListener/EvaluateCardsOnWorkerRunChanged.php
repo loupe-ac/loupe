@@ -18,6 +18,6 @@ final readonly class EvaluateCardsOnWorkerRunChanged
 
     public function __invoke(WorkerRunChanged $event): void
     {
-        $this->trigger->forCards($event->cardIds);
+        $this->trigger->forCards($event->cardIds, self::class);
     }
 }

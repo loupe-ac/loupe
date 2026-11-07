@@ -82,9 +82,9 @@ final readonly class ReleaseWorkflowPauseHandler
             $this->cardPauses->recordReleased($released, $command->actorKind, $command->actorUserId);
             $this->em->flush();
             if (Actor::Human === $command->actorKind) {
-                $this->evaluations->forPersonWaiting([$cardId]);
+                $this->evaluations->forPersonWaiting([$cardId], self::class);
             } else {
-                $this->evaluations->forCards([$cardId]);
+                $this->evaluations->forCards([$cardId], self::class);
             }
 
             return $released;

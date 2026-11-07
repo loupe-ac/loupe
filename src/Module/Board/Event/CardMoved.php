@@ -22,6 +22,7 @@ final readonly class CardMoved
         public CardMove $move,
         public Actor $actor,
         public ?CardEventCause $cause = null,
+        public \DateTimeImmutable $occurredAt = new \DateTimeImmutable(),
     ) {
     }
 }

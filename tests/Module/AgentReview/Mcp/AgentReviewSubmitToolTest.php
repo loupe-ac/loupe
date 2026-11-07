@@ -125,12 +125,12 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
             /** @var list<string|Uuid> */
             public array $cardIds = [];
 
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 $this->cardIds = [...$this->cardIds, ...$cardIds];
             }
 
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 
