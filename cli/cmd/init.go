@@ -172,7 +172,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.folder, "folder", "", "folder to set up when this one is below the repository root: root or current; else init asks")
 	cmd.Flags().BoolVar(&o.repoint, "repoint", false, "point a rule file entry that maps another directory at this one")
 	cmd.Flags().BoolVar(&o.reset, "reset", false, "write the first-run rules again, and keep the projects map")
-	cmd.Flags().BoolVar(&o.link.force, "force", false, "replace an existing "+projectfile.Name)
+	cmd.Flags().BoolVar(&o.link.force, "force", false, "set the project in an existing "+projectfile.Name+", and keep its other keys")
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
 	cmd.Flags().BoolVar(&o.link.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
 	cmd.Flags().BoolVar(&o.link.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
