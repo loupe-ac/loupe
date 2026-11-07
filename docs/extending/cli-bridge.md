@@ -2128,11 +2128,11 @@ projects:
       implement:
         prompt: Implement card {cardNumber}.
         before:
-          run: [loupe, hook, worktree-create, "card-{cardNumber}"]
+          run: [loupe, hook, worktree-create, --project, "{project}", "card-{cardNumber}"]
 work:
   teardown:
     action: command
-    run: [loupe, hook, worktree-remove, "card-{cardNumber}"]
+    run: [loupe, hook, worktree-remove, --project, "{project}", "card-{cardNumber}"]
 ```
 
 Both commands run in the project `dir` and read the settings files of that folder.
@@ -2148,7 +2148,8 @@ then add the `before` command.
 - `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree that the hook made. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed.
 - `worktree-create` fails when no `WorktreeCreate` command hook exists, when the hook exits with a code that is not 0, or when it prints no folder.
 - `worktree-remove <name>` finds the folder of the worktree with `git worktree list`, and sends three of the fields of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
-- `worktree-remove` acts only on a worktree that carries the claim of that name, or that sits in the worktree folder of the bridge. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
+- `worktree-remove` acts only on a worktree that carries the claim of that name, or that is the bridge worktree `<config dir>/worktrees/<project>/<name>` of the `--project` slug. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
+- Two project entries can share one repository, and each bridge worktree of a card then has the same name. Both commands skip a worktree in the worktree folder of the bridge that belongs to another slug. Without `--project`, they skip every bridge worktree.
 - Neither command sends `session_id`, `transcript_path` or the other common fields of a Claude Code hook. The bridge runs the commands before the worker session starts and after the last worker ends, so no session and no transcript exist. A hook that needs those fields does not work as a bridge command.
 - A `WorktreeRemove` hook can leave the git removal to its caller, as Claude Code removes the worktree after the hook. When the worktree is still there after the hook, `worktree-remove` runs `git worktree remove --force` and `git worktree prune`. It does the same in a project with a `WorktreeCreate` hook and no `WorktreeRemove` hook.
 - `worktree-remove` does nothing when the project has no such worktree, has neither worktree hook, or does not own the worktree.

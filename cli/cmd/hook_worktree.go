@@ -43,14 +43,15 @@ func newHookCmd() *cobra.Command {
 }
 
 func newHookWorktreeCreateCmd() *cobra.Command {
-	return &cobra.Command{
+	var slug string
+	cmd := &cobra.Command{
 		Use:   "worktree-create <name>",
 		Short: "Run the WorktreeCreate hook for a worktree and print its folder",
 		Long: "Runs the WorktreeCreate hook of .claude/settings.json or .claude/settings.local.json in the " +
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
 			"It writes a claim into the git dir of a worktree the hook made, so worktree-remove can tell it from a worktree a person made. " +
 			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
-			"It does not claim that worktree.",
+			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -58,18 +59,22 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 				return err
 			}
 
-			return runWorktreeCreate(cmd.Context(), project, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
+			return runWorktreeCreate(cmd.Context(), project, slug, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
+	cmd.Flags().StringVar(&slug, "project", "", "the slug of the bridge project, which names its worktree folder")
+
+	return cmd
 }
 
 func newHookWorktreeRemoveCmd() *cobra.Command {
-	return &cobra.Command{
+	var slug string
+	cmd := &cobra.Command{
 		Use:   "worktree-remove <name>",
 		Short: "Run the WorktreeRemove hook for a worktree",
 		Long: "Finds the worktree of that name with git and runs the WorktreeRemove hook of .claude/settings.json or " +
 			".claude/settings.local.json in the current folder, the project folder. It does nothing when the " +
-			"project has no such worktree or no such hook, or when worktree-create did not make the worktree and it is no bridge worktree.",
+			"project has no such worktree or no such hook, or when worktree-create did not make the worktree and it is not the bridge worktree of the --project slug.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -77,9 +82,12 @@ func newHookWorktreeRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			return runWorktreeRemove(cmd.Context(), project, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
+			return runWorktreeRemove(cmd.Context(), project, slug, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
+	cmd.Flags().StringVar(&slug, "project", "", "the slug of the bridge project, which names its worktree folder")
+
+	return cmd
 }
 
 // settingsHook is one command hook of a Claude Code settings file.
@@ -155,16 +163,23 @@ func listProjectWorktrees(ctx context.Context, dir string) ([]projectWorktree, e
 }
 
 // findWorktree returns the folder of the linked worktree called name: the one
-// whose folder or branch has that name.
-func findWorktree(ctx context.Context, project, name string) (string, bool, error) {
+// whose folder or branch has that name. A worktree in the worktree folder of
+// the bridge matches only when it is the folder of slug and name, because
+// another project entry can share the repository and use the same name.
+func findWorktree(ctx context.Context, project, slug, name string) (string, bool, error) {
 	list, err := listProjectWorktrees(ctx, project)
 	if err != nil {
 		return "", false, err
 	}
 	for i, w := range list {
-		if i > 0 && (filepath.Base(w.Path) == name || w.Branch == name) {
-			return w.Path, true, nil
+		if i == 0 || (filepath.Base(w.Path) != name && w.Branch != name) {
+			continue
 		}
+		if inBridgeFolder(w.Path) && !isBridgeWorktree(w.Path, slug, name) {
+			continue
+		}
+
+		return w.Path, true, nil
 	}
 
 	return "", false, nil
@@ -234,11 +249,11 @@ func hookPayload(event, project string, extra map[string]string) []byte {
 
 // runWorktreeCreate prints the folder of the worktree called name. An existing
 // worktree of that name is reused. Otherwise the WorktreeCreate hook makes it.
-func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr io.Writer) error {
+func runWorktreeCreate(ctx context.Context, project, slug, name string, stdout, stderr io.Writer) error {
 	if err := validWorktreeName(name); err != nil {
 		return err
 	}
-	if path, ok, err := findWorktree(ctx, project, name); err != nil {
+	if path, ok, err := findWorktree(ctx, project, slug, name); err != nil {
 		return err
 	} else if ok {
 		fmt.Fprintln(stdout, path)
@@ -259,7 +274,7 @@ func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr
 	if path == "" {
 		return fmt.Errorf("the %s hook printed no folder", hookCreateEvent)
 	}
-	if err := writeHookClaim(ctx, project, name); err != nil {
+	if err := writeHookClaim(ctx, project, slug, name); err != nil {
 		return err
 	}
 	fmt.Fprintln(stdout, path)
@@ -272,21 +287,21 @@ func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr
 // the removal to its caller, as Claude Code does it after the hook. A project
 // with no such worktree, or with neither worktree hook, is a success, so one
 // shared teardown entry can serve every project.
-func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.Writer) error {
+func runWorktreeRemove(ctx context.Context, project, slug, name string, _, stderr io.Writer) error {
 	if err := validWorktreeName(name); err != nil {
 		return err
 	}
-	path, ok, err := findWorktree(ctx, project, name)
+	path, ok, err := findWorktree(ctx, project, slug, name)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return nil
 	}
-	if owned, err := ownsWorktree(ctx, project, path, name); err != nil {
+	if owned, err := ownsWorktree(ctx, project, path, slug, name); err != nil {
 		return err
 	} else if !owned {
-		fmt.Fprintf(stderr, "skipping %s: worktree-create did not make it, and it is no bridge worktree\n", path)
+		fmt.Fprintf(stderr, "skipping %s: worktree-create did not make it, and it is not the bridge worktree of this project\n", path)
 
 		return nil
 	}
@@ -306,7 +321,7 @@ func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.W
 			return err
 		}
 	}
-	if _, still, err := findWorktree(ctx, project, name); err != nil || !still {
+	if _, still, err := findWorktree(ctx, project, slug, name); err != nil || !still {
 		return err
 	}
 	steps := [][]string{{"worktree", "prune"}}
@@ -337,8 +352,8 @@ func worktreeGitDir(ctx context.Context, path string) (string, error) {
 
 // writeHookClaim marks the worktree called name as made by worktree-create. A
 // folder that the hook made outside git keeps no claim, so teardown leaves it.
-func writeHookClaim(ctx context.Context, project, name string) error {
-	path, ok, err := findWorktree(ctx, project, name)
+func writeHookClaim(ctx context.Context, project, slug, name string) error {
+	path, ok, err := findWorktree(ctx, project, slug, name)
 	if err != nil || !ok {
 		return err
 	}
@@ -351,10 +366,10 @@ func writeHookClaim(ctx context.Context, project, name string) error {
 }
 
 // ownsWorktree reports whether teardown may remove the worktree called name
-// at path: worktree-create claimed it, or it sits in the bridge's own
-// worktree folder.
-func ownsWorktree(ctx context.Context, project, path, name string) (bool, error) {
-	if bridgeWorktree(path) {
+// at path: worktree-create claimed it, or it is the bridge worktree of slug
+// and name.
+func ownsWorktree(ctx context.Context, project, path, slug, name string) (bool, error) {
+	if isBridgeWorktree(path, slug, name) {
 		return true, nil
 	}
 	dir, err := worktreeGitDirOf(ctx, project, path)
@@ -395,21 +410,47 @@ func worktreeGitDirOf(ctx context.Context, project, path string) (string, error)
 	return "", nil
 }
 
-// bridgeWorktree reports whether path lies in the worktree folder of the
-// bridge, where only the bridge makes worktrees.
-func bridgeWorktree(path string) bool {
+// bridgeRoot is the worktree folder of the bridge, with its symlinks resolved.
+func bridgeRoot() (string, bool) {
 	d, err := config.Dir()
 	if err != nil {
-		return false
+		return "", false
 	}
 	root := filepath.Join(d, "worktrees")
 	if r, err := filepath.EvalSymlinks(root); err == nil {
 		root = r
 	}
-	if r, err := filepath.EvalSymlinks(path); err == nil {
-		path = r
-	}
-	rel, err := filepath.Rel(root, path)
 
-	return err == nil && rel != "." && !strings.HasPrefix(rel, "..")
+	return root, true
+}
+
+func resolvePath(path string) string {
+	if r, err := filepath.EvalSymlinks(path); err == nil {
+		return r
+	}
+
+	return filepath.Clean(path)
+}
+
+// inBridgeFolder reports whether path lies in the worktree folder of the
+// bridge, where only the bridge makes worktrees.
+func inBridgeFolder(path string) bool {
+	root, ok := bridgeRoot()
+	if !ok {
+		return false
+	}
+	rel, err := filepath.Rel(root, resolvePath(path))
+
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// isBridgeWorktree reports whether path is the folder that the bridge makes
+// for the worktree called name of the project slug.
+func isBridgeWorktree(path, slug, name string) bool {
+	if slug == "" || strings.ContainsAny(slug, `/\`) || strings.Contains(slug, "..") {
+		return false
+	}
+	root, ok := bridgeRoot()
+
+	return ok && resolvePath(path) == filepath.Join(root, slug, name)
 }
