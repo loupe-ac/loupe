@@ -157,6 +157,10 @@ type handoverRun struct {
 	// CLIVersion is the version of the image that started the run. An older
 	// image writes none.
 	CLIVersion string `json:"cliVersion,omitempty"`
+	// FolderGuard says that the image which started the run lists the
+	// worktrees before a before command. An image without the guard writes
+	// none.
+	FolderGuard bool `json:"folderGuard,omitempty"`
 }
 
 // phaseBefore is the phase of a run whose before command runs, and
@@ -379,6 +383,7 @@ func (r *router) freeze() handoverState {
 			Began: run.began, PID: run.proc.pid, Dir: run.proc.dir, Seq: run.p.seq, Resume: run.p.spec.resume, Fresh: run.p.fresh,
 			Pool: run.p.slot, handoverSeries: seriesOf(run.p), runPin: run.p.pin,
 			Work: workOf(run.p), ClaimToken: run.p.claimToken, Origin: originOf(run.p), CLIVersion: run.p.runCLIVersion(),
+			FolderGuard: true,
 		}
 		switch {
 		case run.p.isCommand():
@@ -581,6 +586,9 @@ func (r *router) adoptBeforeLocked(p pending, run handoverRun) {
 	go func() {
 		defer r.wg.Done()
 
+		if !run.FolderGuard {
+			seedLegacySnapshot(p.spec.dir, run.Dir)
+		}
 		res := r.guardFolder(p, wait(r.workerContext(), run.Dir))
 		unlock()
 		r.afterBefore(p, run.Began, res)

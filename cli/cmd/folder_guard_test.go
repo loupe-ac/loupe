@@ -184,6 +184,84 @@ func TestTheGuardAdoptsTheWorktreesOfTheFirstStartOnce(t *testing.T) {
 	}
 }
 
+// A worktree on the adoption list that is gone loses its place, also when a new
+// worktree later takes the same path.
+func TestTheGuardRefusesANewWorktreeAtTheRemovedPathOfAnAdoptedOne(t *testing.T) {
+	project := guardProject(t)
+	older := addTree(t, project, "card-5")
+	recordAdoptionFor(t, project)
+	gitIn(t, project, "worktree", "remove", "--force", older)
+	gitIn(t, project, "worktree", "add", "-q", "--detach", older)
+	runDir := snapshotOf(t, project)
+
+	got := checkFolder(context.Background(), folderCheck{folder: older, project: project, card: "c5", runDir: runDir})
+
+	if !strings.HasPrefix(got, "folder-refused") || !strings.Contains(got, "resume the run") {
+		t.Fatalf("checkFolder = %q", got)
+	}
+	if list, _ := readAdoption(); slices.Contains(list[project], older) {
+		t.Fatalf("adoption still holds %s", older)
+	}
+}
+
+// A run's list leaves out a worktree whose folder is gone, so the adoption list
+// drops it at the next check.
+func TestTheGuardDropsAGoneWorktreeFromTheAdoptionList(t *testing.T) {
+	project := guardProject(t)
+	gone := addTree(t, project, "card-5")
+	recordAdoptionFor(t, project)
+	if err := os.RemoveAll(gone); err != nil {
+		t.Fatal(err)
+	}
+	runDir := snapshotOf(t, project)
+	if paths, _ := readWorktreeSnapshot(runDir); slices.Contains(paths, gone) {
+		t.Fatalf("snapshot holds the gone worktree: %v", paths)
+	}
+	tree := addTree(t, project, "card-6")
+
+	if got := checkFolder(context.Background(), folderCheck{folder: tree, project: project, card: "c6", runDir: runDir}); got != "" {
+		t.Fatalf("checkFolder = %q", got)
+	}
+	gitIn(t, project, "worktree", "prune", "--expire", "now")
+	gitIn(t, project, "worktree", "add", "-q", "--detach", gone)
+	if got := checkFolder(context.Background(), folderCheck{folder: gone, project: project, card: "c5", runDir: snapshotOf(t, project)}); !strings.HasPrefix(got, "folder-refused") {
+		t.Fatalf("a worktree made by hand at the gone path: %q", got)
+	}
+}
+
+// A before command that an image without the guard started has no list of its
+// own. A worktree it makes after the first start of the guard passes as made
+// in this run, and an older worktree passes through the adoption list.
+func TestALegacyBeforeRunTakesTheAdoptionListAsItsList(t *testing.T) {
+	project := guardProject(t)
+	older := addTree(t, project, "card-5")
+	recordAdoptionFor(t, project)
+	runDir := t.TempDir()
+	seedLegacySnapshot(project, runDir)
+	made := addTree(t, project, "card-7")
+
+	if got := checkFolder(context.Background(), folderCheck{folder: made, project: project, card: "c7", runDir: runDir}); got != "" {
+		t.Fatalf("worktree of the legacy run refused: %q", got)
+	}
+	if claimOf(t, made) != "c7" {
+		t.Fatalf("claim = %q, want c7", claimOf(t, made))
+	}
+	if got := checkFolder(context.Background(), folderCheck{folder: older, project: project, card: "c5", runDir: runDir}); got != "" {
+		t.Fatalf("older worktree refused: %q", got)
+	}
+}
+
+// A run with no list and no seed still fails closed.
+func TestARunWithNoListRefusesAnUnclaimedWorktree(t *testing.T) {
+	project := guardProject(t)
+	recordAdoptionFor(t, project)
+	tree := addTree(t, project, "card-7")
+
+	if got := checkFolder(context.Background(), folderCheck{folder: tree, project: project, card: "c7", runDir: t.TempDir()}); !strings.HasPrefix(got, "folder-refused") {
+		t.Fatalf("checkFolder = %q", got)
+	}
+}
+
 // The run directory holds the list from before the command, so an adopted run
 // after a handover reads the same list.
 func TestTheSnapshotListsDetachedWorktreesToo(t *testing.T) {
@@ -209,7 +287,7 @@ func recordAdoptionFor(t *testing.T, project string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list[project] = paths
+	list[project] = markAdoption(context.Background(), paths)
 	if err := writeAdoption(list); err != nil {
 		t.Fatal(err)
 	}

@@ -2153,10 +2153,23 @@ therefore wait for each other's `before` command. Cards of different projects
 do not wait. A run that a new image adopts during a handover holds the same
 lock until the check of its folder, so a new run of that project waits for it.
 
+The bridge reads that list without a worktree whose folder is gone. So a
+worktree that the `before` command makes again at the same path passes as new.
+
 At its first start with the guard, the bridge stores the worktrees of each
-project in `adoption.json` in its config folder. Such a worktree passes once and
-gets its claim, so a card worktree that an older CLI made resumes with no step
-from you. A worktree that you make by hand later needs a manual claim. The
+project in `adoption.json` in its config folder. It also writes the file
+`loupe-adopt` into the git directory of each of these worktrees. Such a worktree
+passes once and gets its claim, so a card worktree that an older CLI made
+resumes with no step from you. A worktree leaves the list when a card claims it,
+or when it is gone. A new worktree at the same path has no `loupe-adopt` file,
+so it does not pass through the list.
+
+A `before` command that an older CLI started can still run when the new CLI
+takes over. The new CLI then uses the adoption list as the worktree list of that
+run. A worktree that the command makes after the first start therefore passes
+as made in this run.
+
+A worktree that you make by hand later needs a manual claim. The
 `folder-refused` reason names the file. Write the card id into
 `$(git -C <folder> rev-parse --git-dir)/loupe-card`, then resume the run.
 

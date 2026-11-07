@@ -798,6 +798,47 @@ func TestAnAdoptedBeforeCommandHoldsTheProjectLock(t *testing.T) {
 	}
 }
 
+// Only a run that an image without the guard started takes the adoption list
+// as its list of worktrees. This image writes FolderGuard, so its own runs keep
+// the list they took, or none.
+func TestOnlyALegacyBeforeRunTakesTheAdoptionList(t *testing.T) {
+	for _, guarded := range []bool{false, true} {
+		shortConfigHome(t)
+		h, f, _ := withBefore(t, "1m")
+		h.states()
+		f.block = make(chan struct{})
+		st := roundTrip(t, freezeInBefore(t, h))
+		close(f.block)
+		if !st.Live[0].FolderGuard {
+			t.Fatal("the handover does not say that this image guards the folder")
+		}
+		st.Live[0].FolderGuard = guarded
+
+		h2, _, _ := withBefore(t, "1m")
+		h2.states()
+		st.Live[0].WorkerDir = h2.dir
+		runDir := t.TempDir()
+		st.Live[0].Dir = runDir
+		list := adoptionList{h2.dir: {"/adopted"}}
+		if err := writeAdoption(list); err != nil {
+			t.Fatal(err)
+		}
+		var paths []string
+		var known bool
+		h2.router.worker.adoptBefore = func(context.Context, string) procResult {
+			paths, known = readWorktreeSnapshot(runDir)
+
+			return procResult{dir: t.TempDir(), runDir: runDir}
+		}
+		h2.router.adopt(st)
+		h2.router.wg.Wait()
+
+		if guarded == known || (known && !slices.Equal(paths, []string{"/adopted"})) {
+			t.Fatalf("guarded %v: snapshot %v, %v", guarded, paths, known)
+		}
+	}
+}
+
 // A real before command that a frozen image started finishes under the next
 // image, which starts claude in its folder and removes the run directory.
 func TestAnAdoptedBeforeCommandFinishesUnderTheNextImage(t *testing.T) {
