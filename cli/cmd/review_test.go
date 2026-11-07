@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -475,6 +477,27 @@ func TestReviewReportsAnExpiredLoginAsSignedOut(t *testing.T) {
 		save()
 		if got, err := runReview(t, "", args...); err == nil || !strings.Contains(got, `"error":"signed_out"`) {
 			t.Fatalf("%v = %q, %v", args, got, err)
+		}
+	}
+}
+
+// The macOS panel runs `loupe review <subcommand>`, so a removed subcommand breaks the panel silently.
+func TestReviewHasEverySubcommandTheMacPanelRuns(t *testing.T) {
+	source, err := os.ReadFile("../macos/LiveReview/Sources/LiveReviewCore/HelperClient.swift")
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := regexp.MustCompile(`(?:object\(|args = )\["([a-z-]+)"`).FindAllStringSubmatch(string(source), -1)
+	if len(calls) == 0 {
+		t.Fatal("found no subcommand call in HelperClient.swift")
+	}
+	have := map[string]bool{}
+	for _, sub := range newReviewCmd().Commands() {
+		have[sub.Name()] = true
+	}
+	for _, call := range calls {
+		if !have[call[1]] {
+			t.Errorf("the macOS panel runs `loupe review %s`, which does not exist", call[1])
 		}
 	}
 }
