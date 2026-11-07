@@ -50,12 +50,17 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
                 throw new PullRequestWriteFailed('already_set', permanent: true);
             }
 
-            $this->createBranch($installationId, $repositoryPath, $branch, $file->headSha);
-            $this->api->put($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, [
-                'message' => $title,
-                'content' => base64_encode($content),
-                'branch' => $branch,
-            ] + (null === $file->blobSha ? [] : ['sha' => $file->blobSha]));
+            [$blobSha, $branchContent] = [$file->blobSha, null];
+            if (!$this->createBranch($installationId, $repositoryPath, $branch, $file->headSha)) {
+                [$blobSha, $branchContent] = $this->branchFile($installationId, $repositoryPath, $branch);
+            }
+            if ($branchContent !== $content) {
+                $this->api->put($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, [
+                    'message' => $title,
+                    'content' => base64_encode($content),
+                    'branch' => $branch,
+                ] + (null === $blobSha ? [] : ['sha' => $blobSha]));
+            }
 
             return self::url($this->api->post($installationId, $repositoryPath.'/pulls', [
                 'title' => $title,
@@ -82,19 +87,53 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
     /**
      * A branch that exists already is kept as it is. A force update could drop a commit that a person pushed there.
      *
+     * @return bool false when the branch exists already
+     *
      * @throws GitHubAppApiFailed
      */
-    private function createBranch(int $installationId, string $repositoryPath, string $branch, string $headSha): void
+    private function createBranch(int $installationId, string $repositoryPath, string $branch, string $headSha): bool
     {
         try {
             $this->api->post($installationId, $repositoryPath.'/git/refs', ['ref' => 'refs/heads/'.$branch, 'sha' => $headSha]);
         } catch (GitHubAppApiFailed $e) {
             if ('http_status' === $e->reason && 422 === $e->status && !$e->rateLimited) {
-                return;
+                return false;
             }
 
             throw $e;
         }
+
+        return true;
+    }
+
+    /**
+     * Reads the file on a branch that an earlier proposal left. A write there must name the blob of that branch,
+     * because the forge refuses a blob of the default branch when the two differ.
+     *
+     * @return array{?string, ?string} the blob sha and the content, or two nulls when the branch has no such file
+     *
+     * @throws GitHubAppApiFailed
+     */
+    private function branchFile(int $installationId, string $repositoryPath, string $branch): array
+    {
+        try {
+            $file = $this->api->get($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, ['ref' => $branch]);
+        } catch (GitHubAppApiFailed $e) {
+            if ('http_status' === $e->reason && 404 === $e->status && !$e->rateLimited) {
+                return [null, null];
+            }
+
+            throw $e;
+        }
+
+        $blob = $file['sha'] ?? null;
+        if (!\is_string($blob) || '' === $blob) {
+            throw new GitHubAppApiFailed('malformed_body');
+        }
+        $encoded = $file['content'] ?? null;
+        $content = \is_string($encoded) && 'base64' === ($file['encoding'] ?? null) ? base64_decode(str_replace("\n", '', $encoded), true) : false;
+
+        return [$blob, false === $content ? null : $content];
     }
 
     private static function branch(string $key, string $value): string

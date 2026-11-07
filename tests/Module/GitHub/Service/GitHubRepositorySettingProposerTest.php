@@ -28,6 +28,7 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     private const int NOW = 1_790_000_000;
     private const string HEAD = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678';
     private const string BLOB = 'b10b5ha0000000000000000000000000000000aa';
+    private const string BRANCH_BLOB = 'b10b5ha1111111111111111111111111111111bb';
     private const string PULLS = 'https://api.github.com/repos/acme/app/pulls';
 
     private EntityManagerInterface $em;
@@ -114,19 +115,54 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
         );
     }
 
-    public function test_an_existing_branch_is_reused(): void
+    public function test_an_existing_branch_is_written_with_the_blob_of_that_branch(): void
     {
         $repository = $this->repository(74_003);
         $this->responses = [
             ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([]),
             $this->answer(['message' => 'Reference already exists'], 422),
+            $this->fileAnswer("project: x\nworkflow:\n  merge-approval: old\n", self::BRANCH_BLOB),
             $this->answer([], 200),
             $this->answer(['html_url' => 'https://github.com/acme/app/pull/11'], 201),
         ];
 
         self::assertSame('https://github.com/acme/app/pull/11', $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
-        self::assertCount(8, $this->requests);
+        self::assertCount(9, $this->requests);
+        self::assertSame('GET https://api.github.com/repos/acme/app/contents/.loupe.yaml?ref=loupe/merge-approval-person', $this->requests[6]['method'].' '.$this->requests[6]['url']);
+        self::assertSame(self::BRANCH_BLOB, $this->json(7)['sha']);
+    }
+
+    public function test_an_existing_branch_without_the_file_is_written_without_a_blob_sha(): void
+    {
+        $repository = $this->repository(74_007);
+        $this->responses = [
+            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([]),
+            $this->answer(['message' => 'Reference already exists'], 422),
+            $this->answer(['message' => 'Not Found'], 404),
+            $this->answer([], 201),
+            $this->answer(['html_url' => 'https://github.com/acme/app/pull/12'], 201),
+        ];
+
+        $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b');
+
+        self::assertArrayNotHasKey('sha', $this->json(7));
+    }
+
+    public function test_an_existing_branch_that_holds_the_value_opens_the_pull_request_with_no_write(): void
+    {
+        $repository = $this->repository(74_008);
+        $this->responses = [
+            ...$this->readAnswers("project: x\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([]),
+            $this->answer(['message' => 'Reference already exists'], 422),
+            $this->fileAnswer("project: x\nworkflow:\n  merge-approval: person\n", self::BRANCH_BLOB),
+            $this->answer(['html_url' => 'https://github.com/acme/app/pull/13'], 201),
+        ];
+
+        self::assertSame('https://github.com/acme/app/pull/13', $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'PUT' === $r['method']));
     }
 
     public function test_an_open_pull_request_is_returned_with_no_write(): void
@@ -191,8 +227,13 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
             $this->answer(['commit' => ['sha' => self::HEAD]]),
             null === $content
                 ? $this->answer(['message' => 'Not Found'], 404)
-                : $this->answer(['type' => 'file', 'encoding' => 'base64', 'size' => \strlen($content), 'sha' => self::BLOB, 'content' => base64_encode($content)]),
+                : $this->fileAnswer($content, self::BLOB),
         ];
+    }
+
+    private function fileAnswer(string $content, string $blob): MockResponse
+    {
+        return $this->answer(['type' => 'file', 'encoding' => 'base64', 'size' => \strlen($content), 'sha' => $blob, 'content' => base64_encode($content)]);
     }
 
     private function repository(int $installationId): ForgeRepository
