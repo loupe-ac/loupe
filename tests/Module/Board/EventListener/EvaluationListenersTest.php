@@ -145,7 +145,7 @@ final class EvaluationListenersTest extends KernelTestCase
         $at = new \DateTimeImmutable('2026-11-07 10:00:00');
 
         new EvaluateCardsOnCardMoved($this->service(CardRepository::class), $this->trigger())(
-            new CardMoved($card, new CardMove($this->column($this->project, 'in-progress')), Actor::Human, null, $at),
+            new CardMoved($card, new CardMove($this->column($this->project, 'in-progress')), Actor::System, null, $at),
         );
 
         $envelopes = $this->transport()->getSent();
