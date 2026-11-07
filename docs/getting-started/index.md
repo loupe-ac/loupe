@@ -122,6 +122,16 @@ review. It calls `document_get_review` and sends a new version. [Documents and r
 of this project. It compares the way the repository already works with what the
 workflow needs, and it changes nothing. You get a readiness report.
 
+Discovery also runs the deep checks that `loupe init` leaves out. They cover the
+push gate, the pull request target, the conventions, rules that live only in
+your user files, instruction lines that are false, tooling that breaks in a
+worker folder, what the merge worker cannot read, who approves a merge, the merge
+method, the skills of the repository, and the preview tooling. Discovery also
+drafts the first `## Routing` table of `.loupe/lifecycle.md`, which says which
+skill each stage loads. The draft is a proposal in the report. When you tick it
+and approve the report, Loupe creates a card, and an agent adds the table in a
+pull request.
+
 Each finding that starts `Conflict check:` has one of these results:
 
 - Ready means that the repository fits. The evidence says what the worker read.

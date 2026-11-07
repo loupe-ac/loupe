@@ -33,13 +33,11 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
      - The tool is the one that the profile `Visual check` section names. Find it in the repository and its installed copy, such as a `package.json` for Playwright.
      - From a new temporary directory, launch it headless. Take one screenshot of a static HTML file, and read the image.
      - A missing tool is a suggested finding. Propose a card that installs the tool, or that makes its browser start.
-   - The repository profile, `.loupe/lifecycle.md`. Every stage reads it.
-     - When the file is missing, or git does not track it, the check is a suggested finding. The owner then runs `loupe init` and commits the file.
-     - Otherwise compare each value with the repository, the CI config, the agent instruction files and `workflow_get`.
-     - Also search it for the text "owner to fill in". The profile agent of `loupe init` writes that text where a stage needs a value that the owner has not given. Each such line is a suggested finding with no card (step 10). The evidence names the section and the line, and asks the owner to write the value and commit it.
-     - A gate command that does not exist, or that CI does not run, is a wrong value. A check that CI runs before a merge and the gate lacks is a missing value, so propose it too.
-     - Write one proposal for each wrong value. The body names the section, the line, the value and the correct value. The proposal fixes that line.
-     - A value that is right needs no card, so list it in the evidence.
+   - The routing table, the `## Routing` section of `.loupe/lifecycle.md`. Every stage reads it.
+     - When the file or the section is missing, the check is a suggested finding. Deep check 10 drafts the table, so write no other advice. Never tell the owner to run `loupe init` for it, because init writes no table.
+     - Otherwise run `routing-check.sh` on the file, and compare each line with the skills of the repository.
+     - Write one proposal for each wrong line. The body names the stage heading, the line and the correct line.
+     - A line that is right needs no card, so list it in the evidence.
    - Each setup step that an agent cannot do through the MCP. For example, only the owner can install the GitHub App in a browser, and no tool changes the workflow template.
    - The onboarding checks. Each one follows "Actor and action" below.
      - The bridge commands of each kind resolve for this project and exist in its folder. Run `loupe bridge check --project <slug> --json` on the bridge machine. It reports each command, the configuration folder of each worker account and the MCP servers that the account declares. A kind with `action` `missing` is a kind that another project lists and this project does not. The bridge advertises it, and a request of that kind for this project runs no work entry here. Each such kind is an action of the `owner`: add a work entry for it to the project, or accept that the kind does not run. When the command is missing from the machine, or fails, the finding says the bridge could not be read, and the actor is `owner`.
@@ -102,13 +100,13 @@ This step asks the owner nothing and stores nothing. The GitHub rules of the bas
    3. The protection flag: `gh api repos/<owner>/<repo>/branches/<base> --jq .protected`. Rulesets also set it, so it never shows on its own that classic protection exists.
    4. The classic rule: `gh api graphql -f query='query($o:String!,$r:String!,$q:String!){repository(owner:$o,name:$r){ref(qualifiedName:$q){branchProtectionRule{id requiredApprovingReviewCount}}}}' -f o=<owner> -f r=<repo> -f q=refs/heads/<base>`.
    5. The visibility: `gh repo view --json isPrivate`.
-2. State who approves a merge: the agent review alone, or the agent review and the number of person approvals that GitHub requires. The number is the highest `required_approving_review_count` of the `pull_request` rules and of the classic protection. When a source is unread, say that the number is at least the highest value you read.
+2. State who approves a merge. Read the `merge-approval` setting from `workflow_get`. With `person`, or with a source `unset`, Loupe holds the merge for a person's GitHub approval, whatever GitHub requires. With `agent`, the agent review alone approves, plus the number of person approvals that GitHub requires. That number is the highest `required_approving_review_count` of the `pull_request` rules and of the classic protection. When a source is unread, say that the number is at least the highest value you read. Report the setting and the GitHub number together as the two enforcing sources.
 3. State what enforces it. Name every active source: GitHub rulesets with each `ruleset_id`, and classic branch protection. Say "Loupe alone" only when you confirm that no source exists. Report a source that you cannot rule out as unread, never as absent.
 4. The GitHub message "Upgrade to GitHub Pro or make this repository public to enable this feature." is a plan refusal. It means that no ruleset applies. It says nothing about classic protection. Any other 403 is a lost permission.
 5. Three answers confirm that the base branch has no classic protection: the flag is `false`, the protection read returns 404 "Branch not protected", or the classic rule read returns `branchProtectionRule: null` with no `errors` entry. A generic 404 or a 403 says nothing.
 6. List each setting that conflicts with the Loupe merge path, and the change that fixes it. A rule set that GitHub can enforce does all of these: it requires the check `Loupe / Approval` from the Loupe GitHub App, it forbids force pushes and deletion of the base branch, and it requires one check of the CI of the repository. A required approving review is allowed. Say that a person approves each pull request on GitHub before Loupe merges it.
 7. When item 3 confirms "Loupe alone", the list is empty. Say that only Loupe enforces the agent review, and what makes rulesets available.
-8. Change no GitHub setting. The `merge-approval` setting of `.loupe.yaml` is the owner's answer to the merge question: read it from `workflow_get` and say where it stands.
+8. Change no GitHub setting. The `merge-approval` setting of `.loupe.yaml` is the owner's answer to the merge question: say where it stands and which source (`source`) states it.
 
 ### The routing table
 
@@ -118,7 +116,7 @@ Discovery writes the first `## Routing` section of `.loupe/lifecycle.md`. Init w
 2. Draft one `###` heading for each stage, with one line for each skill that the stage should load. Each line has the form: ``Load skill `<name>` <when>.`` The free text says when, such as "when the diff changes `e2e/`" or "before the push".
 3. Run `routing-check.sh` from the `loupe-lifecycle` plugin on the draft. Fix each line that it names.
 4. Put the draft in the report as a finding with the actor `owner`. The evidence holds the whole table.
-5. Ask the owner with one `inbox_ask` item, after the report review of step 12. Read the answer on the next run. On a yes, the run that follows gets the file to the remote as the instruction files of the repository say. Discovery itself commits and pushes nothing. This is the one write that follows a yes, and it needs the approval first.
+5. Write one proposal with the key `routing-table`. Its body holds the whole table and the path `.loupe/lifecycle.md`, and says that the card adds the `## Routing` section and gets the file to the remote as the instruction files say. The owner ticks it in the report. When the owner approves the report, Loupe creates the card, and an agent makes the commit through the normal pull request flow. Discovery writes nothing and asks nothing more.
 
 ### Moved work
 
