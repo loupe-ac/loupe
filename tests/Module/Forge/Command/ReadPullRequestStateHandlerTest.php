@@ -375,6 +375,26 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertSame(1, $this->reader->reads);
     }
 
+    public function test_a_run_read_that_saw_the_old_head_absorbs_an_earlier_request_and_the_delayed_read_fixes_it(): void
+    {
+        $row = $this->row();
+        $old = new PullRequestSnapshot(headSha: 'old', checks: PullRequestChecks::Failed);
+        $new = new PullRequestSnapshot(headSha: 'new', checks: PullRequestChecks::Pending);
+        $this->reader->answers = [$old, $new];
+
+        $this->handle($row, self::NOW);
+        $this->handle($row, '2026-09-27 11:59:30');
+
+        self::assertSame(1, $this->reader->reads);
+        self::assertSame('old', $this->reload($row)->snapshot()->headSha);
+
+        $this->clock->modify('+30 seconds');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        self::assertSame(2, $this->reader->reads);
+        self::assertTrue($this->reload($row)->snapshot()->equals($new));
+    }
+
     public function test_a_hint_that_arrives_during_a_read_is_read_again(): void
     {
         $row = $this->row();
