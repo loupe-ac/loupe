@@ -10,6 +10,13 @@
 {% else %}
     {% set goalName = text.metricName(goal.metric) %}
     <h3 class="lp-experiment-section" data-experiment-goal-heading>{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalName, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</h3>
+    {% set result = experiment_result_rows(headline) %}
+    {% if result is not null %}
+        {% include '@Insights/_experiment_result.html.twig' with {headline: headline, result: result, text: text} only %}
+    {% endif %}
+    <twig:Ds:Disclosure class="lp-experiment-result__table" data-experiment-goal-table-section>
+        <twig:block name="summary">{{ 'bridge.experiments.goal.show_table'|trans }}</twig:block>
+        {% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
     <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
 <div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
 <table class="lp-experiment-table__table" data-experiment-goal>
@@ -23,7 +30,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr data-experiment-goal-row="{{ headline.baseline }}" data-experiment-goal-baseline>
+                <tr data-experiment-goal-table-row="{{ headline.baseline }}" data-experiment-goal-baseline>
                     <th scope="row">{{ headline.baseline }} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag></th>
                     <td class="lp-experiment-table__number">{{ text.point(goal.metric, baselineArm.point) ?? '–' }}</td>
                     <td class="lp-experiment-table__number">–</td>
@@ -31,25 +38,13 @@
                     <td></td>
                 </tr>
                 {% for comparison in headline.comparisons %}
-                    <tr data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}">
+                    <tr data-experiment-goal-table-row="{{ comparison.variant }}">
                         <th scope="row">{{ comparison.variant }}</th>
                         <td class="lp-experiment-table__number">{{ text.point(goal.metric, comparison.arm.point) ?? '–' }}</td>
                         <td class="lp-experiment-table__number">{{ text.change(goal, comparison) ?? '–' }}</td>
                         <td class="lp-experiment-table__number lp-experiment-table__range">{{ text.range(comparison) ?? '–' }}</td>
                         <td>
-                            {% if comparison.state.value == 'held' %}
-                                {% if comparison.hold.reason.value == 'failed' %}
-                                    <twig:Ds:StatusChip modifier="failed" :label="'bridge.experiments.goal.hold.chip_failed'|trans" />
-                                {% else %}
-                                    <twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.controls.result.no_data'|trans" />
-                                {% endif %}
-                            {% elseif comparison.state.value == 'not-enough-cards' %}
-                                <twig:Ds:StatusChip modifier="neutral" :label="text.needs(comparison, baselineArm)" />
-                            {% elseif comparison.state.value == 'clear' %}
-                                <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
-                            {% else %}
-                                <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
-                            {% endif %}
+                            {{ experimentRows.goal_chip(comparison, text, baselineArm) }}
                         </td>
                     </tr>
                 {% endfor %}
@@ -58,6 +53,7 @@
 </div>
 {% include '_overflow_arrows.html.twig' only %}
 </div>
+    </twig:Ds:Disclosure>
     {% if headline.comparisons|length > 1 %}
         <p class="lp-experiment-note" data-experiment-goal-widened>{{ 'bridge.experiments.goal.widened'|trans({'%level%': text.level(headline.confidence), '%count%': headline.comparisons|length, '%baseline%': headline.baseline}) }}</p>
     {% endif %}

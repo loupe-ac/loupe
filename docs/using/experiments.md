@@ -148,11 +148,34 @@ an experiment from before the `baseline` key.
 
 The **Goal** section starts with a heading that names the metric and the
 direction that is better, for example "Goal, hours to merge, lower is better".
-Its table has one row for each variant. The columns are the variant, the value
-of the goal metric, the change against the baseline, the likely range of the
-change, and the result.
+A line under it says what each row reads against, for example "Each variant
+against no-lsp ($4.12)".
 
-The baseline row has no change. Each other row says by how much the variant
+The section shows one row for each variant other than the baseline. A row has
+these parts:
+
+1. The name of the variant.
+2. A strip. A soft band draws the likely range of the change, and a dot draws
+   the change. A dashed line marks no change and is labelled "baseline". All
+   rows share one scale, so you compare the rows by eye.
+3. The value of the goal metric for the variant, in small text.
+4. The signed change, such as −31% or +6 pp. It is green when the change goes
+   the better way of the goal, and red when it goes the worse way. A change that
+   is not clear yet has a colour too, and the result chip beside it says so.
+5. The likely range as text, for example "9% to 33% lower".
+6. The result chip.
+
+The rows are in order of the change, best first. A row with no change follows
+the others. A row with no change has no strip, and shows a dash or the value.
+The same rows show on the public page of a shared experiment.
+
+A closed section **Show as a table** holds the same facts as a table with one
+row for each variant, baseline included. The columns are the variant, the value
+of the goal metric, the change against the baseline, the likely range of the
+change, and the result. The Variants and Metrics tables are closed sections too.
+The Controls and Guards tables stay open.
+
+The baseline row of the table has no change. Each other row says by how much the variant
 differs from the baseline, for example "12% cheaper" or "6 pp higher". The change
 always reads the variant against the baseline, so a sign means the same in every
 row. A goal that is a rate, such as the merge rate, gives the change in
