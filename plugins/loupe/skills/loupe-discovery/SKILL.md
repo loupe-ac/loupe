@@ -11,7 +11,7 @@ The prompt names the project, the `projectId`, the card number and the `cardId` 
 
 ## Read only
 
-Discovery changes nothing. Every change goes into the report as a proposal. Do not commit, push or create a branch. Do not change a file in the repository. Do not create, change or move a card. Do not change the project, its columns, its automation, its inbox or its origins.
+Discovery changes nothing, with one exception: the first routing table, which "The routing table" below describes, and only after the owner says yes. Every other change goes into the report as a proposal. Do not commit, push or create a branch. Do not change a file in the repository. Do not create, change or move a card. Do not change the project, its columns, its automation, its inbox or its origins.
 
 These tools are forbidden: `card_create`, `card_update`, `column_create`, `column_update`, `column_reorder`, `column_delete`, `automation_settings_update`, `project_update`, `project_origins_set`, `readiness_guide_set` and `discovery_start`.
 
@@ -116,7 +116,8 @@ Discovery writes the first `## Routing` section of `.loupe/lifecycle.md`. Init w
 2. Draft one `###` heading for each stage, with one line for each skill that the stage should load. Each line has the form: ``Load skill `<name>` <when>.`` The free text says when, such as "when the diff changes `e2e/`" or "before the push".
 3. Run `routing-check.sh` from the `loupe-lifecycle` plugin on the draft. Fix each line that it names.
 4. Put the draft in the report as a finding with the actor `owner`. The evidence holds the whole table.
-5. Write one proposal with the key `routing-table`. Its body holds the whole table and the path `.loupe/lifecycle.md`, and says that the card adds the `## Routing` section and gets the file to the remote as the instruction files say. The owner ticks it in the report. When the owner approves the report, Loupe creates the card, and an agent makes the commit through the normal pull request flow. Discovery writes nothing and asks nothing more.
+5. After step 12 of the steps above, ask the owner with one blocking `inbox_ask` question that holds the whole table in its body. The options are to write the table now and to leave it. When the prompt has no session id and bridge id, the inbox is off. Skip the question, and say in the finding that the owner adds the section.
+6. End your turn after the question. On the resume, read the answer with `inbox_get`. On a yes, write the `## Routing` section of `.loupe/lifecycle.md` on a new branch from the default branch, and get the file to the remote as the instruction files say, usually through a pull request. This is the only change discovery makes. On a no, change nothing.
 
 ### Moved work
 

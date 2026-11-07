@@ -90,14 +90,15 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(\count($names), preg_match_all('/^\d+\. `Conflict check: /m', $skill));
     }
 
-    public function test_the_discovery_skill_lists_twelve_deep_checks_and_writes_the_routing_table_through_a_proposal(): void
+    public function test_the_discovery_skill_lists_twelve_deep_checks_and_writes_the_routing_table_after_an_owner_answer(): void
     {
         $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
         preg_match('/## Deep checks\n(.*?)\n### /s', $skill, $section);
 
         self::assertSame(12, preg_match_all('/^\d+\. /m', $section[1] ?? ''));
         self::assertStringContainsString('the 12 deep checks', $skill);
-        self::assertStringContainsString('proposal with the key `routing-table`', $skill);
+        self::assertStringContainsString('with one blocking `inbox_ask` question that holds the whole table', $skill);
+        self::assertStringNotContainsString('routing-table', $skill);
         self::assertStringNotContainsString('The owner then runs `loupe init`', $skill);
     }
 

@@ -128,9 +128,9 @@ your user files, instruction lines that are false, tooling that breaks in a
 worker folder, what the merge worker cannot read, who approves a merge, the merge
 method, the skills of the repository, and the preview tooling. Discovery also
 drafts the first `## Routing` table of `.loupe/lifecycle.md`, which says which
-skill each stage loads. The draft is a proposal in the report. When you tick it
-and approve the report, Loupe creates a card, and an agent adds the table in a
-pull request.
+skill each stage loads. The draft is in the report. Discovery then asks you in
+the inbox whether to write it. On a yes, discovery adds the table on a new branch
+and gets it to the remote as your instruction files say.
 
 Each finding that starts `Conflict check:` has one of these results:
 
