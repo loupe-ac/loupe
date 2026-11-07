@@ -39,7 +39,7 @@ Build the approved tech design of one card into a ready, linked pull request. An
    - A child or a follow-up builds what `references/breakdown.md` "Build a child" or "Build a follow-up" gives it, from step 6 on. An unsure follow-up match stops the run with `STAGE RESULT: blocked: follow-up match needs the owner`, after its one `inbox_ask`.
    - An epic, or a card whose tech design has a Breakdown section, runs the breakdown. It writes no code, and nothing in the worker folder. Follow "Run the breakdown" in `references/breakdown.md`, and stop with a result that section names.
    - Every other card continues at step 6.
-6. Read each linked pull request with the forge adapter. An open one on a card branch (`references/commands.md` "Card branch"): take step 7, restore it per "Reruns", and skip to the gate. Any other open one: stop with `STAGE RESULT: open pull request exists <url>`.
+6. Read each linked pull request with the forge adapter. An open one on a card branch (`references/commands.md` "Card branch"): take step 7, restore it per "Reruns" (which first checks the worker folder), and skip to the gate. Any other open one: stop with `STAGE RESULT: open pull request exists <url>`.
 7. Read `references/commands.md` and the profile, and load its `Instruction files`.
 8. Find the base branch, check the worker folder, and put it on a card branch, per `references/commands.md`. The check stops on the main checkout and on a folder that another card claims. A child of an epic with an epic branch takes that branch as its base.
 9. Load `loupe-documents`. Then collect the artifacts and write the build notes.
