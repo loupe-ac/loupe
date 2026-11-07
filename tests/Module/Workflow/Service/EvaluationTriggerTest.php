@@ -12,6 +12,11 @@ use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Tests\Support\FeatureFlags;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Sentry\ClientBuilder;
+use Sentry\Metrics\Types\Metric;
+use Sentry\SentrySdk;
+use Sentry\State\Hub;
+use Sentry\State\HubInterface;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -25,6 +30,35 @@ final class EvaluationTriggerTest extends TestCase
 
     /** @var list<object> */
     private array $stamps = [];
+
+    /** @var list<Metric> */
+    private array $metrics = [];
+
+    private HubInterface $hub;
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->hub = SentrySdk::getCurrentHub();
+        $this->metrics = [];
+        $client = ClientBuilder::create([
+            'dsn' => 'https://key@o0.ingest.sentry.io/1',
+            'default_integrations' => false,
+            'before_send_metric' => function (Metric $metric): null {
+                $this->metrics[] = $metric;
+
+                return null;
+            },
+        ])->getClient();
+        SentrySdk::setCurrentHub(new Hub($client));
+    }
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        SentrySdk::setCurrentHub($this->hub);
+        parent::tearDown();
+    }
 
     public function test_it_queues_one_evaluation_per_unique_card(): void
     {
@@ -98,11 +132,31 @@ final class EvaluationTriggerTest extends TestCase
 
         self::assertCount(1, $this->dispatched);
         self::assertCount(1, $this->stampsOf(CauseStamp::class));
+        self::assertSame(
+            [['queued', 1, 'test', 'card_eval'], ['merged', 1, 'test', 'card_eval']],
+            $this->enqueued(),
+        );
     }
 
     public function test_it_is_always_on(): void
     {
         self::assertTrue($this->trigger(merge: false)->isOn());
+    }
+
+    /** @return list<array{string, int|float, string, string}> */
+    private function enqueued(): array
+    {
+        \Sentry\traceMetrics()->flush();
+        $rows = [];
+        foreach ($this->metrics as $metric) {
+            if ('workflow.eval.enqueued' === $metric->getName()) {
+                $attributes = $metric->getAttributes()->toSimpleArray();
+                $rows[] = [(string) $attributes['outcome'], $metric->getValue(), (string) $attributes['cause'], (string) $attributes['transport']];
+            }
+        }
+        usort($rows, static fn (array $a, array $b): int => strcmp($b[0], $a[0]));
+
+        return $rows;
     }
 
     /**
