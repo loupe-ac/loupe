@@ -18,6 +18,7 @@ final readonly class PublicGraphResults
         private SavedGraphHealth $health,
         private DashboardGraphResults $results,
         private PublicSeriesLabels $labels,
+        private KeptGraphView $keptView,
     ) {
     }
 
@@ -28,8 +29,8 @@ final readonly class PublicGraphResults
         if ([] !== $this->health->check($project, [$graph])) {
             return null;
         }
-        $result = $this->results->get($project, $graph) ?? $this->results->compute($project, $graph);
+        $kept = $this->results->get($project, $graph) ?? $this->results->compute($project, $graph);
 
-        return $this->labels->apply($project, $result);
+        return $this->labels->apply($project, $this->keptView->build($kept, \Locale::getDefault()));
     }
 }

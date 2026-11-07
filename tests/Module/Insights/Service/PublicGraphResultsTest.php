@@ -12,6 +12,7 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\PublicSeriesLabelRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
+use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\Service\PublicGraphResults;
 use App\Module\Insights\Service\PublicSeriesLabels;
 use App\Module\Insights\Service\SavedGraphHealth;
@@ -51,7 +52,7 @@ final class PublicGraphResultsTest extends KernelTestCase
 
         self::assertNotNull($result);
         self::assertSame(['Account 1'], $result->labels);
-        self::assertSame(['secret-account'], $this->dashboardResults()->get($project, $graph)?->labels);
+        self::assertSame(['secret-account'], $this->keptLabels($project, $graph));
     }
 
     public function test_a_graph_with_no_split_keeps_its_labels(): void
@@ -65,7 +66,7 @@ final class PublicGraphResultsTest extends KernelTestCase
         $result = $this->publicResults()->forGraph($graph);
 
         self::assertNotNull($result);
-        self::assertSame($this->dashboardResults()->get($project, $graph)?->labels, $result->labels);
+        self::assertSame($this->keptLabels($project, $graph), $result->labels);
     }
 
     private function costGraph(Project $project): InsightsSavedGraph
@@ -91,7 +92,23 @@ final class PublicGraphResultsTest extends KernelTestCase
         self::assertInstanceOf(PublicSeriesLabelRepository::class, $labels);
         self::assertInstanceOf(SavedGraphHealth::class, $health);
 
-        return new PublicGraphResults($health, $this->dashboardResults(), new PublicSeriesLabels($this->em(), $labels, $translator));
+        return new PublicGraphResults($health, $this->dashboardResults(), new PublicSeriesLabels($this->em(), $labels, $translator), $this->keptView());
+    }
+
+    /** @return list<string>|null */
+    private function keptLabels(Project $project, InsightsSavedGraph $graph): ?array
+    {
+        $kept = $this->dashboardResults()->get($project, $graph);
+
+        return null === $kept ? null : $this->keptView()->build($kept, 'en')->labels;
+    }
+
+    private function keptView(): KeptGraphView
+    {
+        $view = self::getContainer()->get(KeptGraphView::class);
+        self::assertInstanceOf(KeptGraphView::class, $view);
+
+        return $view;
     }
 
     private function dashboardResults(): DashboardGraphResults
