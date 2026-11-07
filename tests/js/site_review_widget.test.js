@@ -580,6 +580,51 @@ describe('the start column', () => {
         expect(storedMode().startColumnId).toBeNull();
     });
 
+    it('reports the refusal that a retry after a lost answer repeats', async () => {
+        let attempt = 0;
+        const refused = bootWithColumns(START_COLUMNS, {
+            commentId: 'c1',
+            cardId: 'k1',
+            number: 12,
+            label: '#12 Note',
+            column: 'Backlog',
+            startRefused: 'Tech design',
+            url: 'https://loupe.example/card',
+        });
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: (url, init) => {
+                if (init && init.method === 'POST') {
+                    attempt += 1;
+                    if (attempt === 1) return rejected(500, {});
+                }
+
+                return refused(url, init);
+            },
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+        root.getElementById('lp-save').click();
+        await settle();
+
+        const saves = fetchMock.mock.calls
+            .filter(
+                ([url, init]) =>
+                    init && init.method === 'POST' && url.endsWith('/feedback'),
+            )
+            .map(([, init]) => JSON.parse(init.body));
+        expect(saves).toHaveLength(2);
+        expect(saves[1].deliveryId).toBe(saves[0].deliveryId);
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
     it('keeps the same delivery id when only the column changes', async () => {
         let attempt = 0;
         const fetchMock = bootWidget({

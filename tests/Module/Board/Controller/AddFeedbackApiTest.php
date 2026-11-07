@@ -7,6 +7,8 @@ namespace App\Tests\Module\Board\Controller;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\OAuth\Command\MintPreviewTokenCommand;
+use App\Module\OAuth\Command\MintPreviewTokenHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Tests\Module\Board\BoardColumnFixtures;
@@ -150,6 +152,81 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame($first, $second);
         self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
+    }
+
+    public function test_a_retry_after_a_lost_answer_repeats_the_start_refusal(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-refused@example.com');
+        $done = $this->column($project, 'done');
+        $note = $this->note(['newCard' => ['startColumnId' => (string) $done->id]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000003']);
+
+        $first = $this->post($client, $raw, $note);
+        $card = $this->service(CardRepository::class)->find($first['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        // A move after the save does not change what the first answer said.
+        $card->column = $this->column($project, 'done');
+        $this->em()->flush();
+        $second = $this->post($client, $raw, $note);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->translated($done->label), $first['startRefused']);
+        self::assertSame($first['startRefused'], $second['startRefused']);
+        self::assertSame($first['cardId'], $second['cardId']);
+    }
+
+    public function test_a_retry_of_an_accepted_start_reports_no_refusal(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-started@example.com');
+        $column = $this->column($project, 'in-progress');
+        $note = $this->note(['newCard' => ['startColumnId' => strtoupper((string) $column->id)]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000004']);
+
+        $first = $this->post($client, $raw, $note);
+        $second = $this->post($client, $raw, $note);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertNull($first['startRefused']);
+        self::assertNull($second['startRefused']);
+    }
+
+    public function test_a_retry_that_names_another_column_after_an_accepted_start_reports_no_refusal(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-other-start@example.com');
+        $extra = ['deliveryId' => '0199c0de-0000-4000-8000-000000000005'];
+
+        $first = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'in-progress')->id]], $extra));
+        $second = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'backlog')->id]], $extra));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($first['cardId'], $second['cardId']);
+        self::assertNull($second['startRefused']);
+        self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
+    }
+
+    public function test_a_preview_token_offers_no_start_column_and_starts_its_card_in_backlog(): void
+    {
+        $client = static::createClient();
+        [, $project] = $this->projectWithToken($client, 'feedback-api-preview@example.com');
+        $mint = $this->service(MintPreviewTokenHandler::class);
+        $token = $mint(new MintPreviewTokenCommand($project->owner, (string) $project->id, 'pr-start', null))->token;
+        $column = $this->column($project, 'in-progress');
+
+        $boot = $this->get($client, $token, '/api/v1/live-review-widget/review');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $boot['startColumns']);
+
+        $note = $this->note(['newCard' => ['startColumnId' => (string) $column->id]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000006']);
+        $first = $this->post($client, $token, $note);
+        self::assertResponseStatusCodeSame(201);
+        $second = $this->post($client, $token, $note);
+
+        self::assertSame($this->translated($column->label), $first['startRefused']);
+        self::assertSame($first['startRefused'], $second['startRefused']);
+        $card = $this->service(CardRepository::class)->find($first['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
     }
 
     public function test_a_closed_card_is_refused_by_name(): void
