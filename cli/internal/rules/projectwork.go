@@ -49,7 +49,6 @@ func (s *Set) checkProjectWork(slug string, p Project, declaredPools map[string]
 // the project, else the shared entry. Every path that reads an entry for a
 // request goes through it. An empty slug reads the shared entry.
 func (s *Set) entryFor(slug, kind string) (WorkEntry, bool) {
-	kind = entryKind(kind)
 	if w, ok := s.projectWork[slug][kind]; ok {
 		return w, true
 	}
@@ -59,17 +58,6 @@ func (s *Set) entryFor(slug, kind string) (WorkEntry, bool) {
 	w, ok := s.work[kind]
 
 	return w, ok
-}
-
-// entryKind is the kind of the work entry that runs a request kind. The old
-// request kind repair runs the renamed entry recover, until the app sends only
-// the new kind.
-func entryKind(kind string) string {
-	if kind == LegacyRepairKind {
-		return RecoverKind
-	}
-
-	return kind
 }
 
 // allEntries lists the shared entries, then the entries of each project, in
@@ -321,12 +309,6 @@ func (s *Set) advertisedLocked() []string {
 			if !slices.Contains(out, name) {
 				out = append(out, name)
 			}
-			if kind == RecoverKind {
-				// The app sends the old kind until it deploys with the new one.
-				if legacy := strings.TrimSuffix(name, RecoverKind) + LegacyRepairKind; !slices.Contains(out, legacy) {
-					out = append(out, legacy)
-				}
-			}
 			if kind == SessionKind && !slices.Contains(out, api.SubjectInboxItem+":"+SessionKind) {
 				out = append(out, api.SubjectInboxItem+":"+SessionKind)
 			}
@@ -337,8 +319,8 @@ func (s *Set) advertisedLocked() []string {
 }
 
 // rawEntryFor is the entry of a kind as written, for the project slug: the
-// entry of the project, else the shared entry. It skips the repair alias of
-// entryFor, so an experiment that covers the old kind finds no entry.
+// entry of the project, else the shared entry. It skips the covered entries
+// of entryFor.
 func (s *Set) rawEntryFor(slug, kind string) (WorkEntry, bool) {
 	if w, ok := s.projectWork[slug][kind]; ok {
 		return w, true
