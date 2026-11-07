@@ -25,18 +25,19 @@ func recoverSet(t *testing.T, shared, loupe string) *Set {
 	return s
 }
 
-func TestEachKindRunsTheRenamedSharedEntry(t *testing.T) {
+func TestOnlyTheNewKindRunsTheRenamedSharedEntry(t *testing.T) {
 	s := recoverSet(t, "  recover:\n    prompt: Recover {cardNumber}.\n", "")
 
-	for _, kind := range []string{"recover", "repair"} {
-		for _, project := range []string{projectID, otherProjectID} {
-			m := s.MatchWork(requestFor(project, kind))
-			if m.Skip != Run || m.Rule != "work:"+kind || !strings.HasPrefix(m.Prompt, "Recover") {
-				t.Fatalf("%s for %s = %+v", kind, project, m)
-			}
+	for _, project := range []string{projectID, otherProjectID} {
+		m := s.MatchWork(requestFor(project, "recover"))
+		if m.Skip != Run || m.Rule != "work:recover" || !strings.HasPrefix(m.Prompt, "Recover") {
+			t.Fatalf("recover for %s = %+v", project, m)
+		}
+		if m := s.MatchWork(requestFor(project, "repair")); m.Skip != NoRule {
+			t.Fatalf("repair for %s = %+v", project, m)
 		}
 	}
-	if got := s.WorkKindsOn(); !slices.Contains(got, "recover") || !slices.Contains(got, "repair") {
+	if got := s.WorkKindsOn(); !slices.Contains(got, "recover") || slices.Contains(got, "repair") {
 		t.Fatalf("WorkKindsOn = %v", got)
 	}
 	if got := s.WorkKinds(); slices.Contains(got, "repair") {
@@ -44,19 +45,17 @@ func TestEachKindRunsTheRenamedSharedEntry(t *testing.T) {
 	}
 }
 
-func TestEachKindRunsTheRenamedProjectEntryForThatProjectOnly(t *testing.T) {
+func TestTheNewKindRunsTheRenamedProjectEntryForThatProjectOnly(t *testing.T) {
 	s := recoverSet(t, "", "    work:\n      recover:\n        prompt: Loupe recover {cardNumber}.\n")
 
-	for _, kind := range []string{"recover", "repair"} {
-		if m := s.MatchWork(requestFor(projectID, kind)); m.Skip != Run || !strings.HasPrefix(m.Prompt, "Loupe recover") {
-			t.Fatalf("%s for loupe = %+v", kind, m)
-		}
-		if m := s.MatchWork(requestFor(otherProjectID, kind)); m.Skip != NoRule {
-			t.Fatalf("%s for plans = %+v", kind, m)
-		}
+	if m := s.MatchWork(requestFor(projectID, "recover")); m.Skip != Run || !strings.HasPrefix(m.Prompt, "Loupe recover") {
+		t.Fatalf("recover for loupe = %+v", m)
 	}
-	if got := s.WorkKindsOn(); !slices.Contains(got, "repair") {
-		t.Fatalf("WorkKindsOn = %v", got)
+	if m := s.MatchWork(requestFor(otherProjectID, "recover")); m.Skip != NoRule {
+		t.Fatalf("recover for plans = %+v", m)
+	}
+	if m := s.MatchWork(requestFor(projectID, "repair")); m.Skip != NoRule {
+		t.Fatalf("repair for loupe = %+v", m)
 	}
 }
 

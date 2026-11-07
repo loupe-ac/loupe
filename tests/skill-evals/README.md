@@ -74,7 +74,6 @@ The cases named `foreign-*` prove the skills on a repository that is not this on
 | `foreign-review-python` | `loupe-stage-review` | The review reads the change with git objects and never checks out the branch. It submits a finding on a division by zero at the full head commit. |
 | `foreign-design-review-tech` | `loupe-stage-design-review` | The review reads the code that the tech design cites, and finds a false claim about it. It changes no document. |
 | `foreign-fix-round-conflict` | `loupe-stage-fix-round` | A conflict with `main` is resolved with a merge, never a rebase. The gate comes from the profile, and the round ends at the push. |
-| `foreign-repair-starter-profile` | `loupe-stage-repair` | The starter `Repair` section holds no action for a dirty folder, so the run records a `Repair:` paragraph and ends `blocked`. |
 | `foreign-product-design-stage` | `loupe-stage-product-design` | One review round ends `revised`. The revision names no documentation or landing page check. |
 | `foreign-tech-design-stage` | `loupe-stage-tech-design` | A profile with no tech design instructions and no deploy items still gets a draft design. |
 | `foreign-discovery-no-visual-check` | `loupe-discovery` | A profile with no `Visual check` section gets no finding about a browser tool. |
