@@ -140,6 +140,8 @@ final class DashboardControllersTest extends WebTestCase
         self::assertCount(1, $slow->filter('form button'));
         self::assertCount(1, $slow->filter('[data-graph-grip]'));
         self::assertCount(1, $waiting->filter('turbo-frame > article [data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > form[data-graph-drag-form] [data-graph-drag-steps]'));
+        self::assertCount(0, $slow->filter('form[data-graph-drag-form]'));
         self::assertNotSame('', trim($slow->filter('.lp-graph-tile__settings')->text()));
         self::assertNotSame('', trim($waiting->filter('turbo-frame > article .lp-graph-tile__settings')->text()));
     }

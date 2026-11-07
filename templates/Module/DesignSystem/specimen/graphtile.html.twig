@@ -11,7 +11,7 @@
     </twig:block>
 </twig:Ds:GraphTile>
 {% elseif 'slow' == variant %}
-<twig:Ds:GraphTile name="Cost per finished card" :grip="false" state="slow" brokenTitle="This graph is taking longer than usual." brokenBody="The numbers are still being worked out.">
+<twig:Ds:GraphTile name="Cost per finished card" settings="Per finished card · Median · 90 days · Per week · Line" state="slow" brokenTitle="This graph is taking longer than usual." brokenBody="The numbers are still being worked out.">
     <twig:block name="footer">
         <twig:Ds:Button variant="outline" size="sm" type="button">Retry</twig:Ds:Button>
     </twig:block>

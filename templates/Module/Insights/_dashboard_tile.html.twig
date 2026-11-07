@@ -1,10 +1,16 @@
 {# One tile. A tile with no kept result shows a waiting frame, which the live update replaces. After the notice delay, the slow tile in the template replaces the spinner. Props: project (Project), tile (DashboardTileView). #}
 {% if tile.waiting %}
     {% set settings = include('@Insights/_dashboard_tile_settings.html.twig', {graph: tile.graph})|trim %}
+    {% set forms = dashboard_graph_forms(tile.graph) %}
     <turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ tile.graph.width.value }}" data-graph-id="{{ tile.graph.id }}" data-dashboard-tile="waiting" data-awaiting-worker data-controller="slow-notice" data-slow-notice-delay-value="{{ dashboard_slow_notice_seconds() }}">
         <twig:Ds:GraphTile :name="tile.graph.name" :settings="settings" aria-busy="true">
             <p class="lp-graph-tile__note lp-graph-tile__loading" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--md lp-graph-tile__spinner" />{{ 'analytics.dashboard.tile.loading'|trans }}</p>
         </twig:Ds:GraphTile>
+        {# The drag controller submits this form for the waiting tile and for the slow tile, which shares the cell. #}
+        {{ form_start(forms.drag, {attr: {hidden: 'hidden', 'data-graph-drag-form': ''}}) }}
+            <input type="hidden" name="{{ forms.drag.steps.vars.full_name }}" value="0" data-graph-drag-steps>
+            {{ form_widget(forms.drag._token) }}
+        {{ form_end(forms.drag, {render_rest: false}) }}
         <template data-slow-notice-target="slow">
             <twig:Ds:GraphTile :name="tile.graph.name" :settings="settings" state="slow" :brokenTitle="'analytics.dashboard.slow.title'|trans" :brokenBody="'analytics.dashboard.slow.body'|trans" data-dashboard-slow>
                 <twig:block name="footer">
