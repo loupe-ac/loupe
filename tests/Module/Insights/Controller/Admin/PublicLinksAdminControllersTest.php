@@ -65,7 +65,7 @@ final class PublicLinksAdminControllersTest extends WebTestCase
         self::assertSame($plainId, $rows->eq(1)->attr('data-project-id'));
         self::assertStringContainsString('Taken down', $rows->eq(0)->filter('[data-testid="public-link-state"]')->text());
         self::assertCount(1, $rows->eq(0)->filter('[data-testid="public-link-lift"]'));
-        self::assertCount(1, $rows->eq(0)->filter('td.text-right summary.admin-action-row--end'));
+        self::assertCount(1, $rows->eq(0)->filter('td.text-right details.lp-disclosure > summary .admin-action-row--end'));
         self::assertCount(0, $rows->eq(0)->filter('[data-testid="public-link-take-down"]'));
         self::assertStringContainsString('Public', $rows->eq(1)->filter('[data-testid="public-link-state"]')->text());
         self::assertStringContainsString('/admin/public-links/'.$plainCode.'/take-down', (string) $rows->eq(1)->filter('[data-testid="public-link-take-down"]')->attr('href'));

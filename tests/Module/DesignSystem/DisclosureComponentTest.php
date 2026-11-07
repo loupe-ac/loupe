@@ -29,6 +29,33 @@ final class DisclosureComponentTest extends KernelTestCase
         self::assertSame('Body', trim($details->filter('.lp-disclosure__body')->text()));
     }
 
+    public function test_the_caret_sits_at_the_start_by_default_and_at_the_end_on_request(): void
+    {
+        $start = new Crawler($this->render('<twig:Ds:Disclosure><twig:block name="summary">T</twig:block>B</twig:Ds:Disclosure>'));
+        self::assertCount(1, $start->filter('summary > .lp-disclosure__caret:first-child'));
+        self::assertCount(0, $start->filter('.lp-disclosure__caret--end'));
+
+        $end = new Crawler($this->render('<twig:Ds:Disclosure caret="end"><twig:block name="summary">T</twig:block>B</twig:Ds:Disclosure>'));
+        self::assertCount(1, $end->filter('summary > .lp-disclosure__caret.lp-disclosure__caret--end:last-child'));
+        self::assertCount(1, $end->filter('summary .lp-disclosure__caret'));
+    }
+
+    public function test_caret_none_draws_no_caret_and_leaves_room_for_the_page_to_draw_one(): void
+    {
+        $bare = new Crawler($this->render('<twig:Ds:Disclosure caret="none"><twig:block name="summary">T</twig:block>B</twig:Ds:Disclosure>'));
+        self::assertCount(0, $bare->filter('.lp-disclosure__caret'));
+
+        $own = new Crawler($this->render('<twig:Ds:Disclosure caret="none"><twig:block name="summary">T <twig:ux:icon name="lucide:chevron-right" class="lp-disclosure__caret" /></twig:block>B</twig:Ds:Disclosure>'));
+        self::assertCount(1, $own->filter('summary .lp-disclosure__caret'));
+    }
+
+    public function test_the_caret_turns_for_any_descendant_of_the_summary(): void
+    {
+        $css = (string) file_get_contents(__DIR__.'/../../../assets/styles/components/disclosure.css');
+
+        self::assertStringContainsString('.lp-disclosure[open] > .lp-disclosure__summary .lp-disclosure__caret', $css);
+    }
+
     public function test_the_open_prop_opens_the_section(): void
     {
         $details = new Crawler($this->render('<twig:Ds:Disclosure :open="true"><twig:block name="summary">T</twig:block>B</twig:Ds:Disclosure>'))->filter('details');

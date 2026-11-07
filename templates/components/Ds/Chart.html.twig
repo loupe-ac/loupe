@@ -183,8 +183,8 @@
         {% if layout.comparing %}
             {% set columns = columns|merge([{label: changeLabel ?? 'analytics.chart.table.change'|trans, align: 'end'}]) %}
         {% endif %}
-        <details class="lp-chart__table" data-chart-table="{{ chartId }}">
-            <summary class="lp-chart__table-toggle"><twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-chart__table-chevron" />{{ 'analytics.chart.table.toggle'|trans }}</summary>
+        <twig:Ds:Disclosure class="lp-chart__table" data-chart-table="{{ chartId }}">
+            <twig:block name="summary">{{ 'analytics.chart.table.toggle'|trans }}</twig:block>
             <twig:Ds:DataTable :label="'analytics.chart.table.label'|trans" :columns="columns">
                 {% for row in layout.table %}
                     <div class="lp-data-table__row" role="row">
@@ -199,7 +199,7 @@
                     </div>
                 {% endfor %}
             </twig:Ds:DataTable>
-        </details>
+        </twig:Ds:Disclosure>
         {% endif %}
     {% endif %}
 </figure>

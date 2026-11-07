@@ -44,8 +44,8 @@
         {{ form_end(startForm) }}
     </section>
 
-    <details class="lp-reports-panel lp-reports-settings" data-analytics-settings-form{% if settingsForm.vars.submitted %} open{% endif %}>
-        <summary class="lp-reports-settings__summary">{{ 'insights.reports.settings.title'|trans }}</summary>
+    <twig:Ds:Disclosure class="lp-reports-panel lp-reports-settings" data-analytics-settings-form :open="settingsForm.vars.submitted">
+        <twig:block name="summary">{{ 'insights.reports.settings.title'|trans }}</twig:block>
         {{ form_start(settingsForm, {action: path('app_project_analytics_settings_update', {id: project.id}), attr: {class: 'lp-form'}}) }}
             <div class="lp-reports-form__fields">
                 <twig:Ds:FormField>
@@ -77,7 +77,7 @@
                 <twig:Ds:Button variant="primary" type="submit">{{ 'insights.reports.settings.submit'|trans }}</twig:Ds:Button>
             </twig:Ds:FormActions>
         {{ form_end(settingsForm) }}
-    </details>
+    </twig:Ds:Disclosure>
 
     {% if analyses is not empty %}
     <ol class="lp-reports-list">

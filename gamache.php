@@ -185,6 +185,13 @@ return (new GamacheConfig())->registerChecks([
                 'templates/components/Ds/ActionForm.html.twig',
                 enforced: true,
             ),
+            new DesignSystemPattern(
+                'Ds:Disclosure',
+                '~<details\\b(?![^>]*\\b(?:lp-review-filter|lp-menu__more)\\b)~',
+                'hand-written closed section',
+                'templates/components/Ds/Disclosure.html.twig',
+                enforced: true,
+            ),
         ],
         ignoredPaths: [
             'templates/Module/Account/admin',

@@ -126,30 +126,30 @@
                                 </form>
                             </div>
                         {% else %}
-                            <details class="admin-action-item" data-controller="disclosure">
-                                <summary class="admin-action-row" data-testid="suspend-disclosure" data-action="click->disclosure#toggle">
-                                    <div class="grow">
-                                        <div class="admin-action-title">{{ 'account.admin.users.detail.danger.suspend.button'|trans }}</div>
-                                        <p class="admin-action-help">{{ 'account.admin.users.detail.danger.suspend.help'|trans }}</p>
+                            <twig:Ds:Disclosure class="admin-action-item" caret="none" data-controller="disclosure-autofocus">
+                                <twig:block name="summary">
+                                    <div class="admin-action-row grow" data-testid="suspend-disclosure">
+                                        <div class="grow">
+                                            <div class="admin-action-title">{{ 'account.admin.users.detail.danger.suspend.button'|trans }}</div>
+                                            <p class="admin-action-help">{{ 'account.admin.users.detail.danger.suspend.help'|trans }}</p>
+                                        </div>
+                                        <span class="admin-button-secondary admin-button-small shrink-0">{{ 'account.admin.users.detail.danger.suspend.open'|trans }}</span>
                                     </div>
-                                    <span class="admin-button-secondary admin-button-small shrink-0">{{ 'account.admin.users.detail.danger.suspend.open'|trans }}</span>
-                                </summary>
-                                <div class="overflow-hidden" data-disclosure-target="content">
-                                    <form method="post" action="{{ path('app_admin_users_suspend', {id: user.id}) }}" class="admin-inline-panel">
-                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-user-suspend') }}">
-                                        <input type="hidden" name="returnTo" value="{{ app.request.requestUri }}">
-                                        <div class="flex flex-col gap-1.5">
-                                            <label for="suspend-reason" class="admin-field-label">{{ 'account.form.suspend_user_form.reason.label'|trans }}</label>
-                                            <textarea id="suspend-reason" name="suspend_user_form[reason]" rows="3" maxlength="{{ constant('App\\Module\\Account\\Entity\\User::MAX_SUSPENDED_REASON_LENGTH') }}" class="admin-field-input"
-                                                      data-disclosure-target="autofocus"
-                                                      placeholder="{{ 'account.admin.users.detail.danger.suspend.placeholder'|trans }}"></textarea>
-                                        </div>
-                                        <div class="flex justify-end">
-                                            <button type="submit" class="admin-button-danger admin-button-small">{{ 'account.admin.users.detail.danger.suspend.button'|trans }}</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </details>
+                                </twig:block>
+                                <form method="post" action="{{ path('app_admin_users_suspend', {id: user.id}) }}" class="admin-inline-panel">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-user-suspend') }}">
+                                    <input type="hidden" name="returnTo" value="{{ app.request.requestUri }}">
+                                    <div class="flex flex-col gap-1.5">
+                                        <label for="suspend-reason" class="admin-field-label">{{ 'account.form.suspend_user_form.reason.label'|trans }}</label>
+                                        <textarea id="suspend-reason" name="suspend_user_form[reason]" rows="3" maxlength="{{ constant('App\\Module\\Account\\Entity\\User::MAX_SUSPENDED_REASON_LENGTH') }}" class="admin-field-input"
+                                                  data-disclosure-autofocus-target="field"
+                                                  placeholder="{{ 'account.admin.users.detail.danger.suspend.placeholder'|trans }}"></textarea>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button type="submit" class="admin-button-danger admin-button-small">{{ 'account.admin.users.detail.danger.suspend.button'|trans }}</button>
+                                    </div>
+                                </form>
+                            </twig:Ds:Disclosure>
                         {% endif %}
 
                         <div class="admin-action-item admin-action-row">

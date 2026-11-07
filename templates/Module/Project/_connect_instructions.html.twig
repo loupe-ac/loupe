@@ -65,23 +65,20 @@
     <p class="lp-eyebrow">{{ 'project.connect.methods.eyebrow'|trans }}</p>
     <div class="lp-install-list">
         {% for method in methods %}
-        <details class="lp-install" data-testid="install-{{ method.id }}">
-            <summary class="lp-install__summary">
+        <twig:Ds:Disclosure class="lp-install" caret="end" data-testid="install-{{ method.id }}">
+            <twig:block name="summary">
                 <twig:ux:icon name="{{ method.icon }}" class="lp-icon lp-icon--md lp-install__glyph" />
                 <span class="lp-install__text">
                     <span class="lp-install__title">{{ method.heading|trans }}</span>
                     <span class="lp-install__sub">{{ method.sub|trans }}</span>
                 </span>
-                <twig:ux:icon name="lucide:chevron-right" class="lp-install__caret" />
-            </summary>
-            <div class="lp-install__body">
-                <twig:Ds:CodeBlock
-                    :label="method.label|trans"
-                    :text="method.command"
-                    :copyLabel="'project.connect.copy'|trans"
-                    :copiedLabel="'project.connect.copied'|trans" />
-            </div>
-        </details>
+            </twig:block>
+            <twig:Ds:CodeBlock
+                :label="method.label|trans"
+                :text="method.command"
+                :copyLabel="'project.connect.copy'|trans"
+                :copiedLabel="'project.connect.copied'|trans" />
+        </twig:Ds:Disclosure>
         {% endfor %}
     </div>
 </div>
