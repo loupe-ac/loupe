@@ -1316,6 +1316,13 @@ project's `dir`. When the command prints nothing, the worker starts in the
 project's `dir`. Claude Code's `WorktreeCreate` hook uses the same contract, so
 one script can serve both.
 
+A printed folder must pass the folder guard. It must be the top of a linked worktree of the
+project repository, no other live run of the bridge may work in it, and it must
+belong to the card. The bridge keeps the card id in the file `loupe-card` in the
+git directory of the worktree. A failed check ends the run with a reason that
+starts `folder-refused`. The [folder guard](../docs/extending/cli-bridge.md#folder-guard)
+documents the claim and the adoption of worktrees that existed before the guard.
+
 The command runs after the run leaves the queue. It holds the run's worker slot
 and its card, so no other run of the card starts while it runs. Other cards
 still use the other slots. The run reports the state `preparing` while the

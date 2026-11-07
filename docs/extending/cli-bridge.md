@@ -2130,6 +2130,49 @@ Pass `{epicBranch}` to cut the folder of an epic child from its epic branch,
 such as `--epic-branch={epicBranch}`. The value is empty for any other card, so
 the command must then cut the folder from the default branch.
 
+### Folder guard
+
+When a `before` command prints a folder, the bridge checks it and starts no
+worker when a check fails. The run then fails with a reason that starts with
+`folder-refused` and names the folder. A command that prints no folder is not
+checked.
+
+- The folder must be a linked worktree of the project repository, at the top of that worktree. The main checkout, a folder inside a worktree and the folder of another repository fail.
+- No other live run of the bridge may work in the folder. The bridge checks one folder at a time, so two runs that print the same folder cannot both start in it.
+- The folder must belong to the card. The bridge keeps a claim file, `loupe-card`, in the git directory of the worktree (`git rev-parse --git-dir`). The file holds the card id, lies outside the working tree, and goes away with the worktree.
+
+The bridge reads `git worktree list` just before the `before` command. A folder
+with no claim file passes and gets the claim when the command made it in this
+run. A folder that already existed and has no claim fails, because a person or
+another tool can have made it.
+
+The `before` commands of one project run one at a time, from that list until
+the check of the printed folder. So a worktree that another card's `before`
+command makes cannot pass as the worktree of this run. Cards of one project
+therefore wait for each other's `before` command. Cards of different projects
+do not wait. A run that a new image adopts during a handover holds the same
+lock until the check of its folder, so a new run of that project waits for it.
+
+The bridge reads that list without a worktree whose folder is gone. So a
+worktree that the `before` command makes again at the same path passes as new.
+
+At its first start with the guard, the bridge stores the worktrees of each
+project in `adoption.json` in its config folder. It also writes the file
+`loupe-adopt` into the git directory of each of these worktrees. Such a worktree
+passes once and gets its claim, so a card worktree that an older CLI made
+resumes with no step from you. A worktree leaves the list when a card claims it,
+or when it is gone. A new worktree at the same path has no `loupe-adopt` file,
+so it does not pass through the list.
+
+A `before` command that an older CLI started can still run when the new CLI
+takes over. The new CLI then uses the adoption list as the worktree list of that
+run. A worktree that the command makes after the first start therefore passes
+as made in this run.
+
+A worktree that you make by hand later needs a manual claim. The
+`folder-refused` reason names the file. Write the card id into
+`$(git -C <folder> rev-parse --git-dir)/loupe-card`, then resume the run.
+
 A resumed session still starts in the folder where it began. A session that
 began in the project folder stays there, and new workers use the new folders.
 

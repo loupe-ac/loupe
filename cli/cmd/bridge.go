@@ -322,6 +322,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		r.assumeAutoUpdate = migrateAutoUpdate(bl.log, dir, path, o.resumeFile != "")
 	}
 	r.set.Store(set)
+	recordAdoption(cmd.Context(), set)
 	// The cache is read before subscribe, whose adopt dispatches.
 	r.baseURL = cfg.BaseURL
 	r.usePauseCache(pausePath())
