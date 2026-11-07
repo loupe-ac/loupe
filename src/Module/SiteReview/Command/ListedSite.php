@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\SiteReview\Command;
 
+use App\Module\GitHub\View\GitHubSiteFacts;
 use App\Module\Project\Entity\Project;
 
 /** One project of the caller, with what the bridge collects from its tool calls. */
@@ -20,6 +21,7 @@ final readonly class ListedSite
         public ?array $skillPackages,
         public ?bool $needsProfile,
         public bool $discoveryRemains,
+        public GitHubSiteFacts $github,
     ) {
     }
 }
