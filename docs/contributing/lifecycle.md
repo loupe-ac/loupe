@@ -422,8 +422,9 @@ that change from one setup to the next.
    skills, and the table points at them. The optional `Forge` and `Documents`
    sections stay. A stage reads no other section. It ignores an old `Gate`,
    `Board` or `Merge` section, so a repository removes them in its own time.
-   Until the preview method moves to a repository skill, the `Preview` and
-   `Visual check` sections stay in use.
+   The preview and visual check method lives in the repository skill
+   `project-review`, which the table routes for the implementation, fix round, review
+   and epic preview stages. The plugin holds no preview method.
    Each stage first runs `routing-check.sh`, which sits beside `stage-contract.md`. It
    prints a malformed line, and each routed skill that the repository lacks, and the
    stage then stops with `blocked: routed skill <name> missing`. It skips a plugin skill

@@ -11,8 +11,6 @@
 The profile can hold these optional sections:
 
 - A `Forge` section with one value, the forge name, such as `github`.
-- A `Visual check` section that `visual-check.md` reads.
-- A `Preview` section that `preview.md` reads.
 
 A missing optional section blocks nothing. The stage ignores every other old section, such as `Gate` or `Board`. The unattended run notes cover these steps:
 
