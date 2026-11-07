@@ -627,6 +627,165 @@ test('the destination view offers two modes and no epic or card search', async (
     await expect(picker.getByLabel('Type', { exact: true })).toHaveCount(0);
 });
 
+const FINISH_MOVES = [
+    { id: 'col-next', name: 'Next', hint: 'Waits until you start it.' },
+    { id: 'col-tech', name: 'Tech design', hint: 'An agent writes it.' },
+];
+
+/**
+ * Answer the start read and write of the review card from the test, so each
+ * case controls the moves, and save one note so the footer shows Finish review.
+ */
+const openFinishReview = async (
+    page: Page,
+    answer: {
+        read: Record<string, unknown>;
+        write: { status: number; json: Record<string, unknown> };
+    },
+): Promise<unknown[]> => {
+    const posts: unknown[] = [];
+    await page.route('**/api/v1/live-review-widget/cards/*/start', (route) => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+            posts.push(request.postDataJSON());
+            return route.fulfill({
+                status: answer.write.status,
+                contentType:
+                    answer.write.status === 200
+                        ? 'application/json'
+                        : 'application/problem+json',
+                body: JSON.stringify(answer.write.json),
+            });
+        }
+        return route.fulfill({ json: answer.read });
+    });
+    await openHarness(page, null);
+    await openNoteOverDestination(page);
+    await chooseMode(page, 'One new card for this review');
+    await Promise.all([
+        page.waitForResponse(
+            (response) =>
+                response.url().endsWith('/api/v1/live-review-widget/cards') &&
+                response.request().method() === 'POST',
+        ),
+        page.locator('#lp-destination-save').click(),
+    ]);
+    await expect(page.locator('#lp-picker')).toBeHidden();
+    await fillNote(page, 'A note before the review ends');
+    await clickSave(page);
+    await expect(page.locator('#lp-launch-count')).toHaveText('1');
+
+    return posts;
+};
+
+const finishReviewButton = (page: Page) =>
+    page.getByRole('button', { name: 'Finish review' });
+
+test('Finish review in a one-card review picks a column and ends the review', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: FINISH_MOVES,
+        },
+        write: {
+            status: 200,
+            json: {
+                number: 42,
+                url: 'https://example.test/c',
+                column: 'Tech design',
+            },
+        },
+    });
+
+    const finish = finishReviewButton(page);
+    await finish.click();
+    const menu = page.locator('#lp-menu');
+    await expect(menu.locator('.lp-menu-title')).toHaveText('Start #42 in');
+    await expect(menu.getByRole('menuitem')).toHaveCount(2);
+    await expect(menu.getByRole('menuitem').nth(1)).toContainText(
+        'An agent writes it.',
+    );
+    await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
+
+    const notice = page.locator('#lp-review-end');
+    await expect(notice).toContainText('#42 started in Tech design.');
+    await expect(
+        notice.getByRole('link', { name: 'Open #42 in Loupe' }),
+    ).toBeVisible();
+    expect(posts).toEqual([{ columnId: 'col-tech' }]);
+    await expect(
+        page.getByRole('button', { name: 'Choose where notes go' }),
+    ).toBeVisible();
+    await expect(finish).toHaveCount(0);
+});
+
+test('a refused Finish review pick reloads the menu with the moves allowed now', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: FINISH_MOVES,
+        },
+        write: {
+            status: 409,
+            json: {
+                code: 'start_refused',
+                column: 'Backlog',
+                moves: [FINISH_MOVES[0]],
+            },
+        },
+    });
+
+    await finishReviewButton(page).click();
+    const menu = page.locator('#lp-menu');
+    await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
+
+    await expect(menu.locator('.lp-menu-reason')).toHaveText(
+        'Tech design is no longer open for this card.',
+    );
+    await expect(menu.getByRole('menuitem')).toHaveCount(1);
+    await expect(menu.getByRole('menuitem')).toContainText('Next');
+    await expect(page.locator('#lp-review-end')).toBeHidden();
+    expect(posts).toEqual([{ columnId: 'col-tech' }]);
+    await expect(finishReviewButton(page)).toBeVisible();
+});
+
+test('Finish review with no start column ends the review where the card is', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: [],
+        },
+        write: { status: 200, json: {} },
+    });
+
+    const finish = finishReviewButton(page);
+    await finish.click();
+
+    await expect(page.locator('#lp-menu')).toBeHidden();
+    const notice = page.locator('#lp-review-end');
+    await expect(notice).toContainText('#42 stays in Backlog.');
+    await expect(
+        notice.getByRole('link', { name: 'Open #42 in Loupe' }),
+    ).toBeVisible();
+    expect(posts).toEqual([]);
+    await expect(finish).toHaveCount(0);
+});
+
 test('a keep=1 reload rehydrates the live comments into pins and list', async ({
     page,
 }) => {

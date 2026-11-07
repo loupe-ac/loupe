@@ -1273,6 +1273,82 @@ when@dev: &generator
                                     cardDeleted:
                                         type: boolean
                                         description: Whether the card the note created went too.
+                            WidgetCardStart:
+                                type: object
+                                required:
+                                - number
+                                - url
+                                - column
+                                - startsWork
+                                - moves
+                                properties:
+                                    number:
+                                        type: integer
+                                    url:
+                                        type: string
+                                        format: uri
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                                    startsWork:
+                                        type: boolean
+                                        description: Whether the workflow asks a bridge for work while the card sits in that column.
+                                    moves:
+                                        type: array
+                                        description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - name
+                                            - hint
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                name:
+                                                    type: string
+                                                hint:
+                                                    type: string
+                                                    nullable: true
+                            WidgetCardStarted:
+                                type: object
+                                required:
+                                - column
+                                properties:
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                            WidgetCardStartRefused:
+                                description: The card did not move. The body holds the column the card is in and the moves it has now.
+                                allOf:
+                                - $ref: '#/components/schemas/Problem'
+                                - type: object
+                                  required:
+                                  - column
+                                  - moves
+                                  properties:
+                                      column:
+                                          type: string
+                                          description: The name of the column the card is in.
+                                          moves:
+                                              type: array
+                                              description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+                                              items:
+                                                  type: object
+                                                  required:
+                                                  - id
+                                                  - name
+                                                  - hint
+                                                  properties:
+                                                      id:
+                                                          type: string
+                                                          format: uuid
+                                                      name:
+                                                          type: string
+                                                      hint:
+                                                          type: string
+                                                          nullable: true
                             PendingComments:
                                 type: object
                                 required:

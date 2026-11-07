@@ -89,7 +89,33 @@ The destination also decides which notes the list shows:
 
 When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One new card for this review**, the footer
-shows **Open #N in Loupe**, which opens that card.
+shows **Finish review**. See [Finish a one-card review](#finish-a-one-card-review).
+
+### Finish a one-card review
+
+**Finish review** ends a review that sends every note to one new card. Press it
+and the widget asks the server which columns the card may start in.
+
+| Answer | What the widget does |
+|---|---|
+| The workflow starts work on its own | The review ends with **#N is in Tech design.** The column is the one the card is in. |
+| No column is open to you | The review ends with **#N stays in Backlog.** |
+| One or more columns are open | A menu titled **Start #N in** lists them. Each entry shows the column name and a hint line. |
+
+Pick a column in the menu and the card moves there. The review then ends with
+**#N started in Tech design.** If the workflow changed since the menu opened, the
+server refuses the move. The menu then reloads with the columns that are open
+now, and a line names the column that was refused.
+
+A review that ends clears the destination. The widget shows a notice with
+**Open #N in Loupe**, which opens the card, and the list is empty. The notice
+stays until you close it. The footer then shows **Choose where notes go**. Press
+it to start a new review. A page that a preview locks to one card keeps its own
+footer.
+
+If the card is closed or gone, or the sign-in cannot start cards, the widget
+shows an error and keeps **Finish review**. A sign-in from a preview page cannot
+start cards.
 
 ### The column of a new card
 

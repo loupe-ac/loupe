@@ -2250,7 +2250,7 @@ describe('the panel views', () => {
         expect(root.getElementById('lp-finish')).toBeNull();
     });
 
-    it('offers to open the card of a one-card review', async () => {
+    it('offers Finish review, and no open link, in a one-card review', async () => {
         bootWidget({
             mode: { mode: 'per-review', cardId: CARD },
             respond: () =>
@@ -2264,10 +2264,11 @@ describe('the panel views', () => {
         });
         await settle();
         openPanel();
-        const link = panelRoot().getElementById('lp-open-card');
+        const button = panelRoot().getElementById('lp-finish-review');
 
-        expect(link.textContent).toContain('Open #420 in Loupe');
-        expect(link.getAttribute('href')).toBe('https://loupe.example/c420');
+        expect(button.textContent).toContain('Finish review');
+        expect(button.getAttribute('aria-haspopup')).toBe('menu');
+        expect(panelRoot().getElementById('lp-open-card')).toBeNull();
     });
 
     it('offers no card to open in a review that sends notes to many cards', async () => {
@@ -2425,5 +2426,263 @@ describe('the panel views', () => {
         expect(root.getElementById('lp-launch-label').textContent).toBe(
             'Sign in to review',
         );
+    });
+});
+
+describe('finishing a one-card review', () => {
+    const START = `/api/v1/live-review-widget/cards/${CARD}/start`;
+    const MOVES = [
+        { id: 'col-next', name: 'Next', hint: 'Waits until you start it.' },
+        { id: 'col-tech', name: 'Tech design', hint: null },
+    ];
+
+    /** Boots a one-card review whose start route answers with `start`. */
+    async function boot(start) {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: (url, init = {}) => {
+                if (url.endsWith('/start')) return start(init);
+
+                return ok({
+                    comments: [],
+                    context: {
+                        label: '#42 Review: /',
+                        url: 'https://loupe.example/c42',
+                    },
+                });
+            },
+        });
+        await settle();
+        openPanel();
+
+        return fetchMock;
+    }
+
+    const finish = async () => {
+        panelRoot().getElementById('lp-finish-review').click();
+        await settle();
+    };
+    const notice = () => panelRoot().getElementById('lp-review-end');
+    const menuItems = () => [
+        ...panelRoot().querySelectorAll('#lp-menu [data-menu-action="start"]'),
+    ];
+    const stored = () =>
+        JSON.parse(window.localStorage.getItem(modeKeyFor()) || 'null');
+    const startCalls = (fetchMock) =>
+        fetchMock.mock.calls.filter(([url]) => url.endsWith(START));
+
+    it('ends at once when the card starts work', async () => {
+        const fetchMock = await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Tech design',
+                startsWork: true,
+                moves: [],
+            }),
+        );
+        await finish();
+
+        expect(notice().textContent).toContain('#42 is in Tech design.');
+        expect(startCalls(fetchMock)).toHaveLength(1);
+        expect(panelRoot().getElementById('lp-menu').style.display).toBe(
+            'none',
+        );
+        expect(stored()).toBeNull();
+        const link = panelRoot().getElementById('lp-review-end-open');
+        expect(link.textContent).toBe('Open #42 in Loupe');
+        expect(link.getAttribute('href')).toBe('https://loupe.example/c42');
+        expect(
+            panelRoot().getElementById('lp-choose-destination').textContent,
+        ).toBe('Choose where notes go');
+        expect(panelRoot().getElementById('lp-finish-review')).toBeNull();
+    });
+
+    it('ends with a stay notice when no move is open', async () => {
+        await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Backlog',
+                startsWork: false,
+                moves: [],
+            }),
+        );
+        await finish();
+
+        expect(notice().textContent).toContain('#42 stays in Backlog.');
+        expect(stored()).toBeNull();
+    });
+
+    it('lists the moves with their hints and starts the picked one', async () => {
+        const fetchMock = await boot((init) =>
+            init.method === 'POST'
+                ? ok({ column: 'Tech design' })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.querySelector('.lp-menu-title').textContent).toBe(
+            'Start #42 in',
+        );
+        expect(menuItems().map((item) => item.textContent)).toEqual([
+            'NextWaits until you start it.',
+            'Tech design',
+        ]);
+        expect(
+            panelRoot()
+                .getElementById('lp-finish-review')
+                .getAttribute('aria-expanded'),
+        ).toBe('true');
+
+        menuItems()[1].click();
+        await settle();
+
+        const post = startCalls(fetchMock).find(
+            ([, init]) => init.method === 'POST',
+        );
+        expect(JSON.parse(post[1].body)).toEqual({ columnId: 'col-tech' });
+        expect(notice().textContent).toContain('#42 started in Tech design.');
+        expect(menu.style.display).toBe('none');
+        expect(stored()).toBeNull();
+    });
+
+    it('reloads the menu with the fresh moves when the server refuses the pick', async () => {
+        await boot((init) =>
+            init.method === 'POST'
+                ? rejected(409, {
+                      code: 'start_refused',
+                      column: 'Backlog',
+                      moves: [MOVES[0]],
+                  })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+        menuItems()[1].click();
+        await settle();
+
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.style.display).toBe('flex');
+        expect(menuItems().map((item) => item.dataset.columnId)).toEqual([
+            'col-next',
+        ]);
+        expect(menu.querySelector('.lp-menu-reason').textContent).toBe(
+            'Tech design is no longer open for this card.',
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+    });
+
+    it('ends with a stay notice when a refusal leaves no move', async () => {
+        await boot((init) =>
+            init.method === 'POST'
+                ? rejected(409, {
+                      code: 'start_refused',
+                      column: 'Backlog',
+                      moves: [],
+                  })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+        menuItems()[0].click();
+        await settle();
+
+        expect(notice().textContent).toContain('#42 stays in Backlog.');
+    });
+
+    it.each([
+        [404, 'That card is closed or gone.'],
+        [403, 'This sign-in cannot finish the review.'],
+    ])('shows an error and keeps the footer on a %s', async (status, text) => {
+        await boot(() => rejected(status, { code: 'nope' }));
+        await finish();
+
+        expect(
+            panelRoot().getElementById('lp-list-error').textContent,
+        ).toContain(text);
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review').disabled).toBe(
+            false,
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+    });
+
+    it('shows an error and keeps the footer on a network failure', async () => {
+        await boot(() => Promise.reject(new TypeError('offline')));
+        await finish();
+
+        expect(
+            panelRoot().getElementById('lp-list-error').textContent,
+        ).toContain('Couldn’t finish the review.');
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
+    });
+
+    it('keeps the notice until the reviewer dismisses it', async () => {
+        await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Tech design',
+                startsWork: true,
+                moves: [],
+            }),
+        );
+        await finish();
+        await settle();
+
+        expect(notice().textContent).toContain('#42 is in Tech design.');
+        panelRoot().getElementById('lp-review-end-dismiss').click();
+
+        expect(notice().style.display).toBe('none');
+        expect(panelRoot().getElementById('lp-review-end-open')).toBeNull();
+    });
+
+    it('keeps the verdict footer of a locked preview page', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'none' },
+                          pullRequests: [
+                              { id: 'pr1', url: 'https://x/pull/1' },
+                          ],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: null,
+                      })
+                    : ok({
+                          comments: [],
+                          context: {
+                              label: '#42 Review: /',
+                              url: 'https://loupe.example/c42',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+
+        expect(panelRoot().getElementById('lp-finish')).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review')).toBeNull();
     });
 });

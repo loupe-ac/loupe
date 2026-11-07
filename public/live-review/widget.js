@@ -161,6 +161,10 @@
     let storedTarget = readStoredTarget();
     // Moves a choice read from the old key to the new one.
     if (storedTarget) writeStoredTarget(storedTarget);
+    // The notice after a one-card review ended: { text, url, number }, or null.
+    // It stays until the reviewer closes it.
+    let reviewEnd = null;
+    let reviewEnding = false;
     // The cards this tab made for its notes, newest first. A per-note review
     // lists them and nothing else, and the list lives in session storage so a
     // reload keeps it while a new tab starts empty.
@@ -500,6 +504,7 @@
             // tailor the fatal message. Guarded — a non-JSON body must never throw here.
             try {
                 const data = await response.json();
+                if (data && typeof data === 'object') error.data = data;
                 if (data && typeof data.code === 'string')
                     error.code = data.code;
                 else if (data && typeof data.error === 'string')
@@ -1500,6 +1505,14 @@
       .lp-menu-sep{height:1px;margin:4px 6px;background:var(--border-faint)}
       .lp-menu-conf{padding:8px 10px 6px;font-size:13px;line-height:18px;color:var(--text)}
       .lp-menu-conf-row{display:flex;gap:6px;padding:4px 6px 6px}
+      .lp-menu-title{padding:8px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+      .lp-menu-reason{padding:4px 10px 6px;font-size:12px;line-height:16px;color:var(--status-danger)}
+      .lp-menu-item2{height:auto;min-height:32px;padding:6px 10px;flex-direction:column;align-items:flex-start;white-space:normal}
+      .lp-menu-item2>span:first-child{font-weight:600}
+      .lp-menu-item2 .h{display:block;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-notice{display:flex;gap:10px;align-items:flex-start;margin:10px 12px 0;padding:10px 12px;border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:10px;font-size:13px;line-height:18px}
+      .lp-notice a{color:var(--accent-ink);font-weight:600}
+      .lp-footer .lp-foot-action:disabled{opacity:.45;cursor:default}
       .lp-ghost-sm{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:13px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost-sm:hover{background:var(--bg-sunken);color:var(--text)}
 
@@ -1558,6 +1571,7 @@
             <button class="lp-action" id="target" aria-pressed="false" aria-label="Pick element">${ICON.target(15)}<span>Element</span></button>
             <button class="lp-action" id="draw" aria-pressed="false" aria-label="Draw">${ICON.pen(15)}<span>Draw</span></button>
           </div>
+          <div class="lp-notice" id="lp-review-end" role="status" style="display:none"></div>
           <div class="lp-error" id="lp-list-error" style="display:none"></div>
           <div class="lp-body lp-scroll" id="lp-body">
             <div class="lp-empty" id="lp-empty" style="display:none">
@@ -2839,9 +2853,15 @@
     };
     const footerAction = () => {
         if (!lock) {
-            return storedTarget && storedTarget.mode === 'per-review'
-                ? openAction(storedTarget)
-                : null;
+            if (
+                storedTarget &&
+                storedTarget.mode === 'per-review' &&
+                storedTarget.url
+            ) {
+                return { kind: 'end', busy: reviewEnding };
+            }
+
+            return !storedTarget && reviewEnd ? { kind: 'choose' } : null;
         }
         if (lock.state !== 'ok') return null;
         const data = verdictCurrent() ? verdict.data : null;
@@ -2920,7 +2940,7 @@
     }
 
     // ---- menus: one floating menu, owned by the button that opened it ----
-    let menu = null; // { button, kind: 'row' | 'head', id, count }
+    let menu = null; // { button, kind: 'row' | 'head' | 'finish', id, count }
     const MENU_GAP = 4;
     const closeMenu = (restoreFocus) => {
         if (!menu) return;
@@ -3003,8 +3023,10 @@
         const edge =
             menu.kind === 'head'
                 ? $('lp-close').getBoundingClientRect().right
-                : menu.button.closest('.lp-item').getBoundingClientRect()
-                      .right - 10;
+                : menu.kind === 'finish'
+                  ? rect.right
+                  : menu.button.closest('.lp-item').getBoundingClientRect()
+                        .right - 10;
         const gap = menu.kind === 'head' ? 2 : MENU_GAP;
         const left = Math.min(
             Math.max(edge - width, MENU_GAP),
@@ -3618,6 +3640,8 @@
         emptyNode.style.display = n === 0 ? 'flex' : 'none';
         renderList();
 
+        renderReviewEnd();
+
         // footer
         const action = footerAction();
         footerNode.style.display = action ? 'flex' : 'none';
@@ -3627,6 +3651,203 @@
         setPanelShown(true);
     };
 
+    // ---- the end of a one-card review ----
+    // Finish review asks the server which columns the card may start in. The
+    // answer decides: start at once, stay, or let the reviewer pick a column.
+    const startPath = (cardId) =>
+        `/api/v1/live-review-widget/cards/${encodeURIComponent(cardId)}/start`;
+    const movesOf = (data) =>
+        Array.isArray(data && data.moves)
+            ? data.moves.filter(
+                  (move) =>
+                      move &&
+                      typeof move.id === 'string' &&
+                      typeof move.name === 'string',
+              )
+            : [];
+    const reviewEndNode = $('lp-review-end');
+    let reviewEndDrawn = null;
+    const renderReviewEnd = () => {
+        const key = JSON.stringify(reviewEnd);
+        if (key === reviewEndDrawn) return;
+        reviewEndDrawn = key;
+        reviewEndNode.textContent = '';
+        reviewEndNode.style.display = reviewEnd ? '' : 'none';
+        if (!reviewEnd) return;
+        const body = document.createElement('div');
+        body.style.flex = '1';
+        body.append(`${reviewEnd.text} `);
+        if (reviewEnd.url) {
+            const link = document.createElement('a');
+            link.id = 'lp-review-end-open';
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.href = reviewEnd.url;
+            link.textContent = `Open #${reviewEnd.number} in Loupe`;
+            body.appendChild(link);
+        }
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.id = 'lp-review-end-dismiss';
+        dismiss.className = 'lp-row-menu-btn';
+        dismiss.setAttribute('aria-label', 'Dismiss');
+        dismiss.innerHTML = ICON.close(14);
+        dismiss.addEventListener('click', () => {
+            reviewEnd = null;
+            sync();
+        });
+        reviewEndNode.append(body, dismiss);
+    };
+    const endReview = (cardId, info, text) => {
+        closeMenu(false);
+        reviewEnding = false;
+        reviewEnd = { text, url: info.url || null, number: info.number };
+        if (storedTarget && storedTarget.cardId === cardId) {
+            storedTarget = null;
+            writeStoredTarget(null);
+            pickerMode = null;
+            state.deliveryId = null;
+            comments = [];
+            refresh().then(sync);
+        }
+        sync();
+        focusFooterAction();
+    };
+    const failReviewEnd = (error) => {
+        reviewEnding = false;
+        if (error && error.status === 401) {
+            enterFatal(error);
+        } else {
+            state.actionError = {
+                message:
+                    error && error.status === 403
+                        ? 'This sign-in cannot finish the review.'
+                        : error && error.status === 404
+                          ? 'That card is closed or gone. Choose where your notes go.'
+                          : 'Couldn’t finish the review. Please try again.',
+            };
+        }
+        sync();
+    };
+    const pickMove = async (cardId, info, move) => {
+        menuNode
+            .querySelectorAll('button')
+            .forEach((button) => (button.disabled = true));
+        try {
+            const done = await api('POST', startPath(cardId), {
+                columnId: move.id,
+            });
+            endReview(
+                cardId,
+                info,
+                `#${info.number} started in ${(done && done.column) || move.name}.`,
+            );
+        } catch (error) {
+            if (
+                error &&
+                error.status === 409 &&
+                error.code === 'start_refused'
+            ) {
+                const data = error.data || {};
+                const fresh = {
+                    ...info,
+                    column: data.column || info.column,
+                    moves: movesOf(data),
+                };
+                if (fresh.moves.length === 0) {
+                    endReview(
+                        cardId,
+                        fresh,
+                        `#${fresh.number} stays in ${fresh.column}.`,
+                    );
+                } else {
+                    showStartMenu(
+                        cardId,
+                        fresh,
+                        move.name
+                            ? `${move.name} is no longer open for this card.`
+                            : 'That move is not allowed now.',
+                    );
+                }
+                return;
+            }
+            closeMenu(false);
+            failReviewEnd(error);
+        }
+    };
+    const showStartMenu = (cardId, info, reason) => {
+        const button = footAction.querySelector('#lp-finish-review');
+        if (!button) return;
+        const title = document.createElement('div');
+        title.className = 'lp-menu-title';
+        title.textContent = `Start #${info.number} in`;
+        const items = [title];
+        if (reason) {
+            const line = document.createElement('div');
+            line.className = 'lp-menu-reason';
+            line.setAttribute('role', 'alert');
+            line.textContent = reason;
+            items.push(line);
+        }
+        info.moves.forEach((move) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'lp-menu-item lp-menu-item2';
+            item.setAttribute('role', 'menuitem');
+            item.dataset.menuAction = 'start';
+            item.dataset.columnId = move.id;
+            const name = document.createElement('span');
+            name.textContent = move.name;
+            item.appendChild(name);
+            if (typeof move.hint === 'string' && move.hint) {
+                const hint = document.createElement('span');
+                hint.className = 'h';
+                hint.textContent = move.hint;
+                item.appendChild(hint);
+            }
+            item.addEventListener('click', () => pickMove(cardId, info, move));
+            items.push(item);
+        });
+        closeMenu(false);
+        menuNode.style.width = '330px';
+        openMenu(button, 'finish', info.number, items);
+    };
+    const finishReview = async () => {
+        if (menu && menu.kind === 'finish') {
+            closeMenu(true);
+            return;
+        }
+        const target = storedTarget;
+        if (reviewEnding || lock || !target || target.mode !== 'per-review')
+            return;
+        const cardId = target.cardId;
+        reviewEnding = true;
+        state.actionError = null;
+        sync();
+        let info;
+        try {
+            info = await api('GET', startPath(cardId));
+        } catch (error) {
+            failReviewEnd(error);
+            return;
+        }
+        if (!storedTarget || storedTarget.cardId !== cardId) {
+            reviewEnding = false;
+            sync();
+            return;
+        }
+        const moves = movesOf(info);
+        if (info.startsWork === true) {
+            endReview(cardId, info, `#${info.number} is in ${info.column}.`);
+        } else if (moves.length === 0) {
+            endReview(cardId, info, `#${info.number} stays in ${info.column}.`);
+        } else {
+            reviewEnding = false;
+            sync();
+            showStartMenu(cardId, { ...info, moves }, null);
+        }
+    };
+
     let footerActionDrawn = null;
     const renderFooterAction = (action) => {
         const key = JSON.stringify(action);
@@ -3634,6 +3855,26 @@
         footerActionDrawn = key;
         footAction.textContent = '';
         if (!action) return;
+        if (action.kind === 'end' || action.kind === 'choose') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'lp-foot-action primary';
+            if (action.kind === 'choose') {
+                button.id = 'lp-choose-destination';
+                button.textContent = 'Choose where notes go';
+                button.addEventListener('click', openDestination);
+            } else {
+                button.id = 'lp-finish-review';
+                button.setAttribute('aria-haspopup', 'menu');
+                button.setAttribute('aria-expanded', 'false');
+                button.disabled = action.busy;
+                button.innerHTML = `Finish review${ICON.chevron(16)}`;
+                button.addEventListener('click', () => finishReview(button));
+            }
+            footAction.appendChild(button);
+
+            return;
+        }
         if (action.kind === 'finish') {
             const button = document.createElement('button');
             button.type = 'button';
