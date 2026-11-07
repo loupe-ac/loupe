@@ -20,6 +20,8 @@ final readonly class DashboardView
         /** The oldest computed time among the ready tiles. Null when no tile is ready. */
         public ?\DateTimeImmutable $updatedAt,
         public \DateTimeImmutable $now,
+        /** True while an admin has taken down the public links of the project. */
+        public bool $publicLinksTakenDown,
     ) {
     }
 }

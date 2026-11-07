@@ -15,11 +15,13 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\ExperimentExclusion;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -34,6 +36,9 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -59,8 +64,17 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
 
     public const string EXPERIMENT = 'implement';
 
+    /** The code of the public link of the first experiment. */
+    public const string SHARED_EXPERIMENT_CODE = 'devexperimen';
+
+    /** The note that the owner wrote for the visitors of the shared experiment. */
+    public const string SHARED_EXPERIMENT_NOTE = "A comparison of two models on the implement work.\n\nThe figures cover the pull requests that merged in the last three weeks.";
+
     /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
     public const string EMPTY_EXPERIMENT = 'implement-no-runs';
+
+    /** An archived experiment with one pin and no run, whose share dialog asks the owner to confirm the unarchive. */
+    public const string ARCHIVED_EXPERIMENT = 'implement-archived';
 
     /**
      * Name, headline and metrics of each experiment. The goal panel has three states and two problems.
@@ -118,6 +132,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         private ForgePullRequestRepository $forgePullRequests,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
+        private PublicLinkRepository $publicLinks,
+        private ExperimentArchiveRepository $experimentArchives,
     ) {
     }
 
@@ -141,26 +157,54 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         foreach (self::EXPERIMENTS as [$experiment, $headline, $metrics]) {
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
-        $this->seedEmptyExperiment($context, $project);
+        $this->seedPinnedExperiment($context, $project, self::EMPTY_EXPERIMENT);
+        $this->seedPinnedExperiment($context, $project, self::ARCHIVED_EXPERIMENT);
+        $this->seedArchive($project, self::ARCHIVED_EXPERIMENT, $context->now->modify('-1 hour'));
+        $this->seedPublicLink($context, $project);
     }
 
-    private function seedEmptyExperiment(SeedContext $context, Project $project): void
+    /** Shares the first experiment with a note, so a worktree has a working public link. A stored link stays as it is. */
+    private function seedPublicLink(SeedContext $context, Project $project): void
     {
-        $definitionId = DevSeedId::of('bridge/experiment/'.self::EMPTY_EXPERIMENT);
+        $id = DevSeedId::of('insights/public-link/experiment/'.self::EXPERIMENT);
+        if ($this->publicLinks->find($id) instanceof PublicLink || $this->publicLinks->findForExperiment($project, self::EXPERIMENT) instanceof PublicLink) {
+            return;
+        }
+
+        $link = new PublicLink($project, PublicLinkKind::Experiment, self::SHARED_EXPERIMENT_CODE, experiment: self::EXPERIMENT, note: self::SHARED_EXPERIMENT_NOTE);
+        $context->ids->assign($link, $id);
+        $this->em->persist($link);
+        $this->em->flush();
+    }
+
+    /** An archive row with no covered run. A stored archive stays as it is. */
+    private function seedArchive(Project $project, string $experiment, \DateTimeImmutable $archivedAt): void
+    {
+        if ($this->experimentArchives->findOneByName($project, $experiment) instanceof ExperimentArchive) {
+            return;
+        }
+
+        $this->em->persist(new ExperimentArchive($project, $experiment, $archivedAt, []));
+        $this->em->flush();
+    }
+
+    private function seedPinnedExperiment(SeedContext $context, Project $project, string $experiment): void
+    {
+        $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
         if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
-            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
                 return;
             }
 
-            $definition = new ExperimentDefinition($project, self::EMPTY_EXPERIMENT, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
             $context->ids->assign($definition, $definitionId);
             $this->em->persist($definition);
         }
 
         $cardId = DevSeedId::of('board/card/'.self::EXPERIMENT.'/'.Slug::fromName(self::CARDS[0][0]));
-        if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => self::EMPTY_EXPERIMENT]) instanceof ExperimentPin) {
+        if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
             $at = $context->now->modify('-1 day');
-            $this->em->persist(new ExperimentPin($project, $cardId, self::EMPTY_EXPERIMENT, 'opus', $at, $at));
+            $this->em->persist(new ExperimentPin($project, $cardId, $experiment, 'opus', $at, $at));
         }
         $this->em->flush();
     }

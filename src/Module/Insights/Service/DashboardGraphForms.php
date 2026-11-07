@@ -13,6 +13,8 @@ use App\Module\Insights\Form\GraphWidthFormType;
 use App\Module\Insights\Form\GraphWidthRequest;
 use App\Module\Insights\Form\RenameGraphFormType;
 use App\Module\Insights\Form\RenameGraphRequest;
+use App\Module\Insights\Form\ShareGraphFormType;
+use App\Module\Insights\Form\ShareGraphRequest;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -51,6 +53,12 @@ final readonly class DashboardGraphForms
     public function drag(InsightsSavedGraph $graph, ?DragGraphRequest $data = null): FormInterface
     {
         return $this->forms->createNamed('drag_graph_'.$graph->id, DragGraphFormType::class, $data ?? new DragGraphRequest(), ['action' => $this->url('drag', $graph)]);
+    }
+
+    /** @return FormInterface<ShareGraphRequest> */
+    public function share(InsightsSavedGraph $graph, ?ShareGraphRequest $data = null, bool $disabled = false): FormInterface
+    {
+        return $this->forms->createNamed('share_graph_'.$graph->id, ShareGraphFormType::class, $data ?? new ShareGraphRequest(), ['action' => $this->url('share', $graph), 'disabled' => $disabled]);
     }
 
     private function url(string $action, InsightsSavedGraph $graph): string

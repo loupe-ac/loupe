@@ -60,6 +60,17 @@ final class ChartComponentTest extends KernelTestCase
     }
 
     #[DataProvider('types')]
+    public function test_a_chart_with_the_table_off_keeps_its_hover_cards_and_draws_no_table(MetricChartType $type): void
+    {
+        $specimen = MetricChartSpecimen::of($type);
+        $crawler = new Crawler($this->render('<twig:Ds:Chart :layout="layout" :labels="labels" :table="false" id="t" />', ['layout' => $specimen['layout'], 'labels' => $specimen['labels']]));
+        $layout = $specimen['layout'];
+
+        self::assertCount(0, $crawler->filter('.lp-chart__table, [data-chart-table]'));
+        self::assertCount($layout instanceof NumberLayout ? 0 : \count($layout->hoverTargets), $crawler->filter('template'));
+    }
+
+    #[DataProvider('types')]
     public function test_each_hover_target_names_one_template(MetricChartType $type): void
     {
         $specimen = MetricChartSpecimen::of($type);

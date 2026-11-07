@@ -21,6 +21,7 @@ final readonly class ShowRobotsHandler
             $lines[] = 'Allow: '.$path.'$';
         }
         $lines[] = 'Allow: /assets/';
+        $lines[] = 'Allow: /s/';
         $lines[] = 'Allow: /sitemap.xml$';
         $lines[] = 'Allow: /llms.txt$';
         if ($this->publicPages->hasBlog()) {

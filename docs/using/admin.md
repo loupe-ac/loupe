@@ -57,6 +57,12 @@ Discord and X links. An empty `site.link.source` makes the app use `APP_SOURCE_U
 value that is not a web address counts as empty. A change applies on the next
 page load. The docs pages take it at the next start of the web container.
 
+The **public links** flag, `insights.public_links.enabled`, switches the public
+links of Analytics on or off for the instance. It seeds on. While it is off, the
+Dashboard hides **Share…** and every public link shows "not found". The switches
+that owners set stay as they are, so the links work again when you turn the flag
+on. See [Share a graph publicly](analytics.md#share-a-graph-publicly).
+
 The **merge queued evaluations** flag, `workflow.merge_queued_evaluations`, makes
 the worker evaluate a card once for all the triggers that wait together in the
 queue. A trigger that arrives while an evaluation runs still queues one more
@@ -66,6 +72,41 @@ new code writes. Switch the flag on at the flags page after the web container
 and the worker container both run the new build. See
 [Post-deploy checks](../operating/post-deploy-checks.md) for how to read the
 worker build. To roll back, switch the flag off first, then deploy the old build.
+
+## Public links
+
+**`/admin/public-links`** lists every project that has a public link of Analytics.
+Each row shows the project, its owner, the number of links and the state:
+**Public**, **Off** or **Taken down**. A project that an admin took down comes
+first. A note above the list says whether the `insights.public_links.enabled`
+flag is on, and links to the [feature flags](#feature-flags) page. While the flag
+is off, every public link shows "not found".
+
+The search box takes a link code, a project name, an owner name or an owner
+email. A search for a code shows the one link with that code. The page of a user
+at `/admin/users` carries a **Public links** section when the user owns links,
+with a link to this list for that user.
+
+To take down the public links of a project:
+
+1. Press **Take down** in a row. The confirm page names the project, its owner
+   and the number of links.
+2. Press **Take down the public links**.
+
+A takedown works on the whole project. Every link of the project shows "not
+found", and the owner cannot switch a link on. The share dialog of the owner
+stays open, says that an admin took down the links, and disables the switch. The
+Dashboard shows the same notice. A second takedown of the same project changes
+nothing.
+
+Press **Lift** in a row, and confirm, to end a takedown. The switches that the
+owner set stay as they were during the takedown, so the links that were on work
+again at once. The audit log records a takedown and a lift.
+
+On a shared page, an admin sees a bar above the page with a link to the confirm
+page of that link. On an instance with a separate site host, the page reads no
+session. The bar then relies on the signed-in cookie that the app host sets at
+sign-in. See [Share a graph publicly](analytics.md#share-a-graph-publicly).
 
 ## Audit log
 

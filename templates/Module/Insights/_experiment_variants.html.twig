@@ -1,0 +1,35 @@
+{# The variants table of an experiment. Props: variants (list of ExperimentVariant), headline (ExperimentHeadline or null). #}
+<h3 class="lp-experiment-section">{{ 'bridge.experiments.variants.heading'|trans }}</h3>
+<div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-variants>
+        <thead>
+            <tr>
+                <th scope="col">{{ 'bridge.experiments.variants.variant'|trans }}</th>
+                <th scope="col">{{ 'bridge.experiments.variants.model'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.weight'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cards'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.finished'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.runs'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.covered_cost'|trans }}</th>
+                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cost'|trans }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for variant in variants %}
+                <tr data-experiment-variant="{{ variant.name }}">
+                    <th scope="row">{{ variant.name }}{% if headline is not null and variant.name == headline.baseline %} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag>{% endif %}</th>
+                    <td>{{ variant.models is empty ? '–' : variant.models|join(', ') }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.weight ?? '–' }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.cards }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.finishedCards }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.runs }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.coveredCostMicros is null ? '–' : (variant.coveredCostMicros / 1000000)|format_currency('USD') }}</td>
+                    <td class="lp-experiment-table__number">{{ variant.costMicros is null ? '–' : (variant.costMicros / 1000000)|format_currency('USD') }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>

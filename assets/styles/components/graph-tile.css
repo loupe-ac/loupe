@@ -21,6 +21,9 @@
     .lp-graph-tile__settings {
         @apply m-0 mt-0.5 text-xs text-fg-dim;
     }
+    .lp-graph-tile__public:not(:empty) {
+        @apply ms-2;
+    }
     .lp-graph-tile__rename {
         @apply flex flex-wrap items-center gap-2;
     }

@@ -13,6 +13,7 @@ use App\Module\Bridge\Command\UnarchiveExperimentCommand;
 use App\Module\Bridge\Command\UnarchiveExperimentHandler;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Event\ExperimentArchiving;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -23,6 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\AuditActorProviderInterface;
 
 final class ArchiveExperimentHandlerTest extends KernelTestCase
@@ -154,6 +156,39 @@ final class ArchiveExperimentHandlerTest extends KernelTestCase
         self::assertSame([], $this->archives()->findAll());
     }
 
+    public function test_the_archive_announces_itself_inside_its_transaction_after_the_flush(): void
+    {
+        $this->recordRun('trial');
+        $seen = [];
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ExperimentArchiving::class, function (ExperimentArchiving $event) use (&$seen): void {
+            $seen[] = [$event->project === $this->project, $event->experiment, $this->em->getConnection()->isTransactionActive(), null !== $this->archives()->findOneByName($event->project, $event->experiment)];
+        });
+
+        $this->archive('trial');
+
+        self::assertSame([[true, 'trial', true, true]], $seen);
+    }
+
+    public function test_a_refused_archive_announces_nothing(): void
+    {
+        $seen = 0;
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ExperimentArchiving::class, function () use (&$seen): void {
+            ++$seen;
+        });
+
+        try {
+            $this->archive('ghost');
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors) {
+        }
+
+        self::assertSame(0, $seen);
+    }
+
     private function archive(string $experiment): void
     {
         $handler = new ArchiveExperimentHandler(
@@ -163,6 +198,7 @@ final class ArchiveExperimentHandlerTest extends KernelTestCase
             $this->em,
             new MockClock(new \DateTimeImmutable(self::SECOND.'.400')),
             $this->auditor(),
+            self::getContainer()->get(EventDispatcherInterface::class),
         );
         $handler(new ArchiveExperimentCommand($this->project, $experiment));
     }

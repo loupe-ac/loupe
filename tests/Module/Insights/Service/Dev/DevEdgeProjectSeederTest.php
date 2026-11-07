@@ -11,8 +11,11 @@ use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
+use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Insights\Service\SavedGraphCap;
+use App\Module\Insights\Service\SavedGraphHealth;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\DevSeed\DevProjectFixture;
@@ -110,6 +113,21 @@ final class DevEdgeProjectSeederTest extends KernelTestCase
 
         self::assertSame('Renamed by hand', $this->graph(self::CAP_GRAPH)->name);
         self::assertCount($before, $this->graphs()->findAll());
+    }
+
+    public function test_the_broken_graph_is_shared_with_a_fixed_code_once(): void
+    {
+        $this->seed();
+        $this->seed();
+
+        $links = self::getContainer()->get(PublicLinkRepository::class)->findBy(['code' => DevEdgeProjectSeeder::BROKEN_GRAPH_CODE]);
+        self::assertCount(1, $links);
+        $link = $links[0];
+        self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+        self::assertTrue($link->enabled);
+        $graph = $link->savedGraph ?? throw new \LogicException('The link names a graph.');
+        self::assertTrue(DevSeedId::of(self::BROKEN_GRAPH)->equals($graph->id));
+        self::assertArrayHasKey((string) $graph->id, self::getContainer()->get(SavedGraphHealth::class)->check($link->project, [$graph]));
     }
 
     private function seed(): void

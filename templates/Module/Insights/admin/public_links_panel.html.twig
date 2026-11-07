@@ -1,0 +1,29 @@
+{# Admin view of the public links of the projects of one user. Props: userId, projects (list of name, items, liveItems, takenDown), total. #}
+<div class="admin-card p-6 flex flex-col gap-4" data-testid="public-links-panel">
+    <div>
+        <h2 class="admin-section-title">{{ 'insights.admin.public_links.panel.title'|trans }}</h2>
+        <p class="admin-section-subtitle">{{ 'insights.admin.public_links.panel.subtitle'|trans }}</p>
+    </div>
+    <div>
+        {% for project in projects %}
+            <div class="admin-action-item admin-action-row" data-public-links-project>
+                <div class="grow">
+                    <div class="admin-action-title">
+                        {{ project.name }}
+                        {% if project.takenDown %}
+                            <span class="admin-badge admin-badge-off">{{ 'insights.admin.public_links.state.taken_down'|trans }}</span>
+                        {% elseif project.liveItems > 0 %}
+                            <span class="admin-badge admin-badge-on">{{ 'insights.admin.public_links.state.public'|trans }}</span>
+                        {% else %}
+                            <span class="admin-badge admin-badge-neutral">{{ 'insights.admin.public_links.state.off'|trans }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="admin-action-help">{{ 'insights.admin.public_links.panel.items'|trans({'%count%': project.items}) }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div>
+        <a href="{{ path('app_admin_public_links_list', {user: userId}) }}" class="admin-button-secondary admin-button-small" data-testid="public-links-panel-link">{{ 'insights.admin.public_links.panel.manage'|trans({'%count%': total}) }}</a>
+    </div>
+</div>

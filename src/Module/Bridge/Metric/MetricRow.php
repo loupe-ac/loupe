@@ -16,6 +16,14 @@ final readonly class MetricRow
         public ?string $group,
         public \DateTimeImmutable $time,
         public int|float|null $value,
+        /** Set for a split by account, by bridge or by account usage. */
+        public ?MetricGroupKey $groupKey = null,
     ) {
+    }
+
+    /** The same row, with its time moved forward by the interval. */
+    public function movedBy(\DateInterval $interval): self
+    {
+        return new self($this->unitId, $this->cardNumber, $this->group, $this->time->add($interval), $this->value, $this->groupKey);
     }
 }
