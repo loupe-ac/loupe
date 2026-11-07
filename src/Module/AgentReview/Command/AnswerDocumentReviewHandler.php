@@ -90,7 +90,7 @@ final readonly class AnswerDocumentReviewHandler
         );
 
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$cardId]);
+            $this->evaluations->forCards([$cardId], self::class);
         }
 
         return $review;

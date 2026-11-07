@@ -23,6 +23,10 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Sentry\ClientBuilder;
+use Sentry\Metrics\Types\Metric;
+use Sentry\SentrySdk;
+use Sentry\State\Hub;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -52,6 +56,37 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame((string) $request->id, (string) $changes->events()[0]->workRequestId);
         self::assertSame((string) $request->project->id, (string) $changes->events()[0]->projectId);
         self::assertSame(WorkRequestState::Claimed, $changes->events()[0]->state);
+    }
+
+    public function test_the_first_claim_sends_the_time_the_request_waited(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-wait', WorkRequestState::Open);
+        $seen = new \stdClass();
+        $seen->metrics = [];
+        $previous = SentrySdk::getCurrentHub();
+        SentrySdk::setCurrentHub(new Hub(ClientBuilder::create([
+            'dsn' => 'https://key@o0.ingest.sentry.io/1',
+            'default_integrations' => false,
+            'before_send_metric' => static function (Metric $metric) use ($seen): null {
+                $seen->metrics[] = $metric;
+
+                return null;
+            },
+        ])->getClient()));
+
+        try {
+            $this->claim($owner, $bridge, $request);
+            \Sentry\traceMetrics()->flush();
+        } finally {
+            SentrySdk::setCurrentHub($previous);
+        }
+
+        /** @var list<Metric> $sent */
+        $sent = $seen->metrics;
+        $waits = array_values(array_filter($sent, static fn (Metric $m): bool => 'workflow.request.claim_wait' === $m->getName()));
+        self::assertCount(1, $waits);
+        self::assertEquals(1800.0, $waits[0]->getValue());
+        self::assertSame($request->kind, $waits[0]->getAttributes()->toSimpleArray()['kind']);
     }
 
     /**

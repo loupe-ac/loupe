@@ -50,9 +50,12 @@ use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use App\Module\Workflow\Template\WorkFailurePolicy;
+use App\Observability\HandledMessage;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Sentry\Unit;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -104,6 +107,8 @@ final readonly class Engine
         private WorkHolds $workHolds,
         private EventDispatcherInterface $events,
         private LoggerInterface $logger,
+        private HandledMessage $handled,
+        private ClockInterface $clock,
     ) {
         /** @var \ArrayObject<string, bool> $running */
         $running = new \ArrayObject();
@@ -144,6 +149,7 @@ final readonly class Engine
         if ($run->holdChanged) {
             $this->events->dispatch(new BlockerHoldChanged($run->card->projectId, $cardId));
         }
+        $this->measureRequestLatency($run);
         if ($run->baselined) {
             $this->logger->info('workflow.card_baselined', ['cardId' => $cardId->toRfc4122()]);
 
@@ -160,6 +166,25 @@ final readonly class Engine
         }
         if ([] !== $run->fired) {
             $this->logger->info('workflow.card_evaluated', ['cardId' => $cardId->toRfc4122(), 'fired' => $run->fired]);
+        }
+    }
+
+    /** The delay from the card event that queued the check to each work request the pass opened. */
+    private function measureRequestLatency(Evaluation $run): void
+    {
+        $handled = $this->handled->current;
+        if ([] === $run->opened || null === $handled?->cause) {
+            return;
+        }
+
+        $seconds = max(0.0, (float) $this->clock->now()->format('U.u') - (float) $handled->cause->occurredAt->format('U.u'));
+        foreach ($run->opened as $ruleId) {
+            \Sentry\traceMetrics()->distribution(
+                'workflow.request.latency',
+                $seconds,
+                ['rule' => $ruleId, 'cause' => $handled->cause->cause, 'transport' => $handled->transport],
+                Unit::second(),
+            );
         }
     }
 
@@ -501,6 +526,7 @@ final readonly class Engine
                 }
                 $outcome = $this->opener->open($context, $policy->recoveryKind, null, $code);
                 if (null !== $outcome->requestId) {
+                    $run->opened[] = $rule->id;
                     $state->workRequestId = $outcome->requestId;
                     $state->recovered = true;
                     $run->recovering[$rule->id] = true;
@@ -892,6 +918,7 @@ final readonly class Engine
                 $state->lastRefusal = null;
                 $state->lastRefusalAt = null;
                 if (null !== $outcome->requestId) {
+                    $run->opened[] = $rule->id;
                     $state->workRequestId = $outcome->requestId;
                     $state->causesAtOpen = $rule->when->holdingParts($bound->facts);
                 } elseif (!$outcome->alreadyLive) {

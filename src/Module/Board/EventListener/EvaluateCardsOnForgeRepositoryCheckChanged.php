@@ -25,6 +25,6 @@ final readonly class EvaluateCardsOnForgeRepositoryCheckChanged
             return;
         }
 
-        $this->trigger->forCards($this->cardPullRequests->findCardIdsWithOpenPullRequests($event->projectId));
+        $this->trigger->forCards($this->cardPullRequests->findCardIdsWithOpenPullRequests($event->projectId), self::class);
     }
 }

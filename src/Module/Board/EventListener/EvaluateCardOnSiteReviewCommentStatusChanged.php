@@ -32,6 +32,6 @@ final readonly class EvaluateCardOnSiteReviewCommentStatusChanged
             return;
         }
 
-        $this->evaluations->forCards($this->cardPullRequests->findCardIdsSharingOpenPullRequests($card));
+        $this->evaluations->forCards($this->cardPullRequests->findCardIdsSharingOpenPullRequests($card), self::class);
     }
 }

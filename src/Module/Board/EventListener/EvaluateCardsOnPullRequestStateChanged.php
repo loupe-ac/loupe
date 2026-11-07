@@ -52,6 +52,6 @@ final readonly class EvaluateCardsOnPullRequestStateChanged
                 ...array_map(static fn (Card $child) => $child->id, array_merge(...array_values($this->cards->findChildrenOfCards($epics)))),
             ],
             static fn ($id): bool => null !== $id,
-        )));
+        )), self::class);
     }
 }

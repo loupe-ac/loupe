@@ -6,6 +6,7 @@ namespace App\Module\Board\EventListener;
 
 use App\Module\Board\Event\CardMoved;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
@@ -26,6 +27,14 @@ final readonly class EvaluateCardsOnCardMoved
         }
 
         $cardId = (string) ($event->card->id ?? throw new \LogicException('A moved card has an id.'));
-        $this->trigger->forCards([$cardId, ...$this->cards->findRelatedForEvaluation([$cardId])]);
+        $related = $this->cards->findRelatedForEvaluation([$cardId]);
+        if (Actor::Human === $event->actor) {
+            $this->trigger->forPersonWaiting([$cardId], self::class, $event->occurredAt);
+            $this->trigger->forCards($related, self::class, $event->occurredAt);
+
+            return;
+        }
+
+        $this->trigger->forCards([$cardId, ...$related], self::class, $event->occurredAt);
     }
 }

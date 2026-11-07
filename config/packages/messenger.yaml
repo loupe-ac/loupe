@@ -44,6 +44,7 @@ framework:
             messenger.bus.default:
                 middleware:
                     - App\Messenger\Middleware\AuditChannelMiddleware
+                    - App\Messenger\Middleware\StampDispatchTimeMiddleware
 
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: jobs
@@ -86,6 +87,7 @@ when@dev:
                 messenger.bus.default:
                     middleware:
                         - App\Messenger\Middleware\AuditChannelMiddleware
+                        - App\Messenger\Middleware\StampDispatchTimeMiddleware
                         - App\Messenger\Middleware\PlaywrightSyncMiddleware
 
 when@test:
