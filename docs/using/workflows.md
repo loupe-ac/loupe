@@ -971,8 +971,8 @@ Six conditions of the **Agent review** group read the reviews of pull requests:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review. It is false while an approval overrides the review |
-| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands. It is also false while an approval overrides the review |
+| `agent_review.due` | the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review finished after that review began: it ended done, or a resumed run of it ended with success or waiting on the forge, so the same commit gets a new review. It is false while an approval overrides the review |
+| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has finished after that review began, until the next review lands. It is also false while an approval overrides the review |
 | `agent_review.passed` | every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.overridden` | every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
