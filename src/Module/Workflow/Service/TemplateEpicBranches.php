@@ -5,49 +5,43 @@ declare(strict_types=1);
 namespace App\Module\Workflow\Service;
 
 use App\Module\Workflow\Contract\EpicBranches;
-use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use App\Module\Workflow\Template\Template;
-use App\Module\Workflow\Template\TemplateMissing;
-use App\Module\Workflow\Template\TemplateParser;
-use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
-/** Reads the epic branch from the stored template copy. A project bound to no template gets the value of the Simple template. */
+/** Names the epic branch from the two project settings. A project bound to no template gets the value of the Simple template. */
 #[AsAlias(EpicBranches::class)]
 final class TemplateEpicBranches implements EpicBranches, ResetInterface
 {
-    private const string UNBOUND_TEMPLATE = 'simple';
-
-    /** @var array<string, Template> */
-    private array $templates = [];
+    /** @var array<string, ?string> */
+    private array $patterns = [];
 
     public function __construct(
-        private readonly TemplateSource $source,
-        private readonly ShippedTemplates $shippedTemplates,
-        private readonly TemplateParser $parser,
+        private readonly WorkflowSettings $settings,
     ) {
     }
 
     #[\Override]
     public function of(Uuid $projectId, int $number): ?string
     {
-        return ($this->templates[$projectId->toRfc4122()] ??= $this->template($projectId))->epicBranchOf($number);
+        $pattern = $this->patterns[$projectId->toRfc4122()] ??= $this->pattern($projectId);
+
+        return null === $pattern ? null : str_replace(Template::EPIC_BRANCH_NUMBER, (string) $number, $pattern);
     }
 
     #[\Override]
     public function reset(): void
     {
-        $this->templates = [];
+        $this->patterns = [];
     }
 
-    private function template(Uuid $projectId): Template
+    private function pattern(Uuid $projectId): ?string
     {
-        try {
-            return $this->source->forProject($projectId);
-        } catch (TemplateMissing) {
-            return $this->parser->parse($this->shippedTemplates->source(self::UNBOUND_TEMPLATE));
-        }
+        $enabled = $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCHES)->value;
+        $pattern = $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCH_PATTERN)->value;
+
+        return Template::epicBranchPatternOf($enabled, $pattern);
     }
 }

@@ -3,7 +3,11 @@ version: 15
 defaultType: feature
 skillPackages: [loupe]
 needsProfile: false
-epicBranch: 'epic/{number}'
+settings:
+    - { key: epic-branches, type: bool, scope: project, default: true }
+    - { key: epic-branch-pattern, type: string, scope: project, default: 'epic/{number}', format: epic-branch }
+    - { key: epic-child-merge-method, type: enum, scope: repository, values: [squash, merge, rebase], default: squash }
+requirements: []
 outcomes:
     - { key: merged, delivered: true }
 metrics:

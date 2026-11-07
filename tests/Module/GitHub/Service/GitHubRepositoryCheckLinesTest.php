@@ -13,7 +13,9 @@ use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositoryRuleset;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\Service\GitHubRepositoryCheckLines;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class GitHubRepositoryCheckLinesTest extends TestCase
@@ -32,6 +34,21 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame(self::P.'approval-gate.approval_check_not_required.title', $lines[0]->titleKey);
         self::assertSame(['%branch%' => 'main'], $lines[0]->titleParameters);
         self::assertSame(self::P.'approval-gate.approval_check_not_required.detail', $lines[0]->detailKey);
+    }
+
+    public function test_each_warning_of_the_workflow_file_read_is_a_warning_line_after_the_gap_lines(): void
+    {
+        $check = $this->check([$this->item('branch-protection', 'warning', [RepositorySuggestionCatalog::GAP_FORCE_PUSH_ALLOWED])], $this->settings());
+        $check->repository->fileWarnings = ['The setting "x" is not known. Loupe ignores it.', 'The setting "merge-approval" has a value that is not allowed.'];
+
+        $lines = $this->lines()->forCheck($check);
+
+        self::assertCount(3, $lines);
+        self::assertSame(self::P.'workflow_file.title', $lines[1]->titleKey);
+        self::assertSame(self::P.'state.warning', $lines[1]->stateKey);
+        self::assertSame('pending', $lines[1]->modifier);
+        self::assertSame(['%message%' => 'The setting "x" is not known. Loupe ignores it.'], $lines[1]->detailParameters);
+        self::assertSame(self::P.'workflow_file.detail', $lines[2]->detailKey);
     }
 
     public function test_a_warning_gap_is_a_pending_line_and_each_gap_gets_its_own_line(): void
@@ -169,12 +186,30 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame(self::P.'unknown.title', $this->lines()->forCheck($check)[0]->titleKey);
     }
 
-    private function lines(): GitHubRepositoryCheckLines
+    public function test_a_project_setting_conflict_is_a_warning_line_on_the_check(): void
+    {
+        $check = $this->check([$this->item('branch-protection', 'warning', [RepositorySuggestionCatalog::GAP_FORCE_PUSH_ALLOWED])], $this->settings());
+        new \ReflectionProperty($check->repository->project, 'id')->setValue($check->repository->project, Uuid::v7());
+        new \ReflectionProperty($check->repository, 'id')->setValue($check->repository, Uuid::v7());
+        $message = 'The setting "epic-branch-pattern" has different values in the repositories of the project (acme/app sets a/{number}; acme/other sets b/{number}).';
+
+        $lines = $this->lines([$message])->forCheck($check);
+
+        self::assertCount(2, $lines);
+        self::assertSame(self::P.'workflow_file.title', $lines[1]->titleKey);
+        self::assertSame(['%message%' => $message], $lines[1]->detailParameters);
+    }
+
+    /** @param list<string> $conflicts */
+    private function lines(array $conflicts = []): GitHubRepositoryCheckLines
     {
         $translator = $this->createStub(TranslatorInterface::class);
         $translator->method('trans')->willReturnCallback(static fn (string $id): string => $id);
 
-        return new GitHubRepositoryCheckLines($translator);
+        $settings = $this->createStub(WorkflowSettings::class);
+        $settings->method('projectConflicts')->willReturn($conflicts);
+
+        return new GitHubRepositoryCheckLines($translator, $settings);
     }
 
     /**

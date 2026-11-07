@@ -145,14 +145,16 @@ The steps, in order:
 11. Offer to start discovery, when onboarding is ready.
 12. Report what remains, and print the project link.
 
-Before step 10, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent.
+Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step in one fixed-width column, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`, after the last step. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
+
+Before step 10, `loupe init` draws one table of the accounts in the rule file: account, agent and state. A failing account shows its reason in the state column and its fix on a line below the table. A failing account does not stop the agent.
 
 Step 11 asks `Start discovery now? It runs a worker that checks the repository and lists what remains.` It asks only when all of these hold:
 
 - The profile is complete, or the workflow needs none.
 - No account that a work entry of this project uses fails for this project.
 - `.loupe.yaml` and the profile are committed and pushed, because a worker reads only what the remote holds.
-- No discovery run started yet, or the profile agent ran in this `loupe init`, so a new report replaces one that predates the new profile.
+- No discovery run started yet, or the blocker agent ran in this `loupe init`, so a new report replaces one that predates it.
 
 On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the Workshop page>`. The list of what remains arrives some minutes later, in the report, and the discovery row of the Workshop opens it. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
 
@@ -172,7 +174,8 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
 | `--agent` | The agent that writes the profile: `claude` or `codex`. With both installed and a terminal, `loupe init` asks once |
-| `--review-profile` | Start the profile agent also when `.loupe/lifecycle.md` is complete, to review each value |
+| `--verbose` | Print one line for each step, `<Step>: <state>, <reason>.`, with the full reason and no mark. Scripts read this form |
+| `--review-profile` | Start the blocker agent also when `.loupe/lifecycle.md` exists |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
@@ -217,7 +220,7 @@ old `loupe init`.
 | Flag | Purpose |
 |---|---|
 | `--project` | The project id to write, instead of a choice from a list |
-| `--force` | Replace an existing `.loupe.yaml` |
+| `--force` | Set the project in an existing `.loupe.yaml`. The command keeps every other key and comment, and refuses a file that it cannot read |
 | `--mcp` | Declare `loupe mcp` to Claude Code without asking |
 | `--no-mcp` | Leave the MCP server alone without asking |
 | `--mcp-json` | Write `.mcp.json` instead, to commit the server to the repository |

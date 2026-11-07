@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\EventListener;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectDeleting;
 use App\Module\Project\Service\ProjectDeleter;
 use App\Module\Workflow\Entity\WorkflowPendingBaseline;
+use App\Module\Workflow\Entity\WorkflowRepositorySetting;
 use App\Module\Workflow\Entity\WorkflowRuleState;
+use App\Module\Workflow\Entity\WorkflowSettingOverride;
 use App\Module\Workflow\EventListener\DeleteWorkflowDataOnProjectDeleting;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -17,6 +21,57 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 final class DeleteWorkflowDataOnProjectDeletingTest extends KernelTestCase
 {
     use WorkflowProjects;
+
+    public function test_the_listener_deletes_the_setting_rows_of_the_project_alone(): void
+    {
+        self::bootKernel();
+        $doomed = $this->workflowProject('settings-delete');
+        $spared = $this->workflowProject('settings-spared');
+        $this->settingRows($doomed);
+        $this->settingRows($spared);
+        self::assertSame([1, 1], $this->settingCounts((string) $doomed->id));
+
+        $listener = self::getContainer()->get(DeleteWorkflowDataOnProjectDeleting::class);
+        self::assertInstanceOf(DeleteWorkflowDataOnProjectDeleting::class, $listener);
+        $listener(new ProjectDeleting($doomed));
+
+        self::assertSame([0, 0], $this->settingCounts((string) $doomed->id));
+        self::assertSame([1, 1], $this->settingCounts((string) $spared->id));
+    }
+
+    public function test_the_setting_rows_of_a_repository_go_with_the_repository(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('settings-repository');
+        $this->settingRows($project);
+        self::assertSame([1, 1], $this->settingCounts((string) $project->id));
+
+        $this->em()->getConnection()->executeStatement('DELETE FROM forge_repositories WHERE project_id = :id', ['id' => (string) $project->id]);
+
+        self::assertSame([0, 0], $this->settingCounts((string) $project->id));
+    }
+
+    private function settingRows(Project $project): void
+    {
+        $repository = new ForgeRepository($project, 'github', 'ext-'.uniqid(), 'acme/'.uniqid(), ForgeRepositorySource::Hook);
+        $this->em()->persist($repository);
+        $this->em()->flush();
+        $repositoryId = $repository->id ?? throw new \LogicException('The repository is not flushed.');
+        $this->em()->persist(new WorkflowSettingOverride($project, $repositoryId, 'merge-approval', '"agent"', true, 'blob', 'head'));
+        $this->em()->persist(new WorkflowRepositorySetting($project, $repositoryId, 'epic-child-merge-method', '"merge"'));
+        $this->em()->flush();
+    }
+
+    /** @return array{int, int} the override and stored setting rows of the project */
+    private function settingCounts(string $projectId): array
+    {
+        $connection = $this->em()->getConnection();
+
+        return [
+            (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_setting_overrides WHERE project_id = :id', ['id' => $projectId]),
+            (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_repository_settings WHERE project_id = :id', ['id' => $projectId]),
+        ];
+    }
 
     /** The foreign keys cascade too, so the project row stays to prove that the listener deletes the rows. */
     public function test_the_listener_deletes_the_workflow_rows_and_spares_a_sibling(): void

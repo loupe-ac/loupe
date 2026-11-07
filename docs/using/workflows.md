@@ -714,6 +714,56 @@ template whose `request` rules all set a reason knows only those reasons. The ev
 `review`. A slot event needs a slot that the template declares. The Simple
 template has no `review` request and no slots, so it cannot use these events.
 
+## Workflow settings
+
+A workflow template declares settings. A setting has a key, a type, a scope and a default. `workflow_get` lists each setting with its resolved value and the source of that value.
+
+| Key | Scope | Values | Default |
+|---|---|---|---|
+| `merge-approval` | repository | `agent` or `person` | none |
+| `epic-branches` | project | `true` or `false` | `true` |
+| `epic-branch-pattern` | project | a branch name with `{number}` once | `epic/{number}` |
+| `epic-child-merge-method` | repository | `squash`, `merge` or `rebase` | `squash` |
+
+The Simple template declares the three keys other than `merge-approval`.
+
+### Set a setting in .loupe.yaml
+
+A repository sets its values in `.loupe.yaml` on its default branch:
+
+```yaml
+project: 01a007cc-5419-7085-a0a2-23a0875be12c
+workflow:
+  merge-approval: agent
+  epic-child-merge-method: squash
+```
+
+Loupe reads the file on each push to the default branch, and when a repository is claimed. It reads the file only when `project` is the id of the project that owns the repository. A file larger than 64 KiB counts as no file. A key that Loupe does not know shows a warning on the repository check.
+
+### How a value resolves
+
+A repository setting resolves in this order:
+
+1. A valid value in `.loupe.yaml`.
+2. A value that the app stored for that repository. Only a migration stores one. The first read of a file that sets the key deletes it.
+3. The default of the template.
+
+A project setting resolves in this order:
+
+1. The valid value that every repository file of the project agrees on.
+2. The value of the project's copy of the template.
+3. The default of the template.
+
+Two repositories that set different valid values give the source `conflict`. The project then uses item 2 or 3, and the repository check of each repository shows a warning.
+
+### An invalid value
+
+A value that the template does not allow is invalid. An invalid repository value stops the resolution. The key reads as unset, and neither the stored value nor the default applies. A typo therefore never keeps an older answer. An invalid project value counts as no value, with a warning.
+
+### Edit the file with the CLI
+
+`loupe project link --force` and `loupe init --force` set only the `project` key. They keep the `workflow:` key and every comment, and refuse a file that does not parse. An older CLI replaces the whole file and deletes the `workflow:` key.
+
 ## The Lifecycle template
 
 Lifecycle has the slots Next, Product design, Tech design, Implementation and In
@@ -1339,6 +1389,24 @@ after a change. The same steps by hand:
 
 A project that updates to this version gets the new rules in its template copy. A ruleset that requires an approving
 review no longer makes Loupe try a merge that GitHub refuses. The card waits for the approval instead.
+
+#### Required checks in the merge stage
+
+The merge stage of the Lifecycle plugin reads the required checks of the base branch from GitHub at merge time. It
+takes the union of the rulesets and the classic branch protection of that branch, and leaves out `Loupe / Approval`,
+which the approval step reads. No count is stored in the profile, so a change to the ruleset takes effect at the next
+merge with no edit in the repository.
+
+Each required name must have a passing check on the head commit. A required check that has not started yet counts as
+pending, so the merge waits for it. A branch with no required check passes this step.
+
+An epic branch has no rules of its own. A child of an epic is checked against the required checks of the base branch
+that the profile `Merge` section names, and it merges with the `epic-child-merge-method` setting. See
+[Workflow settings](#workflow-settings).
+
+When Loupe cannot read the rules, for example because the token has no permission to read them, the merge stops. The
+run ends with `blocked: required checks unreadable`, and a person fixes the access or merges by hand. Loupe never
+merges on a guess.
 
 ### Asking about an unplanned child
 

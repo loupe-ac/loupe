@@ -31,7 +31,10 @@ use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\SettingType;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
@@ -113,6 +116,34 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertTrue($this->template('lifecycle')->needsProfile);
         self::assertSame(['loupe'], $this->template('simple')->skillPackages);
         self::assertFalse($this->template('simple')->needsProfile);
+    }
+
+    public function test_each_template_declares_its_settings(): void
+    {
+        $epic = [
+            new TemplateSetting('epic-branches', SettingType::Boolean, SettingScope::Project, default: true),
+            new TemplateSetting('epic-branch-pattern', SettingType::Text, SettingScope::Project, default: 'epic/{number}', format: 'epic-branch'),
+            new TemplateSetting('epic-child-merge-method', SettingType::Choice, SettingScope::Repository, ['squash', 'merge', 'rebase'], 'squash'),
+        ];
+        $lifecycle = $this->template('lifecycle');
+        self::assertEquals([new TemplateSetting('merge-approval', SettingType::Choice, SettingScope::Repository, ['agent', 'person']), ...$epic], $lifecycle->settings);
+        self::assertSame('epic/12', $lifecycle->epicBranchOf(12));
+
+        $simple = $this->template('simple');
+        self::assertEquals($epic, $simple->settings);
+        self::assertSame('epic/12', $simple->epicBranchOf(12));
+    }
+
+    public function test_each_template_lists_its_requirements(): void
+    {
+        self::assertSame([
+            'A pull request opens as a draft',
+            'An agent never merges its own pull request',
+            'An agent never approves its own pull request',
+            'Open work goes to the board',
+            'A worker works in its own folder',
+        ], $this->template('lifecycle')->requirements);
+        self::assertSame([], $this->template('simple')->requirements);
     }
 
     public function test_each_template_suggests_its_repository_settings(): void
