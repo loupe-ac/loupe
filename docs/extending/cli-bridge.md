@@ -2119,6 +2119,8 @@ repository keeps one script for both uses. They need a CLI release that has
 the `hook` command. `loupe init` checks each hook on its own. It proposes the
 `before` entry for a `WorktreeCreate` hook, and the `teardown` entry for either
 hook, so a repository with only a `WorktreeRemove` hook gets its cleanup too.
+When a `teardown` command entry exists, it proposes to add the hook command to
+that entry.
 
 ```yaml
 projects:
@@ -2145,15 +2147,25 @@ then add the `before` command.
   the project folder and runs the hook command with `sh -c`. It prints the last
   line of the hook output, which is the folder, and sends every other output line to stderr.
 - When a linked worktree of that name already exists, `worktree-create` prints its folder and skips the hook, because a `before` command runs again on each resume.
-- `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree that the hook made. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed.
+- `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree that the hook made. The claim holds the worktree name and the `--project` slug. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed.
 - `worktree-create` fails when no `WorktreeCreate` command hook exists, when the hook exits with a code that is not 0, or when it prints no folder.
 - `worktree-remove <name>` finds the folder of the worktree with `git worktree list`, and sends three of the fields of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
-- `worktree-remove` acts only on a worktree that carries the claim of that name, or that is the bridge worktree `<config dir>/worktrees/<project>/<name>` of the `--project` slug. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
-- Two project entries can share one repository, and each bridge worktree of a card then has the same name. Both commands skip a worktree in the worktree folder of the bridge that belongs to another slug. Without `--project`, they skip every bridge worktree.
+- `worktree-remove` acts only on a worktree that carries the claim of that name and slug, or that is the bridge worktree `<config dir>/worktrees/<project>/<name>` of the `--project` slug. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
+- Two project entries can share one repository, and each bridge worktree of a card then has the same name. Both commands skip a worktree in the worktree folder of the bridge that belongs to another slug, and a worktree whose claim names another slug. Without `--project`, they skip every bridge worktree.
 - Neither command sends `session_id`, `transcript_path` or the other common fields of a Claude Code hook. The bridge runs the commands before the worker session starts and after the last worker ends, so no session and no transcript exist. A hook that needs those fields does not work as a bridge command.
 - A `WorktreeRemove` hook can leave the git removal to its caller, as Claude Code removes the worktree after the hook. When the worktree is still there after the hook, `worktree-remove` runs `git worktree remove --force` and `git worktree prune`. It does the same in a project with a `WorktreeCreate` hook and no `WorktreeRemove` hook.
 - `worktree-remove` does nothing when the project has no such worktree, has neither worktree hook, or does not own the worktree.
 - The `teardown` entry sits in the shared `work` map, because a command entry cannot sit under a project. Its command does nothing in a project with no hook, so one entry serves every project.
+- When the shared `work` map already has a `teardown` command entry, run both commands in it. Wrap them in `sh -c`, and pass each placeholder as an argument. `loupe init` proposes this change:
+
+  ```yaml
+  work:
+    teardown:
+      action: command
+      run: [sh, -c, 'loupe hook worktree-remove --project "$1" "card-$2"; s=$?; bin/teardown.sh "$2" || exit; exit $s', sh, "{project}", "{cardNumber}"]
+  ```
+
+  Both commands run, and the entry fails when either fails.
 
 A command entry waits until a running worker of the same card ends. The bridge
 does not retry a failed command. With a bridge worktree, the bridge also

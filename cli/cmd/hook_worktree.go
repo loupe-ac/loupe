@@ -22,8 +22,9 @@ const (
 	hookCreateEvent = "WorktreeCreate"
 	hookRemoveEvent = "WorktreeRemove"
 	// hookClaimFile sits in the per-worktree git dir of a worktree that
-	// worktree-create made, and holds its name. Teardown removes no other
-	// worktree, except one in the bridge's own worktree folder.
+	// worktree-create made, and holds its name and project slug as a
+	// hookClaim. Teardown removes no other worktree, except one in the
+	// bridge's own worktree folder.
 	hookClaimFile = "loupe-hook-worktree"
 	// defaultHookTimeout applies to a hook that sets no timeout.
 	defaultHookTimeout = 600 * time.Second
@@ -51,7 +52,7 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
 			"It writes a claim into the git dir of a worktree the hook made, so worktree-remove can tell it from a worktree a person made. " +
 			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
-			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug.",
+			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that slug.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -163,9 +164,10 @@ func listProjectWorktrees(ctx context.Context, dir string) ([]projectWorktree, e
 }
 
 // findWorktree returns the folder of the linked worktree called name: the one
-// whose folder or branch has that name. A worktree in the worktree folder of
-// the bridge matches only when it is the folder of slug and name, because
-// another project entry can share the repository and use the same name.
+// whose folder or branch has that name. Another project entry can share the
+// repository and use the same name. So a worktree in the worktree folder of
+// the bridge matches only when it is the folder of slug and name, and a
+// worktree that worktree-create claimed matches only for the slug of its claim.
 func findWorktree(ctx context.Context, project, slug, name string) (string, bool, error) {
 	list, err := listProjectWorktrees(ctx, project)
 	if err != nil {
@@ -175,7 +177,13 @@ func findWorktree(ctx context.Context, project, slug, name string) (string, bool
 		if i == 0 || (filepath.Base(w.Path) != name && w.Branch != name) {
 			continue
 		}
-		if inBridgeFolder(w.Path) && !isBridgeWorktree(w.Path, slug, name) {
+		if inBridgeFolder(w.Path) {
+			if !isBridgeWorktree(w.Path, slug, name) {
+				continue
+			}
+		} else if c, ok, err := readHookClaim(ctx, project, w.Path); err != nil {
+			return "", false, err
+		} else if ok && c.Project != slug {
 			continue
 		}
 
@@ -350,8 +358,16 @@ func worktreeGitDir(ctx context.Context, path string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// writeHookClaim marks the worktree called name as made by worktree-create. A
-// folder that the hook made outside git keeps no claim, so teardown leaves it.
+// hookClaim is the content of hookClaimFile: the worktree name and the slug
+// of the project that worktree-create ran for.
+type hookClaim struct {
+	Name    string `json:"name"`
+	Project string `json:"project"`
+}
+
+// writeHookClaim marks the worktree called name as made by worktree-create for
+// the project slug. A folder that the hook made outside git keeps no claim, so
+// teardown leaves it.
 func writeHookClaim(ctx context.Context, project, slug, name string) error {
 	path, ok, err := findWorktree(ctx, project, slug, name)
 	if err != nil || !ok {
@@ -361,30 +377,49 @@ func writeHookClaim(ctx context.Context, project, slug, name string) error {
 	if err != nil {
 		return err
 	}
+	b, err := json.Marshal(hookClaim{Name: name, Project: slug})
+	if err != nil {
+		return err
+	}
 
-	return os.WriteFile(filepath.Join(dir, hookClaimFile), []byte(name+"\n"), 0o600)
+	return os.WriteFile(filepath.Join(dir, hookClaimFile), append(b, '\n'), 0o600)
+}
+
+// readHookClaim reads the claim of the worktree at path. A claim that does not
+// parse counts as no claim, so teardown never removes that worktree.
+func readHookClaim(ctx context.Context, project, path string) (hookClaim, bool, error) {
+	dir, err := worktreeGitDirOf(ctx, project, path)
+	if err != nil || dir == "" {
+		return hookClaim{}, false, err
+	}
+	b, err := os.ReadFile(filepath.Join(dir, hookClaimFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return hookClaim{}, false, nil
+	}
+	if err != nil {
+		return hookClaim{}, false, err
+	}
+	var c hookClaim
+	if json.Unmarshal(b, &c) != nil || c.Name == "" {
+		return hookClaim{}, false, nil
+	}
+
+	return c, true, nil
 }
 
 // ownsWorktree reports whether teardown may remove the worktree called name
-// at path: worktree-create claimed it, or it is the bridge worktree of slug
-// and name.
+// at path: worktree-create claimed it for slug and name, or it is the bridge
+// worktree of slug and name.
 func ownsWorktree(ctx context.Context, project, path, slug, name string) (bool, error) {
 	if isBridgeWorktree(path, slug, name) {
 		return true, nil
 	}
-	dir, err := worktreeGitDirOf(ctx, project, path)
-	if err != nil || dir == "" {
-		return false, err
-	}
-	b, err := os.ReadFile(filepath.Join(dir, hookClaimFile))
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
+	c, ok, err := readHookClaim(ctx, project, path)
+	if err != nil || !ok {
 		return false, err
 	}
 
-	return strings.TrimSpace(string(b)) == name, nil
+	return c.Name == name && c.Project == slug, nil
 }
 
 // worktreeGitDirOf finds the per-worktree git dir of path, or "" when it has
