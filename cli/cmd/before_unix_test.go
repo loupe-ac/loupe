@@ -36,7 +36,7 @@ func TestRunBeforeReadsTheFolderFromTheLastLine(t *testing.T) {
 	folder := t.TempDir()
 	res, _ := before(t, context.Background(), "sh", "-c", "echo cloning; echo warn >&2; echo \"$1\"; echo; echo '  '", "sh", folder)
 
-	if res.failure() != "" || res.dir != folder {
+	if res.failure() != "" || res.dir != folder || res.noFolder {
 		t.Fatalf("runBefore = %+v, failure %q", res, res.failure())
 	}
 	if !strings.Contains(res.output, "warn") || !strings.Contains(res.output, "cloning") || strings.Contains(res.output, folder) {
@@ -46,8 +46,16 @@ func TestRunBeforeReadsTheFolderFromTheLastLine(t *testing.T) {
 
 func TestRunBeforeKeepsTheProjectDirOnEmptyOutput(t *testing.T) {
 	res, project := before(t, context.Background(), "true")
-	if res.failure() != "" || res.dir != project {
+	if res.failure() != "" || res.dir != project || !res.noFolder {
 		t.Fatalf("runBefore = %+v, want dir %s", res, project)
+	}
+}
+
+// A printed project dir counts as a printed folder, so the guard judges it.
+func TestRunBeforeMarksAPrintedProjectDirAsPrinted(t *testing.T) {
+	res, project := before(t, context.Background(), "sh", "-c", "pwd")
+	if res.failure() != "" || realPath(res.dir) != realPath(project) || res.noFolder {
+		t.Fatalf("runBefore = %+v, failure %q", res, res.failure())
 	}
 }
 

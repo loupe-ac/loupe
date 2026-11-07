@@ -11,14 +11,20 @@ The design stage skills send you here before their own steps. Follow every rule 
 5. `card_update` replaces the whole `documentIds` set. Send the `card_get` ids plus the new id. Omit `pullRequestUrls`.
    `relatedCards` also replaces the whole set. Send the `relatedCards` of `card_get` unchanged, plus one new `blocked-by` entry when the tech design stage records a dependency. A stage never removes a link and never changes the kind of a link.
 6. A sub-agent prompt carries rules 1 to 4 and 7, and names the instructions the sub-agent must load.
-7. Write in the style that the profile `Instruction files` section names.
+7. Write in the style that the instruction files of the repository name. Load the skill that the routing table names for it. With none, write plainly.
 8. Never depend on `board_columns` or `card_search`, which can be missing. When `tag_list` exists, reuse its spellings.
 9. Never end your turn while a command, a monitor or a sub-agent runs in the background. Wait for it in the foreground. The run ends with your turn, and a background command dies with it.
 
-## Run notes and profile
+## Run notes and routing
 
 1. Load the unattended run notes for your harness from the `../../loupe-stage-implementation/references/unattended/` folder. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
-2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing. The `Forge` section is optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
+2. Run `routing-check.sh` from the repository root. It sits beside this file and reads `.loupe/lifecycle.md`. A missing file, and a file with no `## Routing` section, pass.
+   - A `missing <name>` line means a routed skill does not exist in the repository. Stop with `STAGE RESULT: blocked: routed skill <name> missing`.
+   - A `malformed <line>` line means a routing line breaks the form. Stop with `STAGE RESULT: blocked: routing line malformed`, and name the line numbers in the sentences after it.
+   - A `note:` line means a plugin skill was skipped, because the repository cannot hold it. Go on.
+3. Read the `###` heading of your stage under `## Routing` in `.loupe/lifecycle.md`. Each line has the form ``Load skill `<name>` <when>.``. Load that skill at the moment the line names, before the step that needs it. Load a plugin skill, such as `loupe:loupe-board`, with the Skill tool. A stage with no heading, or a heading with no line, loads nothing.
+4. The stage headings are `Product design`, `Tech design`, `Implementation`, `Fix round`, `Review`, `Design review`, `Merge`, `Epic preview` and `Discovery`. A session that does a stage by hand reads the heading of that stage.
+5. The repository holds its own rules in its instruction files and skills, and the routing table points at them. A stage reads no other section of the profile, except the optional `Forge` and `Documents` sections. When a profile still holds an old section, such as `Gate`, `Board` or `Merge`, the stage ignores it.
 
 ## Document tags
 
@@ -135,7 +141,7 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 | `open-pull-request` | `open pull request exists` |
 | `no-pull-request` | `no open pull request`, `blocked: pull request not linked to the card`, `blocked: no merge request in the prompt`, `blocked: no merged epic child` |
 | `mcp-unreachable` | `loupe MCP unreachable` |
-| `tool-unavailable` | `blocked: no forge adapter`, `blocked: no <section> in .loupe/lifecycle.md` |
+| `tool-unavailable` | `blocked: no forge adapter`, `blocked: routed skill <name> missing`, `blocked: routing line malformed` |
 | `worktree-failed` | `blocked: worker folder is not on the PR branch`, `blocked: worker folder on branch <branch>`, `blocked: no worker folder`, `blocked: local branch diverged from origin` |
 | `merge-refused` | `blocked: merge refused` |
 | `needs-person` | `blocked: prototype unreadable`, every other `blocked:` form, and every other `not ready` item, such as a draft |

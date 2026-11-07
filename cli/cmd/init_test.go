@@ -21,6 +21,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -187,7 +188,15 @@ func runInitCmd(t *testing.T, answers string, args ...string) (string, error) {
 	return runInitWithIn(t, bufio.NewReader(strings.NewReader(answers)), args...)
 }
 
+// runInitWithIn runs init with --verbose, which prints the old line of each
+// step, so a test reads one stable form.
 func runInitWithIn(t *testing.T, in io.Reader, args ...string) (string, error) {
+	t.Helper()
+
+	return runInitRaw(t, in, append([]string{"--verbose"}, args...)...)
+}
+
+func runInitRaw(t *testing.T, in io.Reader, args ...string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
 	cmd := newInitCmd()
@@ -939,7 +948,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if w.reloads != 1 || w.bridgeStarts != 0 || !strings.Contains(out, "Bridge: done, it reloaded "+path) {
+	if w.reloads != 1 || w.bridgeStarts != 0 || !strings.Contains(out, "Bridge: done, it reloaded "+initview.ShortPath(path)) {
 		t.Errorf("reloads = %d, starts = %d, want 1 and 0:\n%s", w.reloads, w.bridgeStarts, out)
 	}
 
@@ -2069,15 +2078,15 @@ func TestInitReportsAccountsBeforeTheProfileAndFailsForAUsedAccount(t *testing.T
 		t.Fatalf("err = %v, want only the used account", err)
 	}
 	for _, want := range []string{
-		"Account: main (claude): ready", "Account: broken (claude): failing: not logged in", "run claude login",
-		"Account: spare (codex, unused): failing: no plugins",
+		"main claude ready", "broken claude failing: not logged in", "broken: run claude login",
+		"spare codex, unused failing: no plugins",
 		"Fix the account broken: not logged in", "Open " + w.server.URL + "/projects/" + firstProject,
 	} {
-		if !strings.Contains(out, want) {
+		if !strings.Contains(squashTable(out), want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
 	}
-	if strings.Index(out, "Account: main") > strings.Index(out, "Profile:") {
+	if strings.Index(squashTable(out), "main claude ready") > strings.Index(out, "Profile:") {
 		t.Errorf("accounts come after the profile step:\n%s", out)
 	}
 	if strings.Contains(out, "Fix the account spare") {
@@ -2109,16 +2118,16 @@ func TestInitReportsAnAccountThatFailsForThisProject(t *testing.T) {
 				t.Errorf("err = %v, names an account that does not count", err)
 			}
 			for _, want := range []string{
-				"Account: broken (claude): failing for this project: no skills", "run loupe skills update",
-				"Account: elsewhere (claude): failing for project other: no folder", "clone it",
-				"Account: spare (codex, unused): failing for this project: no plugins",
+				"broken claude failing for this project: no skills", "broken: run loupe skills update",
+				"elsewhere claude failing for project other: no folder", "elsewhere: clone it",
+				"spare codex, unused failing for this project: no plugins",
 				"Fix the account broken: no skills",
 			} {
-				if !strings.Contains(out, want) {
+				if !strings.Contains(squashTable(out), want) {
 					t.Errorf("output lacks %q:\n%s", want, out)
 				}
 			}
-			for _, unwanted := range []string{"Account: elsewhere (claude): ready", "Fix the account elsewhere", "Fix the account spare"} {
+			for _, unwanted := range []string{"elsewhere claude ready", "Fix the account elsewhere", "Fix the account spare"} {
 				if strings.Contains(out, unwanted) {
 					t.Errorf("output holds %q:\n%s", unwanted, out)
 				}
@@ -2140,12 +2149,22 @@ func TestInitExitsWithSuccessWhenAnAccountFailsOnlyForAnotherProject(t *testing.
 	if err != nil {
 		t.Fatalf("err = %v, want success", err)
 	}
-	if !strings.Contains(out, "Account: elsewhere (claude): failing for project other: no folder\n         clone it\n") {
+	if !strings.Contains(squashTable(out), "elsewhere claude failing for project other: no folder") || !strings.Contains(out, "elsewhere: clone it") {
 		t.Errorf("output lacks the failure of the other project:\n%s", out)
 	}
 	if strings.Contains(out, "Fix the account") {
 		t.Errorf("the last lines ask for a fix of another project:\n%s", out)
 	}
+}
+
+// squashTable turns the cells of a table row into words with single spaces.
+func squashTable(out string) string {
+	lines := strings.Split(out, "\n")
+	for i, l := range lines {
+		lines[i] = strings.Join(strings.Fields(strings.NewReplacer("│", " ", "─", " ").Replace(l)), " ")
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // reportWorld is a rule file with a Simple and a Lifecycle project, and a real
@@ -2234,27 +2253,20 @@ func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
 }
 
 // An account can fail in more than one way, and each problem keeps its own fix.
-func TestPrintAccountNamesEachProblemInAFixedOrder(t *testing.T) {
-	var out bytes.Buffer
-
-	printAccount(&out, accountResult{name: "main", harness: "claude", used: true, problems: []harn.Problem{
+func TestAccountRowNamesEachProblemInAFixedOrder(t *testing.T) {
+	row, details := accountRow(accountResult{name: "main", harness: "claude", used: true, problems: []harn.Problem{
 		{Reason: "no folder", Detail: "clone z", Project: "z"},
 		{Reason: "no folder", Detail: "clone a", Project: "a"},
 		{Reason: "no skills", Detail: "run update", Project: "dev"},
 		{Reason: "not logged in", Detail: "run login"},
 	}}, "dev")
 
-	want := `Account: main (claude): failing: not logged in
-         run login
-Account: main (claude): failing for this project: no skills
-         run update
-Account: main (claude): failing for project a: no folder
-         clone a
-Account: main (claude): failing for project z: no folder
-         clone z
-`
-	if out.String() != want {
-		t.Errorf("output = %q, want %q", out.String(), want)
+	want := "failing: not logged in; failing for this project: no skills; failing for project a: no folder; failing for project z: no folder"
+	if row[2] != want {
+		t.Errorf("state = %q, want %q", row[2], want)
+	}
+	if got := strings.Join(details, "|"); got != "main: run login|main: run update|main: clone a|main: clone z" {
+		t.Errorf("details = %q", got)
 	}
 }
 
@@ -2370,7 +2382,7 @@ func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
 	if strings.Contains(last, "Commit and push") || strings.Contains(last, "Fix the account") || strings.Contains(last, "Restart Claude Code") {
 		t.Errorf("last lines name a step that is done:\n%s", last)
 	}
-	if !strings.Contains(last, "1. Finish the profile") {
+	if !strings.Contains(last, "1. Look for blockers") {
 		t.Errorf("last lines lack the profile step:\n%s", last)
 	}
 }
@@ -2430,5 +2442,103 @@ func TestInitRestartLineFollowsAPluginInstall(t *testing.T) {
 	}
 	if !strings.Contains(out[strings.Index(out, "What remains:"):], "Restart Claude Code") {
 		t.Errorf("no restart line:\n%s", out)
+	}
+}
+
+// The default output folds the steps that were set up already into one dimmed
+// line, aligns the rest, and draws no escape code when stdout is no terminal.
+func TestInitDrawsAnAlignedReportWithNoEscapeCodes(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("1\nn\n")), "--no-mcp")
+	if err != nil {
+		t.Fatalf("err = %v\n%s", err, out)
+	}
+	if strings.Contains(out, "\x1b[") {
+		t.Errorf("output holds an escape code:\n%q", out)
+	}
+	for _, want := range []string{"✓ Project", "✓ Link", "· Already set up: "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Sign in: skipped,") || strings.Contains(out, "Link: done,") {
+		t.Errorf("output keeps the old step form:\n%s", out)
+	}
+}
+
+// --verbose prints one line for each step with its reason.
+func TestInitVerbosePrintsEachStepWithItsReason(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("1\nn\n")), "--verbose", "--no-mcp")
+	if err != nil {
+		t.Fatalf("err = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Sign in: skipped, you are signed in to ") || !strings.Contains(out, "Link: done, ") {
+		t.Errorf("output lacks the verbose step lines:\n%s", out)
+	}
+}
+
+// A second run finds most steps set up. It draws them on one folded line, and
+// no separate skipped line for any of them.
+func TestInitFoldsEveryStepThatIsSetUpAlready(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	if out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("1\nn\n")), "--no-mcp"); err != nil {
+		t.Fatalf("first init: %v\n%s", err, out)
+	}
+	out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("n\n")), "--no-mcp")
+	if err != nil {
+		t.Fatalf("second init: %v\n%s", err, out)
+	}
+	if got := strings.Count(out, "Already set up: "); got != 1 {
+		t.Fatalf("folded lines = %d, want 1:\n%s", got, out)
+	}
+	for _, name := range []string{"Folder", "Sign in", "Project", "Link", "Rules", "Auto-update", "Bridge", "Playwright"} {
+		if !strings.Contains(out, strings.ToLower(name)) {
+			t.Errorf("folded line lacks %q:\n%s", name, out)
+		}
+		if strings.Contains(out, "· "+name+" ") {
+			t.Errorf("%s draws its own line:\n%s", name, out)
+		}
+	}
+}
+
+// Init shows each path under the home folder as ~/…, in the account table, its
+// detail lines and the lines of what remains.
+func TestReportAccountsShortensHomePaths(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	missing := filepath.Join(home, "rules.yaml")
+
+	var out strings.Builder
+	_, unchecked := reportAccounts(context.Background(), &out, missing, api.Site{ID: "p1", Slug: "simple"}, nil)
+	if strings.Contains(out.String()+unchecked, home) || !strings.Contains(unchecked, "~/rules.yaml") {
+		t.Errorf("unchecked = %q, output:\n%s", unchecked, out.String())
+	}
+
+	path := reportWorld(t)
+	home = os.Getenv("HOME")
+	old := initCheckAccounts
+	t.Cleanup(func() { initCheckAccounts = old })
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult {
+		return []accountResult{{name: "main", harness: "claude", used: true, usedIn: []string{"simple"}, problems: []harn.Problem{
+			{Reason: "no folder " + home + "/a", Detail: "clone into " + home + "/a", Project: "simple"},
+		}}}
+	}
+	out.Reset()
+	failing, _ := reportAccounts(context.Background(), &out, path, api.Site{ID: "p1", Slug: "simple"}, nil)
+	if strings.Contains(out.String(), home) || !strings.Contains(out.String(), "~/a") {
+		t.Errorf("output keeps the home path:\n%s", out.String())
+	}
+
+	out.Reset()
+	initNext(&out, "https://app.example", t.TempDir(), api.Site{ID: "p1"}, initLeft{accounts: []string{"main: in " + home + "/a"}, accountCheck: "no rule file at " + missing})
+	if strings.Contains(out.String(), home) || len(failing) != 1 || strings.Contains(failing[0], home) {
+		t.Errorf("failing = %v, output keeps the home path:\n%s", failing, out.String())
 	}
 }

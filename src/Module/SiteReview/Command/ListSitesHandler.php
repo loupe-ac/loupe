@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\SiteReview\Command;
 
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
+use App\Module\GitHub\Service\ProjectGitHubFacts;
+use App\Module\GitHub\View\GitHubSiteFacts;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
@@ -18,6 +20,7 @@ final readonly class ListSitesHandler
         private ToolCallCollectionSettings $toolCallCollection,
         private WorkflowBindingRepository $workflowBindings,
         private DiscoveryRunRepository $discoveryRuns,
+        private ProjectGitHubFacts $githubFacts,
     ) {
     }
 
@@ -29,6 +32,8 @@ final readonly class ListSitesHandler
         $skills = $this->workflowBindings->findSkillSettings($projectIds);
         $discoveryStarted = $this->discoveryRuns->findProjectIdsWithDiscoveryStarted($projectIds);
 
+        $github = $this->githubFacts->forOwner($command->owner);
+
         return new ListSitesView(
             sites: array_map(fn (Project $project): ListedSite => new ListedSite(
                 project: $project,
@@ -37,6 +42,7 @@ final readonly class ListSitesHandler
                 skillPackages: $skills[(string) $project->id]['skillPackages'] ?? null,
                 needsProfile: $skills[(string) $project->id]['needsProfile'] ?? null,
                 discoveryRemains: !\in_array((string) $project->id, $discoveryStarted, true),
+                github: $github[(string) $project->id] ?? new GitHubSiteFacts(false, []),
             ), $projects),
         );
     }

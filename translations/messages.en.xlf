@@ -6292,6 +6292,20 @@
                 <source>inbox.openrouter_key.body.project</source>
                 <target>OpenRouter refused the key of this project. Loupe cannot read the billed cost of runs with it. Open the project settings, select OpenRouter, and replace the key. Remove the key to use your account key again.</target>
             </trans-unit>
+            <trans-unit id="inbox.merge_approval.title"><source>inbox.merge_approval.title</source><target>May Loupe merge in %repository%?</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.body"><source>inbox.merge_approval.body</source><target>Loupe can merge a pull request of %repository% by itself when its agent review passes. GitHub does not require a person to review these pull requests. Until you answer, every pull request waits for a person to merge it.
+
+Your answer counts when `.loupe.yaml` on the default branch holds it. Loupe opens a pull request that adds it. Merge that pull request to make the answer count.</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.option.agent"><source>inbox.merge_approval.option.agent</source><target>Let Loupe merge when the agent review passes</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.option.person"><source>inbox.merge_approval.option.person</source><target>I approve each pull request on GitHub before Loupe merges it</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.pull_request.title"><source>inbox.merge_approval.pull_request.title</source><target>Set %key% in .loupe.yaml</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.pull_request.body"><source>inbox.merge_approval.pull_request.body</source><target>This pull request sets `%key%` to `%value%` under `workflow:` in `.loupe.yaml`. You answered the merge question of %repository% in the Loupe inbox. The answer counts when this pull request is on the default branch.</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.opened"><source>inbox.merge_approval.opened</source><target>Loupe opened %url%. Merge it to make your answer count.</target></trans-unit>
+            <trans-unit id="inbox.merge_approval.refused"><source>inbox.merge_approval.refused</source><target>Loupe could not open the pull request. Add these lines to `.loupe.yaml` on the default branch of %repository%. The file must name this project, and Loupe ignores a file that names another one:
+
+project: %project%
+workflow:
+  %key%: %value%</target></trans-unit>
             <trans-unit id="inbox.repository_misfit.title.one">
                 <source>inbox.repository_misfit.title.one</source>
                 <target>%repository% does not fit the workflow</target>
@@ -9465,6 +9479,8 @@
             <trans-unit id="github.repositories.check.failed.no_installation"><source>github.repositories.check.failed.no_installation</source><target>Loupe checks only repositories of the GitHub App. Install the App on this repository to check it.</target></trans-unit>
             <trans-unit id="github.repositories.check.rules_unavailable.title"><source>github.repositories.check.rules_unavailable.title</source><target>Rulesets need a paid plan or a public repository</target></trans-unit>
             <trans-unit id="github.repositories.check.rules_unavailable.detail"><source>github.repositories.check.rules_unavailable.detail</source><target>GitHub enforces no rules on this repository, so only Loupe enforces the agent review. GitHub said: %message%</target></trans-unit>
+            <trans-unit id="github.repositories.check.workflow_file.title"><source>github.repositories.check.workflow_file.title</source><target>A setting in .loupe.yaml needs a fix</target></trans-unit>
+            <trans-unit id="github.repositories.check.workflow_file.detail"><source>github.repositories.check.workflow_file.detail</source><target>%message%</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.title"><source>github.repositories.check.unknown.title</source><target>A setting does not fit</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.detail"><source>github.repositories.check.unknown.detail</source><target>Loupe has no description for this finding.</target></trans-unit>
             <trans-unit id="github.repositories.check.approval-gate.fits.title"><source>github.repositories.check.approval-gate.fits.title</source><target>Loupe / Approval gates merges into %branch%</target></trans-unit>
@@ -9786,6 +9802,10 @@
             <trans-unit id="workflow.waiting.not.pr_can_update_branch"><source>workflow.waiting.not.pr_can_update_branch</source><target>Waiting: Loupe can update the branch of the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_can_post_check"><source>workflow.waiting.pr_can_post_check</source><target>Waiting: Loupe cannot post a check run on this repository.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_can_post_check"><source>workflow.waiting.not.pr_can_post_check</source><target>Waiting: Loupe can post a check run on this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_merge_approval_needs_person"><source>workflow.waiting.pr_merge_approval_needs_person</source><target>Waiting: a person approves each merge of this repository, or the merge question has no answer.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_merge_approval_needs_person"><source>workflow.waiting.not.pr_merge_approval_needs_person</source><target>Waiting: Loupe may merge after the agent review in this repository.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_merge_approval_unanswered"><source>workflow.waiting.pr_merge_approval_unanswered</source><target>Waiting: the merge question of this repository has no answer.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_merge_approval_unanswered"><source>workflow.waiting.not.pr_merge_approval_unanswered</source><target>Waiting: the merge question of this repository has an answer.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_merge_blocked"><source>workflow.waiting.pr_merge_blocked</source><target>Waiting: the forge does not block the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_merge_blocked"><source>workflow.waiting.not.pr_merge_blocked</source><target>Waiting: the forge blocks the merge.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
@@ -10392,6 +10412,9 @@
             <trans-unit id="marker.document_in_review.remedy"><source>marker.document_in_review.remedy</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval"><source>marker.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
             <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.waits_for_merge_approval_answer"><source>marker.waits_for_merge_approval_answer</source><target>Pull request #%number% waits for your answer to the merge question.</target></trans-unit>
+            <trans-unit id="marker.waits_for_merge_approval_answer.remedy"><source>marker.waits_for_merge_approval_answer.remedy</source><target>Answer the merge question in the inbox, or set `merge-approval` to `agent` or `person` in `.loupe.yaml`. If `.loupe.yaml` sets it already, its value is not allowed.</target></trans-unit>
+            <trans-unit id="marker.link.inbox"><source>marker.link.inbox</source><target>Open the inbox</target></trans-unit>
             <trans-unit id="marker.merge_blocked"><source>marker.merge_blocked</source><target>GitHub blocks the merge of pull request #%number%, although Loupe approved it.</target></trans-unit>
             <trans-unit id="marker.merge_blocked.remedy"><source>marker.merge_blocked.remedy</source><target>Check the ruleset of the base branch. It must require the Loupe / Approval check and no approving review.</target></trans-unit>
             <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>

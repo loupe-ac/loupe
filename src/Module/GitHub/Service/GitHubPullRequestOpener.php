@@ -12,11 +12,6 @@ use App\Module\GitHub\GitHubDelivery;
 /** Opens a pull request as the App installation that delivers the repository to the project. */
 final readonly class GitHubPullRequestOpener implements PullRequestOpener
 {
-    private const array REFUSED_STATUSES = [401, 403, 404];
-
-    /** An operator must change the App settings, so a retry cannot succeed. */
-    private const array CONFIGURATION_REASONS = ['not_configured', 'bad_key'];
-
     public function __construct(
         private GitHubAppApi $api,
         private GitHubPullRequestInstallations $installations,
@@ -48,7 +43,7 @@ final readonly class GitHubPullRequestOpener implements PullRequestOpener
 
             return self::number($this->api->post($installationId, $pulls, ['title' => $title, 'head' => $head, 'base' => $base, 'body' => $body, 'draft' => true]));
         } catch (GitHubAppApiFailed $e) {
-            throw self::failed($e);
+            throw GitHubWriteFailures::from($e);
         }
     }
 
@@ -64,19 +59,5 @@ final readonly class GitHubPullRequestOpener implements PullRequestOpener
         $number = \is_array($pullRequest) ? ($pullRequest['number'] ?? null) : null;
 
         return \is_int($number) ? $number : throw new PullRequestWriteFailed('malformed_body', permanent: true);
-    }
-
-    private static function failed(GitHubAppApiFailed $e): PullRequestWriteFailed
-    {
-        if ($e->rateLimited) {
-            return new PullRequestWriteFailed('api_failed_rate_limited', permanent: false, previous: $e, retryAfterSeconds: $e->retryAfterSeconds);
-        }
-        if ('http_status' === $e->reason && \in_array($e->status, self::REFUSED_STATUSES, true)) {
-            return new PullRequestWriteFailed('permission', permanent: true, previous: $e);
-        }
-
-        $cause = 'http_status' === $e->reason ? 'http_status_'.$e->status : $e->reason;
-
-        return new PullRequestWriteFailed('api_failed_'.$cause, permanent: \in_array($e->reason, self::CONFIGURATION_REASONS, true), previous: $e);
     }
 }

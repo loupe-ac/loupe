@@ -16,22 +16,24 @@ final readonly class PullRequestFacts
     public const array FIX_REASONS = [self::REASON_CONFLICT, self::REASON_CHECKS_FAILED, self::REASON_CHANGES_REQUESTED];
 
     /**
-     * @param bool               $baseIsMergeTarget   the base is the default branch or the branch of the card's epic
-     * @param bool               $baseIsEpicBranch    the base is the branch of the card's epic
-     * @param ?Uuid              $id                  the id of the Forge pull request row
-     * @param ?string            $headSha             the head commit, read through EngineFact::PullRequestHead and never part of the shared fingerprint
-     * @param ?StackParent       $stackParent         null when the base is the default branch or the epic branch, or every pull request of the base finished
-     * @param bool               $waitsForApproval    open, ready for review, checks passed, based on the default branch, and no approval covers the head
-     * @param bool               $checksOnHead        the checks ran on the head commit, read through EngineFact::PullRequestMergeGate
-     * @param bool               $canMerge            the forge reads the pull request as mergeable, behind or blocked, read through EngineFact::PullRequestMergeGate
-     * @param bool               $baseIsDefault       the base is the default branch of the repository, read through EngineFact::PullRequestMergeGate
-     * @param list<ForgeRequest> $forgeRequests       the requests to the forge that the forge has not answered, expired ones included
-     * @param bool               $approvalCheckPassed Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
-     * @param bool               $canPostCheck        the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
-     * @param bool               $mergeBlocked        the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
-     * @param bool               $baseAhead           the base holds commits the head lacks, on any base branch
-     * @param bool               $updateRefusedOnHead the forge refused a branch update of this head for good, so a new head tries again
-     * @param bool               $reviewRequired      the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
+     * @param bool               $baseIsMergeTarget        the base is the default branch or the branch of the card's epic
+     * @param bool               $baseIsEpicBranch         the base is the branch of the card's epic
+     * @param ?Uuid              $id                       the id of the Forge pull request row
+     * @param ?string            $headSha                  the head commit, read through EngineFact::PullRequestHead and never part of the shared fingerprint
+     * @param ?StackParent       $stackParent              null when the base is the default branch or the epic branch, or every pull request of the base finished
+     * @param bool               $waitsForApproval         open, ready for review, checks passed, based on the default branch, and no approval covers the head
+     * @param bool               $checksOnHead             the checks ran on the head commit, read through EngineFact::PullRequestMergeGate
+     * @param bool               $canMerge                 the forge reads the pull request as mergeable, behind or blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseIsDefault            the base is the default branch of the repository, read through EngineFact::PullRequestMergeGate
+     * @param list<ForgeRequest> $forgeRequests            the requests to the forge that the forge has not answered, expired ones included
+     * @param bool               $approvalCheckPassed      Loupe posted the approval check with the conclusion success on the head commit, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $canPostCheck             the repository has an active installation, so Loupe can post a check run, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $mergeBlocked             the forge reads the merge as blocked, read through EngineFact::PullRequestMergeGate
+     * @param bool               $baseAhead                the base holds commits the head lacks, on any base branch
+     * @param bool               $updateRefusedOnHead      the forge refused a branch update of this head for good, so a new head tries again
+     * @param bool               $mergeApprovalUnanswered  no valid `merge-approval` answers for the repository, Loupe can post its check, and the rules of the base branch require no approving review, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $mergeApprovalNeedsPerson `merge-approval` resolves to person for the repository, or the unanswered case holds, read through EngineFact::PullRequestApprovalCheck
+     * @param bool               $reviewRequired           the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
      */
     public function __construct(
         public PullRequestState $state,
@@ -66,6 +68,8 @@ final readonly class PullRequestFacts
         public bool $reviewRequired = false,
         public bool $baseAhead = false,
         public bool $updateRefusedOnHead = false,
+        public bool $mergeApprovalUnanswered = false,
+        public bool $mergeApprovalNeedsPerson = false,
     ) {
     }
 

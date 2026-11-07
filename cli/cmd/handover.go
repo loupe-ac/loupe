@@ -157,6 +157,10 @@ type handoverRun struct {
 	// CLIVersion is the version of the image that started the run. An older
 	// image writes none.
 	CLIVersion string `json:"cliVersion,omitempty"`
+	// FolderGuard says that the image which started the run lists the
+	// worktrees before a before command. An image without the guard writes
+	// none.
+	FolderGuard bool `json:"folderGuard,omitempty"`
 }
 
 // phaseBefore is the phase of a run whose before command runs, and
@@ -379,6 +383,7 @@ func (r *router) freeze() handoverState {
 			Began: run.began, PID: run.proc.pid, Dir: run.proc.dir, Seq: run.p.seq, Resume: run.p.spec.resume, Fresh: run.p.fresh,
 			Pool: run.p.slot, handoverSeries: seriesOf(run.p), runPin: run.p.pin,
 			Work: workOf(run.p), ClaimToken: run.p.claimToken, Origin: originOf(run.p), CLIVersion: run.p.runCLIVersion(),
+			FolderGuard: true,
 		}
 		switch {
 		case run.p.isCommand():
@@ -561,13 +566,17 @@ func (r *router) adoptCredentials(run handoverRun) func() {
 }
 
 // adoptBeforeLocked waits for the before command of a run a former image
-// started, on its own goroutine, then goes on as that image would have. The
-// caller holds mu and took the run's slot and card.
+// started, on its own goroutine, then goes on as that image would have. It
+// holds the before lock of the project until the folder guard has judged the
+// printed folder, so a new run cannot read its list of worktrees while the
+// adopted command still makes one. The caller holds mu and took the run's
+// slot and card.
 func (r *router) adoptBeforeLocked(p pending, run handoverRun) {
 	p.spec.prompt, p.spec.schema = run.Prompt, run.Schema
 	p.spec.runID, p.spec.rule, p.spec.key = run.RunID, run.Rule, run.Key
 	r.trackLocked(liveRun{p: p, began: run.Began, proc: workerProc{pid: run.PID, dir: run.Dir}, before: true})
 	r.log.Info("before_adopted", append(about(p.event, p.rule), "worker_pool", p.slot, "session_id", p.spec.sessionID, "pid", run.PID)...)
+	unlock := r.reserveProjectLocked(p.spec.dir)
 
 	wait := r.worker.adoptBefore
 	if wait == nil {
@@ -577,7 +586,12 @@ func (r *router) adoptBeforeLocked(p pending, run handoverRun) {
 	go func() {
 		defer r.wg.Done()
 
-		r.afterBefore(p, run.Began, wait(r.workerContext(), run.Dir))
+		if !run.FolderGuard {
+			seedLegacySnapshot(p.spec.dir, run.Dir)
+		}
+		res := r.guardFolder(p, wait(r.workerContext(), run.Dir))
+		unlock()
+		r.afterBefore(p, run.Began, res)
 	}()
 }
 

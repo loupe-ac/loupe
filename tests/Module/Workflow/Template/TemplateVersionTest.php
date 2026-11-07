@@ -48,7 +48,7 @@ final class TemplateVersionTest extends TestCase
     public static function ignoredKeys(): iterable
     {
         yield 'version' => ['version', 41];
-        yield 'epicBranch' => ['epicBranch', 'feature/{number}'];
+        yield 'settingValues' => ['settingValues', ['epic-branch-pattern' => 'feature/{number}']];
         yield 'approvalCoversConflictResolution' => ['approvalCoversConflictResolution', false];
     }
 }

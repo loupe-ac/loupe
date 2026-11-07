@@ -19,6 +19,7 @@ use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Entity\GitHubHook;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
+use App\Module\GitHub\Messenger\ReadRepositoryWorkflowSettings;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
@@ -118,6 +119,23 @@ trait GitHubDeliveryScenario
         }
 
         return $refreshes;
+    }
+
+    /** @return list<string> the repository id of each queued read of the workflow file */
+    private function queuedWorkflowReads(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        $reads = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof ReadRepositoryWorkflowSettings) {
+                $reads[] = $message->repositoryId;
+            }
+        }
+
+        return $reads;
     }
 
     /** @return list<array{?PullRequestReview, ?string}> the verdict and the review id of each queued refresh */
