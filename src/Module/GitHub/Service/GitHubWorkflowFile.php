@@ -14,11 +14,12 @@ final readonly class GitHubWorkflowFile
         public string $headSha,
         public ?string $blobSha,
         public ?string $content,
+        public string $defaultBranch,
     ) {
     }
 
-    public static function unusable(string $headSha): self
+    public static function unusable(string $headSha, string $defaultBranch): self
     {
-        return new self($headSha, null, null);
+        return new self($headSha, null, null, $defaultBranch);
     }
 }

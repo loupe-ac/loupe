@@ -1,0 +1,150 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Inbox\Service;
+
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\MergeApprovals;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxMergeApprovalQuestion;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
+use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Repository\InboxMergeApprovalQuestionRepository;
+use App\Module\Project\Entity\Project;
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+/**
+ * Keeps one open merge question for each repository of a project that has no valid answer to it, and closes the
+ * question when `.loupe.yaml` states the setting or the repository no longer fits. It reads the case itself and
+ * never trusts an event, so a late or repeated trigger changes nothing. The owner's answer keeps the row open
+ * until the setting is stated, so the same case opens no second question.
+ */
+final readonly class MergeApprovalQuestionReconciler
+{
+    public function __construct(
+        private EntityManagerInterface $em,
+        private ForgeRepositoryRepository $forgeRepositories,
+        private MergeApprovals $mergeApprovals,
+        private InboxMergeApprovalQuestionRepository $inboxMergeApprovalQuestions,
+        private InboxItemRepository $inboxItems,
+        private InboxItemCloser $closer,
+        private InboxSearchIndexer $searchIndexer,
+        private InboxChangedPublisher $inboxChanged,
+        private InboxAvailability $inbox,
+        private TranslatorInterface $translator,
+        private ClockInterface $clock,
+        private MessageBusInterface $bus,
+
+        #[Autowire(param: 'kernel.default_locale')]
+        private string $locale,
+    ) {
+    }
+
+    public function reconcile(Project $project): void
+    {
+        $changed = $this->em->wrapInTransaction(function () use ($project): bool {
+            $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+
+            $now = self::whole($this->clock->now());
+            $open = [];
+            foreach ($this->inboxMergeApprovalQuestions->findOpenForProject($project) as $question) {
+                $open[$question->repositoryId->toRfc4122()] = $question;
+            }
+
+            $wanted = [];
+            if ($this->inbox->isEnabled()) {
+                foreach ($this->forgeRepositories->findByProject($project) as $repository) {
+                    if (ForgeRepositorySource::Installation === $repository->source && $this->mergeApprovals->of($repository)->unanswered(true)) {
+                        $wanted[($repository->id ?? throw new \LogicException('A stored repository has an id.'))->toRfc4122()] = $repository;
+                    }
+                }
+            }
+
+            $changed = false;
+            foreach ($open as $repositoryId => $question) {
+                if (isset($wanted[$repositoryId])) {
+                    // An item that closed with no answer and no dismissal ends its question, so a new one opens below.
+                    if (null === $question->answer && InboxItemState::Open !== $question->item->state && !$question->item->isDismissed()) {
+                        $question->endedAt = $now;
+                        unset($open[$repositoryId]);
+                        $changed = true;
+                    }
+
+                    continue;
+                }
+                if (InboxItemState::Open === $question->item->state) {
+                    $this->closer->close($question->item, InboxItemState::Resolved, InboxCloser::Loupe, InboxCloseCause::FactEnded, null, $now);
+                }
+                $question->endedAt = $now;
+                unset($open[$repositoryId]);
+                $changed = true;
+            }
+            // Doctrine inserts before it updates, so an ended question must reach the database before a new one is inserted.
+            $this->em->flush();
+
+            $created = [];
+            foreach ($wanted as $repositoryId => $repository) {
+                if (!isset($open[$repositoryId])) {
+                    $created[] = $this->open($project, $repository, $now);
+                    $changed = true;
+                }
+            }
+            $this->em->flush();
+            foreach ($created as $question) {
+                $this->searchIndexer->index($question->item);
+            }
+
+            return $changed;
+        });
+
+        if ($changed) {
+            $this->inboxChanged->changed($project);
+        }
+    }
+
+    private function open(Project $project, ForgeRepository $repository, \DateTimeImmutable $now): InboxMergeApprovalQuestion
+    {
+        $item = new InboxItem(
+            project: $project,
+            number: $this->inboxItems->nextNumber($project),
+            kind: InboxItemKind::Question,
+            title: mb_strimwidth($this->translator->trans('inbox.merge_approval.title', ['%repository%' => $repository->path], null, $this->locale), 0, InboxItem::MAX_TITLE_LENGTH, '…'),
+            blocking: false,
+            origin: InboxAskOrigin::Loupe,
+            body: $this->translator->trans('inbox.merge_approval.body', ['%repository%' => $repository->path], null, $this->locale),
+            options: [
+                $this->translator->trans('inbox.merge_approval.option.agent', [], null, $this->locale),
+                $this->translator->trans('inbox.merge_approval.option.person', [], null, $this->locale),
+            ],
+            createdAt: $now,
+            searchLanguage: $project->searchLanguage,
+        );
+        $question = new InboxMergeApprovalQuestion($project, $repository->id ?? throw new \LogicException('A stored repository has an id.'), $item, $now);
+        $this->em->persist($item);
+        $this->em->persist($question);
+        // The Doctrine transport commits the message with the question.
+        $this->bus->dispatch(new NotifyInboxOwner(($item->id ?? throw new \LogicException('A persisted item has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Notice));
+
+        return $question;
+    }
+
+    /** Whole seconds, like the stored columns. */
+    private static function whole(\DateTimeImmutable $moment): \DateTimeImmutable
+    {
+        return $moment->setTime((int) $moment->format('G'), (int) $moment->format('i'), (int) $moment->format('s'));
+    }
+}

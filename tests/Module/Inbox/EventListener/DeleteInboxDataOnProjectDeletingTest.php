@@ -17,6 +17,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxMergeApprovalQuestion;
 use App\Module\Inbox\Entity\InboxOpenRouterKeyNotice;
 use App\Module\Inbox\Entity\InboxRepositoryMisfit;
 use App\Module\Inbox\EventListener\DeleteInboxDataOnProjectDeleting;
@@ -33,7 +34,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_openrouter_key_notices', 'inbox_repository_misfits'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_openrouter_key_notices', 'inbox_repository_misfits', 'inbox_merge_approval_questions'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -137,6 +138,10 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($misfitNotice);
         $misfit = new InboxRepositoryMisfit($project, $misfitNotice, new \DateTimeImmutable('2026-10-27 11:00:00'), []);
         $this->em->persist($misfit);
+        $questionItem = new InboxItem(project: $project, number: 6, kind: InboxItemKind::Question, title: 'May Loupe merge in acme/widgets?', blocking: false, origin: InboxAskOrigin::Loupe, options: ['a', 'b']);
+        $this->em->persist($questionItem);
+        $mergeQuestion = new InboxMergeApprovalQuestion($project, Uuid::v7(), $questionItem, new \DateTimeImmutable('2026-11-07 11:00:00'));
+        $this->em->persist($mergeQuestion);
 
         return [$project, [
             'inbox_items' => $item,
@@ -150,6 +155,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_bridge_outages' => $outage,
             'inbox_openrouter_key_notices' => $keyNotice,
             'inbox_repository_misfits' => $misfit,
+            'inbox_merge_approval_questions' => $mergeQuestion,
         ]];
     }
 

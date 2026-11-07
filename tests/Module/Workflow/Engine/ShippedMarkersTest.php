@@ -67,7 +67,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'pull-requests-closed', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
+        'document-in-review', 'waits-for-merge-approval-answer', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
@@ -81,7 +81,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'pull-requests-closed', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'pull-requests-closed', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit', 'waits-for-merge-approval-answer'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -560,6 +560,26 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame(['waits-for-approval', 'open-question'], $this->writtenKeys());
         self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
+    }
+
+    public function test_a_pull_request_in_a_repository_with_no_answer_shows_the_merge_question_before_the_plain_wait(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: true, baseIsDefault: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest]));
+
+        self::assertSame(['waits-for-merge-approval-answer', 'waits-for-approval'], $this->writtenKeys());
+        self::assertSame(['%number%' => 4], $this->written('waits-for-merge-approval-answer')->params);
+        self::assertSame(MarkerLink::Inbox, $this->written('waits-for-merge-approval-answer')->link);
+    }
+
+    public function test_a_pull_request_in_a_repository_that_answered_person_waits_without_the_question(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, checksOnHead: true, canMerge: true, baseIsDefault: true, canPostCheck: true, mergeApprovalNeedsPerson: true);
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest]));
+
+        self::assertSame(['waits-for-approval'], $this->writtenKeys());
     }
 
     #[DataProvider('shippedKeys')]

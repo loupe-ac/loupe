@@ -29,7 +29,9 @@ use App\Module\Board\EventListener\EvaluateCardsOnCardBlockersChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnCardMoved;
 use App\Module\Board\EventListener\EvaluateCardsOnCardParentChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnDocumentStatusChanged;
+use App\Module\Board\EventListener\EvaluateCardsOnForgeRepositoryCheckChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnPullRequestStateChanged;
+use App\Module\Board\EventListener\EvaluateCardsOnRepositoryWorkflowSettingsApplied;
 use App\Module\Board\EventListener\EvaluateCardsOnReviewSubmitted;
 use App\Module\Board\EventListener\EvaluateChildrenOnBridgeRepositoriesChanged;
 use App\Module\Board\EventListener\EvaluateChildrenOnForgeBranchPushed;
@@ -52,12 +54,16 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Command\ReadPullRequestStateCommand;
 use App\Module\Forge\Command\ReadPullRequestStateHandler;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Event\ForgeBranchPushed;
+use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
 use App\Module\Forge\Event\PullRequestStateChanged;
 use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ApprovalCoverageReaders;
+use App\Module\Forge\Service\ForgeProjectRepositories;
 use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Forge\Service\PullRequestStateReader;
 use App\Module\Forge\Service\PullRequestStateReaders;
@@ -70,6 +76,7 @@ use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\EpicBranches;
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsApplied;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -267,6 +274,45 @@ final class EvaluationListenersTest extends KernelTestCase
         $listener(new PullRequestStateChanged($unknown, $unknown->snapshot(), $unknown->snapshot()));
 
         self::assertEqualsCanonicalizing($this->ids($one, $two), $this->sent());
+    }
+
+    public function test_a_read_of_the_settings_of_a_repository_asks_for_the_cards_with_an_open_pull_request_in_it(): void
+    {
+        [$inRepository, $elsewhere, $merged] = [$this->card($this->project, 'next'), $this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $repository = new ForgeRepository($this->project, 'github', 'ext-settings', 'Acme/Widgets', ForgeRepositorySource::Hook);
+        $this->em()->persist($repository);
+        $this->openPullRequest($inRepository, 'acme/widgets', 11);
+        $this->openPullRequest($elsewhere, 'acme/other', 12);
+        $this->openPullRequest($merged, 'acme/widgets', 13, PullRequestState::Merged);
+        $this->em()->flush();
+        $this->transport()->reset();
+        $listener = new EvaluateCardsOnRepositoryWorkflowSettingsApplied($this->service(ForgeProjectRepositories::class), $this->service(CardPullRequestRepository::class), $this->trigger());
+
+        $listener(new RepositoryWorkflowSettingsApplied($this->project->requireId(), $repository->id ?? throw new \LogicException('No id.')));
+
+        self::assertSame($this->ids($inRepository), $this->sent());
+    }
+
+    public function test_a_repository_check_asks_for_every_card_with_an_open_pull_request_in_the_project(): void
+    {
+        [$one, $two, $merged] = [$this->card($this->project, 'next'), $this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $this->openPullRequest($one, 'acme/widgets', 21);
+        $this->openPullRequest($two, 'acme/other', 22);
+        $this->openPullRequest($merged, 'acme/widgets', 23, PullRequestState::Merged);
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        (new EvaluateCardsOnForgeRepositoryCheckChanged($this->service(CardPullRequestRepository::class), $this->trigger()))(new ForgeRepositoryCheckChanged($this->project->requireId()));
+
+        self::assertEqualsCanonicalizing($this->ids($one, $two), $this->sent());
+    }
+
+    private function openPullRequest(Card $card, string $repository, int $number, PullRequestState $state = PullRequestState::Open): void
+    {
+        $this->em()->persist(new CardPullRequest($card, 'https://github.com/'.$repository.'/pull/'.$number, Forge::GitHub, $repository, $number));
+        $row = new ForgePullRequest($this->project, 'github', $repository, $number);
+        $row->state = $state;
+        $this->em()->persist($row);
     }
 
     public function test_a_read_that_fills_the_close_time_of_a_tracked_closed_pull_request_asks_for_its_card(): void

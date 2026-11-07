@@ -127,6 +127,7 @@ facts:
             - not: { card.run.worker_active: {} }
             - any:
                   - card.review.needs_person: {}
+                  - pr.merge_approval_needs_person: {}
                   - not: { pr.can_post_check: {} }
                   - agent_review.failed: {}
     tech-design-sent-agent:
@@ -782,6 +783,7 @@ rules:
               - pr.checks_on_head: {}
               - pr.can_post_check: {}
               - not: { card.review.needs_person: {} }
+              - not: { pr.merge_approval_needs_person: {} }
               - not: { pr.approval_check_passed: {} }
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
@@ -814,7 +816,9 @@ rules:
               - pr.checks_passed: {}
               - pr.approval_check_passed: {}
               - any:
-                    - not: { card.review.needs_person: {} }
+                    - all:
+                          - not: { card.review.needs_person: {} }
+                          - not: { pr.merge_approval_needs_person: {} }
                     - pr.approval_covers_head: { min: 1, by: person }
               - pr.base_is_merge_target: {}
               - not: { pr.base_is_epic_branch: {} }
@@ -1030,7 +1034,9 @@ rules:
           all:
               - pr.open: {}
               - pr.approval_check_passed: {}
-              - card.review.needs_person: {}
+              - any:
+                    - card.review.needs_person: {}
+                    - pr.merge_approval_needs_person: {}
               - not: { pr.approval_covers_head: { min: 1, by: person } }
       then: { forge-write: { write: approval-check, state: revoke } }
 
@@ -1172,6 +1178,15 @@ markers:
                           - card.in_slot: { slot: tech-design }
                           - card.document.in_review: { tag: tech-design }
               - not: { card.document.agent_review_open: {} }
+    - key: waits-for-merge-approval-answer
+      kind: needs-you
+      label: marker.waits_for_merge_approval_answer
+      remedy: marker.waits_for_merge_approval_answer.remedy
+      link: inbox
+      when:
+          all:
+              - fact.pr-waits-for-approval: {}
+              - pr.merge_approval_unanswered: {}
     - key: waits-for-approval
       kind: needs-you
       label: marker.waits_for_approval

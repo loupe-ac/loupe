@@ -6,6 +6,7 @@ namespace App\Module\Workflow\Service;
 
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\RepositorySettingsReadResult;
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsApplied;
 use App\Module\Workflow\Contract\RepositoryWorkflowSettingsWriter;
 use App\Module\Workflow\Entity\WorkflowSettingOverride;
 use App\Module\Workflow\Repository\WorkflowRepositorySettingRepository;
@@ -13,6 +14,7 @@ use App\Module\Workflow\Repository\WorkflowSettingOverrideRepository;
 use App\Module\Workflow\Template\TemplateSettings;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[AsAlias(RepositoryWorkflowSettingsWriter::class)]
@@ -23,6 +25,7 @@ final readonly class WorkflowSettingsWriter implements RepositoryWorkflowSetting
         private WorkflowSettingOverrideRepository $workflowSettingOverrides,
         private WorkflowRepositorySettingRepository $workflowRepositorySettings,
         private EntityManagerInterface $em,
+        private EventDispatcherInterface $dispatcher,
     ) {
     }
 
@@ -81,6 +84,7 @@ final readonly class WorkflowSettingsWriter implements RepositoryWorkflowSetting
             $this->em->remove($row);
         }
         $this->em->flush();
+        $this->dispatcher->dispatch(new RepositoryWorkflowSettingsApplied($projectId, $repositoryId));
 
         return new RepositorySettingsReadResult($warnings);
     }

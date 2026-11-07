@@ -42,6 +42,7 @@ final class MarkerLinkExtension extends AbstractExtension
         return match ($link) {
             MarkerLink::Agents => $this->urls->generate('app_project_agents', ['id' => $project->requireId()]),
             MarkerLink::Repositories => $this->urls->generate('app_project_repositories_settings', ['id' => $project->requireId()]),
+            MarkerLink::Inbox => $this->urls->generate('app_project_inbox', ['id' => $project->requireId()]),
         };
     }
 }
