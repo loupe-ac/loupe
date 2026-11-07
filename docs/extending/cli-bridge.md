@@ -2146,10 +2146,11 @@ then add the `before` command.
   fields that Claude Code sends: `hook_event_name`, `cwd` and `name`. It sets `CLAUDE_PROJECT_DIR` to
   the project folder and runs the hook command with `sh -c`. It prints the last
   line of the hook output, which is the folder, and sends every other output line to stderr.
-- When a linked worktree of that name already exists, `worktree-create` prints its folder and skips the hook, because a `before` command runs again on each resume.
-- `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree that the hook made. The claim holds the worktree name and the `--project` slug. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed.
+- Both commands find the worktree of a name with `git worktree list`. A worktree whose claim names that name and the `--project` slug matches first, in any folder and on any branch. Otherwise an unclaimed worktree whose folder or branch has that name matches.
+- When the worktree of that name already exists, `worktree-create` prints its folder and skips the hook, because a `before` command runs again on each resume.
+- `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree at the folder that the hook printed. A relative folder counts from the project folder. The claim holds the worktree name and the `--project` slug. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed, or a folder that is no linked worktree of the project.
 - `worktree-create` fails when no `WorktreeCreate` command hook exists, when the hook exits with a code that is not 0, or when it prints no folder.
-- `worktree-remove <name>` finds the folder of the worktree with `git worktree list`, and sends three of the fields of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
+- `worktree-remove <name>` sends three of the fields of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
 - `worktree-remove` acts only on a worktree that carries the claim of that name and slug, or that is the bridge worktree `<config dir>/worktrees/<project>/<name>` of the `--project` slug. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
 - Two project entries can share one repository, and each bridge worktree of a card then has the same name. Both commands skip a worktree in the worktree folder of the bridge that belongs to another slug, and a worktree whose claim names another slug. Without `--project`, they skip every bridge worktree.
 - Neither command sends `session_id`, `transcript_path` or the other common fields of a Claude Code hook. The bridge runs the commands before the worker session starts and after the last worker ends, so no session and no transcript exist. A hook that needs those fields does not work as a bridge command.

@@ -278,6 +278,10 @@ Opens the Live review panel for the current folder, beside the iOS Simulator in 
 
 A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
 
+## `loupe hook` (hidden helpers)
+
+`loupe hook worktree-create` and `loupe hook worktree-remove` run the `WorktreeCreate` and `WorktreeRemove` hooks of a project's `.claude/settings.json` as bridge commands. They are hidden, because the bridge runs them and a person seldom does. They need the first CLI release after 2.3.0. [Reuse the worktree hooks of Claude Code](../docs/extending/cli-bridge.md#reuse-the-worktree-hooks-of-claude-code) gives the rule file entries, the payload and the claim.
+
 ## `loupe init`
 
 Sets Loupe up for the repository you stand in. Run it once after you install the

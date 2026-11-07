@@ -628,6 +628,10 @@ On success the command prints `Opened Live review for <folder>.`
 
 A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
 
+## `loupe hook` (hidden helpers)
+
+`loupe hook worktree-create` and `loupe hook worktree-remove` run the `WorktreeCreate` and `WorktreeRemove` hooks of a project's `.claude/settings.json` as bridge commands. They are hidden, because the bridge runs them and a person seldom does. They need the first CLI release after 2.3.0. [Reuse the worktree hooks of Claude Code](../extending/cli-bridge.md#reuse-the-worktree-hooks-of-claude-code) gives the rule file entries, the payload and the claim.
+
 ## `loupe credential`
 
 Prints a GitHub token for the worker that calls it. A worker runs it through
