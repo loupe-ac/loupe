@@ -9,3 +9,11 @@
     <twig:block name="summary"><strong>Closed section</strong></twig:block>
     <span>Hidden until the summary is pressed.</span>
 </twig:Ds:Disclosure>
+<twig:Ds:Disclosure caret="end">
+    <twig:block name="summary"><strong>Caret at the end</strong></twig:block>
+    <span>The caret sits after the summary.</span>
+</twig:Ds:Disclosure>
+<twig:Ds:Disclosure caret="none" :open="true">
+    <twig:block name="summary"><strong>No caret of its own</strong> <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-disclosure__caret" aria-hidden="true" /></twig:block>
+    <span>The page draws the icon inside the summary. It turns when the section opens.</span>
+</twig:Ds:Disclosure>
