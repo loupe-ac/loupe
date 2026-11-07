@@ -3754,21 +3754,16 @@
                     column: data.column || info.column,
                     moves: movesOf(data),
                 };
-                if (fresh.moves.length === 0) {
-                    endReview(
-                        cardId,
-                        fresh,
-                        `#${fresh.number} stays in ${fresh.column}.`,
-                    );
-                } else {
-                    showStartMenu(
-                        cardId,
-                        fresh,
-                        move.name
-                            ? `${move.name} is no longer open for this card.`
-                            : 'That move is not allowed now.',
-                    );
-                }
+                const gone = move.name
+                    ? `${move.name} is no longer open for this card.`
+                    : 'That move is not allowed now.';
+                showStartMenu(
+                    cardId,
+                    fresh,
+                    fresh.moves.length === 0
+                        ? `${gone} No start column is open now.`
+                        : gone,
+                );
                 return;
             }
             closeMenu(false);

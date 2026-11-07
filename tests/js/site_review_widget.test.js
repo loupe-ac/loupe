@@ -2646,7 +2646,7 @@ describe('finishing a one-card review', () => {
         expect(stored()).not.toBeNull();
     });
 
-    it('ends with a stay notice when a refusal leaves no move', async () => {
+    it('keeps the review open with a reason when a refusal leaves no move', async () => {
         await boot((init) =>
             init.method === 'POST'
                 ? rejected(409, {
@@ -2666,7 +2666,15 @@ describe('finishing a one-card review', () => {
         menuItems()[0].click();
         await settle();
 
-        expect(notice().textContent).toContain('#42 stays in Backlog.');
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.style.display).toBe('flex');
+        expect(menuItems()).toHaveLength(0);
+        expect(menu.querySelector('.lp-menu-reason').textContent).toBe(
+            'Next is no longer open for this card. No start column is open now.',
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
     });
 
     it.each([
