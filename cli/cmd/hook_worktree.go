@@ -1,0 +1,283 @@
+package cmd
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+)
+
+const (
+	hookCreateEvent = "WorktreeCreate"
+	hookRemoveEvent = "WorktreeRemove"
+	// defaultHookTimeout applies to a hook that sets no timeout.
+	defaultHookTimeout = 600 * time.Second
+)
+
+// newHookCmd groups the adapters that run a Claude Code hook of the project as
+// a bridge command.
+func newHookCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "hook",
+		Short:  "Run a Claude Code hook of the project as a bridge command",
+		Hidden: true,
+	}
+	cmd.AddCommand(newHookWorktreeCreateCmd(), newHookWorktreeRemoveCmd())
+
+	return cmd
+}
+
+func newHookWorktreeCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "worktree-create <name>",
+		Short: "Run the WorktreeCreate hook for a worktree and print its folder",
+		Long: "Runs the WorktreeCreate hook of .claude/settings.json or .claude/settings.local.json in the " +
+			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
+			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			project, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+
+			return runWorktreeCreate(cmd.Context(), project, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
+		},
+	}
+}
+
+func newHookWorktreeRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "worktree-remove <name>",
+		Short: "Run the WorktreeRemove hook for a worktree",
+		Long: "Finds the worktree of that name with git and runs the WorktreeRemove hook of .claude/settings.json or " +
+			".claude/settings.local.json in the current folder, the project folder. It does nothing when the " +
+			"project has no such worktree or no such hook.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			project, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+
+			return runWorktreeRemove(cmd.Context(), project, args[0], cmd.OutOrStdout(), cmd.ErrOrStderr())
+		},
+	}
+}
+
+// settingsHook is one command hook of a Claude Code settings file.
+type settingsHook struct {
+	Command string
+	Timeout time.Duration
+}
+
+// readSettingsHooks lists the command hooks of event in settings.json and then
+// settings.local.json under the .claude folder of project. A missing file adds
+// none, and a file that does not parse is an error.
+func readSettingsHooks(project, event string) ([]settingsHook, error) {
+	var out []settingsHook
+	for _, name := range []string{"settings.json", "settings.local.json"} {
+		path := filepath.Join(project, ".claude", name)
+		b, err := os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var file struct {
+			Hooks map[string][]struct {
+				Hooks []struct {
+					Type    string  `json:"type"`
+					Command string  `json:"command"`
+					Timeout float64 `json:"timeout"`
+				} `json:"hooks"`
+			} `json:"hooks"`
+		}
+		if err := json.Unmarshal(b, &file); err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		for _, group := range file.Hooks[event] {
+			for _, h := range group.Hooks {
+				if h.Type != "command" || strings.TrimSpace(h.Command) == "" {
+					continue
+				}
+				out = append(out, settingsHook{Command: h.Command, Timeout: time.Duration(h.Timeout * float64(time.Second))})
+			}
+		}
+	}
+
+	return out, nil
+}
+
+// projectWorktree is one entry of git worktree list.
+type projectWorktree struct{ Path, Branch string }
+
+// listProjectWorktrees reads git worktree list in dir. The first entry is the main
+// checkout, which a named lookup never returns.
+func listProjectWorktrees(ctx context.Context, dir string) ([]projectWorktree, error) {
+	c := exec.CommandContext(ctx, "git", "-C", dir, "worktree", "list", "--porcelain")
+	b, err := c.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git worktree list: %w", err)
+	}
+	var out []projectWorktree
+	var cur *projectWorktree
+	for line := range strings.SplitSeq(string(b), "\n") {
+		line = strings.TrimRight(line, "\r")
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			out = append(out, projectWorktree{Path: strings.TrimPrefix(line, "worktree ")})
+			cur = &out[len(out)-1]
+		case strings.HasPrefix(line, "branch ") && cur != nil:
+			cur.Branch = strings.TrimPrefix(strings.TrimPrefix(line, "branch "), "refs/heads/")
+		}
+	}
+
+	return out, nil
+}
+
+// findWorktree returns the folder of the linked worktree called name: the one
+// whose folder or branch has that name.
+func findWorktree(ctx context.Context, project, name string) (string, bool, error) {
+	list, err := listProjectWorktrees(ctx, project)
+	if err != nil {
+		return "", false, err
+	}
+	for i, w := range list {
+		if i > 0 && (filepath.Base(w.Path) == name || w.Branch == name) {
+			return w.Path, true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+func validWorktreeName(name string) error {
+	if name == "" || strings.HasPrefix(name, "-") || strings.HasPrefix(name, "/") || strings.Contains(name, "..") || strings.ContainsAny(name, " \t\n") {
+		return fmt.Errorf("refusing the worktree name %q", name)
+	}
+
+	return nil
+}
+
+// runHookCommands runs each hook with sh -c in project, with the payload on
+// stdin. Its stdout lines go to stderr, except the last non-empty line of the
+// last hook that printed one, which is returned.
+func runHookCommands(ctx context.Context, project string, hooks []settingsHook, payload []byte, stderr io.Writer) (string, error) {
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		return "", errors.New("the hook adapter needs sh on the PATH")
+	}
+	last := ""
+	for _, h := range hooks {
+		timeout := h.Timeout
+		if timeout <= 0 {
+			timeout = defaultHookTimeout
+		}
+		hctx, cancel := context.WithTimeout(ctx, timeout)
+		c := exec.CommandContext(hctx, sh, "-c", h.Command)
+		c.Dir = project
+		c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+project)
+		c.Stdin = bytes.NewReader(payload)
+		c.Stderr = stderr
+		var stdout bytes.Buffer
+		c.Stdout = &stdout
+		err := c.Run()
+		cancel()
+		var lines []string
+		for line := range strings.SplitSeq(stdout.String(), "\n") {
+			if strings.TrimSpace(line) != "" {
+				lines = append(lines, strings.TrimRight(line, "\r"))
+			}
+		}
+		if len(lines) > 0 {
+			for _, line := range lines[:len(lines)-1] {
+				fmt.Fprintln(stderr, line)
+			}
+			last = lines[len(lines)-1]
+		}
+		if err != nil {
+			return "", fmt.Errorf("hook %q failed: %w", h.Command, err)
+		}
+	}
+
+	return last, nil
+}
+
+func hookPayload(event, project string, extra map[string]string) []byte {
+	m := map[string]string{"hook_event_name": event, "cwd": project}
+	for k, v := range extra {
+		m[k] = v
+	}
+	b, _ := json.Marshal(m)
+
+	return b
+}
+
+// runWorktreeCreate prints the folder of the worktree called name. An existing
+// worktree of that name is reused. Otherwise the WorktreeCreate hook makes it.
+func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr io.Writer) error {
+	if err := validWorktreeName(name); err != nil {
+		return err
+	}
+	if path, ok, err := findWorktree(ctx, project, name); err != nil {
+		return err
+	} else if ok {
+		fmt.Fprintln(stdout, path)
+
+		return nil
+	}
+	hooks, err := readSettingsHooks(project, hookCreateEvent)
+	if err != nil {
+		return err
+	}
+	if len(hooks) == 0 {
+		return fmt.Errorf("no %s command hook in .claude/settings.json or .claude/settings.local.json of %s", hookCreateEvent, project)
+	}
+	path, err := runHookCommands(ctx, project, hooks, hookPayload(hookCreateEvent, project, map[string]string{"name": name}), stderr)
+	if err != nil {
+		return err
+	}
+	if path == "" {
+		return fmt.Errorf("the %s hook printed no folder", hookCreateEvent)
+	}
+	fmt.Fprintln(stdout, path)
+
+	return nil
+}
+
+// runWorktreeRemove runs the WorktreeRemove hook for the worktree called name.
+// A project with no such worktree or no such hook is a success, so one shared
+// teardown entry can serve every project.
+func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.Writer) error {
+	if err := validWorktreeName(name); err != nil {
+		return err
+	}
+	path, ok, err := findWorktree(ctx, project, name)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	hooks, err := readSettingsHooks(project, hookRemoveEvent)
+	if err != nil {
+		return err
+	}
+	if len(hooks) == 0 {
+		return nil
+	}
+	_, err = runHookCommands(ctx, project, hooks, hookPayload(hookRemoveEvent, project, map[string]string{"worktree_path": path}), stderr)
+
+	return err
+}
