@@ -158,6 +158,7 @@ The shipped markers are:
 | `pull-requests-closed` | Stuck | Every pull request linked to a card in Implementation closed with no merge, no worker runs and the card is not held. A reference link does not count |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
+| `waits-for-merge-approval-answer` | Needs you | A pull request waits for your answer to the merge question. It shows above `waits-for-approval` and links the inbox |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | A blocking inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
@@ -237,6 +238,11 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   conclusion success on the head commit, and has not revoked it.
 - `pr.can_post_check`: Loupe can post a check run on the pull request, because its
   repository has an active GitHub App installation.
+- `pr.merge_approval_needs_person`: a person must approve the merge of the pull request on GitHub. It is true when
+  `merge-approval` resolves to `person` for the repository of the pull request. It is also true in the unanswered case
+  of `pr.merge_approval_unanswered`.
+- `pr.merge_approval_unanswered`: the repository has no valid answer to the merge question, Loupe can post its
+  check there (`pr.can_post_check`), and the rules of the default branch require no approving review.
 - `pr.base_ahead`: the base branch holds commits that the head lacks. Unlike `pr.behind`,
   it does not need a rule that requires an up-to-date branch.
 - `pr.can_update_branch`: Loupe can update the branch of the pull request. The repository has
@@ -1348,6 +1354,26 @@ Two rules post the check. Both sit in the `in-review` slot, before `merge-ready`
 2. `approval-check-person` fires when a person approved the head commit on GitHub and the checks passed. It posts the
    same success, so a person's approval opens the same gate.
 
+#### The merge question and the held merge
+
+The setting `merge-approval` decides who approves a merge in a repository where GitHub requires no review. The value
+`agent` lets Loupe merge when the agent review passes. The value `person` makes a person approve each pull request on
+GitHub first. While no valid value is stated, the repository is **unanswered**, and its pull requests wait for a person
+as for `person`. The inbox then asks the question (see [Notices](inbox.md)). The answer counts when `.loupe.yaml` on
+the default branch holds it. A typo in the value, or a removed key, brings the repository back to unanswered.
+
+`pr.merge_approval_needs_person` holds the merge in four places of the Lifecycle template:
+
+1. `approval-check-auto` does not post `Loupe / Approval` on the agent review alone.
+2. `merge-ready` merges only after a person approved the head commit.
+3. `approval-check-revoke` also fires, so a passed check on the head turns to failure.
+4. The named fact `pr-waits-for-approval` is true, so the card shows that it waits.
+
+`approval-check-person` does not change. A person's approval on GitHub posts the check and opens the merge in every
+case. A repository that a project claimed before this feature, through an active GitHub App installation, keeps
+merging on the agent review until `.loupe.yaml` states the setting. The `waits-for-merge-approval-answer` marker shows
+on a card in the unanswered case.
+
 A card with the **Requires human review** switch on never gets the automatic check. If a success already stands on the
 head, the rule `approval-check-revoke` changes it to failure. It has no slot, so it also runs while the card sits in
 another column. A person's approval on GitHub then posts the success again.
@@ -1360,7 +1386,7 @@ another column. A person's approval on GitHub then posts the success again.
 An epic pull request into the default branch gets its own agent review, and then the same rules. The agent review of the
 epic covers the whole change, also the merges of the default branch into the epic branch and their conflict fixes.
 
-The wait item "Waits for approval" opens when a person must review the card, when Loupe cannot post a check on the
+The wait item "Waits for approval" opens when a person must review the card, when the repository requires a person to approve each merge, when Loupe cannot post a check on the
 repository, or when the agent review failed and you can override it. A pull request that waits for the agent review
 of a new commit opens no item. When `Loupe / Approval` passed and GitHub still blocks the merge, the marker
 `merge-blocked` shows Needs you: "GitHub blocks the merge. Check the ruleset of the default branch."

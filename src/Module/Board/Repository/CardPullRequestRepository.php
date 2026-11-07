@@ -203,6 +203,32 @@ class CardPullRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of one project that link a pull request that the last forge read found open, limited to one repository when it is named.
+     *
+     * @return list<string> card ids
+     */
+    public function findCardIdsWithOpenPullRequests(Uuid $projectId, ?string $repository = null): array
+    {
+        $query = $this->getEntityManager()->createQuery(
+            'SELECT DISTINCT card.id AS id FROM '.ForgePullRequest::class.' pr, '.CardPullRequest::class.' link
+            JOIN link.card card
+            WHERE card.project = :project AND pr.project = :project AND pr.forge = :forge
+                AND pr.repository = LOWER(link.repository) AND pr.number = link.number
+                AND pr.state = :open'.(null === $repository ? '' : ' AND LOWER(pr.repository) = :repository'),
+        )
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('forge', Forge::GitHub->value)
+            ->setParameter('open', PullRequestState::Open);
+        if (null !== $repository) {
+            $query->setParameter('repository', mb_strtolower($repository));
+        }
+        /** @var list<array{id: Uuid}> $rows */
+        $rows = $query->getResult();
+
+        return array_map(static fn (array $row): string => (string) $row['id'], $rows);
+    }
+
+    /**
      * The card and every card of its project that links an open GitHub pull request of the card.
      *
      * @return list<string> card ids

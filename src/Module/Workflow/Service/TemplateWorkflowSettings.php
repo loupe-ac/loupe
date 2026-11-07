@@ -27,6 +27,12 @@ final readonly class TemplateWorkflowSettings implements WorkflowSettings
     }
 
     #[\Override]
+    public function declares(Uuid $projectId, string $key): bool
+    {
+        return null !== $this->templates->of($projectId)->setting($key);
+    }
+
+    #[\Override]
     public function forRepository(Uuid $projectId, Uuid $repositoryId, string $key): ResolvedSetting
     {
         $setting = $this->declared($projectId, $key, SettingScope::Repository);
