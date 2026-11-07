@@ -33,7 +33,7 @@ Find why the work of one workflow rule failed on a card, and fix the cause. The 
    1. Add one final paragraph that starts `Recovery:`. Name the rule, the failed run id, the cause and what you did.
    2. Name another card as `card:<number>` and a pull request as `pr:owner/repo#<number>`.
    3. When the action removes the worker folder, run `loupe env reset` after this step, as your last command. The `reset` command of the work entry removes the folder.
-   4. The recovery succeeds only when the reset exits 0. Exit 1 means the reset failed. Exit 2, or a CLI with no `env` command, means the bridge cannot run it. In each of these cases the folder stays broken, so take step 10.
+   4. The recovery succeeds only when the reset exits 0 and prints a first line `reset done`. The line `no reset command in the work entry` means the entry has no `reset` command and nothing ran, so take step 10. Exit 1 means the reset failed. Exit 2, or a CLI with no `env` command, means the bridge cannot run it. In each of these cases the folder stays broken, so take step 10.
    5. Otherwise stop with `STAGE RESULT: recovered <what>`.
 10. When you cannot fix the cause, record it on the card as step 9 says. The paragraph also starts `Recovery:`, and names the cause and what a person must do. Stop with `STAGE RESULT: blocked: <reason>`.
 
@@ -47,15 +47,15 @@ Before each action, `git status --porcelain` in the worker folder must print not
 
 1. Reset or re-create the card branch from its base.
    1. Run `git fetch origin`.
-   2. When `git branch --show-current` prints nothing, the folder is detached. Run `git switch -c <card branch> origin/<base>`, and stop this action.
+   2. When `git branch --show-current` prints nothing, or prints `<base>`, the card branch does not exist yet in this folder. When a local branch named `<card branch>` exists, run `git switch <card branch>` and take item 3. Otherwise run `git switch -c <card branch> origin/<base>`, and stop this action. Never reset `<base>`.
    3. When `git log origin/<base>..HEAD` prints a commit, stop with `STAGE RESULT: blocked: card branch holds commits beyond <base>`, because a reset loses them.
    4. Otherwise run `git reset --hard origin/<base>`. Push nothing, because the next run pushes the branch.
 2. Sync the epic branch with its base. This applies when the card has a parent epic and `origin/epic/<parent number>` exists.
    1. Run `git fetch origin`, then `git switch --detach origin/epic/<parent number>`.
    2. Run `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` to get the default branch `<default>`. This is not the `<base>` of the shared rule, which can be the epic branch itself. Run `git merge origin/<default>`. When the merge conflicts, run `git merge --abort` and stop with `STAGE RESULT: blocked: epic branch conflicts with <default>`.
    3. Run `git push origin HEAD:refs/heads/epic/<parent number>`. Never force it. When the push fails, stop with `STAGE RESULT: blocked: epic branch push failed`.
-   4. Run `git switch <card branch>` when the card has a branch, then take action 1.
-3. Ask the bridge to reset the worker folder. Record the recovery on the card first, as step 9 says. Then run `loupe env reset` as your last command. The `reset` command of the bridge entry removes the folder and the databases of the card, and keeps the branch. When the entry has no `reset` command, `loupe env reset` exits 1 or 2. Stop with `STAGE RESULT: blocked: no reset command on the bridge entry`.
+   4. Take action 1. Its item 2 creates or switches to the card branch, because the folder is detached.
+3. Ask the bridge to reset the worker folder. Record the recovery on the card first, as step 9 says. Then run `loupe env reset` as your last command. The `reset` command of the bridge entry removes the folder and the databases of the card, and keeps the branch. When the entry has no `reset` command, `loupe env reset` exits 0 and prints `no reset command in the work entry`. Exit 1 or 2 also means no reset ran. In each case stop with `STAGE RESULT: blocked: no reset command on the bridge entry`.
 
 The worker never pushes to the default branch, never force-pushes, and never changes application code. It never changes the folder, the branch or the databases of another card. It never commits, except the merge commit of action 2.
 
