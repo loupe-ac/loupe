@@ -73,7 +73,8 @@ final readonly class ShowWorkflowHandler
                 array_values($kinds),
             ),
             approvalCoversConflictResolution: $template->approvalCoversConflictResolution,
-            epicBranch: $template->epicBranch,
+            epicBranch: $template->epicBranchPattern(),
+            requirements: $template->requirements,
             githubAppId: '' === $this->githubAppId ? null : $this->githubAppId,
         );
     }

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\ValueObject;
 
 use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\SettingType;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Template\Template;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -156,7 +159,10 @@ final class WorkRequestContextTest extends TestCase
     public function test_the_context_takes_every_name_a_template_pattern_fills(string $pattern): void
     {
         self::assertSame(1, preg_match(Template::EPIC_BRANCH_RULE, $pattern));
-        $template = new Template('test', '1', [], [], [], [], [], 'feature', epicBranch: $pattern);
+        $template = new Template('test', '1', [], [], [], [], [], 'feature', settings: [
+            new TemplateSetting(Template::SETTING_EPIC_BRANCHES, SettingType::Boolean, SettingScope::Project, default: true),
+            new TemplateSetting(Template::SETTING_EPIC_BRANCH_PATTERN, SettingType::Text, SettingScope::Project, default: $pattern),
+        ]);
 
         foreach ([1, 852, 2147483647] as $number) {
             $branch = $template->epicBranchOf($number);

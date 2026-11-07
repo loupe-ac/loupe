@@ -50,6 +50,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame(['key' => 'lifecycle', 'version' => TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle'))], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
+        self::assertSame(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle')['requirements'], $answer['requirements']);
         self::assertArrayHasKey('githubAppId', $answer);
         self::assertNull($answer['githubAppId'], 'An empty GITHUB_APP_ID reads as no App.');
         $kinds = array_column($answer['kinds'], null, 'kind');

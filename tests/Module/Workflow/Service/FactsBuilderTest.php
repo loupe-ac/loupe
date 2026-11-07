@@ -1026,8 +1026,8 @@ final class FactsBuilderTest extends KernelTestCase
     {
         $binding = $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
         $definition = $binding->definition;
-        unset($definition['epicBranch']);
-        $binding->definition = null === $pattern ? $definition : [...$definition, 'epicBranch' => $pattern];
+        $values = null === $pattern ? ['epic-branches' => false] : ['epic-branch-pattern' => $pattern];
+        $binding->definition = [...$definition, 'settingValues' => $values];
         $this->em()->flush();
     }
 
