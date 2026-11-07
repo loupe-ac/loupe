@@ -346,16 +346,17 @@ func checkModel(model string) error {
 // maxCovers is the most kinds one experiment covers, as the server takes.
 const maxCovers = 32
 
-// checkExperiments checks the experiments block against the work map, and
-// returns the experiment each covered kind runs. It checks the shape of a
-// block, and checkWorkAccounts checks the accounts its variants name.
-func checkExperiments(work map[string]WorkEntry, blocks map[string]ExperimentBlock) (map[string]Experiment, []error) {
+// checkExperiments checks an experiments block against the entries that
+// lookup finds, and returns the experiment each covered kind runs. A project
+// block passes a prefix that names the project. It checks the shape of a
+// block, and checkVariantAccounts checks the accounts its variants name.
+func checkExperiments(lookup func(kind string) (WorkEntry, bool), blocks map[string]ExperimentBlock, label string) (map[string]Experiment, []error) {
 	var errs []error
 	byKind := map[string]Experiment{}
 	owner := map[string]string{}
 	for _, name := range slices.Sorted(maps.Keys(blocks)) {
 		b := blocks[name]
-		prefix := fmt.Sprintf("experiment %q: ", name)
+		prefix := fmt.Sprintf("%sexperiment %q: ", label, name)
 		e := Experiment{Name: name, Covers: slices.Sorted(slices.Values(b.Covers)), Baseline: b.Baseline, Variants: b.Variants, Metrics: b.Metrics, Headline: b.Headline}
 		if err := checkExperiment(e); err != nil {
 			errs = append(errs, fmt.Errorf("%s%w", prefix, err))
@@ -378,7 +379,7 @@ func checkExperiments(work map[string]WorkEntry, blocks map[string]ExperimentBlo
 				continue
 			}
 			owner[kind] = name
-			entry, ok := work[kind]
+			entry, ok := lookup(kind)
 			switch {
 			case !ok:
 				errs = append(errs, fmt.Errorf("%scovers kind %q, and work has no entry for it", prefix, kind))

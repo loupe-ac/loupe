@@ -458,7 +458,8 @@ each warning, one line each:
 
 - A `before`, `refresh`, `reset` or command path that the folder of its project lacks. Only a relative path with a slash counts.
 - A work kind that one project lists and another project does not. A request of that kind for the second project runs the app prompt when `appPrompts` is on, and is skipped otherwise.
-- A project entry of a kind that an experiment covers. The experiment covers the shared entry only, so the project entry runs without the variants.
+- A project entry of a kind that a top-level experiment covers. That experiment covers the shared entry only, so the project entry runs without the variants. Add an `experiments:` block under the project to run a trial on it.
+- A project experiment that covers a kind that a top-level experiment also covers. The runs of that project leave the top-level experiment.
 
 The command exits with status 1 when the file does not load, and 0 otherwise.
 `loupe bridge status` shows the same warnings for a running bridge.

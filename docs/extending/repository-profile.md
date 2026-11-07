@@ -29,7 +29,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
 | `Board` | The column slugs that a stage reads or moves a card to: product design, tech design, implementation, review, default and terminal. A missing line means `product-design`, `tech-design`, `implementation` and `in-review` | Implementation, breakdown, product design |
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
-| `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
+| `Recovery` | The actions that a recovery worker may take after a rule's work failed | Recovery |
 
 Five sections are optional. A missing optional section blocks nothing.
 
@@ -89,7 +89,11 @@ project needs a profile and the file is missing. The workflow template says
 whether it needs a profile: Lifecycle does, and Simple does not. The agent writes
 nothing to `.loupe/lifecycle.md`, and `loupe init` no longer checks the file for
 sections or for a line that reads "owner to fill in". A stage that needs a
-section the file lacks stops blocked.
+section the file lacks stops blocked. The `Recovery` section lists each action
+that a recovery worker may take, with its commands and its guards. An older
+profile calls this section `Repair`. The recovery stage refuses a profile that
+holds `## Repair` and no `## Recovery`, and discovery names the rename. Rename
+the heading to `## Recovery`, and push the file.
 
 A blocker is a thing that makes a worker fail on its first run, or does damage.
 The list is closed: the merge question, whether Loupe can read the branch rules,
@@ -146,7 +150,7 @@ Lifecycle workflow and its default column slugs.
 2. Any approval from a person with write access counts.
 3. Merge only a pull request whose base is `main`.
 
-## Repair
+## Recovery
 
 1. The worker may reset the card branch to its base, when the branch holds no commit that the base lacks.
 2. The worker never pushes to `main`, and never force-pushes.
