@@ -42,6 +42,9 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
             $branch = self::branch($key, $value);
             $existing = $this->openPullRequest($installationId, $repositoryPath, $owner, $branch, $file->defaultBranch);
             if (null !== $existing) {
+                [$blobSha, $branchContent, $content] = $this->editBranchFile($installationId, $repositoryPath, $branch, $key, $value, $projectId, $file);
+                $this->writeBranchFile($installationId, $repositoryPath, $branch, $title, $content, $branchContent, $blobSha);
+
                 return $existing;
             }
             if ($file->exists && null === $file->content) {
@@ -55,15 +58,9 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
 
             [$blobSha, $branchContent] = [$file->blobSha, $file->content];
             if (!$this->createBranch($installationId, $repositoryPath, $branch, $file->headSha)) {
-                [$blobSha, $branchContent, $content] = $this->editBranchFile($installationId, $repositoryPath, $branch, $key, $value, $projectId, $file->content);
+                [$blobSha, $branchContent, $content] = $this->editBranchFile($installationId, $repositoryPath, $branch, $key, $value, $projectId, $file);
             }
-            if ($branchContent !== $content) {
-                $this->api->put($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, [
-                    'message' => $title,
-                    'content' => base64_encode($content),
-                    'branch' => $branch,
-                ] + (null === $blobSha ? [] : ['sha' => $blobSha]));
-            }
+            $this->writeBranchFile($installationId, $repositoryPath, $branch, $title, $content, $branchContent, $blobSha);
 
             return self::url($this->api->post($installationId, $repositoryPath.'/pulls', [
                 'title' => $title,
@@ -109,6 +106,19 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
         return true;
     }
 
+    /** @throws GitHubAppApiFailed */
+    private function writeBranchFile(int $installationId, string $repositoryPath, string $branch, string $title, string $content, ?string $branchContent, ?string $blobSha): void
+    {
+        if ($branchContent === $content) {
+            return;
+        }
+        $this->api->put($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, [
+            'message' => $title,
+            'content' => base64_encode($content),
+            'branch' => $branch,
+        ] + (null === $blobSha ? [] : ['sha' => $blobSha]));
+    }
+
     /**
      * Edits the file of a branch that an earlier proposal left, so a change that a person pushed there stays.
      * A branch with no such file starts from the content of the default branch.
@@ -118,14 +128,17 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
      * @throws GitHubAppApiFailed
      * @throws PullRequestWriteFailed
      */
-    private function editBranchFile(int $installationId, string $repositoryPath, string $branch, string $key, string $value, string $projectId, ?string $defaultContent): array
+    private function editBranchFile(int $installationId, string $repositoryPath, string $branch, string $key, string $value, string $projectId, GitHubWorkflowFile $default): array
     {
         [$blobSha, $branchContent] = $this->branchFile($installationId, $repositoryPath, $branch);
         if (null !== $blobSha && null === $branchContent) {
             throw new PullRequestWriteFailed('file_unusable', permanent: true);
         }
+        if (null === $blobSha && $default->exists && null === $default->content) {
+            throw new PullRequestWriteFailed('file_unusable', permanent: true);
+        }
 
-        return [$blobSha, $branchContent, LoupeYamlSettingEditor::edit($branchContent ?? $defaultContent, $key, $value, $projectId)];
+        return [$blobSha, $branchContent, LoupeYamlSettingEditor::edit($branchContent ?? $default->content, $key, $value, $projectId)];
     }
 
     /**

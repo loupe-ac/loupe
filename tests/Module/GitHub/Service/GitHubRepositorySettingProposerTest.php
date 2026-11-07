@@ -230,16 +230,72 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
         self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'PUT' === $r['method']));
     }
 
-    public function test_an_open_pull_request_is_returned_with_no_write(): void
+    public function test_an_open_pull_request_whose_branch_holds_the_value_is_returned_with_no_write(): void
     {
         $repository = $this->repository(74_004);
+        $project = $repository->project->id?->toRfc4122();
         $this->responses = [
-            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
+            ...$this->readAnswers("project: {$project}\nworkflow:\n  merge-approval: agent\n"),
             $this->answer([['html_url' => 'https://github.com/acme/app/pull/5']]),
+            $this->fileAnswer("project: {$project}\nworkflow:\n  merge-approval: person\n", self::BRANCH_BLOB),
         ];
 
         self::assertSame('https://github.com/acme/app/pull/5', $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
         self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'GET' !== $r['method'] && !str_ends_with($r['url'], '/access_tokens')));
+    }
+
+    public function test_an_open_pull_request_whose_branch_lost_the_value_gets_it_back(): void
+    {
+        $repository = $this->repository(74_013);
+        $project = $repository->project->id?->toRfc4122();
+        $this->responses = [
+            ...$this->readAnswers("project: {$project}\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([['html_url' => 'https://github.com/acme/app/pull/6']]),
+            $this->fileAnswer("project: {$project}\nworkflow:\n  merge-approval: agent\n  review: off\n", self::BRANCH_BLOB),
+            $this->answer([], 200),
+        ];
+
+        self::assertSame('https://github.com/acme/app/pull/6', $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+        self::assertCount(7, $this->requests);
+        self::assertSame('PUT', $this->requests[6]['method']);
+        $write = $this->json(6);
+        self::assertSame(self::BRANCH_BLOB, $write['sha']);
+        self::assertSame('loupe/merge-approval-person', $write['branch']);
+        self::assertIsString($write['content']);
+        self::assertSame("project: {$project}\nworkflow:\n  merge-approval: person\n  review: off\n", base64_decode($write['content'], true));
+    }
+
+    public function test_an_open_pull_request_whose_branch_file_cannot_be_read_is_refused_with_no_write(): void
+    {
+        $repository = $this->repository(74_014);
+        $this->responses = [
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([['html_url' => 'https://github.com/acme/app/pull/7']]),
+            $this->answer(['type' => 'file', 'encoding' => 'none', 'sha' => self::BRANCH_BLOB, 'content' => '']),
+        ];
+
+        $e = $this->failure(fn () => $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+
+        self::assertSame('file_unusable', $e->cause);
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'PUT' === $r['method']));
+    }
+
+    public function test_an_open_pull_request_with_no_branch_file_over_an_unreadable_default_file_is_refused(): void
+    {
+        $repository = $this->repository(74_015);
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main']),
+            $this->answer(['commit' => ['sha' => self::HEAD]]),
+            $this->answer(['type' => 'file', 'encoding' => 'none', 'size' => 10, 'sha' => self::BLOB, 'content' => '']),
+            $this->answer([['html_url' => 'https://github.com/acme/app/pull/8']]),
+            $this->answer(['message' => 'Not Found'], 404),
+        ];
+
+        $e = $this->failure(fn () => $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+
+        self::assertSame('file_unusable', $e->cause);
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'PUT' === $r['method']));
     }
 
     public function test_a_file_that_has_the_value_already_is_refused_when_no_pull_request_is_open(): void
