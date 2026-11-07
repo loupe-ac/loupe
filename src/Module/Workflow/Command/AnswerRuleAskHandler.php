@@ -131,7 +131,7 @@ final readonly class AnswerRuleAskHandler
             }
         }
         $this->em->flush();
-        $this->evaluations->forCards([$cardId]);
+        $this->evaluations->forPersonWaiting([$cardId]);
 
         return new AnsweredRuleAsk($cardId->toRfc4122(), $projectId->toRfc4122(), $rule->id, $refusal);
     }
