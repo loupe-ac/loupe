@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
@@ -618,5 +619,47 @@ func TestWriteHookClaimKeepsAnotherClaim(t *testing.T) {
 	}
 	if owned, err := ownsWorktree(ctx, project, wt, "alpha", "card-1"); err != nil || !owned {
 		t.Fatalf("alpha must keep its claim: %v %v", owned, err)
+	}
+}
+
+// Two project entries that claim one worktree at once leave one claim, and
+// only the run whose claim landed succeeds.
+func TestWriteHookClaimRaceKeepsOneClaim(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	wt := filepath.Join(project, "wt")
+	runGit(t, project, "worktree", "add", "-q", "-b", "wt", wt)
+	ctx := context.Background()
+	slugs := []string{"alpha", "beta"}
+	errs := make([]error, 16)
+	var start, done sync.WaitGroup
+	start.Add(1)
+	for i := range errs {
+		done.Add(1)
+		go func(i int) {
+			defer done.Done()
+			start.Wait()
+			errs[i] = writeHookClaim(ctx, project, slugs[i%2], "card-1", wt)
+		}(i)
+	}
+	start.Done()
+	done.Wait()
+	winners := map[string]bool{}
+	for i, err := range errs {
+		if err == nil {
+			winners[slugs[i%2]] = true
+		}
+	}
+	if len(winners) != 1 {
+		t.Fatalf("exactly one project must win the claim, got %v (errors %v)", winners, errs)
+	}
+	for slug := range winners {
+		for _, s := range slugs {
+			owned, err := ownsWorktree(ctx, project, wt, s, "card-1")
+			if err != nil || owned != (s == slug) {
+				t.Fatalf("%s owns the worktree: %v %v, winner %s", s, owned, err, slug)
+			}
+		}
 	}
 }

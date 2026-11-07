@@ -418,27 +418,50 @@ func writeHookClaim(ctx context.Context, project, slug, name, path string) error
 		if err != nil {
 			return err
 		}
-		file := filepath.Join(dir, hookClaimFile)
 		want := hookClaim{Name: name, Project: slug}
-		if raw, err := os.ReadFile(file); err == nil {
-			var c hookClaim
-			if json.Unmarshal(raw, &c) != nil || c != want {
-				return fmt.Errorf("refusing to claim %s: it carries the claim of another worktree", w.Path)
-			}
-
-			return nil
-		} else if !errors.Is(err, os.ErrNotExist) {
+		file := filepath.Join(dir, hookClaimFile)
+		err = publishHookClaim(dir, file, want)
+		if !errors.Is(err, os.ErrExist) {
 			return err
 		}
-		b, err := json.Marshal(want)
+		raw, err := os.ReadFile(file)
 		if err != nil {
 			return err
 		}
+		var c hookClaim
+		if json.Unmarshal(raw, &c) != nil || c != want {
+			return fmt.Errorf("refusing to claim %s: it carries the claim of another worktree", w.Path)
+		}
 
-		return os.WriteFile(file, append(b, '\n'), 0o600)
+		return nil
 	}
 
 	return nil
+}
+
+// publishHookClaim writes claim to a temporary file in dir and links it to
+// file. The link fails with os.ErrExist when file exists, so of two runs at
+// once only one claim lands, and a reader never sees a partial file.
+func publishHookClaim(dir, file string, claim hookClaim) error {
+	b, err := json.Marshal(claim)
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, hookClaimFile+".*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(append(b, '\n')); err != nil {
+		tmp.Close()
+
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Link(tmp.Name(), file)
 }
 
 // readHookClaims maps the folder of each claimed worktree of project to its
