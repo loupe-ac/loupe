@@ -195,7 +195,7 @@ func newInitCmd() *cobra.Command {
 func runInit(cmd *cobra.Command, o initOptions) error {
 	view := initview.NewWriter(cmd.OutOrStdout(), o.verbose)
 	cmd.SetOut(view)
-	defer view.Flush()
+	defer view.Finish()
 
 	if err := checkNameFlags(cmd, &o); err != nil {
 		return err
@@ -262,7 +262,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	left.accounts, left.accountCheck = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
 	left.profile, left.profileRan = initProfile(cmd, dir, site, o)
 	initDiscovery(cmd, cfg, dir, site, &left)
-	view.Flush()
+	view.Finish()
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 
 	var accountErr error
@@ -488,7 +488,7 @@ func initSetupProject(cmd *cobra.Command, cfg config.Config, dir string, o initO
 		if !ok {
 			return api.Site{}, fmt.Errorf("the setup %s links this folder to %s, which the login of that setup does not cover: sign in with the login that covers it, or pass --force to replace the link", setup.Dir, linked)
 		}
-		step(out, "Project", "skipped", "the setup links this folder to "+describe(site))
+		stepSet(out, "Project", "the setup links this folder to "+describe(site))
 
 		return site, nil
 	}
@@ -1192,7 +1192,7 @@ func initCodexPlugins(ctx context.Context, out io.Writer, targets []codexTarget)
 				allDone = false
 				step(out, name, "failed", fmt.Sprintf("%v; run `%s`", err, "CODEX_HOME="+home+" codex plugin list"))
 			case len(installed) == 0:
-				step(out, name, "skipped", "the Loupe plugins in "+home+" are current")
+				stepSet(out, name, "the Loupe plugins in "+home+" are current")
 			default:
 				step(out, name, "done", "installed "+strings.Join(installed, ", ")+" in "+home)
 			}

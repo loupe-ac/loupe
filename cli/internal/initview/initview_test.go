@@ -13,9 +13,28 @@ func TestFlushAlignsNamesAndFoldsSetUpSteps(t *testing.T) {
 	w.Record(Step{Name: "Sign in", State: "skipped", Fold: true})
 	w.Record(Step{Name: "MCP", State: "skipped", Fold: true})
 	w.Record(Step{Name: "Bridge", State: "failed", Short: "it did not start"})
-	w.Flush()
+	w.Finish()
 
-	want := "✓ Project  using Dev\n✗ Bridge   it did not start\n· Already set up: sign in, mcp\n"
+	want := "✓ Project         using Dev\n✗ Bridge          it did not start\n· Already set up: sign in, mcp\n"
+	if out.String() != want {
+		t.Errorf("output = %q, want %q", out.String(), want)
+	}
+}
+
+// A write between steps flushes them, and the report still keeps one name
+// column and one folded line.
+func TestFlushesKeepOneColumnAndOneFoldedLine(t *testing.T) {
+	var out bytes.Buffer
+	w := NewWriter(&out, false)
+	w.Record(Step{Name: "Sign in", State: "skipped", Fold: true})
+	w.Record(Step{Name: "Link", State: "done", Short: "linked"})
+	_, _ = w.Write([]byte("table\n"))
+	w.Record(Step{Name: "Profile", State: "skipped", Fold: true})
+	w.Record(Step{Name: "Codex approval", State: "done", Short: "approved"})
+	w.Finish()
+	w.Finish()
+
+	want := "✓ Link            linked\ntable\n✓ Codex approval  approved\n· Already set up: sign in, profile\n"
 	if out.String() != want {
 		t.Errorf("output = %q, want %q", out.String(), want)
 	}
@@ -27,7 +46,7 @@ func TestAnotherWriteFlushesThePendingStepsFirst(t *testing.T) {
 	w.Record(Step{Name: "Link", State: "done", Short: "linked"})
 	_, _ = w.Write([]byte("Which project?\n"))
 
-	if got := out.String(); got != "✓ Link  linked\nWhich project?\n" {
+	if got := out.String(); got != "✓ Link            linked\nWhich project?\n" {
 		t.Errorf("output = %q", got)
 	}
 }

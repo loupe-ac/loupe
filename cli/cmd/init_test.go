@@ -2480,3 +2480,29 @@ func TestInitVerbosePrintsEachStepWithItsReason(t *testing.T) {
 		t.Errorf("output lacks the verbose step lines:\n%s", out)
 	}
 }
+
+// A second run finds most steps set up. It draws them on one folded line, and
+// no separate skipped line for any of them.
+func TestInitFoldsEveryStepThatIsSetUpAlready(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	if out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("1\nn\n")), "--no-mcp"); err != nil {
+		t.Fatalf("first init: %v\n%s", err, out)
+	}
+	out, err := runInitRaw(t, bufio.NewReader(strings.NewReader("n\n")), "--no-mcp")
+	if err != nil {
+		t.Fatalf("second init: %v\n%s", err, out)
+	}
+	if got := strings.Count(out, "Already set up: "); got != 1 {
+		t.Fatalf("folded lines = %d, want 1:\n%s", got, out)
+	}
+	for _, name := range []string{"Folder", "Sign in", "Project", "Link", "Rules", "Auto-update", "Bridge", "Playwright"} {
+		if !strings.Contains(out, strings.ToLower(name)) {
+			t.Errorf("folded line lacks %q:\n%s", name, out)
+		}
+		if strings.Contains(out, "· "+name+" ") {
+			t.Errorf("%s draws its own line:\n%s", name, out)
+		}
+	}
+}

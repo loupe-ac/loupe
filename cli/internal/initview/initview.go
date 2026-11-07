@@ -24,14 +24,20 @@ type Step struct {
 	Fold bool
 }
 
+// NameWidth is the width of the name column. It fits the widest step name of
+// init, so the lines of every flush align in one column.
+const NameWidth = len("Codex approval")
+
 // Writer wraps the output of init. It holds the steps that were recorded and
 // not drawn yet. Any other write flushes them first, so the order on screen
-// stays the order of the calls.
+// stays the order of the calls. The folded steps of the whole report wait for
+// Finish, which draws them on one line.
 type Writer struct {
 	out      io.Writer
 	verbose  bool
 	renderer *lipgloss.Renderer
 	pending  []Step
+	folded   []string
 }
 
 // NewWriter wraps out. It draws colour only when out is a terminal and
@@ -66,7 +72,7 @@ func (w *Writer) Record(s Step) {
 	w.pending = append(w.pending, s)
 }
 
-// Flush draws the pending steps.
+// Flush draws the pending steps. It keeps the folded steps for Finish.
 func (w *Writer) Flush() {
 	if len(w.pending) == 0 {
 		return
@@ -76,8 +82,19 @@ func (w *Writer) Flush() {
 	_, _ = io.WriteString(w.out, w.render(steps))
 }
 
-func (w *Writer) render(steps []Step) string {
+// Finish flushes the pending steps, then draws the one dimmed line of the
+// steps that were set up already.
+func (w *Writer) Finish() {
+	w.Flush()
+	if len(w.folded) == 0 {
+		return
+	}
 	dim := w.renderer.NewStyle().Faint(true)
+	_, _ = io.WriteString(w.out, dim.Render("· Already set up: "+strings.Join(w.folded, ", "))+"\n")
+	w.folded = nil
+}
+
+func (w *Writer) render(steps []Step) string {
 	good := w.renderer.NewStyle().Foreground(lipgloss.Color("2"))
 	bad := w.renderer.NewStyle().Foreground(lipgloss.Color("1"))
 	warn := w.renderer.NewStyle().Foreground(lipgloss.Color("3"))
@@ -86,25 +103,14 @@ func (w *Writer) render(steps []Step) string {
 		return w.renderVerbose(steps)
 	}
 
-	width := 0
-	var skipped []string
-	var shown []Step
+	var b strings.Builder
 	for _, s := range steps {
 		if s.Fold {
-			skipped = append(skipped, strings.ToLower(s.Name))
+			w.folded = append(w.folded, strings.ToLower(s.Name))
 
 			continue
 		}
-		shown = append(shown, s)
-		width = max(width, lipgloss.Width(s.Name))
-	}
-
-	var b strings.Builder
-	for _, s := range shown {
-		b.WriteString(mark(s.State, good, bad, warn) + " " + pad(s.Name, width) + "  " + s.Short + "\n")
-	}
-	if len(skipped) > 0 {
-		b.WriteString(dim.Render("· Already set up: "+strings.Join(skipped, ", ")) + "\n")
+		b.WriteString(mark(s.State, good, bad, warn) + " " + pad(s.Name, NameWidth) + "  " + s.Short + "\n")
 	}
 
 	return b.String()

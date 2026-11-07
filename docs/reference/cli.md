@@ -145,7 +145,7 @@ The steps, in order:
 11. Offer to start discovery, when onboarding is ready.
 12. Report what remains, and print the project link.
 
-Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step padded to the widest name, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
+Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step in one fixed-width column, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`, after the last step. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
 
 Before step 10, `loupe init` draws one table of the accounts in the rule file: account, agent and state. A failing account shows its reason in the state column and its fix on a line below the table. A failing account does not stop the agent.
 
