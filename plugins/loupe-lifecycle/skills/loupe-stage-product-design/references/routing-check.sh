@@ -17,15 +17,17 @@ rows=$(awk '
     n = split("Product design|Tech design|Implementation|Fix round|Review|Design review|Merge|Epic preview|Discovery", k, "|")
     for (i = 1; i <= n; i++) known[k[i]] = 1
   }
-  /^## / { routing = ($0 == "## Routing"); next }
+  /^## / { routing = ($0 == "## Routing"); staged = 0; next }
   /^### / {
     if (!routing) next
+    staged = 1
     h = substr($0, 5); sub(/[[:space:]]+$/, "", h)
     if (!(h in known)) { print "bad " NR ": " $0 " (unknown stage heading)"; next }
     if (h in seen) { print "bad " NR ": " $0 " (repeated stage heading)"; next }
     seen[h] = 1; next
   }
   !routing || /^[[:space:]]*$/ { next }
+  !staged { print "bad " NR ": " $0 " (before any stage heading)"; next }
   /^Load skill `[^`]+` .*[^[:space:]]\.[[:space:]]*$/ { split($0, p, "`"); print "name " p[2]; next }
   { print "bad " NR ": " $0 }
 ' "$file")

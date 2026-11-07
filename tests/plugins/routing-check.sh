@@ -27,5 +27,7 @@ check repeated-heading 1 "repeated stage heading" $'## Routing\n### Merge\nLoad 
 check heading-outside-routing 0 "" $'## Notes\n### Whatever\n## Routing\n### Review\nLoad skill `x` always.'
 check malformed-line 1 "malformed" $'## Routing\n### Review\nLoad x.'
 check missing-skill 1 "missing y" $'## Routing\n### Review\nLoad skill `y` always.'
+check line-before-heading 1 "before any stage heading" $'## Routing\nLoad skill `x` always.\n### Review\nLoad skill `x` always.'
+check prose-before-heading 1 "before any stage heading" $'## Routing\nSome prose.\n### Review\nLoad skill `x` always.'
 
 exit $fail
