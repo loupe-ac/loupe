@@ -2382,7 +2382,7 @@ func TestInitLastLinesNameOnlyWhatRemains(t *testing.T) {
 	if strings.Contains(last, "Commit and push") || strings.Contains(last, "Fix the account") || strings.Contains(last, "Restart Claude Code") {
 		t.Errorf("last lines name a step that is done:\n%s", last)
 	}
-	if !strings.Contains(last, "1. Finish the profile") {
+	if !strings.Contains(last, "1. Look for blockers") {
 		t.Errorf("last lines lack the profile step:\n%s", last)
 	}
 }

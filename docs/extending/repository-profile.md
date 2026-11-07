@@ -84,21 +84,19 @@ Write "none" for the folder check when your repository does not need it.
 
 ## Write the profile with an agent
 
-`loupe init` starts an agent that writes the profile with you, when the workflow
-of the project needs one and the file is missing, lacks a section or holds a
-line that reads "owner to fill in". The workflow template says whether it needs
-a profile: Lifecycle does, and Simple does not. `loupe init` writes no guessed
-values. A line that reads "owner to fill in" holds no value, such as the merge
-method. A stage that needs that value stops as if the section were missing. The
-`Repair` section lists each action that a repair worker may take, with its
-commands and its guards.
+`loupe init` starts an agent that looks for blockers, when the workflow of the
+project needs a profile and the file is missing. The workflow template says
+whether it needs a profile: Lifecycle does, and Simple does not. The agent writes
+nothing to `.loupe/lifecycle.md`, and `loupe init` no longer checks the file for
+sections or for a line that reads "owner to fill in". A stage that needs a
+section the file lacks stops blocked.
 
-The agent also looks for two more things. It proposes edits to instruction files
-and project skills that conflict with the Loupe workflow, and it offers to move
-open work that the repository tracks elsewhere, such as GitHub issues or a
-`docs/NEXT_STEPS.md` list, to the board. It changes nothing in your tooling or
-workflow without your approval. It asks about each edit, and about each source
-of moved work, and it closes an issue or removes a line only when you say yes.
+A blocker is a thing that makes a worker fail on its first run, or does damage.
+The list is closed: the merge question, whether Loupe can read the branch rules,
+a conflict with a workflow requirement, and a worktree hook to carry over. The
+agent asks one question per turn about a blocker. It changes nothing in your
+tooling or workflow without your approval, and it proposes each edit to an
+instruction file or a project skill on its own.
 
 To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
 of your repository. The example is for a Node project on GitHub with the
