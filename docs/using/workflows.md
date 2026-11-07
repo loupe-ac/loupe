@@ -158,7 +158,7 @@ The shipped markers are:
 | `pull-requests-closed` | Stuck | Every pull request linked to a card in Implementation closed with no merge, no worker runs and the card is not held. A reference link does not count |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
-| `waits-for-merge-approval-answer` | Needs you | A pull request waits for your answer to the merge question. It shows above `waits-for-approval` and links the inbox |
+| `waits-for-merge-approval-answer` | Needs you | A pull request waits for your answer to the merge question. It shows above `waits-for-approval` and links the inbox, or the repositories page while the inbox is off |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | A blocking inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
@@ -1372,7 +1372,8 @@ the default branch holds it. A typo in the value, or a removed key, brings the r
 `approval-check-person` does not change. A person's approval on GitHub posts the check and opens the merge in every
 case. A repository that a project claimed before this feature, through an active GitHub App installation, keeps
 merging on the agent review until `.loupe.yaml` states the setting. The `waits-for-merge-approval-answer` marker shows
-on a card in the unanswered case.
+on a card in the unanswered case. Its link opens the inbox. While the inbox is off, the link opens the repositories
+page instead, and you set `merge-approval` in `.loupe.yaml` yourself.
 
 The hold covers only a pull request into the default branch. A child pull request into its epic branch merges through
 `merge-ready-epic-child` when the agent review passes, whatever the answer. The epic pull request then carries the whole
