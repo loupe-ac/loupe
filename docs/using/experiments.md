@@ -98,8 +98,10 @@ unarchive**. Nothing changes until you select **Share and unarchive**.
 
 The page shows the project name, the name of the experiment, your note, and the
 goal, controls, guards, variants and metrics tables of the Comparison tab. It
-reads "Updated 4 min ago", because the page keeps the report for up to 15
-minutes. The owner's own page stays live.
+reads "Updated 4 min ago", because the page shows the report that a worker kept.
+A sweep refreshes the kept report every 15 minutes. When the kept report is
+older than that, or no report exists yet, the page computes it in its own
+request. The owner's own page stays live.
 
 The page has no tabs, no link to the Cards tab and no **Analyse** button. It
 shows no card, no card number you did not write in the note, no account name,
