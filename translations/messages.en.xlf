@@ -4986,101 +4986,113 @@
                 <source>landing.features.next</source>
                 <target>Next feature</target>
             </trans-unit>
-            <trans-unit id="landing.features.board.title">
-                <source>landing.features.board.title</source>
+            <trans-unit id="landing.features.index_title">
+                <source>landing.features.index_title</source>
+                <target>Features</target>
+            </trans-unit>
+            <trans-unit id="landing.features.index_lead">
+                <source>landing.features.index_lead</source>
+                <target>Everything the factory does, from the first card to the merged pull request. Pick a feature to see it in the real app.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.index_description">
+                <source>landing.features.index_description</source>
+                <target>The features of Loupe, a software factory for coding agents: board, workflow rules, sessions, document review, inbox, agent review, live review and analytics.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.board.name">
+                <source>landing.features.board.name</source>
                 <target>Board</target>
             </trans-unit>
             <trans-unit id="landing.features.board.text">
                 <source>landing.features.board.text</source>
-                <target>See every card, its stage and its state: working, waiting, stuck or needs you. Epics get their own lane, and each card links its documents and prototypes.</target>
+                <target>See every card, its stage and whether it needs you.</target>
             </trans-unit>
             <trans-unit id="landing.features.board.caption">
                 <source>landing.features.board.caption</source>
-                <target>Every card, its stage and its state at a glance.</target>
+                <target>Know which card needs you.</target>
             </trans-unit>
-            <trans-unit id="landing.features.workflow_rules.title">
-                <source>landing.features.workflow_rules.title</source>
+            <trans-unit id="landing.features.workflow_rules.name">
+                <source>landing.features.workflow_rules.name</source>
                 <target>Workflow rules</target>
             </trans-unit>
             <trans-unit id="landing.features.workflow_rules.text">
                 <source>landing.features.workflow_rules.text</source>
-                <target>Rules decide when a card moves, which work it needs and where it waits for a person.</target>
+                <target>Cards move through each stage, and wait where you decide.</target>
             </trans-unit>
             <trans-unit id="landing.features.workflow_rules.caption">
                 <source>landing.features.workflow_rules.caption</source>
-                <target>Rules move the cards and stop where a person decides.</target>
+                <target>The right agent starts at every stage.</target>
             </trans-unit>
-            <trans-unit id="landing.features.sessions.title">
-                <source>landing.features.sessions.title</source>
+            <trans-unit id="landing.features.sessions.name">
+                <source>landing.features.sessions.name</source>
                 <target>Interactive sessions</target>
             </trans-unit>
             <trans-unit id="landing.features.sessions.text">
                 <source>landing.features.sessions.text</source>
-                <target>Take the wheel on any card. Work it through with the agent, and the card carries on from there.</target>
+                <target>Work a card with your agent in your terminal, then hand it back.</target>
             </trans-unit>
             <trans-unit id="landing.features.sessions.caption">
                 <source>landing.features.sessions.caption</source>
-                <target>Work a card through with the agent, then hand it back.</target>
+                <target>Take a card into your terminal. The board keeps up.</target>
             </trans-unit>
-            <trans-unit id="landing.features.document_review.title">
-                <source>landing.features.document_review.title</source>
+            <trans-unit id="landing.features.document_review.name">
+                <source>landing.features.document_review.name</source>
                 <target>Document review</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.text">
                 <source>landing.features.document_review.text</source>
-                <target>Product and tech designs arrive rendered, after a second agent has reviewed them. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
+                <target>Comment on each design before any code starts.</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.caption">
                 <source>landing.features.document_review.caption</source>
-                <target>Select any line. Comment on it, then approve or ask for changes.</target>
+                <target>Comment on the exact passage, then approve or ask for changes.</target>
             </trans-unit>
-            <trans-unit id="landing.features.inbox.title">
-                <source>landing.features.inbox.title</source>
+            <trans-unit id="landing.features.inbox.name">
+                <source>landing.features.inbox.name</source>
                 <target>Inbox</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, run a command on your machine, or pick it up yourself. A push to your phone or laptop tells you when a blocking question opens.</target>
+                <target>Questions, reviews and to-dos from your agents, in one list.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>
-                <target>Every question from every agent, in one list.</target>
+                <target>Answer any agent from one place.</target>
             </trans-unit>
-            <trans-unit id="landing.features.agent_review.title">
-                <source>landing.features.agent_review.title</source>
+            <trans-unit id="landing.features.agent_review.name">
+                <source>landing.features.agent_review.name</source>
                 <target>Agent review</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself once the agent review passes and the checks are green.</target>
+                <target>A second agent reviews each design and pull request before you do.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
                 <target>A second agent checks the change against your design.</target>
             </trans-unit>
-            <trans-unit id="landing.features.site_review.title">
-                <source>landing.features.site_review.title</source>
+            <trans-unit id="landing.features.site_review.name">
+                <source>landing.features.site_review.name</source>
                 <target>Live review</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.text">
                 <source>landing.features.site_review.text</source>
-                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card. Review an iOS app in the simulator the same way.</target>
+                <target>Click anything on your preview app, and the note lands on the card.</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.caption">
                 <source>landing.features.site_review.caption</source>
-                <target>Click anything on your preview app. The note lands on the card.</target>
+                <target>Point at the page. The agent gets the note.</target>
             </trans-unit>
-            <trans-unit id="landing.features.analytics.title">
-                <source>landing.features.analytics.title</source>
+            <trans-unit id="landing.features.analytics.name">
+                <source>landing.features.analytics.name</source>
                 <target>Analytics</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.text">
                 <source>landing.features.analytics.text</source>
-                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments, and a period with the one before.</target>
+                <target>See what each finished card costs, and whether a change is real.</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.caption">
                 <source>landing.features.analytics.caption</source>
-                <target>See what each finished card costs, and whether a change is real or noise.</target>
+                <target>Compare models on cost, merge rate and fix rounds.</target>
             </trans-unit>
             <trans-unit id="landing.slide.board.lane.product_design">
                 <source>landing.slide.board.lane.product_design</source>

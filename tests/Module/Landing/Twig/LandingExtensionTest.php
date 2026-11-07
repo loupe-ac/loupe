@@ -60,6 +60,16 @@ final class LandingExtensionTest extends KernelTestCase
         self::assertSame($expected, '1' === $twig->createTemplate('{{ is_public_page() ? 1 : 0 }}')->render());
     }
 
+    public function test_landing_features_lists_the_eight_features(): void
+    {
+        $twig = static::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+
+        $keys = $twig->createTemplate('{% for feature in landing_features() %}{{ feature.key }},{% endfor %}')->render([]);
+
+        self::assertSame('board,workflow_rules,sessions,document_review,inbox,agent_review,site_review,analytics,', $keys);
+    }
+
     public function test_public_page_paths_lists_the_public_paths(): void
     {
         $twig = static::getContainer()->get(Environment::class);
@@ -70,6 +80,7 @@ final class LandingExtensionTest extends KernelTestCase
         $comparisons = static::getContainer()->get(ComparisonPages::class);
         self::assertInstanceOf(ComparisonPages::class, $comparisons);
         $pagePaths = array_map(static fn ($page): string => '/compare/'.$page->slug, $comparisons->all());
-        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/compare', '/faq', '/about', '/waitlist', '/login', '/register', ...$pagePaths], $paths);
+        $featurePaths = array_map(static fn (string $slug): string => '/features/'.$slug, ['board', 'workflow-rules', 'interactive-sessions', 'document-review', 'inbox', 'agent-review', 'live-review', 'analytics']);
+        self::assertSame(['/', '/privacy', '/terms', '/ai-policy', '/compare', '/features', '/faq', '/about', '/waitlist', '/login', '/register', ...$pagePaths, ...$featurePaths], $paths);
     }
 }

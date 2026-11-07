@@ -21,7 +21,7 @@
                                 data-landing-features-index-param="{{ loop.index0 }}">
                             <span class="lp-home-feature__title">
                                 <span class="lp-home-feature__icon"><twig:UX:Icon :name="feature.icon" class="w-4.5 h-4.5" aria-hidden="true" /></span>
-                                {{ ('landing.features.' ~ feature.key ~ '.title')|trans }}
+                                {{ ('landing.features.' ~ feature.key ~ '.name')|trans }}
                             </span>
                             <span class="lp-home-feature__text" data-landing-features-target="description"{{ loop.first ? '' : ' hidden' }}>{{ ('landing.features.' ~ feature.key ~ '.text')|trans }}</span>
                         </button>

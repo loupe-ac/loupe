@@ -1,0 +1,18 @@
+{% extends 'marketing_base.html.twig' %}
+
+{% block title %}{{ page.label }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block description %}{{ page.description }}{% endblock %}
+
+{% block body %}
+<article class="lp-legal">
+    <h1 class="lp-legal__title">{{ page.title }}</h1>
+    <p>{{ page.lead }}</p>
+    {% for block in page.blocks %}
+        <section>
+            <h2>{{ block.title }}</h2>
+            <p>{{ block.text }}</p>
+        </section>
+    {% endfor %}
+</article>
+{% endblock %}

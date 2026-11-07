@@ -6,6 +6,7 @@ namespace App\Tests\Module\Landing\Service;
 
 use App\Module\Account\Service\RegistrationGate;
 use App\Module\Landing\Service\ComparisonPages;
+use App\Module\Landing\Service\FeaturePages;
 use App\Module\Landing\Service\PublicPages;
 use App\Site\SiteHost;
 use App\Tests\Support\ComparisonFixtures;
@@ -14,6 +15,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class PublicPagesTest extends KernelTestCase
 {
+    private const array FEATURE_SLUGS = ['board', 'workflow-rules', 'interactive-sessions', 'document-review', 'inbox', 'agent-review', 'live-review', 'analytics'];
+
     private string $fixtures = '';
 
     #[\Override]
@@ -75,6 +78,39 @@ final class PublicPagesTest extends KernelTestCase
         self::assertSame([], array_filter($without, static fn (string $url): bool => str_contains($url, '/compare')));
     }
 
+    public function test_paths_hold_the_features_list_and_the_path_of_each_feature(): void
+    {
+        $paths = $this->publicPages('site.example')->paths();
+
+        self::assertContains('/features', $paths);
+        foreach (self::FEATURE_SLUGS as $slug) {
+            self::assertContains('/features/'.$slug, $paths);
+        }
+    }
+
+    public function test_the_features_are_public_and_site_only_routes(): void
+    {
+        $pages = $this->publicPages('site.example');
+
+        foreach (['app_features', 'app_feature'] as $route) {
+            self::assertTrue($pages->isPublic($route));
+            self::assertTrue($pages->isSiteRoute($route));
+            self::assertTrue($pages->isSiteOnlyRoute($route));
+        }
+    }
+
+    public function test_the_sitemap_names_the_features_list_and_each_feature_with_a_site_host_only(): void
+    {
+        $with = $this->publicPages('site.example')->sitemapUrls();
+        $without = $this->publicPages('')->sitemapUrls();
+
+        self::assertContains('https://site.example/features', $with);
+        foreach (self::FEATURE_SLUGS as $slug) {
+            self::assertContains('https://site.example/features/'.$slug, $with);
+        }
+        self::assertSame([], array_filter($without, static fn (string $url): bool => str_contains($url, '/features')));
+    }
+
     public function test_the_faq_is_a_public_site_only_route_and_is_in_the_sitemap_with_a_site_host_only(): void
     {
         $pages = $this->publicPages('site.example');
@@ -117,6 +153,6 @@ final class PublicPagesTest extends KernelTestCase
         self::assertInstanceOf(UrlGeneratorInterface::class, $urlGenerator);
         self::assertInstanceOf(RegistrationGate::class, $gate);
 
-        return new PublicPages($urlGenerator, $siteHost, $gate, $comparisons, 'http://localhost', '');
+        return new PublicPages($urlGenerator, $siteHost, $gate, $comparisons, new FeaturePages(\dirname(__DIR__, 4).'/src/Module/Landing/Resources/features', $siteHost, 'http://localhost'), 'http://localhost', '');
     }
 }

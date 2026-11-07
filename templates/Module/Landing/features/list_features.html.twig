@@ -1,0 +1,17 @@
+{% extends 'marketing_base.html.twig' %}
+
+{% block title %}{{ 'landing.features.index_title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block description %}{{ 'landing.features.index_description'|trans }}{% endblock %}
+
+{% block body %}
+<article class="lp-legal">
+    <h1 class="lp-legal__title">{{ 'landing.features.index_title'|trans }}</h1>
+    <p>{{ 'landing.features.index_lead'|trans }}</p>
+    <ul>
+        {% for page in pages %}
+            <li><a href="{{ path('app_feature', {slug: page.slug}) }}">{{ ('landing.features.' ~ page.key ~ '.name')|trans }}</a>: {{ ('landing.features.' ~ page.key ~ '.text')|trans }}</li>
+        {% endfor %}
+    </ul>
+</article>
+{% endblock %}

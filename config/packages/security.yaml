@@ -182,6 +182,8 @@ security:
         # The comparison pages are public marketing pages. Both routes answer 404
         # on an instance with no site host.
         - { path: ^/compare(?:/|$), roles: PUBLIC_ACCESS }
+        # The feature pages are public marketing pages and answer 404 with no site host.
+        - { path: ^/features(?:/|$), roles: PUBLIC_ACCESS }
         - { path: ^/faq$, roles: PUBLIC_ACCESS }
         # A shared graph or experiment. The code is 12 characters, and the page answers 404 for any code it does not show.
         - { path: '^/s/[a-z2-7]{12}$', roles: PUBLIC_ACCESS }
