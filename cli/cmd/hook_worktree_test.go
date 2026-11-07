@@ -159,6 +159,29 @@ func TestWorktreeRemoveSendsTheWorktreePath(t *testing.T) {
 			t.Fatalf("payload %s lacks %s", stdin, part)
 		}
 	}
+	// The hook leaves the git removal to its caller, so the adapter removes it.
+	if _, ok, err := findWorktree(context.Background(), project, "card-9"); err != nil || ok {
+		t.Fatalf("the worktree must be gone after teardown: %v %v", ok, err)
+	}
+	if _, err := os.Stat(wt); err == nil {
+		t.Fatal("the worktree folder must be gone after teardown")
+	}
+}
+
+func TestWorktreeRemoveRemovesAHookWorktreeWithNoRemoveHook(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"true"}]}]}}`)
+	wt := filepath.Join(project, ".wt", "card-4")
+	runGit(t, project, "worktree", "add", "-q", "-b", "card-4", wt)
+
+	if err := runWorktreeRemove(context.Background(), project, "card-4", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := findWorktree(context.Background(), project, "card-4"); err != nil || ok {
+		t.Fatalf("the worktree must be gone after teardown: %v %v", ok, err)
+	}
 }
 
 func TestWorktreeRemoveDoesNothingWithoutAWorktreeOrAHook(t *testing.T) {
@@ -183,6 +206,9 @@ func TestWorktreeRemoveDoesNothingWithoutAWorktreeOrAHook(t *testing.T) {
 	}
 	if _, err := os.Stat(log + ".stdin"); err == nil {
 		t.Fatal("no hook is configured")
+	}
+	if _, ok, _ := findWorktree(ctx, project, "card-3"); !ok {
+		t.Fatal("a project with no worktree hook keeps its worktree")
 	}
 }
 

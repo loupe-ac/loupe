@@ -2124,6 +2124,7 @@ projects:
     dir: ~/Code/make-plans
     work:
       implement:
+        prompt: Implement card {cardNumber}.
         before:
           run: [loupe, hook, worktree-create, "card-{cardNumber}"]
 work:
@@ -2133,6 +2134,9 @@ work:
 ```
 
 Both commands run in the project `dir` and read the settings files of that folder.
+A project entry replaces the shared entry of its kind, so it needs a `prompt`
+of its own. Copy the `prompt` and the other fields of the shared entry into it,
+then add the `before` command.
 
 - `worktree-create <name>` writes the JSON payload that Claude Code sends to
   stdin: `hook_event_name`, `cwd` and `name`. It sets `CLAUDE_PROJECT_DIR` to
@@ -2140,7 +2144,9 @@ Both commands run in the project `dir` and read the settings files of that folde
   line of the hook output, which is the folder, and sends every other output line to stderr.
 - When a linked worktree of that name already exists, `worktree-create` prints its folder and skips the hook, because a `before` command runs again on each resume.
 - `worktree-create` fails when no `WorktreeCreate` command hook exists, when the hook exits with a code that is not 0, or when it prints no folder.
-- `worktree-remove <name>` finds the folder of the worktree with `git worktree list`, and sends the payload of Claude Code: `hook_event_name`, `cwd` and `worktree_path`. It does nothing when the project has no such worktree or no `WorktreeRemove` hook.
+- `worktree-remove <name>` finds the folder of the worktree with `git worktree list`, and sends the payload of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
+- A `WorktreeRemove` hook can leave the git removal to its caller, as Claude Code removes the worktree after the hook. When the worktree is still there after the hook, `worktree-remove` runs `git worktree remove --force` and `git worktree prune`. It does the same in a project with a `WorktreeCreate` hook and no `WorktreeRemove` hook.
+- `worktree-remove` does nothing when the project has no such worktree, or has neither worktree hook.
 - The `teardown` entry sits in the shared `work` map, because a command entry cannot sit under a project. Its command does nothing in a project with no hook, so one entry serves every project.
 
 A command entry waits until a running worker of the same card ends. The bridge

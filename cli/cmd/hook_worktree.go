@@ -256,9 +256,11 @@ func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr
 	return nil
 }
 
-// runWorktreeRemove runs the WorktreeRemove hook for the worktree called name.
-// A project with no such worktree or no such hook is a success, so one shared
-// teardown entry can serve every project.
+// runWorktreeRemove runs the WorktreeRemove hook for the worktree called name,
+// then removes the worktree with git when the hook left it. A hook may leave
+// the removal to its caller, as Claude Code does it after the hook. A project
+// with no such worktree, or with neither worktree hook, is a success, so one
+// shared teardown entry can serve every project.
 func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.Writer) error {
 	if err := validWorktreeName(name); err != nil {
 		return err
@@ -274,10 +276,29 @@ func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.W
 	if err != nil {
 		return err
 	}
-	if len(hooks) == 0 {
+	creates, err := readSettingsHooks(project, hookCreateEvent)
+	if err != nil {
+		return err
+	}
+	if len(hooks) == 0 && len(creates) == 0 {
 		return nil
 	}
-	_, err = runHookCommands(ctx, project, hooks, hookPayload(hookRemoveEvent, project, map[string]string{"worktree_path": path}), stderr)
+	if len(hooks) > 0 {
+		if _, err := runHookCommands(ctx, project, hooks, hookPayload(hookRemoveEvent, project, map[string]string{"worktree_path": path}), stderr); err != nil {
+			return err
+		}
+	}
+	if _, still, err := findWorktree(ctx, project, name); err != nil || !still {
+		return err
+	}
+	for _, args := range [][]string{{"worktree", "remove", "--force", path}, {"worktree", "prune"}} {
+		c := exec.CommandContext(ctx, "git", append([]string{"-C", project}, args...)...)
+		c.Stdout = stderr
+		c.Stderr = stderr
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+		}
+	}
 
-	return err
+	return nil
 }
