@@ -191,6 +191,17 @@ return (new GamacheConfig())->registerChecks([
             'templates/Module/Billing/admin',
         ],
     ),
+    new DesignSystemPatternCheck(
+        patterns: [
+            new DesignSystemPattern(
+                'Ds:Disclosure',
+                '~<details\\b(?![^>]*\\b(?:lp-review-filter|lp-menu__more)\\b)~',
+                'hand-written closed section',
+                'templates/components/Ds/Disclosure.html.twig',
+                enforced: true,
+            ),
+        ],
+    ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),
     new XlfPluralizationCheck(),

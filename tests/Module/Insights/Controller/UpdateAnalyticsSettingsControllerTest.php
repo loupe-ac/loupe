@@ -79,6 +79,7 @@ final class UpdateAnalyticsSettingsControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('A model is one word', $crawler->filter('[data-analytics-settings-form] [data-field-errors="model"]')->text());
+        self::assertCount(1, $crawler->filter('details[data-analytics-settings-form][open]'));
         self::assertNull($this->settings($projectId));
     }
 

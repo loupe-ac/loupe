@@ -1144,7 +1144,7 @@ An interactive prompt gets none.
 | `{pullRequestNumber}` | the number of the pull request that the rule acts on, when the request opened |
 | `{pullRequestUrl}` | the link to that pull request, as the card holds it |
 | `{headSha}` | the head commit of that pull request when the request opened |
-| `{reason}` | why the pull request needs work: `conflict`, `checks-failed`, `changes-requested` or `agent-review`. For a `repair` request, the refusal code of the failed work, such as `failed` |
+| `{reason}` | why the pull request needs work: `conflict`, `checks-failed`, `changes-requested` or `agent-review`. For a `recover` request, the refusal code of the failed work, such as `failed` |
 | `{documentId}` | the id of the document that a revision works on, from the `document` parameter of the request rule |
 | `{epicBranch}` | the epic branch of the parent of the card, such as `epic/852`. Empty for a card with no epic branch |
 

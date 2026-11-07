@@ -29,7 +29,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
 | `Board` | The column slugs that a stage reads or moves a card to: product design, tech design, implementation, review, default and terminal. A missing line means `product-design`, `tech-design`, `implementation` and `in-review` | Implementation, breakdown, product design |
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
-| `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
+| `Recovery` | The actions that a recovery worker may take after a rule's work failed | Recovery |
 
 Five sections are optional. A missing optional section blocks nothing.
 
@@ -90,8 +90,11 @@ line that reads "owner to fill in". The workflow template says whether it needs
 a profile: Lifecycle does, and Simple does not. `loupe init` writes no guessed
 values. A line that reads "owner to fill in" holds no value, such as the merge
 method. A stage that needs that value stops as if the section were missing. The
-`Repair` section lists each action that a repair worker may take, with its
-commands and its guards.
+`Recovery` section lists each action that a recovery worker may take, with its
+commands and its guards. An older profile calls this section `Repair`. The
+recovery stage refuses a profile that holds `## Repair` and no `## Recovery`,
+and `loupe init` names the rename. Rename the heading to `## Recovery`, and push
+the file. The agent proposes the rename when you run `loupe init --review-profile`.
 
 The agent also looks for two more things. It proposes edits to instruction files
 and project skills that conflict with the Loupe workflow, and it offers to move
@@ -148,7 +151,7 @@ Lifecycle workflow and its default column slugs.
 2. Any approval from a person with write access counts.
 3. Merge only a pull request whose base is `main`.
 
-## Repair
+## Recovery
 
 1. The worker may reset the card branch to its base, when the branch holds no commit that the base lacks.
 2. The worker never pushes to `main`, and never force-pushes.

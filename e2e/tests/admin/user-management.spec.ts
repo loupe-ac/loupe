@@ -68,7 +68,7 @@ async function openVictimDetail(admin: Page): Promise<void> {
 }
 
 /**
- * Waits for the disclosure panel to stop moving.
+ * Waits for the disclosure panel to stop moving: its height stays the same for three frames.
  *
  * Playwright issues pointer move, press and release together and hit-tests
  * only the first, so anything that shifts the button between press and release
@@ -77,12 +77,17 @@ async function openVictimDetail(admin: Page): Promise<void> {
  */
 async function settlePanel(admin: Page): Promise<void> {
     await admin
-        .locator('[data-disclosure-target="content"]')
+        .locator('.lp-disclosure[open] > .lp-disclosure__body')
         .first()
         .evaluate(async (panel) => {
-            await Promise.all(
-                panel.getAnimations().map((a) => a.finished.catch(() => {})),
-            );
+            let previous = -1;
+            let steady = 0;
+            while (steady < 3) {
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                const height = panel.getBoundingClientRect().height;
+                steady = height === previous ? steady + 1 : 0;
+                previous = height;
+            }
         });
 }
 

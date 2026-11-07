@@ -1763,10 +1763,7 @@
     @apply mt-10 pt-5 border-t border-line text-sm text-fg;
 }
 .lp-agent-review__line {
-    @apply flex flex-wrap items-center gap-3 cursor-pointer list-none;
-}
-.lp-agent-review__line::-webkit-details-marker {
-    @apply hidden;
+    @apply flex flex-1 flex-wrap items-center gap-3;
 }
 .lp-agent-review__chip {
     @apply ml-0;
@@ -1776,12 +1773,6 @@
 }
 .lp-agent-review__toggle {
     @apply ml-auto;
-}
-.lp-agent-review__chevron {
-    @apply transition-transform;
-}
-.lp-agent-review__details[open] .lp-agent-review__chevron {
-    @apply rotate-90;
 }
 .lp-agent-review__rounds {
     @apply mt-4 flex flex-col gap-2;
@@ -4930,15 +4921,6 @@
     .lp-site-review-selector {
         @apply min-w-0 max-w-full;
     }
-    .lp-site-review-selector__summary {
-        @apply inline-flex items-center gap-1.5 text-fg-dim transition-colors cursor-pointer list-none hover:text-fg;
-    }
-    .lp-site-review-selector__summary::-webkit-details-marker {
-        display: none;
-    }
-    .lp-site-review-selector__content {
-        @apply overflow-hidden rounded-md bg-surface-3 text-fg-mute break-all mt-1.5 py-1.5 px-2.5;
-    }
     .lp-feedback-screenshot__trigger {
         @apply block max-w-48 cursor-zoom-in overflow-hidden rounded-md border border-line bg-surface-3 p-0 mb-2;
     }
@@ -5479,21 +5461,8 @@
     /* Agent tools — hairline divider list: mono accent-soft pill + description. */
     /* Behind a disclosure: an agent's capabilities are worth being able to read,
        and are not what anyone came to this page to do. */
-    .lp-tools-disclosure {
-        @apply flex flex-col;
-    }
-    .lp-tools-disclosure__summary {
-        @apply inline-flex items-center gap-2 self-start cursor-pointer text-sm font-semibold text-accent-ink;
-        list-style: none;
-    }
-    .lp-tools-disclosure__summary::-webkit-details-marker {
-        display: none;
-    }
-    .lp-tools-disclosure__caret {
-        @apply w-3.5 h-3.5 shrink-0 transition-transform duration-100;
-    }
-    .lp-tools-disclosure[data-expanded='true'] .lp-tools-disclosure__caret {
-        @apply rotate-90;
+    .lp-tools-disclosure > .lp-disclosure__summary {
+        @apply gap-2 text-sm font-semibold text-accent-ink;
     }
     .lp-tools {
         @apply flex flex-col overflow-hidden pt-2;
@@ -5516,12 +5485,8 @@
     .lp-install {
         @apply rounded-xl bg-app overflow-hidden;
     }
-    .lp-install__summary {
-        @apply flex items-center gap-3 cursor-pointer py-3.5 px-4 transition-colors hover:bg-surface-3;
-        list-style: none;
-    }
-    .lp-install__summary::-webkit-details-marker {
-        display: none;
+    .lp-install > .lp-disclosure__summary {
+        @apply gap-3 py-3.5 px-4 rounded-none transition-colors hover:bg-surface-3;
     }
     .lp-install__glyph {
         @apply shrink-0 text-fg-mute;
@@ -5535,13 +5500,7 @@
     .lp-install__sub {
         @apply text-xs text-fg-mute;
     }
-    .lp-install__caret {
-        @apply w-4 h-4 shrink-0 text-fg-mute transition-transform duration-100;
-    }
-    .lp-install[open] .lp-install__caret {
-        @apply rotate-90;
-    }
-    .lp-install__body {
+    .lp-install > .lp-disclosure__body {
         @apply flex flex-col gap-2.5 px-4 pb-4;
     }
 
@@ -5862,7 +5821,7 @@
 
     /* ── Admin action rows (reversible operations) ──────────────────── */
 
-    /* One entry in an action list. Also used on a <details> whose <summary> is
+    /* One entry in an action list. Also used on a disclosure whose summary holds
        the row, so the rule must sit on the wrapper rather than the row itself. */
     .admin-action-item {
         @apply py-4 border-b border-line last:border-b-0 last:pb-0 first:pt-0;
@@ -5872,14 +5831,6 @@
         @apply flex items-start gap-4;
     }
 
-    /* The row doubles as the disclosure trigger; the default marker would sit
-       in front of the title. */
-    summary.admin-action-row {
-        @apply list-none cursor-pointer;
-    }
-    summary.admin-action-row::-webkit-details-marker {
-        @apply hidden;
-    }
     /* A row in a right-aligned table cell, such as an action column. */
     .admin-action-row--end {
         @apply justify-end;
@@ -7572,31 +7523,19 @@
     .lp-artifact-menu__icon {
         @apply size-4 shrink-0 text-fg-dim;
     }
-    .lp-artifact-menu__heading {
+    .lp-artifact-menu__heading,
+    .lp-artifact-menu__section > .lp-disclosure__summary {
         @apply m-0 mb-1 border-b border-line px-2.5 pt-1.5 pb-2 text-xs font-semibold tracking-wider text-fg-mute uppercase;
     }
     .lp-artifact-menu__section {
         @apply mt-2;
     }
-    /* A heading that opens its section, with a caret that turns when open. */
-    .lp-artifact-menu__toggle {
-        @apply flex cursor-pointer list-none items-center justify-between gap-2 border-transparent transition-colors hover:text-ink;
+    /* A heading that opens its section: the caret turns when open. */
+    .lp-artifact-menu__section > .lp-disclosure__summary {
+        @apply justify-between gap-2 border-transparent transition-colors hover:text-ink;
     }
-    .lp-artifact-menu__toggle::-webkit-details-marker {
-        display: none;
-    }
-    .lp-artifact-menu__section[data-expanded='true']
-        > .lp-artifact-menu__toggle {
+    .lp-artifact-menu__section[open] > .lp-disclosure__summary {
         @apply border-line;
-    }
-    .lp-artifact-menu__caret {
-        @apply size-3.5 transition-transform;
-    }
-    .lp-artifact-menu__section[data-expanded='true'] .lp-artifact-menu__caret {
-        @apply rotate-90;
-    }
-    .lp-artifact-menu__disclosure {
-        @apply overflow-hidden pt-1;
     }
     .lp-artifact-menu__number {
         @apply shrink-0 font-mono text-xs font-semibold text-fg-dim;
@@ -7687,11 +7626,8 @@
     .lp-reports-form__fields {
         @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3;
     }
-    .lp-reports-settings__summary {
-        @apply cursor-pointer font-display text-lg font-bold tracking-tight text-ink;
-    }
-    .lp-reports-settings[open] > .lp-reports-settings__summary {
-        @apply mb-3;
+    .lp-reports-settings > .lp-disclosure__summary {
+        @apply font-display text-lg font-bold tracking-tight text-ink;
     }
     .lp-reports-list {
         @apply mt-6 flex list-none flex-col gap-3 p-0;
@@ -8853,22 +8789,11 @@
     .lp-connect-other {
         @apply border-t border-line pt-3 text-sm;
     }
-    .lp-connect-other__summary {
-        @apply inline-flex items-center gap-2 cursor-pointer text-fg-mute transition-colors hover:text-ink;
-        list-style: none;
+    .lp-connect-other > .lp-disclosure__summary {
+        @apply gap-2 text-fg-mute transition-colors hover:text-ink;
     }
-    .lp-connect-other__summary::-webkit-details-marker {
-        display: none;
-    }
-    .lp-connect-other__caret {
-        @apply shrink-0 transition-transform duration-200;
-    }
-    .lp-connect-other[data-expanded='true'] .lp-connect-other__caret {
-        @apply rotate-90;
-    }
-    /* The disclosure controller animates the height, so the gap sits inside the clipped body. */
-    .lp-connect-other__body {
-        @apply flex flex-col gap-4 overflow-hidden pt-4;
+    .lp-connect-other > .lp-disclosure__body {
+        @apply flex flex-col gap-4;
     }
     .lp-panel .lp-form {
         @apply mt-6;

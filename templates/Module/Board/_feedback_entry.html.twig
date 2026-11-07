@@ -22,8 +22,8 @@
                 </twig:Ds:Dialog>
             </div>
         {% endif %}
-        <details class="lp-site-review-selector">
-            <summary>{{ 'site_review.feedback.captured_elements'|trans }}</summary>
+        <twig:Ds:Disclosure class="lp-site-review-selector">
+            <twig:block name="summary">{{ 'site_review.feedback.captured_elements'|trans }}</twig:block>
             {% if native is not null %}
                 {% set app = [native.app.name ?? null, native.app.bundleId ?? null]|filter(part => part is not empty)|join(' / ') %}
                 {% set facts = {
@@ -46,7 +46,7 @@
                     <code>{{ anchor.selector }}</code>
                 {% else %}<p>{{ 'site_review.comment.general_page'|trans }}</p>{% endfor %}
             {% endif %}
-        </details>
+        </twig:Ds:Disclosure>
         <div class="lp-feedback-detail__actions">
             {% if link.comment.status.value != 'resolved' and is_granted(constant('App\\Module\\Board\\Security\\CardFeedbackVoter::RESOLVE'), link) %}
                 <twig:Ds:ActionForm :action="path('app_card_feedback_resolve', {id: link.id, surface: surface})" token="site-review-comment-action">

@@ -42,7 +42,7 @@ A section starts with a `##` heading of the exact name and holds a numbered list
 | `Pull request` | yes | Draft or ready, the title format, the body rules, the branch pattern | The contribution guide and the history of merged pull requests |
 | `Board` | yes | The column slugs a stage reads or moves a card to | `workflow_get` |
 | `Merge` | yes | The merge method, the approver whose approval counts, the base branches that may merge | The rules of the base branch |
-| `Repair` | yes | The actions a repair worker may take | The tooling of the repository |
+| `Recovery` | yes | The actions a recovery worker may take | The tooling of the repository |
 | `Changelog` | no | The changelog file and its check, or "none" | The repository |
 | `Forge` | no | The forge name, only when the remote host does not show it | The remote |
 | `Epics` | no | The epic branch pattern, the merge method of a child, the epic preview | `workflow_get` |
@@ -89,6 +89,7 @@ This step asks the owner nothing and stores nothing. Loupe keeps no merge approv
 3. Ask the owner to approve each entry on its own. Never ask for one approval for the whole list.
 4. Apply the approved entries only. Get them to the remote as rule 6 says.
 5. Name every entry the owner declined in the report. Never apply it later.
+6. When the profile holds the heading `## Repair` and no `## Recovery`, add the entry "Rename `## Repair` to `## Recovery`". The old name is the recovery worker of earlier versions. Change nothing else in that section. The recovery stage refuses a profile that still says `## Repair`.
 
 ## Moved work
 
