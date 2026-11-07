@@ -145,7 +145,9 @@ The steps, in order:
 11. Offer to start discovery, when onboarding is ready.
 12. Report what remains, and print the project link.
 
-Before step 10, `loupe init` prints each account of the rule file as ready, or prints each failure with its project, reason and fix. A failing account does not stop the agent.
+Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step in one fixed-width column, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`, after the last step. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
+
+Before step 10, `loupe init` draws one table of the accounts in the rule file: account, agent and state. A failing account shows its reason in the state column and its fix on a line below the table. A failing account does not stop the agent.
 
 Step 11 asks `Start discovery now? It runs a worker that checks the repository and lists what remains.` It asks only when all of these hold:
 
@@ -172,6 +174,7 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
 | `--agent` | The agent that writes the profile: `claude` or `codex`. With both installed and a terminal, `loupe init` asks once |
+| `--verbose` | Print one line for each step, `<Step>: <state>, <reason>.`, with the full reason and no mark. Scripts read this form |
 | `--review-profile` | Start the profile agent also when `.loupe/lifecycle.md` is complete, to review each value |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
