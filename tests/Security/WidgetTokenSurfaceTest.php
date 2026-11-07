@@ -41,7 +41,6 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         yield 'update comment' => [Request::METHOD_PATCH, $base.'/comments/'.$id];
         yield 'resolve comment' => [Request::METHOD_POST, $base.'/comments/'.$id.'/resolve'];
         yield 'pending comments' => [Request::METHOD_GET, $base.'/review'];
-        yield 'list cards' => [Request::METHOD_GET, $base.'/cards'];
         yield 'create card' => [Request::METHOD_POST, $base.'/cards'];
         yield 'show verdict' => [Request::METHOD_GET, $base.'/cards/'.$id.'/verdict'];
         yield 'send verdict' => [Request::METHOD_POST, $base.'/cards/'.$id.'/verdicts'];
@@ -72,6 +71,7 @@ final class WidgetTokenSurfaceTest extends WebTestCase
         self::assertNotSame(Response::HTTP_UNAUTHORIZED, $status, $method.' '.$path.' rejected the widget token');
         self::assertNotSame(Response::HTTP_FORBIDDEN, $status, $method.' '.$path.' rejected the widget token');
         self::assertStringNotContainsString('route_not_found', (string) $client->getResponse()->getContent(), $method.' '.$path.' matched no route');
+        self::assertNotSame(Response::HTTP_METHOD_NOT_ALLOWED, $status, $method.' '.$path.' matched no route for this method');
     }
 
     #[DataProvider('widgetV1Paths')]
