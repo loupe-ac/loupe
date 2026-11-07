@@ -6,6 +6,7 @@ import {
     bootWidget,
     hostCount,
     modeKeyFor,
+    oldModeKeyFor,
     ok,
     openPanel,
     panelRoot,
@@ -138,7 +139,11 @@ describe('the mode', () => {
         expect(root.getElementById('lp-save').disabled).toBe(true);
         await chooseMode(root, 'per-note');
 
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
         expect(viewOf(root)).not.toBe('destination');
         expect(root.getElementById('lp-textarea').value).toBe(
             'The hero image is blurry',
@@ -286,39 +291,6 @@ describe('the mode', () => {
         expect(savedNotice()).toBe('Note saved to #3 Review: /');
     });
 
-    it('epic mode checks an epic and puts each note under it', async () => {
-        const fetchMock = bootWidget({
-            mode: { mode: 'epic', cardId: CARD },
-            respond: (url, init) =>
-                init.method === 'POST'
-                    ? ok({
-                          commentId: 'c1',
-                          cardId: 'x',
-                          number: 9,
-                          label: '#9 Spacing',
-                          url: null,
-                      })
-                    : ok({
-                          comments: [],
-                          context: { label: '#2 Launch review', url: null },
-                      }),
-        });
-        await settle();
-
-        expect(fetchMock.mock.calls[0][0]).toContain(
-            encodeURIComponent(`epic:${CARD}`),
-        );
-        const root = openNote();
-        expect(targetText(root)).toBe('a new card under #2');
-        await write(root, 'Spacing');
-        root.getElementById('lp-save').click();
-        await settle();
-
-        expect(feedbackSave(fetchMock).target).toEqual({
-            newCard: { parentCardId: CARD },
-        });
-    });
-
     it('is asked for again when the boot load refuses the stored card', async () => {
         bootWidget({
             mode: { mode: 'per-review', cardId: CARD },
@@ -442,10 +414,9 @@ describe('the mode picker', () => {
         root.getElementById('lp-context').querySelector('button').click();
         await settle();
         root.querySelector('[data-mode="per-review"]').click();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
         await settle();
 
-        root.getElementById('lp-picker-search').dispatchEvent(
+        root.getElementById('lp-picker-title').dispatchEvent(
             new KeyboardEvent('keydown', {
                 key: 'Escape',
                 bubbles: true,
@@ -459,7 +430,7 @@ describe('the mode picker', () => {
         expect(root.getElementById('lp-textarea').value).toBe(
             'Do not lose this',
         );
-        // Reopening starts from the stored choice, not from the card search.
+        // Reopening starts from the stored choice.
         root.getElementById('lp-context').querySelector('button').click();
         await settle();
         expect(root.getElementById('lp-dest-per-note').checked).toBe(true);
@@ -490,46 +461,13 @@ describe('the mode picker', () => {
         answerBoot(ok({ comments: [], context: null }));
         await settle();
 
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
         expect(targetText(root)).toBe('a new card');
         expect(viewOf(root)).not.toBe('destination');
-    });
-
-    it('picks an existing card on a row and confirms it with Save', async () => {
-        bootWidget({
-            respond: (url) =>
-                url.includes('/api/v1/live-review-widget/cards')
-                    ? ok({
-                          cards: [
-                              { cardId: CARD, number: 9, title: 'Pricing' },
-                          ],
-                      })
-                    : ok({
-                          comments: [],
-                          context: { label: '#9 Pricing', url: null },
-                      }),
-        });
-        await settle();
-
-        const root = openNote();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
-        await settle();
-        const save = root.getElementById('lp-destination-save');
-        expect(save.textContent).toBe('Start reviewing');
-        expect(save.disabled).toBe(true);
-
-        root.querySelector('.lp-picker-row').click();
-        await settle();
-        expect(save.disabled).toBe(false);
-        expect(storedMode()).toBeNull();
-
-        save.click();
-        await settle();
-        expect(storedMode()).toMatchObject({
-            mode: 'per-review',
-            cardId: CARD,
-        });
-        expect(viewOf(root)).toBe('compose');
     });
 
     it('keeps Save note off until the note has text', async () => {
@@ -545,107 +483,6 @@ describe('the mode picker', () => {
         expect(save.disabled).toBe(true);
         await write(root, 'Now it has text');
         expect(save.disabled).toBe(false);
-    });
-
-    describe('the mode under a card that can have children', () => {
-        const EPIC_ROW = '[data-mode="epic"]';
-
-        /** Boots with the given grouping types and opens the picker in that mode. */
-        async function openEpicPicker(parentTypes, calls = []) {
-            const fetchMock = bootWidget({
-                respond: (url, init) => {
-                    calls.push([url, init]);
-
-                    return init.method === 'POST'
-                        ? ok({
-                              cardId: 'c1',
-                              number: 9,
-                              label: '#9 Q4',
-                              url: null,
-                          })
-                        : url.includes('/api/v1/live-review-widget/cards')
-                          ? ok({ cards: [] })
-                          : ok({ comments: [], context: null, parentTypes });
-                },
-            });
-            await settle();
-            const root = openNote();
-            root.querySelector(EPIC_ROW).click();
-            await settle();
-            // The epic is the next step of the view.
-            root.getElementById('lp-destination-save').click();
-            await settle();
-
-            return { root, fetchMock };
-        }
-
-        const created = (fetchMock) =>
-            JSON.parse(
-                fetchMock.mock.calls.find(
-                    ([url, init]) =>
-                        url.endsWith('/api/v1/live-review-widget/cards') &&
-                        init.method === 'POST',
-                )[1].body,
-            );
-
-        it('hides the mode when no type can have children', async () => {
-            bootWidget({
-                respond: () =>
-                    ok({ comments: [], context: null, parentTypes: [] }),
-            });
-            await settle();
-
-            expect(openNote().querySelector(EPIC_ROW).style.display).toBe(
-                'none',
-            );
-        });
-
-        it('asks for the capability and shows no selector for one type', async () => {
-            const { root, fetchMock } = await openEpicPicker([
-                { key: 'epic', label: 'Epic' },
-            ]);
-            root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
-            await settle();
-
-            expect(
-                fetchMock.mock.calls.some(([url]) =>
-                    url.includes('/api/v1/live-review-widget/cards?parent=1'),
-                ),
-            ).toBe(true);
-            expect(root.getElementById('lp-picker-type').style.display).toBe(
-                'none',
-            );
-            root.querySelector('#lp-picker-seg [data-sub="new"]').click();
-            root.getElementById('lp-destination-save').click();
-            await settle();
-            expect(created(fetchMock)).toEqual({
-                title: expect.any(String),
-                parent: true,
-            });
-        });
-
-        it('sends the type the reviewer chose from the selector', async () => {
-            const { root, fetchMock } = await openEpicPicker([
-                { key: 'initiative', label: 'Initiative' },
-                { key: 'epic', label: 'Epic' },
-            ]);
-
-            const select = root.getElementById('lp-picker-type');
-            expect(select.style.display).toBe('');
-            expect([...select.options].map((o) => o.textContent)).toEqual([
-                'Initiative',
-                'Epic',
-            ]);
-            expect(select.value).toBe('initiative');
-            select.value = 'epic';
-            root.getElementById('lp-destination-save').click();
-            await settle();
-
-            expect(created(fetchMock)).toMatchObject({
-                parent: true,
-                type: 'epic',
-            });
-        });
     });
 });
 
@@ -683,7 +520,11 @@ describe('a preview page that names its card', () => {
         expect(feedbackSave(fetchMock).target).toEqual({ cardId: CARD });
         expect(feedbackSave(fetchMock).context).toBe(`card:${CARD}`);
         // The lock belongs to this page. The reviewer's own choice stays.
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
     });
 
     it('says so, and refuses notes, when that card is closed or gone', async () => {
@@ -900,6 +741,57 @@ describe('the note and header menus', () => {
     });
 });
 
+describe('the stored destination', () => {
+    it('keeps a per-note choice from the old key and removes the old key', async () => {
+        window.localStorage.setItem(
+            oldModeKeyFor(),
+            JSON.stringify({ mode: 'per-note', cardId: null }),
+        );
+        bootWidget({ respond: () => ok({ comments: [], context: null }) });
+        await settle();
+
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
+        expect(window.localStorage.getItem(oldModeKeyFor())).toBeNull();
+        expect(targetText(openNote())).toBe('a new card');
+    });
+
+    it.each(['per-review', 'epic'])(
+        'drops a %s choice from the old key and asks again',
+        async (mode) => {
+            window.localStorage.setItem(
+                oldModeKeyFor(),
+                JSON.stringify({ mode, cardId: CARD }),
+            );
+            bootWidget({ respond: () => ok({ comments: [], context: null }) });
+            await settle();
+
+            expect(storedMode()).toBeNull();
+            expect(window.localStorage.getItem(oldModeKeyFor())).toBeNull();
+            openNote();
+            expect(viewOf(panelRoot())).toBe('destination');
+        },
+    );
+
+    it('offers two modes and no epic, search or type select', async () => {
+        bootWidget({ respond: () => ok({ comments: [], context: null }) });
+        await settle();
+
+        const root = openNote();
+        expect(
+            [...root.querySelectorAll('#lp-picker-modes [data-mode]')].map(
+                (option) => option.dataset.mode,
+            ),
+        ).toEqual(['per-review', 'per-note']);
+        expect(root.getElementById('lp-picker-search')).toBeNull();
+        expect(root.getElementById('lp-picker-type')).toBeNull();
+        expect(root.querySelector('#lp-picker-seg')).toBeNull();
+    });
+});
+
 describe('a token revoked while the picker is open', () => {
     it('shows the critical panel rather than a stuck Loading', async () => {
         const fetchMock = bootWidget({
@@ -914,7 +806,8 @@ describe('a token revoked while the picker is open', () => {
             rejected(403, { error: 'token_not_bound_to_site' }),
         );
         root.querySelector('[data-mode="per-review"]').click();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
+        await settle();
+        root.getElementById('lp-destination-save').click();
         await settle();
 
         expect(root.getElementById('lp-fatal').style.display).not.toBe('none');
@@ -1598,16 +1491,6 @@ describe('the scope of the list request', () => {
         await settle();
 
         expect(listRequest(fetchMock).scope).toBe(`card:${CARD}`);
-    });
-
-    it('names the epic of an epic review', async () => {
-        const fetchMock = bootWidget({
-            mode: { mode: 'epic', cardId: CARD },
-            respond: () => ok({ comments: [], context: null }),
-        });
-        await settle();
-
-        expect(listRequest(fetchMock).scope).toBe(`epic:${CARD}`);
     });
 
     it('lists the newest 50 cards of a tab in a per-note review', async () => {

@@ -493,10 +493,10 @@ test('one card per review is chosen once and remembered after a reload', async (
     // No choice yet, so the modes come before the first note can be written.
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    // One card for this review is the choice the view opens on, and its title
+    // One new card for this review is the choice the view opens on, and its title
     // takes the focus.
     await expect(
-        picker.getByRole('radio', { name: 'One card for this review' }),
+        picker.getByRole('radio', { name: 'One new card for this review' }),
     ).toBeChecked();
     await expect(picker.getByLabel('Card title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
@@ -581,94 +581,22 @@ test('the mode comes before the first pick', async ({ page }) => {
     await expect(picker).toBeHidden();
 });
 
-test('epic mode files each note as a card under the epic', async ({ page }) => {
-    await openHarness(page, null);
-    await openNoteOverDestination(page);
-    const picker = page.locator('#lp-picker');
-    await chooseMode(page, 'A card for each note, under an epic');
-    // The epic is the next step, so the modes view holds no epic controls.
-    await expect(picker.getByLabel('Epic title')).toBeHidden();
-    const save = page.locator('#lp-destination-save');
-    await expect(save).toHaveText('Next');
-    await save.click();
-    await expect(page.locator('#lp-destination-title')).toHaveText(
-        'Pick or create an epic',
-    );
-    await expect(
-        picker.getByRole('radio', { name: 'A new card for each note' }),
-    ).toBeHidden();
-    await expect(picker.getByLabel('Epic title')).toBeFocused();
-
-    // Back returns to the modes with the epic choice kept.
-    await page.locator('#lp-destination-back').click();
-    await expect(
-        picker.getByRole('radio', {
-            name: 'A card for each note, under an epic',
-        }),
-    ).toBeChecked();
-    await save.click();
-    await expect(picker.getByLabel('Epic title')).toHaveValue(
-        HARNESS_REVIEW_TITLE,
-    );
-    const [created] = await Promise.all([
-        page.waitForResponse(
-            (response) =>
-                response.url().endsWith('/api/v1/live-review-widget/cards') &&
-                response.request().method() === 'POST',
-        ),
-        page.locator('#lp-destination-save').click(),
-    ]);
-    const epic = await created.json();
-    await fillNote(page, 'The pricing table overflows');
-    await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
-        `a new card under ${cardNumber(epic.label)}`,
-    );
-
-    expect(await nextSaveTarget(page)).toEqual({
-        newCard: { parentCardId: epic.cardId },
-    });
-    await expect(page.locator('#lp-saved')).toContainText(
-        'The pricing table overflows',
-    );
-});
-
-test('epic mode shows a type selector when the template has two grouping types', async ({
+test('the destination view offers two modes and no epic or card search', async ({
     page,
 }) => {
-    // Both shipped templates declare one grouping type, so the start request
-    // is rewritten to name two. The server still holds the real template.
-    await page.route('**/api/v1/live-review-widget/review*', async (route) => {
-        const response = await route.fetch();
-        const payload = await response.json();
-        payload.parentTypes = [
-            { key: 'initiative', label: 'Initiative' },
-            { key: 'epic', label: 'Epic' },
-        ];
-        await route.fulfill({ response, json: payload });
-    });
     await openHarness(page, null);
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    await chooseMode(page, 'A card for each note, under an epic');
-    await page.locator('#lp-destination-save').click();
-
-    const selector = picker.getByLabel('Type', { exact: true });
-    await expect(selector.locator('option')).toHaveText(['Initiative', 'Epic']);
-    await selector.selectOption('epic');
-    const [created] = await Promise.all([
-        page.waitForResponse(
-            (response) =>
-                response.url().endsWith('/api/v1/live-review-widget/cards') &&
-                response.request().method() === 'POST',
-        ),
-        page.locator('#lp-destination-save').click(),
-    ]);
-
-    expect(created.status()).toBe(201);
-    expect(created.request().postDataJSON()).toMatchObject({
-        parent: true,
-        type: 'epic',
-    });
+    await expect(picker.getByRole('radio')).toHaveCount(2);
+    await expect(
+        picker.getByRole('radio', { name: 'One new card for this review' }),
+    ).toBeVisible();
+    await expect(
+        picker.getByRole('radio', { name: 'A new card for each note' }),
+    ).toBeVisible();
+    await expect(picker.getByText('Existing card')).toHaveCount(0);
+    await expect(picker.getByLabel('Search cards')).toHaveCount(0);
+    await expect(picker.getByLabel('Type', { exact: true })).toHaveCount(0);
 });
 
 test('a keep=1 reload rehydrates the live comments into pins and list', async ({
@@ -4329,19 +4257,6 @@ test('a one-card review lists the notes of that card', async ({ page }) => {
     });
 });
 
-test('an epic review lists the notes on every card under the epic', async ({
-    page,
-}) => {
-    await registerUser(page, { mode: 'epic', cardId: REVIEW_CARD });
-    const requests = recordListRequests(page);
-    await gotoHarness(page, harnessUrl());
-
-    expect(requests[0]).toEqual({
-        scope: `epic:${REVIEW_CARD}`,
-        context: `epic:${REVIEW_CARD}`,
-    });
-});
-
 test('a card per note lists the cards this tab made, and a new destination clears them', async ({
     page,
 }) => {
@@ -4387,7 +4302,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     // Another destination is another list: the old cards go, and the
     // request names the new destination.
     await page.locator('#lp-dest').click();
-    await chooseMode(page, 'One card for this review');
+    await chooseMode(page, 'One new card for this review');
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>

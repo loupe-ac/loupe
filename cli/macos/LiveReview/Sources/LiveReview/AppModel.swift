@@ -29,8 +29,6 @@ final class AppModel: ObservableObject {
     private var statusInFlight = false
     private var signInShownAt: Date?
     private var notesRequest = LatestRequest()
-    private var destinationsRequest = LatestRequest()
-    private var searchRequest = LatestRequest()
 
     @Published var trusted = AXIsProcessTrusted()
     @Published var auth: Auth = .checking
@@ -39,11 +37,6 @@ final class AppModel: ObservableObject {
     var project: String? { selection.id }
     @Published var projects: [Project] = []
     @Published var destination: Destination = .reviewCard
-    @Published var targets: [TargetCard] = []
-    @Published var parents: [TargetCard] = []
-    @Published private var chosenParent: TargetCard?
-    @Published var searchResults: [TargetCard] = []
-    @Published var searching = false
     @Published var openNotes: [OpenNote] = []
     @Published var located: Located?
     @Published var mode: Mode = .pick { didSet { modeChanged() } }
@@ -131,7 +124,7 @@ final class AppModel: ObservableObject {
     private func signedIn() {
         auth = .ready
         authError = nil
-        if project == nil { loadProjects() } else { loadDestinations() }
+        if project == nil { loadProjects() } else { loadOpenNotes() }
     }
 
     private func loadProjects() {
@@ -148,21 +141,6 @@ final class AppModel: ObservableObject {
         guard selection.choose(id) else { return }
         preference.remember(id, for: options.folder)
         destination = .reviewCard
-        loadDestinations()
-    }
-
-    func loadDestinations() {
-        guard let project else { return }
-        let token = destinationsRequest.begin()
-        Task {
-            let cards = (try? await client.targets(project: project)) ?? []
-            let epics = (try? await client.targets(project: project, parentsOnly: true)) ?? []
-            await MainActor.run {
-                guard self.destinationsRequest.isCurrent(token) else { return }
-                self.targets = cards
-                self.parents = epics
-            }
-        }
         loadOpenNotes()
     }
 
@@ -178,32 +156,6 @@ final class AppModel: ObservableObject {
             let list = (try? await client.notes(project: project, cardId: id)) ?? []
             await MainActor.run { if self.notesRequest.isCurrent(token) { self.openNotes = list } }
         }
-    }
-
-    /// The menu lists the first cards only, so a search reaches every card of the project.
-    func search(_ query: String, parentsOnly: Bool) async {
-        guard let project else { return }
-        let token = await MainActor.run { () -> Int in
-            self.searching = true
-            return self.searchRequest.begin()
-        }
-        let cards = (try? await client.targets(project: project, query: query, parentsOnly: parentsOnly)) ?? []
-        await MainActor.run {
-            guard self.searchRequest.isCurrent(token) else { return }
-            self.searchResults = cards
-            self.searching = false
-        }
-    }
-
-    func clearSearch() {
-        searchRequest.cancel()
-        searchResults = []
-        searching = false
-    }
-
-    func choose(parent card: TargetCard) {
-        chosenParent = card
-        choose(destination: .eachNote(parentId: card.id))
     }
 
     func choose(destination next: Destination) {
@@ -493,11 +445,8 @@ final class AppModel: ObservableObject {
     var destinationLabel: String {
         switch destination {
         case let .card(_, label): return label
-        case .reviewCard: return "One card for this review"
-        case .eachNote(nil): return "A new card for each note"
-        case let .eachNote(parentId?):
-            let label = chosenParent?.id == parentId ? chosenParent?.label : parents.first { $0.id == parentId }?.label
-            return "A card for each note under \(label ?? "an epic")"
+        case .reviewCard: return "One new card for this review"
+        case .eachNote: return "A new card for each note"
         }
     }
 

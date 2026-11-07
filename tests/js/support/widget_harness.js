@@ -12,8 +12,13 @@ export function storageKeyFor(project) {
     return `loupe-site-review:oauth:${BACKEND}:${project}`;
 }
 
-/** Where the widget keeps the mode it sends notes with. */
+/** Where the widget keeps the destination it sends notes to. */
 export function modeKeyFor(project = PROJECT) {
+    return `loupe-site-review:destination:v2:${BACKEND}:${project}`;
+}
+
+/** Where the first stored shape of the destination lived. */
+export function oldModeKeyFor(project = PROJECT) {
     return `loupe-site-review:mode:${BACKEND}:${project}`;
 }
 

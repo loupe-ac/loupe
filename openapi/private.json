@@ -314,125 +314,6 @@
             }
         },
         "/api/v1/live-review-widget/cards": {
-            "get": {
-                "tags": [
-                    "Widget"
-                ],
-                "summary": "List the open cards for the widget picker",
-                "operationId": "listWidgetCards",
-                "parameters": [
-                    {
-                        "name": "X-Loupe-Project",
-                        "in": "header",
-                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
-                    {
-                        "name": "q",
-                        "in": "query",
-                        "description": "Words to search for.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "type",
-                        "in": "query",
-                        "description": "A type key. An unknown key means every type.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "parent",
-                        "in": "query",
-                        "description": "True lists cards of types that can have children.",
-                        "schema": {
-                            "type": "boolean"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "At most 20 cards.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PickerCards"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Refused: `invalid_credentials`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "402": {
-                        "description": "Refused: `subscription_required`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Refused: `route_not_found`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "405": {
-                        "description": "Refused: `method_not_allowed`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "429": {
-                        "description": "Refused: `rate_limited`.",
-                        "headers": {
-                            "Retry-After": {
-                                "$ref": "#/components/headers/Retry-After"
-                            }
-                        },
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
             "post": {
                 "tags": [
                     "Widget"
@@ -543,7 +424,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `unknown_type`, `validation_failed`.",
+                        "description": "Refused: `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -9774,42 +9655,6 @@
                 },
                 "type": "object"
             },
-            "PickerCards": {
-                "required": [
-                    "cards"
-                ],
-                "properties": {
-                    "cards": {
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "cardId",
-                                "number",
-                                "title",
-                                "status"
-                            ],
-                            "properties": {
-                                "cardId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "number": {
-                                    "type": "integer"
-                                },
-                                "title": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "maxItems": 20
-                    }
-                },
-                "type": "object"
-            },
             "WidgetCardCreated": {
                 "required": [
                     "cardId",
@@ -10144,6 +9989,7 @@
                         "type": "boolean"
                     },
                     "parentTypes": {
+                        "description": "Always empty. An older copy of the widget hides its epic mode when the list is empty.",
                         "type": "array",
                         "items": {
                             "required": [
@@ -10772,18 +10618,6 @@
                         "type": "string",
                         "default": "",
                         "maxLength": 10000
-                    },
-                    "type": {
-                        "title": "A type key of the project's template. Null means the default type.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 20
-                    },
-                    "parent": {
-                        "title": "Asks for a type that can have children: the given one, or the first of the template.",
-                        "type": "boolean",
-                        "default": false
                     }
                 },
                 "type": "object"

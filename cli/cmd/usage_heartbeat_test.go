@@ -62,6 +62,9 @@ func TestAFailedHeartbeatKeepsTheReadings(t *testing.T) {
 	client.mu.Unlock()
 	hh.h.setBody(api.Heartbeat{Accounts: []api.AccountReport{{Name: "claude", State: api.AccountReady}}})
 	eventually(t, "the failed heartbeat", func() bool { return client.count() >= 2 })
+	// The tick counts from what the harness recorded, so the failed heartbeat
+	// must be recorded first.
+	eventually(t, "the failed heartbeat recorded", func() bool { return hh.queue.recorded() >= 2 })
 	hh.tick(t, time.Minute)
 	eventually(t, "the next heartbeat", func() bool { return client.count() >= 3 })
 
