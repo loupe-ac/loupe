@@ -31,7 +31,7 @@ php bin/console messenger:consume card_sweep --time-limit=3600 --memory-limit=12
 Run both consumers. `scheduler_default` is listed **before** `interactive`, `card_eval` and `jobs`
 deliberately: a deep jobs backlog must not delay schedule ticks. `interactive` holds
 the messages that one action of a person starts and that the person waits on, such as
-the close of an inbox ask after an approval. It is listed before `card_eval`, so a burst
+the close of an inbox ask after an approval, and the check of a card that a person moved, released or answered. It is listed before `card_eval`, so a burst
 of card evaluations never delays them. A worker that never reads `interactive` leaves
 those messages never run. `card_sweep`
 holds the workflow sweep, which checks every open card every 10 minutes. It has
