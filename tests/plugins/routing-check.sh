@@ -29,5 +29,6 @@ check malformed-line 1 "malformed" $'## Routing\n### Review\nLoad x.'
 check missing-skill 1 "missing y" $'## Routing\n### Review\nLoad skill `y` always.'
 check line-before-heading 1 "before any stage heading" $'## Routing\nLoad skill `x` always.\n### Review\nLoad skill `x` always.'
 check prose-before-heading 1 "before any stage heading" $'## Routing\nSome prose.\n### Review\nLoad skill `x` always.'
+check name-with-space 1 "malformed" $'## Routing\n### Review\nLoad skill `x x` always.'
 
 exit $fail

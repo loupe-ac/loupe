@@ -28,7 +28,7 @@ rows=$(awk '
   }
   !routing || /^[[:space:]]*$/ { next }
   !staged { print "bad " NR ": " $0 " (before any stage heading)"; next }
-  /^Load skill `[^`]+` .*[^[:space:]]\.[[:space:]]*$/ { split($0, p, "`"); print "name " p[2]; next }
+  /^Load skill `[^`[:space:]]+` .*[^[:space:]]\.[[:space:]]*$/ { split($0, p, "`"); print "name " p[2]; next }
   { print "bad " NR ": " $0 }
 ' "$file")
 
