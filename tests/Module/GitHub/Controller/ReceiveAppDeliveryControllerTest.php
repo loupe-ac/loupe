@@ -240,6 +240,76 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertEquals($project->id, $pushed[0]->projectId);
     }
 
+    public function test_a_push_to_the_default_branch_queues_a_read_of_the_workflow_file(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('default-push');
+        $other = $this->project('default-push-other');
+        $this->installation($project, 9_000_631);
+        $this->owned($project, 631, 'acme/u', ForgeRepositorySource::Installation, 9_000_631);
+        $this->owned($other, 631, 'acme/u', ForgeRepositorySource::Hook);
+        $repositoryId = (string) $this->forgeRepositoryRepository()->findInstallationRow('github', '631')?->id;
+        $payload = ['installation' => ['id' => 9_000_631], 'repository' => ['id' => 631, 'full_name' => 'acme/u', 'default_branch' => 'main']];
+
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/main'] + $payload, self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([$repositoryId], $this->queuedWorkflowReads());
+    }
+
+    public function test_a_push_to_another_branch_queues_no_read(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('other-push');
+        $this->installation($project, 9_000_632);
+        $this->owned($project, 632, 'acme/v', ForgeRepositorySource::Installation, 9_000_632);
+        $payload = ['installation' => ['id' => 9_000_632], 'repository' => ['id' => 632, 'full_name' => 'acme/v', 'default_branch' => 'main']];
+
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/epic/852'] + $payload, self::SECRET);
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/tags/main'] + $payload, self::SECRET);
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/main', 'deleted' => true] + $payload, self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->queuedWorkflowReads());
+    }
+
+    public function test_a_push_with_no_default_branch_in_the_payload_queues_no_read(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('no-default');
+        $this->installation($project, 9_000_633);
+        $this->owned($project, 633, 'acme/w', ForgeRepositorySource::Installation, 9_000_633);
+
+        $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/main', 'installation' => ['id' => 9_000_633], 'repository' => ['id' => 633, 'full_name' => 'acme/w']], self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->queuedWorkflowReads());
+    }
+
+    public function test_the_claim_of_a_repository_queues_a_read_and_a_refused_or_known_one_does_not(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('claim-read');
+        $holder = $this->project('claim-read-holder');
+        $this->installation($project, 9_000_634);
+        $this->owned($project, 6343, 'acme/known', ForgeRepositorySource::Installation, 9_000_634);
+        $this->owned($holder, 6342, 'acme/theirs', ForgeRepositorySource::Installation, 1);
+
+        $this->deliver($client, self::PATH, 'installation_repositories', [
+            'action' => 'added',
+            'installation' => ['id' => 9_000_634],
+            'repository_selection' => 'all',
+            'repositories_added' => [['id' => 6341, 'full_name' => 'acme/arriving'], ['id' => 6342, 'full_name' => 'acme/theirs'], ['id' => 6343, 'full_name' => 'acme/known']],
+        ], self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([(string) $this->installationOwnerOf(6341)?->id], $this->queuedWorkflowReads());
+    }
+
     public function test_a_repository_another_installation_owns_is_dropped(): void
     {
         $client = static::createClient();

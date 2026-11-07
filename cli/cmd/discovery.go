@@ -41,15 +41,11 @@ func profileReason(dir string, site api.Site) string {
 	if !site.ProfileNeeded() {
 		return ""
 	}
-	status, err := profile.Check(dir)
-	switch {
-	case err != nil:
+	if _, err := profile.Check(dir); err != nil {
 		return "the check failed: " + err.Error()
-	case status.Complete():
-		return ""
-	default:
-		return status.Reason()
 	}
+
+	return ""
 }
 
 // initDiscovery offers to start discovery when onboarding is ready: the profile

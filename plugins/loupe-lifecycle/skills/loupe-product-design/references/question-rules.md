@@ -25,5 +25,5 @@ P6 works through this checklist. Mark each area Clear, Partial or Missing for yo
 10. Integrations. The APIs, jobs, email and external services that the change touches.
 11. Terminology. The names a user sees, and whether they match the names the product already uses.
 12. Completion signals. How a user knows that the action worked.
-13. Documentation checks. The checks that the profile names. With no profile, skip this area.
-14. Design system. This area applies to a change that touches the user interface, when the profile names a design system. It covers the components the change reuses, and the components it must change. Settle each component change with the owner.
+13. Documentation checks. The checks that the routed skills and the instruction files name. When they name none, skip this area.
+14. Design system. This area applies to a change that touches the user interface, when the routed skills or the instruction files name a design system. It covers the components the change reuses, and the components it must change. Settle each component change with the owner.

@@ -10,12 +10,13 @@ use App\Module\Workflow\Command\ShowWorkflowCommand;
 use App\Module\Workflow\Command\ShowWorkflowHandler;
 use App\Module\Workflow\Command\WorkflowColumnView;
 use App\Module\Workflow\Command\WorkflowKindView;
+use App\Module\Workflow\Command\WorkflowSettingView;
 use App\Module\Workflow\Template\TemplateMissing;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[McpTool(name: self::NAME, description: 'Read the workflow of this project. template is the key and the version of the workflow template. approvalCoversConflictResolution says whether an approval of a pull request still covers a merge from the base that holds a conflict resolution, and epicBranch is the epic branch pattern with {number} for the card number, or null when the template has no epic branches. githubAppId is the id of the Loupe GitHub App, or null when the instance has none; the merge stage uses it to tell the Loupe / Approval check of the Loupe App from a check of the same name from another App. columns lists the board columns in board order, each with the key of its workflow slot, or null when no slot links to it. kinds lists each kind of work the workflow can ask a bridge for, with the ids of the rules that ask for it and whether the template or the app adds it. checks names what that work needs from the project. A discovery run reads checks to know what to look for before it calls readiness_report_submit.')]
+#[McpTool(name: self::NAME, description: 'Read the workflow of this project. template is the key and the version of the workflow template. approvalCoversConflictResolution says whether an approval of a pull request still covers a merge from the base that holds a conflict resolution, and epicBranch is the epic branch pattern with {number} for the card number, or null when the project has no epic branches. requirements lists the written requirements of the workflow. settings lists the workflow settings that the template declares, in template order. Each entry has key, scope (repository or project), repository, value, source and warnings. A repository setting has one entry for each repository of the project, and its repository field holds the path and the forge of that repository. A project setting has one entry, and its repository field is null. source says where the value came from: file (a valid value in .loupe.yaml), invalid (the file holds a value that is not allowed, so value is null), stored (a value the app keeps for that repository until the file states the key), default (the default of the template), unset (no source states a value and the template has no default), conflict (two repositories state different values, so value comes from the template or its default) or template (the value of the project copy of the template). Only a project setting has the sources conflict and template. For merge-approval, unset means unanswered: merges then wait for a person. warnings lists the lines that name a problem with the key. githubAppId is the id of the Loupe GitHub App, or null when the instance has none; the merge stage uses it to tell the Loupe / Approval check of the Loupe App from a check of the same name from another App. columns lists the board columns in board order, each with the key of its workflow slot, or null when no slot links to it. kinds lists each kind of work the workflow can ask a bridge for, with the ids of the rules that ask for it and whether the template or the app adds it. checks names what that work needs from the project. A discovery run reads checks to know what to look for before it calls readiness_report_submit.')]
 final readonly class WorkflowGetTool
 {
     use ResolvesBoundProject;
@@ -34,6 +35,8 @@ final readonly class WorkflowGetTool
      *     template: array{key: string, version: string},
      *     approvalCoversConflictResolution: bool,
      *     epicBranch: string|null,
+     *     requirements: list<string>,
+     *     settings: list<array{key: string, scope: string, repository: array{path: string, forge: string}|null, value: string|bool|null, source: string, warnings: list<string>}>,
      *     githubAppId: string|null,
      *     columns: list<array{slug: string, label: string, slot: string|null, backlog: bool, terminal: bool}>,
      *     kinds: list<array{kind: string, origin: string, rules: list<string>, checks: list<string>}>,
@@ -48,6 +51,15 @@ final readonly class WorkflowGetTool
                 'template' => ['key' => $view->templateKey, 'version' => $view->templateVersion],
                 'approvalCoversConflictResolution' => $view->approvalCoversConflictResolution,
                 'epicBranch' => $view->epicBranch,
+                'requirements' => $view->requirements,
+                'settings' => array_map(static fn (WorkflowSettingView $setting): array => [
+                    'key' => $setting->key,
+                    'scope' => $setting->scope->value,
+                    'repository' => null === $setting->repository ? null : ['path' => $setting->repository->path, 'forge' => $setting->repository->forge],
+                    'value' => $setting->value,
+                    'source' => $setting->source->value,
+                    'warnings' => $setting->warnings,
+                ], $view->settings),
                 'githubAppId' => $view->githubAppId,
                 'columns' => array_map(fn (WorkflowColumnView $column): array => [
                     'slug' => $column->column->slug,

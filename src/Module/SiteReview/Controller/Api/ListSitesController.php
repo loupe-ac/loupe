@@ -7,6 +7,7 @@ namespace App\Module\SiteReview\Controller\Api;
 use App\Api\OpenApi\RateLimitedResponse;
 use App\Controller\AppController;
 use App\Module\Account\Entity\User;
+use App\Module\GitHub\View\GitHubRepositoryFacts;
 use App\Module\SiteReview\Command\ListedSite;
 use App\Module\SiteReview\Command\ListSitesCommand;
 use App\Module\SiteReview\Command\ListSitesHandler;
@@ -18,8 +19,9 @@ use Symfony\Component\Routing\Attribute\Route;
  * Lists the caller's projects for the loupe CLI, which checks a token with it
  * and names the valid slugs when a rule file names an unknown project. Each
  * project says what the bridge collects from the tool calls of its runs,
- * which skill packages its workers need, whether it needs a profile, and
- * whether the owner still has to start discovery.
+ * which skill packages its workers need, whether it needs a profile, whether
+ * the owner still has to start discovery, and the GitHub facts of its
+ * repositories.
  *
  * Agent-scoped tokens only. The firewall grants this path to
  * ROLE_API_AGENT alone, so a project-bound widget token gets 403
@@ -73,6 +75,21 @@ final class ListSitesController extends AppController
                 'skillPackages' => $site->skillPackages,
                 'needsProfile' => $site->needsProfile,
                 'discoveryRemains' => $site->discoveryRemains,
+                'github' => [
+                    'appInstalled' => $site->github->appInstalled,
+                    'repositories' => array_map(
+                        static fn (GitHubRepositoryFacts $repository): array => [
+                            'path' => $repository->path,
+                            'appInstalled' => $repository->appInstalled,
+                            'defaultBranch' => $repository->defaultBranch,
+                            'rulesRead' => $repository->rulesRead,
+                            'reviewRequired' => $repository->reviewRequired,
+                            'mergeApproval' => $repository->mergeApproval,
+                            'mergeApprovalSource' => $repository->mergeApprovalSource,
+                        ],
+                        $site->github->repositories,
+                    ),
+                ],
             ],
             $view->sites,
         ))]);

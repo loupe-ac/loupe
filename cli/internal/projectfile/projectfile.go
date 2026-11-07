@@ -6,6 +6,7 @@
 package projectfile
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -83,17 +84,23 @@ func Valid(projectID string) error {
 	return nil
 }
 
-// Write replaces .loupe.yaml in dir with one naming projectID. It writes
-// through a temporary file and a rename, so an interrupted write leaves the
-// previous file intact.
+// Write makes .loupe.yaml in dir name projectID. With no file it writes a new
+// one. With an existing file it sets the project key in place and keeps every
+// other key, key order and comment. It refuses a file that does not parse, is
+// larger than maxSize or has no mapping at the top, and leaves that file
+// untouched. It writes through a temporary file and a rename, so an
+// interrupted write leaves the previous file intact.
 func Write(dir, projectID string) error {
 	if err := Valid(projectID); err != nil {
 		return err
 	}
+	id := strings.ToLower(projectID)
+	path := filepath.Join(dir, Name)
 
-	body := "# The Loupe project this repository belongs to. `loupe mcp` sends it with\n" +
-		"# every request, so an agent acts on this project and no other.\n" +
-		"project: " + strings.ToLower(projectID) + "\n"
+	body, err := editedBody(path, id)
+	if err != nil {
+		return err
+	}
 
 	f, err := os.CreateTemp(dir, Name+".*")
 	if err != nil {
@@ -102,7 +109,7 @@ func Write(dir, projectID string) error {
 	tmp := f.Name()
 	defer os.Remove(tmp)
 
-	if _, err := f.WriteString(body); err != nil {
+	if _, err := f.Write(body); err != nil {
 		f.Close()
 
 		return fmt.Errorf("write %s: %w", Name, err)
@@ -113,9 +120,75 @@ func Write(dir, projectID string) error {
 	if err := os.Chmod(tmp, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", Name, err)
 	}
-	if err := os.Rename(tmp, filepath.Join(dir, Name)); err != nil {
+	if err := os.Rename(tmp, path); err != nil {
 		return fmt.Errorf("write %s: %w", Name, err)
 	}
 
 	return nil
+}
+
+// editedBody returns the file content that names id: the existing file with
+// its project key set, or the fresh file when none exists.
+func editedBody(path, id string) ([]byte, error) {
+	fresh := []byte("# The Loupe project this repository belongs to. `loupe mcp` sends it with\n" +
+		"# every request, so an agent acts on this project and no other.\n" +
+		"project: " + id + "\n")
+
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fresh, nil
+		}
+
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if info.Size() > maxSize {
+		return nil, fmt.Errorf("%s: larger than %d bytes, which is not a project file", path, maxSize)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return fresh, nil
+	}
+
+	var doc yaml.Node
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("%s: the top level is not a mapping, so the project key cannot be set", path)
+	}
+
+	root := doc.Content[0]
+	value := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: id}
+	set := false
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "project" {
+			old := root.Content[i+1]
+			value.HeadComment, value.LineComment, value.FootComment = old.HeadComment, old.LineComment, old.FootComment
+			root.Content[i+1] = value
+			set = true
+
+			break
+		}
+	}
+	if !set {
+		key := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "project"}
+		root.Content = append(root.Content, key, value)
+	}
+
+	var out bytes.Buffer
+	enc := yaml.NewEncoder(&out)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if err := enc.Close(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+
+	return out.Bytes(), nil
 }
