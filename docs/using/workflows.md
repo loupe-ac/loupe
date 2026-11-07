@@ -375,7 +375,8 @@ reads it. A card in a column with no `stageWork` gets no such action.
 A slot can name a `hint`, a translation key for one short sentence that says
 what a card does in that column. A slot with no `hint` has none. The hint shows
 only while the board runs the workflow. Lifecycle sets a hint on Next, Product
-design and Tech design.
+design and Tech design. The [live-review widget](live-review.md) shows the hint of
+a column under its **Start new cards in** select.
 
 A slot can name a `tone`, the colour of its column when a new project gets the
 template. The value is one of the label tones, such as `lime` or `sky`. A slot

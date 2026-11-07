@@ -246,14 +246,35 @@
     // The second header line of an open review: what the destination does.
     const targetLine = (target) =>
         target.mode === 'per-note'
-            ? 'Each note makes its own card'
+            ? `Each note makes its own card${inStartColumn(target)}`
             : 'One new card for this review';
+    // The columns a new card may start in, from the boot load: the Backlog
+    // first, then each column the workflow allows from it. Empty until the boot
+    // load answers, and for a preview token, which starts nothing.
+    let startColumns = [];
+    // The start column of a per-note choice, or null for the Backlog or a
+    // column the workflow no longer offers.
+    const startColumnOf = (target) => {
+        if (!target || target.mode !== 'per-note' || !target.startColumnId) {
+            return null;
+        }
+        const index = startColumns.findIndex(
+            (column) => column.id === target.startColumnId,
+        );
+        return index > 0 ? startColumns[index] : null;
+    };
+    const inStartColumn = (target) => {
+        const column = startColumnOf(target);
+        return column ? ` in ${column.name}` : '';
+    };
     const targetLabel = (target) => {
         if (target.mode === 'per-note') return 'A new card for each note';
         return target.label || 'One new card for this review';
     };
     // The mode chosen in the destination view, or null while the view is closed.
     let pickerMode = null;
+    // The id chosen in the start column select, null for the Backlog.
+    let pickerStart = null;
     let pickerError = null;
     let pickerCreating = false;
     const MAX_ANCHORS = 10; // AddCommentRequest's cap — over it the API 422s
@@ -514,6 +535,20 @@
         textareaNode.value = '';
     };
 
+    // A kept start column the server no longer offers is dropped, so a save
+    // never asks for it. An empty list is a preview token: it starts nothing.
+    const forgetMissingStartColumn = () => {
+        if (
+            storedTarget &&
+            storedTarget.mode === 'per-note' &&
+            storedTarget.startColumnId &&
+            !startColumnOf(storedTarget)
+        ) {
+            storedTarget = { ...storedTarget, startColumnId: null };
+            writeStoredTarget(storedTarget);
+        }
+    };
+
     // Rehydrate the list from the project's Pending comments.
     const refresh = (options) => (listReady = loadList(options));
     const loadList = async ({ firstLoad = false } = {}) => {
@@ -538,6 +573,15 @@
             comments = payload.comments || [];
             scopeUnread = false;
             drawingEnabled = true === payload.drawingEnabled;
+            startColumns = Array.isArray(payload.startColumns)
+                ? payload.startColumns.filter(
+                      (column) =>
+                          column &&
+                          typeof column.id === 'string' &&
+                          typeof column.name === 'string',
+                  )
+                : [];
+            forgetMissingStartColumn();
             const named = payload.context || null;
             if (asked && asked === bootMarker()) {
                 if (lock) {
@@ -1570,6 +1614,11 @@
                 <input type="radio" name="lp-dest" id="lp-dest-per-note" value="per-note">
                 <div class="lp-opt-main">
                   <label for="lp-dest-per-note"><span class="lp-opt-t">A new card for each note</span><span class="lp-opt-d">Good for unrelated issues across the site.</span></label>
+                  <div class="lp-opt-more" id="lp-picker-start" style="display:none">
+                    <label class="lp-field-label" for="lp-picker-start-select">Start new cards in</label>
+                    <select class="lp-field" id="lp-picker-start-select" style="font-weight:600"></select>
+                    <span class="lp-opt-d" id="lp-picker-start-hint" style="margin-top:6px;display:none"></span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1771,6 +1820,9 @@
     const subNode = $('lp-sub');
     const contextNode = $('lp-context');
     const pickerTitleNode = $('lp-picker-title');
+    const pickerStartNode = $('lp-picker-start');
+    const pickerStartSelect = $('lp-picker-start-select');
+    const pickerStartHint = $('lp-picker-start-hint');
     const verdictNode = $('lp-verdict');
     const verdictFoot = $('lp-verdict-foot');
     const finishSub = $('lp-finish-sub');
@@ -3123,7 +3175,8 @@
         ((label || '').match(/^#\d+/) || [label || ''])[0];
     const saveTargetText = (target) => {
         const named = cardNumberOf(target.label);
-        if (target.mode === 'per-note') return 'a new card';
+        if (target.mode === 'per-note')
+            return `a new card${inStartColumn(target)}`;
         return named || 'the review card';
     };
     // The line under the title of the note view: where a new note goes, or what
@@ -3136,7 +3189,7 @@
             newNote,
             lock ? lock.state : null,
             lock && lock.label,
-            target && [target.mode, target.label],
+            target && [target.mode, target.label, saveTargetText(target)],
         ]);
         if (key === contextKey) return;
         contextKey = key;
@@ -4290,13 +4343,13 @@
     // says so — the pin and the row look identical to an unsaved one. This is that
     // acknowledgement, on the same toast furniture pick mode uses.
     let savedToastTimer = 0;
-    const flashSaved = (text) => {
+    const flashSaved = (text, duration = 2400) => {
         state.savedNotice = text;
         clearTimeout(savedToastTimer);
         savedToastTimer = setTimeout(() => {
             state.savedNotice = null;
             renderOverlay();
-        }, 2400);
+        }, duration);
     };
 
     // ---- composer / focus ----
@@ -4766,6 +4819,10 @@
     // The view starts on the stored choice, or on one card for the review.
     const initDestination = () => {
         pickerMode = storedTarget ? storedTarget.mode : 'per-review';
+        pickerStart =
+            storedTarget && startColumnOf(storedTarget)
+                ? storedTarget.startColumnId
+                : null;
         pickerError = null;
         pickerTitleNode.value = `Review: ${location.pathname}`;
     };
@@ -4819,6 +4876,40 @@
         if (pickerMode === 'per-note') return true;
         return !!pickerTitleNode.value.trim();
     };
+    // The select shows only when the server offers more than the Backlog, and
+    // only for the per-note choice, which is the one that starts cards.
+    const renderStartSelect = () => {
+        const offered = startColumns.length > 1;
+        pickerStartNode.style.display =
+            offered && pickerMode === 'per-note' ? '' : 'none';
+        if (!offered) return;
+        const signature = startColumns
+            .map((column) => `${column.id}\u0000${column.name}`)
+            .join('\u0001');
+        if (pickerStartSelect.dataset.signature !== signature) {
+            pickerStartSelect.dataset.signature = signature;
+            pickerStartSelect.textContent = '';
+            startColumns.forEach((column) => {
+                const option = document.createElement('option');
+                option.value = column.id;
+                option.textContent = column.name;
+                pickerStartSelect.appendChild(option);
+            });
+        }
+        const chosen = pickerStart || startColumns[0].id;
+        pickerStartSelect.value = chosen;
+        const entry = startColumns.find((column) => column.id === chosen);
+        const hint = chosen === startColumns[0].id ? '' : entry && entry.hint;
+        pickerStartHint.textContent = hint || '';
+        pickerStartHint.style.display = hint ? '' : 'none';
+    };
+    pickerStartSelect.addEventListener('change', () => {
+        pickerStart =
+            pickerStartSelect.value === (startColumns[0] || {}).id
+                ? null
+                : pickerStartSelect.value;
+        renderStartSelect();
+    });
     const renderPickerMode = () => {
         if (!pickerMode) initDestination();
         const review = pickerMode === 'per-review';
@@ -4829,6 +4920,7 @@
                 option.querySelector('input[type="radio"]').checked = on;
             },
         );
+        renderStartSelect();
         const more = $('lp-picker-more');
         more.style.display = review ? '' : 'none';
         const slot = $('lp-picker-slot-per-review');
@@ -4886,7 +4978,11 @@
             chooseTarget({
                 mode: 'per-note',
                 cardId: null,
-                startColumnId: null,
+                startColumnId: startColumns.some(
+                    (column) => column.id === pickerStart,
+                )
+                    ? pickerStart
+                    : null,
             });
         } else {
             createCardFromPicker();
@@ -4966,6 +5062,7 @@
         if (!body || state.saving) return;
         const editing = state.editId != null;
         let savedLabel;
+        let savedNotice = null;
         state.saving = true;
         state.actionError = null;
         updatePanel();
@@ -5017,13 +5114,24 @@
                 // this copy long after a rollback, and that instance would otherwise save
                 // every comment as an unanchored note. The current API prefers anchors[].
                 const first = anchors[0];
+                const startColumn = startColumnOf(destination);
                 const target =
                     destination.mode === 'per-review'
                         ? { cardId: destination.cardId }
-                        : { newCard: {} };
+                        : {
+                              newCard: startColumn
+                                  ? { startColumnId: startColumn.id }
+                                  : {},
+                          };
                 // A retry keeps its delivery id only while it names the same
                 // target. The server refuses a known id sent to another one.
-                const targetKey = JSON.stringify(target);
+                // The start column stays out of the key, because the server
+                // leaves it out of the delivery hash too.
+                const targetKey = JSON.stringify(
+                    destination.mode === 'per-review'
+                        ? target
+                        : { newCard: {} },
+                );
                 if (
                     state.deliveryId === null ||
                     state.deliveryTarget !== targetKey
@@ -5080,6 +5188,19 @@
                     if (stale) refresh().then(sync);
                 }
                 savedLabel = saved.label || targetLabel(destination);
+                if (typeof saved.startRefused === 'string') {
+                    // The workflow refused the column, so the card is in the
+                    // Backlog. The kept column goes, and the reviewer sees why.
+                    const refused = saved.startRefused
+                        ? `${saved.startRefused} is no longer a start column.`
+                        : 'That start column is no longer available.';
+                    savedNotice = `Saved to #${saved.number} in ${saved.column || 'Backlog'}. ${refused}`;
+                    if (storedTarget && storedTarget.mode === 'per-note') {
+                        storedTarget = { ...storedTarget, startColumnId: null };
+                        writeStoredTarget(storedTarget);
+                    }
+                    refresh().then(sync);
+                }
             }
             state.deliveryId = null;
             resetView();
@@ -5094,9 +5215,11 @@
             textareaNode.value = '';
             setDrawing(false);
             flashSaved(
-                savedLabel
-                    ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
-                    : 'Note updated',
+                savedNotice ||
+                    (savedLabel
+                        ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
+                        : 'Note updated'),
+                savedNotice ? 6000 : 2400,
             );
         } catch (error) {
             // A rejected token is fatal; anything else keeps the composer open with the text

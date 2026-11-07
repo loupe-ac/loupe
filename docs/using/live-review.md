@@ -70,7 +70,7 @@ one option and press **Start reviewing**:
 
 | Choice | What a save does |
 |---|---|
-| A new card for each note | Creates a new card for the note. |
+| A new card for each note | Creates a new card for the note, in the column that you choose. |
 | One new card for this review | Creates one new card for the review. Every note of the review joins that card. |
 
 The widget keeps the choice in the browser's local storage, for this instance
@@ -91,6 +91,31 @@ When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One new card for this review**, the footer
 shows **Open #N in Loupe**, which opens that card.
 
+### The column of a new card
+
+With **A new card for each note**, the view shows **Start new cards in**, a
+select with the Backlog first. The other entries are the columns that the
+workflow of the project lets a person start a card in from the Backlog. The
+server builds the list from the same move rules as the board, and it never
+offers a terminal column. In Lifecycle, the list holds Backlog, Next, Product
+design and Tech design. Implementation is not on it, because only a session
+that an owner opens can start that move.
+
+A column that carries a hint shows it under the select. For example, Tech design
+shows "An agent writes the tech design." A project with no workflow, or with the
+workflow switched off, shows no hint. A board that offers only the Backlog shows
+no select.
+
+The widget keeps the column with the choice. The line "Saves to ..." names it,
+such as "Saves to a new card in Tech design". The workflow runs the rules of that
+column for the new card, so a column can start an agent.
+
+The server checks the column again at each save. When the workflow no longer
+allows it, the card lands in Backlog. The notice then reads, for example,
+"Saved to #12 in Backlog. Tech design is no longer a start column." The widget
+forgets the column, and your note is saved. A preview page gets no list, and
+its notes never start a card.
+
 With **One new card for this review**, type a title and the button creates the
 card. The title starts as `Review: ` and the page path, and the view selects it
 so that you can replace it. The widget cannot pick a card that already exists.
@@ -102,7 +127,7 @@ you saved under an epic stay as they are.
 A card that the widget creates has these values:
 
 - The type is the default type of the workflow template.
-- The column is the board's Backlog.
+- The column is the one you chose with **A new card for each note**, or the board's Backlog.
 - The reporter is `reviewer`.
 - The source is the live review widget. The card shows a live review badge.
 - A note card takes its title from the start of the note, cut at a word to 80 characters, with "…" at the end when the note is longer.
