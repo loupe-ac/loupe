@@ -115,6 +115,12 @@ func TestShortPathKeepsAFolderThatOnlySharesTheStart(t *testing.T) {
 		"see /home/ann...":         "see ~...",
 		"at /home/ann, then":       "at ~, then",
 		"\"/home/ann\"":            "\"~\"",
+		"/home/ann.../x":           "/home/ann.../x",
+		"/home/ann:old/x":          "/home/ann:old/x",
+		"/home/ann,b/x":            "/home/ann,b/x",
+		"/home/ann)x":              "/home/ann)x",
+		"at /home/ann: done":       "at ~: done",
+		"(at /home/ann).":          "(at ~).",
 	}
 	for in, want := range cases {
 		if got := ShortPath(in); got != want {
