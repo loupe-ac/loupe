@@ -14,11 +14,17 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 const (
 	hookCreateEvent = "WorktreeCreate"
 	hookRemoveEvent = "WorktreeRemove"
+	// hookClaimFile sits in the per-worktree git dir of a worktree that
+	// worktree-create made, and holds its name. Teardown removes no other
+	// worktree, except one in the bridge's own worktree folder.
+	hookClaimFile = "loupe-hook-worktree"
 	// defaultHookTimeout applies to a hook that sets no timeout.
 	defaultHookTimeout = 600 * time.Second
 )
@@ -42,7 +48,9 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 		Short: "Run the WorktreeCreate hook for a worktree and print its folder",
 		Long: "Runs the WorktreeCreate hook of .claude/settings.json or .claude/settings.local.json in the " +
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
-			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume.",
+			"It writes a claim into the git dir of a worktree the hook made, so worktree-remove can tell it from a worktree a person made. " +
+			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
+			"It does not claim that worktree.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -61,7 +69,7 @@ func newHookWorktreeRemoveCmd() *cobra.Command {
 		Short: "Run the WorktreeRemove hook for a worktree",
 		Long: "Finds the worktree of that name with git and runs the WorktreeRemove hook of .claude/settings.json or " +
 			".claude/settings.local.json in the current folder, the project folder. It does nothing when the " +
-			"project has no such worktree or no such hook.",
+			"project has no such worktree or no such hook, or when worktree-create did not make the worktree and it is no bridge worktree.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -251,6 +259,9 @@ func runWorktreeCreate(ctx context.Context, project, name string, stdout, stderr
 	if path == "" {
 		return fmt.Errorf("the %s hook printed no folder", hookCreateEvent)
 	}
+	if err := writeHookClaim(ctx, project, name); err != nil {
+		return err
+	}
 	fmt.Fprintln(stdout, path)
 
 	return nil
@@ -270,6 +281,13 @@ func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.W
 		return err
 	}
 	if !ok {
+		return nil
+	}
+	if owned, err := ownsWorktree(ctx, project, path, name); err != nil {
+		return err
+	} else if !owned {
+		fmt.Fprintf(stderr, "skipping %s: worktree-create did not make it, and it is no bridge worktree\n", path)
+
 		return nil
 	}
 	hooks, err := readSettingsHooks(project, hookRemoveEvent)
@@ -305,4 +323,93 @@ func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.W
 	}
 
 	return nil
+}
+
+// worktreeGitDir is the per-worktree git dir of the worktree at path.
+func worktreeGitDir(ctx context.Context, path string) (string, error) {
+	b, err := exec.CommandContext(ctx, "git", "-C", path, "rev-parse", "--absolute-git-dir").Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse in %s: %w", path, err)
+	}
+
+	return strings.TrimSpace(string(b)), nil
+}
+
+// writeHookClaim marks the worktree called name as made by worktree-create. A
+// folder that the hook made outside git keeps no claim, so teardown leaves it.
+func writeHookClaim(ctx context.Context, project, name string) error {
+	path, ok, err := findWorktree(ctx, project, name)
+	if err != nil || !ok {
+		return err
+	}
+	dir, err := worktreeGitDir(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filepath.Join(dir, hookClaimFile), []byte(name+"\n"), 0o600)
+}
+
+// ownsWorktree reports whether teardown may remove the worktree called name
+// at path: worktree-create claimed it, or it sits in the bridge's own
+// worktree folder.
+func ownsWorktree(ctx context.Context, project, path, name string) (bool, error) {
+	if bridgeWorktree(path) {
+		return true, nil
+	}
+	dir, err := worktreeGitDirOf(ctx, project, path)
+	if err != nil || dir == "" {
+		return false, err
+	}
+	b, err := os.ReadFile(filepath.Join(dir, hookClaimFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return strings.TrimSpace(string(b)) == name, nil
+}
+
+// worktreeGitDirOf finds the per-worktree git dir of path, or "" when it has
+// none. git keeps the git dir of a deleted folder until a prune, but git cannot
+// run in that folder, so the gitdir files of the admin dirs of project are read.
+func worktreeGitDirOf(ctx context.Context, project, path string) (string, error) {
+	if _, err := os.Stat(path); err == nil {
+		return worktreeGitDir(ctx, path)
+	}
+	b, err := exec.CommandContext(ctx, "git", "-C", project, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse in %s: %w", project, err)
+	}
+	admin := filepath.Join(strings.TrimSpace(string(b)), "worktrees")
+	entries, _ := os.ReadDir(admin)
+	for _, e := range entries {
+		g, err := os.ReadFile(filepath.Join(admin, e.Name(), "gitdir"))
+		if err == nil && filepath.Dir(strings.TrimSpace(string(g))) == path {
+			return filepath.Join(admin, e.Name()), nil
+		}
+	}
+
+	return "", nil
+}
+
+// bridgeWorktree reports whether path lies in the worktree folder of the
+// bridge, where only the bridge makes worktrees.
+func bridgeWorktree(path string) bool {
+	d, err := config.Dir()
+	if err != nil {
+		return false
+	}
+	root := filepath.Join(d, "worktrees")
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		root = r
+	}
+	if r, err := filepath.EvalSymlinks(path); err == nil {
+		path = r
+	}
+	rel, err := filepath.Rel(root, path)
+
+	return err == nil && rel != "." && !strings.HasPrefix(rel, "..")
 }
