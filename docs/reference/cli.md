@@ -217,7 +217,7 @@ old `loupe init`.
 | Flag | Purpose |
 |---|---|
 | `--project` | The project id to write, instead of a choice from a list |
-| `--force` | Replace an existing `.loupe.yaml` |
+| `--force` | Set the project in an existing `.loupe.yaml`. The command keeps every other key and comment, and refuses a file that it cannot read |
 | `--mcp` | Declare `loupe mcp` to Claude Code without asking |
 | `--no-mcp` | Leave the MCP server alone without asking |
 | `--mcp-json` | Write `.mcp.json` instead, to commit the server to the repository |
