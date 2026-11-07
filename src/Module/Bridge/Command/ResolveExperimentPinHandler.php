@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Event\ExperimentSetupChanged;
 use App\Module\Bridge\Repository\ExperimentDefinitionRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Project\Entity\Project;
@@ -14,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Pins the candidate on the first call for a card, keeps a pin the rule still
@@ -31,12 +33,14 @@ final readonly class ResolveExperimentPinHandler
         private ExperimentDefinitionRepository $experimentDefinitions,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
+        private EventDispatcherInterface $events,
     ) {
     }
 
     public function __invoke(ResolveExperimentPinCommand $command): ResolveExperimentPinResult
     {
-        return $this->em->wrapInTransaction(function () use ($command): ResolveExperimentPinResult {
+        $changedIn = null;
+        $result = $this->em->wrapInTransaction(function () use ($command, &$changedIn): ResolveExperimentPinResult {
             // The project lock orders this write after a project deletion, so
             // the insert never meets a project row that is going away.
             $project = $this->lockedProject($command);
@@ -81,6 +85,9 @@ final readonly class ResolveExperimentPinHandler
             }
 
             $pin->updatedAt = $now;
+            if ($inserted || null !== $switchedFrom) {
+                $changedIn = (string) $project->id;
+            }
             $this->em->flush();
 
             if (null !== $command->weights) {
@@ -89,6 +96,11 @@ final readonly class ResolveExperimentPinHandler
 
             return new ResolveExperimentPinResult($pin->variant, $switchedFrom);
         });
+        if (null !== $changedIn) {
+            $this->events->dispatch(new ExperimentSetupChanged($changedIn, $command->experiment));
+        }
+
+        return $result;
     }
 
     private function lockedProject(ResolveExperimentPinCommand $command): ?Project

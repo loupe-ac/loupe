@@ -16,6 +16,9 @@ export const BUSY_RETRY_MILLISECONDS = 200;
 /** A failed fetch tries again after each wait. */
 export const RETRY_MILLISECONDS = [1000, 3000, 9000];
 
+/** The kind of a signal that names graphs with a newer result. */
+export const REFRESHED_KIND = 'refreshed';
+
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const BUSY_SELECTOR = '[data-dragging], [data-renaming], dialog[open]';
 
@@ -27,7 +30,10 @@ const BUSY_SELECTOR = '[data-dragging], [data-renaming], dialog[open]';
  * the hub may have lost signals. A drag, an open rename form or an open dialog
  * holds the fetch until it ends. A failed fetch tries again with a growing
  * wait, and after the last try the page says that live updates stopped. A
- * table that a person opened stays open when a stream replaces its tile.
+ * table that a person opened stays open when a stream replaces its tile. A
+ * signal of the kind refreshed names the graphs that got a newer result. It
+ * reloads only the frame of each named graph, and it waits while a drag, a
+ * rename form or a dialog is open, as the grid fetch does.
  */
 export default class extends Controller {
     static targets = ['status'];
@@ -37,6 +43,7 @@ export default class extends Controller {
     connect() {
         this.sequence = 0;
         this.deadline = null;
+        this.staleTiles = new Set();
         this.onBeforeStream = (event) => this.keepTablesOpen(event);
         document.addEventListener(
             'turbo:before-stream-render',
@@ -53,6 +60,7 @@ export default class extends Controller {
             this.onBeforeStream,
         );
         clearTimeout(this.timer);
+        clearTimeout(this.tileTimer);
         this.sequence += 1;
         this.unsubscribe?.();
         this.unsubscribe = undefined;
@@ -84,7 +92,52 @@ export default class extends Controller {
         if (change.own) {
             return;
         }
+        if (change.kind === REFRESHED_KIND) {
+            this.scheduleTiles(change.graphIds ?? []);
+
+            return;
+        }
         this.schedule();
+    }
+
+    scheduleTiles(graphIds) {
+        graphIds.forEach((id) => this.staleTiles.add(id));
+        clearTimeout(this.tileTimer);
+        this.tileTimer = setTimeout(
+            () => this.reloadTiles(),
+            SETTLE_MILLISECONDS,
+        );
+    }
+
+    reloadTiles() {
+        if (this.busy()) {
+            this.tileTimer = setTimeout(
+                () => this.reloadTiles(),
+                BUSY_RETRY_MILLISECONDS,
+            );
+
+            return;
+        }
+        const ids = [...this.staleTiles];
+        this.staleTiles.clear();
+        ids.forEach((id) => this.reloadTile(id));
+    }
+
+    reloadTile(graphId) {
+        const frame = this.element.querySelector(
+            `turbo-frame[id="dashboard-graph-${CSS.escape(graphId)}"]`,
+        );
+        if (frame === null) {
+            return;
+        }
+        // The tile route sits beside the grid route: .../dashboard/grid and .../dashboard/graphs/<id>.
+        const url = this.urlValue.replace(/grid$/, `graphs/${graphId}`);
+        if (frame.getAttribute('src') === url) {
+            frame.reload();
+
+            return;
+        }
+        frame.setAttribute('src', url);
     }
 
     schedule() {

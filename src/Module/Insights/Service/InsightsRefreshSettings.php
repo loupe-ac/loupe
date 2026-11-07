@@ -6,16 +6,26 @@ namespace App\Module\Insights\Service;
 
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
-/** The admin flags that set how often a kept result is refreshed. */
+/** The admin flags that set how long new data waits before a refresh, and how often a kept result is refreshed. */
 final readonly class InsightsRefreshSettings
 {
     public const string SWEEP_INTERVAL_FLAG = 'insights.sweep_interval_minutes';
 
     public const int SWEEP_INTERVAL_DEFAULT = 15;
 
+    public const string REFRESH_DELAY_FLAG = 'insights.refresh_delay_seconds';
+
+    public const int REFRESH_DELAY_DEFAULT = 60;
+
     public function __construct(
         private FeatureFlagService $featureFlags,
     ) {
+    }
+
+    /** Seconds. New data of one kind waits this long, so a burst of writes costs one refresh. */
+    public function refreshDelaySeconds(): int
+    {
+        return max(0, $this->featureFlags->getIntValue(self::REFRESH_DELAY_FLAG, self::REFRESH_DELAY_DEFAULT));
     }
 
     /** Minutes. A kept result younger than this is fresh enough for a share page. */

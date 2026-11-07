@@ -40,17 +40,20 @@ final readonly class InsightsResultKeeper
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private SavedGraphHealth $health,
         private EventDispatcherInterface $events,
+        private DashboardChangedPublisher $dashboardChanges,
     ) {
     }
 
     /**
      * The worker path: takes the lock first and reads the graph after it, so a settings change that saved before the
      * lock is in the result. The entity manager of a worker starts each message empty, so the read is fresh.
+     *
+     * @return bool true when the compute kept a new row
      */
-    public function graphById(string $projectId, string $graphId): void
+    public function graphById(string $projectId, string $graphId): bool
     {
         if (!Uuid::isValid($graphId)) {
-            return;
+            return false;
         }
         $lock = $this->locks->forGraph(Uuid::fromString($graphId));
         $lock->acquire(true);
@@ -58,9 +61,10 @@ final readonly class InsightsResultKeeper
         try {
             $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($graphId, $projectId);
             if (null === $graph || null !== $graph->removedAt || [] !== $this->health->check($graph->project, [$graph])) {
-                return;
+                return false;
             }
-            $this->computeAndKeep($graph, $lock, true);
+
+            return $this->computeAndKeep($graph, $lock, true)[1];
         } finally {
             $this->release($lock, true);
         }
@@ -75,13 +79,19 @@ final readonly class InsightsResultKeeper
         $held = $lock->acquire(false);
 
         try {
-            return $this->computeAndKeep($graph, $lock, $held);
+            [$result, $kept] = $this->computeAndKeep($graph, $lock, $held);
+            if ($kept) {
+                $this->dashboardChanges->graphsRefreshed($graph->project->requireId(), [(string) $graph->id]);
+            }
+
+            return $result;
         } finally {
             $this->release($lock, $held);
         }
     }
 
-    private function computeAndKeep(InsightsSavedGraph $graph, SharedLockInterface $lock, bool $held): KeptGraphResult
+    /** @return array{0: KeptGraphResult, 1: bool} the result, and whether it was kept */
+    private function computeAndKeep(InsightsSavedGraph $graph, SharedLockInterface $lock, bool $held): array
     {
         $startedAt = $this->insightsKeptResults->databaseNow();
         $project = $graph->project;
@@ -90,14 +100,16 @@ final readonly class InsightsResultKeeper
         $query = MetricsQuery::fromQuery($settings, $this->templateMetrics->forProject($project->requireId()));
         $result = $this->computer->compute(new ShowMetricsCommand($project, $query, $startedAt));
 
+        $kept = false;
         if ($held && $this->stillHeld($lock)) {
+            $kept = true;
             $this->insightsKeptResults->keepGraph($graph, InsightsKeptResult::hashOf($graph), $startedAt, InsightsKeptResult::encode($result));
             $this->events->dispatch(new InsightsResultKept((string) $project->requireId(), (string) $graph->id, null));
         } elseif ($held) {
             $this->requester->graph($graph);
         }
 
-        return $result;
+        return [$result, $kept];
     }
 
     /**

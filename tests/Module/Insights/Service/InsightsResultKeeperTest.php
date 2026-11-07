@@ -171,6 +171,7 @@ final class InsightsResultKeeperTest extends KernelTestCase
             $this->service(\App\Module\Insights\Repository\InsightsSavedGraphRepository::class),
             $this->service(\App\Module\Insights\Service\SavedGraphHealth::class),
             $this->service(EventDispatcherInterface::class),
+            $this->service(\App\Module\Insights\Service\DashboardChangedPublisher::class),
         );
         $expiring->graph($graph);
 

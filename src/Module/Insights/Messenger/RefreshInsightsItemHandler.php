@@ -6,11 +6,12 @@ namespace App\Module\Insights\Messenger;
 
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Repository\PublicLinkTakedownRepository;
-use App\Module\Insights\Service\InsightsRefreshHold;
+use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\InsightsRefreshHolds;
 use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Project\Repository\ProjectRepository;
-use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Computes and keeps one item. A removed graph, a broken graph and an experiment with no switched-on link keep nothing.
@@ -24,22 +25,20 @@ final readonly class RefreshInsightsItemHandler
         private PublicLinkRepository $publicLinks,
         private PublicLinkTakedownRepository $publicLinkTakedowns,
         private InsightsResultKeeper $keeper,
-
-        /** @var iterable<InsightsRefreshHold> */
-        #[AutowireIterator('app.insights_refresh_hold')]
-        private iterable $holds,
+        private InsightsRefreshHolds $holds,
+        private DashboardChangedPublisher $dashboardChanges,
     ) {
     }
 
     public function __invoke(RefreshInsightsItem $message): void
     {
         if (null !== $message->graphId) {
-            foreach ($this->holds as $hold) {
-                if ($hold->holds($message->graphId)) {
-                    return;
-                }
+            if ($this->holds->holds($message->graphId)) {
+                return;
             }
-            $this->keeper->graphById($message->projectId, $message->graphId);
+            if ($this->keeper->graphById($message->projectId, $message->graphId) && Uuid::isValid($message->projectId)) {
+                $this->dashboardChanges->graphsRefreshed(Uuid::fromString($message->projectId), [$message->graphId]);
+            }
 
             return;
         }
