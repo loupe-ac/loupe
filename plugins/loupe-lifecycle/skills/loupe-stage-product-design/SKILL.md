@@ -13,7 +13,7 @@ Change nothing but Loupe documents, and never move the card. `references/stage-c
 
 1. Read `references/stage-contract.md`. Follow its rules for the whole run.
 2. Load the unattended run notes, as the contract says.
-3. Read the repository profile, as the contract says.
+3. Check the routing table, as the contract says. Load the skills that the `### Product design` heading routes.
 4. Connect to the Loupe tools, as the contract's first steps say.
 5. Call `card_get`, and run the contract's column check.
 6. Load `loupe-documents`, then read `references/product-document.md` and `references/design-principles.md`. Apply the principles to each change you make.

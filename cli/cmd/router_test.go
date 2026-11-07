@@ -237,6 +237,8 @@ func newHarnessWith(t *testing.T, body string, defaults rules.Defaults) *harness
 		workAPI:  h.work,
 		startDir: func(string) (string, error) { return "", nil },
 	}, set)
+	// The folder guard has tests of its own, and these folders are not worktrees.
+	h.router.worker.folder = func(context.Context, folderCheck) string { return "" }
 
 	return h
 }

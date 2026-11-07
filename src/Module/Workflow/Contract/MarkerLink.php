@@ -9,6 +9,7 @@ enum MarkerLink: string
 {
     case Agents = 'agents';
     case Repositories = 'repositories';
+    case Inbox = 'inbox';
 
     /** The translation key of the link text. */
     public function translationKey(): string

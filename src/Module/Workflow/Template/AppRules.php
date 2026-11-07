@@ -94,7 +94,6 @@ final class AppRules implements ProposalSlot
             $template->defaultType,
             $template->onWorkFailed,
             $template->childChoices,
-            $template->epicBranch,
             $template->agentReviewFailingSeverities,
             $template->markers,
             $template->approvalCoversConflictResolution,
@@ -105,6 +104,9 @@ final class AppRules implements ProposalSlot
             $template->values,
             $template->skillPackages,
             $template->needsProfile,
+            $template->settings,
+            $template->requirements,
+            $template->settingValues,
         );
     }
 

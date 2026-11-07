@@ -53,7 +53,7 @@ func newProjectLinkCmd() *cobra.Command {
 			"With no --project, it lists the projects your login covers and asks which one. " +
 			"It asks also when your login covers one project. With no terminal to answer, it " +
 			"prints the list and stops, so pass --project <slug>.\n\n" +
-			"It refuses to replace an existing file unless you pass --force.\n\n" +
+			"It refuses to change an existing file unless you pass --force. With --force it sets the project key and keeps every other key and comment.\n\n" +
 			"It writes no profile. `loupe init` starts an agent that writes " + profile.Path + " with you, " +
 			"and this command says so when the file is missing.\n\n" +
 			"It then checks how Claude Code starts the `" + mcpjson.ServerKey + "` MCP server, and " +
@@ -76,7 +76,7 @@ func newProjectLinkCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.projectID, "project", "", "project id to write, instead of choosing from a list")
-	cmd.Flags().BoolVar(&o.force, "force", false, "replace an existing "+projectfile.Name)
+	cmd.Flags().BoolVar(&o.force, "force", false, "set the project in an existing "+projectfile.Name+", and keep its other keys")
 	cmd.Flags().BoolVar(&o.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
 	cmd.Flags().BoolVar(&o.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
 	cmd.Flags().BoolVar(&o.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")

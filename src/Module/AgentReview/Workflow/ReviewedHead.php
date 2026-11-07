@@ -8,7 +8,7 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 
 /**
  * The head commit of one open pull request, and what the newest agent review of that commit concluded.
- * A fix round for the agent review has answered that review when it ended done after the review began.
+ * A fix round for the agent review has answered that review when it finished after the review began: it settled done, or a resumed run of it ended succeeded or waiting on the forge.
  * An approval of the head that came after a failed review overrides it.
  */
 final readonly class ReviewedHead

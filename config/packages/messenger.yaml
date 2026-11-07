@@ -61,7 +61,9 @@ framework:
             App\Module\Forge\Messenger\CheckForgeRepository: jobs
             App\Module\Forge\Messenger\ReconcileRepositoryHold: jobs
             App\Module\Forge\Messenger\RefreshPullRequestState: jobs
+            App\Module\GitHub\Messenger\ReadRepositoryWorkflowSettings: jobs
             App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
+            App\Module\Inbox\Messenger\OpenMergeApprovalPullRequest: jobs
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
             App\Module\Notification\Messenger\DeliverWebPush: jobs
             App\Module\OpenRouter\Messenger\ReadBilledCost: jobs

@@ -700,7 +700,19 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * When the newest fix request for the agent review of each pull request of the card ended done.
+     * The worker run states that mean a fix round finished its work: it succeeded, or it waits on the forge.
+     *
+     * @return list<string>
+     */
+    private static function finishedRunStates(): array
+    {
+        return [WorkerRunState::Succeeded->value, WorkerRunState::WaitingOnForge->value];
+    }
+
+    /**
+     * When the newest fix request for the agent review of each pull request of the card finished. A request finished when it
+     * settled done, or when a worker run of it ended succeeded or waiting on the forge, so a resumed run counts after its
+     * request settled refused.
      *
      * @return array<int, \DateTimeImmutable> keyed by pull request number
      */
@@ -708,11 +720,27 @@ class WorkRequestRepository extends ServiceEntityRepository
     {
         /** @var list<array{number: string|int|null, settled: string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
-            "SELECT (context::jsonb ->> 'pullRequestNumber') AS number, MAX(settled_at) AS settled FROM work_requests
-             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND role = 'fix'
-               AND (context::jsonb ->> 'reason') = 'agent-review' AND settled_at IS NOT NULL
-             GROUP BY (context::jsonb ->> 'pullRequestNumber')",
-            ['subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122(), 'done' => WorkRequestState::Done->value],
+            "SELECT number, MAX(finished) AS settled FROM (
+                 SELECT (w.context::jsonb ->> 'pullRequestNumber') AS number, w.settled_at AS finished
+                 FROM work_requests w
+                 WHERE w.subject_type = :subject AND w.subject_id = :card AND w.state = :done AND w.role = 'fix'
+                   AND (w.context::jsonb ->> 'reason') = 'agent-review' AND w.settled_at IS NOT NULL
+                 UNION ALL
+                 SELECT (w.context::jsonb ->> 'pullRequestNumber') AS number, r.ended_at AS finished
+                 FROM work_requests w
+                 JOIN bridge_worker_runs r ON r.work_request_id = w.id AND r.project_id = w.project_id
+                  AND r.subject_type = w.subject_type AND r.subject_id = w.subject_id
+                 WHERE w.subject_type = :subject AND w.subject_id = :card AND w.role = 'fix'
+                   AND (w.context::jsonb ->> 'reason') = 'agent-review'
+                   AND r.state IN (:finishedRuns) AND r.ended_at IS NOT NULL
+             ) f GROUP BY number",
+            [
+                'subject' => WorkSubject::CARD,
+                'card' => $cardId->toRfc4122(),
+                'done' => WorkRequestState::Done->value,
+                'finishedRuns' => self::finishedRunStates(),
+            ],
+            ['finishedRuns' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
 
         $settled = [];
@@ -727,7 +755,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * When the newest finished fix request opened for each pull request linked to each card. A request is finished when it
-     * settled done, or when any worker run of it ended with success, so a resumed run counts after its request settled refused.
+     * settled done, or when a worker run of it ended succeeded or waiting on the forge, so a resumed run counts after its request settled refused.
      * A request matches a pull request through the URL in its context and the links of the card, so two pull requests with
      * one number in two repositories stay apart.
      *
@@ -747,16 +775,17 @@ class WorkRequestRepository extends ServiceEntityRepository
              FROM work_requests w
              JOIN board_card_pull_requests l ON l.card_id = w.subject_id AND l.url = (w.context::jsonb ->> 'pullRequestUrl')
              WHERE w.subject_type = :subject AND w.subject_id IN (:cards) AND w.role = 'fix'
-               AND (w.state = :done OR EXISTS (SELECT 1 FROM bridge_worker_runs r WHERE r.work_request_id = w.id AND r.state = :succeeded))
+               AND (w.state = :done OR EXISTS (SELECT 1 FROM bridge_worker_runs r WHERE r.work_request_id = w.id AND r.project_id = w.project_id
+                   AND r.subject_type = w.subject_type AND r.subject_id = w.subject_id AND r.state IN (:finishedRuns)))
                AND l.repository IS NOT NULL AND l.number IS NOT NULL
              GROUP BY w.subject_id, l.forge, LOWER(l.repository), l.number",
             [
                 'subject' => WorkSubject::CARD,
                 'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
                 'done' => WorkRequestState::Done->value,
-                'succeeded' => WorkerRunState::Succeeded->value,
+                'finishedRuns' => self::finishedRunStates(),
             ],
-            ['cards' => ArrayParameterType::STRING],
+            ['cards' => ArrayParameterType::STRING, 'finishedRuns' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
 
         $found = [];

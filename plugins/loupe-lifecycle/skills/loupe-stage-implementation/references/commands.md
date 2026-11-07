@@ -1,21 +1,18 @@
 # Implementation stage detail
 
-`SKILL.md` names each step. This file holds the detail. The repository profile, the unattended run notes and the forge adapter hold every value that belongs to one repository, one harness or one forge.
+`SKILL.md` names each step. This file holds the detail. The routing table of the repository, the unattended run notes and the forge adapter hold every value that belongs to one repository, one harness or one forge.
 
-## Load the run notes and the profile
+## Load the run notes and the routing table
 
 1. Load the unattended run notes for your harness from the `unattended/` folder in this directory. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
-2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing.
+2. Check the routing table, and read the `### Implementation` heading of `.loupe/lifecycle.md`, as "Run notes and routing" of `../../loupe-stage-product-design/references/stage-contract.md` says. Load each routed skill at the moment its line names. The `AGENTS.md` file of the repository, its skill table and its other instruction files hold the rest of the rules, such as the gate, the changelog, the pull request format and the writing style.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Pull request`, `Board`, `Merge` and `Recovery`. The profile can also hold these optional sections:
+The profile can hold these optional sections:
 
-- A `Changelog` section. A missing section, or the line `Changelog: none`, skips the changelog entry and its check.
 - A `Forge` section with one value, the forge name, such as `github`.
-- A `Visual check` section that `visual-check.md` reads.
-- A `Preview` section that `preview.md` reads.
 
-A missing optional section blocks nothing. The unattended run notes cover these steps:
+A missing optional section blocks nothing. The stage ignores every other old section, such as `Gate` or `Board`. The unattended run notes cover these steps:
 
 - Connect to the Loupe tools.
 - Run a long command.
@@ -72,7 +69,13 @@ Every approval script of a forge prints the same three result lines: `COVERED`, 
 
 ## Card branch
 
-A card branch starts with the prefix `card-<number>-` by default. The profile `Pull request` section can name another pattern. This stage then reads `<prefix>` as that pattern up to its slug, and `<card branch>` as the prefix followed by `<short-slug>`. Every step below that says `card-<number>-` uses `<prefix>`, and every step that creates a branch uses `<card branch>`.
+The card branch is the head branch of the open pull request that `card_get` links. Run "Check the worker folder" to find it.
+
+1. A linked open pull request: its head branch is the card branch, and `<head>` names it.
+2. No linked pull request: the card branch is the current branch of the worker folder, when it is not `<base>`.
+3. Otherwise cut a new branch from `origin/<base>`. Take the name from the repository's instructions. When they give none, copy the pattern of the head branches of recent merged pull requests: `gh pr list --state merged --limit 10 --json headRefName`. When neither gives a pattern, use a short slug of two to four lowercase words from the card title, joined with hyphens.
+
+A stage never assumes a fixed prefix.
 
 ## Column check
 
@@ -80,40 +83,44 @@ Slug a column label from the prompt: lowercase, with hyphens for spaces. Compare
 
 ## Find the base branch
 
-`<base>` is the base branch from the profile `Gate` section, with one exception.
+`<base>` is the first of these that gives a value:
 
-1. A prompt line `Epic branch: <name>.` with a non-empty name sets `<base>` to that name. Run `git ls-remote --exit-code origin refs/heads/<name>`. When it fails, stop with `STAGE RESULT: blocked: epic branch <name> missing`. Never fall back to the profile base branch.
-2. A prompt with no such line, or with an empty one, runs the check below. The bridge fills the line as empty for a card with no epic branch.
-
-A card whose `card_get` `parent` is not null can belong to an epic branch, when the profile has an `Epics` section. Fill the epic branch pattern of that section with `parent.number`, and run this:
-
-```bash
-git ls-remote --exit-code origin refs/heads/<epic branch>
-```
-
-Exit 0 means the epic branch exists, so `<base>` is the epic branch. Any other exit means the epic started before its branch existed, so `<base>` stays the profile base branch. A profile with no `Epics` section, and a card with no parent, keep the profile base branch.
+1. The base branch of the open pull request that `card_get` links. Read it with the forge adapter.
+2. The prompt line `Epic branch: <name>.` with a non-empty name. Run `git ls-remote --exit-code origin refs/heads/<name>`. When it fails, stop with `STAGE RESULT: blocked: epic branch <name> missing`. Never fall back to the default branch. The app fills the line from the project settings. The bridge fills it as empty for a card with no epic branch.
+3. The default branch of the repository: `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
 
 ## Check the worker folder
 
 The worker folder is the folder the worker starts in. The bridge configuration makes it and removes it, and a stage never does. A worker with no `before` command starts in the project directory. `<base>` comes from "Find the base branch".
 
-When the profile `Environment` section names a folder check, run it first. When the check fails, stop with `STAGE RESULT: blocked: no worker folder`. Then run this in the worker folder:
+Run this first, in the worker folder, in every stage that changes the repository:
+
+```bash
+git rev-parse --path-format=absolute --git-dir --git-common-dir
+```
+
+1. When the two lines are equal, the folder is the main checkout. Stop with `STAGE RESULT: blocked: no worker folder`.
+2. Read the file `loupe-card` in the git dir (the first line). When it exists and holds a card id other than the id of this card, stop with `STAGE RESULT: blocked: no worker folder`. The bridge writes the claim of its own card before the worker starts, so a worker finds its own id. A folder with no `loupe-card` file is one that a person works in by hand, and it passes.
+
+Then run:
 
 ```bash
 git branch --show-current
 ```
 
-1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c <card branch> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, refresh the environment as "Refresh the environment" says. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
+1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c <card branch> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, refresh the environment as "Refresh the environment" says.
 2. When it prints `<base>`, run the same `git switch -c` command.
-3. When it prints a branch that starts `<prefix>`, keep that branch.
-4. When it prints any other branch, stop with `STAGE RESULT: blocked: worker folder on branch <branch>`.
+3. When it prints another branch and the card links no pull request, keep that branch. It is the card branch.
+4. When it prints another branch and the card links an open pull request, the branch must be its head branch. When it differs, stop with `STAGE RESULT: blocked: worker folder on branch <branch>`.
 
 ## Reruns
 
 1. A linked document tagged `build-notes` whose `references` hold the tech design id is the build notes. Reuse it, and create no second one.
-2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request.
+2. An open pull request that `card_get` links belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request.
 
-   Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`. Run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+   Run "Check the worker folder" items 1 and 2 first. They stop on the main checkout and on a folder that another card claims, before any switch or merge.
+
+   Run `git branch --show-current`. When HEAD is detached, or on a branch other than `<head>` and `git status --porcelain` prints nothing, run `git fetch origin <head>`. Run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
@@ -178,19 +185,19 @@ When the merge conflicts, resolve it only when the conflict is mechanical and th
 
 When the merge brings commits, refresh the environment as "Refresh the environment" says. A fix round that resolved a conflict with the base refreshed after that resolution, so its gate merge brings no commits and needs no refresh.
 
-Then run the commands of the profile `Gate` section in order. Run each long command as the unattended run notes say. Poll it in the foreground until it exits, and never end the turn while it runs. Run the check of the profile `Changelog` section, when it names one. Then run the review of the profile `Code review` section, and follow its pass rule.
+Then run the checks that the instruction files and the routed skills name for a push, in the order they name. Run each long command as the unattended run notes say. Poll it in the foreground until it exits, and never end the turn while it runs. Run the changelog check and the review step they name, when they name one, and follow their pass rule. A repository that names no gate has none to run.
 
 ## Open the pull request
 
-Push the branch as "Push without force" says, and create the pull request with the forge adapter, against `<base>`. Follow the profile `Pull request` section for the title, the body and the ready state.
+Push the branch as "Push without force" says, and create the pull request with the forge adapter, against `<base>`. Always open it as a draft. The instruction files and the routed skills give the title and the body.
 
-A pull request into an epic branch is not a stacked pull request. Write `Child of epic #<parent number>, merges into <base>.` in the body. The merge stage merges it into the epic branch, and the epic pull request carries the work to the profile base branch.
+A pull request into an epic branch is not a stacked pull request. Write `Child of epic #<parent number>, merges into <base>.` in the body. The merge stage merges it into the epic branch, and the epic pull request carries the work to the default branch.
 
-A branch that holds the commits of another open pull request stacks on it. The test is `git merge-base --is-ancestor origin/<parent branch> HEAD`, which exits 0, while that pull request is open. Then create the pull request with `<base>` set to the parent's head branch, never the profile base branch. Write `Stacks on #<parent>. Merge #<parent> first.` in the body.
+A branch that holds the commits of another open pull request stacks on it. The test is `git merge-base --is-ancestor origin/<parent branch> HEAD`, which exits 0, while that pull request is open. Then create the pull request with `<base>` set to the parent's head branch, never the default branch. Write `Stacks on #<parent>. Merge #<parent> first.` in the body.
 
 Put the card URL in the body. The card page route is `/projects/{projectId}/board/cards/{cardId}`, so the URL is `<instance>/projects/<projectId>/board/cards/<cardId>`. Take the instance from the prompt line `Loupe instance <url>.`, and the project id from the prompt. When the prompt lacks either, write `Loupe card <number>` instead.
 
-Then, when the profile has a `Changelog` section that names a file, write the changelog entry and run its check. Commit and push as "Push without force" says.
+Then, when the instruction files name a changelog entry, write it and run its check. Commit and push as "Push without force" says.
 
 ## After the push
 

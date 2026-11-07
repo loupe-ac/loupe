@@ -850,6 +850,7 @@ when@dev: &generator
                                             - skillPackages
                                             - needsProfile
                                             - discoveryRemains
+                                            - github
                                             properties:
                                                 id:
                                                     type: string
@@ -878,6 +879,60 @@ when@dev: &generator
                                                 discoveryRemains:
                                                     type: boolean
                                                     description: Whether the owner still has to start discovery. It is true when the project has no discovery run, or when its latest run failed. A reader with no value takes true.
+                                                github:
+                                                    type: object
+                                                    description: What the app knows of the GitHub repositories of the project, from its stored repository check. The list makes no call to GitHub. A reader that finds no github object takes every fact as unknown.
+                                                    required:
+                                                    - appInstalled
+                                                    - repositories
+                                                    properties:
+                                                        appInstalled:
+                                                            type: boolean
+                                                            description: Whether the Loupe GitHub App is installed for the project and neither suspended nor removed. The appInstalled fact of each repository says whether that installation covers the repository.
+                                                        repositories:
+                                                            type: array
+                                                            items:
+                                                                type: object
+                                                                required:
+                                                                - path
+                                                                - appInstalled
+                                                                - defaultBranch
+                                                                - rulesRead
+                                                                - reviewRequired
+                                                                - mergeApproval
+                                                                - mergeApprovalSource
+                                                                properties:
+                                                                    path:
+                                                                        type: string
+                                                                    appInstalled:
+                                                                        type: boolean
+                                                                        description: Whether a live installation of the Loupe GitHub App delivers this repository. A repository that the project claims through its own hook reads false, also when the App is installed for another repository of the project.
+                                                                    defaultBranch:
+                                                                        type: string
+                                                                        nullable: true
+                                                                        description: The default branch, or null when no read of the repository succeeded yet.
+                                                                    rulesRead:
+                                                                        type: string
+                                                                        nullable: true
+                                                                        enum:
+                                                                        - ok
+                                                                        - plan-limited
+                                                                        - refused
+                                                                        description: Whether the app read the rules of the default branch. plan-limited means the plan has no rules, so GitHub enforces none. refused means the last read failed. null means no read happened yet.
+                                                                    reviewRequired:
+                                                                        type: boolean
+                                                                        nullable: true
+                                                                        description: Whether the rules require an approving review. It is false when the plan has no rules, and null when the rules are unknown.
+                                                                    mergeApproval:
+                                                                        type: string
+                                                                        nullable: true
+                                                                        enum:
+                                                                        - agent
+                                                                        - person
+                                                                        description: The resolved merge-approval setting, or null while it is unset.
+                                                                    mergeApprovalSource:
+                                                                        type: string
+                                                                        description: Where the value came from, one of file, invalid, stored, default, unset, conflict or template.
                             ArtifactStored:
                                 type: object
                                 required:

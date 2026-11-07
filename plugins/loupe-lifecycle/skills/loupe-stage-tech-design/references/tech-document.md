@@ -28,7 +28,7 @@ A dependency is a part that the design needs, that is missing on the base branch
 
 ## The design sections
 
-Use these `##` sections, in this order. Follow `references/design-structure.md` of the `loupe-documents` skill for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the profile instructions add, such as the current state or the project checks, before Decided. Leave out a section that has nothing real to say.
+Use these `##` sections, in this order. Follow `references/design-structure.md` of the `loupe-documents` skill for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the instruction files or routed skills add, such as the current state or the project checks, before Decided. Leave out a section that has nothing real to say.
 
 1. At a glance.
 2. Problem. Say in plain words what goes wrong today, or what the product cannot do, and who feels it. Keep the trigger, the event that made someone look, apart from the problem. Leave the solution out.
@@ -60,7 +60,7 @@ The deploy notes tell the person who deploys what production needs for the chang
 
 Write the notes as follows:
 
-1. Read the profile `Instruction files` for the deploy items of the project. Add them to the list above. A profile that names none uses the list above alone, and never blocks the stage.
+1. Read the skills that the `### Tech design` heading routes for the deploy items of the project. Add them to the list above. A repository that names none uses the list above alone, and never blocks the stage.
 2. List each deploy item that the feature adds, changes or removes, and what the deploy must do for it.
 3. Search `document_list` for the title `Deploy notes: <card title>`, as the contract "Find a linked document" says. Revise a single match with `document_revise`, and create no second document.
 4. When no match exists, call `document_create` with the title `Deploy notes: <card title>`. Pass `draft: true` only when `document_publish` is among the tools. Set `references` to the tech design id. Leave the notes as a draft, as "Leave the drafts" says.
