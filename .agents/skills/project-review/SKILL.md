@@ -1,6 +1,6 @@
 ---
 name: project-review
-description: "Use when a diff changes `templates/`, `assets/styles/` or `assets/controllers/`, before a push that opens or changes a pull request; when reviewing the preview or visual check of such a pull request; and for an epic preview refresh."
+description: "Use when a diff changes `templates/`, `assets/styles/` or `assets/controllers/`, before a push that opens a pull request; when reviewing its preview or visual check; and for an epic preview refresh."
 ---
 
 # Preview and visual check
