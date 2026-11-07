@@ -625,7 +625,7 @@ describe('the start column', () => {
         expect(storedMode().startColumnId).toBeNull();
     });
 
-    it('keeps the same delivery id when only the column changes', async () => {
+    it('renews the delivery id when only the column changes', async () => {
         let attempt = 0;
         const fetchMock = bootWidget({
             mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
@@ -661,8 +661,11 @@ describe('the start column', () => {
             )
             .map(([, init]) => JSON.parse(init.body));
         expect(saves).toHaveLength(2);
-        expect(saves[1].deliveryId).toBe(saves[0].deliveryId);
+        expect(saves[0].target).toEqual({
+            newCard: { startColumnId: TECH.id },
+        });
         expect(saves[1].target).toEqual({ newCard: {} });
+        expect(saves[1].deliveryId).not.toBe(saves[0].deliveryId);
     });
 });
 

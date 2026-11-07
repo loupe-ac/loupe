@@ -204,9 +204,9 @@ final readonly class AddFeedbackHandler
 
     /**
      * The refusal of the first answer, read again for a retry whose answer was
-     * lost. A retry can name another column, so the test is where the card
-     * started: a refused start always lands in Backlog. The `created` row keeps
-     * that column, and a later move does not change it.
+     * lost. The start column joins the delivery hash, so the retry names the
+     * column of the first save. A refused start always lands in Backlog. The
+     * `created` row keeps that column, and a later move does not change it.
      */
     private function replayedRefusal(AddFeedbackCommand $command, CardSiteReviewComment $link): ?string
     {
@@ -251,13 +251,17 @@ final readonly class AddFeedbackHandler
     }
 
     /**
-     * The target as the request named it. It joins the delivery hash, so a
-     * retry to another target conflicts whatever happened to the card since.
+     * The target as the request named it, with its start column. It joins the
+     * delivery hash, so a retry to another target or another start column
+     * conflicts whatever happened to the card since.
      */
     private static function deliveryScope(AddFeedbackCommand $command): string
     {
         if (null !== $command->cardId) {
             return 'card:'.strtolower(trim($command->cardId));
+        }
+        if (null !== $command->startColumnId) {
+            return 'new:'.strtolower(trim($command->startColumnId));
         }
 
         return 'new';

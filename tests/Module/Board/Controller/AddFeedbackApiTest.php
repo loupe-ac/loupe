@@ -190,18 +190,26 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertNull($second['startRefused']);
     }
 
-    public function test_a_retry_that_names_another_column_after_an_accepted_start_reports_no_refusal(): void
+    /** @return iterable<string, array{string, string}> */
+    public static function changedStartColumns(): iterable
+    {
+        yield 'Backlog, then an allowed column' => ['backlog', 'in-progress'];
+        yield 'a refused column, then Backlog' => ['done', 'backlog'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('changedStartColumns')]
+    public function test_a_retry_that_names_another_start_column_conflicts(string $firstSlug, string $retrySlug): void
     {
         $client = static::createClient();
-        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-other-start@example.com');
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-other-start-'.$firstSlug.'@example.com');
         $extra = ['deliveryId' => '0199c0de-0000-4000-8000-000000000005'];
 
-        $first = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'in-progress')->id]], $extra));
-        $second = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'backlog')->id]], $extra));
-
+        $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $firstSlug)->id]], $extra));
         self::assertResponseStatusCodeSame(201);
-        self::assertSame($first['cardId'], $second['cardId']);
-        self::assertNull($second['startRefused']);
+        $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $retrySlug)->id]], $extra));
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertStringContainsString('delivery_conflict', (string) $client->getResponse()->getContent());
         self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
     }
 
