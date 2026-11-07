@@ -1162,6 +1162,24 @@ The route also gives `discoveryRemains`. It is `true` when the project has no
 discovery run, or when its latest run failed. `loupe init` then names discovery
 in its last lines. An app that sends no value counts as `true`.
 
+Each project also carries a `github` object, which `loupe init` reads. It comes
+from the stored repository check, so the route makes no call to GitHub.
+`appInstalled` says whether the Loupe GitHub App is installed for the project.
+`repositories` lists each GitHub repository with these fields:
+
+- `path`: the repository path.
+- `defaultBranch`: the default branch, or `null` before the first read.
+- `rulesRead`: `ok`, `plan-limited` or `refused`, or `null` before the first
+  read. `plan-limited` means the plan has no rules. `refused` means the last
+  read failed.
+- `reviewRequired`: whether the rules require an approving review, or `null`
+  when unknown.
+- `mergeApproval` and `mergeApprovalSource`: the resolved `merge-approval`
+  setting and where it came from. The value is `null` while no source sets it.
+
+An app that sends no `github` object reads as unknown, and `loupe init` then
+asks no merge question.
+
 The bridge reads the list at start, at each reload and once an hour. The read at
 start and the read of a reload end before the bridge dispatches work. When reads
 overlap, the answer of the read that began last wins. When a read fails, the
