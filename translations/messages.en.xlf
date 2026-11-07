@@ -9026,6 +9026,9 @@
             <trans-unit id="analytics.dashboard.flash.invalid"><source>analytics.dashboard.flash.invalid</source><target>Loupe could not change the graph. Try again.</target></trans-unit>
             <trans-unit id="analytics.dashboard.flash.removed"><source>analytics.dashboard.flash.removed</source><target>Removed “%name%” from the Dashboard.</target></trans-unit>
             <trans-unit id="analytics.dashboard.remove.undo"><source>analytics.dashboard.remove.undo</source><target>Undo</target></trans-unit>
+            <trans-unit id="analytics.dashboard.slow.title"><source>analytics.dashboard.slow.title</source><target>This graph is taking longer than usual.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.slow.body"><source>analytics.dashboard.slow.body</source><target>The numbers are still being worked out.</target></trans-unit>
+            <trans-unit id="analytics.dashboard.slow.retry"><source>analytics.dashboard.slow.retry</source><target>Retry</target></trans-unit>
             <trans-unit id="analytics.dashboard.tile.loading"><source>analytics.dashboard.tile.loading</source><target>Loading this graph.</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.label"><source>analytics.dashboard.menu.label</source><target>Graph actions</target></trans-unit>
             <trans-unit id="analytics.dashboard.menu.rename"><source>analytics.dashboard.menu.rename</source><target>Rename</target></trans-unit>

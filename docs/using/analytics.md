@@ -386,6 +386,12 @@ gone, such as a time bucket that a bucket rule change removed, or a metric that
 the workflow template dropped. It offers **Open in Metrics** and **Remove**. The
 tile draws again when the metric comes back.
 
+A tile that has no result yet shows a spinner. When the numbers take longer than
+30 seconds, the tile reads **This graph is taking longer than usual.** and offers
+**Retry**. **Retry** asks for the numbers again and starts the wait over. An
+admin sets the wait with the `insights.slow_notice_seconds` feature flag at
+`/admin/feature-flags`. A reload also starts the wait over.
+
 The Dashboard keeps the result of each graph for up to 15 minutes, and a line
 under the tabs reads "Updated 4 min ago". The Metrics tab always computes live.
 When you save, edit, rename, resize, move or remove a graph in another tab, an

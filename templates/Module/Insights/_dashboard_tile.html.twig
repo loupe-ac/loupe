@@ -1,9 +1,18 @@
-{# One tile. A tile with no kept result shows a waiting frame, which the live update replaces. Props: project (Project), tile (DashboardTileView). #}
+{# One tile. A tile with no kept result shows a waiting frame, which the live update replaces. After the notice delay, the slow tile in the template replaces the spinner. Props: project (Project), tile (DashboardTileView). #}
 {% if tile.waiting %}
-    <turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ tile.graph.width.value }}" data-graph-id="{{ tile.graph.id }}" data-dashboard-tile="waiting" data-awaiting-worker>
+    <turbo-frame id="{{ tile.frameId }}" target="_top" class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ tile.graph.width.value }}" data-graph-id="{{ tile.graph.id }}" data-dashboard-tile="waiting" data-awaiting-worker data-controller="slow-notice" data-slow-notice-delay-value="{{ dashboard_slow_notice_seconds() }}">
         <twig:Ds:GraphTile :name="tile.graph.name" :grip="false" aria-busy="true">
             <p class="lp-graph-tile__note lp-graph-tile__loading" role="status"><twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--md lp-graph-tile__spinner" />{{ 'analytics.dashboard.tile.loading'|trans }}</p>
         </twig:Ds:GraphTile>
+        <template data-slow-notice-target="slow">
+            <twig:Ds:GraphTile :name="tile.graph.name" :grip="false" state="slow" :brokenTitle="'analytics.dashboard.slow.title'|trans" :brokenBody="'analytics.dashboard.slow.body'|trans" data-dashboard-slow>
+                <twig:block name="footer">
+                    <twig:Ds:ActionForm :action="path('app_project_analytics_dashboard_graph_refresh', {id: project.id, graphId: tile.graph.id})" token="insights-graph-refresh">
+                        <twig:Ds:Button variant="outline" size="sm" type="submit">{{ 'analytics.dashboard.slow.retry'|trans }}</twig:Ds:Button>
+                    </twig:Ds:ActionForm>
+                </twig:block>
+            </twig:Ds:GraphTile>
+        </template>
     </turbo-frame>
 {% else %}
     {% include '@Insights/_dashboard_tile_frame.html.twig' with {project: project, tile: tile} only %}

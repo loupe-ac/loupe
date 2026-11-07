@@ -57,6 +57,10 @@
     .lp-graph-tile--broken {
         @apply border-dashed;
     }
+    /* A slow tile looks like a broken one, so a person sees at once that it needs an action. */
+    .lp-graph-tile--slow .lp-graph-tile__broken-icon {
+        @apply text-fg-dim;
+    }
     .lp-graph-tile__broken {
         @apply flex flex-col items-center gap-2 py-6 text-center;
     }
