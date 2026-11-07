@@ -2144,6 +2144,66 @@ work:
     run: [bin/remove-worktree.sh, "{cardNumber}"]
 ```
 
+### Reuse the worktree hooks of Claude Code
+
+A repository can already make and remove its worktrees for Claude Code, with a
+`WorktreeCreate` and a `WorktreeRemove` hook in `.claude/settings.json` or
+`.claude/settings.local.json`. The hidden commands `loupe hook worktree-create`
+and `loupe hook worktree-remove` run those hooks as bridge commands, so the
+repository keeps one script for both uses. They need a CLI release that has
+the `hook` command. `loupe init` checks each hook on its own. It proposes the
+`before` entry for a `WorktreeCreate` hook, and the `teardown` entry for either
+hook, so a repository with only a `WorktreeRemove` hook gets its cleanup too.
+When a `teardown` command entry exists, it proposes to add the hook command to
+that entry.
+
+```yaml
+projects:
+  make-plans:
+    dir: ~/Code/make-plans
+    work:
+      implement:
+        prompt: Implement card {cardNumber}.
+        before:
+          run: [loupe, hook, worktree-create, --project, "{project}", "card-{cardNumber}"]
+work:
+  teardown:
+    action: command
+    run: [loupe, hook, worktree-remove, --project, "{project}", "card-{cardNumber}"]
+```
+
+Both commands run in the project `dir` and read the settings files of that folder.
+A project entry replaces the shared entry of its kind, so it needs a `prompt`
+of its own. Copy the `prompt` and the other fields of the shared entry into it,
+then add the `before` command.
+
+- `worktree-create <name>` writes a JSON payload to stdin with three of the
+  fields that Claude Code sends: `hook_event_name`, `cwd` and `name`. It sets `CLAUDE_PROJECT_DIR` to
+  the project folder and runs the hook command with `sh -c`. It prints the last
+  line of the hook output, which is the folder, and sends every other output line to stderr.
+- Both commands find the worktree of a name with `git worktree list`. A worktree whose claim names that name and the `--project` slug matches first, in any folder and on any branch. Otherwise an unclaimed worktree whose folder or branch has that name matches.
+- When the worktree of that name already exists, `worktree-create` prints its folder and skips the hook, because a `before` command runs again on each resume.
+- `worktree-create` writes the claim file `loupe-hook-worktree` into the git dir of the worktree at the folder that the hook printed. A relative folder counts from the project folder. The claim holds the worktree name and the `--project` slug. That dir lies outside the working tree, and it goes away with the worktree. It does not claim a worktree that already existed before the hook ran, or a folder that is no linked worktree of the project. When the hook prints a worktree that another claim names, such as the hook worktree of another project, `worktree-create` fails and changes no claim.
+- Both commands hold the lock file `loupe-hook-worktree.lock` in the common git dir of the repository. `worktree-create` holds it from the lookup to the claim, and `worktree-remove` from the lookup to the removal. So a second project entry that shares the repository waits while a hook runs, and never reuses a worktree before its claim lands.
+- `worktree-create` fails when no `WorktreeCreate` command hook exists, when the hook exits with a code that is not 0, or when it prints no folder.
+- `worktree-remove <name>` sends three of the fields of Claude Code: `hook_event_name`, `cwd` and `worktree_path`.
+- `worktree-remove` acts only on a worktree that carries the claim of that name and slug, or that is the bridge worktree `<config dir>/worktrees/<project>/<name>` of the `--project` slug. It leaves any other worktree of that name, such as one that a person made, and says so on stderr.
+- Two project entries can share one repository, and each bridge worktree of a card then has the same name. Both commands skip a worktree in the worktree folder of the bridge that belongs to another slug, and a worktree whose claim names another slug. Without `--project`, they skip every bridge worktree.
+- Neither command sends `session_id`, `transcript_path` or the other common fields of a Claude Code hook. The bridge runs the commands before the worker session starts and after the last worker ends, so no session and no transcript exist. A hook that needs those fields does not work as a bridge command.
+- A `WorktreeRemove` hook can leave the git removal to its caller, as Claude Code removes the worktree after the hook. When the worktree is still there after the hook, `worktree-remove` runs `git worktree remove --force` and `git worktree prune`. It does the same in a project with a `WorktreeCreate` hook and no `WorktreeRemove` hook.
+- `worktree-remove` does nothing when the project has no such worktree, has neither worktree hook, or does not own the worktree.
+- The `teardown` entry sits in the shared `work` map, because a command entry cannot sit under a project. Its command does nothing in a project with no hook, so one entry serves every project.
+- When the shared `work` map already has a `teardown` command entry, run both commands in it. Wrap them in `sh -c`, and pass each placeholder as an argument. `loupe init` proposes this change:
+
+  ```yaml
+  work:
+    teardown:
+      action: command
+      run: [sh, -c, 'loupe hook worktree-remove --project "$1" "card-$2"; s=$?; bin/teardown.sh "$2" || exit; exit $s', sh, "{project}", "{cardNumber}"]
+  ```
+
+  Both commands run, and the entry fails when either fails.
+
 A command entry waits until a running worker of the same card ends. The bridge
 does not retry a failed command. With a bridge worktree, the bridge also
 removes its own folder after a `teardown` command entry, or alone when the work
