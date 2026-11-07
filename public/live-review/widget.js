@@ -5499,7 +5499,17 @@
                         id: saved.commentId,
                         ...comment,
                         link: saved.url
-                            ? { label: `#${saved.number}`, url: saved.url }
+                            ? {
+                                  label: `#${saved.number}`,
+                                  url: saved.url,
+                                  column: saved.column || '',
+                                  // A card saved outside Backlog started
+                                  // work, so its note is locked at once.
+                                  locked:
+                                      !!saved.column &&
+                                      saved.column.trim().toLowerCase() !==
+                                          'backlog',
+                              }
                             : null,
                     });
                     // A list request still in flight answers with a snapshot

@@ -20,6 +20,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class CardCommentEditLockTest extends KernelTestCase
 {
@@ -133,7 +134,9 @@ final class CardCommentEditLockTest extends KernelTestCase
 
         $started = $resolver->resolve([$comment], $project)[(string) $comment->id];
         self::assertTrue($started->locked);
-        self::assertSame($card->column->label, $started->column);
+        $translator = self::getContainer()->get(TranslatorInterface::class);
+        self::assertInstanceOf(TranslatorInterface::class, $translator);
+        self::assertSame($translator->trans($card->column->label), $started->column);
     }
 
     /** @return array{Project, Card, SiteReviewComment} */

@@ -1819,6 +1819,35 @@ describe('the scope of the list request', () => {
     const madeCard = (cardId) =>
         ok({ commentId: 'c1', cardId, number: 3, label: '#3', url: null });
 
+    it('locks a note at once when its card is saved outside Backlog', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG, TECH], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Tech design',
+                startRefused: null,
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        openPanel();
+        const row = panelRoot().querySelector('#lp-list .lp-item');
+        row.querySelector('.lp-row-menu-btn').click();
+        const items = [
+            ...panelRoot().querySelectorAll('[role="menuitem"]'),
+        ].map((item) => item.textContent);
+        expect(items).not.toContain('Edit text');
+        expect(items).not.toContain('Delete note…');
+    });
+
     it('keeps a save to a locked card out of the per-note list', async () => {
         bootWidget({
             context: `card:${CARD}`,
