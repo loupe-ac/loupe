@@ -29,8 +29,10 @@ use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\ArrayParameterType;
@@ -91,11 +93,13 @@ final readonly class DevMetricsSeeder
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
+        private InsightsResultKeeper $keeper,
+        private InsightsKeptResultRepository $insightsKeptResults,
     ) {
     }
 
     /**
-     * False when every run, usage row and saved graph exists.
+     * False when every run, usage row, saved graph and kept result exists.
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
@@ -104,7 +108,24 @@ final readonly class DevMetricsSeeder
         $runsSeeded = $this->seedRuns($context, $project, $context->now->setTime(0, 0), $cardFor);
         $graphsSeeded = $this->seedGraphs($context, $project);
 
-        return $runsSeeded || $graphsSeeded;
+        $resultsKept = $this->keepResults($project, $runsSeeded || $graphsSeeded);
+
+        return $runsSeeded || $graphsSeeded || $resultsKept;
+    }
+
+    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. */
+    private function keepResults(Project $project, bool $all): bool
+    {
+        $kept = false;
+        foreach ($this->insightsSavedGraphs->findActive($project) as $graph) {
+            if (!$all && null !== $this->insightsKeptResults->findForGraph($graph)) {
+                continue;
+            }
+            $this->keeper->graph($graph);
+            $kept = true;
+        }
+
+        return $kept;
     }
 
     /** @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor */

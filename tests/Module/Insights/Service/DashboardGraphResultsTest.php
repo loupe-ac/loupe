@@ -12,29 +12,23 @@ use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
-use App\Module\Insights\Service\KeptGraphComputer;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\View\KeptGraphResult;
 use App\Module\Insights\View\LineLayout;
 use App\Module\Project\Entity\Project;
-use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Tests\Module\Insights\InsightsScenario;
-use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Contracts\Cache\ItemInterface;
 
 final class DashboardGraphResultsTest extends KernelTestCase
 {
     use InsightsScenario;
 
-    private ArrayAdapter $pool;
-
     protected function setUp(): void
     {
         self::bootKernel();
-        $this->pool = new ArrayAdapter();
     }
 
     public function test_a_get_before_any_compute_finds_nothing_and_keeps_nothing(): void
@@ -42,8 +36,8 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $project = $this->scenarioProject('results-miss');
         $graph = $this->costGraph($project);
 
-        self::assertNull($this->results()->get($project, $graph));
-        self::assertFalse($this->pool->hasItem($this->results()->key($project, $graph)));
+        self::assertNull($this->results()->get($graph));
+        self::assertNull($this->kept()->findForGraph($graph));
     }
 
     public function test_a_compute_keeps_the_result_and_a_get_returns_an_equal_one(): void
@@ -52,13 +46,13 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $this->seedCosts($project);
         $graph = $this->costGraph($project);
 
-        $computed = $this->results()->compute($project, $graph);
-        $kept = $this->results()->get($project, $graph);
+        $computed = $this->keeper()->graph($graph);
+        $kept = $this->results()->get($graph);
 
         self::assertNotNull($kept);
         self::assertEquals($computed, $kept);
         self::assertInstanceOf(LineLayout::class, $this->drawn($kept)->layout);
-        self::assertCount(1, $this->pool->getValues());
+        self::assertNotNull($this->kept()->findForGraph($graph));
     }
 
     public function test_both_windows_count_back_from_the_one_clock_reading_the_result_records(): void
@@ -66,7 +60,7 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $project = $this->scenarioProject('results-clock');
         $graph = $this->costGraph($project);
 
-        $result = $this->results()->compute($project, $graph);
+        $result = $this->keeper()->graph($graph);
 
         self::assertEquals($result->computedAt, $result->current->to);
         self::assertNotNull($result->previous);
@@ -77,65 +71,12 @@ final class DashboardGraphResultsTest extends KernelTestCase
     {
         $project = $this->scenarioProject('results-empty');
 
-        $result = $this->results()->compute($project, $this->costGraph($project));
+        $graph = $this->costGraph($project);
+
+        $result = $this->keeper()->graph($graph);
 
         self::assertNull($this->drawn($result)->layout);
-        self::assertNotNull($this->results()->get($project, $this->costGraph($project)));
-    }
-
-    public function test_the_key_ignores_the_name_the_position_the_width_and_the_legend(): void
-    {
-        $project = $this->scenarioProject('results-key-presentation');
-        $graph = $this->costGraph($project);
-        $key = $this->results()->key($project, $graph);
-
-        $graph->name = 'Another name';
-        $graph->position = 9;
-        $graph->width = SavedGraphWidth::Full;
-        $graph->showLegend = false;
-
-        self::assertSame($key, $this->results()->key($project, $graph));
-    }
-
-    public function test_an_edit_of_any_setting_changes_the_key(): void
-    {
-        $project = $this->scenarioProject('results-key-settings');
-        $graph = $this->costGraph($project);
-        $key = $this->results()->key($project, $graph);
-
-        $graph->statistic = MetricStatistic::P90;
-        self::assertNotSame($key, $this->results()->key($project, $graph));
-
-        $graph->statistic = MetricStatistic::Median;
-        self::assertSame($key, $this->results()->key($project, $graph));
-        $graph->compare = MetricCompare::Off;
-        self::assertNotSame($key, $this->results()->key($project, $graph));
-    }
-
-    public function test_the_key_holds_the_project_id_so_projects_never_share_a_result(): void
-    {
-        $mine = $this->scenarioProject('results-key-mine');
-        $theirs = $this->scenarioProject('results-key-theirs');
-        $graph = $this->costGraph($mine);
-
-        self::assertStringContainsString((string) $mine->id, $this->results()->key($mine, $graph));
-        self::assertNotSame($this->results()->key($mine, $graph), $this->results()->key($theirs, $graph));
-
-        $this->results()->compute($mine, $graph);
-        self::assertNull($this->results()->get($theirs, $graph));
-    }
-
-    public function test_a_result_is_kept_for_fifteen_minutes(): void
-    {
-        $project = $this->scenarioProject('results-ttl');
-        $graph = $this->costGraph($project);
-
-        $before = time();
-        $this->results()->compute($project, $graph);
-
-        $item = $this->pool->getItem($this->results()->key($project, $graph));
-        self::assertTrue($item->isHit());
-        self::assertEqualsWithDelta($before + DashboardGraphResults::LIFETIME, $item->getMetadata()[ItemInterface::METADATA_EXPIRY] ?? null, 5);
+        self::assertNotNull($this->results()->get($graph));
     }
 
     public function test_the_result_keeps_the_key_of_each_series_in_the_order_of_the_labels(): void
@@ -148,7 +89,7 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $graph = $this->costGraph($project);
         $graph->group = MetricGroup::Account;
 
-        $result = $this->results()->compute($project, $graph);
+        $result = $this->keeper()->graph($graph);
 
         self::assertSame(['work'], $this->drawn($result)->labels);
         self::assertEquals([new MetricGroupKey(account: 'work')], $this->drawn($result)->seriesKeys);
@@ -166,7 +107,7 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $graph = $this->costGraph($project);
         $graph->group = MetricGroup::Account;
 
-        $result = $this->results()->compute($project, $graph);
+        $result = $this->keeper()->graph($graph);
 
         self::assertSame(['zeta', 'alpha'], $this->drawn($result)->labels);
         self::assertEquals([new MetricGroupKey(account: 'zeta'), new MetricGroupKey(account: 'alpha')], $this->drawn($result)->seriesKeys);
@@ -177,18 +118,11 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $project = $this->scenarioProject('results-null-keys');
         $this->seedCosts($project);
 
-        $result = $this->results()->compute($project, $this->costGraph($project));
+        $result = $this->keeper()->graph($this->costGraph($project));
 
         $drawn = $this->drawn($result);
         self::assertNotSame([], $drawn->labels);
         self::assertSame(array_fill(0, \count($drawn->labels), null), $drawn->seriesKeys);
-    }
-
-    public function test_the_key_carries_the_version_prefix_so_an_older_entry_misses(): void
-    {
-        $project = $this->scenarioProject('results-prefix');
-
-        self::assertStringStartsWith('insights_dashboard_v3_', $this->results()->key($project, $this->costGraph($project)));
     }
 
     public function test_the_kept_result_holds_no_text_and_one_result_formats_in_each_language(): void
@@ -197,12 +131,88 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $this->seedCosts($project);
         $graph = $this->costGraph($project);
 
-        $kept = $this->results()->compute($project, $graph);
+        $kept = $this->keeper()->graph($graph);
         $english = $this->drawn($kept, 'en');
         $french = $this->drawn($kept, 'fr');
 
         self::assertNotSame(serialize($english->layout), serialize($french->layout));
         self::assertStringNotContainsString($english->title, serialize($kept));
+    }
+
+    public function test_a_row_that_fits_other_settings_counts_as_missing(): void
+    {
+        $project = $this->scenarioProject('results-stale-settings');
+        $graph = $this->costGraph($project);
+        $this->keeper()->graph($graph);
+        self::assertNotNull($this->results()->get($graph));
+
+        $graph->statistic = MetricStatistic::P90;
+
+        self::assertNull($this->results()->get($graph));
+    }
+
+    public function test_a_rename_a_move_and_a_resize_keep_the_result(): void
+    {
+        $project = $this->scenarioProject('results-presentation');
+        $graph = $this->costGraph($project);
+        $this->keeper()->graph($graph);
+
+        $graph->name = 'Another name';
+        $graph->position = 9;
+        $graph->width = SavedGraphWidth::Full;
+        $graph->showLegend = false;
+
+        self::assertNotNull($this->results()->get($graph));
+    }
+
+    public function test_a_result_never_reaches_a_graph_of_another_project(): void
+    {
+        $mine = $this->scenarioProject('results-mine');
+        $theirs = $this->scenarioProject('results-theirs');
+        $graph = $this->costGraph($mine);
+        $this->keeper()->graph($graph);
+
+        self::assertNull($this->results()->get($this->costGraph($theirs)));
+    }
+
+    public function test_for_graphs_returns_the_current_results_by_graph_id(): void
+    {
+        $project = $this->scenarioProject('results-many');
+        $kept = $this->costGraph($project);
+        $waiting = $this->seedSavedGraph($project, 'Waiting', 1);
+        $this->keeper()->graph($kept);
+
+        $results = $this->results()->forGraphs([$kept, $waiting]);
+
+        self::assertSame([(string) $kept->id], array_keys($results));
+    }
+
+    public function test_a_payload_that_no_longer_reads_counts_as_missing(): void
+    {
+        $project = $this->scenarioProject('results-corrupt');
+        $graph = $this->costGraph($project);
+        $this->keeper()->graph($graph);
+        $this->em()->getConnection()->executeStatement('UPDATE insights_kept_results SET payload = :payload WHERE saved_graph_id = :graph', ['payload' => base64_encode('O:8:"Missing_":0:{}'), 'graph' => (string) $graph->id]);
+        $this->em()->clear();
+
+        self::assertNull($this->results()->get($this->em()->find(InsightsSavedGraph::class, $graph->id) ?? $graph));
+    }
+
+    public function test_a_second_keep_replaces_the_row_and_leaves_one(): void
+    {
+        $project = $this->scenarioProject('results-replace');
+        $graph = $this->costGraph($project);
+
+        $this->keeper()->graph($graph);
+        $first = $this->kept()->findForGraph($graph)?->computedAt;
+        usleep(1_100_000);
+        $this->keeper()->graph($graph);
+
+        $count = $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM insights_kept_results WHERE saved_graph_id = :graph', ['graph' => (string) $graph->id]);
+        self::assertSame(1, (int) $count);
+        $second = $this->kept()->findForGraph($graph)?->computedAt;
+        self::assertNotNull($first);
+        self::assertGreaterThan($first, $second);
     }
 
     private function drawn(KeptGraphResult $kept, string $locale = 'en'): \App\Module\Insights\View\DashboardGraphResult
@@ -234,14 +244,25 @@ final class DashboardGraphResultsTest extends KernelTestCase
 
     private function results(): DashboardGraphResults
     {
-        $container = self::getContainer();
-        $computer = $container->get(KeptGraphComputer::class);
-        $templates = $container->get(TemplateMetrics::class);
-        $clock = $container->get(ClockInterface::class);
-        self::assertInstanceOf(KeptGraphComputer::class, $computer);
-        self::assertInstanceOf(TemplateMetrics::class, $templates);
-        self::assertInstanceOf(ClockInterface::class, $clock);
+        $results = self::getContainer()->get(DashboardGraphResults::class);
+        self::assertInstanceOf(DashboardGraphResults::class, $results);
 
-        return new DashboardGraphResults($this->pool, $computer, $templates, $clock);
+        return $results;
+    }
+
+    private function keeper(): InsightsResultKeeper
+    {
+        $keeper = self::getContainer()->get(InsightsResultKeeper::class);
+        self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
+
+        return $keeper;
+    }
+
+    private function kept(): InsightsKeptResultRepository
+    {
+        $kept = self::getContainer()->get(InsightsKeptResultRepository::class);
+        self::assertInstanceOf(InsightsKeptResultRepository::class, $kept);
+
+        return $kept;
     }
 }

@@ -1,0 +1,8 @@
+framework:
+    # The default connection, so a lock lives as an expiring row in `lock_keys`. The advisory stores of PostgreSQL
+    # end the lock with the database session, which a web request that sends a message would end too soon.
+    lock: 'doctrine.dbal.default_connection'
+
+when@test:
+    framework:
+        lock: 'in-memory'

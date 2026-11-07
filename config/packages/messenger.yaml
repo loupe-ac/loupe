@@ -36,6 +36,14 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            # The Dashboard graph results and the shared experiment reports. Its own process computes them, so a sweep burst never delays `jobs`. Same DSN, own queue name.
+            insights:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: insights
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
             failed: 'doctrine://default?queue_name=failed'
 
         default_bus: messenger.bus.default
@@ -61,6 +69,7 @@ framework:
             App\Module\Forge\Messenger\ReconcileRepositoryHold: jobs
             App\Module\Forge\Messenger\RefreshPullRequestState: jobs
             App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
+            App\Module\Insights\Messenger\RefreshInsightsItem: insights
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
             App\Module\Notification\Messenger\DeliverWebPush: jobs
             App\Module\OpenRouter\Messenger\ReadBilledCost: jobs
@@ -112,6 +121,12 @@ when@test:
                         multiplier: 2
                         delay: 0
                 card_sweep:
+                    dsn: 'in-memory://'
+                    retry_strategy:
+                        max_retries: 3
+                        multiplier: 2
+                        delay: 0
+                insights:
                     dsn: 'in-memory://'
                     retry_strategy:
                         max_retries: 3

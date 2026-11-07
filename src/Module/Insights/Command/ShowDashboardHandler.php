@@ -8,6 +8,7 @@ use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkTakedownRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
 use App\Module\Insights\Service\GraphShareStates;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphHealth;
@@ -15,7 +16,7 @@ use App\Module\Insights\View\DashboardTileView;
 use App\Module\Insights\View\DashboardView;
 use Psr\Clock\ClockInterface;
 
-/** Reads the Dashboard. It computes nothing: a tile with no kept result waits for its lazy frame. */
+/** Reads the Dashboard. It computes nothing: a tile with no kept result waits, and the page asks the worker for it. */
 final readonly class ShowDashboardHandler
 {
     public function __construct(
@@ -26,6 +27,7 @@ final readonly class ShowDashboardHandler
         private SavedGraphCap $cap,
         private GraphShareStates $shares,
         private PublicLinkTakedownRepository $publicLinkTakedowns,
+        private InsightsRefreshRequester $refreshes,
         private ClockInterface $clock,
     ) {
     }
@@ -37,12 +39,16 @@ final readonly class ShowDashboardHandler
         $broken = $this->health->check($project, $graphs);
 
         $shares = $this->shares->forGraphs($project, $graphs);
+        $kept = $this->results->forGraphs($graphs);
         $tiles = [];
         $last = \count($graphs) - 1;
         foreach ($graphs as $index => $graph) {
             $problem = $broken[(string) $graph->id] ?? null;
-            $kept = null === $problem ? $this->results->get($project, $graph) : null;
-            $tiles[] = new DashboardTileView($graph, $problem, null === $kept ? null : $this->keptView->build($kept, \Locale::getDefault()), $index > 0, $index < $last, $shares[(string) $graph->id]);
+            $result = null === $problem ? ($kept[(string) $graph->id] ?? null) : null;
+            if (null === $problem && null === $result) {
+                $this->refreshes->graph($graph);
+            }
+            $tiles[] = new DashboardTileView($graph, $problem, null === $result ? null : $this->keptView->build($result, \Locale::getDefault()), $index > 0, $index < $last, $shares[(string) $graph->id]);
         }
 
         $now = \DateTimeImmutable::createFromInterface($this->clock->now());

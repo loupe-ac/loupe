@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\UnarchiveExperimentCommand;
 use App\Module\Bridge\Command\UnarchiveExperimentHandler;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\PublicShareBlock;
 use App\Module\Insights\Service\PublicShareGuard;
 use Doctrine\DBAL\LockMode;
@@ -34,6 +35,7 @@ final readonly class SetExperimentPublicLinkHandler
         private ShowExperimentHandler $showExperiment,
         private UnarchiveExperimentHandler $unarchiveExperiment,
         private Auditor $auditor,
+        private InsightsRefreshRequester $refreshes,
     ) {
     }
 
@@ -88,6 +90,10 @@ final readonly class SetExperimentPublicLinkHandler
             ['projectId' => $projectId, 'experiment' => $experiment, 'enabled' => $command->enabled, 'hasNote' => null !== $note],
             new AuditSubject('project', $projectId),
         );
+
+        if ($command->enabled) {
+            $this->refreshes->experiment($project, $experiment);
+        }
 
         return null !== $report && $report->archived;
     }
