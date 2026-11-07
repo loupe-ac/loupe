@@ -354,21 +354,19 @@ func diffRules(old, set *rules.Set) reloadResult {
 		diff(kind, prev, entry, was, is)
 	}
 	for _, slug := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.Projects(), old.Projects())))) {
-		for _, kind := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.ProjectWorkKinds(slug), old.ProjectWorkKinds(slug))))) {
-			prev, was := old.ProjectWorkEntry(slug, kind)
-			entry, is := set.ProjectWorkEntry(slug, kind)
-			diff(slug+"/"+kind, prev, entry, was, is)
-		}
-		// A covered copy reads <slug>/<kind> too. The loop above names a kind
-		// that either set lists in the project.
-		for _, kind := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.CoveredWorkKinds(slug), old.CoveredWorkKinds(slug))))) {
-			_, ownOld := old.ProjectWorkEntry(slug, kind)
-			_, ownNew := set.ProjectWorkEntry(slug, kind)
-			if ownOld || ownNew {
-				continue
+		// A covered copy reads <slug>/<kind> too. The entry the project lists
+		// wins over the copy, so a switch between the two reads as a change.
+		projectEntry := func(rs *rules.Set, kind string) (rules.WorkEntry, bool) {
+			if w, ok := rs.ProjectWorkEntry(slug, kind); ok {
+				return w, true
 			}
-			prev, was := old.CoveredWorkEntry(slug, kind)
-			entry, is := set.CoveredWorkEntry(slug, kind)
+
+			return rs.CoveredWorkEntry(slug, kind)
+		}
+		kinds := slices.Concat(set.ProjectWorkKinds(slug), old.ProjectWorkKinds(slug), set.CoveredWorkKinds(slug), old.CoveredWorkKinds(slug))
+		for _, kind := range slices.Compact(slices.Sorted(slices.Values(kinds))) {
+			prev, was := projectEntry(old, kind)
+			entry, is := projectEntry(set, kind)
 			diff(slug+"/"+kind, prev, entry, was, is)
 		}
 	}

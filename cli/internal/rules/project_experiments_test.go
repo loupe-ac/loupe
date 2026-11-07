@@ -148,3 +148,22 @@ func TestAVariantMergesWithTheProjectEntry(t *testing.T) {
 		t.Fatalf("prompt = %q", e.Prompt)
 	}
 }
+
+// A project with only covered copies has no entry of its own, and the
+// bridge-wide lists still read the variant accounts of its copies.
+func TestTheBridgeWideListsReadACoveredCopyOfAProjectWithNoEntries(t *testing.T) {
+	body := claudeAccount + "  other:\n    harness: claude-code\n" + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n" +
+		"    experiments:\n      fix-2:\n        covers: [fix]\n        baseline: a\n        variants:\n          - {name: a, weight: 1}\n          - {name: b, weight: 1, account: other}\n" +
+		"work:\n  fix:\n    prompt: Shared fix.\n"
+	s := parse(t, body)
+
+	if got := s.UsedAccounts(); !slices.Contains(got, "other") {
+		t.Fatalf("UsedAccounts = %v", got)
+	}
+	if got := s.AccountKinds("other"); !slices.Equal(got, []string{"fix"}) {
+		t.Fatalf("AccountKinds = %v", got)
+	}
+	if got := len(s.entriesOf("fix")); got != 2 {
+		t.Fatalf("entriesOf(fix) = %d entries, want the shared one and the copy", got)
+	}
+}

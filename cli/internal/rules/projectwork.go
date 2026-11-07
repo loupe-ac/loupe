@@ -79,7 +79,7 @@ func (s *Set) allEntries() []WorkEntry {
 	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
 		out = append(out, s.work[kind])
 	}
-	for _, slug := range slices.Sorted(maps.Keys(s.projectWork)) {
+	for _, slug := range s.workSlugs() {
 		for _, kind := range slices.Sorted(maps.Keys(s.projectWork[slug])) {
 			out = append(out, s.projectWork[slug][kind])
 		}
@@ -91,6 +91,16 @@ func (s *Set) allEntries() []WorkEntry {
 	return out
 }
 
+// workSlugs lists the projects that hold an entry of their own or a covered
+// copy, in name order. A project with only covered copies has no projectWork
+// key, so the bridge-wide lists must read both maps.
+func (s *Set) workSlugs() []string {
+	out := slices.AppendSeq(slices.Collect(maps.Keys(s.projectWork)), maps.Keys(s.coveredWork))
+	slices.Sort(out)
+
+	return slices.Compact(out)
+}
+
 // entriesOf lists every entry of a kind: the shared one, then one for each
 // project that lists the kind.
 func (s *Set) entriesOf(kind string) []WorkEntry {
@@ -98,7 +108,7 @@ func (s *Set) entriesOf(kind string) []WorkEntry {
 	if w, ok := s.work[kind]; ok {
 		out = append(out, w)
 	}
-	for _, slug := range slices.Sorted(maps.Keys(s.projectWork)) {
+	for _, slug := range s.workSlugs() {
 		if w, ok := s.projectWork[slug][kind]; ok {
 			out = append(out, w)
 		}
