@@ -1477,6 +1477,8 @@
       .lp-badge.off{background:var(--bg-sunken);color:var(--text-mute)}
       .lp-item-body{flex:1;min-width:0}
       .lp-item-text{font-size:13px;line-height:18px;color:var(--text);word-break:break-word}
+      .lp-item-lock{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:6px;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-item-open{display:inline-flex;align-items:center;height:22px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--accent-ink);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
       .lp-item-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
       .lp-chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;background:var(--bg-sunken);color:var(--text-mute);border-radius:6px;font-size:12px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .lp-chip svg{flex:0 0 auto}
@@ -2336,6 +2338,21 @@
     // The card (body + chip + delete) is built once on hover; the confirm overlay is
     // a separate node toggled in place, so arming/cancelling delete never rebuilds the
     // card (which would replay its fade-in and flicker).
+    // A note whose card left the Backlog is locked: the server refuses to edit
+    // or delete it, so the widget offers neither.
+    const isLocked = (comment) =>
+        !!comment && !!comment.link && comment.link.locked === true;
+    const linkUrlOf = (comment) =>
+        comment && comment.link && /^https?:\/\//.test(comment.link.url || '')
+            ? comment.link.url
+            : null;
+    const lockedText = (comment) => {
+        const label = comment.link.label || 'The card';
+        const column = String(comment.link.column || '');
+        return column.trim().toLowerCase() === 'backlog'
+            ? `${label} already started and is back in Backlog.`
+            : `${label} is being worked on${column ? ` in ${column}` : ''}.`;
+    };
     const buildPopover = (comment, index, info) => {
         const label = anchorLabel(info.anchor, info.kind);
         // A degraded comment names how many of its elements survived, so the reviewer
@@ -2351,22 +2368,36 @@
         const chip = chipText
             ? `<div class="lp-pop-meta"><span class="lp-pop-chip">${escapeHtml(chipText)}</span></div>`
             : '';
+        const locked = isLocked(comment);
+        const openUrl = locked ? linkUrlOf(comment) : null;
+        const lockedBlock = locked
+            ? `<div class="lp-pop-degraded">${escapeHtml(lockedText(comment))}</div>`
+            : '';
         return `<div class="lp-pop">
         <div class="lp-pop-card">
           <div class="lp-pop-main">
             <div class="lp-pop-body">${escapeHtml(comment.body)}</div>
             ${chip}
           </div>
-          ${warning}
+          ${warning}${lockedBlock}
           <div class="lp-pop-foot">
-            <button class="lp-pop-edit" data-pin-edit="${index}">Edit</button>
+            ${locked ? '' : `<button class="lp-pop-edit" data-pin-edit="${index}">Edit</button>`}
             <div style="flex:1"></div>
             <button class="lp-pop-more" data-pin-more="${index}" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>
           </div>
           <div class="lp-pop-menu" role="menu" hidden>
             <button class="lp-pop-menu-item" role="menuitem" data-pin-resolve="${index}">Mark resolved</button>
-            <div class="lp-pop-menu-sep" role="separator"></div>
-            <button class="lp-pop-menu-item danger" role="menuitem" data-pin-del="${index}">Delete note…</button>
+            ${
+                openUrl
+                    ? `<button class="lp-pop-menu-item" role="menuitem" data-pin-open="${index}">${escapeHtml(`Open ${comment.link.label} in Loupe`)}</button>`
+                    : ''
+            }
+            ${
+                locked
+                    ? ''
+                    : `<div class="lp-pop-menu-sep" role="separator"></div>
+            <button class="lp-pop-menu-item danger" role="menuitem" data-pin-del="${index}">Delete note…</button>`
+            }
           </div>
         </div>
       </div>`;
@@ -2418,15 +2449,27 @@
             menu.hidden = !menu.hidden;
             more.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
         });
-        holder.querySelector('[data-pin-del]').addEventListener('click', () => {
-            menu.hidden = true;
-            more.setAttribute('aria-expanded', 'false');
-            state.pinConfirmId = key;
-            renderPins();
-        });
-        holder
-            .querySelector('[data-pin-edit]')
-            .addEventListener('click', () => openEditComposer(commentIndex));
+        const del = holder.querySelector('[data-pin-del]');
+        if (del)
+            del.addEventListener('click', () => {
+                menu.hidden = true;
+                more.setAttribute('aria-expanded', 'false');
+                state.pinConfirmId = key;
+                renderPins();
+            });
+        const edit = holder.querySelector('[data-pin-edit]');
+        if (edit)
+            edit.addEventListener('click', () =>
+                openEditComposer(commentIndex),
+            );
+        const open = holder.querySelector('[data-pin-open]');
+        if (open)
+            open.addEventListener('click', () => {
+                const url = linkUrlOf(comments[commentIndex]);
+                menu.hidden = true;
+                more.setAttribute('aria-expanded', 'false');
+                if (url) window.open(url, '_blank', 'noopener');
+            });
         // No confirm step, unlike delete: resolving keeps the comment and the
         // owner can reopen it from its card's Feedback tab.
         holder
@@ -2692,6 +2735,9 @@
         }
         if (error && /^target_/.test(error.code || '')) {
             return 'That card is closed or gone. Choose where your notes go, then save again.';
+        }
+        if (error && error.code === 'note_locked') {
+            return 'That note is locked. Its card started work.';
         }
         if (error && error.status === 404) {
             return 'Your agent has already picked that note up, so it can’t be changed now.';
@@ -2995,14 +3041,37 @@
         };
         // A per-note review files each note as its own card, so the row is
         // the only place that names it.
-        const link =
-            !lock &&
-            storedTarget &&
-            storedTarget.mode === 'per-note' &&
-            comment.link &&
-            /^https?:\/\//.test(comment.link.url || '')
+        const locked = isLocked(comment);
+        const link = locked
+            ? linkUrlOf(comment)
                 ? comment.link
-                : null;
+                : null
+            : !lock &&
+                storedTarget &&
+                storedTarget.mode === 'per-note' &&
+                linkUrlOf(comment)
+              ? comment.link
+              : null;
+        if (locked) {
+            openMenu(button, 'row', comment.id, [
+                menuItem('Mark resolved', act(resolveComment), {
+                    name: 'resolve',
+                }),
+                ...(link
+                    ? [
+                          menuItem(
+                              `Open ${link.label} in Loupe`,
+                              () => {
+                                  closeMenu(false);
+                                  window.open(link.url, '_blank', 'noopener');
+                              },
+                              { name: 'open' },
+                          ),
+                      ]
+                    : []),
+            ]);
+            return;
+        }
         openMenu(button, 'row', comment.id, [
             ...(link
                 ? [
@@ -3061,28 +3130,42 @@
                 ),
             );
         }
-        if (comments.length > 0) {
+        const deletable = comments.filter((comment) => !isLocked(comment));
+        const stays = comments.length - deletable.length;
+        if (deletable.length > 0) {
             items.push(
                 menuSeparator(),
                 menuItem(
-                    comments.length === 1
+                    deletable.length === 1
                         ? 'Delete 1 note…'
-                        : `Delete all ${comments.length} notes…`,
+                        : `Delete all ${deletable.length} notes…`,
                     () => {
                         const cardNumber = /^#(\d+)/.exec(deleteAllCardTitle());
-                        const count = comments.length;
+                        const count = deletable.length;
                         // Only a one-card scope leaves the notes of other cards.
                         const oneCard = scopeOf().startsWith('card:');
+                        const scopeText =
+                            stays > 0
+                                ? `${
+                                      stays === 1
+                                          ? '1 note stays'
+                                          : `${stays} notes stay`
+                                  } on started cards.${
+                                      oneCard
+                                          ? ''
+                                          : ' This deletes the rest on every card they belong to.'
+                                  }`
+                                : oneCard
+                                  ? 'Notes on other cards stay.'
+                                  : 'This deletes them on every card they belong to.';
                         menuConfirm(
                             `${
                                 count === 1
                                     ? 'Delete 1 note'
-                                    : `Delete all ${count} notes`
-                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? ${
-                                oneCard
-                                    ? 'Notes on other cards stay.'
-                                    : 'This deletes them on every card they belong to.'
-                            }`,
+                                    : stays > 0
+                                      ? `Delete ${count} notes`
+                                      : `Delete all ${count} notes`
+                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? ${scopeText}`,
                             confirmClearYes,
                             {
                                 text: 'lp-clear-confirm-text',
@@ -3601,7 +3684,7 @@
                 row.className = 'lp-item';
                 row.innerHTML =
                     `<span class="lp-badge"></span>` +
-                    `<div class="lp-item-body"><div class="lp-item-text"></div><div class="lp-item-meta"><span class="lp-chip" style="display:none"></span>` +
+                    `<div class="lp-item-body"><div class="lp-item-text"></div><div class="lp-item-lock" style="display:none"><span class="lp-item-lock-text"></span><button class="lp-item-open" type="button"></button></div><div class="lp-item-meta"><span class="lp-chip" style="display:none"></span>` +
                     `<button class="lp-item-page" style="display:none" aria-label="Go to the page this note was made on">` +
                     `<span class="lp-item-page-label"></span>${ICON.arrowOut(12)}</button></div></div>` +
                     `<button class="lp-row-menu-btn" aria-label="Note actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>`;
@@ -3626,6 +3709,13 @@
                         if (target && target.url) location.href = target.url;
                     },
                 );
+                row.querySelector('.lp-item-open').addEventListener(
+                    'click',
+                    () => {
+                        const url = linkUrlOf(comments[index]);
+                        if (url) window.open(url, '_blank', 'noopener');
+                    },
+                );
                 row.querySelector('.lp-row-menu-btn').addEventListener(
                     'click',
                     (event) => openRowMenu(event.currentTarget, index),
@@ -3641,6 +3731,16 @@
                 (!here ? 'off' : isElement ? 'element' : 'general');
             badge.textContent = String(order.all.indexOf(index) + 1);
             row.querySelector('.lp-item-text').textContent = comment.body;
+            const lockEl = row.querySelector('.lp-item-lock');
+            const locked = isLocked(comment);
+            lockEl.style.display = locked ? '' : 'none';
+            if (locked) {
+                lockEl.querySelector('.lp-item-lock-text').textContent =
+                    lockedText(comment);
+                const openEl = lockEl.querySelector('.lp-item-open');
+                openEl.style.display = linkUrlOf(comment) ? '' : 'none';
+                openEl.textContent = `Open ${comment.link.label} in Loupe`;
+            }
             const chipEl = row.querySelector('.lp-chip');
             // A multi-anchor row names its count, and says so when some of its
             // elements are missing, rather than showing one element's text.
@@ -5224,6 +5324,16 @@
             else {
                 state.actionError = error;
                 if (error && error.status === 404) await refresh();
+                if (error && error.code === 'note_locked') {
+                    await refresh();
+                    resetView();
+                    state.composeTarget = null;
+                    state.editId = null;
+                    state.draft = '';
+                    state.strokes = [];
+                    textareaNode.value = '';
+                    setDrawing(false);
+                }
                 forgetRefusedTarget(error);
             }
         }
@@ -5253,7 +5363,11 @@
             if (authFailed(error)) enterFatal(error);
             else {
                 state.actionError = error;
-                if (error && error.status === 404) await refresh();
+                if (
+                    error &&
+                    (error.status === 404 || error.code === 'note_locked')
+                )
+                    await refresh();
             }
         }
         state.deleting = false;
@@ -5282,7 +5396,11 @@
             if (authFailed(error)) enterFatal(error);
             else {
                 state.actionError = error;
-                if (error && error.status === 404) await refresh();
+                if (
+                    error &&
+                    (error.status === 404 || error.code === 'note_locked')
+                )
+                    await refresh();
             }
         }
         state.deleting = false;
@@ -5310,7 +5428,9 @@
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.
-            const doomed = comments.map((comment) => comment.id);
+            const doomed = comments
+                .filter((comment) => !isLocked(comment))
+                .map((comment) => comment.id);
             const results = await Promise.allSettled(
                 doomed.map((id) =>
                     api('DELETE', `/api/v1/live-review-widget/feedback/${id}`),

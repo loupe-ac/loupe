@@ -4405,3 +4405,156 @@ test('pins and the list number notes with this page first, then other pages', as
     await expect(rows.first().locator('.lp-badge')).toHaveText('1');
     await expect(page.locator('.pin')).toHaveText('1');
 });
+
+type ReviewRow = { body: string; link: Record<string, unknown> | null };
+
+/**
+ * Answer GET /review with the given notes marked as locked, the way the server
+ * does for a note whose card left the Backlog.
+ */
+const routeLockedReview = async (
+    page: Page,
+    bodies: string[],
+    column: string,
+): Promise<void> => {
+    await page.route(REVIEW_ROUTE, async (route) => {
+        const response = await route.fetch();
+        const payload = (await response.json()) as {
+            comments: ReviewRow[];
+        };
+        await route.fulfill({
+            response,
+            json: {
+                ...payload,
+                comments: payload.comments.map((row) =>
+                    bodies.includes(row.body)
+                        ? {
+                              ...row,
+                              link: {
+                                  ...(row.link ?? {}),
+                                  locked: true,
+                                  column,
+                              },
+                          }
+                        : row,
+                ),
+            },
+        });
+    });
+};
+
+const lockNotesInReview = async (
+    page: Page,
+    bodies: string[],
+    column: string,
+): Promise<void> => {
+    await routeLockedReview(page, bodies, column);
+    await gotoHarness(page, keepHarnessUrl());
+    await page.getByRole('button', { name: 'Review' }).click();
+};
+
+test('a locked note says its card started and offers only Mark resolved and Open', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Locked note', '1');
+
+    await lockNotesInReview(page, ['Locked note'], 'Tech design');
+
+    const row = page.locator('#lp-list .lp-item').first();
+    await expect(row.locator('.lp-item-lock-text')).toHaveText(
+        /^#\d+ is being worked on in Tech design\.$/,
+    );
+    await expect(
+        row.getByRole('button', { name: /^Open #\d+ in Loupe$/ }),
+    ).toBeVisible();
+
+    await row.getByRole('button', { name: 'Note actions' }).click();
+    await expect(page.locator('#lp-menu').getByRole('menuitem')).toHaveText([
+        'Mark resolved',
+        /^Open #\d+ in Loupe$/,
+    ]);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a locked note whose card is back in Backlog says it already started', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Locked note', '1');
+
+    await lockNotesInReview(page, ['Locked note'], 'Backlog');
+
+    await expect(
+        page.locator('#lp-list .lp-item').first().locator('.lp-item-lock-text'),
+    ).toHaveText(/^#\d+ already started and is back in Backlog\.$/);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('Delete all counts only the notes that are not locked', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Open one', '1');
+    await addGeneralNote(page, 'Open two', '2');
+    await addGeneralNote(page, 'Open three', '3');
+    await addGeneralNote(page, 'Locked one', '4');
+    await addGeneralNote(page, 'Locked two', '5');
+
+    await lockNotesInReview(page, ['Locked one', 'Locked two'], 'Tech design');
+
+    await chooseHeadMenuItem(page, 'Delete all 3 notes…');
+    await expect(page.locator('#lp-clear-confirm-text')).toContainText(
+        'Delete 3 notes',
+    );
+    await expect(page.locator('#lp-clear-confirm-text')).toContainText(
+        '2 notes stay on started cards.',
+    );
+    await page.locator('#lp-clear-yes').click();
+    await expect(page.locator('#lp-list .lp-item')).toHaveCount(2);
+    await expect(page.locator('#lp-launch-count')).toHaveText('2');
+
+    // Only locked notes are left, so Delete all is gone.
+    await headMenuButton(page).click();
+    await expect(
+        page.locator('#lp-menu').getByRole('menuitem', { name: /^Delete / }),
+    ).toHaveCount(0);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a note_locked answer to an edit reloads the list and closes the composer', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Racing note', '1');
+
+    await page.route('**/api/v1/live-review-widget/comments/*', (route) => {
+        if (route.request().method() !== 'PATCH') return route.fallback();
+        return route.fulfill({
+            status: 409,
+            contentType: 'application/json',
+            body: JSON.stringify({ code: 'note_locked' }),
+        });
+    });
+    await chooseRowMenuItem(
+        page,
+        page.locator('#lp-list .lp-item').first(),
+        'Edit text',
+    );
+    await page.getByPlaceholder(/What should change/).fill('Too late');
+    await routeLockedReview(page, ['Racing note'], 'Tech design');
+    await clickSave(page);
+
+    await expect(
+        page.locator('#lp-panel').getByText(/That note is locked/i),
+    ).toBeVisible();
+    await expect(page.getByPlaceholder(/What should change/)).toBeHidden();
+    await expect(
+        page.locator('#lp-list .lp-item').first().locator('.lp-item-lock-text'),
+    ).toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});

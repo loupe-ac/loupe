@@ -17,7 +17,7 @@ interface CommentLinkResolverInterface
     /**
      * @param list<SiteReviewComment> $comments
      *
-     * @return array<string, ContextLabel> keyed by comment id
+     * @return array<string, CommentLink> keyed by comment id
      */
     public function resolve(array $comments, Project $project): array;
 }
