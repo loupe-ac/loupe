@@ -8,29 +8,53 @@ run in every repository that uses Loupe, so they hold no command, branch or
 column name of one repository. Each repository writes those values in its
 profile, `.loupe/lifecycle.md`, at the repository root.
 
-A worker reads the profile at the start of each stage. When the file is
-missing, or a section that a step needs is missing, the worker stops with a
-line such as `STAGE RESULT: blocked: no Gate in .loupe/lifecycle.md`. The card
-then shows the block, and nothing changes in the repository.
+A worker reads the profile at the start of each stage. It first runs
+`routing-check.sh`. When a skill that the routing table names is missing from
+the repository, the worker stops with a line such as
+`STAGE RESULT: blocked: routed skill project-backend missing`. The card then
+shows the block, and nothing changes in the repository.
 
-The profile is plain Markdown. Each section starts with a `##` heading that has
-the exact section name, and holds a numbered list of rules. A worker reads the
-rules as instructions, so write each one as a short, direct sentence.
+The profile holds a skill routing table, not a copy of your rules. Your
+instruction files and skills hold the rules, such as the gate, the changelog,
+the pull request format and the writing style. The table tells each stage which
+skill to load, and when.
 
-## Sections
+## The routing table
 
-| Section | What it holds | Read by |
-|---|---|---|
-| `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage, and the interactive design sessions |
-| `Environment` | A check that the worker is in its own folder | Implementation, fix round |
-| `Gate` | The base branch, the commands to run before a push, in order, and the required checks that the merge stage counts | Implementation, fix round, merge, breakdown |
-| `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |
-| `Changelog` | Where a change records its changelog entry, and how to check it. Write "none" when the repository keeps no changelog | Implementation |
-| `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
-| `Board` | The column slugs that a stage reads or moves a card to: product design, tech design, implementation, review, default and terminal. A missing line means `product-design`, `tech-design`, `implementation` and `in-review` | Implementation, breakdown, product design |
-| `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
+The `## Routing` section has one `###` heading for each stage. The stage names
+are `Product design`, `Tech design`, `Implementation`, `Fix round`, `Review`,
+`Design review`, `Merge`, `Epic preview` and `Discovery`. Under a heading, write
+one line for each skill, in this form:
 
-Five sections are optional. A missing optional section blocks nothing.
+```markdown
+Load skill `<name>` <when>.
+```
+
+`<name>` is a skill of the repository, under `.claude/skills/<name>/SKILL.md` or
+`.agents/skills/<name>/SKILL.md`. `<when>` is free text that says when the stage
+loads the skill, such as "when the diff changes `e2e/`" or "before the push".
+A plugin skill, such as `loupe:loupe-board`, has a colon in its name. The check
+skips it, because the repository cannot hold it. A stage with no heading loads
+nothing.
+
+```markdown
+## Routing
+
+### Implementation
+Load skill `project-backend` when the diff changes `src/`.
+Load skill `working-with-prs` before the push.
+
+### Merge
+Load skill `working-with-prs` before the merge.
+```
+
+The check also prints the number of each line that breaks the form, and the
+stage then stops with `blocked: routing line malformed`. A file with no
+`## Routing` section passes.
+
+## Other sections
+
+Two sections are optional, and a missing one blocks nothing.
 
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from
@@ -40,46 +64,35 @@ Five sections are optional. A missing optional section blocks nothing.
    tech design. Without the section, the tags are `product-design`, and
    `tech-design` with `decisions`. Workflow rules match these tags, so set
    them only when your workflow template matches other tags.
-3. `Visual check` tells a worker how to screenshot a changed page: the paths
-   that trigger the check, the app URL, how to sign in, the browser and the
-   widths. Discovery also reads the browser tool from it, and checks for
-   Playwright when the section names none.
-4. `Preview` tells a worker how to prove a preview link for each state of a
-   changed page: the paths that trigger the check, the body section and line
-   form, and how to seed, mint and prove a link. Without the section, no
-   stage checks previews.
-5. `Epics` holds the epic branch pattern, how a child of an epic merges, and
-   the epic preview. The merge stage needs it only when the project uses epic
-   branches. The profile agent sets the epic preview with you. When the
-   repository serves an epic branch, tell the agent how, and it writes the
-   value. With `Epic preview: none`, or with no epic preview in the section, a
-   request for an epic preview refresh finishes with no change. To change the
-   value later, run `loupe init --review-profile`.
+
+The `Visual check` and `Preview` sections stay in use until the preview method
+moves into a skill of the repository. `Visual check` tells a worker how to
+screenshot a changed page. `Preview` tells a worker how to prove a preview link
+for each state of a changed page. Without them, no stage checks previews.
+
+A stage ignores an older section, such as `Instruction files`, `Gate`,
+`Pull request`, `Board`, `Merge` or `Epics`. Remove it when your routing table
+and instruction files hold the same rules. The stages use the column slugs
+`product-design`, `tech-design`, `implementation`, `in-review`, `backlog` and
+`done`.
 
 ## Draft pull requests and the agent review
 
 The Lifecycle workflow marks a pull request ready only when it is a draft, the
 agent review passed and the checks are green. So a project on the Lifecycle
-workflow with agent review on writes this rule in its `Pull request` section:
-
-```markdown
-1. Open it as a draft. Never mark it ready, because the workflow does that.
-```
-
-A pull request that opens as ready skips the agent review gate.
+workflow with agent review on states in its instruction files that a pull
+request opens as a draft and that an agent never marks it ready. A pull request
+that opens as ready skips the agent review gate.
 
 ## Environment steps
 
 The bridge prepares the worker's folder with the `before` command of a work
 entry, and removes it with a `teardown` entry. The
 [command-line bridge](cli-bridge.md) describes both. The profile does not
-create or remove the folder.
-
-The `Environment` section holds one optional step that runs inside a stage: a folder check, which proves that the worker is not in the main checkout. For git worktrees, the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ.
+create or remove the folder, and a stage proves that the worker is not in the
+main checkout without a profile step.
 
 The refresh after a sync that brings new commits, such as a dependency install or a database migration, is not a profile step. Set the `refresh` field of the work entry in the bridge rule file. The stage runs `loupe env refresh`, and the bridge runs that command in the worker folder. See [refresh and reset commands](cli-bridge.md#refresh-and-reset-commands).
-
-Write "none" for the folder check when your repository does not need it.
 
 ## Write the profile with an agent
 
@@ -87,8 +100,8 @@ Write "none" for the folder check when your repository does not need it.
 project needs a profile and the file is missing. The workflow template says
 whether it needs a profile: Lifecycle does, and Simple does not. The agent writes
 nothing to `.loupe/lifecycle.md`, and `loupe init` no longer checks the file for
-sections or for a line that reads "owner to fill in". A stage that needs a
-section the file lacks stops blocked. The recovery stage reads no profile
+sections or for a line that reads "owner to fill in". A stage that routes a skill the
+repository lacks stops blocked. The recovery stage reads no profile
 section. It carries its three actions itself, so an old `Recovery` or `Repair`
 section is ignored.
 
@@ -99,53 +112,27 @@ agent asks one question per turn about a blocker. It changes nothing in your
 tooling or workflow without your approval, and it proposes each edit to an
 instruction file or a project skill on its own.
 
-To write one by hand, copy this file to `.loupe/lifecycle.md`, and replace each value with the value
-of your repository. The example is for a Node project on GitHub with the
-Lifecycle workflow and its default column slugs.
+To write one by hand, create `.loupe/lifecycle.md`, and name the skills of
+your repository. The example is for a Node project on GitHub with the
+Lifecycle workflow.
 
 ```markdown
 # Lifecycle profile
 
-## Instruction files
+## Routing
 
-1. Read `AGENTS.md`, and follow it.
+### Implementation
+Load skill `project-testing` when the diff changes `tests/`.
+Load skill `working-with-prs` before the push.
 
-## Environment
+### Fix round
+Load skill `working-with-prs` before the push.
 
-1. Folder check: none.
+### Review
+Load skill `project-testing` when the diff changes `tests/`.
 
-## Gate
-
-1. Base branch: `main`.
-2. Run `npm run lint`, and commit what it fixes.
-3. Run `npm test`.
-
-## Code review
-
-1. None. The agent review runs after the push.
-
-## Changelog
-
-1. None.
-
-## Pull request
-
-1. Open it as a draft, against the base branch of the `Gate` section. Never mark it ready, because the workflow does that.
-2. Write the title as `<type>: <summary>`.
-3. Put the card URL in the body.
-
-## Board
-
-1. The column that holds a card in product design is `product-design`.
-2. The column that holds a card in implementation is `implementation`.
-3. The column that holds a pull request waiting for review is `in-review`.
-4. The default column is `backlog`, and the terminal column is `done`.
-
-## Merge
-
-1. The merge method is `squash`.
-2. Any approval from a person with write access counts.
-3. Merge only a pull request whose base is `main`.
+### Merge
+Load skill `working-with-prs` before the merge.
 ```
 
 The profile of the Loupe repository itself is a longer example. It is at

@@ -13,7 +13,7 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md`. Follow its rules for the whole run.
 2. Load the unattended run notes, as the contract says.
-3. Read the repository profile, as the contract says.
+3. Check the routing table, as the contract says. Load the skills that the `### Tech design` heading routes.
 4. Connect to the Loupe tools, as the contract's first steps say.
 5. Call `card_get`, and run the contract's column check.
 6. Read the tags of each linked document with `document_get`. The product document has the product design tag, or a title that starts `Product design`. The deploy notes have the tag `deploy-notes`, or a title that starts `Deploy notes`.
@@ -21,7 +21,7 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
    - A product document with `status` `approved`: read it with `document_get`. Read its answers, as the contract "Read the answers of a design" says. Every decision cites the `R` IDs it serves.
    - A product document that is not approved: stop with `STAGE RESULT: product document not approved`.
    - No product document: the owner skipped product design. The requirement source is the card body. Say so in the first section of the design, and cite the card body where a decision would cite an `R` ID.
-8. Load `loupe-documents`. Load the tech design instructions and read the design inputs that the profile `Instruction files` section names. They are required inputs. Read `references/tech-document.md`. It holds the content rules that this file quotes by section name. They are "Leave the drafts", "Record a dependency", "Judge the size", "The design sections", "Deploy notes", "Code sketches", "Prototype links" and "Facts and recommendations".
+8. Load `loupe-documents`. Load the skills that the `### Tech design` heading routes, and read the design inputs they name. They are required inputs. Read `references/tech-document.md`. It holds the content rules that this file quotes by section name. They are "Leave the drafts", "Record a dependency", "Judge the size", "The design sections", "Deploy notes", "Code sketches", "Prototype links" and "Facts and recommendations".
 9. Find the tech design among the linked documents, as the contract says. It has the tech design tags, or a title that starts `Tech design`. Skip the tech design of the parent card, as `../loupe-stage-implementation/references/breakdown.md` "Build a child" says.
 10. When step 9 finds none, search `document_list` for the title `Tech design: <card title>`, as the contract says. The document to reference is the product document, when there is one.
 
