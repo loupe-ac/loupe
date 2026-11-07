@@ -25,8 +25,8 @@ path skips this.
    including ones that pre-date your change.
 
 A `PreToolUse` hook, `.agents/hooks/no-full-ci.sh`, refuses `just ci` and a
-full PHPUnit run for an agent. CI runs `just audit`, so the local list leaves
-it out. A worker learns of a failed required check from the board, and the
+full PHPUnit run for an agent. The `audit` workflow runs `just audit` on `main` and each day, so the local
+list leaves it out. A worker learns of a failed required check from the board, and the
 `checks-failed` fix round covers every required check.
 
 e2e is not in the local gate. Do not run the full suite locally before you open
