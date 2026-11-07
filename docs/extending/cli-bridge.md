@@ -1546,6 +1546,41 @@ compares the variants of each experiment. To end an experiment, remove its block
 from `experiments:`, and run `loupe bridge reload`. Each work entry then runs its
 own settings again.
 
+### Experiments of a project
+
+A project can hold its own `experiments:` block, with the same keys as the
+top-level block. Its experiments run on that project alone, and the project page
+of the app lists them.
+
+```yaml
+projects:
+  loupe:
+    dir: ~/Code/loupe
+    work:
+      fix:
+        prompt: Fix card {cardNumber}.
+        before:
+          run: [bin/worktrees/bridge-before.sh, '{cardNumber}']
+    experiments:
+      fix-sonnet-2:
+        covers: [fix]
+        baseline: opus
+        variants:
+          - {name: opus, weight: 1, model: claude-opus-5-5}
+          - {name: sonnet, weight: 1, model: claude-sonnet-5-5}
+```
+
+- A project experiment covers the entry that the project runs for each kind in `covers`. That entry is the project's own entry, or the shared entry when the project lists none.
+- A variant keeps the `before`, `refresh` and prompt of that entry, and sets only its model, account and permissions.
+- A project experiment of a kind replaces a top-level experiment of the same kind for that project. `loupe bridge check` warns about the overlap.
+- A kind in `covers` needs an entry in the project or in `work`. A project experiment cannot cover `repair`, the old name of `recover`.
+- Two experiments with the same name cannot sit in the top-level block and in a project, because the app would join them into one trial. Two projects can use the same name.
+- Cards are counted per project, so a trial on two projects shows as one trial on each project page.
+- `loupe bridge reload` names a shared entry that a project experiment covers as `<slug>/<kind>`.
+
+A CLI older than the release after v2.2.1 refuses an `experiments` key under a
+project. Update the CLI before you add the block.
+
 ### Add the baseline to an experiment
 
 A file with an experiment that has no `baseline` fails to load with the new
@@ -1989,7 +2024,7 @@ its own `before` command.
 
 - A project entry has the same fields as a shared entry, except `action: command`. A command entry stays in the shared `work` map, because the heartbeat reports command entries with no project.
 - The bridge reports one list of kinds for all its projects. A kind that only one project lists is advertised and claimed. A request of that kind for another project runs the app prompt when `appPrompts` is on, and is skipped otherwise.
-- An experiment covers the shared entry only. A project entry of a covered kind runs without the variants.
+- A top-level experiment covers the shared entry only. A project entry of a covered kind runs without its variants. To run a trial on a project, put an `experiments:` block under the project, as [Experiments of a project](#experiments-of-a-project) says.
 - `loupe bridge check` and `loupe bridge status` warn about a relative setup command that its project folder lacks, and about a kind that a project cannot run.
 - `loupe bridge reload` names a project entry as `<slug>/<kind>` in its added, changed and removed lists.
 

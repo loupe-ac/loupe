@@ -727,3 +727,24 @@ func TestDiffRulesSeesAChangedVariant(t *testing.T) {
 		t.Fatalf("result = %+v", res)
 	}
 }
+
+// A shared entry that a project experiment covers is a copy for that project,
+// so a changed variant reads <slug>/<kind>.
+func TestDiffRulesSeesAChangedProjectExperimentCopy(t *testing.T) {
+	parse := func(model string) *rules.Set {
+		t.Helper()
+		body := "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\n" +
+			"    experiments:\n      plan-2:\n        covers: [plan]\n        baseline: a\n        variants:\n          - {name: a, weight: 1, model: " + model + "}\n" +
+			"work:\n  plan:\n    prompt: go\n"
+		set, err := rules.Parse([]byte(body), rules.Defaults{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return set
+	}
+
+	if res := diffRules(parse("opus"), parse("sonnet")); !slices.Equal(res.Changed, []string{"loupe/plan"}) {
+		t.Fatalf("result = %+v", res)
+	}
+}

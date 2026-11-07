@@ -359,6 +359,18 @@ func diffRules(old, set *rules.Set) reloadResult {
 			entry, is := set.ProjectWorkEntry(slug, kind)
 			diff(slug+"/"+kind, prev, entry, was, is)
 		}
+		// A covered copy reads <slug>/<kind> too. The loop above names a kind
+		// that either set lists in the project.
+		for _, kind := range slices.Compact(slices.Sorted(slices.Values(slices.Concat(set.CoveredWorkKinds(slug), old.CoveredWorkKinds(slug))))) {
+			_, ownOld := old.ProjectWorkEntry(slug, kind)
+			_, ownNew := set.ProjectWorkEntry(slug, kind)
+			if ownOld || ownNew {
+				continue
+			}
+			prev, was := old.CoveredWorkEntry(slug, kind)
+			entry, is := set.CoveredWorkEntry(slug, kind)
+			diff(slug+"/"+kind, prev, entry, was, is)
+		}
 	}
 	for _, slug := range set.Projects() {
 		if dir := old.Dir(slug); dir != "" && dir != set.Dir(slug) {
