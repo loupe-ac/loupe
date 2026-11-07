@@ -95,6 +95,8 @@ type router struct {
 	// sampler is the running host sampler, or nil. samplerMu guards it, and
 	// is taken before mu.
 	samplerMu sync.Mutex
+	// folderMu runs one folder guard check at a time.
+	folderMu sync.Mutex
 	sampler   *hostSampler
 	// hostAfter and hostSample stand in for time.After and the host reader in
 	// a test. Nil uses the real ones.
@@ -230,6 +232,10 @@ type router struct {
 	paused bool
 	frozen bool
 	live   map[string]liveRun
+	// folders maps a run to the folder the guard let it start in, from the
+	// check until the run ends. A run between its before command and its
+	// worker is in no live list, so the guard reads this map instead.
+	folders map[string]string
 	// rulesPath and logPath are the files the bridge reads and writes, and
 	// lastError tracks the last warning of its log. The status op reports them.
 	rulesPath, logPath string
@@ -1341,15 +1347,34 @@ func (r *router) refuseFolder(p pending, res procResult) string {
 	}
 	card, _ := cardOf(p.event)
 	c := folderCheck{folder: res.dir, project: p.spec.dir, card: card, runDir: res.runDir}
+	// One check at a time, so two runs cannot both find a folder free and
+	// both start in it. The git calls of a check stay outside mu.
+	r.folderMu.Lock()
+	defer r.folderMu.Unlock()
 	r.mu.Lock()
 	for id, run := range r.live {
 		if id != p.runID && !run.before {
 			c.busy = append(c.busy, run.p.spec.dir)
 		}
 	}
+	for id, dir := range r.folders {
+		if id != p.runID {
+			c.busy = append(c.busy, dir)
+		}
+	}
 	r.mu.Unlock()
 
-	return check(r.workerContext(), c)
+	why := check(r.workerContext(), c)
+	if why == "" {
+		r.mu.Lock()
+		if r.folders == nil {
+			r.folders = map[string]string{}
+		}
+		r.folders[p.runID] = realPath(res.dir)
+		r.mu.Unlock()
+	}
+
+	return why
 }
 
 // resolveVariant is the settings and the variant of a run in an experiment. The
@@ -1446,6 +1471,7 @@ func (r *router) settle(p pending, e endedRun) {
 		close(run.ended)
 		delete(r.live, p.runID)
 	}
+	delete(r.folders, p.runID)
 	if r.frozen {
 		r.wg.Add(1)
 		r.heldFinishes = append(r.heldFinishes, func() {
