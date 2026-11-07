@@ -29,7 +29,7 @@ final readonly class EvaluateDueWorkflowCardsHandler
             ...$this->workflowRuleStates->findDueCardIds($now, self::BATCH),
             ...$this->markerDue->findDueCardIds($now, self::BATCH),
         ]));
-        $this->trigger->forCards($cardIds);
+        $this->trigger->forCards($cardIds, self::class);
 
         return \count($cardIds);
     }

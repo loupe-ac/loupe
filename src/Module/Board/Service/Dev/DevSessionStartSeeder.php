@@ -85,7 +85,7 @@ final readonly class DevSessionStartSeeder implements DevSeederInterface
         $this->values->set($approved, self::APPROVED_KEY, true, Actor::System);
         $this->em->flush();
 
-        $this->evaluations->forCards([self::cardId('ask'), self::cardId('approved')]);
+        $this->evaluations->forCards([self::cardId('ask'), self::cardId('approved')], self::class);
     }
 
     private function card(SeedContext $context, string $state, string $title): Card

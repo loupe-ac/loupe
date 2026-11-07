@@ -55,7 +55,7 @@ final readonly class CardWaitTrigger
     public function forDocument(Uuid $documentId): void
     {
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards($this->cardDocuments->findCardIdsForDocument($documentId));
+            $this->evaluations->forCards($this->cardDocuments->findCardIdsForDocument($documentId), self::class);
         }
     }
 

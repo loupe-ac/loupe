@@ -52,7 +52,7 @@ final readonly class RetryVerdictDeliveriesOnForgeUserConnected
         $this->em->flush();
 
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards(array_values($cardIds));
+            $this->evaluations->forCards(array_values($cardIds), self::class);
         }
     }
 }

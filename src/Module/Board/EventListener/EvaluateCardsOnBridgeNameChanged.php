@@ -30,6 +30,6 @@ final readonly class EvaluateCardsOnBridgeNameChanged
                 $projectIds[] = $project->id->toRfc4122();
             }
         }
-        $this->trigger->forCards($this->cards->findIdsInOpenColumnsOfProjects($projectIds));
+        $this->trigger->forCards($this->cards->findIdsInOpenColumnsOfProjects($projectIds), self::class);
     }
 }

@@ -21,6 +21,6 @@ final readonly class EvaluateCardOnCardDocumentsChanged
 
     public function __invoke(CardDocumentsChanged $event): void
     {
-        $this->trigger->forCards([$event->cardId, ...$this->cards->findChildIds($event->cardId)]);
+        $this->trigger->forCards([$event->cardId, ...$this->cards->findChildIds($event->cardId)], self::class);
     }
 }

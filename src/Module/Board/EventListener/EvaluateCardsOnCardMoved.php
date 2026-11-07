@@ -26,6 +26,6 @@ final readonly class EvaluateCardsOnCardMoved
         }
 
         $cardId = (string) ($event->card->id ?? throw new \LogicException('A moved card has an id.'));
-        $this->trigger->forCards([$cardId, ...$this->cards->findRelatedForEvaluation([$cardId])]);
+        $this->trigger->forCards([$cardId, ...$this->cards->findRelatedForEvaluation([$cardId])], self::class, $event->occurredAt);
     }
 }

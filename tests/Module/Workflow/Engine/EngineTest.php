@@ -4204,7 +4204,7 @@ final class EngineTest extends KernelTestCase
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 
-        $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')]);
+        $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], 'test');
 
         $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $evaluations = 0;
@@ -4546,12 +4546,12 @@ final class EngineTest extends KernelTestCase
             ) {
             }
 
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 ($this->evaluate)();
             }
 
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 

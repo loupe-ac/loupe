@@ -32,6 +32,6 @@ final readonly class EvaluateCardOnWorkRequestChanged
             return;
         }
         $this->events->dispatch(new CardChanged($event->projectId, $cardId, CardChanged::UPDATED, false));
-        $this->trigger->forCards([$cardId, ...$this->cards->findChildIds($cardId)]);
+        $this->trigger->forCards([$cardId, ...$this->cards->findChildIds($cardId)], self::class);
     }
 }

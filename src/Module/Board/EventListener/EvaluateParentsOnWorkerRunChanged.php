@@ -28,6 +28,6 @@ final readonly class EvaluateParentsOnWorkerRunChanged
             return;
         }
 
-        $this->trigger->forCards($this->cards->findParentIds($event->cardIds));
+        $this->trigger->forCards($this->cards->findParentIds($event->cardIds), self::class);
     }
 }

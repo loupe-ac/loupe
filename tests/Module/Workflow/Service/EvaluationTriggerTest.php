@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Service;
 
+use App\Messenger\Stamp\CauseStamp;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
@@ -30,7 +31,7 @@ final class EvaluationTriggerTest extends TestCase
         $one = Uuid::v7();
         $two = Uuid::v7();
 
-        $this->trigger(merge: false)->forCards([$one, $two->toRfc4122(), $one->toRfc4122(), $two, Uuid::fromString($one->toBase58())]);
+        $this->trigger(merge: false)->forCards([$one, $two->toRfc4122(), $one->toRfc4122(), $two, Uuid::fromString($one->toBase58())], 'test');
 
         self::assertEquals([new EvaluateCard($one->toRfc4122()), new EvaluateCard($two->toRfc4122())], $this->dispatched);
     }
@@ -42,8 +43,8 @@ final class EvaluationTriggerTest extends TestCase
         $queued->expects($this->never())->method('claim');
         $trigger = $this->trigger(merge: false, queued: $queued);
 
-        $trigger->forCards([$one]);
-        $trigger->forCards([$one]);
+        $trigger->forCards([$one], 'test');
+        $trigger->forCards([$one], 'test');
 
         self::assertCount(2, $this->dispatched);
     }
@@ -55,8 +56,8 @@ final class EvaluationTriggerTest extends TestCase
         $queued->expects($this->exactly(2))->method('claim')->willReturnOnConsecutiveCalls(true, false);
         $trigger = $this->trigger(merge: true, queued: $queued);
 
-        $trigger->forCards([$one]);
-        $trigger->forCards([$one]);
+        $trigger->forCards([$one], 'test');
+        $trigger->forCards([$one], 'test');
 
         self::assertEquals([new EvaluateCard($one->toRfc4122())], $this->dispatched);
     }
@@ -67,15 +68,51 @@ final class EvaluationTriggerTest extends TestCase
         $queued = $this->createMock(WorkflowQueuedEvaluationRepository::class);
         $queued->expects($this->never())->method('claim');
 
-        $this->trigger(merge: true, queued: $queued)->inBackground([$one, $one->toRfc4122()]);
+        $this->trigger(merge: true, queued: $queued)->inBackground([$one, $one->toRfc4122()], 'test');
 
         self::assertEquals([new EvaluateCard($one->toRfc4122())], $this->dispatched);
-        self::assertEquals([new TransportNamesStamp(['card_sweep'])], $this->stamps);
+        self::assertEquals([new TransportNamesStamp(['card_sweep'])], $this->stampsOf(TransportNamesStamp::class));
+        self::assertCount(1, $this->stampsOf(CauseStamp::class));
+    }
+
+    public function test_it_stamps_the_short_cause_and_the_event_time(): void
+    {
+        $at = new \DateTimeImmutable('2026-10-30 11:59:00');
+
+        $this->trigger(merge: false)->forCards([Uuid::v7()], \App\Module\Board\EventListener\EvaluateCardsOnCardMoved::class, $at);
+        $this->trigger(merge: false)->forPersonWaiting([Uuid::v7()], 'Answer');
+
+        self::assertEquals(
+            [new CauseStamp('EvaluateCardsOnCardMoved', $at), new CauseStamp('Answer', new \DateTimeImmutable('2026-10-30 12:00:00'))],
+            $this->stampsOf(CauseStamp::class),
+        );
+        self::assertEquals([new TransportNamesStamp(['interactive'])], $this->stampsOf(TransportNamesStamp::class));
+    }
+
+    public function test_a_merged_card_gets_no_stamped_message(): void
+    {
+        $queued = $this->createStub(WorkflowQueuedEvaluationRepository::class);
+        $queued->method('claim')->willReturnOnConsecutiveCalls(true, false);
+
+        $this->trigger(merge: true, queued: $queued)->forCards([Uuid::v7(), Uuid::v7()], 'test');
+
+        self::assertCount(1, $this->dispatched);
+        self::assertCount(1, $this->stampsOf(CauseStamp::class));
     }
 
     public function test_it_is_always_on(): void
     {
         self::assertTrue($this->trigger(merge: false)->isOn());
+    }
+
+    /**
+     * @param class-string $class
+     *
+     * @return list<object>
+     */
+    private function stampsOf(string $class): array
+    {
+        return array_values(array_filter($this->stamps, static fn (object $stamp): bool => $stamp instanceof $class));
     }
 
     private function trigger(bool $merge, ?WorkflowQueuedEvaluationRepository $queued = null): EvaluationTrigger
