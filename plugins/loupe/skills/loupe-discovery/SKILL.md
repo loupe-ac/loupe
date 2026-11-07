@@ -11,7 +11,7 @@ The prompt names the project, the `projectId`, the card number and the `cardId` 
 
 ## Read only
 
-Discovery changes nothing, with one exception: the first routing table, which "The routing table" below describes, and only after the owner says yes. Every other change goes into the report as a proposal. Do not commit, push or create a branch. Do not change a file in the repository. Do not create, change or move a card. Do not change the project, its columns, its automation, its inbox or its origins.
+Discovery changes nothing, with one exception: the first routing table, which "The routing table" below describes, and only after the owner says yes. Every other change goes into the report as a proposal. Except for that routing write, do not commit, push or create a branch, and do not change a file in the repository. Do not create, change or move a card. Do not change the project, its columns, its automation, its inbox or its origins.
 
 These tools are forbidden: `card_create`, `card_update`, `column_create`, `column_update`, `column_reorder`, `column_delete`, `automation_settings_update`, `project_update`, `project_origins_set`, `readiness_guide_set` and `discovery_start`.
 
@@ -21,7 +21,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 
 1. Call `readiness_get`. Each of its `rows` has a `key`, `done` and `status`. The keys are `agent`, `workflow`, `bridge`, `github`, `agent_account` and `repository`. These rows tell you what Loupe sees of the setup.
 2. Read the `discovery` field of `readiness_get`. It is the latest run of the project. Its `cardNumber` must be the card number of your prompt. If it is not, stop and report the mismatch.
-3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is `revising`, follow "Revising a report" below. When it is neither `requested` nor `revising`, the run takes no report. Stop and report the state.
+3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is `revising`, follow "Revising a report" below. When it is `reported` and your own `inbox_ask` of "The routing table" step 5 is answered, you resume after the report: go to step 6 of that section, and submit no report. When it is none of `requested`, `revising` or `reported`, or it is `reported` with no such answer, the run takes no report. Stop and report the state.
 4. Call `workflow_get`. It returns the `template` with its `key` and `version`, and the `columns`. Its `kinds` list each kind of work that the workflow asks a bridge to do. Each kind has an `origin` of `template` or `app`, the `rules` that ask for it, and its `checks`. The checks name what that work needs.
 5. Read the repository. Find the build and test commands, the CI config and the agent instruction files, such as `AGENTS.md` or `CLAUDE.md`. Read `.loupe/lifecycle.md` and its sections when the file exists. Read the git remote.
 6. Apply the generic checks.
