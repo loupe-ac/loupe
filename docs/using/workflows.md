@@ -407,7 +407,7 @@ A bridge can settle a work request as refused, for example when its worker run
 fails. In Lifecycle, the workflow then retries the work up to three times,
 after 2, 3 and 5 minutes, when the refusal code is `failed` or `timeout`. A
 retry never counts toward the work limit of a fix rule. When the third retry
-also fails, the workflow starts a repair, as the next paragraphs say. Any other
+also fails, the workflow starts a recovery, as the next paragraphs say. Any other
 refusal code, such as `unfinished` or `work-remains`, pauses the card at once
 with "the worker stopped and needs a person". The board marks a card whose
 latest worker run failed or ended with no result, until a later run ends in
@@ -420,7 +420,7 @@ starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay. During the delay the card shows the
 `retry-scheduled` marker, which waits, and not `run-stopped` or
-`checks-failed`. When the retries and the repair run out, the card pauses and
+`checks-failed`. When the retries and the recovery run out, the card pauses and
 shows `paused`.
 
 A request can end while its rule still holds for a new reason. An example is a
@@ -429,18 +429,18 @@ asks for one more fix at once. A part of the rule's condition that holds now, an
 did not hold when the request opened, counts as a new reason. A request that ends
 with the same reasons it started with asks for nothing more.
 
-When the retries run out, the workflow opens one `repair` work request for the
+When the retries run out, the workflow opens one `recover` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal
-code in `{reason}`. A repair worker reads the failed run, fixes the cause, and
-reports. When the repair ends done, the failed rule gets one last try. When the
-repair fails, or the last try fails too, the card pauses with "too many
-attempts were refused". A failed repair records the code `repair-failed`.
+code in `{reason}`. A recovery worker reads the failed run, fixes the cause, and
+reports. When the recovery ends done, the failed rule gets one last try. When the
+recovery fails, or the last try fails too, the card pauses with "too many
+attempts were refused". A failed recovery records the code `recover-failed`.
 
-Each escalation starts one repair at most. A repair request is never retried
-and never repaired. A release of the pause starts a new escalation, so the
-next failure can start one more repair. A bridge with no `repair` entry takes
-no repair, and the repair request waits until a bridge takes it. [The repair
-entry](../extending/cli-bridge.md#repair-entry) shows one.
+Each escalation starts one recovery at most. A recovery request is never retried
+and never recovered. A release of the pause starts a new escalation, so the
+next failure can start one more recovery. A bridge with no `recover` entry takes
+no recovery, and the recovery request waits until a bridge takes it. [The recover
+entry](../extending/cli-bridge.md#recover-entry) shows one.
 
 A resumed run ends the pause of its card. When a person resumes a run, or a
 closed [inbox](inbox.md) ask resumes it, the workflow releases the pause as soon
@@ -476,13 +476,13 @@ onWorkFailed:
     retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
-    repair: { kind: repair }
+    recover: { kind: recover }
     repeatGoesToRepair: true
 ```
 
 `retryOn` lists the refusal codes that retry, and `retries` counts the retries
-before the repair. `backoffMinutes` gives the wait before each retry. `repair`
-names the kind of the repair request. A template with no `repair` key pauses
+before the recovery. `backoffMinutes` gives the wait before each retry. `recover`
+names the kind of the recovery request. A template with no `recover` key pauses
 the card when the retries run out. A template with no `onWorkFailed` block
 neither retries nor pauses after a refused request.
 
@@ -492,8 +492,8 @@ retries that remain. The two failures count as the same when the command, the
 exit code and the last output line are equal, letter for letter. The bridge
 cuts a long command in the output, so Loupe compares a hash of the whole
 command instead. The workflow
-then opens the repair at once, or pauses the card when the template has no
-`repair` key. A failure with a new last line, such as a new row number, keeps
+then opens the recovery at once, or pauses the card when the template has no
+`recover` key. A failure with a new last line, such as a new row number, keeps
 the normal retries. The paused item in the inbox quotes the command and the
 last output line. A bridge that predates the `command:` line (see the
 [bridge guide](../extending/cli-bridge.md)) sends no command, so the item
@@ -505,7 +505,7 @@ A worker that cannot reach the Loupe tools at its start reports the code
 `mcp-unreachable` with the status `unfinished`. It has changed nothing, so
 `retryOn` lists the code and the workflow retries the run. The retry resumes the
 same session. An `unfinished` run opens no inbox item, so the owner hears of it
-only when the retries and the repair run out and the card pauses.
+only when the retries and the recovery run out and the card pauses.
 
 A request can also end with no result while its rule still holds. A `request`
 action that sets `stillTrue: retry` counts such an end as a failed try with the
@@ -881,7 +881,7 @@ server error is retried 3 times.
 
 A review run can end with no review, for example when the head moved after the
 request. The review rules then count the run as a failed try and ask again after
-2, 3 and 5 minutes. After the retries, a repair starts, and then the card
+2, 3 and 5 minutes. After the retries, a recovery starts, and then the card
 pauses with an inbox item.
 
 An approval of the pull request on the forge can override a failed review. The
@@ -1411,7 +1411,7 @@ See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
 Every work request of the Lifecycle template also carries the prompt that Loupe
 ships for its kind. This covers all 18 kinds, such as `tech-design`, `implement`,
-`fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
+`fix`, `merge` and `recover`. A `work:` entry of the bridge rule file still wins
 over the shipped prompt.
 
 The app adds seven rules.
@@ -1489,7 +1489,7 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `merge` | A merge, when the project has no GitHub App installation |
 | `teardown` | The removal of the card's worktree |
 | `epic-preview` | A refresh of the epic preview, when the head of the epic pull request has no refresh that ended well |
-| `repair` | A repair of the cause after the work of a rule failed and its retries ran out |
+| `recover` | A recovery of the cause after the work of a rule failed and its retries ran out |
 
 Simple asks for `teardown` alone.
 
@@ -1520,7 +1520,7 @@ so a rule whose condition reads no pull request never refills.
 | Pull request number | the number of the pull request that the rule acts on |
 | Pull request link | the link to that pull request, as the card holds it |
 | Head commit | the head commit of that pull request. A later push leaves it behind |
-| Reason | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request, or the code that the optional `reason` parameter of the request rule sets, such as `agent-review`. A `repair` request holds the refusal code of the failed work |
+| Reason | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request, or the code that the optional `reason` parameter of the request rule sets, such as `agent-review`. A `recover` request holds the refusal code of the failed work |
 | Document | the id of the document that a revision works on |
 
 A request rule can set the optional `role` parameter: `code-review`,
