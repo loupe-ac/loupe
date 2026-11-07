@@ -698,6 +698,25 @@ also closes when you remove the last blocking repository. With the inbox off,
 Loupe opens no notice and the pause still applies. Each card that waits for the
 pause also shows the `repository-misfit` marker.
 
+Loupe opens the question **May Loupe merge in "repository"?** when the Loupe GitHub App is
+installed on a repository, the rules of its default branch require no approving review, and
+`.loupe.yaml` on the default branch sets no valid `merge-approval`. The question has two options:
+"Let Loupe merge when the agent review passes" and "I approve each pull request on GitHub before
+Loupe merges it". Until the setting is stated, every pull request into the default branch of the
+repository waits for a person to merge it. A child pull request into its epic branch still merges
+when the agent review passes, and the epic pull request waits for the person. A project has one such
+question for each repository.
+
+Your answer closes the item as **resolved** at once. Loupe then opens a pull request on the
+repository that adds `merge-approval` to the `workflow:` key of `.loupe.yaml`, and the closed item
+names the pull request. Merge it to make the answer count. When Loupe cannot open the pull request,
+the item shows the lines to add by hand, with the `project:` line. Loupe opens no pull request when
+`.loupe.yaml` names no project or another project, because Loupe ignores that file. Until `.loupe.yaml` on the default branch holds a valid
+value, Loupe keeps your answer and opens no second question for the repository. An open question
+that nobody answered closes as **resolved** when `.loupe.yaml` gets a valid value, or when the
+repository no longer fits the case. The question has no **Dismiss**, because merges wait until it
+has an answer. With the inbox off, Loupe opens no question, and the held merge still applies.
+
 Loupe opens one notice for each agent account that is at its hard limit while
 cards wait for it. An account belongs to one bridge, so two bridges with an
 account of the same name get one notice each. The title names the account, its

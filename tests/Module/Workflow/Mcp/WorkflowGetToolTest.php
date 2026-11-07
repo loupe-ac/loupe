@@ -244,6 +244,7 @@ final class WorkflowGetToolTest extends KernelTestCase
             $container->get(WorkflowSettingOverrideRepository::class),
             $container->get(WorkflowRepositorySettingRepository::class),
             $this->em(),
+            $container->get(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class),
         );
     }
 

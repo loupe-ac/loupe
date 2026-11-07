@@ -52,6 +52,24 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** The newest row of the project under this path, compared without case. An installation row comes first. */
+    public function findOneByPath(Project $project, string $forge, string $path): ?ForgeRepository
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.forge = :forge')
+            ->andWhere('LOWER(r.path) = :path')
+            ->setParameter('project', $project)
+            ->setParameter('forge', $forge)
+            ->setParameter('path', mb_strtolower($path))
+            ->orderBy("CASE WHEN r.source = 'installation' THEN 0 ELSE 1 END", 'ASC')
+            ->addOrderBy('r.createdAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** @return list<ForgeRepository> */
     public function findByInstallation(string $forge, string $sourceRef): array
     {

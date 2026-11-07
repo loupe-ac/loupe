@@ -9,6 +9,9 @@ use Symfony\Component\Uid\Uuid;
 /** Resolves the value of a workflow setting from `.loupe.yaml`, the stored value, the template copy and the template default. A key that the template does not declare reads as unset. */
 interface WorkflowSettings
 {
+    /** Whether the template of the project declares the key. */
+    public function declares(Uuid $projectId, string $key): bool;
+
     /**
      * @throws \LogicException when the template declares the key with the project scope
      */

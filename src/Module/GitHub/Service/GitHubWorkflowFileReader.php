@@ -45,7 +45,7 @@ final readonly class GitHubWorkflowFileReader
             $file = $this->api->get($installationId, $repositoryPath.'/contents/'.self::FILE, ['ref' => $head]);
         } catch (GitHubAppApiFailed $e) {
             if ('http_status' === $e->reason && 404 === $e->status && !$e->rateLimited) {
-                return GitHubWorkflowFile::unusable($head);
+                return GitHubWorkflowFile::missing($head, $default);
             }
 
             throw $e;
@@ -55,14 +55,14 @@ final readonly class GitHubWorkflowFileReader
         $size = $file['size'] ?? null;
         $encoded = $file['content'] ?? null;
         if ('file' !== ($file['type'] ?? null) || !\is_string($blob) || '' === $blob || !\is_int($size) || $size > self::MAX_BYTES || 'base64' !== ($file['encoding'] ?? null) || !\is_string($encoded)) {
-            return GitHubWorkflowFile::unusable($head);
+            return GitHubWorkflowFile::unusable($head, $default);
         }
 
         $content = base64_decode(str_replace("\n", '', $encoded), true);
         if (false === $content || \strlen($content) > self::MAX_BYTES) {
-            return GitHubWorkflowFile::unusable($head);
+            return GitHubWorkflowFile::unusable($head, $default);
         }
 
-        return new GitHubWorkflowFile($head, $blob, $content);
+        return new GitHubWorkflowFile($head, $blob, $content, $default);
     }
 }

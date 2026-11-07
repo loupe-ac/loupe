@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Service;
 
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsApplied;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+
 final class WorkflowSettingsWriterTest extends WorkflowSettingsTestCase
 {
     public function test_a_known_key_with_an_allowed_value_stores_a_valid_row(): void
@@ -21,6 +24,26 @@ final class WorkflowSettingsWriterTest extends WorkflowSettingsTestCase
         self::assertSame('"person"', $row->value);
         self::assertSame('blob-1', $row->blobSha);
         self::assertSame('head-1', $row->headSha);
+    }
+
+    public function test_every_read_announces_that_it_applied_the_settings_of_the_repository(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('writer-event');
+        $this->bindLifecycle($project);
+        $repository = $this->repository($project, 'acme/app');
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $seen = [];
+        $dispatcher->addListener(RepositoryWorkflowSettingsApplied::class, static function (RepositoryWorkflowSettingsApplied $event) use (&$seen): void {
+            $seen[] = [$event->projectId->toRfc4122(), $event->repositoryId->toRfc4122()];
+        });
+
+        $this->writer()->apply($project->requireId(), $repository, 'blob-1', 'head-1', ['merge-approval' => 'person'], true);
+        $this->writer()->apply($project->requireId(), $repository, null, 'head-2', [], false);
+
+        $expected = [$project->requireId()->toRfc4122(), $repository->toRfc4122()];
+        self::assertSame([$expected, $expected], $seen, 'A read that finds a missing file announces too, because the answer to the merge question can end.');
     }
 
     public function test_a_known_key_with_a_value_that_is_not_allowed_stores_an_invalid_row_and_warns(): void

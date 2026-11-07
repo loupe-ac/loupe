@@ -114,6 +114,8 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.conflicting' => 'workflow.source.forge',
         'pr.draft' => 'workflow.source.forge',
         'pr.forge_request_pending' => 'workflow.source.forge',
+        'pr.merge_approval_needs_person' => 'workflow.source.forge',
+        'pr.merge_approval_unanswered' => 'workflow.source.forge',
         'pr.merge_blocked' => 'workflow.source.forge',
         'pr.open' => 'workflow.source.forge',
         'pr.parent_merged' => 'workflow.source.forge',

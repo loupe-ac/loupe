@@ -933,6 +933,10 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $passed, pullRequests: [$passed])));
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $byPerson, pullRequests: [$byPerson], provided: $needsPerson)));
+        $held = FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true, mergeApprovalNeedsPerson: true);
+        self::assertContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $held, pullRequests: [$held])), 'A passed check turns to failure when the merge question holds the merge.');
+        $heldByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, approvalCheckPassed: true, mergeApprovalNeedsPerson: true);
+        self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldByPerson, pullRequests: [$heldByPerson])));
         $failed = FactsMother::pullRequest(checks: ChecksState::Passed);
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $failed, pullRequests: [$failed], provided: $needsPerson)));
     }
@@ -1399,6 +1403,34 @@ final class ShippedTemplatesTest extends KernelTestCase
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $checkPassed, pullRequests: [$checkPassed], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
             ['approval-check-auto', 'merge-ready', 'approval-check-revoke'],
             'approval-check-revoke',
+        ];
+
+        $unanswered = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request in a repository with no answer to the merge question gets no approval check' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $unanswered, pullRequests: [$unanswered]),
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            null,
+        ];
+
+        $answeredPerson = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request in a repository that answered person gets no approval check' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $answeredPerson, pullRequests: [$answeredPerson]),
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            null,
+        ];
+
+        $heldWithCheck = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request whose check passed before the question was open does not merge' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldWithCheck, pullRequests: [$heldWithCheck]),
+            ['approval-check-auto', 'merge-ready'],
+            null,
+        ];
+
+        $heldApprovedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a person approval merges a pull request in a repository with no answer' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldApprovedByPerson, pullRequests: [$heldApprovedByPerson]),
+            ['merge-ready'],
+            'merge-ready',
         ];
 
         $approvedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true);
