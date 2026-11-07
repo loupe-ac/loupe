@@ -368,9 +368,9 @@ it makes or keeps `.worktrees/card-<number>` with git alone, and provisions no
 app. The failed step is often the provisioning of the app, so the recovery must
 not depend on it. The
 worker finds the failed run of the rule with `worker_run_list` and
-`worker_run_get`. The `Recovery` section of `.loupe/lifecycle.md` lists what it
-may change: the card branch, the card worktree, and a sync of the epic branch
-with `main`. To remove a broken card worktree, it runs `loupe env reset`, which
+`worker_run_get`. The skill carries its three actions: it resets the card
+branch to its base, it syncs the epic branch with `main`, and it removes the
+card worktree. It reads no profile section. To remove a broken card worktree, it runs `loupe env reset`, which
 runs the `reset` command of the entry in the main checkout. When the recovery ends
 done, the rule gets one last try.
 [Workflows](../using/workflows.md#pauses-and-retries) describes the escalation.
@@ -415,7 +415,7 @@ that change from one setup to the next.
 
 1. The repository profile, `.loupe/lifecycle.md`, belongs to the repository. Its
    sections are `Instruction files`, `Environment`, `Gate`, `Code review`,
-   `Changelog`, `Pull request`, `Board`, `Merge` and `Recovery`. It can also hold the optional
+   `Changelog`, `Pull request`, `Board` and `Merge`. It can also hold the optional
    `Forge`, `Visual check` and `Epics` sections. The profile of this repository names
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
