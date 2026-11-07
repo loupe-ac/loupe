@@ -3740,7 +3740,7 @@
             endReview(
                 cardId,
                 info,
-                `#${info.number} is in ${(done && done.column) || move.name}.`,
+                `#${info.number} started in ${(done && done.column) || move.name}.`,
             );
         } catch (error) {
             if (

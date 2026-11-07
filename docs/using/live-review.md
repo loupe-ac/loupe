@@ -103,7 +103,7 @@ and the widget asks the server which columns the card may start in.
 | One or more columns are open | A menu titled **Start #N in** lists them. Each entry shows the column name and a hint line. |
 
 Pick a column in the menu and the card moves there. The review then ends with
-**#N is in Tech design.** If the workflow changed since the menu opened, the
+**#N started in Tech design.** If the workflow changed since the menu opened, the
 server refuses the move. The menu then reloads with the columns that are open
 now, and a line names the column that was refused.
 

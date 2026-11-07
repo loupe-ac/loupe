@@ -2549,7 +2549,7 @@ describe('finishing a one-card review', () => {
             ([, init]) => init.method === 'POST',
         );
         expect(JSON.parse(post[1].body)).toEqual({ columnId: 'col-tech' });
-        expect(notice().textContent).toContain('#42 is in Tech design.');
+        expect(notice().textContent).toContain('#42 started in Tech design.');
         expect(menu.style.display).toBe('none');
         expect(stored()).toBeNull();
     });

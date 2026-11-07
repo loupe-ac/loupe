@@ -713,7 +713,7 @@ test('Finish review in a one-card review picks a column and ends the review', as
     await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
 
     const notice = page.locator('#lp-review-end');
-    await expect(notice).toContainText('#42 is in Tech design.');
+    await expect(notice).toContainText('#42 started in Tech design.');
     await expect(
         notice.getByRole('link', { name: 'Open #42 in Loupe' }),
     ).toBeVisible();
