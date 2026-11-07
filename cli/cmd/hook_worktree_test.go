@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/config"
 )
@@ -660,6 +661,79 @@ func TestWriteHookClaimRaceKeepsOneClaim(t *testing.T) {
 			if err != nil || owned != (s == slug) {
 				t.Fatalf("%s owns the worktree: %v %v, winner %s", s, owned, err, slug)
 			}
+		}
+	}
+}
+
+// Project alpha can finish git worktree add before it writes its claim. A
+// run of project beta for the same name in that gap must not reuse the
+// unclaimed worktree of alpha. It waits for the claim, then runs its own hook.
+func TestWorktreeCreateWaitsForTheClaimOfARunningHook(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	tmp := t.TempDir()
+	// Release the alpha hook when the test fails before it does.
+	t.Cleanup(func() { _ = os.WriteFile(filepath.Join(tmp, "go"), nil, 0o600) })
+	script := filepath.Join(tmp, "hook.sh")
+	body := `#!/bin/sh
+cat > /dev/null
+if mkdir "` + tmp + `/first" 2>/dev/null; then
+  p="$CLAUDE_PROJECT_DIR/.wt/alpha/card-17"
+  git worktree add -q --detach "$p" >&2
+  touch "` + tmp + `/created"
+  while [ ! -e "` + tmp + `/go" ]; do sleep 0.05; done
+else
+  p="$CLAUDE_PROJECT_DIR/.wt/beta/card-17"
+  git worktree add -q --detach "$p" >&2
+fi
+echo "$p"
+`
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"`+script+`"}]}]}}`)
+	ctx := context.Background()
+	run := func(slug string, out *bytes.Buffer, errc chan<- error) {
+		errc <- runWorktreeCreate(ctx, project, slug, "card-17", out, &bytes.Buffer{})
+	}
+	var alphaOut, betaOut bytes.Buffer
+	alphaErr, betaErr := make(chan error, 1), make(chan error, 1)
+	go run("alpha", &alphaOut, alphaErr)
+	for i := 0; ; i++ {
+		if _, err := os.Stat(filepath.Join(tmp, "created")); err == nil {
+			break
+		}
+		if i > 400 {
+			t.Fatal("the alpha hook never made its worktree")
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	go run("beta", &betaOut, betaErr)
+	select {
+	case err := <-betaErr:
+		t.Fatalf("beta must wait while alpha runs its hook, got %v and %q", err, betaOut.String())
+	case <-time.After(300 * time.Millisecond):
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "go"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-alphaErr; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-betaErr; err != nil {
+		t.Fatal(err)
+	}
+	alpha, beta := filepath.Join(project, ".wt", "alpha", "card-17"), filepath.Join(project, ".wt", "beta", "card-17")
+	if got := strings.TrimSpace(alphaOut.String()); got != alpha {
+		t.Fatalf("alpha printed %q", got)
+	}
+	if got := strings.TrimSpace(betaOut.String()); got != beta {
+		t.Fatalf("beta printed %q, want its own worktree", got)
+	}
+	for slug, want := range map[string]string{"alpha": alpha, "beta": beta} {
+		if owned, err := ownsWorktree(ctx, project, want, slug, "card-17"); err != nil || !owned {
+			t.Fatalf("%s must own %s: %v %v", slug, want, owned, err)
 		}
 	}
 }

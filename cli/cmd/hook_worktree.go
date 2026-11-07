@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,6 +27,10 @@ const (
 	// hookClaim. Teardown removes no other worktree, except one in the
 	// bridge's own worktree folder.
 	hookClaimFile = "loupe-hook-worktree"
+	// hookLockFile sits in the common git dir. worktree-create holds it from
+	// the lookup to the claim, and worktree-remove from the lookup to the
+	// removal, so no run sees the unclaimed worktree of another run.
+	hookLockFile = "loupe-hook-worktree.lock"
 	// defaultHookTimeout applies to a hook that sets no timeout.
 	defaultHookTimeout = 600 * time.Second
 )
@@ -52,7 +57,7 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
 			"It writes a claim into the git dir of the worktree at the folder the hook printed, so worktree-remove can tell it from a worktree a person made. " +
 			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
-			"It does not claim that worktree, nor a worktree that existed before the hook ran, and it refuses a folder that another claim names. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that name and slug, in any folder and on any branch.",
+			"It does not claim that worktree, nor a worktree that existed before the hook ran, and it refuses a folder that another claim names. It holds a lock in the common git dir from the lookup to the claim, so a run of another project waits for that claim. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that name and slug, in any folder and on any branch.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -268,6 +273,11 @@ func runWorktreeCreate(ctx context.Context, project, slug, name string, stdout, 
 	if err := validWorktreeName(name); err != nil {
 		return err
 	}
+	unlock, err := lockHookWorktrees(ctx, project)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if path, ok, err := findWorktree(ctx, project, slug, name); err != nil {
 		return err
 	} else if ok {
@@ -331,6 +341,11 @@ func runWorktreeRemove(ctx context.Context, project, slug, name string, _, stder
 	if err := validWorktreeName(name); err != nil {
 		return err
 	}
+	unlock, err := lockHookWorktrees(ctx, project)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	path, ok, err := findWorktree(ctx, project, slug, name)
 	if err != nil {
 		return err
@@ -469,11 +484,11 @@ func publishHookClaim(dir, file string, claim hookClaim) error {
 // folder until a prune. A claim that does not parse counts as no claim, so
 // teardown never removes that worktree.
 func readHookClaims(ctx context.Context, project string) (map[string]hookClaim, error) {
-	b, err := exec.CommandContext(ctx, "git", "-C", project, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
+	common, err := gitCommonDir(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("git rev-parse in %s: %w", project, err)
+		return nil, err
 	}
-	admin := filepath.Join(strings.TrimSpace(string(b)), "worktrees")
+	admin := filepath.Join(common, "worktrees")
 	entries, _ := os.ReadDir(admin)
 	out := map[string]hookClaim{}
 	for _, e := range entries {
@@ -496,6 +511,43 @@ func readHookClaims(ctx context.Context, project string) (map[string]hookClaim, 
 	}
 
 	return out, nil
+}
+
+// gitCommonDir is the git dir that every worktree of project shares.
+func gitCommonDir(ctx context.Context, project string) (string, error) {
+	b, err := exec.CommandContext(ctx, "git", "-C", project, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse in %s: %w", project, err)
+	}
+
+	return strings.TrimSpace(string(b)), nil
+}
+
+// lockHookWorktrees blocks until this run holds hookLockFile of the
+// repository of project, and returns the function that releases it. Every
+// project entry that shares the repository takes the same lock.
+func lockHookWorktrees(ctx context.Context, project string) (func(), error) {
+	common, err := gitCommonDir(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(common, hookLockFile), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open the worktree hook lock: %w", err)
+	}
+	for {
+		err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+		if !errors.Is(err, syscall.EINTR) {
+			break
+		}
+	}
+	if err != nil {
+		f.Close()
+
+		return nil, fmt.Errorf("take the worktree hook lock: %w", err)
+	}
+
+	return func() { f.Close() }, nil
 }
 
 // ownsWorktree reports whether teardown may remove the worktree called name
