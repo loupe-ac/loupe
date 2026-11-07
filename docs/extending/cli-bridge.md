@@ -2095,6 +2095,29 @@ Pass `{epicBranch}` to cut the folder of an epic child from its epic branch,
 such as `--epic-branch={epicBranch}`. The value is empty for any other card, so
 the command must then cut the folder from the default branch.
 
+### Folder guard
+
+When a `before` command prints a folder, the bridge checks it and starts no
+worker when a check fails. The run then fails with a reason that starts with
+`folder-refused` and names the folder. A command that prints no folder is not
+checked.
+
+- The folder must be a linked worktree of the project repository. The main checkout and the folder of another repository fail.
+- No other live run of the bridge may work in the folder.
+- The folder must belong to the card. The bridge keeps a claim file, `loupe-card`, in the git directory of the worktree (`git rev-parse --git-dir`). The file holds the card id, lies outside the working tree, and goes away with the worktree.
+
+The bridge reads `git worktree list` just before the `before` command. A folder
+with no claim file passes and gets the claim when the command made it in this
+run. A folder that already existed and has no claim fails, because a person or
+another tool can have made it.
+
+At its first start with the guard, the bridge stores the worktrees of each
+project in `adoption.json` in its config folder. Such a worktree passes once and
+gets its claim, so a card worktree that an older CLI made resumes with no step
+from you. A worktree that you make by hand later needs a manual claim. The
+`folder-refused` reason names the file. Write the card id into
+`$(git -C <folder> rev-parse --git-dir)/loupe-card`, then resume the run.
+
 A resumed session still starts in the folder where it began. A session that
 began in the project folder stays there, and new workers use the new folders.
 
