@@ -102,7 +102,10 @@ type router struct {
 	// judged the folder it printed, so a new worktree that is not on the list
 	// comes from this run and from no other before command of the bridge.
 	beforeLocks map[string]chan struct{}
-	sampler     *hostSampler
+	// adoptedBefore counts, per project folder, the runs adopted in their
+	// before phase that share the before lock of that project, under mu.
+	adoptedBefore map[string]int
+	sampler       *hostSampler
 	// hostAfter and hostSample stand in for time.After and the host reader in
 	// a test. Nil uses the real ones.
 	hostAfter  func(time.Duration) <-chan time.Time
@@ -1295,6 +1298,19 @@ func (r *router) prepare(p pending) {
 func (r *router) lockProject(ctx context.Context, dir string) (func(), error) {
 	key := realPath(dir)
 	r.mu.Lock()
+	lock := r.beforeLockLocked(key)
+	r.mu.Unlock()
+	select {
+	case lock <- struct{}{}:
+		return func() { <-lock }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// beforeLockLocked returns the before lock of the project folder key, and
+// makes it on first use. The caller holds mu.
+func (r *router) beforeLockLocked(key string) chan struct{} {
 	if r.beforeLocks == nil {
 		r.beforeLocks = map[string]chan struct{}{}
 	}
@@ -1303,13 +1319,35 @@ func (r *router) lockProject(ctx context.Context, dir string) (func(), error) {
 		lock = make(chan struct{}, 1)
 		r.beforeLocks[key] = lock
 	}
-	r.mu.Unlock()
-	select {
-	case lock <- struct{}{}:
-		return func() { <-lock }, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
+
+	return lock
+}
+
+// reserveProjectLocked takes the before lock of the project folder dir for a
+// run adopted in its before phase, and returns its release. The adopted runs
+// of one project share the lock, and the last release frees it. adopt runs
+// before the router subscribes, so no new run holds the lock and the take
+// never waits. The caller holds mu.
+func (r *router) reserveProjectLocked(dir string) func() {
+	key := realPath(dir)
+	lock := r.beforeLockLocked(key)
+	if r.adoptedBefore == nil {
+		r.adoptedBefore = map[string]int{}
 	}
+	if r.adoptedBefore[key] == 0 {
+		lock <- struct{}{}
+	}
+	r.adoptedBefore[key]++
+
+	return sync.OnceFunc(func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.adoptedBefore[key]--
+		if r.adoptedBefore[key] == 0 {
+			delete(r.adoptedBefore, key)
+			<-lock
+		}
+	})
 }
 
 // guardFolder runs the folder guard once on the folder that res names, and

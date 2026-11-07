@@ -757,6 +757,47 @@ func TestAHandoverInTheBeforePhaseKeepsTheEffort(t *testing.T) {
 	}
 }
 
+// A run adopted in its before phase holds the before lock of its project until
+// the guard has judged its folder. So a new run of that project cannot read
+// its list of worktrees while the adopted command still makes one.
+func TestAnAdoptedBeforeCommandHoldsTheProjectLock(t *testing.T) {
+	h, f, _ := withBefore(t, "1m")
+	h.states()
+	f.block = make(chan struct{})
+	defer close(f.block)
+	st := roundTrip(t, freezeInBefore(t, h))
+
+	h2, f2, _ := withBefore(t, "1m")
+	h2.states()
+	st.Live[0].WorkerDir = h2.dir
+	f2.started = make(chan procSpec, 1)
+	judging, release := make(chan string, 2), make(chan struct{})
+	h2.router.worker.folder = func(_ context.Context, c folderCheck) string {
+		judging <- c.card
+		if c.card == cardUUID(87) {
+			<-release
+		}
+
+		return ""
+	}
+	h2.router.worker.adoptBefore = func(context.Context, string) procResult { return procResult{dir: t.TempDir()} }
+	h2.router.adopt(st)
+	<-judging
+	h2.router.onData([]byte(cardMoved(88)))
+	select {
+	case <-f2.started:
+		t.Fatal("the before command of card 88 started while the guard judged the folder of the adopted run")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	<-f2.started
+	h2.router.wg.Wait()
+
+	if calls := h2.worker.recorded(); len(calls) != 2 {
+		t.Fatalf("worker = %+v, want claude for cards 87 and 88", calls)
+	}
+}
+
 // A real before command that a frozen image started finishes under the next
 // image, which starts claude in its folder and removes the run directory.
 func TestAnAdoptedBeforeCommandFinishesUnderTheNextImage(t *testing.T) {

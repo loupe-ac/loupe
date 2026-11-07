@@ -2150,7 +2150,8 @@ The `before` commands of one project run one at a time, from that list until
 the check of the printed folder. So a worktree that another card's `before`
 command makes cannot pass as the worktree of this run. Cards of one project
 therefore wait for each other's `before` command. Cards of different projects
-do not wait.
+do not wait. A run that a new image adopts during a handover holds the same
+lock until the check of its folder, so a new run of that project waits for it.
 
 At its first start with the guard, the bridge stores the worktrees of each
 project in `adoption.json` in its config folder. Such a worktree passes once and
