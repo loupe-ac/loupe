@@ -24,6 +24,7 @@ use App\Module\Inbox\Repository\InboxMergeApprovalQuestionRepository;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\QueuedPushes;
 use App\Tests\Module\Workflow\Service\WorkflowSettingsTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
@@ -62,6 +63,7 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         self::assertSame(InboxItemKind::Question, $item->kind);
         self::assertSame(InboxItemState::Open, $item->state);
         self::assertFalse($item->blocking);
+        self::assertFalse($item->dismissible);
         self::assertSame(InboxAskOrigin::Loupe, $item->origin);
         self::assertSame('May Loupe merge in acme/app?', $item->title);
         self::assertSame(['Let Loupe merge when the agent review passes', 'I approve each pull request on GitHub before Loupe merges it'], $item->options);
@@ -153,26 +155,20 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         self::assertNotNull($this->onlyQuestion()->endedAt);
     }
 
-    public function test_a_dismissed_question_is_not_opened_again_while_the_case_lasts(): void
+    /** @return iterable<string, array{InboxItemState}> */
+    public static function closedWithoutAnswer(): iterable
     {
-        $this->installed('acme/app');
-        $this->deliver();
-        $question = $this->onlyQuestion();
-        $question->item->state = InboxItemState::Declined;
-        $this->em()->flush();
-
-        $this->deliver();
-
-        self::assertCount(1, $this->questions());
-        self::assertNull($this->onlyQuestion()->endedAt);
+        yield 'cancelled' => [InboxItemState::Cancelled];
+        yield 'declined' => [InboxItemState::Declined];
     }
 
-    public function test_an_item_that_closed_without_an_answer_opens_a_new_question(): void
+    #[DataProvider('closedWithoutAnswer')]
+    public function test_an_item_that_closed_without_an_answer_opens_a_new_question(InboxItemState $closed): void
     {
         $this->installed('acme/app');
         $this->deliver();
         $first = $this->onlyQuestion();
-        $first->item->state = InboxItemState::Cancelled;
+        $first->item->state = $closed;
         $this->em()->flush();
 
         $this->deliver();

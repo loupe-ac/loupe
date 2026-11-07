@@ -77,8 +77,8 @@ final readonly class MergeApprovalQuestionReconciler
             $changed = false;
             foreach ($open as $repositoryId => $question) {
                 if (isset($wanted[$repositoryId])) {
-                    // An item that closed with no answer and no dismissal ends its question, so a new one opens below.
-                    if (null === $question->answer && InboxItemState::Open !== $question->item->state && !$question->item->isDismissed()) {
+                    // An item that closed with no answer ends its question, so a new one opens below.
+                    if (null === $question->answer && InboxItemState::Open !== $question->item->state) {
                         $question->endedAt = $now;
                         unset($open[$repositoryId]);
                         $changed = true;
@@ -133,6 +133,8 @@ final readonly class MergeApprovalQuestionReconciler
             createdAt: $now,
             searchLanguage: $project->searchLanguage,
         );
+        // The question has no dismissal, because merges stay held until it has an answer.
+        $item->dismissible = false;
         $question = new InboxMergeApprovalQuestion($project, $repository->id ?? throw new \LogicException('A stored repository has an id.'), $item, $now);
         $this->em->persist($item);
         $this->em->persist($question);

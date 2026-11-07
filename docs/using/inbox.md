@@ -714,8 +714,8 @@ the item shows the lines to add by hand, with the `project:` line. Loupe opens n
 `.loupe.yaml` names no project or another project, because Loupe ignores that file. Until `.loupe.yaml` on the default branch holds a valid
 value, Loupe keeps your answer and opens no second question for the repository. An open question
 that nobody answered closes as **resolved** when `.loupe.yaml` gets a valid value, or when the
-repository no longer fits the case. If you dismiss the question, Loupe opens none again while the
-case lasts. With the inbox off, Loupe opens no question, and the held merge still applies.
+repository no longer fits the case. The question has no **Dismiss**, because merges wait until it
+has an answer. With the inbox off, Loupe opens no question, and the held merge still applies.
 
 Loupe opens one notice for each agent account that is at its hard limit while
 cards wait for it. An account belongs to one bridge, so two bridges with an
