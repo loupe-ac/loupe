@@ -1390,6 +1390,24 @@ after a change. The same steps by hand:
 A project that updates to this version gets the new rules in its template copy. A ruleset that requires an approving
 review no longer makes Loupe try a merge that GitHub refuses. The card waits for the approval instead.
 
+#### Required checks in the merge stage
+
+The merge stage of the Lifecycle plugin reads the required checks of the base branch from GitHub at merge time. It
+takes the union of the rulesets and the classic branch protection of that branch, and leaves out `Loupe / Approval`,
+which the approval step reads. No count is stored in the profile, so a change to the ruleset takes effect at the next
+merge with no edit in the repository.
+
+Each required name must have a passing check on the head commit. A required check that has not started yet counts as
+pending, so the merge waits for it. A branch with no required check passes this step.
+
+An epic branch has no rules of its own. A child of an epic is checked against the required checks of the base branch
+that the profile `Merge` section names, and it merges with the `epic-child-merge-method` setting. See
+[Workflow settings](#workflow-settings).
+
+When Loupe cannot read the rules, for example because the token has no permission to read them, the merge stops. The
+run ends with `blocked: required checks unreadable`, and a person fixes the access or merges by hand. Loupe never
+merges on a guess.
+
 ### Asking about an unplanned child
 
 A child that joins an epic after the epic design was approved may link no tech
