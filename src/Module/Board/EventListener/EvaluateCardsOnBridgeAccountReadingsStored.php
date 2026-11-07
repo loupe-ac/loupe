@@ -24,6 +24,6 @@ final readonly class EvaluateCardsOnBridgeAccountReadingsStored
         if (!$this->trigger->isOn()) {
             return;
         }
-        $this->trigger->forCards($this->cards->findIdsInOpenColumnsOfProjects($event->projectIds));
+        $this->trigger->forCards($this->cards->findIdsInOpenColumnsOfProjects($event->projectIds), self::class);
     }
 }

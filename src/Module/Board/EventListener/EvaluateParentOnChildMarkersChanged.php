@@ -29,7 +29,7 @@ final readonly class EvaluateParentOnChildMarkersChanged
         }
         $parentId = $this->cards->find($event->cardId)?->parent?->id;
         if (null !== $parentId) {
-            $this->trigger->forCards([$parentId]);
+            $this->trigger->forCards([$parentId], self::class);
         }
     }
 }

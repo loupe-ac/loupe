@@ -28,12 +28,12 @@ final readonly class EvaluateCardsOnReviewSubmitted
         );
         $childIds = array_merge(...array_map(fn (string $id): array => $this->cards->findChildIds(Uuid::fromString($id)), $cardIds));
         if (null === $event->review->workflowRule) {
-            $this->trigger->forPersonWaiting($cardIds);
-            $this->trigger->forCards(array_values(array_diff($childIds, $cardIds)));
+            $this->trigger->forPersonWaiting($cardIds, self::class);
+            $this->trigger->forCards(array_values(array_diff($childIds, $cardIds)), self::class);
 
             return;
         }
 
-        $this->trigger->forCards(array_values(array_unique([...$cardIds, ...$childIds])));
+        $this->trigger->forCards(array_values(array_unique([...$cardIds, ...$childIds])), self::class);
     }
 }

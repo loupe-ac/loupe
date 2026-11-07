@@ -25,6 +25,6 @@ final readonly class EvaluateCardsOnBoardColumnTerminalChanged
             return;
         }
 
-        $this->trigger->forCards([...$event->cardIds, ...$this->cards->findRelatedForEvaluation($event->cardIds)]);
+        $this->trigger->forCards([...$event->cardIds, ...$this->cards->findRelatedForEvaluation($event->cardIds)], self::class);
     }
 }

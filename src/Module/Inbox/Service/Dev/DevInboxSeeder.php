@@ -142,7 +142,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $this->evaluations->forCards(array_map(
             static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'),
             $this->cards->findBy(['project' => $project]),
-        ));
+        ), self::class);
     }
 
     private function card(string $slug): Card

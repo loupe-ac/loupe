@@ -29,7 +29,7 @@ final readonly class SweepWorkflowCardsHandler
         }
 
         $cardIds = $this->workflowBindings->findOpenBoundCardIds();
-        $this->trigger->inBackground($cardIds);
+        $this->trigger->inBackground($cardIds, self::class);
 
         return \count($cardIds);
     }

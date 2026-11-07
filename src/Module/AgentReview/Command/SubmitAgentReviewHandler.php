@@ -109,7 +109,7 @@ final readonly class SubmitAgentReviewHandler
 
         if ($this->evaluations->isOn()) {
             $linked = $this->cardPullRequests->findForPullRequest($projectId, $ref->forge, $ref->repository, $ref->number);
-            $this->evaluations->forCards([$cardId, ...array_map(static fn (CardPullRequest $link): string => (string) $link->card->id, $linked)]);
+            $this->evaluations->forCards([$cardId, ...array_map(static fn (CardPullRequest $link): string => (string) $link->card->id, $linked)], self::class);
         }
 
         return $review;

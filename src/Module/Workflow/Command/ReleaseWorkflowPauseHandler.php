@@ -6,6 +6,7 @@ namespace App\Module\Workflow\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseView;
@@ -80,7 +81,11 @@ final readonly class ReleaseWorkflowPauseHandler
             }
             $this->cardPauses->recordReleased($released, $command->actorKind, $command->actorUserId);
             $this->em->flush();
-            $this->evaluations->forCards([$cardId]);
+            if (Actor::Human === $command->actorKind) {
+                $this->evaluations->forPersonWaiting([$cardId], self::class);
+            } else {
+                $this->evaluations->forCards([$cardId], self::class);
+            }
 
             return $released;
         });

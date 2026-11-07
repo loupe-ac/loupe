@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Engine;
 
+use App\Messenger\Stamp\CauseStamp;
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
@@ -125,6 +126,8 @@ use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateMetricParser;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplatePrompts;
+use App\Observability\HandledMessage;
+use App\Observability\HandledMessageContext;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
@@ -145,6 +148,10 @@ use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
+use Sentry\ClientBuilder;
+use Sentry\Metrics\Types\Metric;
+use Sentry\SentrySdk;
+use Sentry\State\Hub;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -181,6 +188,8 @@ final class EngineTest extends KernelTestCase
     /** @var list<CardPaused> */
     private array $paused = [];
 
+    private HandledMessage $handled;
+
     /** @var list<BlockerHoldChanged> */
     private array $changed = [];
 
@@ -206,6 +215,7 @@ final class EngineTest extends KernelTestCase
         $this->logger = new RecordingLogger();
         $this->asks = new FakeRuleAsks();
         $this->workHolds = new FakeWorkHolds();
+        $this->handled = new HandledMessage();
     }
 
     public function test_a_rule_fires_on_its_rising_edge_once(): void
@@ -219,6 +229,72 @@ final class EngineTest extends KernelTestCase
         $state = $this->ruleState($card, 'work');
         self::assertTrue($state->truth);
         self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_request_the_pass_opens_sends_the_delay_from_the_card_event(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->handled->current = new HandledMessageContext(new CauseStamp('EvaluateCardsOnCardMoved', new \DateTimeImmutable('2026-10-02 11:59:30')), 'interactive');
+        $seen = new \stdClass();
+        $seen->metrics = [];
+        $previous = SentrySdk::getCurrentHub();
+        SentrySdk::setCurrentHub(new Hub(ClientBuilder::create([
+            'dsn' => 'https://key@o0.ingest.sentry.io/1',
+            'default_integrations' => false,
+            'before_send_metric' => static function (Metric $metric) use ($seen): null {
+                $seen->metrics[] = $metric;
+
+                return null;
+            },
+        ])->getClient()));
+
+        try {
+            $this->evaluate($card);
+            \Sentry\traceMetrics()->flush();
+        } finally {
+            SentrySdk::setCurrentHub($previous);
+        }
+
+        $latency = self::latencyOf($seen->metrics);
+        self::assertCount(1, $latency);
+        self::assertEquals(30.0, $latency[0]->getValue());
+        $attributes = $latency[0]->getAttributes()->toSimpleArray();
+        self::assertSame(['work', 'EvaluateCardsOnCardMoved', 'interactive'], [$attributes['rule'], $attributes['cause'], $attributes['transport']]);
+    }
+
+    public function test_a_pass_with_no_cause_sends_no_request_delay(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $seen = new \stdClass();
+        $seen->metrics = [];
+        $previous = SentrySdk::getCurrentHub();
+        SentrySdk::setCurrentHub(new Hub(ClientBuilder::create([
+            'dsn' => 'https://key@o0.ingest.sentry.io/1',
+            'default_integrations' => false,
+            'before_send_metric' => static function (Metric $metric) use ($seen): null {
+                $seen->metrics[] = $metric;
+
+                return null;
+            },
+        ])->getClient()));
+
+        try {
+            $this->evaluate($card);
+        } finally {
+            SentrySdk::setCurrentHub($previous);
+        }
+
+        self::assertSame([], self::latencyOf($seen->metrics));
+    }
+
+    /**
+     * @param list<Metric> $metrics
+     *
+     * @return list<Metric>
+     */
+    private static function latencyOf(array $metrics): array
+    {
+        return array_values(array_filter($metrics, static fn (Metric $m): bool => 'workflow.request.latency' === $m->getName()));
     }
 
     public function test_a_request_in_a_held_project_opens_nothing_counts_no_attempt_and_marks_the_rule_state(): void
@@ -4204,7 +4280,7 @@ final class EngineTest extends KernelTestCase
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 
-        $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')]);
+        $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], 'test');
 
         $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $evaluations = 0;
@@ -4546,12 +4622,12 @@ final class EngineTest extends KernelTestCase
             ) {
             }
 
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 ($this->evaluate)();
             }
 
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 
@@ -5142,6 +5218,8 @@ final class EngineTest extends KernelTestCase
             $this->workHolds,
             $engineEvents,
             $this->logger,
+            $this->handled,
+            $clock,
         );
     }
 
