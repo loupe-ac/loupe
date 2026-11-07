@@ -68,6 +68,28 @@ final readonly class ExperimentHeadlineText
         return $this->translator->trans('bridge.experiments.goal.change.'.$word, ['%change%' => $this->changePercent($change->point)]);
     }
 
+    /** The change as a sign and a number, such as "\u{2212}31%", "+6 pp" or "0%". Null when the comparison has no change. */
+    public function signedChange(ExperimentComparison $comparison): ?string
+    {
+        $change = $comparison->change;
+        if (null === $change) {
+            return null;
+        }
+        if (0.0 === $change->point) {
+            return $comparison->relative ? $this->percent(0.0) : '0 pp';
+        }
+
+        $sign = $change->point < 0 ? self::MINUS : '+';
+        if (!$comparison->relative) {
+            return $sign.$this->points($change->point).' pp';
+        }
+        if (0.0 === round(abs($change->point) * 100)) {
+            return $sign.'<'.$this->percent(0.01);
+        }
+
+        return $sign.$this->percent(abs($change->point));
+    }
+
     /** The chip text of a comparison that is short of cards, such as "lsp-skill needs 2 more cards". Each side below the floor is named. */
     public function needs(ExperimentComparison $comparison, ExperimentArm $baseline): string
     {

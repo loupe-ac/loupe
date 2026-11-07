@@ -2,7 +2,7 @@
 @layer components {
     /* Status chip (thread header + ladder), pill with a colored dot. */
     .lp-status-chip {
-        @apply inline-flex items-center gap-1.5 ml-auto rounded-md font-medium border text-xs py-0.5 px-2;
+        @apply inline-flex items-center gap-1.5 ml-auto rounded-md font-medium border text-xs py-0.5 px-2 whitespace-nowrap;
     }
     .lp-status-chip__dot {
         @apply inline-block rounded-full shrink-0 w-1.5 h-1.5;

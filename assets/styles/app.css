@@ -48,6 +48,7 @@
 @import './components/graph-tile.css';
 @import './components/disclosure.css';
 @import './components/value-row.css';
+@import './components/range-strip.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -7957,6 +7958,60 @@
     }
     .lp-experiment-table__range {
         @apply text-fg-dim;
+    }
+    /* The line under the goal heading: what each row is read against. */
+    .lp-experiment-result__header {
+        @apply mt-1 mb-0 text-sm text-fg-mute;
+    }
+    /* The result rows of an experiment: a name, a strip, then the figures. They stack below the sm width. */
+    .lp-experiment-result {
+        @apply m-0 mt-3 flex list-none flex-col gap-4 rounded-xl border border-line bg-white p-5;
+    }
+    .lp-experiment-result__row {
+        @apply grid grid-cols-1 items-center gap-2 sm:gap-6;
+    }
+    @media (width >= 40rem) {
+        .lp-experiment-result__row {
+            grid-template-columns: calc(var(--spacing) * 28) 1fr calc(
+                    var(--spacing) * 80
+                );
+        }
+    }
+    .lp-experiment-result__name {
+        @apply truncate text-sm font-semibold text-ink;
+    }
+    .lp-experiment-result__figures {
+        @apply grid items-center gap-x-3 gap-y-1;
+        grid-template-columns: 1fr auto auto;
+    }
+    .lp-experiment-result__value {
+        @apply text-right font-mono text-xs text-fg-dim tabular-nums;
+    }
+    .lp-experiment-result__change {
+        @apply text-right font-display text-lg font-bold tabular-nums;
+    }
+    .lp-experiment-result__change--better {
+        @apply text-status-ok-deep;
+    }
+    .lp-experiment-result__change--worse {
+        @apply text-status-danger-deep;
+    }
+    .lp-experiment-result__change--level,
+    .lp-experiment-result__change--none {
+        @apply text-fg-dim;
+    }
+    .lp-experiment-result__chip .lp-status-chip {
+        @apply ml-0;
+    }
+    .lp-experiment-result__range {
+        @apply col-span-3 text-xs text-fg-dim;
+    }
+    .lp-experiment-result__table,
+    .lp-experiment-folded {
+        @apply mt-3;
+    }
+    .lp-experiment-folded .lp-experiment-section {
+        @apply mt-0 inline;
     }
     /* A key of the bridge rule inside a sentence, such as a metric key, shown as the reader types it. */
     .lp-experiment-config-key {
