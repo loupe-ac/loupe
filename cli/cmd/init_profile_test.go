@@ -442,12 +442,14 @@ func TestInitProfileDevelopmentBuildMeetsEveryMinCli(t *testing.T) {
 }
 
 func TestProfilePromptCarriesTheGitHubFacts(t *testing.T) {
-	main, ok, no := "main", "ok", false
+	main, ok, no, yes := "main", "ok", false, true
 	site := api.Site{ID: "p", GitHub: &api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{
-		{Path: "o/r", DefaultBranch: &main, RulesRead: &ok, ReviewRequired: &no},
+		{Path: "o/r", AppInstalled: &yes, DefaultBranch: &main, RulesRead: &ok, ReviewRequired: &no},
+		{Path: "o/hook", AppInstalled: &no},
+		{Path: "o/old"},
 	}}}
 	prompt := profilePrompt(site, "", false)
-	for _, want := range []string{"the Loupe GitHub App is installed", "Repository o/r:", "default branch main", "rulesRead ok", "reviewRequired no", "mergeApproval unknown"} {
+	for _, want := range []string{"the Loupe GitHub App is installed", "Repository o/r: App installed,", "Repository o/hook: App not installed,", "Repository o/old: App unknown,", "default branch main", "rulesRead ok", "reviewRequired no", "mergeApproval unknown"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt lacks %q: %s", want, prompt)
 		}

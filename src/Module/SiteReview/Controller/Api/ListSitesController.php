@@ -80,6 +80,7 @@ final class ListSitesController extends AppController
                     'repositories' => array_map(
                         static fn (GitHubRepositoryFacts $repository): array => [
                             'path' => $repository->path,
+                            'appInstalled' => $repository->appInstalled,
                             'defaultBranch' => $repository->defaultBranch,
                             'rulesRead' => $repository->rulesRead,
                             'reviewRequired' => $repository->reviewRequired,

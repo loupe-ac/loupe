@@ -888,13 +888,14 @@ when@dev: &generator
                                                     properties:
                                                         appInstalled:
                                                             type: boolean
-                                                            description: Whether the Loupe GitHub App is installed for the project and neither suspended nor removed.
+                                                            description: Whether the Loupe GitHub App is installed for the project and neither suspended nor removed. The appInstalled fact of each repository says whether that installation covers the repository.
                                                         repositories:
                                                             type: array
                                                             items:
                                                                 type: object
                                                                 required:
                                                                 - path
+                                                                - appInstalled
                                                                 - defaultBranch
                                                                 - rulesRead
                                                                 - reviewRequired
@@ -903,6 +904,9 @@ when@dev: &generator
                                                                 properties:
                                                                     path:
                                                                         type: string
+                                                                    appInstalled:
+                                                                        type: boolean
+                                                                        description: Whether a live installation of the Loupe GitHub App delivers this repository. A repository that the project claims through its own hook reads false, also when the App is installed for another repository of the project.
                                                                     defaultBranch:
                                                                         type: string
                                                                         nullable: true

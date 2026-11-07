@@ -63,7 +63,10 @@ type GitHubFacts struct {
 // GitHubRepository is one GitHub repository of a project. A nil pointer
 // means the app does not know the fact yet.
 type GitHubRepository struct {
-	Path          string  `json:"path"`
+	Path string `json:"path"`
+	// AppInstalled says a live installation of the Loupe GitHub App
+	// delivers this repository. nil means an older app sent no value.
+	AppInstalled  *bool   `json:"appInstalled"`
 	DefaultBranch *string `json:"defaultBranch"`
 	// RulesRead is "ok", "plan-limited" or "refused".
 	RulesRead      *string `json:"rulesRead"`

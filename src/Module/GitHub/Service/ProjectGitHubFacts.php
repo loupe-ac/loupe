@@ -7,6 +7,7 @@ namespace App\Module\GitHub\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Settings\RepositorySettings;
@@ -38,9 +39,11 @@ final readonly class ProjectGitHubFacts
     public function forOwner(User $owner): array
     {
         $installed = [];
+        $live = [];
         foreach ($this->gitHubInstallations->findByOwner($owner) as $installation) {
             if (null === $installation->removedAt && null === $installation->suspendedAt) {
                 $installed[(string) $installation->project->id] = true;
+                $live[(string) $installation->installationId] = true;
             }
         }
 
@@ -53,7 +56,7 @@ final readonly class ProjectGitHubFacts
         $byProject = [];
         foreach ($repositories as $repository) {
             $id = $repository->id ?? throw new \LogicException('The repository is not flushed.');
-            $byProject[(string) $repository->project->id][] = $this->facts($repository, $id, $checks[(string) $id] ?? null);
+            $byProject[(string) $repository->project->id][] = $this->facts($repository, $id, $checks[(string) $id] ?? null, $live);
         }
 
         $facts = [];
@@ -64,7 +67,8 @@ final readonly class ProjectGitHubFacts
         return $facts;
     }
 
-    private function facts(ForgeRepository $repository, Uuid $id, ?ForgeRepositoryCheck $check): GitHubRepositoryFacts
+    /** @param array<array-key, true> $live the ids of the installations that are neither suspended nor removed */
+    private function facts(ForgeRepository $repository, Uuid $id, ?ForgeRepositoryCheck $check, array $live): GitHubRepositoryFacts
     {
         $settings = null;
         if (null !== $check?->settings) {
@@ -85,6 +89,7 @@ final readonly class ProjectGitHubFacts
 
         return new GitHubRepositoryFacts(
             $repository->path,
+            ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']),
             $settings?->defaultBranch,
             $rulesRead,
             match ($rulesRead) {

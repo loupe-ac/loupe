@@ -253,15 +253,23 @@ func githubFacts(site api.Site) string {
 	}
 	var b strings.Builder
 	if g.AppInstalled {
-		b.WriteString("GitHub facts: the Loupe GitHub App is installed.")
+		b.WriteString("GitHub facts: the Loupe GitHub App is installed for the project. Each repository says whether the App covers it.")
 	} else {
-		b.WriteString("GitHub facts: the Loupe GitHub App is not installed.")
+		b.WriteString("GitHub facts: the Loupe GitHub App is not installed for the project.")
 	}
 	if len(g.Repositories) == 0 {
 		b.WriteString(" The project claims no GitHub repository.")
 	}
 	for _, r := range g.Repositories {
 		b.WriteString(" Repository " + r.Path + ":")
+		switch {
+		case r.AppInstalled == nil:
+			b.WriteString(" App unknown,")
+		case *r.AppInstalled:
+			b.WriteString(" App installed,")
+		default:
+			b.WriteString(" App not installed,")
+		}
 		b.WriteString(" default branch " + factText(r.DefaultBranch) + ",")
 		b.WriteString(" rulesRead " + factText(r.RulesRead) + ",")
 		switch {

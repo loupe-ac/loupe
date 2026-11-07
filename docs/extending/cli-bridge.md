@@ -1168,6 +1168,9 @@ from the stored repository check, so the route makes no call to GitHub.
 `repositories` lists each GitHub repository with these fields:
 
 - `path`: the repository path.
+- `appInstalled`: whether a live installation of the Loupe GitHub App delivers
+  this repository. A repository that the project claims through its own hook
+  reads `false`, also when the App covers another repository of the project.
 - `defaultBranch`: the default branch, or `null` before the first read.
 - `rulesRead`: `ok`, `plan-limited` or `refused`, or `null` before the first
   read. `plan-limited` means the plan has no rules. `refused` means the last

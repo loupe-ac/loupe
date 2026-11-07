@@ -28,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 
 final class ListSitesGitHubFactsTest extends WebTestCase
 {
+    private ?string $installationId = null;
+
     public function test_a_project_with_no_github_link_reports_no_app_and_no_repository(): void
     {
         $client = static::createClient();
@@ -50,8 +52,10 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         $owner = $this->user($em, 'github-facts-read@example.com');
         $project = new Project($owner, 'github-facts-read');
         $em->persist($project);
-        $em->persist(new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All));
+        $installation = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $em->persist($installation);
         $em->flush();
+        $this->installationId = (string) $installation->installationId;
         $bind = static::getContainer()->get(BindWorkflowTemplateHandler::class);
         self::assertInstanceOf(BindWorkflowTemplateHandler::class, $bind);
         $columns = [];
@@ -76,7 +80,7 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         self::assertTrue($site['github']['appInstalled']);
         $byPath = array_column($site['github']['repositories'], null, 'path');
         self::assertSame(
-            ['path' => 'acme/read', 'defaultBranch' => 'trunk', 'rulesRead' => 'ok', 'reviewRequired' => true, 'mergeApproval' => 'agent', 'mergeApprovalSource' => 'stored'],
+            ['path' => 'acme/read', 'appInstalled' => true, 'defaultBranch' => 'trunk', 'rulesRead' => 'ok', 'reviewRequired' => true, 'mergeApproval' => 'agent', 'mergeApprovalSource' => 'stored'],
             $byPath['acme/read'],
         );
         self::assertSame('plan-limited', $byPath['acme/limited']['rulesRead']);
@@ -109,6 +113,33 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         self::assertSame(['appInstalled' => false, 'repositories' => []], $site['github']);
     }
 
+    public function test_the_app_covers_only_the_repositories_its_live_installation_delivers(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+        $owner = $this->user($em, 'github-facts-coverage@example.com');
+        $project = new Project($owner, 'github-facts-coverage');
+        $em->persist($project);
+        $live = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $removed = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'other', GitHubRepositorySelection::All);
+        $removed->removedAt = new \DateTimeImmutable();
+        $em->persist($live);
+        $em->persist($removed);
+        $em->persist(new ForgeRepository($project, 'github', 'ext-covered', 'acme/covered', ForgeRepositorySource::Installation, (string) $live->installationId));
+        $em->persist(new ForgeRepository($project, 'github', 'ext-hook', 'acme/hook', ForgeRepositorySource::Hook));
+        $em->persist(new ForgeRepository($project, 'github', 'ext-removed', 'other/removed', ForgeRepositorySource::Installation, (string) $removed->installationId));
+        $em->flush();
+
+        $site = $this->onlySite($client, $owner);
+
+        self::assertTrue($site['github']['appInstalled']);
+        self::assertSame(
+            ['acme/covered' => true, 'acme/hook' => false, 'other/removed' => false],
+            array_column($site['github']['repositories'], 'appInstalled', 'path'),
+        );
+    }
+
     /** @return array<string, mixed> */
     private function onlySite(KernelBrowser $client, User $owner): array
     {
@@ -124,7 +155,7 @@ final class ListSitesGitHubFactsTest extends WebTestCase
 
     private function repository(EntityManagerInterface $em, Project $project, string $path, ?RepositorySettings $settings, bool $check = true): ForgeRepository
     {
-        $repository = new ForgeRepository($project, 'github', 'ext-'.$path, $path, ForgeRepositorySource::Installation);
+        $repository = new ForgeRepository($project, 'github', 'ext-'.$path, $path, ForgeRepositorySource::Installation, $this->installationId);
         $em->persist($repository);
         if ($check) {
             $this->check($em, $repository, $project)->settings = null === $settings ? null : json_decode(json_encode($settings, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR);
