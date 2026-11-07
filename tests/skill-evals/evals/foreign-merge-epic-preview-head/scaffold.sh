@@ -12,6 +12,9 @@ description: "Use when refreshing the epic preview."
 # Epic preview
 
 The epic preview is served at `https://preview.example.test/epic-<n>`, from a checkout of the epic branch. A link form is `https://preview.example.test/epic-<n>/<path>`.
+
+1. Check that `git rev-parse HEAD` equals `git rev-parse origin/<epic branch>`. Never bind writes to the preview.
+2. When the epic has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`.
 MD
 printf '\n## Routing\n\n### Epic preview\n\nLoad skill `shop-preview` when you refresh the epic preview.\n' >> .loupe/lifecycle.md
 git add .claude/skills/shop-preview .loupe/lifecycle.md
