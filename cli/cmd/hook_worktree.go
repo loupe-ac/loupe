@@ -291,7 +291,11 @@ func runWorktreeRemove(ctx context.Context, project, name string, _, stderr io.W
 	if _, still, err := findWorktree(ctx, project, name); err != nil || !still {
 		return err
 	}
-	for _, args := range [][]string{{"worktree", "remove", "--force", path}, {"worktree", "prune"}} {
+	steps := [][]string{{"worktree", "prune"}}
+	if _, err := os.Stat(path); err == nil {
+		steps = append([][]string{{"worktree", "remove", "--force", path}}, steps...)
+	}
+	for _, args := range steps {
 		c := exec.CommandContext(ctx, "git", append([]string{"-C", project}, args...)...)
 		c.Stdout = stderr
 		c.Stderr = stderr

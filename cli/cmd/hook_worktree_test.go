@@ -184,6 +184,22 @@ func TestWorktreeRemoveRemovesAHookWorktreeWithNoRemoveHook(t *testing.T) {
 	}
 }
 
+func TestWorktreeRemovePrunesAFolderTheHookDeleted(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	wt := filepath.Join(project, ".wt", "card-5")
+	runGit(t, project, "worktree", "add", "-q", "-b", "card-5", wt)
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeRemove":[{"hooks":[{"type":"command","command":"rm -rf '`+wt+`'"}]}]}}`)
+
+	if err := runWorktreeRemove(context.Background(), project, "card-5", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := findWorktree(context.Background(), project, "card-5"); err != nil || ok {
+		t.Fatalf("the stale worktree entry must be pruned: %v %v", ok, err)
+	}
+}
+
 func TestWorktreeRemoveDoesNothingWithoutAWorktreeOrAHook(t *testing.T) {
 	isolateConfig(t)
 	project, _ := filepath.EvalSymlinks(t.TempDir())
