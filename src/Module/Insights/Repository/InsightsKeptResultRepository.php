@@ -73,6 +73,15 @@ class InsightsKeptResultRepository extends ServiceEntityRepository
         );
     }
 
+    /** @return bool true when a row was removed */
+    public function forgetGraph(InsightsSavedGraph $graph): bool
+    {
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
+            'DELETE FROM insights_kept_results WHERE saved_graph_id = :graph',
+            ['graph' => $graph->id?->toRfc4122()],
+        );
+    }
+
     /** Replaces the row of a shared experiment. The caller holds the compute lock of the experiment. */
     public function keepExperiment(Project $project, string $experiment, \DateTimeImmutable $computedAt, string $payload): void
     {

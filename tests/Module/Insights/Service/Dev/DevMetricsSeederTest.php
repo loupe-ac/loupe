@@ -21,6 +21,7 @@ use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\Dev\DevMetricsSeeder;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Project\Entity\Project;
 use App\Tests\DevSeed\SeedContextFactory;
@@ -99,6 +100,29 @@ final class DevMetricsSeederTest extends KernelTestCase
             $waiting = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG)->equals($graph->id);
             self::assertSame($waiting, null === $kept->findForGraph($graph), $graph->name);
         }
+    }
+
+    public function test_a_reseed_makes_the_waiting_graph_wait_again_after_the_worker_kept_it(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-rewait');
+        $this->seed($project, self::NOW);
+
+        $graphs = $this->service(InsightsSavedGraphRepository::class);
+        $waiting = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG);
+        $graph = null;
+        foreach ($graphs->findActive($project) as $candidate) {
+            if ($waiting->equals($candidate->id)) {
+                $graph = $candidate;
+            }
+        }
+        self::assertNotNull($graph);
+        $this->service(InsightsResultKeeper::class)->graph($graph);
+        $kept = $this->service(InsightsKeptResultRepository::class);
+        self::assertNotNull($kept->findForGraph($graph));
+
+        self::assertTrue($this->seed($project, self::NOW));
+        self::assertNull($kept->findForGraph($graph));
+        self::assertFalse($this->seed($project, self::NOW));
     }
 
     public function test_a_second_run_on_the_same_day_adds_nothing(): void

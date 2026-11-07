@@ -116,13 +116,18 @@ final readonly class DevMetricsSeeder
         return $runsSeeded || $graphsSeeded || $resultsKept;
     }
 
-    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. */
+    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. The waiting graph loses the row that a Dashboard view and the worker gave it. */
     private function keepResults(Project $project, bool $all): bool
     {
         $kept = false;
         $waiting = DevSeedId::of('insights/graph/'.self::WAITING_GRAPH_SLUG);
         foreach ($this->insightsSavedGraphs->findActive($project) as $graph) {
-            if ($waiting->equals($graph->id) || (!$all && null !== $this->insightsKeptResults->findForGraph($graph))) {
+            if ($waiting->equals($graph->id)) {
+                $kept = $this->insightsKeptResults->forgetGraph($graph) || $kept;
+
+                continue;
+            }
+            if (!$all && null !== $this->insightsKeptResults->findForGraph($graph)) {
                 continue;
             }
             $this->keeper->graph($graph);
