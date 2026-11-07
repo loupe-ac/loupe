@@ -2337,12 +2337,12 @@
             <button class="lp-pop-more" data-pin-more="${index}" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>
           </div>
           <div class="lp-pop-menu" role="menu" hidden>
+            <button class="lp-pop-menu-item" role="menuitem" data-pin-resolve="${index}">Mark resolved</button>
             ${
                 openUrl
                     ? `<button class="lp-pop-menu-item" role="menuitem" data-pin-open="${index}">${escapeHtml(`Open ${comment.link.label} in Loupe`)}</button>`
                     : ''
             }
-            <button class="lp-pop-menu-item" role="menuitem" data-pin-resolve="${index}">Mark resolved</button>
             ${
                 locked
                     ? ''
@@ -3005,6 +3005,9 @@
               : null;
         if (locked) {
             openMenu(button, 'row', comment.id, [
+                menuItem('Mark resolved', act(resolveComment), {
+                    name: 'resolve',
+                }),
                 ...(link
                     ? [
                           menuItem(
@@ -3017,9 +3020,6 @@
                           ),
                       ]
                     : []),
-                menuItem('Mark resolved', act(resolveComment), {
-                    name: 'resolve',
-                }),
             ]);
             return;
         }

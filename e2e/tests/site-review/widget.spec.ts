@@ -4444,8 +4444,8 @@ test('a locked note says its card started and offers only Mark resolved and Open
 
     await row.getByRole('button', { name: 'Note actions' }).click();
     await expect(page.locator('#lp-menu').getByRole('menuitem')).toHaveText([
-        /^Open #\d+ in Loupe$/,
         'Mark resolved',
+        /^Open #\d+ in Loupe$/,
     ]);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

@@ -8,17 +8,23 @@ use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Command\AddCommentCommand;
 use App\Module\SiteReview\Command\AddCommentHandler;
+use App\Module\SiteReview\Command\CommentLocked;
 use App\Module\SiteReview\Command\CommentNotFound;
 use App\Module\SiteReview\Command\UpdateCommentCommand;
 use App\Module\SiteReview\Command\UpdateCommentHandler;
+use App\Module\SiteReview\Context\CommentEditLockInterface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\AuditActorProviderInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -46,7 +52,7 @@ final class UpdateCommentHandlerTest extends KernelTestCase
         $events = self::getContainer()->get(EventDispatcherInterface::class);
         self::assertInstanceOf(EventDispatcherInterface::class, $events);
         $this->audit = new RecordingAuditor($actors);
-        $this->handler = new UpdateCommentHandler($comments, new class implements \App\Module\SiteReview\Context\CommentEditLockInterface {
+        $this->handler = new UpdateCommentHandler($comments, new class implements CommentEditLockInterface {
             #[\Override]
             public function isLocked(SiteReviewComment $comment): bool
             {
@@ -127,6 +133,90 @@ final class UpdateCommentHandlerTest extends KernelTestCase
         }
 
         self::assertSame([], $this->audit->operations());
+    }
+
+    public function test_the_project_lock_is_taken_before_the_note_is_read(): void
+    {
+        $project = $this->project('upd-lock@example.com');
+        $comment = ($this->addHandler)(new AddCommentCommand($project, 'orig', 'https://app/x'));
+        $commentId = $comment->id ?? throw new \LogicException('comment id must not be null');
+
+        $order = [];
+        $registry = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $registry);
+        $recordingComments = new class($registry, $order) extends SiteReviewCommentRepository {
+            /** @param list<string> $order */
+            public function __construct(
+                ManagerRegistry $registry,
+                private array &$order,
+            ) {
+                parent::__construct($registry);
+            }
+
+            #[\Override]
+            public function findOnePending(Uuid $id, Project $project): ?SiteReviewComment
+            {
+                $this->order[] = 'read';
+
+                return parent::findOnePending($id, $project);
+            }
+        };
+        $recordingEm = new class($this->em, $order) extends EntityManagerDecorator {
+            /** @param list<string> $order */
+            public function __construct(
+                EntityManagerInterface $em,
+                private array &$order,
+            ) {
+                parent::__construct($em);
+            }
+
+            #[\Override]
+            public function lock(object $entity, LockMode|int $lockMode, \DateTimeInterface|int|null $lockVersion = null): void
+            {
+                $this->order[] = 'lock';
+                parent::lock($entity, $lockMode, $lockVersion);
+            }
+        };
+        $events = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $events);
+        $handler = new UpdateCommentHandler($recordingComments, new class implements CommentEditLockInterface {
+            #[\Override]
+            public function isLocked(SiteReviewComment $comment): bool
+            {
+                return false;
+            }
+        }, $recordingEm, $this->audit->auditor, $events);
+
+        $handler(new UpdateCommentCommand($project, $commentId, 'edited'));
+
+        self::assertSame(['lock', 'read'], $order);
+    }
+
+    public function test_a_locked_comment_is_refused_and_keeps_its_body(): void
+    {
+        $project = $this->project('upd-locked@example.com');
+        $comment = ($this->addHandler)(new AddCommentCommand($project, 'orig', 'https://app/x'));
+        $commentId = $comment->id ?? throw new \LogicException('comment id must not be null');
+        $comments = self::getContainer()->get(SiteReviewCommentRepository::class);
+        self::assertInstanceOf(SiteReviewCommentRepository::class, $comments);
+        $events = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $events);
+        $handler = new UpdateCommentHandler($comments, new class implements CommentEditLockInterface {
+            #[\Override]
+            public function isLocked(SiteReviewComment $comment): bool
+            {
+                return true;
+            }
+        }, $this->em, $this->audit->auditor, $events);
+
+        try {
+            $handler(new UpdateCommentCommand($project, $commentId, 'edited'));
+            self::fail('Expected CommentLocked.');
+        } catch (CommentLocked) {
+        }
+
+        $this->em->clear();
+        self::assertSame('orig', $this->em->find(SiteReviewComment::class, $commentId)?->body);
     }
 
     public function test_the_handler_keeps_no_logger_beside_the_auditor(): void
