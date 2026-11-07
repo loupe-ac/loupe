@@ -120,7 +120,18 @@ review. It calls `document_get_review` and sends a new version. [Documents and r
 
 [Run discovery](../using/workshop.md#run-discovery) before agents work the cards
 of this project. It compares the way the repository already works with what the
-workflow needs, and it changes nothing. You get a readiness report.
+workflow needs, and it changes nothing except the routing table, which it writes
+only after you agree. You get a readiness report.
+
+Discovery also runs the deep checks that `loupe init` leaves out. They cover the
+push gate, the pull request target, the conventions, rules that live only in
+your user files, instruction lines that are false, tooling that breaks in a
+worker folder, what the merge worker cannot read, who approves a merge, the merge
+method, the skills of the repository, and the preview tooling. Discovery also
+drafts the first `## Routing` table of `.loupe/lifecycle.md`, which says which
+skill each stage loads. The draft is in the report. Discovery then asks you in
+the inbox whether to write it. On a yes, discovery adds the table on a new branch
+and gets it to the remote as your instruction files say.
 
 Each finding that starts `Conflict check:` has one of these results:
 

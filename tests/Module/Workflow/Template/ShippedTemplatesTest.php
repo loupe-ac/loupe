@@ -90,6 +90,18 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(\count($names), preg_match_all('/^\d+\. `Conflict check: /m', $skill));
     }
 
+    public function test_the_discovery_skill_lists_twelve_deep_checks_and_writes_the_routing_table_after_an_owner_answer(): void
+    {
+        $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
+        preg_match('/## Deep checks\n(.*?)\n### /s', $skill, $section);
+
+        self::assertSame(12, preg_match_all('/^\d+\. /m', $section[1] ?? ''));
+        self::assertStringContainsString('the 12 deep checks', $skill);
+        self::assertStringContainsString('with one blocking `inbox_ask` question that holds the whole table', $skill);
+        self::assertStringNotContainsString('routing-table', $skill);
+        self::assertStringNotContainsString('The owner then runs `loupe init`', $skill);
+    }
+
     public function test_the_discovery_skill_names_each_onboarding_check_and_the_actor_of_findings(): void
     {
         $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
@@ -98,7 +110,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'an `actor` and an `action`'] as $text) {
             self::assertStringContainsString($text, $skill);
         }
-        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The Environment section', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
+        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The before command of the bridge work entry gives the worker', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
             self::assertStringContainsString($check, $source);
         }
     }
