@@ -185,6 +185,14 @@ return (new GamacheConfig())->registerChecks([
                 'templates/components/Ds/ActionForm.html.twig',
                 enforced: true,
             ),
+        ],
+        ignoredPaths: [
+            'templates/Module/Account/admin',
+            'templates/Module/Billing/admin',
+        ],
+    ),
+    new DesignSystemPatternCheck(
+        patterns: [
             new DesignSystemPattern(
                 'Ds:Disclosure',
                 '~<details\\b(?![^>]*\\b(?:lp-review-filter|lp-menu__more)\\b)~',
@@ -192,10 +200,6 @@ return (new GamacheConfig())->registerChecks([
                 'templates/components/Ds/Disclosure.html.twig',
                 enforced: true,
             ),
-        ],
-        ignoredPaths: [
-            'templates/Module/Account/admin',
-            'templates/Module/Billing/admin',
         ],
     ),
     new FormTypeTranslationKeysCheck(),

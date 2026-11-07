@@ -18,7 +18,7 @@ use App\Module\Review\Service\Dev\DevDocumentSeeder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 
-/** Writes two agent review rounds on the first handoff guide: a failed one that a fix round answered, then a passed one. */
+/** Writes two agent review rounds on the first seeded document: a failed one that a fix round answered, then a passed one. */
 #[When('dev')]
 #[When('test')]
 final readonly class DevDocumentAgentReviewSeeder implements DevSeederInterface
