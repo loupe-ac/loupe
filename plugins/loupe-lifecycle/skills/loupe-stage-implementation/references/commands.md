@@ -8,7 +8,7 @@
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. A line that `loupe init` marked "owner to fill in" holds no value. When a step needs that value, the section counts as missing.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Pull request`, `Board`, `Merge` and `Recovery`. The profile can also hold these optional sections:
+The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Pull request`, `Board` and `Merge`. The profile can also hold these optional sections:
 
 - A `Changelog` section. A missing section, or the line `Changelog: none`, skips the changelog entry and its check.
 - A `Forge` section with one value, the forge name, such as `github`.
