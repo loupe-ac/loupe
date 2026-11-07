@@ -1,0 +1,38 @@
+{# The metrics table of an experiment and its notes. Props: metrics (map of ExperimentMetric), variants (list of ExperimentVariant), headline (ExperimentHeadline or null), text (ExperimentHeadlineText), unknownMetrics (list of strings, empty to leave the note out). #}
+{% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
+{% set knownReasons = ['conflict', 'checks-failed', 'changes-requested', 'agent-review'] %}
+<h3 class="lp-experiment-section">{{ 'bridge.experiments.metrics.heading'|trans }}</h3>
+<div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
+<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
+<table class="lp-experiment-table__table" data-experiment-metrics>
+        <thead>
+            <tr>
+                <th scope="col">{{ 'bridge.experiments.metrics.metric'|trans }}</th>
+                {% for variant in variants %}
+                    <th scope="col" class="lp-experiment-table__number">{{ variant.name }}</th>
+                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.metrics.likely_range'|trans }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for metric in metrics %}
+                {% set format = metric.format %}
+                {{ experimentRows.metric_row(metric, text.metricName(metric), format, variants, false) }}
+                {% for part in metric.parts %}
+                    {{ experimentRows.metric_row(part, part.label ?? (part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key})), format, variants, true) }}
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% include '_overflow_arrows.html.twig' only %}
+</div>
+{% if unknownMetrics is not empty %}
+    <p class="lp-experiment-note" data-experiment-unknown-metrics>{{ 'bridge.experiments.metrics.unknown'|trans({'%metrics%': unknownMetrics|map(key => '<code class="lp-experiment-config-key">' ~ key|e ~ '</code>')|join(', ')})|raw }}</p>
+{% endif %}
+{% set rangeLevel = headline is null ? '95' : text.levelOutOf100(headline.confidence) %}
+{% if headline is not null and headline.confidence.level > 0.95 %}
+    <p class="lp-experiment-note" data-experiment-metrics-note>{{ 'bridge.experiments.metrics.note_widened'|trans({'%level%': rangeLevel, '%comparisons%': variants|length - 1, '%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
+{% else %}
+    <p class="lp-experiment-note" data-experiment-metrics-note>{{ 'bridge.experiments.metrics.note'|trans({'%level%': rangeLevel, '%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
+{% endif %}

@@ -9,10 +9,8 @@
 {% endblock %}
 
 {% block body %}
-{% set knownReasons = ['conflict', 'checks-failed', 'changes-requested', 'agent-review'] %}
 {% set headline = report.headline %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
-    {% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
@@ -21,221 +19,20 @@
 
     {% set text = experiment_headline_text() %}
     {% if headline is not null %}
-        {% set goal = headline.goal %}
-        {% set baselineArm = headline.baselineArm %}
-        {% if baselineArm is null %}
-            <p class="lp-experiment-note" data-experiment-no-baseline>{{ 'bridge.experiments.goal.no_baseline'|trans({'%key%': '<code class="lp-experiment-config-key">baseline:</code>'})|raw }}</p>
-        {% elseif goal.problem is not null %}
-            <p class="lp-experiment-note" data-experiment-goal-problem>{{ ('bridge.experiments.goal.problem.' ~ goal.problem.value)|trans({'%metric%': '<code class="lp-experiment-config-key">' ~ goal.metric.key|e ~ '</code>', '%lower%': '<code class="lp-experiment-config-key">' ~ 'better: lower</code>', '%higher%': '<code class="lp-experiment-config-key">' ~ 'better: higher</code>'})|raw }}</p>
-        {% else %}
-            {% set goalName = text.metricName(goal.metric) %}
-            <h3 class="lp-experiment-section" data-experiment-goal-heading>{{ 'bridge.experiments.goal.label'|trans({'%metric%': goalName, '%direction%': ('bridge.experiments.goal.' ~ goal.direction.value)|trans}) }}</h3>
-            <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
-<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-experiment-table__table" data-experiment-goal>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ 'bridge.experiments.variants.variant'|trans }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ goalName }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.goal.column.change'|trans({'%baseline%': headline.baseline}) }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.goal.column.range'|trans }}</th>
-                            <th scope="col">{{ 'bridge.experiments.goal.column.result'|trans }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-experiment-goal-row="{{ headline.baseline }}" data-experiment-goal-baseline>
-                            <th scope="row">{{ headline.baseline }} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag></th>
-                            <td class="lp-experiment-table__number">{{ text.point(goal.metric, baselineArm.point) ?? '–' }}</td>
-                            <td class="lp-experiment-table__number">–</td>
-                            <td class="lp-experiment-table__number lp-experiment-table__range">–</td>
-                            <td></td>
-                        </tr>
-                        {% for comparison in headline.comparisons %}
-                            <tr data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}">
-                                <th scope="row">{{ comparison.variant }}</th>
-                                <td class="lp-experiment-table__number">{{ text.point(goal.metric, comparison.arm.point) ?? '–' }}</td>
-                                <td class="lp-experiment-table__number">{{ text.change(goal, comparison) ?? '–' }}</td>
-                                <td class="lp-experiment-table__number lp-experiment-table__range">{{ text.range(comparison) ?? '–' }}</td>
-                                <td>
-                                    {% if comparison.state.value == 'held' %}
-                                        {% if comparison.hold.reason.value == 'failed' %}
-                                            <twig:Ds:StatusChip modifier="failed" :label="'bridge.experiments.goal.hold.chip_failed'|trans" />
-                                        {% else %}
-                                            <twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.controls.result.no_data'|trans" />
-                                        {% endif %}
-                                    {% elseif comparison.state.value == 'not-enough-cards' %}
-                                        <twig:Ds:StatusChip modifier="neutral" :label="text.needs(comparison, baselineArm)" />
-                                    {% elseif comparison.state.value == 'clear' %}
-                                        <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.goal.state.clear'|trans" />
-                                    {% else %}
-                                        <twig:Ds:StatusChip modifier="pending" :label="'bridge.experiments.goal.state.not_clear'|trans" />
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
-            {% if headline.comparisons|length > 1 %}
-                <p class="lp-experiment-note" data-experiment-goal-widened>{{ 'bridge.experiments.goal.widened'|trans({'%level%': text.level(headline.confidence), '%count%': headline.comparisons|length, '%baseline%': headline.baseline}) }}</p>
-            {% endif %}
-            {% for comparison in headline.comparisons|filter(comparison => comparison.state.value == 'held') %}
-                <p class="lp-experiment-note" data-experiment-goal-hold="{{ comparison.variant }}" data-experiment-goal-hold-reason="{{ comparison.hold.reason.value }}">{{ comparison.variant }}: {{ text.holdReason(comparison) }}</p>
-            {% endfor %}
-        {% endif %}
+        {% include '@Insights/_experiment_goal.html.twig' with {headline: headline, text: text} only %}
 
-        {% if headline.controls is not empty %}
-            <h3 class="lp-experiment-section">{{ 'bridge.experiments.controls.heading'|trans }}</h3>
-            <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
-<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-experiment-table__table" data-experiment-controls>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ 'bridge.experiments.controls.control'|trans }}</th>
-                            <th scope="col">{{ 'bridge.experiments.controls.variant'|trans }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.controls.passing'|trans }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.controls.needs'|trans }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.controls.with_data'|trans }}</th>
-                            <th scope="col">{{ 'bridge.experiments.controls.result'|trans }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for control in headline.controls %}
-                            <tr data-experiment-control="{{ control.metric }}" data-experiment-control-variant="{{ control.variant }}" data-experiment-control-result="{{ control.result.value }}">
-                                <th scope="row">{{ text.controlLabel(control) }}</th>
-                                <td>{{ control.variant }}</td>
-                                <td class="lp-experiment-table__number">{{ control.passingShare is null ? '–' : text.share(control.passingShare) }}</td>
-                                <td class="lp-experiment-table__number">{{ text.share(control.share) }}</td>
-                                <td class="lp-experiment-table__number">{{ control.result.value == 'unknown-metric' ? '–' : 'bridge.experiments.controls.cards'|trans({'%with%': control.cardsWithData, '%finished%': control.cardsFinished}) }}</td>
-                                <td>
-                                    {% if control.result.value == 'passed' %}
-                                        <twig:Ds:StatusChip modifier="ok" :label="'bridge.experiments.controls.result.passed'|trans" />
-                                    {% elseif control.result.value == 'failed' %}
-                                        <twig:Ds:StatusChip modifier="failed" :label="'bridge.experiments.controls.result.failed'|trans" />
-                                    {% else %}
-                                        <twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.controls.result.no_data'|trans" />
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
-        {% endif %}
+        {% include '@Insights/_experiment_controls.html.twig' with {headline: headline, text: text} only %}
 
-        {% if headline.guards is not empty and headline.comparisons is not empty %}
-            <h3 class="lp-experiment-section">{{ 'bridge.experiments.guards.heading'|trans }}</h3>
-            <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
-<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-experiment-table__table" data-experiment-guards>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ 'bridge.experiments.guards.guard'|trans }}</th>
-                            <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.guards.baseline_column'|trans({'%variant%': headline.baseline}) }}</th>
-                            {% for comparison in headline.comparisons %}
-                                <th scope="col" class="lp-experiment-table__number">{{ comparison.variant }}</th>
-                                <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.guards.change_column'|trans }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for guard in headline.guards %}
-                            {% set guardIndex = loop.index0 %}
-                            <tr data-experiment-guard="{{ guard.metric.key }}">
-                                <th scope="row">{{ text.metricName(guard.metric) }}</th>
-                                <td class="lp-experiment-table__number">{{ text.point(guard.metric, guard.baselinePoint) ?? '–' }}</td>
-                                {% for comparison in headline.comparisons %}
-                                    {% set guardChange = comparison.guards[guardIndex] %}
-                                    <td class="lp-experiment-table__number">{{ text.point(guard.metric, guardChange.point) ?? '–' }}</td>
-                                    <td class="lp-experiment-table__number lp-experiment-table__range">{{ text.guardChange(guard, guardChange) ?? '–' }}</td>
-                                {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
-        {% endif %}
+        {% include '@Insights/_experiment_guards.html.twig' with {headline: headline, text: text} only %}
     {% endif %}
     {% if report.unknownGuards is not empty %}
         <p class="lp-experiment-note" data-experiment-unknown-guards>{{ 'bridge.experiments.guards.unknown'|trans({'%metrics%': report.unknownGuards|map(key => '<code class="lp-experiment-config-key">' ~ key|e ~ '</code>')|join(', ')})|raw }}</p>
     {% endif %}
 
-    <h3 class="lp-experiment-section">{{ 'bridge.experiments.variants.heading'|trans }}</h3>
-    <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
-<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-experiment-table__table" data-experiment-variants>
-            <thead>
-                <tr>
-                    <th scope="col">{{ 'bridge.experiments.variants.variant'|trans }}</th>
-                    <th scope="col">{{ 'bridge.experiments.variants.model'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.weight'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cards'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.finished'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.runs'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.covered_cost'|trans }}</th>
-                    <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.variants.cost'|trans }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for variant in report.variants %}
-                    <tr data-experiment-variant="{{ variant.name }}">
-                        <th scope="row">{{ variant.name }}{% if headline is not null and variant.name == headline.baseline %} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag>{% endif %}</th>
-                        <td>{{ variant.models is empty ? '–' : variant.models|join(', ') }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.weight ?? '–' }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.cards }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.finishedCards }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.runs }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.coveredCostMicros is null ? '–' : (variant.coveredCostMicros / 1000000)|format_currency('USD') }}</td>
-                        <td class="lp-experiment-table__number">{{ variant.costMicros is null ? '–' : (variant.costMicros / 1000000)|format_currency('USD') }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
+    {% include '@Insights/_experiment_variants.html.twig' with {variants: report.variants, headline: headline} only %}
 
-    <h3 class="lp-experiment-section">{{ 'bridge.experiments.metrics.heading'|trans }}</h3>
-    <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
-<div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
-<table class="lp-experiment-table__table" data-experiment-metrics>
-            <thead>
-                <tr>
-                    <th scope="col">{{ 'bridge.experiments.metrics.metric'|trans }}</th>
-                    {% for variant in report.variants %}
-                        <th scope="col" class="lp-experiment-table__number">{{ variant.name }}</th>
-                        <th scope="col" class="lp-experiment-table__number">{{ 'bridge.experiments.metrics.likely_range'|trans }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for metric in report.metrics %}
-                    {% set format = metric.format %}
-                    {{ experimentRows.metric_row(metric, text.metricName(metric), format, report.variants, false) }}
-                    {% for part in metric.parts %}
-                        {{ experimentRows.metric_row(part, part.label ?? (part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key})), format, report.variants, true) }}
-                    {% endfor %}
-                {% endfor %}
-            </tbody>
-        </table>
-</div>
-{% include '_overflow_arrows.html.twig' only %}
-</div>
-    {% if report.unknownMetrics is not empty %}
-        <p class="lp-experiment-note" data-experiment-unknown-metrics>{{ 'bridge.experiments.metrics.unknown'|trans({'%metrics%': report.unknownMetrics|map(key => '<code class="lp-experiment-config-key">' ~ key|e ~ '</code>')|join(', ')})|raw }}</p>
-    {% endif %}
-    {% set rangeLevel = headline is null ? '95' : text.levelOutOf100(headline.confidence) %}
-    {% if headline is not null and headline.confidence.level > 0.95 %}
-        <p class="lp-experiment-note" data-experiment-metrics-note>{{ 'bridge.experiments.metrics.note_widened'|trans({'%level%': rangeLevel, '%comparisons%': report.variants|length - 1, '%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
-    {% else %}
-        <p class="lp-experiment-note" data-experiment-metrics-note>{{ 'bridge.experiments.metrics.note'|trans({'%level%': rangeLevel, '%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
-    {% endif %}
+    {% include '@Insights/_experiment_metrics.html.twig' with {metrics: report.metrics, variants: report.variants, headline: headline, text: text, unknownMetrics: report.unknownMetrics} only %}
+
 
     <p class="lp-experiment-note" data-experiment-left-out>
         {{ 'bridge.experiments.left_out'|trans({'%count%': report.leftOutCards}) }}

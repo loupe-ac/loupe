@@ -3563,7 +3563,7 @@
         @apply contents;
     }
     .lp-document-row__action {
-        @apply flex items-center justify-center w-8.5 h-8.5 rounded-full bg-transparent border-0 cursor-pointer text-fg-mute transition-colors;
+        @apply flex shrink-0 items-center justify-center w-8.5 h-8.5 rounded-full bg-transparent border-0 cursor-pointer text-fg-mute transition-colors;
     }
     .lp-document-row__action:hover {
         @apply bg-tint-strong text-ink;
@@ -5880,6 +5880,10 @@
     summary.admin-action-row::-webkit-details-marker {
         @apply hidden;
     }
+    /* A row in a right-aligned table cell, such as an action column. */
+    .admin-action-row--end {
+        @apply justify-end;
+    }
 
     .admin-action-title {
         @apply text-sm font-semibold text-ink;
@@ -7786,6 +7790,44 @@
     .lp-dashboard-age[hidden] {
         @apply hidden;
     }
+    /* A shared item inside the public site frame: one centred column under the site bar. */
+    /* The footer stays at the bottom of a short page, and the item takes the room above it. */
+    .lp-public-page {
+        min-height: 100dvh;
+    }
+    .lp-public {
+        @apply flex flex-1 flex-col items-center bg-surface-2 px-6 py-12;
+    }
+    .lp-public__inner {
+        @apply w-full max-w-6xl;
+    }
+    .lp-public__item {
+        @apply flex flex-col gap-5;
+    }
+    /* A shared experiment: its name above the note and the comparison tables, with no panel around them. */
+    .lp-public__experiment {
+        @apply flex flex-col gap-3;
+    }
+    .lp-public__experiment-body > :first-child {
+        @apply mt-0;
+    }
+    .lp-public__project {
+        @apply m-0 text-sm font-semibold text-fg-mute;
+    }
+    .lp-public__meta {
+        @apply flex flex-wrap items-center justify-between gap-2 text-xs text-fg-mute;
+    }
+    .lp-public__meta [hidden] {
+        @apply hidden;
+    }
+    /* The "Made with Loupe" line of a shared page, a link to the Loupe site. */
+    .lp-public__made-with {
+        @apply text-fg-mute underline-offset-2 hover:text-fg hover:underline;
+    }
+    /* The bar an admin sees on a shared page, above the item. */
+    .lp-public__admin-bar {
+        @apply flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-3 px-6 py-2 text-sm text-fg-mute;
+    }
     .lp-dashboard-notice {
         @apply mx-0 mt-4;
     }
@@ -7794,6 +7836,35 @@
     }
     .lp-dashboard-live-status {
         @apply m-0 mt-2 text-xs text-fg-dim empty:hidden;
+    }
+    /* The share dialog sits in the tile actions, and its wrapper adds no box of its own. */
+    .lp-dashboard-share {
+        @apply contents;
+    }
+    .lp-dashboard-share__body {
+        @apply mt-4 flex flex-col gap-5;
+    }
+    .lp-dashboard-share__form {
+        @apply flex flex-col gap-5;
+    }
+    .lp-dashboard-share__link {
+        @apply flex items-center gap-2;
+    }
+    /* The line that shows while the share form saves. Turbo sets aria-busy on the form during the request. */
+    .lp-dashboard-share__saving {
+        @apply m-0 hidden items-center gap-2 text-sm text-fg-mute;
+    }
+    .lp-dashboard-share__form[aria-busy='true'] .lp-dashboard-share__saving {
+        @apply flex;
+    }
+    .lp-dashboard-share__spinner {
+        @apply motion-safe:animate-spin;
+    }
+    .lp-dashboard-share__form [hidden] {
+        @apply hidden;
+    }
+    .lp-dashboard-share__link > .lp-input {
+        @apply min-w-0 flex-1;
     }
     .lp-dashboard-grid {
         @apply mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2;
@@ -7882,7 +7953,7 @@
     /* Experiment, Cards, Last run, Actions. */
     .lp-data-table--experiments {
         --lp-data-table-columns: minmax(0, 1fr) calc(var(--spacing) * 28)
-            calc(var(--spacing) * 32) calc(var(--spacing) * 12);
+            calc(var(--spacing) * 32) calc(var(--spacing) * 20);
     }
     /* Card, Variant, Column, Runs, Fix rounds, Cost, Left out. */
     .lp-data-table--experiment-cards {
@@ -7909,8 +7980,9 @@
     .lp-experiment-heading__name {
         @apply m-0 font-mono text-lg font-bold text-ink;
     }
-    .lp-experiment-heading__archive {
-        @apply ml-auto;
+    /* Share and Archive, pinned to the right end of the heading. */
+    .lp-experiment-heading__actions {
+        @apply ml-auto flex items-center gap-2 self-center;
     }
     .lp-experiment-tabs {
         @apply mb-4;

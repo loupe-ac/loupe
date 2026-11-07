@@ -26,8 +26,11 @@ use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\ArrayParameterType;
@@ -37,8 +40,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Writes daily runs of three models over the last 60 days, each linked to a
- * done card, and five saved graphs, so the Metrics and Dashboard pages of a
- * dev project show data and a change from the previous period. Each seed writes only the runs that are
+ * done card, and six saved graphs, so the Metrics and Dashboard pages of a
+ * dev project show data and a change from the previous period. The graph split by account carries a public link
+ * with a fixed code, so a worktree has a working address at /s/{code}. Each seed writes only the runs that are
  * missing, so a project seeded last week gains the days since then, and a deleted run comes back.
  */
 #[When('dev')]
@@ -60,7 +64,16 @@ final readonly class DevMetricsSeeder
         ['claude-haiku-5-5', 0.45, 9],
     ];
 
-    private const array WORK_KINDS = ['implement', 'review', 'fix-round'];
+    /** The code of the public link of the graph split by account. */
+    public const string SHARED_GRAPH_CODE = 'devgraphshar';
+
+    private const string SHARED_GRAPH_SLUG = 'cost-per-run-by-account';
+
+    /** The account of the runs of each model, by index. */
+    private const array ACCOUNTS = ['dev-work', 'dev-personal', 'dev-work'];
+
+    /** More kinds than the chart palette holds colours, so a chart grouped by stage draws the grey. */
+    private const array WORK_KINDS = ['implement', 'review', 'fix-round', 'breakdown', 'tech-design', 'tech-design-revise', 'product-design', 'design-review', 'epic-preview', 'merge', 'repair', 'deploy-check', 'discovery', 'analysis'];
 
     /** @var list<array{string, int, int, list<string>}> tool, start offset in seconds, base duration in milliseconds, signatures */
     private const array CALLS = [
@@ -74,6 +87,7 @@ final readonly class DevMetricsSeeder
         private EntityManagerInterface $em,
         private WorkerRunRepository $workerRuns,
         private InsightsSavedGraphRepository $insightsSavedGraphs,
+        private PublicLinkRepository $publicLinks,
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
@@ -132,6 +146,7 @@ final readonly class DevMetricsSeeder
         $runs = [];
         $usageRestored = false;
         $peakFilled = false;
+        $accountFilled = false;
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
             foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
@@ -146,12 +161,16 @@ final readonly class DevMetricsSeeder
                     $run->peakContextTokens = self::peakContext($daysAgo, $index);
                     $peakFilled = true;
                 }
+                if (null === $run->account) {
+                    $run->recordHarness(null, self::ACCOUNTS[$index % \count(self::ACCOUNTS)], null, null);
+                    $accountFilled = true;
+                }
                 $costUsd = \sprintf('%.6f', $cost * self::wave($daysAgo, $index) * self::trend($daysAgo));
                 $tokens = (int) round((float) $costUsd * 60_000);
                 $usageRestored = $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd) || $usageRestored;
             }
         }
-        if ([] === $runs && !$usageRestored && !$peakFilled) {
+        if ([] === $runs && !$usageRestored && !$peakFilled && !$accountFilled) {
             return [] !== $stale || [] !== $restored;
         }
 
@@ -246,7 +265,7 @@ final readonly class DevMetricsSeeder
             output: 'The work is done.',
             receivedAt: $endedAt,
         );
-        $run->recordHarness('claude-code', null, $model, null);
+        $run->recordHarness('claude-code', self::ACCOUNTS[$index % \count(self::ACCOUNTS)], $model, null);
         $run->usageSource = WorkerRunUsageSource::Reported;
         $context->ids->assign($run, self::runId($day, $index));
         $this->em->persist($run);
@@ -267,6 +286,7 @@ final readonly class DevMetricsSeeder
             ['runs-by-model', 'Runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
             ['time-in-each-bucket', 'Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
             ['share-of-runs-by-model', 'Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
+            [self::SHARED_GRAPH_SLUG, 'Cost per run by account', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Account, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
         ];
         $seeded = false;
         foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
@@ -281,6 +301,24 @@ final readonly class DevMetricsSeeder
         }
         $this->em->flush();
 
-        return $seeded;
+        return $this->seedPublicLink($context, $project) || $seeded;
+    }
+
+    private function seedPublicLink(SeedContext $context, Project $project): bool
+    {
+        $id = DevSeedId::of('insights/public-link/'.self::SHARED_GRAPH_SLUG);
+        if ($this->publicLinks->find($id) instanceof PublicLink) {
+            return false;
+        }
+        $graph = $this->insightsSavedGraphs->find(DevSeedId::of('insights/graph/'.self::SHARED_GRAPH_SLUG));
+        if (!$graph instanceof InsightsSavedGraph || $graph->project !== $project) {
+            return false;
+        }
+        $link = new PublicLink($project, PublicLinkKind::Graph, self::SHARED_GRAPH_CODE, savedGraph: $graph);
+        $context->ids->assign($link, $id);
+        $this->em->persist($link);
+        $this->em->flush();
+
+        return true;
     }
 }

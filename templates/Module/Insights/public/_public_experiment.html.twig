@@ -1,0 +1,26 @@
+{# A shared experiment: the totals of the comparison and the note of the owner. It has no tabs, no panel around the tables, no card, no link to
+   the Cards tab, no Analyse button and no list of unknown metrics.
+   Props: experiment (PublicExperimentResult), noteHtml (sanitized HTML or null). The note of the owner sits in a panel of its own. #}
+{% set headline = experiment.headline %}
+{% set text = experiment_headline_text() %}
+<div class="lp-public__experiment" data-public-experiment data-computed-at="{{ experiment.computedAt.timestamp }}">
+    <h2 class="lp-experiment-heading__name">{{ experiment.experiment }}</h2>
+    <div class="lp-public__experiment-body" data-public-experiment-panel>
+        {% if noteHtml is not null %}
+            <twig:Ds:Panel data-public-experiment-note><div class="prose lp-prose">{{ noteHtml|raw }}</div></twig:Ds:Panel>
+        {% endif %}
+        {% if headline is not null %}
+            {% include '@Insights/_experiment_goal.html.twig' with {headline: headline, text: text, public: true} only %}
+
+            {% include '@Insights/_experiment_controls.html.twig' with {headline: headline, text: text} only %}
+
+            {% include '@Insights/_experiment_guards.html.twig' with {headline: headline, text: text} only %}
+        {% endif %}
+
+        {% include '@Insights/_experiment_variants.html.twig' with {variants: experiment.variants, headline: headline} only %}
+
+        {% include '@Insights/_experiment_metrics.html.twig' with {metrics: experiment.metrics, variants: experiment.variants, headline: headline, text: text, unknownMetrics: []} only %}
+
+        <p class="lp-experiment-note" data-public-experiment-privacy>{{ 'insights.public_link.experiment.totals_only'|trans }}</p>
+    </div>
+</div>

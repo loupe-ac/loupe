@@ -11,6 +11,7 @@ use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Service\BridgeLabels;
 use App\Module\Insights\View\MetricChartLayouts;
 use App\Module\Insights\View\MetricChartRules;
+use App\Module\Insights\View\MetricChartScale;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricTitle;
 use App\Module\Insights\View\MetricValueFormatter;
@@ -36,7 +37,8 @@ final readonly class ShowMetricsHandler
             ? $this->bridgeLabels->forOwner($project->owner, array_values(array_filter(array_map(static fn (MetricSeries $series): ?string => $series->group, $metrics->series))))
             : [];
 
-        $lines = \count($metrics->series);
+        $ordered = MetricChartScale::bySize($metrics->series);
+        $lines = \count($ordered);
         $resolution = MetricChartRules::resolve($query->chart, $query->metric, $query->statistic, $lines);
         $locks = [];
         foreach (MetricChartType::cases() as $type) {
@@ -48,7 +50,7 @@ final readonly class ShowMetricsHandler
             fn (MetricSeries $series): string => null === $series->group
                 ? ($lines > 1 ? $this->translator->trans('analytics.metrics.series.none') : $metricName)
                 : ($groupLabels[$series->group] ?? $series->group),
-            $metrics->series,
+            $ordered,
         );
 
         return new ShowMetricsView(
@@ -57,8 +59,9 @@ final readonly class ShowMetricsHandler
             $this->metricTitle->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare),
             $resolution,
             $locks,
-            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $metrics->series, new MetricValueFormatter(\Locale::getDefault())),
+            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $ordered, new MetricValueFormatter(\Locale::getDefault())),
             $labels,
+            $ordered,
         );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricWindow;
 
 /**
@@ -12,7 +13,10 @@ use App\Module\Bridge\Metric\MetricWindow;
  */
 final readonly class DashboardGraphResult
 {
-    /** @param list<string> $labels the name of each series, by position */
+    /**
+     * @param list<string>          $labels     the name of each series, by position
+     * @param list<?MetricGroupKey> $seriesKeys the key of each series in the order of the labels, null for a series that no account or bridge makes
+     */
     public function __construct(
         /** The clock reading both windows count back from. */
         public \DateTimeImmutable $computedAt,
@@ -20,6 +24,7 @@ final readonly class DashboardGraphResult
         public MetricChartResolution $chart,
         public LineLayout|BarLayout|DonutLayout|NumberLayout|null $layout,
         public array $labels,
+        public array $seriesKeys,
         public MetricWindow $current,
         /** Null when the graph does not compare. */
         public ?MetricWindow $previous,

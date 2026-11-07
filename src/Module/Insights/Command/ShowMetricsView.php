@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Bridge\Command\MetricQueryView;
+use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Insights\View\BarLayout;
 use App\Module\Insights\View\DonutLayout;
 use App\Module\Insights\View\LineLayout;
@@ -18,6 +19,7 @@ final readonly class ShowMetricsView
     /**
      * @param array<string, ?MetricChartLock> $locks  why each chart type is locked, by type value, null when it is free
      * @param list<string>                    $labels the name of each series, by position
+     * @param list<MetricSeries>              $series the series in the order of the labels and the layout
      */
     public function __construct(
         public Project $project,
@@ -27,6 +29,7 @@ final readonly class ShowMetricsView
         public array $locks,
         public LineLayout|BarLayout|DonutLayout|NumberLayout|null $layout,
         public array $labels,
+        public array $series,
     ) {
     }
 }

@@ -232,8 +232,8 @@ of the series in the range. Below the figure, it shows the number of rows in
 the series.
 
 The **Chart** control sets how the page draws the series. A legend under the
-chart names the series when there is more than one. With more than eight series,
-the first seven keep their colours, and the rest share one grey. The value axis
+chart names the series when there is more than one. The page lists the series from the largest to the smallest. With more than twelve series,
+the eleven largest keep their colours, and the rest share one grey. The value axis
 of a rate stops at 100%, except with **Count**. The value axis of tokens and
 counts prints short numbers, such as `80M`. Hover a point, or read the table, for
 the full number.
@@ -367,6 +367,7 @@ The menu of a tile has these actions:
 |---|---|
 | **Open in Metrics** | opens the Metrics tab with the settings of the graph, in edit mode |
 | **Rename** | changes the name |
+| **Share…** | opens the share dialog. See [Share a graph publicly](#share-a-graph-publicly) |
 | **Half width**, **Full width** | changes the width of the tile |
 | **Show legend**, **Hide legend** | switches the legend |
 | **Move up**, **Move down** | moves the tile one place. You can also drag a tile |
@@ -390,6 +391,67 @@ under the tabs reads "Updated 4 min ago". The Metrics tab always computes live.
 When you save, edit, rename, resize, move or remove a graph in another tab, an
 open Dashboard follows the change at once, if the instance runs live updates.
 The numbers refresh on the next load.
+
+## Share a graph publicly
+
+You can give a saved graph a public link. A visitor who has no account opens the
+link and sees the graph as you saved it. Only the owner of the project can share
+a graph.
+
+To share a graph:
+
+1. Open the menu of the tile on the Dashboard, and press **Share…**.
+2. Turn on **Public link**.
+3. Press **Copy link**, and give the address to the visitor.
+
+The dialog shows the address only while the switch is on.
+
+The address looks like `https://loupe.ac/s/k3x9p2qamz4b`. It has 12 characters.
+It points to the site host of the instance. An instance with no site host serves
+the page on the app host. The address never changes. Turn the switch off, and the
+link shows "not found". Turn it on again, and the same address works again.
+
+A tile with a working link carries a **Public** tag after its settings line.
+
+### What a visitor sees
+
+The page shows the project name, the name of the graph, its settings line and
+the chart with its totals. It reads "Updated 4 min ago", because the page keeps
+the result of the graph for up to 15 minutes. A visitor cannot change the
+settings.
+
+Account names and bridge names never reach the page. A split by account shows
+**Account 1**, **Account 2** and so on. A split by bridge shows **Bridge 1**,
+**Bridge 2**. The account usage split shows labels such as **Bridge 1 / Account 2**
+with the window. A project keeps one number for each account and each bridge.
+The first public view that meets a name gives it the next number, and the number
+does not change after that. A renamed bridge keeps its number.
+
+A graph whose metric is gone shows "This graph cannot be drawn right now." The
+page gives no reason.
+
+### When the link shows "not found"
+
+The link shows "not found", the same page as an unknown address, in these cases:
+
+- You turned the switch off.
+- You removed the graph from the Dashboard. **Undo** brings the link back. After
+  the graph is gone for good, the link is gone too.
+- You deleted the project.
+- An operator switched public links off for the instance.
+- An admin took down the public links of your project. The share dialog and the
+  Dashboard say so, and the switch is disabled. Your switches stay as they are,
+  so the links that were on work again when an admin lifts the takedown.
+
+The `insights.public_links.enabled` feature flag switches public links on or off
+for the whole instance. It is on by default. An operator changes it at
+`/admin/feature-flags`. While it is off, **Share…** is hidden and every link shows
+"not found". The switches of your graphs stay as they are, so the links work
+again when the flag comes back on.
+
+Search engines may index a public link. A visitor can open 60 pages a minute from
+one network address, and a faster visitor gets an error that asks to wait. The
+data export lists each link with its kind, item, code and switch.
 
 ## Share a view
 

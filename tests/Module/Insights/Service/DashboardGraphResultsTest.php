@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Service;
 
 use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
@@ -132,6 +134,58 @@ final class DashboardGraphResultsTest extends KernelTestCase
         $item = $this->pool->getItem($this->results()->key($project, $graph));
         self::assertTrue($item->isHit());
         self::assertEqualsWithDelta($before + DashboardGraphResults::LIFETIME, $item->getMetadata()[ItemInterface::METADATA_EXPIRY] ?? null, 5);
+    }
+
+    public function test_the_result_keeps_the_key_of_each_series_in_the_order_of_the_labels(): void
+    {
+        $project = $this->scenarioProject('results-keys');
+        $em = $this->em();
+        $run = $this->seedRun($em, $project, cardNumber: 1, endedAt: new \DateTimeImmutable('-5 days'));
+        $this->seedUsage($em, $run, costUsd: '3.00');
+        $em->getConnection()->executeStatement('UPDATE bridge_worker_run_facts SET account = :account WHERE run_id = :run', ['account' => 'work', 'run' => (string) $run->id]);
+        $graph = $this->costGraph($project);
+        $graph->group = MetricGroup::Account;
+
+        $result = $this->results()->compute($project, $graph);
+
+        self::assertSame(['work'], $result->labels);
+        self::assertEquals([new MetricGroupKey(account: 'work')], $result->seriesKeys);
+    }
+
+    public function test_each_key_sits_at_the_position_of_its_label_when_the_total_order_differs_from_the_name_order(): void
+    {
+        $project = $this->scenarioProject('results-keys-order');
+        $em = $this->em();
+        foreach (['alpha' => '1.00', 'zeta' => '5.00'] as $account => $cost) {
+            $run = $this->seedRun($em, $project, cardNumber: 'alpha' === $account ? 1 : 2, endedAt: new \DateTimeImmutable('-5 days'));
+            $this->seedUsage($em, $run, costUsd: $cost);
+            $em->getConnection()->executeStatement('UPDATE bridge_worker_run_facts SET account = :account WHERE run_id = :run', ['account' => $account, 'run' => (string) $run->id]);
+        }
+        $graph = $this->costGraph($project);
+        $graph->group = MetricGroup::Account;
+
+        $result = $this->results()->compute($project, $graph);
+
+        self::assertSame(['zeta', 'alpha'], $result->labels);
+        self::assertEquals([new MetricGroupKey(account: 'zeta'), new MetricGroupKey(account: 'alpha')], $result->seriesKeys);
+    }
+
+    public function test_a_graph_with_no_split_has_null_keys(): void
+    {
+        $project = $this->scenarioProject('results-null-keys');
+        $this->seedCosts($project);
+
+        $result = $this->results()->compute($project, $this->costGraph($project));
+
+        self::assertNotSame([], $result->labels);
+        self::assertSame(array_fill(0, \count($result->labels), null), $result->seriesKeys);
+    }
+
+    public function test_the_key_carries_the_version_prefix_so_an_older_entry_misses(): void
+    {
+        $project = $this->scenarioProject('results-prefix');
+
+        self::assertStringStartsWith('insights_dashboard_v2_', $this->results()->key($project, $this->costGraph($project)));
     }
 
     private function costGraph(Project $project): InsightsSavedGraph

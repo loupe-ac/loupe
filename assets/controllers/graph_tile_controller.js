@@ -28,6 +28,16 @@ export default class extends Controller {
         delete this.element.dataset.renaming;
     }
 
+    /** Opens the share dialog of the tile. Its own modal controller drives it, so the remove dialog stays apart. */
+    share(event) {
+        event.preventDefault();
+        this.closeMenu();
+        const host = this.element.querySelector('[data-share-dialog]');
+        this.application
+            .getControllerForElementAndIdentifier(host, 'modal')
+            ?.open();
+    }
+
     /** Presses the menu trigger when the panel is open, so the popover closes itself. */
     closeMenu() {
         this.element

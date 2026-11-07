@@ -57,6 +57,73 @@ main list. A run that was already working when you archived does not. The
 `experiment_archive` and `experiment_unarchive` tools do the same from an agent,
 and `experiment_get` reports the `archived` state.
 
+Archiving also switches off the [public link](#share-an-experiment-publicly) of
+the experiment. The link stays off when a new run or **Unarchive** brings the
+experiment back to the main list. To share it again, turn the switch on in the
+share dialog.
+
+## Share an experiment publicly
+
+You can give an experiment a public link. A visitor who has no account opens the
+link and sees the totals of the comparison. Only the owner of the project can
+share an experiment.
+
+To share an experiment:
+
+1. Select **Share…** on the page of the experiment, or the share button on its
+   row in the list.
+2. Turn on **Public link**.
+3. Write a note for the visitors, if you want one.
+4. Press **Copy link**, and give the address to the visitor.
+
+The dialog shows the address only while the switch is on.
+
+The address looks like `https://loupe.ac/s/k3x9p2qamz4b`. It has 12 characters.
+It points to the site host of the instance. An instance with no site host serves
+the page on the app host. The address never changes. Turn the switch off, and the
+link shows "not found". Turn it on again, and the same address works again.
+
+The note is Markdown, up to 2000 characters. It shows above the results. The
+dialog saves a change when you leave the field. A note that you save before the
+first share creates the link in the off state, so the text is not lost.
+
+An experiment with a working link carries a **Public** tag in its heading and on
+its row in the list.
+
+Sharing an archived experiment unarchives it. The dialog of an archived
+experiment says so, and shows the note field with **Cancel** and **Share and
+unarchive**. Nothing changes until you select **Share and unarchive**.
+
+### What a visitor sees
+
+The page shows the project name, the name of the experiment, your note, and the
+goal, controls, guards, variants and metrics tables of the Comparison tab. It
+reads "Updated 4 min ago", because the page keeps the report for up to 15
+minutes. The owner's own page stays live.
+
+The page has no tabs, no link to the Cards tab and no **Analyse** button. It
+shows no card, no card number you did not write in the note, no account name,
+no bridge name and no person. It does not list unknown metrics or unknown
+guards.
+
+### When the link shows "not found"
+
+The link shows "not found", the same page as an unknown address, in these cases:
+
+- You turned the switch off.
+- You archived the experiment. The link stays off after the experiment comes
+  back to the main list.
+- The project no longer has a run, a pin or a fact for the experiment.
+- You deleted the project.
+- An operator switched public links off for the instance.
+
+The `insights.public_links.enabled` feature flag switches public links on or off
+for the whole instance. While it is off, **Share…** is hidden and every link
+shows "not found". The data export lists each link with its kind, item, code,
+switch and note. [Share a graph publicly](analytics.md#share-a-graph-publicly)
+covers the same link for a saved graph, and the limit of 60 pages a minute for
+each network address.
+
 ## The comparison
 
 The Comparison tab compares every variant against the baseline. The baseline is

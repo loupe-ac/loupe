@@ -22,6 +22,7 @@ use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\SessionPromptLimit;
+use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Service\AnalysisSettings;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Notification\Service\PushAvailability;
@@ -108,6 +109,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         self::assertSame('sonnet', $flags[AnalysisSettings::MODEL_FLAG]->value);
         self::assertSame('medium', $flags[AnalysisSettings::EFFORT_FLAG]->value);
         self::assertSame(SavedGraphCap::DEFAULT, $flags[SavedGraphCap::FLAG]->value);
+        self::assertTrue($flags[PublicLink::FLAG]->value);
         // Seeded off: the update check is the app's only self-initiated
         // outbound request, so an install must not start making it unasked.
         self::assertFalse($flags[UpdateCheck::FLAG]->value);

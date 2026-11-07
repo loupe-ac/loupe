@@ -7,6 +7,8 @@
     grip         bool    Draws the grip that the drag controller uses. True by default.
     brokenTitle  string  Translated heading of a broken tile.
     brokenBody   string  Translated sentence that names what is gone. A person may have written the name, so it is escaped.
+    public       bool    True ends the settings line with a Public tag. False by default. The tag sits in an element with a data-graph-public attribute, so a Turbo stream can update it.
+    publicLabel  string  Translated text of the Public tag.
   Blocks:
     actions   The menu in the head. Optional.
     rename    A form that replaces the name. Optional and hidden until the page shows it.
@@ -14,7 +16,7 @@
   The content is the chart.
   Any other attribute, class included, is passed to the tile.
 #}
-{%- props name = null, settings = null, state = 'ready', legend = true, grip = true, brokenTitle = null, brokenBody = null -%}
+{%- props name = null, settings = null, state = 'ready', legend = true, grip = true, brokenTitle = null, brokenBody = null, public = false, publicLabel = null -%}
 {%- set isBroken = 'broken' == state -%}
 {%- set actions -%}{% block actions %}{% endblock %}{%- endset -%}
 {%- set rename -%}{% block rename %}{% endblock %}{%- endset -%}
@@ -24,7 +26,7 @@
         <div class="lp-graph-tile__text">
             <h3 class="lp-graph-tile__title" data-graph-title>{{ name }}</h3>
             {% if rename|trim is not empty %}{{ rename }}{% endif %}
-            {% if settings %}<p class="lp-graph-tile__settings">{{ settings }}</p>{% endif %}
+            {% if settings %}<p class="lp-graph-tile__settings">{{ settings }}<span class="lp-graph-tile__public" data-graph-public>{% if public %}<twig:Ds:Tag tone="lime">{{ publicLabel }}</twig:Ds:Tag>{% endif %}</span></p>{% endif %}
         </div>
         {% if actions|trim is not empty %}<div class="lp-graph-tile__actions">{{ actions }}</div>{% endif %}
     </header>

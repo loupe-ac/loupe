@@ -186,6 +186,7 @@ final readonly class MetricRowSource
                 \sprintf('%s/%s %s', $names[$reading->bridgeId->toRfc4122()], $reading->account, $reading->window),
                 $reading->readAt,
                 $reading->usedPercent,
+                new MetricGroupKey($reading->bridgeId->toRfc4122(), $reading->account, $reading->window),
             ),
             $readings,
         );
@@ -220,6 +221,7 @@ final readonly class MetricRowSource
                 self::groupOf($fact, $group, $types),
                 $fact->endedAt ?? $fact->receivedAt,
                 null === $name ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
+                self::keyOf($group, self::groupOf($fact, $group, $types)),
             ),
             $facts,
         );
@@ -309,6 +311,7 @@ final readonly class MetricRowSource
                     $partition['group'],
                     $card->completedAt,
                     self::cardValue($partition['facts'], $metric, $name, $times),
+                    self::keyOf($group, $partition['group']),
                 );
             }
         }
@@ -353,6 +356,20 @@ final readonly class MetricRowSource
         }
 
         return array_values($ids);
+    }
+
+    /** The key of a split by account or by bridge. Any other split has none. */
+    private static function keyOf(MetricGroup $group, ?string $name): ?MetricGroupKey
+    {
+        if (null === $name) {
+            return null;
+        }
+
+        return match ($group) {
+            MetricGroup::Account => new MetricGroupKey(account: $name),
+            MetricGroup::Bridge => new MetricGroupKey(bridgeId: $name),
+            default => null,
+        };
     }
 
     /** @param array<string, string> $types card id => card type */

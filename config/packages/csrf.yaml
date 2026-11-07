@@ -54,6 +54,8 @@ framework:
             - admin-user-delete
             - admin-user-resend-verification
             - admin-revoke-api-key
+            - admin-public-links-take-down
+            - admin-public-links-lift
             - billing-comp-grant
             - billing-comp-revoke
             - billing-beta-invite-revoke

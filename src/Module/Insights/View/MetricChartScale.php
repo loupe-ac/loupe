@@ -19,8 +19,8 @@ final class MetricChartScale
     public const int PLOT_RIGHT = 936;
     public const int PLOT_TOP = 16;
     public const int BASELINE = 248;
-    /** The palette holds eight colours. With more than eight series, the first seven keep theirs and the rest share a grey. */
-    public const int PALETTE_SIZE = 8;
+    /** The palette holds twelve colours. With more series than colours, the largest keep a colour and the rest share a grey. */
+    public const int PALETTE_SIZE = 12;
 
     private const int TARGET_TICKS = 4;
 
@@ -102,20 +102,60 @@ final class MetricChartScale
     }
 
     /**
+     * The series from the largest total to the smallest. A series with no known total comes last, and a tie keeps its place.
+     *
+     * @param list<MetricSeries> $series
+     *
+     * @return list<MetricSeries>
+     */
+    public static function bySize(array $series): array
+    {
+        return array_map(static fn (int $position): MetricSeries => $series[$position], self::order($series));
+    }
+
+    /**
+     * Gives the named slots by the size of the total. The list keeps the order of the input.
+     *
      * @param list<MetricSeries> $series
      *
      * @return list<MetricChartSeries>
      */
     public static function series(array $series): array
     {
-        $count = \count($series);
-        $named = $count > self::PALETTE_SIZE ? self::PALETTE_SIZE - 1 : self::PALETTE_SIZE;
+        $named = \count($series) > self::PALETTE_SIZE ? self::PALETTE_SIZE - 1 : self::PALETTE_SIZE;
         $list = [];
-        foreach ($series as $position => $item) {
-            $list[] = new MetricChartSeries($item->group, $position < $named ? $position + 1 : 0, $position);
+        $ranks = array_flip(self::order($series));
+        ksort($ranks);
+        foreach ($ranks as $position => $rank) {
+            $list[] = new MetricChartSeries($series[$position]->group, $rank < $named ? $rank + 1 : 0, $position);
         }
 
         return $list;
+    }
+
+    /**
+     * The positions of the series, from the largest absolute total to the smallest.
+     *
+     * @param list<MetricSeries> $series
+     *
+     * @return list<int>
+     */
+    private static function order(array $series): array
+    {
+        $order = array_keys($series);
+        usort($order, static function (int $a, int $b) use ($series): int {
+            $left = $series[$a]->total->value;
+            $right = $series[$b]->total->value;
+
+            return match (true) {
+                null === $left && null === $right => $a <=> $b,
+                null === $left => 1,
+                null === $right => -1,
+                default => abs($right) <=> abs($left) ?: $a <=> $b,
+            };
+        });
+
+        return $order;
     }
 
     /** At most two decimals, with no trailing zero. */

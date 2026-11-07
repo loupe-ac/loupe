@@ -211,12 +211,23 @@ framework:
             limit: 30
             interval: '1 minute'
 
+        # Bounds the public pages of shared items, keyed per client address.
+        # The code length blocks guessing, and this bounds a scraper.
+        public_link:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'
+
 # The e2e suite drives one dev instance, and PHPUnit drives one kernel, both
 # from a single client address. A per-address limit therefore accumulates across
 # unrelated specs. Relax it there, never in prod.
 when@dev:
     framework:
         rate_limiter:
+            public_link:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
             api_authentication:
                 policy: 'sliding_window'
                 limit: 100000
@@ -277,6 +288,10 @@ when@dev:
 when@test:
     framework:
         rate_limiter:
+            public_link:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
             stripe_webhook:
                 policy: 'sliding_window'
                 limit: 100000

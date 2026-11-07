@@ -1,0 +1,104 @@
+{% extends '@UbermudaAdmin/base.html.twig' %}
+
+{% block title %}{{ 'insights.admin.public_links.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    <twig:UbermudaAdmin:AdminList
+        title="{{ 'insights.admin.public_links.title'|trans }}"
+        :total="view.total"
+        unitLabel="{{ 'insights.admin.public_links.unit'|trans }}"
+        unitLabelPlural="{{ 'insights.admin.public_links.unit_plural'|trans }}"
+        frameId="public-links-table"
+        :filters="view.filters"
+        route="app_admin_public_links_list"
+        :page="page"
+        :totalPages="view.totalPages"
+        :pageList="view.pageList"
+        sort="{{ sort }}"
+        dir="{{ dir }}"
+        :ignoreKeys="['sort', 'dir', 'user']"
+        tableClass="admin-table"
+        emptyLabel="{{ 'insights.admin.public_links.empty'|trans }}"
+    >
+        <twig:block name="filter_summary">
+            <div class="admin-card p-4 mb-6 flex items-center justify-between gap-3" data-testid="public-links-flag" data-flag-on="{{ view.flagOn ? 'true' : 'false' }}">
+                <p class="m-0 text-sm">
+                    {{ (view.flagOn ? 'insights.admin.public_links.flag.on' : 'insights.admin.public_links.flag.off')|trans }}
+                </p>
+                <a href="{{ path('ubermuda_feature_flags_list') }}" data-turbo-frame="_top" class="admin-button-secondary admin-button-small shrink-0">{{ 'insights.admin.public_links.flag.link'|trans }}</a>
+            </div>
+        </twig:block>
+
+        <twig:block name="filter_bar">
+            <twig:UbermudaAdmin:AdminListFilterBar
+                route="app_admin_public_links_list"
+                frameId="public-links-table"
+                searchPlaceholder="{{ 'insights.admin.public_links.filter.search_placeholder'|trans }}"
+                :filters="view.filters"
+                sort="{{ sort }}"
+                dir="{{ dir }}"
+                :ignoreKeys="['sort', 'dir', 'user']"
+                :clearParams="{sort: sort, dir: dir, user: view.filters.user|default(null)}"
+            >
+                <twig:block name="filter_fields">
+                    {% if view.filters.user is defined %}
+                        <input type="hidden" name="user" value="{{ view.filters.user }}">
+                    {% endif %}
+                </twig:block>
+            </twig:UbermudaAdmin:AdminListFilterBar>
+        </twig:block>
+
+        <twig:block name="thead">
+            <tr>
+                <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_public_links_list" column="project" label="{{ 'insights.admin.public_links.column.project'|trans }}" :currentSort="sort" :currentDir="dir" :filters="view.filters" /></th>
+                <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_public_links_list" column="owner" label="{{ 'insights.admin.public_links.column.owner'|trans }}" :currentSort="sort" :currentDir="dir" :filters="view.filters" /></th>
+                <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_public_links_list" column="items" label="{{ 'insights.admin.public_links.column.items'|trans }}" :currentSort="sort" :currentDir="dir" :filters="view.filters" /></th>
+                <th>{{ 'insights.admin.public_links.column.state'|trans }}</th>
+                <th>{{ 'insights.admin.public_links.column.actions'|trans }}</th>
+            </tr>
+        </twig:block>
+
+        <twig:block name="tbody">
+            {% for row in view.rows %}
+                <tr data-project-id="{{ row.projectId }}" data-link-code="{{ row.code }}">
+                    <td>{{ row.projectName }}</td>
+                    <td><a href="{{ path('app_admin_users_detail', {id: row.ownerId, returnTo: app.request.requestUri}) }}" data-turbo-frame="_top">{{ row.ownerName }}</a><br><span class="text-slate-500 text-xs">{{ row.ownerEmail }}</span></td>
+                    <td>{{ row.items }}</td>
+                    <td data-testid="public-link-state">
+                        {% if row.takenDown %}
+                            <span class="admin-badge admin-badge-off">{{ 'insights.admin.public_links.state.taken_down'|trans }}</span>
+                            <br><span class="text-slate-500 text-xs">{{ row.takenDownByEmail
+                                ? 'insights.admin.public_links.taken_down_by'|trans({'%date%': row.takenDownAt|date('Y-m-d H:i'), '%admin%': row.takenDownByEmail})
+                                : 'insights.admin.public_links.taken_down_on'|trans({'%date%': row.takenDownAt|date('Y-m-d H:i')}) }}</span>
+                        {% elseif row.liveItems > 0 %}
+                            <span class="admin-badge admin-badge-on">{{ 'insights.admin.public_links.state.public'|trans }}</span>
+                        {% else %}
+                            <span class="admin-badge admin-badge-neutral">{{ 'insights.admin.public_links.state.off'|trans }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        {% if row.takenDown %}
+                            <details class="admin-action-item" data-controller="disclosure">
+                                <summary class="admin-action-row admin-action-row--end" data-action="click->disclosure#toggle">
+                                    <span class="admin-button-secondary admin-button-small">{{ 'insights.admin.public_links.lift.open'|trans }}</span>
+                                </summary>
+                                <div class="overflow-hidden" data-disclosure-target="content">
+                                    <form method="post" action="{{ path('app_admin_public_links_lift', {id: row.projectId}) }}" class="admin-inline-panel" data-turbo-frame="_top">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-public-links-lift') }}">
+                                        <input type="hidden" name="returnTo" value="{{ app.request.requestUri }}">
+                                        <p class="admin-action-help m-0">{{ 'insights.admin.public_links.lift.help'|trans }}</p>
+                                        <div class="flex justify-end">
+                                            <button type="submit" class="admin-button-secondary admin-button-small" data-testid="public-link-lift">{{ 'insights.admin.public_links.lift.confirm'|trans }}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </details>
+                        {% else %}
+                            <a href="{{ path('app_admin_public_links_take_down_confirm', {code: row.code, returnTo: app.request.requestUri}) }}" data-turbo-frame="_top" class="admin-button-danger admin-button-small" data-testid="public-link-take-down">{{ 'insights.admin.public_links.take_down.open'|trans }}</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </twig:block>
+    </twig:UbermudaAdmin:AdminList>
+{% endblock %}
