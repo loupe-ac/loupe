@@ -10,16 +10,17 @@ type Turn struct {
 }
 
 // ResumeGap is the pause before one worker process: when the session last
-// answered before it, when it first answered, and what that first message
+// answered before it, when the process started, and what its first message
 // read and wrote.
 type ResumeGap struct {
-	LastTurnAt, FirstTurnAt time.Time
+	LastTurnAt, StartedAt time.Time
 	FirstTurn               Turn
 }
 
-// Gap is the time the session paused.
+// Gap is the time from the last turn to the start of the process, as the app
+// measures a wake.
 func (g ResumeGap) Gap() time.Duration {
-	return g.FirstTurnAt.Sub(g.LastTurnAt)
+	return g.StartedAt.Sub(g.LastTurnAt)
 }
 
 // Cold says the first message wrote more to the cache than it read from the
@@ -99,7 +100,7 @@ func ResumeGaps(path string, windows []Window) ([]*ResumeGap, error) {
 		if first < 0 || gap.LastTurnAt.IsZero() {
 			continue
 		}
-		gap.FirstTurnAt = lines[first].at
+		gap.StartedAt = w.Start
 		for _, l := range lines[first:] {
 			if l.id != lines[first].id || !inside(l.at) {
 				continue
@@ -107,9 +108,6 @@ func ResumeGaps(path string, windows []Window) ([]*ResumeGap, error) {
 			gap.FirstTurn.Input = max(gap.FirstTurn.Input, l.t.Input)
 			gap.FirstTurn.CacheRead = max(gap.FirstTurn.CacheRead, l.t.CacheRead)
 			gap.FirstTurn.CacheWrite = max(gap.FirstTurn.CacheWrite, l.t.CacheWrite)
-			if l.at.Before(gap.FirstTurnAt) {
-				gap.FirstTurnAt = l.at
-			}
 		}
 		out[i] = &gap
 	}

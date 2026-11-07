@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zalando/go-keyring"
 
@@ -168,5 +169,19 @@ func TestBackfillWakesGoesOnAfterAFailure(t *testing.T) {
 	}
 	if !strings.Contains(out, "failed "+wakeSession+"1 (card 1)") || !strings.Contains(out, "sent "+wakeSession+"2 (card 2): 1 wakes\n") {
 		t.Fatalf("output:\n%s", out)
+	}
+}
+
+// Both edges, 5 minutes and 1 hour, fall in the middle bucket, as in the app.
+func TestGapBucketPlacesTheEdgesInTheMiddle(t *testing.T) {
+	for gap, want := range map[time.Duration]int{
+		5*time.Minute - time.Millisecond: 0,
+		5 * time.Minute:                  1,
+		time.Hour:                        1,
+		time.Hour + time.Millisecond:     2,
+	} {
+		if got := gapBucket(gap); got != want {
+			t.Errorf("gapBucket(%s) = %d, want %d", gap, got, want)
+		}
 	}
 }

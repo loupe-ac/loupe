@@ -42,13 +42,19 @@ func newUsageBackfillWakesCmd() *cobra.Command {
 }
 
 // The gap buckets of the wake report.
-var gapBuckets = []struct {
-	name  string
-	below time.Duration
-}{
-	{"under 5m", 5 * time.Minute},
-	{"5m-1h", time.Hour},
-	{"over 1h", 0},
+var gapBuckets = []string{"under 5m", "5m-1h", "over 1h"}
+
+// gapBucket places a gap as the app does: both edges, 5 minutes and 1 hour,
+// fall in the middle bucket.
+func gapBucket(gap time.Duration) int {
+	switch {
+	case gap < 5*time.Minute:
+		return 0
+	case gap <= time.Hour:
+		return 1
+	}
+
+	return 2
 }
 
 // gapTally counts the pauses of each bucket, and the cold ones.
@@ -57,10 +63,7 @@ type gapTally struct {
 }
 
 func (t *gapTally) add(g transcript.ResumeGap) {
-	i := 0
-	for i < len(gapBuckets)-1 && g.Gap() >= gapBuckets[i].below {
-		i++
-	}
+	i := gapBucket(g.Gap())
 	t.gaps[i]++
 	if g.Cold() {
 		t.cold[i]++
@@ -119,7 +122,7 @@ func backfillWakes(cmd *cobra.Command, o backfillOptions) error {
 		fmt.Fprintf(out, "sent %s: %d wakes\n", s.label(), count)
 	}
 	for i, b := range gapBuckets {
-		fmt.Fprintf(out, "pauses %s: %d, cold %d\n", b.name, tally.gaps[i], tally.cold[i])
+		fmt.Fprintf(out, "pauses %s: %d, cold %d\n", b, tally.gaps[i], tally.cold[i])
 	}
 	if failed > 0 {
 		return fmt.Errorf("%d of the sessions failed", failed)

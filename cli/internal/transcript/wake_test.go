@@ -51,11 +51,11 @@ func TestResumeGapsTakeTheLargestCountsOfTheFirstMessage(t *testing.T) {
 		t.Fatalf("gaps = %+v", got)
 	}
 	g := got[1]
-	if !g.LastTurnAt.Equal(at(0).Add(2*time.Second)) || !g.FirstTurnAt.Equal(at(30).Add(2*time.Second)) ||
-		g.FirstTurn != (Turn{Input: 7, CacheRead: 300, CacheWrite: 1200}) || g.Gap() != 30*time.Minute || !g.Cold() {
+	if !g.LastTurnAt.Equal(at(0).Add(2*time.Second)) || !g.StartedAt.Equal(at(30)) ||
+		g.FirstTurn != (Turn{Input: 7, CacheRead: 300, CacheWrite: 1200}) || g.Gap() != 30*time.Minute-2*time.Second || !g.Cold() {
 		t.Fatalf("gap 1 = %+v", g)
 	}
-	if !got[2].LastTurnAt.Equal(at(31).Add(2*time.Second)) || got[2].Gap() != 59*time.Minute || !got[2].Cold() {
+	if !got[2].LastTurnAt.Equal(at(31).Add(2*time.Second)) || got[2].Gap() != 59*time.Minute-2*time.Second || !got[2].Cold() {
 		t.Fatalf("gap 2 = %+v (cold %v)", got[2], got[2].Cold())
 	}
 }
