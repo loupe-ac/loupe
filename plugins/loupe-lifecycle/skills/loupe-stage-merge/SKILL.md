@@ -69,7 +69,7 @@ Merge only when every item holds. The first item that fails ends the run with `S
 1. The head commit equals the SHA of the prompt.
 2. The pull request is not a draft.
 3. The approval covers every commit up to the SHA of the prompt. It is the `Loupe / Approval` check of the Loupe App, plus the reviews that the rules of the base branch require. With no rules, the check alone is the approval. Call `workflow_get` and read `approvalCoversConflictResolution` and `githubAppId`. Check the approval with the forge adapter, and pass it both values. When the profile `Merge` section names an approver, that reviewer must also hold a covering approval.
-4. The checks are `passed`: every required check passes, and none fails or is pending. Count the checks against the required count of the profile `Gate` section. A repository with no required check has a count of 0, and the forge adapter reads that as `passed`. An epic branch has no required checks of its own. For an epic child, check by name the required checks of the base branch of the profile `Merge` section, as the forge adapter says.
+4. The checks are `passed`: every required check of the base branch passes on the head, and none fails or is pending. The forge adapter reads the required names live, also for a check that has not started. A repository with no required check is `passed`. An epic branch has no required checks of its own. For an epic child, read the required checks of the base branch of the profile `Merge` section, as the forge adapter says. When the read is `UNREAD`, stop with `STAGE RESULT: blocked: required checks unreadable <url>`.
 5. The mergeability is `mergeable`.
 6. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 3. The app sends no behind event for a base with no strict rule, so this item replaces that event. A sync of the epic branch with a merge of its base puts each open child behind. The forge adapter's update then merges the epic branch into the child.
 
@@ -84,7 +84,7 @@ When the adapter cannot read the approval, stop with `STAGE RESULT: blocked: app
 
 Then:
 
-1. Merge with the forge adapter and the SHA of the prompt. The method comes from the profile `Merge` section, or from its `Epics` section for an epic child.
+1. Merge with the forge adapter and the SHA of the prompt. The method comes from the profile `Merge` section. For an epic child it is the `epic-child-merge-method` setting, which `workflow_get` returns for the repository of the pull request.
 2. Read the state again. When it is not `merged`, stop with `STAGE RESULT: blocked: merge refused <url>: <message>`. Record the block as "Record a block" in `../loupe-stage-implementation/references/commands.md` says.
 3. Stop with `STAGE RESULT: merged <url>`.
 

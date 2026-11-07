@@ -147,18 +147,21 @@ Report mergeability, as the next section says.
 
 ```bash
 gh pr view <url> --json state,isDraft,headRefOid,baseRefName,mergeable,mergeStateStatus
-gh pr checks <url> --required --json bucket -q 'group_by(.bucket)|map("\(.[0].bucket)=\(length)")|join(" ")'
+<forge dir>/github-required-checks.sh <url>
+gh pr checks <url> --json name,bucket,link
 ```
 
-When no rule requires a check, the second command prints `no required checks reported on the '<branch>' branch` on stderr, nothing on stdout, and exits 1 (checked with gh 2.95.0). That output is green with a required count of 0, not a failure. Any other exit 1 with no such message is a failed read.
+`<forge dir>` is the directory of this file. The second command prints the names of the required checks of the base branch, one for each line. It reads the rulesets and the classic branch protection live, so no profile count can go stale. It leaves out `Loupe / Approval`, which "Check the approval covers the head" reads. It exits 2 and prints `UNREAD` with a reason when a read fails. An epic child passes `--base <merge base>` with the base branch of the profile `Merge` section, because an epic branch has no rules of its own.
 
-The approval is not part of this read. "Check the approval covers the head" reads it. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means `pass=<required count>` and no other bucket.
+The third command lists every check of the head. Read its JSON whatever the exit code. Each required name must have a check with the `bucket` `pass`. A name with no check counts as pending, also when the check has not started yet. An empty list of names is green.
+
+The approval is not part of this read. "Check the approval covers the head" reads it. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means that every required name passes, and that none fails, waits or has no check.
 
 Report state: `OPEN` is `open`, `MERGED` is `merged`, and `CLOSED` is `closed`.
 
 Report draft: `isDraft` `true` is `yes`, and `false` is `no`.
 
-Report checks: `passed` when green. `failed` when the `fail` or `cancel` bucket holds a check. Otherwise `pending`.
+Report checks: `passed` when green. `failed` when a required name has a check in the `fail` or `cancel` bucket. Otherwise `pending`. When the second command prints `UNREAD`, stop the merge with `UNREAD: <reason>`, and report no checks.
 
 Report mergeability, in this order:
 
@@ -168,8 +171,6 @@ Report mergeability, in this order:
 4. `unknown` when `mergeable` is `UNKNOWN`.
 5. `mergeable` when `mergeStateStatus` is `CLEAN`, `HAS_HOOKS` or `UNSTABLE`.
 6. `unknown` otherwise.
-
-For an epic child, replace the second command with the by-name read of "Read the checks". Green means that every name passes, and that no name fails, waits or has no check.
 
 ## Check the approval covers the head
 
@@ -269,4 +270,4 @@ The first command answers `403` with the message "Upgrade to GitHub Pro or make 
 gh pr merge <url> --<method> --match-head-commit <sha>
 ```
 
-`<method>` comes from the profile `Merge` section. `--match-head-commit` refuses the merge when the head moved. Never pass `--admin` or `--auto`. On a branch with a merge queue, `gh pr merge` turns on auto-merge by itself, so the state stays `OPEN`. After the merge, read `state` again, and accept only `MERGED`, which is the state `merged`.
+`<method>` comes from the profile `Merge` section. For an epic child it is the `epic-child-merge-method` setting that `workflow_get` returns for the repository of the pull request: `squash`, `merge` or `rebase`. `--match-head-commit` refuses the merge when the head moved. Never pass `--admin` or `--auto`. On a branch with a merge queue, `gh pr merge` turns on auto-merge by itself, so the state stays `OPEN`. After the merge, read `state` again, and accept only `MERGED`, which is the state `merged`.
