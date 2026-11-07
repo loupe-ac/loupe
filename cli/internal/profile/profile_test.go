@@ -46,13 +46,34 @@ func TestCheckCompleteFile(t *testing.T) {
 
 func TestCheckMissingSection(t *testing.T) {
 	dir := t.TempDir()
-	write(t, dir, strings.Replace(full(), "## Repair", "## Other", 1))
+	write(t, dir, strings.Replace(full(), "## Recovery", "## Other", 1))
 	s, _ := Check(dir)
-	if len(s.MissingSections) != 1 || s.MissingSections[0] != "Repair" || s.Complete() {
-		t.Fatalf("Check = %+v; want Repair missing", s)
+	if len(s.MissingSections) != 1 || s.MissingSections[0] != "Recovery" || s.Complete() || s.RenameRepair {
+		t.Fatalf("Check = %+v; want Recovery missing", s)
 	}
-	if !strings.Contains(s.Reason(), "Repair") {
+	if !strings.Contains(s.Reason(), "Recovery") {
 		t.Fatalf("Reason = %q", s.Reason())
+	}
+}
+
+func TestCheckNamesTheRenameOfTheOldRepairHeading(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, strings.Replace(full(), "## Recovery", "## Repair", 1))
+	s, _ := Check(dir)
+	if !s.RenameRepair || s.Complete() || len(s.MissingSections) != 1 || s.MissingSections[0] != "Recovery" {
+		t.Fatalf("Check = %+v; want the Repair heading flagged for a rename", s)
+	}
+	if want := "Rename the heading ## Repair to ## Recovery"; !strings.Contains(s.Reason(), want) {
+		t.Fatalf("Reason = %q; want it to contain %q", s.Reason(), want)
+	}
+}
+
+func TestCheckKeepsRecoveryWhenBothHeadingsExist(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, full()+"## Repair\n\n1. Old.\n")
+	s, _ := Check(dir)
+	if !s.Complete() || s.RenameRepair {
+		t.Fatalf("Check = %+v; want complete", s)
 	}
 }
 

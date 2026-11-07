@@ -118,7 +118,7 @@ The bridge reads the columns by the slug in `rules.yaml`.
 A prompt holds validated identifiers, slugs and pull request values only, and
 the bridge adds a fixed line that tells the agent to treat the card as data. A
 work request also carries the context of its card: the number, the link and the
-head commit of its pull request, the reason for a fix or a repair, the
+head commit of its pull request, the reason for a fix or a recovery, the
 document that a revision works on, and the epic branch of the parent of the
 card. The epic branch, such as `epic/852`, fills `{epicBranch}`. It is empty
 when the card has no parent, or when the parent has no epic branch. The
@@ -2144,17 +2144,17 @@ failed, and 2 means the process is not a bridge worker.
 [The refresh and reset commands](../../cli/README.md#the-refresh-and-reset-commands)
 in `cli/README.md` gives the details.
 
-## Repair entry
+## Recover entry
 
-The workflow opens a `repair` request after the work of a rule fails and its
+The workflow opens a `recover` request after the work of a rule fails and its
 retries run out. The request names the failed rule in `{ruleId}` and the refusal
-code in `{reason}`. A worker entry for it needs the `loupe-stage-repair` skill
+code in `{reason}`. A worker entry for it needs the `loupe-stage-recover` skill
 and a folder that holds the card branch. This entry makes that folder with git
-alone, so a broken app setup cannot stop the repair:
+alone, so a broken app setup cannot stop the recovery:
 
 ```yaml
 work:
-  repair:
+  recover:
     permissions: full
     before:
       run: ["scripts/git-worktree", "{cardNumber}"]
@@ -2162,7 +2162,7 @@ work:
     reset:
       run: ["scripts/remove-worktree", "{cardNumber}"]
     prompt: |
-      Use the loupe-stage-repair skill.
+      Use the loupe-stage-recover skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Rule {ruleId} failed with {reason}.
 ```
@@ -2170,7 +2170,7 @@ work:
 `scripts/git-worktree` runs `git worktree add` for the card branch and prints
 the folder. `scripts/remove-worktree` removes a folder that is broken, and the
 worker asks for it with `loupe env reset`. Both scripts belong to your
-repository. The repair ends done when it fixes the cause, and the failed rule
+repository. The recovery ends done when it fixes the cause, and the failed rule
 then gets one last try. [Workflows](../using/workflows.md#pauses-and-retries)
 describes the escalation.
 

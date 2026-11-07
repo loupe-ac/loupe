@@ -385,7 +385,7 @@ the run line then reads "Fix the cause, then resume the card" and opens the
 card. A run wait shows the whole output of the run below
 the sentence, with the stage protocol text and the reason tag removed.
 A pause wait says the reason of the pause in words, such as "Card 1033 is
-paused. The repair worker could not fix the failure." When failed work caused
+paused. The recovery worker could not fix the failure." When failed work caused
 the pause, the sentence also names the last run that failed before it, with
 its kind and its failure reason, or the state of the run when it has no
 reason. A run that stopped for a person did not fail, so the pause names no
