@@ -17,6 +17,10 @@ final readonly class InsightsRefreshSettings
 
     public const int REFRESH_DELAY_DEFAULT = 60;
 
+    public const string SLOW_NOTICE_FLAG = 'insights.slow_notice_seconds';
+
+    public const int SLOW_NOTICE_DEFAULT = 30;
+
     public function __construct(
         private FeatureFlagService $featureFlags,
     ) {
@@ -32,5 +36,11 @@ final readonly class InsightsRefreshSettings
     public function sweepIntervalMinutes(): int
     {
         return max(1, $this->featureFlags->getIntValue(self::SWEEP_INTERVAL_FLAG, self::SWEEP_INTERVAL_DEFAULT));
+    }
+
+    /** Seconds a waiting tile shows its spinner before it offers Retry. */
+    public function slowNoticeSeconds(): int
+    {
+        return max(1, $this->featureFlags->getIntValue(self::SLOW_NOTICE_FLAG, self::SLOW_NOTICE_DEFAULT));
     }
 }

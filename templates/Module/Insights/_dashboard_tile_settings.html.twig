@@ -1,0 +1,8 @@
+{# The settings line under a tile name. Props: graph (InsightsSavedGraph). #}
+{{- [
+    ('analytics.metrics.unit.' ~ graph.unit.value)|trans,
+    ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans,
+    ('analytics.metrics.range.' ~ graph.range.value)|trans,
+    ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
+    ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
+]|join(' · ') -}}
