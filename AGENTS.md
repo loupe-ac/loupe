@@ -54,6 +54,8 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 
 A subagent does not inherit the skills you have loaded. When you delegate PHP, entity, migration or command work, state the relevant skill conventions in the prompt, or tell the subagent to invoke the skill first. A convention that lives only in a skill is silently missed otherwise.
 
+When you delegate PHP, entity, migration or command work, use the `senior-dev` agent (`.claude/agents/senior-dev.md`) when the harness has it.
+
 ## Getting feedback on long documents
 
 Submit a document that the user reads at their own pace to the Loupe app with `document_create` or `document_revise`. Examples are a plan, a spec or an RFC. Give the user the review URL. Invoke `loupe-documents` before you write it, and `project-tech-design` as well when it settles an architecture. Keep a turn in a discussion in the chat.
@@ -120,7 +122,9 @@ Say in the plan which of the checks below the change needs.
 
 **Landing page.** Ask whether the change adds, removes or alters a capability the landing page claims, or should now claim. The page is `templates/Module/Landing/landing.html.twig` with its partials in `templates/Module/Landing/landing/`, and the marketing footer is `templates/Module/Landing/landing/_footer.html.twig`. A landing page that describes a product one release behind is worse than one that says less.
 
-The third check is the changelog entry. Write it on the same branch, in `changelog.d/<pull request number>.md`, and never in `docs/CHANGELOG.md`. `working-with-prs` and `changelog.d/README.md` carry the format.
+**Deploy notes.** A card can link a document tagged `deploy-notes`. `project-deploy` "What deploy notes hold" lists the items a deploy must handle. Revise the notes when the change adds, changes or removes one.
+
+The fourth check is the changelog entry. Write it on the same branch, in `changelog.d/<pull request number>.md`, and never in `docs/CHANGELOG.md`. `working-with-prs` and `changelog.d/README.md` carry the format.
 
 ### Register what the feature adds
 
@@ -162,6 +166,7 @@ Invoke the `working-with-prs` skill before you open, gate or merge a pull reques
 
 - The local gate is `just cs`, then `just phpstan`, `just arkitect` and `just gamache`. Then run PHPUnit on the tests for what changed, with `just phpunit tests/<path>` or `just phpunit --filter <name>`. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed. Run no Codex review. Open the pull request as a draft, and push. A review worker reviews it, and Loupe marks it ready when the review passes and the checks are green. CI's required checks, e2e included, are the full gate: read them on the pull request, and fix every failure, including pre-existing ones. Never run `just ci` or a full PHPUnit run.
 - A branch whose every changed file ends in `.md` runs `just cs` and pushes, and says so in the body. Verify with `git diff --name-only origin/main...HEAD | grep -v '\.md$'`. Any output means the full gate applies.
+- Name a card branch `card-<number>-<slug>`, such as `card-1465-move-repo-values`. The slug is two to four lowercase words from the card title.
 - `main` is protected and takes `--squash` only. **Put the reasoning in the commit messages, not only in the PR body.** GitHub's squash default concatenates the branch's commit messages, so what survives in `git log` is what the commits said; the body survives only on the pull request page unless you pass `gh pr merge <n> --squash --body-file <file>`. A branch with substantive commit messages loses only the body's framing. A branch with thin ones loses everything. It requires no approving review. It requires a list of checks, and one of them is `Loupe / Approval`. Loupe posts that check on the head commit when the agent review passes, or when a person approves the head on GitHub. Read the list from the ruleset, because nothing in the repository fails when it goes stale. `working-with-prs` carries the command. An approval in chat is not an approval.
 - Never approve your own work on GitHub. A PR with every required check green, `Loupe / Approval` included, is good to merge, without asking, when no workflow rule will merge it. A PR linked to a card belongs to the `merge-ready` rule of the workflow, so leave it to that rule. Hand-merge only a PR that no rule reaches. Never merge one that has a failing or pending check, or would need `--admin`. A hook refuses `gh pr merge --admin` and `gh pr ready`. A stacked pull request has no required checks, so never merge it while it targets its parent's branch.
 - A green gate is not evidence the change is correct. Read the diff.
