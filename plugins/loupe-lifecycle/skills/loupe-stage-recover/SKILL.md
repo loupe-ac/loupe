@@ -41,7 +41,7 @@ Find why the work of one workflow rule failed on a card, and fix the cause. The 
 
 The worker takes these three actions and no other. No profile section widens or narrows them.
 
-`<base>` and the card branch come from `../loupe-stage-implementation/references/commands.md` "Find the base branch" and "Card branch". The card branch is the head branch of the open pull request that `card_get` links, or else the current branch of the worker folder when it is not `<base>`.
+`<base>` and the card branch come from `../loupe-stage-implementation/references/commands.md` "Find the base branch" and "Card branch". The card branch is the head branch of the open pull request that `card_get` links, or else the current branch of the worker folder when it is not `<base>`. With neither, the card branch is a new name that "Card branch" item 3 of that file gives.
 
 Before each action, `git status --porcelain` in the worker folder must print nothing. Otherwise stop with `STAGE RESULT: blocked: worker folder has local work`, because each action can lose it.
 
@@ -52,7 +52,7 @@ Before each action, `git status --porcelain` in the worker folder must print not
    4. Otherwise run `git reset --hard origin/<base>`. Push nothing, because the next run pushes the branch.
 2. Sync the epic branch with its base. This applies when the card has a parent epic and `origin/epic/<parent number>` exists.
    1. Run `git fetch origin`, then `git switch --detach origin/epic/<parent number>`.
-   2. Run `git merge origin/<base>`, where `<base>` is the default branch. When the merge conflicts, run `git merge --abort` and stop with `STAGE RESULT: blocked: epic branch conflicts with <base>`.
+   2. Run `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` to get the default branch `<default>`. This is not the `<base>` of the shared rule, which can be the epic branch itself. Run `git merge origin/<default>`. When the merge conflicts, run `git merge --abort` and stop with `STAGE RESULT: blocked: epic branch conflicts with <default>`.
    3. Run `git push origin HEAD:refs/heads/epic/<parent number>`. Never force it. When the push fails, stop with `STAGE RESULT: blocked: epic branch push failed`.
    4. Run `git switch <card branch>` when the card has a branch, then take action 1.
 3. Ask the bridge to reset the worker folder. Record the recovery on the card first, as step 9 says. Then run `loupe env reset` as your last command. The `reset` command of the bridge entry removes the folder and the databases of the card, and keeps the branch. When the entry has no `reset` command, `loupe env reset` exits 1 or 2. Stop with `STAGE RESULT: blocked: no reset command on the bridge entry`.
