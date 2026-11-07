@@ -105,11 +105,15 @@ final readonly class TemplateWorkflowSettings implements WorkflowSettings
     }
 
     #[\Override]
-    public function projectConflicts(Uuid $projectId): array
+    public function projectConflicts(Uuid $projectId, Uuid $repositoryId): array
     {
         $conflicts = [];
         foreach ($this->templates->of($projectId)->settings as $setting) {
             if (SettingScope::Project !== $setting->scope) {
+                continue;
+            }
+            $own = $this->workflowSettingOverrides->findOneByRepositoryIdAndKey($repositoryId, $setting->key);
+            if (null === $own || !$own->valid) {
                 continue;
             }
             $resolved = $this->forProject($projectId, $setting->key);

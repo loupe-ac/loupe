@@ -55,7 +55,7 @@ final readonly class DeliveryAnnouncer
             $this->dispatch($project, [new ForgeDelivery(ForgeEventType::REPOSITORY_MOVED, GitHubDelivery::FORGE, $claim->movedFrom, movedTo: $repository->fullName)], $source);
         }
 
-        if (ForgeClaimOutcome::Owned === $claim->outcome && ForgeRepositorySource::Installation === $source) {
+        if (ForgeRepositorySource::Installation === $source && (ForgeClaimOutcome::Owned === $claim->outcome || $claim->tookOver)) {
             $this->workflowReads->queue($claim->repository);
         }
 

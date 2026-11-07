@@ -176,10 +176,14 @@ final class WorkflowSettingsTest extends WorkflowSettingsTestCase
         self::bootKernel();
         $project = $this->workflowProject('project-conflicts-list');
         $this->bindingValues($project, ['epic-branch-pattern' => 'project/{number}']);
-        $this->read($project, $this->repository($project, 'acme/a'), ['epic-branch-pattern' => 'a/{number}']);
+        $a = $this->repository($project, 'acme/a');
+        $this->read($project, $a, ['epic-branch-pattern' => 'a/{number}']);
         $this->read($project, $this->repository($project, 'acme/b'), ['epic-branch-pattern' => 'b/{number}']);
+        $c = $this->repository($project, 'acme/c');
+        $this->read($project, $c, []);
 
-        $conflicts = $this->settings()->projectConflicts($project->requireId());
+        self::assertSame([], $this->settings()->projectConflicts($project->requireId(), $c));
+        $conflicts = $this->settings()->projectConflicts($project->requireId(), $a);
 
         self::assertCount(1, $conflicts);
         self::assertStringContainsString('acme/a', $conflicts[0]);

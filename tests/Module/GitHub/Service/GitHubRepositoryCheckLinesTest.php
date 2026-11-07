@@ -190,6 +190,7 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
     {
         $check = $this->check([$this->item('branch-protection', 'warning', [RepositorySuggestionCatalog::GAP_FORCE_PUSH_ALLOWED])], $this->settings());
         new \ReflectionProperty($check->repository->project, 'id')->setValue($check->repository->project, Uuid::v7());
+        new \ReflectionProperty($check->repository, 'id')->setValue($check->repository, Uuid::v7());
         $message = 'The setting "epic-branch-pattern" has different values in the repositories of the project (acme/app sets a/{number}; acme/other sets b/{number}).';
 
         $lines = $this->lines([$message])->forCheck($check);

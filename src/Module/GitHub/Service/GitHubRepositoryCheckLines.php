@@ -72,7 +72,8 @@ final readonly class GitHubRepositoryCheckLines
             $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
         }
         $projectId = $check->repository->project->id;
-        foreach (null === $projectId ? [] : $this->workflowSettings->projectConflicts($projectId) as $warning) {
+        $repositoryId = $check->repository->id;
+        foreach (null === $projectId || null === $repositoryId ? [] : $this->workflowSettings->projectConflicts($projectId, $repositoryId) as $warning) {
             $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
         }
 
