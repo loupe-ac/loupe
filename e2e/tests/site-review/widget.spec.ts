@@ -627,6 +627,63 @@ test('the destination view offers two modes and no epic or card search', async (
     await expect(picker.getByLabel('Type', { exact: true })).toHaveCount(0);
 });
 
+test('Finish review in a one-card review picks a column and ends the review', async ({
+    page,
+}) => {
+    const moves = [
+        { id: 'col-next', name: 'Next', hint: 'Waits until you start it.' },
+        { id: 'col-tech', name: 'Tech design', hint: 'An agent writes it.' },
+    ];
+    const posts: unknown[] = [];
+    await page.route('**/api/v1/live-review-widget/cards/*/start', (route) => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+            posts.push(request.postDataJSON());
+            return route.fulfill({
+                json: {
+                    number: 42,
+                    url: 'https://example.test/c',
+                    column: 'Tech design',
+                },
+            });
+        }
+        return route.fulfill({
+            json: {
+                number: 42,
+                url: 'https://example.test/c',
+                column: 'Backlog',
+                startsWork: false,
+                moves,
+            },
+        });
+    });
+    await openHarness(page, null);
+    await openNoteOverDestination(page);
+    await chooseMode(page, 'One new card for this review');
+    await page.locator('#lp-destination-save').click();
+
+    const finish = page.getByRole('button', { name: 'Finish review' });
+    await finish.click();
+    const menu = page.locator('#lp-menu');
+    await expect(menu.locator('.lp-menu-title')).toHaveText('Start #42 in');
+    await expect(menu.getByRole('menuitem')).toHaveCount(2);
+    await expect(menu.getByRole('menuitem').nth(1)).toContainText(
+        'An agent writes it.',
+    );
+    await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
+
+    const notice = page.locator('#lp-review-end');
+    await expect(notice).toContainText('#42 is in Tech design.');
+    await expect(
+        notice.getByRole('link', { name: 'Open #42 in Loupe' }),
+    ).toBeVisible();
+    expect(posts).toEqual([{ columnId: 'col-tech' }]);
+    await expect(
+        page.getByRole('button', { name: 'Choose where notes go' }),
+    ).toBeVisible();
+    await expect(finish).toHaveCount(0);
+});
+
 test('a keep=1 reload rehydrates the live comments into pins and list', async ({
     page,
 }) => {
