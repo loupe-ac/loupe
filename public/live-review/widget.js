@@ -247,10 +247,10 @@
     const targetLine = (target) =>
         target.mode === 'per-note'
             ? 'Each note makes its own card'
-            : 'One card for this review';
+            : 'One new card for this review';
     const targetLabel = (target) => {
         if (target.mode === 'per-note') return 'A new card for each note';
-        return target.label || 'One card for this review';
+        return target.label || 'One new card for this review';
     };
     // The mode chosen in the destination view, or null while the view is closed.
     let pickerMode = null;
@@ -1562,7 +1562,7 @@
               <div class="lp-opt" data-mode="per-review">
                 <input type="radio" name="lp-dest" id="lp-dest-per-review" value="per-review">
                 <div class="lp-opt-main">
-                  <label for="lp-dest-per-review"><span class="lp-opt-t">One card for this review</span><span class="lp-opt-d">Every note lands on the same card.</span></label>
+                  <label for="lp-dest-per-review"><span class="lp-opt-t">One new card for this review</span><span class="lp-opt-d">Every note lands on one new card.</span></label>
                   <div class="lp-opt-more" id="lp-picker-slot-per-review"></div>
                 </div>
               </div>

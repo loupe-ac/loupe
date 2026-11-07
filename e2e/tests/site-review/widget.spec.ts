@@ -493,10 +493,10 @@ test('one card per review is chosen once and remembered after a reload', async (
     // No choice yet, so the modes come before the first note can be written.
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    // One card for this review is the choice the view opens on, and its title
+    // One new card for this review is the choice the view opens on, and its title
     // takes the focus.
     await expect(
-        picker.getByRole('radio', { name: 'One card for this review' }),
+        picker.getByRole('radio', { name: 'One new card for this review' }),
     ).toBeChecked();
     await expect(picker.getByLabel('Card title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
@@ -589,7 +589,7 @@ test('the destination view offers two modes and no epic or card search', async (
     const picker = page.locator('#lp-picker');
     await expect(picker.getByRole('radio')).toHaveCount(2);
     await expect(
-        picker.getByRole('radio', { name: 'One card for this review' }),
+        picker.getByRole('radio', { name: 'One new card for this review' }),
     ).toBeVisible();
     await expect(
         picker.getByRole('radio', { name: 'A new card for each note' }),
@@ -4302,7 +4302,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     // Another destination is another list: the old cards go, and the
     // request names the new destination.
     await page.locator('#lp-dest').click();
-    await chooseMode(page, 'One card for this review');
+    await chooseMode(page, 'One new card for this review');
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
