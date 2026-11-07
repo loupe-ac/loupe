@@ -120,7 +120,8 @@ review. It calls `document_get_review` and sends a new version. [Documents and r
 
 [Run discovery](../using/workshop.md#run-discovery) before agents work the cards
 of this project. It compares the way the repository already works with what the
-workflow needs, and it changes nothing. You get a readiness report.
+workflow needs, and it changes nothing except the routing table, which it writes
+only after you agree. You get a readiness report.
 
 Discovery also runs the deep checks that `loupe init` leaves out. They cover the
 push gate, the pull request target, the conventions, rules that live only in
