@@ -1243,6 +1243,7 @@ when@dev: &generator
                                 - label
                                 - column
                                 - startRefused
+                                - locked
                                 - url
                                 properties:
                                     commentId:
@@ -1262,6 +1263,9 @@ when@dev: &generator
                                         type: string
                                         nullable: true
                                         description: The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.
+                                    locked:
+                                        type: boolean
+                                        description: Whether the note is locked, because its card left Backlog at some point.
                                     url:
                                         type: string
                                         format: uri

@@ -10,6 +10,7 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\AddFeedbackCommand;
 use App\Module\Board\Command\AddFeedbackHandler;
+use App\Module\Board\Service\CardCommentEditLock;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\NewStroke;
 use App\Module\SiteReview\Entity\ReviewSurface;
@@ -121,6 +122,7 @@ final class AddFeedbackController extends AppController
             'label' => \sprintf('#%d %s', $card->number, $card->title),
             'column' => $this->translator->trans($card->column->label),
             'startRefused' => $result->startRefused,
+            'locked' => CardCommentEditLock::locks($link->comment, $card, $card->leftBacklog),
             'url' => $this->urls->generate(
                 'app_board_card',
                 ['projectId' => (string) $project->id, 'cardId' => (string) $card->id],

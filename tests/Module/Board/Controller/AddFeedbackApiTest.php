@@ -58,10 +58,28 @@ final class AddFeedbackApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         self::assertNull($data['startRefused']);
+        self::assertTrue($data['locked']);
         self::assertSame($this->translated($column->label), $data['column']);
         $card = $this->service(CardRepository::class)->find($data['cardId']);
         self::assertInstanceOf(Card::class, $card);
         self::assertSame('in-progress', $card->column->slug);
+    }
+
+    public function test_a_note_on_a_started_card_that_returned_to_backlog_is_locked(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-returned@example.com');
+        $started = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'in-progress')->id]]));
+        $card = $this->service(CardRepository::class)->find($started['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        $card->column = $this->column($project, 'backlog');
+        $this->em()->flush();
+
+        $data = $this->post($client, $raw, $this->note(['cardId' => (string) $card->id], ['deliveryId' => '0199c0de-0000-4000-8000-000000000007']));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->translated($card->column->label), $data['column']);
+        self::assertTrue($data['locked']);
     }
 
     public function test_a_note_with_no_start_column_lands_in_backlog(): void
@@ -72,6 +90,7 @@ final class AddFeedbackApiTest extends WebTestCase
         $data = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
 
         self::assertNull($data['startRefused']);
+        self::assertFalse($data['locked']);
         self::assertSame($this->translated($this->column($project, 'backlog')->label), $data['column']);
     }
 

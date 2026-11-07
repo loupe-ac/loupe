@@ -1829,6 +1829,37 @@ describe('the scope of the list request', () => {
                 label: '#12 Note',
                 column: 'Tech design',
                 startRefused: null,
+                locked: true,
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        openPanel();
+        const row = panelRoot().querySelector('#lp-list .lp-item');
+        row.querySelector('.lp-row-menu-btn').click();
+        const items = [
+            ...panelRoot().querySelectorAll('[role="menuitem"]'),
+        ].map((item) => item.textContent);
+        expect(items).not.toContain('Edit text');
+        expect(items).not.toContain('Delete note…');
+    });
+
+    it('locks a note at once when its card is saved back in Backlog after it started work', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG, TECH], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: null,
+                locked: true,
                 url: 'https://loupe.example/card',
             }),
         });

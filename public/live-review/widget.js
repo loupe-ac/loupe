@@ -5503,12 +5503,9 @@
                                   label: `#${saved.number}`,
                                   url: saved.url,
                                   column: saved.column || '',
-                                  // A card saved outside Backlog started
-                                  // work, so its note is locked at once.
-                                  locked:
-                                      !!saved.column &&
-                                      saved.column.trim().toLowerCase() !==
-                                          'backlog',
+                                  // The server says whether the card ever
+                                  // left Backlog, also after it came back.
+                                  locked: saved.locked === true,
                               }
                             : null,
                     });

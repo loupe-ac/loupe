@@ -10227,6 +10227,7 @@
                     "label",
                     "column",
                     "startRefused",
+                    "locked",
                     "url"
                 ],
                 "properties": {
@@ -10252,6 +10253,10 @@
                         "description": "The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.",
                         "type": "string",
                         "nullable": true
+                    },
+                    "locked": {
+                        "description": "Whether the note is locked, because its card left Backlog at some point.",
+                        "type": "boolean"
                     },
                     "url": {
                         "type": "string",
