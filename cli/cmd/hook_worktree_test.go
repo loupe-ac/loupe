@@ -46,10 +46,11 @@ esac
 	return script
 }
 
-// claim marks a worktree as made by worktree-create, as runWorktreeCreate does.
-func claim(t *testing.T, project, name string) {
+// claim marks the worktree at path as made by worktree-create, as
+// runWorktreeCreate does.
+func claim(t *testing.T, project, name, path string) {
 	t.Helper()
-	if err := writeHookClaim(context.Background(), project, "", name); err != nil {
+	if err := writeHookClaim(context.Background(), project, "", name, path); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -159,7 +160,7 @@ func TestWorktreeRemoveSendsTheWorktreePath(t *testing.T) {
 	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeRemove":[{"hooks":[{"type":"command","command":"`+script+`"}]}]}}`)
 	wt := filepath.Join(project, ".wt", "card-9")
 	runGit(t, project, "worktree", "add", "-q", "-b", "card-9", wt)
-	claim(t, project, "card-9")
+	claim(t, project, "card-9", wt)
 
 	if err := runWorktreeRemove(context.Background(), project, "", "card-9", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
@@ -186,7 +187,7 @@ func TestWorktreeRemoveRemovesAHookWorktreeWithNoRemoveHook(t *testing.T) {
 	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"true"}]}]}}`)
 	wt := filepath.Join(project, ".wt", "card-4")
 	runGit(t, project, "worktree", "add", "-q", "-b", "card-4", wt)
-	claim(t, project, "card-4")
+	claim(t, project, "card-4", wt)
 
 	if err := runWorktreeRemove(context.Background(), project, "", "card-4", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
@@ -202,7 +203,7 @@ func TestWorktreeRemovePrunesAFolderTheHookDeleted(t *testing.T) {
 	newRepo(t, project)
 	wt := filepath.Join(project, ".wt", "card-5")
 	runGit(t, project, "worktree", "add", "-q", "-b", "card-5", wt)
-	claim(t, project, "card-5")
+	claim(t, project, "card-5", wt)
 	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeRemove":[{"hooks":[{"type":"command","command":"rm -rf '`+wt+`'"}]}]}}`)
 
 	if err := runWorktreeRemove(context.Background(), project, "", "card-5", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
@@ -228,8 +229,9 @@ func TestWorktreeRemoveDoesNothingWithoutAWorktreeOrAHook(t *testing.T) {
 	if _, err := os.Stat(log + ".stdin"); err == nil {
 		t.Fatal("the hook ran with no worktree")
 	}
-	runGit(t, project, "worktree", "add", "-q", "-b", "card-3", filepath.Join(project, ".wt", "card-3"))
-	claim(t, project, "card-3")
+	wt := filepath.Join(project, ".wt", "card-3")
+	runGit(t, project, "worktree", "add", "-q", "-b", "card-3", wt)
+	claim(t, project, "card-3", wt)
 	writeSettings(t, project, "settings.json", `{}`)
 	if err := runWorktreeRemove(ctx, project, "", "card-3", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
@@ -314,7 +316,7 @@ func TestWorktreeRemoveLeavesAnUnclaimedWorktree(t *testing.T) {
 	if err := runWorktreeRemove(ctx, project, "", "card-13", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, _ := findWorktree(ctx, project, "", "card-13"); !ok {
+	if _, err := os.Stat(wt); err != nil {
 		t.Fatal("a worktree claimed under another name must stay")
 	}
 }
@@ -466,5 +468,64 @@ func TestHookWorktreeClaimsAreScopedToTheirProject(t *testing.T) {
 	}
 	if _, err := os.Stat(wt); err == nil {
 		t.Fatal("alpha teardown must remove its hook worktree")
+	}
+}
+
+// A hook can put the worktree in any folder, on any branch. The adapter
+// claims the folder that the hook printed, so a resume reuses that worktree
+// and teardown removes it, even when neither its folder nor its branch has
+// the name.
+func TestHookWorktreeIsFoundByThePathTheHookPrinted(t *testing.T) {
+	isolateConfig(t)
+	project, _ := filepath.EvalSymlinks(t.TempDir())
+	newRepo(t, project)
+	log := filepath.Join(t.TempDir(), "log")
+	t.Setenv("LOG", log)
+	script := filepath.Join(t.TempDir(), "hook.sh")
+	body := `#!/bin/sh
+cat > "$LOG.stdin"
+case "$(cat "$LOG.stdin")" in
+*WorktreeCreate*)
+  git worktree add -q -b feature/card-16 custom/card-16-copy >&2
+  echo custom/card-16-copy
+  ;;
+esac
+`
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeSettings(t, project, "settings.json", `{"hooks":{"WorktreeCreate":[{"hooks":[{"type":"command","command":"`+script+`"}]}],"WorktreeRemove":[{"hooks":[{"type":"command","command":"`+script+`"}]}]}}`)
+	ctx := context.Background()
+	wt := filepath.Join(project, "custom", "card-16-copy")
+	if err := runWorktreeCreate(ctx, project, "alpha", "card-16", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if path, ok, err := findWorktree(ctx, project, "alpha", "card-16"); err != nil || !ok || path != wt {
+		t.Fatalf("the claim must find the folder that the hook printed: %q %v %v", path, ok, err)
+	}
+	if _, ok, err := findWorktree(ctx, project, "beta", "card-16"); err != nil || ok {
+		t.Fatalf("another project must not find the claimed worktree: %v %v", ok, err)
+	}
+
+	_ = os.Remove(log + ".stdin")
+	var out bytes.Buffer
+	if err := runWorktreeCreate(ctx, project, "alpha", "card-16", &out, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(out.String()) != wt {
+		t.Fatalf("a resume must print the claimed folder, got %q", out.String())
+	}
+	if _, err := os.Stat(log + ".stdin"); err == nil {
+		t.Fatal("the hook ran again for a claimed worktree")
+	}
+
+	if err := runWorktreeRemove(ctx, project, "alpha", "card-16", &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(log + ".stdin"); !strings.Contains(string(got), `"worktree_path":"`+wt+`"`) {
+		t.Fatalf("the remove hook must get the claimed folder, got %s", got)
+	}
+	if _, err := os.Stat(wt); err == nil {
+		t.Fatal("teardown must remove the claimed worktree")
 	}
 }

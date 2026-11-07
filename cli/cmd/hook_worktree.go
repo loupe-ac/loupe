@@ -50,9 +50,9 @@ func newHookWorktreeCreateCmd() *cobra.Command {
 		Short: "Run the WorktreeCreate hook for a worktree and print its folder",
 		Long: "Runs the WorktreeCreate hook of .claude/settings.json or .claude/settings.local.json in the " +
 			"current folder, the project folder, and prints the last line of its output, which is the worktree folder. " +
-			"It writes a claim into the git dir of a worktree the hook made, so worktree-remove can tell it from a worktree a person made. " +
+			"It writes a claim into the git dir of the worktree at the folder the hook printed, so worktree-remove can tell it from a worktree a person made. " +
 			"When a worktree of that name exists, it prints that folder and skips the hook, because a before command runs again on each resume. " +
-			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that slug.",
+			"It does not claim that worktree. A worktree in the worktree folder of the bridge counts only when it is the folder of the --project slug, and a claimed worktree only when its claim names that name and slug, in any folder and on any branch.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			project, err := os.Getwd()
@@ -163,27 +163,34 @@ func listProjectWorktrees(ctx context.Context, dir string) ([]projectWorktree, e
 	return out, nil
 }
 
-// findWorktree returns the folder of the linked worktree called name: the one
-// whose folder or branch has that name. Another project entry can share the
-// repository and use the same name. So a worktree in the worktree folder of
-// the bridge matches only when it is the folder of slug and name, and a
-// worktree that worktree-create claimed matches only for the slug of its claim.
+// findWorktree returns the folder of the linked worktree called name. A
+// worktree whose claim names name and slug matches first, wherever the hook
+// put it. Otherwise an unclaimed worktree whose folder or branch has that name
+// matches. Another project entry can share the repository and use the same
+// name, so a worktree in the worktree folder of the bridge matches only when
+// it is the folder of slug and name.
 func findWorktree(ctx context.Context, project, slug, name string) (string, bool, error) {
 	list, err := listProjectWorktrees(ctx, project)
 	if err != nil {
 		return "", false, err
 	}
+	claims, err := readHookClaims(ctx, project)
+	if err != nil {
+		return "", false, err
+	}
+	for i, w := range list {
+		if c, ok := claims[filepath.Clean(w.Path)]; i > 0 && ok && c.Name == name && c.Project == slug {
+			return w.Path, true, nil
+		}
+	}
 	for i, w := range list {
 		if i == 0 || (filepath.Base(w.Path) != name && w.Branch != name) {
 			continue
 		}
-		if inBridgeFolder(w.Path) {
-			if !isBridgeWorktree(w.Path, slug, name) {
-				continue
-			}
-		} else if c, ok, err := readHookClaim(ctx, project, w.Path); err != nil {
-			return "", false, err
-		} else if ok && c.Project != slug {
+		if _, claimed := claims[filepath.Clean(w.Path)]; claimed {
+			continue
+		}
+		if inBridgeFolder(w.Path) && !isBridgeWorktree(w.Path, slug, name) {
 			continue
 		}
 
@@ -282,7 +289,7 @@ func runWorktreeCreate(ctx context.Context, project, slug, name string, stdout, 
 	if path == "" {
 		return fmt.Errorf("the %s hook printed no folder", hookCreateEvent)
 	}
-	if err := writeHookClaim(ctx, project, slug, name); err != nil {
+	if err := writeHookClaim(ctx, project, slug, name, path); err != nil {
 		return err
 	}
 	fmt.Fprintln(stdout, path)
@@ -365,46 +372,69 @@ type hookClaim struct {
 	Project string `json:"project"`
 }
 
-// writeHookClaim marks the worktree called name as made by worktree-create for
-// the project slug. A folder that the hook made outside git keeps no claim, so
-// teardown leaves it.
-func writeHookClaim(ctx context.Context, project, slug, name string) error {
-	path, ok, err := findWorktree(ctx, project, slug, name)
-	if err != nil || !ok {
-		return err
+// writeHookClaim marks the worktree at path, the folder that the hook
+// printed, as made by worktree-create for name and the project slug. A
+// relative path counts from project. A folder that is no linked worktree of
+// project keeps no claim, so teardown leaves it.
+func writeHookClaim(ctx context.Context, project, slug, name, path string) error {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(project, path)
 	}
-	dir, err := worktreeGitDir(ctx, path)
+	list, err := listProjectWorktrees(ctx, project)
 	if err != nil {
 		return err
 	}
-	b, err := json.Marshal(hookClaim{Name: name, Project: slug})
-	if err != nil {
-		return err
+	for i, w := range list {
+		if i == 0 || resolvePath(w.Path) != resolvePath(path) {
+			continue
+		}
+		dir, err := worktreeGitDir(ctx, w.Path)
+		if err != nil {
+			return err
+		}
+		b, err := json.Marshal(hookClaim{Name: name, Project: slug})
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(filepath.Join(dir, hookClaimFile), append(b, '\n'), 0o600)
 	}
 
-	return os.WriteFile(filepath.Join(dir, hookClaimFile), append(b, '\n'), 0o600)
+	return nil
 }
 
-// readHookClaim reads the claim of the worktree at path. A claim that does not
-// parse counts as no claim, so teardown never removes that worktree.
-func readHookClaim(ctx context.Context, project, path string) (hookClaim, bool, error) {
-	dir, err := worktreeGitDirOf(ctx, project, path)
-	if err != nil || dir == "" {
-		return hookClaim{}, false, err
-	}
-	b, err := os.ReadFile(filepath.Join(dir, hookClaimFile))
-	if errors.Is(err, os.ErrNotExist) {
-		return hookClaim{}, false, nil
-	}
+// readHookClaims maps the folder of each claimed worktree of project to its
+// claim. It reads the admin dirs of git, which keep the claim of a deleted
+// folder until a prune. A claim that does not parse counts as no claim, so
+// teardown never removes that worktree.
+func readHookClaims(ctx context.Context, project string) (map[string]hookClaim, error) {
+	b, err := exec.CommandContext(ctx, "git", "-C", project, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
 	if err != nil {
-		return hookClaim{}, false, err
+		return nil, fmt.Errorf("git rev-parse in %s: %w", project, err)
 	}
-	var c hookClaim
-	if json.Unmarshal(b, &c) != nil || c.Name == "" {
-		return hookClaim{}, false, nil
+	admin := filepath.Join(strings.TrimSpace(string(b)), "worktrees")
+	entries, _ := os.ReadDir(admin)
+	out := map[string]hookClaim{}
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join(admin, e.Name(), hookClaimFile))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		g, err := os.ReadFile(filepath.Join(admin, e.Name(), "gitdir"))
+		if err != nil {
+			continue
+		}
+		var c hookClaim
+		if json.Unmarshal(raw, &c) != nil || c.Name == "" {
+			continue
+		}
+		out[filepath.Dir(filepath.Clean(strings.TrimSpace(string(g))))] = c
 	}
 
-	return c, true, nil
+	return out, nil
 }
 
 // ownsWorktree reports whether teardown may remove the worktree called name
@@ -414,35 +444,13 @@ func ownsWorktree(ctx context.Context, project, path, slug, name string) (bool, 
 	if isBridgeWorktree(path, slug, name) {
 		return true, nil
 	}
-	c, ok, err := readHookClaim(ctx, project, path)
-	if err != nil || !ok {
+	claims, err := readHookClaims(ctx, project)
+	if err != nil {
 		return false, err
 	}
+	c, ok := claims[filepath.Clean(path)]
 
-	return c.Name == name && c.Project == slug, nil
-}
-
-// worktreeGitDirOf finds the per-worktree git dir of path, or "" when it has
-// none. git keeps the git dir of a deleted folder until a prune, but git cannot
-// run in that folder, so the gitdir files of the admin dirs of project are read.
-func worktreeGitDirOf(ctx context.Context, project, path string) (string, error) {
-	if _, err := os.Stat(path); err == nil {
-		return worktreeGitDir(ctx, path)
-	}
-	b, err := exec.CommandContext(ctx, "git", "-C", project, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
-	if err != nil {
-		return "", fmt.Errorf("git rev-parse in %s: %w", project, err)
-	}
-	admin := filepath.Join(strings.TrimSpace(string(b)), "worktrees")
-	entries, _ := os.ReadDir(admin)
-	for _, e := range entries {
-		g, err := os.ReadFile(filepath.Join(admin, e.Name(), "gitdir"))
-		if err == nil && filepath.Dir(strings.TrimSpace(string(g))) == path {
-			return filepath.Join(admin, e.Name()), nil
-		}
-	}
-
-	return "", nil
+	return ok && c.Name == name && c.Project == slug, nil
 }
 
 // bridgeRoot is the worktree folder of the bridge, with its symlinks resolved.
