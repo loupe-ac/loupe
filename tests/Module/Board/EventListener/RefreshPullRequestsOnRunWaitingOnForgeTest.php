@@ -91,6 +91,16 @@ final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
         self::assertSame([], $this->sentMessages());
     }
 
+    public function test_a_run_waiting_on_the_forge_with_no_card_subject_queues_nothing(): void
+    {
+        $run = $this->workerRun($this->card->id, WorkerRunState::WaitingOnForge, 'analysis');
+        $this->clearQueue();
+
+        $this->dispatch($this->event($run));
+
+        self::assertSame([], $this->sentMessages());
+    }
+
     private function dispatch(WorkerRunChanged $event): void
     {
         $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
@@ -98,12 +108,12 @@ final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
         $dispatcher->dispatch($event);
     }
 
-    private function workerRun(?Uuid $cardId, WorkerRunState $state): WorkerRun
+    private function workerRun(?Uuid $cardId, WorkerRunState $state, string $subjectType = WorkSubject::CARD): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
             bridgeId: Uuid::v7(),
-            subjectType: WorkSubject::CARD,
+            subjectType: $subjectType,
             subjectId: $cardId ?? throw new \LogicException('A persisted card has an id.'),
             cardNumber: 1,
             workKind: 'fix',
