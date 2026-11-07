@@ -1253,9 +1253,14 @@ could not name who raised it, because the widget authenticates a project and
 never a person. A note card and a review card have the default type of the workflow
 template.
 
-Such a card always lands in Backlog, and carries no pull request
-link. The widget offers neither, so a page visitor cannot file work straight
-into a column. The widget refuses a card in a terminal column.
+A card from **A new card for each note** starts in the column that the
+reviewer chose. The workflow decides which columns the reviewer may choose: the
+columns that a person may move a card to from Backlog, never a terminal column.
+Other cards, such as a review card, land in Backlog. A card from the widget
+carries no pull request link. The server checks the chosen column again at each
+save, and a column that the workflow refuses leaves the card in Backlog. The
+card history names **A reviewer** for the card, because the widget does not name
+its visitor.
 
 ## Artifacts on a card
 

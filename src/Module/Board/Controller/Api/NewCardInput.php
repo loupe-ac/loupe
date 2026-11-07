@@ -10,9 +10,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 final class NewCardInput
 {
     public function __construct(
-        /** An epic of the project, which the new card goes under. */
+        /** The column the new card starts in. Null starts it in Backlog. */
         #[Assert\Uuid]
-        public ?string $parentCardId = null,
+        public ?string $startColumnId = null,
     ) {
     }
 }

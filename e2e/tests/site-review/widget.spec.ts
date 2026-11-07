@@ -559,6 +559,34 @@ test('a card per note names the card each note became', async ({ page }) => {
     await expect(page.locator('#lp-last-card')).toHaveCount(0);
 });
 
+test('a card per note starts in the column chosen in the destination view', async ({
+    page,
+}) => {
+    await openHarness(page, null);
+    await openNoteOverDestination(page);
+    await chooseMode(page, 'A new card for each note');
+    const select = page.locator('#lp-picker-start-select');
+    await expect(select).toBeVisible();
+    await expect(select.locator('option').first()).toHaveText('Backlog');
+    const names = await select.locator('option').allTextContents();
+    expect(names.length).toBeGreaterThan(1);
+    expect(names).not.toContain('Done');
+    await select.selectOption({ index: 1 });
+    await page.locator('#lp-destination-save').click();
+    await fillNote(page, 'The logo is cut off');
+    await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
+        `a new card in ${names[1]}`,
+    );
+
+    const target = (await nextSaveTarget(page)) as {
+        newCard: { startColumnId: string };
+    };
+    expect(target.newCard.startColumnId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(page.locator('#lp-saved-text')).toHaveText(
+        /^Note saved to #\d+ The logo is cut off$/,
+    );
+});
+
 test('the mode comes before the first pick', async ({ page }) => {
     await openHarness(page, null);
     const panel = page.locator('#lp-panel');
