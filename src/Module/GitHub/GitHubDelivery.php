@@ -186,6 +186,16 @@ final readonly class GitHubDelivery
         return '' === $branch ? null : $branch;
     }
 
+    /** Whether a push moved the default branch, as the repository block of the delivery names it. */
+    public function pushedDefaultBranch(): bool
+    {
+        $branch = $this->pushedBranch();
+        $repository = $this->payload['repository'] ?? null;
+        $default = \is_array($repository) ? ($repository['default_branch'] ?? null) : null;
+
+        return null !== $branch && \is_string($default) && $branch === $default;
+    }
+
     /** @return list<PullRequestRefreshHint> */
     private function pushHints(): array
     {

@@ -66,6 +66,9 @@ final readonly class GitHubRepositoryCheckLines
                 $lines[] = $this->gapLine($item['key'], $gap, $modifier, $state, $settings, $branch);
             }
         }
+        foreach ($check->repository->fileWarnings as $warning) {
+            $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
+        }
 
         return $lines;
     }

@@ -9,6 +9,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -102,6 +103,17 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
             ->addOrderBy('r.id', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    /** Locks the row until the transaction ends. It does not reload the entity, because the readonly fields of a managed row cannot refresh. */
+    public function findOneLocked(Uuid $id): ?ForgeRepository
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.id = :id')
+            ->setParameter('id', $id, UuidType::NAME)
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->getOneOrNullResult();
     }
 
     /** Serialises concurrent claims of one repository until the transaction ends. */

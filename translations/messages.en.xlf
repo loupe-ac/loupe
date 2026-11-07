@@ -9465,6 +9465,8 @@
             <trans-unit id="github.repositories.check.failed.no_installation"><source>github.repositories.check.failed.no_installation</source><target>Loupe checks only repositories of the GitHub App. Install the App on this repository to check it.</target></trans-unit>
             <trans-unit id="github.repositories.check.rules_unavailable.title"><source>github.repositories.check.rules_unavailable.title</source><target>Rulesets need a paid plan or a public repository</target></trans-unit>
             <trans-unit id="github.repositories.check.rules_unavailable.detail"><source>github.repositories.check.rules_unavailable.detail</source><target>GitHub enforces no rules on this repository, so only Loupe enforces the agent review. GitHub said: %message%</target></trans-unit>
+            <trans-unit id="github.repositories.check.workflow_file.title"><source>github.repositories.check.workflow_file.title</source><target>A setting in .loupe.yaml needs a fix</target></trans-unit>
+            <trans-unit id="github.repositories.check.workflow_file.detail"><source>github.repositories.check.workflow_file.detail</source><target>%message%</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.title"><source>github.repositories.check.unknown.title</source><target>A setting does not fit</target></trans-unit>
             <trans-unit id="github.repositories.check.unknown.detail"><source>github.repositories.check.unknown.detail</source><target>Loupe has no description for this finding.</target></trans-unit>
             <trans-unit id="github.repositories.check.approval-gate.fits.title"><source>github.repositories.check.approval-gate.fits.title</source><target>Loupe / Approval gates merges into %branch%</target></trans-unit>

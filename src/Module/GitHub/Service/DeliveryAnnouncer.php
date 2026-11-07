@@ -30,6 +30,7 @@ final readonly class DeliveryAnnouncer
         private PullRequestTracker $tracker,
         private LoggerInterface $logger,
         private GitHubAppConfiguration $configuration,
+        private RepositoryWorkflowReads $workflowReads,
     ) {
     }
 
@@ -54,6 +55,10 @@ final readonly class DeliveryAnnouncer
             $this->dispatch($project, [new ForgeDelivery(ForgeEventType::REPOSITORY_MOVED, GitHubDelivery::FORGE, $claim->movedFrom, movedTo: $repository->fullName)], $source);
         }
 
+        if (ForgeClaimOutcome::Owned === $claim->outcome && ForgeRepositorySource::Installation === $source) {
+            $this->workflowReads->queue($claim->repository);
+        }
+
         return $claim;
     }
 
@@ -69,6 +74,10 @@ final readonly class DeliveryAnnouncer
         $deliveries = $delivery->forgeDeliveries();
         if ([] !== $deliveries) {
             $this->dispatch($project, $deliveries, $source);
+        }
+
+        if ($delivery->pushedDefaultBranch() && ForgeRepositorySource::Installation === $claim->repository->source) {
+            $this->workflowReads->queue($claim->repository);
         }
 
         $pushedBranch = $delivery->pushedBranch();

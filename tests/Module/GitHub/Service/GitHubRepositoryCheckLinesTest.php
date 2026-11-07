@@ -34,6 +34,21 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame(self::P.'approval-gate.approval_check_not_required.detail', $lines[0]->detailKey);
     }
 
+    public function test_each_warning_of_the_workflow_file_read_is_a_warning_line_after_the_gap_lines(): void
+    {
+        $check = $this->check([$this->item('branch-protection', 'warning', [RepositorySuggestionCatalog::GAP_FORCE_PUSH_ALLOWED])], $this->settings());
+        $check->repository->fileWarnings = ['The setting "x" is not known. Loupe ignores it.', 'The setting "merge-approval" has a value that is not allowed.'];
+
+        $lines = $this->lines()->forCheck($check);
+
+        self::assertCount(3, $lines);
+        self::assertSame(self::P.'workflow_file.title', $lines[1]->titleKey);
+        self::assertSame(self::P.'state.warning', $lines[1]->stateKey);
+        self::assertSame('pending', $lines[1]->modifier);
+        self::assertSame(['%message%' => 'The setting "x" is not known. Loupe ignores it.'], $lines[1]->detailParameters);
+        self::assertSame(self::P.'workflow_file.detail', $lines[2]->detailKey);
+    }
+
     public function test_a_warning_gap_is_a_pending_line_and_each_gap_gets_its_own_line(): void
     {
         $check = $this->check([$this->item('branch-protection', 'warning', [RepositorySuggestionCatalog::GAP_FORCE_PUSH_ALLOWED, RepositorySuggestionCatalog::GAP_DELETION_ALLOWED])], $this->settings());
