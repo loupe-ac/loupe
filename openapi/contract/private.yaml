@@ -926,6 +926,81 @@ paths:
           $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/cards/{cardId}/start:
+    get:
+      operationId: showWidgetCardStart
+      summary: Show where a widget card may start
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: The card and its moves.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetCardStart'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    post:
+      operationId: startWidgetCard
+      summary: Move a widget card to a column
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - columnId
+              properties:
+                columnId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: The card moved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetCardStarted'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409StartRefused'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards/{cardId}/verdict:
     get:
       operationId: showCardVerdict
@@ -3795,6 +3870,82 @@ components:
         cardDeleted:
           type: boolean
           description: Whether the card the note created went too.
+    WidgetCardStart:
+      type: object
+      required:
+      - number
+      - url
+      - column
+      - startsWork
+      - moves
+      properties:
+        number:
+          type: integer
+        url:
+          type: string
+          format: uri
+        column:
+          type: string
+          description: The name of the column the card is in.
+        startsWork:
+          type: boolean
+          description: Whether the workflow asks a bridge for work while the card sits in that column.
+        moves:
+          type: array
+          description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - hint
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              hint:
+                type: string
+                nullable: true
+    WidgetCardStarted:
+      type: object
+      required:
+      - column
+      properties:
+        column:
+          type: string
+          description: The name of the column the card is in.
+    WidgetCardStartRefused:
+      description: The card did not move. The body holds the column the card is in and the moves it has now.
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - column
+        - moves
+        properties:
+          column:
+            type: string
+            description: The name of the column the card is in.
+          moves:
+            type: array
+            description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+            items:
+              type: object
+              required:
+              - id
+              - name
+              - hint
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                hint:
+                  type: string
+                  nullable: true
     CommentBody:
       type: object
       required:
@@ -4125,6 +4276,20 @@ components:
         code: artifact_refused
         errors:
           files: The artifact has no files.
+    StartNotAllowed:
+      summary: start_not_allowed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#start_not_allowed
+        title: Start not allowed
+        status: 403
+        code: start_not_allowed
+    StartRefused:
+      summary: start_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#start_refused
+        title: Start refused
+        status: 409
+        code: start_refused
     NoteLocked:
       summary: note_locked
       value:
@@ -4664,6 +4829,28 @@ components:
               $ref: '#/components/examples/ArtifactRefused'
             validation_failed:
               $ref: '#/components/examples/ValidationFailed'
+    E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed:
+      description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`, `start_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            token_not_bound_to_site:
+              $ref: '#/components/examples/TokenNotBoundToSite'
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+            start_not_allowed:
+              $ref: '#/components/examples/StartNotAllowed'
+    E409StartRefused:
+      description: 'Refused: `start_refused`. The problem carries the `column` the card is in and the `moves` it has now.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/WidgetCardStartRefused'
+          examples:
+            start_refused:
+              $ref: '#/components/examples/StartRefused'
     E409NoteLocked:
       description: 'Refused: `note_locked`.'
       content:
