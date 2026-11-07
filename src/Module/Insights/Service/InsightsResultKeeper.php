@@ -46,7 +46,7 @@ final readonly class InsightsResultKeeper
 
     /**
      * The worker path: takes the lock first and reads the graph after it, so a settings change that saved before the
-     * lock is in the result. The entity manager of a worker starts each message empty, so the read is fresh.
+     * lock is in the result. A fresh read drops a graph that the entity manager already holds, so a settings save during the wait counts.
      *
      * @return bool true when the compute kept a new row
      */
@@ -59,7 +59,7 @@ final readonly class InsightsResultKeeper
         $lock->acquire(true);
 
         try {
-            $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($graphId, $projectId);
+            $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($graphId, $projectId, true);
             if (null === $graph || null !== $graph->removedAt || [] !== $this->health->check($graph->project, [$graph])) {
                 return false;
             }

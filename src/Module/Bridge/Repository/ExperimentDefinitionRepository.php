@@ -30,10 +30,25 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
      * @param list<string>|null                                                                                                                                                       $metrics
      * @param array{goal?: array{metric: string, better?: string}, guards?: list<string>, controls?: list<array{metric: string, variant: string, expect: string, share: float}>}|null $headline
      * @param list<string>|null                                                                                                                                                       $covers   null keeps the stored list
+     *
+     * @return bool true when the row is new or the weights, metrics, headline, covers or baseline changed
      */
-    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, string $baseline, ?array $covers = null): void
+    public function upsert(Project $project, string $experiment, array $weights, ?array $metrics, ?array $headline, \DateTimeImmutable $reportedAt, string $baseline, ?array $covers = null): bool
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
+        $connection = $this->getEntityManager()->getConnection();
+        $stored = $connection->fetchAssociative(
+            'SELECT weights, metrics, headline, covers, baseline FROM bridge_experiment_definitions WHERE project_id = :project AND experiment = :experiment',
+            ['project' => $project->id, 'experiment' => $experiment],
+            ['project' => UuidType::NAME, 'experiment' => Types::STRING],
+        );
+        $changed = false === $stored
+            || json_decode((string) $stored['weights'], true) != $weights
+            || json_decode((string) ($stored['metrics'] ?? 'null'), true) != $metrics
+            || json_decode((string) ($stored['headline'] ?? 'null'), true) != $headline
+            || (null !== $covers && json_decode((string) ($stored['covers'] ?? 'null'), true) != $covers)
+            || $stored['baseline'] !== $baseline;
+
+        $connection->executeStatement(
             'INSERT INTO bridge_experiment_definitions (id, project_id, experiment, weights, metrics, headline, covers, baseline, reported_at)'
             .' VALUES (:id, :project, :experiment, :weights, :metrics, :headline, :covers, :baseline, :reportedAt)'
             .' ON CONFLICT (project_id, experiment) DO UPDATE SET weights = EXCLUDED.weights, metrics = EXCLUDED.metrics, headline = EXCLUDED.headline, covers = COALESCE(EXCLUDED.covers, bridge_experiment_definitions.covers), baseline = EXCLUDED.baseline,reported_at = EXCLUDED.reported_at',
@@ -60,6 +75,8 @@ class ExperimentDefinitionRepository extends ServiceEntityRepository
                 'reportedAt' => Types::DATETIME_IMMUTABLE,
             ],
         );
+
+        return $changed;
     }
 
     /** @return list<ExperimentDefinition> */

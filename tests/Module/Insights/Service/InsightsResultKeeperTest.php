@@ -97,6 +97,17 @@ final class InsightsResultKeeperTest extends KernelTestCase
         self::assertSame(1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM insights_kept_results WHERE saved_graph_id = :graph', ['graph' => $graphId]));
     }
 
+    public function test_the_worker_path_reads_the_graph_again_when_the_entity_manager_holds_it(): void
+    {
+        $project = $this->scenarioProject('keeper-stale');
+        $graph = $this->costGraph($project);
+        $graphId = (string) $graph->id;
+        $this->em()->getConnection()->executeStatement('UPDATE insights_saved_graphs SET removed_at = now() WHERE id = :id', ['id' => $graphId], ['id' => \Symfony\Bridge\Doctrine\Types\UuidType::NAME]);
+
+        self::assertFalse($this->keeper()->graphById((string) $project->id, $graphId));
+        self::assertSame([], $this->events);
+    }
+
     public function test_the_worker_path_keeps_nothing_for_a_removed_graph(): void
     {
         $project = $this->scenarioProject('keeper-removed');

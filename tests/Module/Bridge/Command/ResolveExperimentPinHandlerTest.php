@@ -10,6 +10,7 @@ use App\Module\Bridge\Command\ResolveExperimentPinHandler;
 use App\Module\Bridge\Command\ResolveExperimentPinResult;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Entity\ExperimentPin;
+use App\Module\Bridge\Event\ExperimentSetupChanged;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -191,6 +192,29 @@ final class ResolveExperimentPinHandlerTest extends KernelTestCase
         $this->resolve($owner, $project, Uuid::v7(), 'sonnet', ['opus', 'sonnet'], weights: $weights, covers: ['implement', 'review']);
 
         self::assertSame(['implement', 'review'], $this->onlyDefinition()->covers);
+    }
+
+    public function test_a_changed_definition_announces_the_setup_and_an_equal_one_does_not(): void
+    {
+        $this->boot();
+        $changes = [];
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ExperimentSetupChanged::class, static function (ExperimentSetupChanged $event) use (&$changes): void {
+            $changes[] = $event;
+        });
+        [$owner, $project] = $this->scenario('pin-setup-event');
+        $cardId = Uuid::v7();
+        $weights = [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]];
+
+        $this->resolve($owner, $project, $cardId, 'sonnet', ['opus', 'sonnet'], weights: $weights);
+        $changes = [];
+        $this->em()->clear();
+        $this->resolve($owner, $project, $cardId, 'sonnet', ['opus', 'sonnet'], weights: $weights);
+        self::assertSame([], $changes);
+
+        $this->resolve($owner, $project, $cardId, 'sonnet', ['opus', 'sonnet'], weights: [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 3]]);
+        self::assertCount(1, $changes);
     }
 
     public function test_the_baseline_is_stored_and_a_changed_one_replaces_it(): void

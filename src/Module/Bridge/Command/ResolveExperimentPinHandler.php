@@ -90,8 +90,8 @@ final readonly class ResolveExperimentPinHandler
             }
             $this->em->flush();
 
-            if (null !== $command->weights) {
-                $this->experimentDefinitions->upsert($project, $command->experiment, $command->weights, $command->metrics, $command->headline, $now, $command->baseline, $command->covers);
+            if (null !== $command->weights && $this->experimentDefinitions->upsert($project, $command->experiment, $command->weights, $command->metrics, $command->headline, $now, $command->baseline, $command->covers)) {
+                $changedIn = (string) $project->id;
             }
 
             return new ResolveExperimentPinResult($pin->variant, $switchedFrom);
