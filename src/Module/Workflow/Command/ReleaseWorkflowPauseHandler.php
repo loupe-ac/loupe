@@ -80,7 +80,7 @@ final readonly class ReleaseWorkflowPauseHandler
             }
             $this->cardPauses->recordReleased($released, $command->actorKind, $command->actorUserId);
             $this->em->flush();
-            $this->evaluations->forCards([$cardId]);
+            $this->evaluations->forCards([$cardId], self::class);
 
             return $released;
         });

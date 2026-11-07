@@ -68,12 +68,12 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
             /** @var list<string|Uuid> */
             public array $asked = [];
 
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 array_push($this->asked, ...$cardIds);
             }
 
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 
@@ -125,12 +125,12 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
             /** @var list<string|Uuid> */
             public array $asked = [];
 
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 array_push($this->asked, ...$cardIds);
             }
 
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 
@@ -204,11 +204,11 @@ final class NeutralizeSiteReviewCheckHandlerTest extends KernelTestCase
                 $clock,
             ),
             $evaluations ?? new class implements CardEvaluations {
-                public function forCards(array $cardIds): void
+                public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
                 {
                 }
 
-                public function forPersonWaiting(array $cardIds): void
+                public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
                 {
                 }
 

@@ -24,6 +24,6 @@ final readonly class EvaluateCardsOnBridgeAvailabilityChanged
         if (!$this->trigger->isOn()) {
             return;
         }
-        $this->trigger->forCards($this->workRequests->findCardIdsWithOpenRequestIn($event->projectIds));
+        $this->trigger->forCards($this->workRequests->findCardIdsWithOpenRequestIn($event->projectIds), self::class);
     }
 }

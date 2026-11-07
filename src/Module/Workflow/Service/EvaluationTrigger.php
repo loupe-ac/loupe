@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Service;
 
+use App\Messenger\Stamp\CauseStamp;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -36,31 +37,45 @@ final readonly class EvaluationTrigger implements CardEvaluations
      * @param list<string|Uuid> $cardIds
      */
     #[\Override]
-    public function forCards(array $cardIds): void
+    public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
     {
         $merge = $this->featureFlags->isEnabled(WorkflowInstallFlags::FLAG_MERGE_QUEUED_EVALUATIONS);
+        $stamp = $this->stampFor($cause, $occurredAt);
+        $counts = ['queued' => 0, 'merged' => 0];
         foreach ($this->unique($cardIds) as $cardId) {
             if (!$merge) {
-                $this->bus->dispatch(new EvaluateCard($cardId));
+                $this->bus->dispatch(new EvaluateCard($cardId), [$stamp]);
+                ++$counts['queued'];
 
                 continue;
             }
 
-            $this->em->wrapInTransaction(function () use ($cardId): void {
-                if ($this->workflowQueuedEvaluations->claim(Uuid::fromString($cardId), \DateTimeImmutable::createFromInterface($this->clock->now()))) {
-                    $this->bus->dispatch(new EvaluateCard($cardId));
+            $queued = $this->em->wrapInTransaction(function () use ($cardId, $stamp): bool {
+                if (!$this->workflowQueuedEvaluations->claim(Uuid::fromString($cardId), \DateTimeImmutable::createFromInterface($this->clock->now()))) {
+                    return false;
                 }
+                $this->bus->dispatch(new EvaluateCard($cardId), [$stamp]);
+
+                return true;
             });
+            ++$counts[$queued ? 'queued' : 'merged'];
         }
+
+        $this->count($counts, $stamp, 'card_eval');
     }
 
     /** @param list<string|Uuid> $cardIds */
     #[\Override]
-    public function forPersonWaiting(array $cardIds): void
+    public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
     {
+        $stamp = $this->stampFor($cause, $occurredAt);
+        $queued = 0;
         foreach ($this->unique($cardIds) as $cardId) {
-            $this->bus->dispatch(new EvaluateCard($cardId, personWaiting: true), [new TransportNamesStamp([self::INTERACTIVE_TRANSPORT])]);
+            $this->bus->dispatch(new EvaluateCard($cardId, personWaiting: true), [$stamp, new TransportNamesStamp([self::INTERACTIVE_TRANSPORT])]);
+            ++$queued;
         }
+
+        $this->count(['queued' => $queued], $stamp, self::INTERACTIVE_TRANSPORT);
     }
 
     /**
@@ -68,11 +83,16 @@ final readonly class EvaluationTrigger implements CardEvaluations
      *
      * @param list<string|Uuid> $cardIds
      */
-    public function inBackground(array $cardIds): void
+    public function inBackground(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
     {
+        $stamp = $this->stampFor($cause, $occurredAt);
+        $queued = 0;
         foreach ($this->unique($cardIds) as $cardId) {
-            $this->bus->dispatch(new EvaluateCard($cardId), [new TransportNamesStamp([self::LOW_PRIORITY_TRANSPORT])]);
+            $this->bus->dispatch(new EvaluateCard($cardId), [$stamp, new TransportNamesStamp([self::LOW_PRIORITY_TRANSPORT])]);
+            ++$queued;
         }
+
+        $this->count(['queued' => $queued], $stamp, self::LOW_PRIORITY_TRANSPORT);
     }
 
     #[\Override]
@@ -94,5 +114,22 @@ final readonly class EvaluationTrigger implements CardEvaluations
         }
 
         return array_keys($unique);
+    }
+
+    private function stampFor(string $cause, ?\DateTimeImmutable $occurredAt): CauseStamp
+    {
+        $short = strrpos($cause, '\\');
+
+        return new CauseStamp(false === $short ? $cause : substr($cause, $short + 1), $occurredAt ?? \DateTimeImmutable::createFromInterface($this->clock->now()));
+    }
+
+    /** @param array<string, int> $counts the cards of one call by outcome */
+    private function count(array $counts, CauseStamp $stamp, string $transport): void
+    {
+        foreach ($counts as $outcome => $count) {
+            if ($count > 0) {
+                \Sentry\traceMetrics()->count('workflow.eval.enqueued', $count, ['cause' => $stamp->cause, 'transport' => $transport, 'outcome' => $outcome]);
+            }
+        }
     }
 }

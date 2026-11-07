@@ -23,7 +23,7 @@ final class EvaluateCardRoutingTest extends KernelTestCase
         self::assertInstanceOf(EvaluationTrigger::class, $trigger);
         $cardId = Uuid::v7();
 
-        $trigger->forCards([$cardId]);
+        $trigger->forCards([$cardId], 'test');
 
         self::assertEquals([new EvaluateCard($cardId->toRfc4122())], array_map(static fn ($envelope): object => $envelope->getMessage(), $cardEval->getSent()));
         self::assertSame([], $jobs->getSent());
@@ -39,7 +39,7 @@ final class EvaluateCardRoutingTest extends KernelTestCase
         $trigger = self::getContainer()->get(EvaluationTrigger::class);
         self::assertInstanceOf(EvaluationTrigger::class, $trigger);
 
-        $trigger->inBackground([Uuid::v7()]);
+        $trigger->inBackground([Uuid::v7()], 'test');
 
         self::assertCount(1, $cardSweep->getSent());
         self::assertSame([], $cardEval->getSent());

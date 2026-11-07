@@ -42,7 +42,7 @@ final readonly class ReviseDiscoveryReportOnChangesRequested
         $this->logger->info('readiness.report_revision_requested', ['discoveryRunId' => (string) $run->id, 'projectId' => (string) $run->project->id, 'documentId' => (string) $document->id]);
 
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')]);
+            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
         }
     }
 }

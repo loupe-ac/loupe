@@ -15,13 +15,13 @@ final class RecordingCardEvaluations implements CardEvaluations
     public array $personWaiting = [];
 
     #[\Override]
-    public function forPersonWaiting(array $cardIds): void
+    public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
     {
         $this->personWaiting[] = array_map(strval(...), $cardIds);
     }
 
     #[\Override]
-    public function forCards(array $cardIds): void
+    public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
     {
         $this->evaluated[] = array_map(strval(...), $cardIds);
     }
