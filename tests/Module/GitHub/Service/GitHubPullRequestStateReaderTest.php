@@ -122,6 +122,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
             $this->answer($first),
             $this->answer($second),
             $this->answer([['type' => 'required_status_checks', 'parameters' => ['strict_required_status_checks_policy' => false, 'required_status_checks' => [['context' => 'lint'], ['context' => 'e2e']]]]]),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
         ];
 
         $snapshot = $this->reader()->read($pullRequest);
@@ -260,15 +261,34 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
             $this->answer($this->ruleLessGraphql('epic/436')),
             $this->answer([['type' => 'deletion']]),
             $this->answer($this->fixture('rules')),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
         ];
 
         $snapshot = $this->reader()->read($pullRequest);
 
         self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
         self::assertSame(PullRequestMergeability::Mergeable, $snapshot->mergeability);
-        self::assertCount(4, $this->requests);
+        self::assertCount(5, $this->requests);
         self::assertStringEndsWith('/rules/branches/epic%2F436?per_page=100&page=1', $this->requests[2]['url']);
         self::assertStringEndsWith('/rules/branches/main?per_page=100&page=1', $this->requests[3]['url']);
+    }
+
+    public function test_a_base_without_a_strict_rule_stores_how_far_behind_the_head_is_and_stays_mergeable(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_019);
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($this->ruleLessGraphql('epic/436')),
+            $this->answer([['type' => 'deletion']]),
+            $this->answer($this->fixture('rules')),
+            $this->answer(['ahead_by' => 3, 'behind_by' => 4, 'status' => 'diverged']),
+        ];
+
+        $snapshot = $this->reader()->read($pullRequest);
+
+        self::assertSame(4, $snapshot->behindBy);
+        self::assertSame(PullRequestMergeability::Mergeable, $snapshot->mergeability);
+        self::assertStringEndsWith('/compare/epic%2F436...'.self::HEAD, $this->requests[4]['url']);
     }
 
     public function test_the_default_branch_without_rules_requires_no_check(): void
@@ -278,12 +298,13 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->ruleLessGraphql('main')),
             $this->answer([]),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
         ];
 
         $snapshot = $this->reader()->read($pullRequest);
 
         self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
-        self::assertCount(3, $this->requests);
+        self::assertCount(4, $this->requests);
     }
 
     public function test_a_base_without_rules_and_unreadable_default_branch_rules_is_a_transient_failure(): void
@@ -340,6 +361,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
             $this->answer($this->ruleLessGraphql('epic/436')),
             $this->answer(['message' => $plan], 403),
             $this->answer(['message' => $plan], 403),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
         ];
 
         $snapshot = $this->reader()->read($pullRequest);

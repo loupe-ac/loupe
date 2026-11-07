@@ -11,7 +11,7 @@ use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\FactProvider;
 
-/** Which kinds of work already ended done at the current head of each open pull request of the card. */
+/** Which kinds of work already ended done at the current head of each open pull request of the card, and which live kinds named an older head. */
 final readonly class WorkAtHeadFactProvider implements FactProvider
 {
     public function __construct(
@@ -40,12 +40,23 @@ final readonly class WorkAtHeadFactProvider implements FactProvider
 
         $heads = [];
         $numbers = [];
+        $open = [];
         foreach ($this->trackedPullRequests->forCard($card) as $pullRequest) {
             if (PullRequestState::Open !== $pullRequest->state || null === $pullRequest->headSha || null === $pullRequest->id) {
                 continue;
             }
             $heads[$pullRequest->id->toRfc4122()] = mb_strtolower($pullRequest->headSha);
             $numbers[$pullRequest->id->toRfc4122()] = $pullRequest->number;
+            $open[] = $pullRequest;
+        }
+
+        $moved = [];
+        foreach ($this->workRequests->findLiveForCard($snapshot->id) as $request) {
+            $named = $request->context->headSha;
+            $id = null === $named ? null : $this->trackedPullRequests->namedBy($open, $request->context->pullRequestUrl)?->id?->toRfc4122();
+            if (null !== $id && 0 !== strcasecmp((string) $named, $heads[$id])) {
+                $moved[$id][$request->kind] = $request->kind;
+            }
         }
 
         $done = [];
@@ -58,13 +69,9 @@ final readonly class WorkAtHeadFactProvider implements FactProvider
         }
         ksort($heads);
         ksort($done);
+        ksort($moved);
 
-        return new WorkAtHeadFacts(array_map(static function (array $kinds): array {
-            $kinds = array_values($kinds);
-            sort($kinds);
-
-            return $kinds;
-        }, $done), $heads);
+        return new WorkAtHeadFacts(array_map(self::sorted(...), $done), $heads, array_map(self::sorted(...), $moved));
     }
 
     #[\Override]
@@ -74,7 +81,20 @@ final readonly class WorkAtHeadFactProvider implements FactProvider
             throw new \LogicException('The provider fingerprints its own facts.');
         }
 
-        return [$facts->heads, $facts->doneKinds];
+        return [] === $facts->movedKinds ? [$facts->heads, $facts->doneKinds] : [$facts->heads, $facts->doneKinds, $facts->movedKinds];
+    }
+
+    /**
+     * @param array<string, string> $kinds
+     *
+     * @return list<string>
+     */
+    private static function sorted(array $kinds): array
+    {
+        $kinds = array_values($kinds);
+        sort($kinds);
+
+        return $kinds;
     }
 
     #[\Override]

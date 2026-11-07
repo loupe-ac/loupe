@@ -19,6 +19,7 @@ final readonly class CardPullRequests
         private CardPullRequestRepository $cardPullRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private FactsPass $factsPass,
+        private PullRequestUrlResolver $urls,
     ) {
     }
 
@@ -155,6 +156,24 @@ final readonly class CardPullRequests
         }
 
         return array_find($pullRequests, static fn (ForgePullRequest $pullRequest): bool => true === $pullRequest->id?->equals($facts->id));
+    }
+
+    /**
+     * The pull request that a stored link URL names, by forge, repository and number.
+     * A number alone is not enough, because two repositories can each have the same number.
+     *
+     * @param list<ForgePullRequest> $pullRequests
+     */
+    public function namedBy(array $pullRequests, ?string $url): ?ForgePullRequest
+    {
+        $ref = null === $url ? null : $this->urls->resolve($url);
+        if (null === $ref?->repository || null === $ref->number) {
+            return null;
+        }
+
+        return array_find($pullRequests, static fn (ForgePullRequest $pullRequest): bool => $pullRequest->forge === $ref->forge->value
+            && 0 === strcasecmp($pullRequest->repository, $ref->repository)
+            && $pullRequest->number === $ref->number);
     }
 
     /** @return array{string, string} */

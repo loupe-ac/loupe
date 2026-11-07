@@ -102,6 +102,21 @@ final class CardHistoryEntryTest extends TestCase
         ]), $entry->cause);
     }
 
+    public function test_a_withdrawn_fix_gives_the_pull_request_and_both_heads(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::FixWithdrawn, Actor::System, null, ['pullRequest' => 42, 'oldHeadSha' => 'aaaaaaa1234567', 'newHeadSha' => 'bbbbbbb7654321']));
+
+        self::assertSame('lucide:undo-2', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.fix_withdrawn', ['%pr%' => 42, '%old%' => 'aaaaaaa', '%new%' => 'bbbbbbb']), $entry->sentence);
+    }
+
+    public function test_a_withdrawn_fix_without_its_heads_gives_the_plain_sentence(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::FixWithdrawn, Actor::System, null, ['pullRequest' => 42]));
+
+        self::assertSame('board.card.history.changed', $entry->sentence->getMessage());
+    }
+
     public function test_a_fix_for_the_agent_review_gives_its_own_reason(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::FixRequested, Actor::System, null, ['reason' => 'agent-review', 'pullRequest' => 42]));

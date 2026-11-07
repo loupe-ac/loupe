@@ -259,7 +259,7 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
     /** @param array<string, mixed> $when */
     private function bind(Project $project, array $when = ['all' => []]): void
     {
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',

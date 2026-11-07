@@ -67,7 +67,7 @@ final class WorkflowClosedUnmergedRuleDropMigrationTest extends KernelTestCase
     /** @param list<array<string, mixed>> $rules */
     private function binding(string $name, array $rules): WorkflowBinding
     {
-        $binding = new WorkflowBinding($this->workflowProject('migration-'.$name), 'simple', 1, [
+        $binding = new WorkflowBinding($this->workflowProject('migration-'.$name), 'simple', '1', [
             'key' => 'simple',
             'version' => 1,
             'defaultType' => 'feature',

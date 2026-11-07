@@ -98,7 +98,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
     public function test_the_markers_of_the_template_are_listed_in_order(): void
     {
         $project = $this->workflowProject('workflow-page-markers');
-        $this->em()->persist(new WorkflowBinding($project, 'markers-test', 1, Yaml::parseFile(TemplateParserTest::MARKERS_FIXTURE)));
+        $this->em()->persist(new WorkflowBinding($project, 'markers-test', '1', Yaml::parseFile(TemplateParserTest::MARKERS_FIXTURE)));
         $owner = $this->stampedOwner($project);
 
         $this->client->loginUser($owner);
@@ -127,7 +127,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertInstanceOf(ShippedTemplates::class, $shipped);
         $source = $shipped->source('simple');
         unset($source['markers'], $source['inbox']);
-        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
+        $this->em()->persist(new WorkflowBinding($project, 'simple', '2', $source));
         $owner = $this->stampedOwner($project);
 
         $this->client->loginUser($owner);
@@ -148,7 +148,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
             ['key' => 'conflicts', 'label' => 'Conflicts', 'description' => 'The conflicts of a card.', 'count' => ['reason' => 'conflict'], 'splitBy' => 'reason'],
             ['key' => 'delivery-rate', 'label' => 'Delivery rate', 'description' => 'The share that merged.', 'rate' => ['outcome' => 'merged']],
         ];
-        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
+        $this->em()->persist(new WorkflowBinding($project, 'simple', '2', $source));
         $owner = $this->stampedOwner($project);
 
         $this->client->loginUser($owner);
@@ -176,7 +176,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertInstanceOf(ShippedTemplates::class, $shipped);
         $source = $shipped->source('simple');
         unset($source['metrics']);
-        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
+        $this->em()->persist(new WorkflowBinding($project, 'simple', '2', $source));
         $owner = $this->stampedOwner($project);
 
         $this->client->loginUser($owner);
@@ -190,7 +190,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
     public function test_a_rule_whose_condition_no_longer_exists_is_marked(): void
     {
         $project = $this->workflowProject('workflow-page-missing');
-        $this->em()->persist(new WorkflowBinding($project, 'test', 1, [
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',

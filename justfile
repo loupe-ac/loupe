@@ -292,6 +292,14 @@ migrate-run: (exec "bin/console" "doctrine:migrations:migrate")
 openapi-dump:
     bin/worktrees/compose-exec.sh bash -c 'for area in public private; do bin/console nelmio:apidoc:dump --area=$area --format=json > openapi/$area.json; done'
 
+# Local gate for the two checks that CI runs and the other recipes miss: stale
+# OpenAPI files and a changed plugin without a greater version. Pass the base
+# branch the pull request targets, such as `just prepush main`.
+prepush base:
+    bin/worktrees/compose-exec.sh bash -c 'set -e; tmp=$(mktemp -d); trap "rm -rf $tmp" EXIT; status=0; for area in public private; do bin/console nelmio:apidoc:dump --area=$area --format=json > $tmp/$area.json; if ! diff -u openapi/$area.json $tmp/$area.json; then echo "openapi/$area.json is stale. Run just openapi-dump and commit the result."; status=1; fi; done; exit $status'
+    git fetch origin {{base}}
+    sh cli/scripts/plugin-version-check.sh "origin/{{base}}"
+
 # Needed only for site-review push; the e2e suite passes without it. Leaving it
 # stopped loses nothing: submissions reach the outbox first and the scheduled
 # drain replays them once a hub is back.

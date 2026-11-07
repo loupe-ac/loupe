@@ -13,7 +13,8 @@ path skips this.
 1. `just cs` applies the formatter and rector fixes. Commit anything it
    changed. It works from a worktree.
 2. Run `just phpstan`, `just arkitect` and `just gamache`. These check the
-   whole project.
+   whole project. Then run `just prepush <base>`, which fails on a stale
+   `openapi/` file or a changed plugin without a greater version.
 3. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or
    `just phpunit --filter <name>`.
 4. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/`
@@ -24,8 +25,8 @@ path skips this.
    including ones that pre-date your change.
 
 A `PreToolUse` hook, `.agents/hooks/no-full-ci.sh`, refuses `just ci` and a
-full PHPUnit run for an agent. CI runs `just audit`, so the local list leaves
-it out. A worker learns of a failed required check from the board, and the
+full PHPUnit run for an agent. The `audit` workflow runs `just audit` on `main` and each day, so the local
+list leaves it out. A worker learns of a failed required check from the board, and the
 `checks-failed` fix round covers every required check.
 
 e2e is not in the local gate. Do not run the full suite locally before you open

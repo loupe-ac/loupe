@@ -155,17 +155,6 @@ jobs:
       - uses: ./.github/actions/setup
       - run: just gamache
 
-  audit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          node: 'true'
-          docker: 'true'
-      - run: just audit
-
   phpunit:
     runs-on: ubuntu-latest
     timeout-minutes: 25

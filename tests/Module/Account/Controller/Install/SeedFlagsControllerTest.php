@@ -7,6 +7,8 @@ namespace App\Tests\Module\Account\Controller\Install;
 use App\Api\RateLimit\ApiBudget;
 use App\Audit\FeatureFlagAuditRetentionPolicy;
 use App\Mercure\LiveUpdates;
+use App\Module\Account\Command\SeedInstallFlagsCommand;
+use App\Module\Account\Command\SeedInstallFlagsHandler;
 use App\Module\Account\Controller\Install\SeedFlagsController;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Service\RegistrationGate;
@@ -76,7 +78,10 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(44, $flags);
+        self::assertEqualsCanonicalizing(self::installFlagNames(), array_keys($flags));
+        foreach (['registration.enabled', 'registration.cap', 'billing.trial_days', 'open_graph.image'] as $mustKeep) {
+            self::assertArrayHasKey($mustKeep, $flags);
+        }
         self::assertSame(ApiBudget::DEFAULT_READS, $flags[ApiBudget::READS_FLAG]->value);
         self::assertSame(ApiBudget::DEFAULT_WRITES, $flags[ApiBudget::WRITES_FLAG]->value);
         self::assertTrue($flags[OAuthInstallFlags::FLAG_REFRESH_REUSE]->value);
@@ -166,5 +171,29 @@ final class SeedFlagsControllerTest extends WebTestCase
         $user->password = 'irrelevant-hash';
         $em->persist($user);
         $em->flush();
+    }
+
+    /**
+     * The names that every contributor of the install seeder defines.
+     *
+     * @return list<string>
+     */
+    private static function installFlagNames(): array
+    {
+        $handler = self::getContainer()->get(SeedInstallFlagsHandler::class);
+        $contributors = new \ReflectionProperty($handler, 'flagDefaults')->getValue($handler);
+        self::assertIsIterable($contributors);
+
+        $command = new SeedInstallFlagsCommand(25, true, false, 30, null, false, false);
+        $names = [];
+        foreach ($contributors as $contributor) {
+            foreach ($contributor->defaults($command) as $default) {
+                $names[] = $default->name;
+            }
+        }
+
+        self::assertSame($names, array_values(array_unique($names)), 'Two contributors define the same flag.');
+
+        return $names;
     }
 }

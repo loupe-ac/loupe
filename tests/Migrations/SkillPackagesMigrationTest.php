@@ -52,7 +52,7 @@ final class SkillPackagesMigrationTest extends KernelTestCase
         self::assertSame(['loupe'], $simpleCopy['skillPackages']);
         self::assertFalse($simpleCopy['needsProfile']);
         self::assertArrayNotHasKey('epicBranch', $simpleCopy);
-        self::assertSame($templates->source('lifecycle')['version'], $this->binding($connection, $lifecycleId)['template_version']);
+        self::assertSame((string) $templates->source('lifecycle')['version'], $this->binding($connection, $lifecycleId)['template_version']);
         $migrated = [$this->binding($connection, $lifecycleId), $this->binding($connection, $simpleId)];
 
         $this->migrate($connection);

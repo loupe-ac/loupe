@@ -52,7 +52,7 @@ final readonly class GitHubPullRequestStateMapper
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
             // GitHub answers UNKNOWN for a few seconds after the base moves, and only the retry of an unknown read learns of a conflict.
             'UNKNOWN' === $mergeable => PullRequestMergeability::Unknown,
-            'BEHIND' === $mergeStateStatus, $behindBy > 0 => PullRequestMergeability::Behind,
+            'BEHIND' === $mergeStateStatus, true === $rules?->strict && $behindBy > 0 => PullRequestMergeability::Behind,
             'BLOCKED' === $mergeStateStatus => PullRequestMergeability::Blocked,
             \in_array($mergeStateStatus, self::MERGEABLE_STATES, true) => PullRequestMergeability::Mergeable,
             default => PullRequestMergeability::Unknown,
@@ -86,6 +86,7 @@ final readonly class GitHubPullRequestStateMapper
             title: $this->title($pullRequest),
             closedAt: $this->time($pullRequest['closedAt'] ?? null),
             reviewFromRules: $this->reviewFromRules($pullRequest, $rules),
+            behindBy: $behindBy,
         );
     }
 

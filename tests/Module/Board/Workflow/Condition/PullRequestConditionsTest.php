@@ -6,12 +6,14 @@ namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCheckPassed;
 use App\Module\Board\Workflow\Condition\PullRequestApprovalCoversHead;
+use App\Module\Board\Workflow\Condition\PullRequestBaseAhead;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsDefault;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsEpicBranch;
 use App\Module\Board\Workflow\Condition\PullRequestBaseIsMergeTarget;
 use App\Module\Board\Workflow\Condition\PullRequestBehind;
 use App\Module\Board\Workflow\Condition\PullRequestCanMerge;
 use App\Module\Board\Workflow\Condition\PullRequestCanPostCheck;
+use App\Module\Board\Workflow\Condition\PullRequestCanUpdateBranch;
 use App\Module\Board\Workflow\Condition\PullRequestChangesRequested;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestChecksOnHead;
@@ -86,6 +88,11 @@ final class PullRequestConditionsTest extends TestCase
         yield 'approval check not passed' => [new PullRequestApprovalCheckPassed(), [], self::current(approvalCheckPassed: false), false];
         yield 'can post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: true), true];
         yield 'cannot post check' => [new PullRequestCanPostCheck(), [], self::current(canPostCheck: false), false];
+        yield 'base ahead' => [new PullRequestBaseAhead(), [], self::current(baseAhead: true), true];
+        yield 'base not ahead' => [new PullRequestBaseAhead(), [], self::current(baseAhead: false), false];
+        yield 'can update the branch' => [new PullRequestCanUpdateBranch(), [], self::current(canPostCheck: true), true];
+        yield 'cannot update the branch with no installation' => [new PullRequestCanUpdateBranch(), [], self::current(canPostCheck: false), false];
+        yield 'cannot update the branch after a refusal on the head' => [new PullRequestCanUpdateBranch(), [], self::current(canPostCheck: true, updateRefusedOnHead: true), false];
         yield 'merge blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: true), true];
         yield 'merge not blocked' => [new PullRequestMergeBlocked(), [], self::current(mergeBlocked: false), false];
 
@@ -181,6 +188,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.checks_on_head' => [new PullRequestChecksOnHead(), []];
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), []];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), []];
+        yield 'pr.base_ahead' => [new PullRequestBaseAhead(), []];
+        yield 'pr.can_update_branch' => [new PullRequestCanUpdateBranch(), []];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), []];
         yield 'pr.can_merge' => [new PullRequestCanMerge(), []];
         yield 'pr.base_is_default' => [new PullRequestBaseIsDefault(), []];
@@ -225,6 +234,8 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.behind' => [new PullRequestBehind(), [], 'pr_behind', [], [EngineFact::PullRequest, EngineFact::PullRequestHead]];
         yield 'pr.approval_check_passed' => [new PullRequestApprovalCheckPassed(), [], 'pr_approval_check_passed', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.can_post_check' => [new PullRequestCanPostCheck(), [], 'pr_can_post_check', [], [EngineFact::PullRequest, EngineFact::PullRequestApprovalCheck]];
+        yield 'pr.base_ahead' => [new PullRequestBaseAhead(), [], 'pr_base_ahead', [], [EngineFact::PullRequest, EngineFact::PullRequestBaseUpdate]];
+        yield 'pr.can_update_branch' => [new PullRequestCanUpdateBranch(), [], 'pr_can_update_branch', [], [EngineFact::PullRequest, EngineFact::PullRequestBaseUpdate, EngineFact::PullRequestApprovalCheck]];
         yield 'pr.merge_blocked' => [new PullRequestMergeBlocked(), [], 'pr_merge_blocked', [], [EngineFact::PullRequest, EngineFact::PullRequestMergeGate]];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
@@ -267,6 +278,8 @@ final class PullRequestConditionsTest extends TestCase
         bool $canPostCheck = false,
         bool $mergeBlocked = false,
         bool $reviewRequired = false,
+        bool $baseAhead = false,
+        bool $updateRefusedOnHead = false,
     ): Facts {
         $pullRequest = FactsMother::pullRequest(
             state: $state,
@@ -287,6 +300,8 @@ final class PullRequestConditionsTest extends TestCase
             canPostCheck: $canPostCheck,
             mergeBlocked: $mergeBlocked,
             reviewRequired: $reviewRequired,
+            baseAhead: $baseAhead,
+            updateRefusedOnHead: $updateRefusedOnHead,
         );
 
         return FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], now: new \DateTimeImmutable(self::NOW));

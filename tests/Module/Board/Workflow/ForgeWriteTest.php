@@ -34,6 +34,7 @@ use App\Module\Board\Service\AgentReviewComment;
 use App\Module\Board\Service\ApprovalCheckPublisher;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\FixRunCommentQueue;
+use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Board\Service\SiteReviewCheckPublisher;
 use App\Module\Board\Service\StaleApprovalNoticeQueue;
 use App\Module\Board\Service\VerdictReviewSettler;
@@ -468,6 +469,50 @@ final class ForgeWriteTest extends KernelTestCase
         foreach (['merge', 'change-base', 'draft', 'ready', 'close', 'review-ready', 'open-epic'] as $write) {
             self::assertFalse(ForgeWrite::refiresOnFactChange(['write' => $write]), $write);
         }
+    }
+
+    public function test_an_update_with_no_fallback_stores_a_permanent_refusal_on_the_head_the_rule_read(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc1234');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(headSha: 'abc1234'));
+        $this->writer->failure = new PullRequestSyncFailed('permission', permanent: true);
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'update-branch', fallback: null, facts: $facts));
+
+        self::assertSame('abc1234', $this->em()->getConnection()->fetchOne('SELECT update_refused_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+    }
+
+    public function test_an_update_with_no_fallback_and_no_writer_stores_the_refusal_too(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc1234');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(headSha: 'abc1234'));
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'update-branch', fallback: null, writers: false, facts: $facts));
+
+        self::assertSame('abc1234', $this->em()->getConnection()->fetchOne('SELECT update_refused_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
+    }
+
+    /** @return iterable<string, array{\Throwable, ActionOutcome}> */
+    public static function refusalsThatStoreNothing(): iterable
+    {
+        yield 'a conflict or a moved head (422)' => [new PullRequestSyncFailed('refused', permanent: true), ActionOutcome::refused('refused')];
+        yield 'a rate limit' => [new PullRequestSyncFailed('api_failed_rate_limited', permanent: false), ActionOutcome::refused('api-failed-rate-limited')];
+        yield 'an update in flight' => [new PullRequestSyncFailed('in_flight', permanent: false), ActionOutcome::done()];
+    }
+
+    #[DataProvider('refusalsThatStoreNothing')]
+    public function test_an_update_with_no_fallback_stores_nothing_for_a_failure_that_can_pass(\Throwable $failure, ActionOutcome $expected): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card, headSha: 'abc1234');
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(headSha: 'abc1234'));
+        $this->writer->failure = $failure;
+
+        self::assertEquals($expected, $this->write($card, 'update-branch', fallback: null, facts: $facts));
+
+        self::assertNull($this->em()->getConnection()->fetchOne('SELECT update_refused_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
     }
 
     public function test_a_branch_update_without_an_updater_or_a_head_or_that_fails(): void
@@ -1337,7 +1382,7 @@ final class ForgeWriteTest extends KernelTestCase
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
         $action = new ForgeWrite(
             $this->service(CardRepository::class),
-            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests, $this->service(FactsPass::class)),
+            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests, $this->service(FactsPass::class), $this->service(PullRequestUrlResolver::class)),
             $this->service(EpicBranches::class),
             new ForgePullRequestWrites(
                 new PullRequestMergers($registered),

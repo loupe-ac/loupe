@@ -101,10 +101,12 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
                 $names[] = $name;
             }
             sort($names);
-            self::assertSame(
-                ['api_keys.json', 'artifacts.json', 'audit_log.json', 'beta_invite.json', 'billing_profile.json', 'bridge_account_readings.json', 'bridge_account_try_now.json', 'bridge_card_holds.json', 'bridge_claim_refusals.json', 'bridge_commands.json', 'bridge_host_samples.json', 'bridge_work_requests.json', 'bridges.json', 'card-verdicts.json', 'cards.json', 'comments.json', 'connected_accounts.json', 'connected_apps.json', 'decision_answers.json', 'documents.json', 'experiment_definitions.json', 'experiment_exclusions.json', 'experiment_pins.json', 'forge_repositories.json', 'github_hooks.json', 'github_installations.json', 'github_user_connection.json', 'idempotency_records.json', 'inbox_actions.json', 'inbox_asks.json', 'inbox_items.json', 'inbox_reviews.json', 'insights_analyses.json', 'insights_bucket_rules.json', 'insights_project_settings.json', 'insights_public_links.json', 'insights_saved_graphs.json', 'notification_preferences.json', 'openrouter_keys.json', 'profile.json', 'projects.json', 'push_devices.json', 'reviews.json', 'waitlist.json', 'worker_run_billed_costs.json', 'worker_run_bucket_times.json', 'worker_run_facts.json', 'worker_run_output.json', 'worker_run_tool_calls.json', 'worker_run_usage.json', 'worker_runs.json'],
-                $names,
-            );
+            $expected = self::exporterFilenames($builder);
+            self::assertSame($expected, array_values(array_unique($expected)), 'Two exporters write the same file.');
+            self::assertSame($expected, $names);
+            foreach (['projects.json', 'cards.json', 'documents.json', 'profile.json', 'api_keys.json'] as $mustKeep) {
+                self::assertContains($mustKeep, $names);
+            }
 
             $rawInboxReviews = $zip->getFromName('inbox_reviews.json');
             self::assertIsString($rawInboxReviews);
@@ -161,5 +163,20 @@ final class DataExportArchiveIntegrationTest extends WebTestCase
             @unlink($localPath);
             $storage->delete($key);
         }
+    }
+
+    /** @return list<string> the file names of every exporter, sorted */
+    private static function exporterFilenames(DataExportArchiveBuilder $builder): array
+    {
+        $exporters = new \ReflectionProperty($builder, 'exporters')->getValue($builder);
+        self::assertIsIterable($exporters);
+
+        $names = [];
+        foreach ($exporters as $exporter) {
+            $names[] = $exporter->filename();
+        }
+        sort($names);
+
+        return $names;
     }
 }

@@ -20,6 +20,7 @@ use App\Module\Workflow\EventListener\BindTemplateOnProjectCreating;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\TemplateVersion;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -63,7 +64,7 @@ final class BindTemplateOnProjectCreatingTest extends KernelTestCase
         $binding = $this->bindings()->findOneByProjectId($project->id ?? throw new \LogicException());
         self::assertNotNull($binding);
         self::assertSame('lifecycle', $binding->templateKey);
-        self::assertSame(44, $binding->templateVersion);
+        self::assertSame(TemplateVersion::of($this->shipped()->source('lifecycle')), $binding->templateVersion);
         self::assertEquals($this->shipped()->source('lifecycle'), $binding->definition);
     }
 

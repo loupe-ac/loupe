@@ -60,7 +60,7 @@ final class BindEveryProjectMigrationTest extends KernelTestCase
         $binding = $this->service(WorkflowBindingRepository::class)->findOneByProjectId($this->id($migrated));
         self::assertNotNull($binding);
         $source = $this->service(ShippedTemplates::class)->source('lifecycle');
-        self::assertSame(['lifecycle', $source['version'] ?? null], [$binding->templateKey, $binding->templateVersion]);
+        self::assertSame(['lifecycle', (string) ($source['version'] ?? '')], [$binding->templateKey, $binding->templateVersion]);
         self::assertSame($this->row($handled)['definition'], $this->row($migrated)['definition']);
         self::assertSame($this->links($handled), $this->links($migrated));
         self::assertSame(['implementation', 'in-review', 'next', 'product-design', 'tech-design'], array_keys($this->links($migrated)));
@@ -208,7 +208,9 @@ final class BindEveryProjectMigrationTest extends KernelTestCase
         $this->approvedDocument($cards['held tech design'], 'tech-design');
         $cards['implementation no pull request'] = $this->card($project, 'implementation');
         $cards['failing checks'] = $this->card($project, 'implementation');
-        $this->pullRequest($cards['failing checks'])->checks = PullRequestChecks::Failed;
+        $failing = $this->pullRequest($cards['failing checks']);
+        $failing->checks = PullRequestChecks::Failed;
+        $failing->checksSha = $failing->headSha;
         $cards['epic with no children'] = $this->card($project, 'implementation', 'epic');
         $cards['epic with an open child'] = $this->card($project, 'implementation', 'epic');
         $this->pullRequest($cards['epic with an open child']);

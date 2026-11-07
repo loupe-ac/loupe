@@ -25,7 +25,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. Base branch: `main`. A child of an epic with an epic branch uses `epic/<n>` instead, as the `Epics` section says. A branch that stacks on an open pull request uses that pull request's head branch instead, as the stage `commands.md` says.
 2. Run `just cs`, and commit what it changes.
-3. Run `just phpstan`, `just arkitect` and `just gamache`. These check the whole project.
+3. Run `just phpstan`, `just arkitect` and `just gamache`. These check the whole project. Then run `just prepush <base>`. It fails on a stale `openapi/` file and on a changed plugin without a greater version.
 4. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or `just phpunit --filter <name>`. A hook refuses `just ci` and a full PHPUnit run.
 5. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed.
 6. CI's required checks are the full gate. Run no Codex review. Push, then read them on the pull request. The board `checks-failed` fix round covers a failed one.
@@ -67,6 +67,21 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 6. Prove: `working-with-prs` "Prove each preview link shows its state". The effective URL ends in the path, and the marker count is 1 or more. Write the marker you found on the line of each link.
    On a data state the marker must show only when the page holds its data. The template must print it once for each record, inside a loop over the records, or inside a condition that is true only when records exist. Examples are a row id, a `data-series` attribute, or a data attribute on a filled tile. A page title, a heading, a panel id or a chart container never counts, because the page renders them with no data too. Prove the count is 1 or more on the seeded page, and 0 on the page of the empty twin. The review reads the Twig templates under `templates/` and the Twig component classes under `src/` that feed them.
 7. Signed-out page: a page that only a signed-out visitor sees, such as the landing page at `/`, takes a plain link to the app of the worker folder. A signed link signs the reader in, and the page then redirects. Prove the plain link as item 6 says, with no cookie jar. The marker must not be on `main`.
+8. Excluded paths: `^templates/(.*/)?email/` and `^templates/Module/DesignSystem/export/`. The pre-push check reads these extended regexes and skips a changed path that matches one.
+9. Line patterns: the pre-push check accepts a line of the body when it matches one extended regex of the fenced block below. The block holds the data state, the state with no data, and the signed-out state. The first two need the signed link of item 5, and the signed-out state needs the plain link of item 7, with no query.
+
+   ```
+   ^- \[[^]]+\]\(https://(card|epic)-[0-9]+\.loupe\.dev\.localhost/dev/preview-login\?_hash=[^&)]+&email=[^&)]+&to=[^&)]+\), marker `[^`]+`, empty `[^`]+`[[:space:]]*$
+   ^- \[[^]]+\]\(https://(card|epic)-[0-9]+\.loupe\.dev\.localhost/dev/preview-login\?_hash=[^&)]+&email=[^&)]+&to=[^&)]+\), marker `[^`]+`, no data[[:space:]]*$
+   ^- \[[^]]+\]\(https://(card|epic)-[0-9]+\.loupe\.dev\.localhost/[^)?]*\), marker `[^`]+`\. Signed out\.[[:space:]]*$
+   ```
+
+10. Data line patterns: a state that the build notes Preview list marks `records` needs a body line that matches one extended regex of the fenced block below. The block holds the data state with its empty twin, and the signed-out state, with the links of item 9.
+
+    ```
+    ^- \[[^]]+\]\(https://(card|epic)-[0-9]+\.loupe\.dev\.localhost/dev/preview-login\?_hash=[^&)]+&email=[^&)]+&to=[^&)]+\), marker `[^`]+`, empty `[^`]+`[[:space:]]*$
+    ^- \[[^]]+\]\(https://(card|epic)-[0-9]+\.loupe\.dev\.localhost/[^)?]*\), marker `[^`]+`\. Signed out\.[[:space:]]*$
+    ```
 
 ## Visual check
 

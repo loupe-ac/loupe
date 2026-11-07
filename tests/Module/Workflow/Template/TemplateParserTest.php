@@ -63,6 +63,7 @@ use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateMetricParser;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplatePrompts;
+use App\Module\Workflow\Template\TemplateVersion;
 use App\Tests\Module\Workflow\Action\ExpressionPluggedAction;
 use App\Tests\Module\Workflow\Action\PluggedAction;
 use App\Tests\Module\Workflow\Fact\FactsMother;
@@ -204,7 +205,8 @@ final class TemplateParserTest extends TestCase
         $template = $this->parser->parse(self::valid());
 
         self::assertSame('test', $template->key);
-        self::assertSame(1, $template->version);
+        self::assertSame(TemplateVersion::of(self::valid()), $template->version);
+        self::assertMatchesRegularExpression('/^[0-9a-f]{12}$/', $template->version);
         self::assertSame(['build', 'review'], array_map(static fn ($slot) => $slot->key, $template->slots));
         self::assertSame('workflow.slot.review', $template->slot('review')?->label);
         self::assertNull($template->slot('nowhere'));
@@ -743,6 +745,15 @@ final class TemplateParserTest extends TestCase
         self::assertSame('recover', $policy?->recoveryKind);
     }
 
+    public function test_a_retry_policy_reads_the_repeat_option_and_defaults_it_to_false(): void
+    {
+        $base = ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2]];
+
+        self::assertFalse($this->parser->parse(self::valid() + ['onWorkFailed' => $base])->onWorkFailed?->repeatGoesToRepair);
+        self::assertTrue($this->parser->parse(self::valid() + ['onWorkFailed' => $base + ['repeatGoesToRepair' => true]])->onWorkFailed?->repeatGoesToRepair);
+        self::assertTrue($this->parser->parse(self::valid() + ['onWorkFailed' => $base + ['repeatGoesToRepair' => true, 'recover' => ['kind' => 'recover']]])->onWorkFailed?->repeatGoesToRepair);
+    }
+
     public function test_an_evaluate_action_names_the_children(): void
     {
         $template = self::valid();
@@ -1112,7 +1123,6 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'backoffMinutes: is missing'];
-        yield 'wrongly typed version' => [static fn (array $t): array => ['version' => '1'] + $t, 'version: must be an integer'];
         yield 'wrongly typed key' => [static fn (array $t): array => ['key' => ''] + $t, 'key: must be a non-empty string'];
         yield 'slots not a list' => [static fn (array $t): array => ['slots' => 'build', 'manualMoves' => [], 'rules' => []] + $t, 'slots: must be a list'];
         yield 'rules not a list' => [static fn (array $t): array => ['rules' => ['a' => 1]] + $t, 'rules: must be a list'];
@@ -1120,6 +1130,7 @@ final class TemplateParserTest extends TestCase
         yield 'wrongly typed backoff' => [static fn (array $t): array => ['backoffMinutes' => [10, '60']] + $t, 'backoffMinutes: must be a list of positive integers'];
         yield 'retry policy with no list' => [static fn (array $t): array => ['onWorkFailed' => ['retries' => 1, 'backoffMinutes' => [2]]] + $t, 'onWorkFailed: must be a map with a list "retryOn"'];
         yield 'retry policy with a bad code' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['Not A Code'], 'retries' => 1, 'backoffMinutes' => [2]]] + $t, 'onWorkFailed.retryOn: each entry must be a refusal code'];
+        yield 'repeat option that is no boolean' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'repeatGoesToRepair' => 'yes']] + $t, 'onWorkFailed.repeatGoesToRepair: must be true or false'];
         yield 'recover that is not a map' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => 'recover']] + $t, 'onWorkFailed.recover: must be a map with a string "kind"'];
         yield 'recover with no kind' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => []]] + $t, 'onWorkFailed.recover: must be a map with a string "kind"'];
         yield 'recover with a bad kind' => [static fn (array $t): array => ['onWorkFailed' => ['retryOn' => ['failed'], 'retries' => 1, 'backoffMinutes' => [2], 'recover' => ['kind' => 'Not A Kind']]] + $t, 'onWorkFailed.recover.kind: must be a work request kind'];
@@ -1970,7 +1981,7 @@ final class TemplateParserTest extends TestCase
     public function test_it_reports_every_error_at_once(): void
     {
         $template = self::valid();
-        $template['version'] = 'one';
+        $template['defaultType'] = '';
         $template['rules'][2]['when'] = ['pr.foo' => []];
 
         try {
@@ -1978,7 +1989,7 @@ final class TemplateParserTest extends TestCase
             self::fail('The parser must refuse the template.');
         } catch (InvalidTemplate $e) {
             self::assertSame([
-                'version: must be an integer',
+                'defaultType: must be a non-empty string',
                 'rules[2] (merge) when: unknown condition "pr.foo"',
             ], $e->errors);
         }

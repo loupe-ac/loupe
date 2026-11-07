@@ -29,6 +29,7 @@ use App\Module\Workflow\Contract\RefiresOnFactChange;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
 use App\Module\Workflow\Contract\RunView;
+use App\Module\Workflow\Contract\SetupFailure;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Contract\WithdrawKind;
@@ -282,6 +283,7 @@ final readonly class Engine
                     self::adoptSubject($state, $bound->subject);
                 }
                 $state->attempts = 0;
+                $state->lastSetupFailure = null;
                 $state->dueAt = null;
                 $state->lastRefusal = null;
                 $state->lastRefusalAt = null;
@@ -390,6 +392,7 @@ final readonly class Engine
                     $state->dueAt = null;
                     $state->lastRefusal = null;
                     $state->lastRefusalAt = null;
+                    $state->lastSetupFailure = null;
                     $state->workRequestId = null;
                     $state->recovered = false;
                 });
@@ -418,7 +421,7 @@ final readonly class Engine
                 continue;
             }
 
-            $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, $code, $bound));
+            $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, $code, $bound, $request));
         }
     }
 
@@ -465,9 +468,13 @@ final readonly class Engine
         }
     }
 
-    /** Earns a retry after the next delay, or opens the recovery, or pauses the card, as the failure block says. */
-    private function refuse(Evaluation $run, Rule $rule, WorkflowRuleState $state, WorkFailurePolicy $policy, string $code, BoundRule $bound): void
+    /**
+     * Earns a retry after the next delay, or opens the recovery, or pauses the card, as the failure block says.
+     * A failed `before` command that repeats the last one skips the retries that remain.
+     */
+    private function refuse(Evaluation $run, Rule $rule, WorkflowRuleState $state, WorkFailurePolicy $policy, string $code, BoundRule $bound, ?WorkView $request = null): void
     {
+        $repeated = $this->repeatsSetupFailure($state, $policy, $request);
         $state->lastRefusal = $code;
         $state->lastRefusalAt = $run->now;
         // The facts at the refusal, so a request that was open at the last pass does not count as a change.
@@ -481,7 +488,7 @@ final readonly class Engine
         // The failed run did no work of its own, so a retry never uses a request of the work limit.
         $state->fires = max(0, $state->fires - 1);
         $backoff = $policy->backoffMinutes[$state->attempts - 1] ?? null;
-        if ($state->attempts > $policy->retries || null === $backoff) {
+        if ($repeated || $state->attempts > $policy->retries || null === $backoff) {
             $state->dueAt = null;
             if (null !== $policy->recoveryKind && !$state->recovered) {
                 // The prompt of an app rule asks for the work of that rule, so the recovery carries the prompt of its own kind.
@@ -511,8 +518,25 @@ final readonly class Engine
         $state->dueAt = $run->now->add(new \DateInterval(\sprintf('PT%dM', $backoff)));
     }
 
+    /** Whether the refused request failed in its `before` command exactly as the last refusal of the rule did. The state keeps the fingerprint for the next refusal. */
+    private function repeatsSetupFailure(WorkflowRuleState $state, WorkFailurePolicy $policy, ?WorkView $request): bool
+    {
+        $previous = $state->lastSetupFailure;
+        $state->lastSetupFailure = null;
+        if (!$policy->repeatGoesToRepair || null === $request) {
+            return false;
+        }
+        $failure = SetupFailure::fromOutput($this->ledger->runOutput($request->id) ?? '');
+        if (null === $failure) {
+            return false;
+        }
+        $state->lastSetupFailure = $failure->fingerprint();
+
+        return $state->lastSetupFailure === $previous;
+    }
+
     /**
-     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`).
+     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds (only the open ones with `cancelOnly: open`), with the `cancelReason` of the rule.
      * An open request otherwise waits for a bridge with no time limit.
      * A rule with `onNoTaker: fail` expires an open request at once when no online bridge could take it, with no pause.
      * A baseline expires nothing, so it leaves such a request to the next pass.
@@ -534,7 +558,7 @@ final readonly class Engine
                 // `cancelOnly: open` leaves a request that a bridge claimed alone, because that claim serves a live launch.
                 $openOnly = 'open' === ActionParams::optionalString($rule, 'cancelOnly');
                 if (!$openOnly || WorkState::Open === $request->state) {
-                    $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled, onlyIfOpen: $openOnly) || $withdrawn;
+                    $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled, ActionParams::optionalString($rule, 'cancelReason'), onlyIfOpen: $openOnly) || $withdrawn;
                     continue;
                 }
             }
@@ -591,6 +615,7 @@ final readonly class Engine
             $this->write($run, $this->state($run, $rule), static function (WorkflowRuleState $state): void {
                 $state->truth = false;
                 $state->attempts = 0;
+                $state->lastSetupFailure = null;
                 $state->dueAt = null;
                 $state->workRequestId = null;
                 $state->recovered = false;
@@ -639,6 +664,7 @@ final readonly class Engine
             $state->truth = $bound->truth;
             $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
             $state->attempts = 0;
+            $state->lastSetupFailure = null;
             $state->dueAt = null;
             $state->lastRefusal = null;
             $state->lastRefusalAt = $run->now;
@@ -764,6 +790,7 @@ final readonly class Engine
             $state->heldByWorkHoldSince = null;
             $this->markBlockerHold($run, $rule, $state, $bound);
             $state->attempts = 0;
+            $state->lastSetupFailure = null;
             $state->dueAt = null;
             $state->lastRefusal = null;
             $state->lastRefusalAt = null;
@@ -859,6 +886,7 @@ final readonly class Engine
                 }
                 if (!$retrying || (null === $outcome->requestId && !$outcome->alreadyLive)) {
                     $state->attempts = 0;
+                    $state->lastSetupFailure = null;
                 }
                 $state->dueAt = null;
                 $state->lastRefusal = null;
