@@ -263,6 +263,18 @@
         );
         return index > 0 ? startColumns[index] : null;
     };
+    // The kept start column that a save sends. A column the boot list no
+    // longer offers still goes, so the server refuses it and the answer says
+    // why. Only the Backlog stays out, because it starts nothing.
+    const keptStartColumnId = (target) => {
+        if (!target || target.mode !== 'per-note' || !target.startColumnId) {
+            return null;
+        }
+        return startColumns.length > 0 &&
+            startColumns[0].id === target.startColumnId
+            ? null
+            : target.startColumnId;
+    };
     const inStartColumn = (target) => {
         const column = startColumnOf(target);
         return column ? ` in ${column.name}` : '';
@@ -535,20 +547,6 @@
         textareaNode.value = '';
     };
 
-    // A kept start column the server no longer offers is dropped, so a save
-    // never asks for it. An empty list is a preview token: it starts nothing.
-    const forgetMissingStartColumn = () => {
-        if (
-            storedTarget &&
-            storedTarget.mode === 'per-note' &&
-            storedTarget.startColumnId &&
-            !startColumnOf(storedTarget)
-        ) {
-            storedTarget = { ...storedTarget, startColumnId: null };
-            writeStoredTarget(storedTarget);
-        }
-    };
-
     // Rehydrate the list from the project's Pending comments.
     const refresh = (options) => (listReady = loadList(options));
     const loadList = async ({ firstLoad = false } = {}) => {
@@ -581,7 +579,6 @@
                           typeof column.name === 'string',
                   )
                 : [];
-            forgetMissingStartColumn();
             const named = payload.context || null;
             if (asked && asked === bootMarker()) {
                 if (lock) {
@@ -5114,14 +5111,12 @@
                 // this copy long after a rollback, and that instance would otherwise save
                 // every comment as an unanchored note. The current API prefers anchors[].
                 const first = anchors[0];
-                const startColumn = startColumnOf(destination);
+                const startColumnId = keptStartColumnId(destination);
                 const target =
                     destination.mode === 'per-review'
                         ? { cardId: destination.cardId }
                         : {
-                              newCard: startColumn
-                                  ? { startColumnId: startColumn.id }
-                                  : {},
+                              newCard: startColumnId ? { startColumnId } : {},
                           };
                 // A retry keeps its delivery id only while it names the same
                 // target. The server refuses a known id sent to another one.

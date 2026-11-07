@@ -509,9 +509,39 @@ describe('the start column', () => {
         expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
     });
 
-    it('drops a kept column that the server no longer offers', async () => {
+    it('keeps a column the boot list omits until the save reports its refusal', async () => {
         const fetchMock = bootWidget({
-            mode: { mode: 'per-note', cardId: null, startColumnId: 'gone' },
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: 'Tech design',
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+
+        expect(storedMode().startColumnId).toBe(TECH.id);
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({
+            newCard: { startColumnId: TECH.id },
+        });
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('sends no column when the kept column is the Backlog', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: BACKLOG.id },
             respond: bootWithColumns(START_COLUMNS),
         });
         await settle();
@@ -522,7 +552,6 @@ describe('the start column', () => {
         await settle();
 
         expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
-        expect(storedMode().startColumnId).toBeNull();
     });
 
     it('says which column was refused and clears the kept column', async () => {
