@@ -2102,8 +2102,8 @@ worker when a check fails. The run then fails with a reason that starts with
 `folder-refused` and names the folder. A command that prints no folder is not
 checked.
 
-- The folder must be a linked worktree of the project repository. The main checkout and the folder of another repository fail.
-- No other live run of the bridge may work in the folder.
+- The folder must be a linked worktree of the project repository, at the top of that worktree. The main checkout, a folder inside a worktree and the folder of another repository fail.
+- No other live run of the bridge may work in the folder. The bridge checks one folder at a time, so two runs that print the same folder cannot both start in it.
 - The folder must belong to the card. The bridge keeps a claim file, `loupe-card`, in the git directory of the worktree (`git rev-parse --git-dir`). The file holds the card id, lies outside the working tree, and goes away with the worktree.
 
 The bridge reads `git worktree list` just before the `before` command. A folder

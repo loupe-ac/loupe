@@ -9,10 +9,13 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/event"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) {
@@ -289,5 +292,121 @@ func TestABridgeRunRefusesAPrintedMainCheckout(t *testing.T) {
 	}
 	if calls := h.worker.recorded(); len(calls) != 0 {
 		t.Fatalf("worker started: %+v", calls)
+	}
+}
+
+// A folder inside a worktree is not the worktree, although git answers there
+// too, so the guard refuses it and claims nothing.
+func TestTheGuardRefusesAFolderInsideAWorktree(t *testing.T) {
+	project := guardProject(t)
+	runDir := snapshotOf(t, project)
+	tree := addTree(t, project, "card-1")
+	sub := filepath.Join(tree, "sub")
+	if err := os.MkdirAll(sub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	got := checkFolder(context.Background(), folderCheck{folder: sub, project: project, card: "c1", runDir: runDir})
+
+	if !strings.HasPrefix(got, "folder-refused") || !strings.Contains(got, "inside the worktree "+tree) {
+		t.Fatalf("checkFolder = %q", got)
+	}
+	if claimOf(t, tree) != "" {
+		t.Fatal("a refused folder was claimed")
+	}
+}
+
+// Two checks that both read no claim cannot both claim the folder.
+func TestOnlyOneCardWinsTheClaimOfANewWorktree(t *testing.T) {
+	project := guardProject(t)
+	runDir := snapshotOf(t, project)
+	tree := addTree(t, project, "card-1")
+
+	results := make([]string, 2)
+	var wg sync.WaitGroup
+	for i, card := range []string{"c1", "c2"} {
+		wg.Go(func() {
+			results[i] = checkFolder(context.Background(), folderCheck{folder: tree, project: project, card: card, runDir: runDir})
+		})
+	}
+	wg.Wait()
+
+	winner := claimOf(t, tree)
+	passed := 0
+	for i, card := range []string{"c1", "c2"} {
+		switch {
+		case results[i] == "" && card == winner:
+			passed++
+		case results[i] == "":
+			t.Fatalf("%s passed, but %s holds the claim", card, winner)
+		case !strings.Contains(results[i], "card "+winner+" claims it"):
+			t.Fatalf("%s: %q", card, results[i])
+		}
+	}
+	if passed != 1 {
+		t.Fatalf("results = %q, claim %q", results, winner)
+	}
+}
+
+// A second run cannot start in a folder that the guard let a first run start
+// in, also while that run sits between its before command and its worker.
+func TestTheGuardChecksOneRunAtATimeAndReservesTheFolder(t *testing.T) {
+	h := newHarness(t)
+	folder := realPath(t.TempDir())
+	entered, release := make(chan string, 2), make(chan struct{})
+	h.router.worker.folder = func(_ context.Context, c folderCheck) string {
+		entered <- c.card
+		if c.card == "a" {
+			<-release
+		}
+		if slices.Contains(c.busy, folder) {
+			return "folder-refused: busy"
+		}
+
+		return ""
+	}
+	run := func(id string) pending {
+		return pending{runID: "run-" + id, event: event.Event{Type: event.WorkRequestType, CardNumber: 1, CardID: id}}
+	}
+
+	first := make(chan string)
+	go func() { first <- h.router.refuseFolder(run("a"), procResult{dir: folder}) }()
+	<-entered
+	second := make(chan string)
+	go func() { second <- h.router.refuseFolder(run("b"), procResult{dir: folder}) }()
+	select {
+	case card := <-entered:
+		t.Fatalf("run %s entered the guard while run a was in it", card)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+
+	if got := <-first; got != "" {
+		t.Fatalf("first run: %q", got)
+	}
+	if got := <-second; got == "" {
+		t.Fatal("the second run got the folder of the first run")
+	}
+}
+
+// The reservation of a run ends with the run, so the next run of the card
+// starts in the same worktree.
+func TestTheNextRunOfACardStartsInItsWorktree(t *testing.T) {
+	var tree string
+	h := gitBridge(t, func(project string) string {
+		if tree == "" {
+			tree = addTree(t, project, "card-87")
+		}
+
+		return tree
+	})
+	rec := h.states()
+
+	h.send(cardMoved(87))
+	h.send(cardMoved(87))
+
+	wantStates(t, rec.states(), api.RunQueued, api.RunPreparing, api.RunRunning, api.RunSucceeded, api.RunQueued, api.RunPreparing, api.RunRunning, api.RunSucceeded)
+	if calls := h.worker.recorded(); len(calls) != 2 || calls[0].dir != tree || calls[1].dir != tree {
+		t.Fatalf("worker = %+v, want two runs in %s", calls, tree)
 	}
 }

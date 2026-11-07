@@ -235,20 +235,33 @@ func dropAdoption(project, path string) {
 
 // gitDirs prints the per-worktree git dir and the common git dir of dir.
 func gitDirs(ctx context.Context, dir string) (string, string, error) {
+	paths, err := revParsePaths(ctx, dir, "--git-dir", "--git-common-dir")
+	if err != nil {
+		return "", "", err
+	}
+
+	return paths[0], paths[1], nil
+}
+
+// revParsePaths prints one absolute, resolved path for each rev-parse option.
+func revParsePaths(ctx context.Context, dir string, options ...string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, folderGitTimeout)
 	defer cancel()
 	var stdout bytes.Buffer
-	cmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir, "rev-parse", "--path-format=absolute"}, options...)...)
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		return "", "", fmt.Errorf("git rev-parse: %w", err)
+		return nil, fmt.Errorf("git rev-parse: %w", err)
 	}
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-	if len(lines) != 2 {
-		return "", "", fmt.Errorf("git rev-parse printed %d lines, want 2", len(lines))
+	if len(lines) != len(options) {
+		return nil, fmt.Errorf("git rev-parse printed %d lines, want %d", len(lines), len(options))
+	}
+	for i, line := range lines {
+		lines[i] = realPath(strings.TrimSpace(line))
 	}
 
-	return realPath(strings.TrimSpace(lines[0])), realPath(strings.TrimSpace(lines[1])), nil
+	return lines, nil
 }
 
 // checkFolder judges the folder a before command printed, and returns "" when a
@@ -260,9 +273,13 @@ func checkFolder(ctx context.Context, c folderCheck) string {
 		return fmt.Sprintf("%s: the folder %s is refused: %s", folderRefused, c.folder, why)
 	}
 	folder := realPath(c.folder)
-	gitDir, common, err := gitDirs(ctx, folder)
+	paths, err := revParsePaths(ctx, folder, "--show-toplevel", "--git-dir", "--git-common-dir")
 	if err != nil {
 		return refuse("it is not a git worktree (" + err.Error() + ")")
+	}
+	top, gitDir, common := paths[0], paths[1], paths[2]
+	if top != folder {
+		return refuse("it is a folder inside the worktree " + top + ", not the worktree itself")
 	}
 	_, projectCommon, err := gitDirs(ctx, c.project)
 	if err != nil {
@@ -302,11 +319,47 @@ func checkFolder(ctx context.Context, c folderCheck) string {
 		return refuse("no card claims it, and the bridge did not make it in this run, so a person or another tool can have made it. " +
 			"To let this card use it, write the card id into " + claimPath + ", then resume the run")
 	}
-	if err := os.WriteFile(claimPath, []byte(c.card+"\n"), 0o600); err != nil {
-		return refuse("the bridge cannot write its claim file: " + err.Error())
+	if why := writeClaim(claimPath, c.card); why != "" {
+		return refuse(why)
 	}
 	if existed {
 		dropAdoption(c.project, folder)
+	}
+
+	return ""
+}
+
+// writeClaim creates the claim file of card, and fails when the file exists, so
+// two checks that both read no claim cannot both win. The card id goes into a
+// temporary file that a hard link then puts in place, so a reader never sees
+// a claim without its card id. A claim that another check wrote first passes
+// when it names the same card.
+func writeClaim(path, card string) string {
+	tmp, err := os.CreateTemp(filepath.Dir(path), claimFile+".*")
+	if err != nil {
+		return "the bridge cannot write its claim file: " + err.Error()
+	}
+	defer os.Remove(tmp.Name())
+	_, err = tmp.WriteString(card + "\n")
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Link(tmp.Name(), path)
+	}
+	if errors.Is(err, fs.ErrExist) {
+		claimed, err := os.ReadFile(path)
+		if err != nil {
+			return "the bridge cannot read its claim file: " + err.Error()
+		}
+		if owner := strings.TrimSpace(string(claimed)); owner != card {
+			return "card " + owner + " claims it"
+		}
+
+		return ""
+	}
+	if err != nil {
+		return "the bridge cannot write its claim file: " + err.Error()
 	}
 
 	return ""
