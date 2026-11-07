@@ -8,6 +8,10 @@ description: "Use when opening, gating, reviewing or merging a pull request, wri
 Every change reaches `main` through a pull request. `main` is protected, so no
 path skips this.
 
+## The branch name
+
+Name a card branch `card-<number>-<slug>`. The slug is two to four lowercase words from the card title.
+
 ## The gate, before you open anything
 
 1. `just cs` applies the formatter and rector fixes. Commit anything it

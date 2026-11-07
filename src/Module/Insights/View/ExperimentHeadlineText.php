@@ -68,6 +68,42 @@ final readonly class ExperimentHeadlineText
         return $this->translator->trans('bridge.experiments.goal.change.'.$word, ['%change%' => $this->changePercent($change->point)]);
     }
 
+    /** The change as a sign and a number, such as "\u{2212}31%", "+6 pp" or "0%". Null when the comparison has no change. */
+    public function signedChange(ExperimentComparison $comparison): ?string
+    {
+        $change = $comparison->change;
+        if (null === $change) {
+            return null;
+        }
+        if (0.0 === $change->point) {
+            return $comparison->relative ? $this->percent(0.0) : '0 pp';
+        }
+
+        $sign = $change->point < 0 ? self::MINUS : '+';
+        if (!$comparison->relative) {
+            return $sign.$this->points($change->point).' pp';
+        }
+        if (0.0 === round(abs($change->point) * 100)) {
+            return $sign.'<'.$this->percent(0.01);
+        }
+
+        return $sign.$this->percent(abs($change->point));
+    }
+
+    /** The result chip text of a comparison, such as "Clear" or "Not clear yet". */
+    public function resultLabel(ExperimentComparison $comparison, ExperimentArm $baseline): string
+    {
+        if ('held' === $comparison->state->value) {
+            return $this->translator->trans('failed' === $comparison->hold?->reason->value ? 'bridge.experiments.goal.hold.chip_failed' : 'bridge.experiments.controls.result.no_data');
+        }
+
+        return match ($comparison->state->value) {
+            'not-enough-cards' => $this->needs($comparison, $baseline),
+            'clear' => $this->translator->trans('bridge.experiments.goal.state.clear'),
+            default => $this->translator->trans('bridge.experiments.goal.state.not_clear'),
+        };
+    }
+
     /** The chip text of a comparison that is short of cards, such as "lsp-skill needs 2 more cards". Each side below the floor is named. */
     public function needs(ExperimentComparison $comparison, ExperimentArm $baseline): string
     {

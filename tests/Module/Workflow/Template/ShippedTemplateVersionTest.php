@@ -30,7 +30,7 @@ final class ShippedTemplateVersionTest extends KernelTestCase
 
         foreach ($shipped->keys() as $key) {
             $source = $shipped->source($key);
-            $stored = [...$source, 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false];
+            $stored = [...$source, 'settingValues' => ['epic-branch-pattern' => 'feature/epic-{number}'], 'approvalCoversConflictResolution' => false];
             unset($stored['version']);
 
             self::assertSame(TemplateVersion::of($source), $parser->parseStored($stored)->version, $key);

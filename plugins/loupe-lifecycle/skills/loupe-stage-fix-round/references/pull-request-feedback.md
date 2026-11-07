@@ -86,7 +86,7 @@ Never resolve a thread. The reviewer resolves it.
 
 ## Check the worker folder
 
-When the profile `Environment` section names a folder check, run it first. When the check fails, stop with `STAGE RESULT: blocked: no worker folder`. Then run this in the worker folder:
+Run the folder check of `../../loupe-stage-implementation/references/commands.md` "Check the worker folder" first: the main checkout and a folder that another card claims stop with `STAGE RESULT: blocked: no worker folder`. Then run this in the worker folder:
 
 ```bash
 git branch --show-current
@@ -94,8 +94,8 @@ git branch --show-current
 
 When it prints nothing, HEAD is detached. Treat two other cases the same way:
 
-- It prints the base branch of the profile `Gate` section.
-- It prints another card branch (`<prefix>` of `../../loupe-stage-implementation/references/commands.md` "Card branch"), and `git status --porcelain` prints nothing.
+- It prints the base branch of the pull request.
+- It prints a branch other than the head branch, and `git status --porcelain` prints nothing.
 
 In these cases, run `git fetch origin <head branch>` and `git switch <head branch>`. When no local branch has that name, run `git switch --track -c <head branch> origin/<head branch>` instead. When the current branch then differs from the head branch, change nothing, and stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 

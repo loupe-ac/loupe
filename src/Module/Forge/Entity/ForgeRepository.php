@@ -6,6 +6,7 @@ namespace App\Module\Forge\Entity;
 
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Project\Entity\Project;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -33,6 +34,14 @@ class ForgeRepository
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $lastAcceptedAt = null;
+
+    /**
+     * What the last read of the workflow file found wrong, worded for the repository check.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $fileWarnings = [];
 
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

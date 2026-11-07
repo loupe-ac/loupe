@@ -1,7 +1,8 @@
 {# The metrics table of an experiment and its notes. Props: metrics (map of ExperimentMetric), variants (list of ExperimentVariant), headline (ExperimentHeadline or null), text (ExperimentHeadlineText), unknownMetrics (list of strings, empty to leave the note out). #}
-{% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
 {% set knownReasons = ['conflict', 'checks-failed', 'changes-requested', 'agent-review'] %}
-<h3 class="lp-experiment-section">{{ 'bridge.experiments.metrics.heading'|trans }}</h3>
+<twig:Ds:Disclosure class="lp-experiment-folded" data-experiment-folded="metrics">
+<twig:block name="summary"><h3 class="lp-experiment-section">{{ 'bridge.experiments.metrics.heading'|trans }}</h3></twig:block>
+{% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
 <div class="lp-experiment-table lp-overflow-cue lp-overflow-cue--scroll lp-table-cue" data-controller="overflow-cue">
 <div class="lp-experiment-table__scroll" data-overflow-cue-target="viewport">
 <table class="lp-experiment-table__table" data-experiment-metrics>
@@ -36,3 +37,4 @@
 {% else %}
     <p class="lp-experiment-note" data-experiment-metrics-note>{{ 'bridge.experiments.metrics.note'|trans({'%level%': rangeLevel, '%count%': constant('App\\Module\\Bridge\\Experiment\\Stats::MIN_FINISHED_CARDS')}) }}</p>
 {% endif %}
+</twig:Ds:Disclosure>

@@ -793,10 +793,10 @@ file then holds an `Epics` section. Under that profile, the breakdown of epic
 number n pushes a branch `epic/<n>` from the base branch of the profile. It pushes the branch only when
 no child of the epic links a pull request yet.
 
-The workflow template of the project names the branch in its top-level
-`epicBranch` value, such as `epic/{number}`. `{number}` stands for the epic card
-number. Both shipped templates carry `epic/{number}`. A template with no
-`epicBranch` value has no epic branches.
+The workflow setting `epic-branch-pattern` names the branch, such as
+`epic/{number}`. `{number}` stands for the epic card number. Both shipped
+templates default to `epic/{number}`. The setting `epic-branches` turns epic
+branches off for the project. See [Workflow settings](workflows.md#workflow-settings).
 
 Each child of the epic starts from `epic/<n>`, and its pull request targets
 `epic/<n>`. A child that waits on a blocker inside the epic starts when the
@@ -989,10 +989,9 @@ the work instead, as its template says.
 | **Run the workflow of the board** | on | When off, the workflow moves no card and asks for no work on this board. Loupe still records the pull request facts |
 | **Stuck delay in minutes** | 15 | The minutes a pull request may stay ready to merge, or stay quiet with no card history, before its card shows **Stuck**, from 1 to 1440 |
 
-The epic branch pattern, the loop limit of the fix rules and the comments are
-part of the workflow template. The `epicBranch` value of the template names the
-epic branch, such as `epic/{number}`. The `limit` of a fix rule sets the
-number of fix rounds.
+The loop limit of the fix rules and the comments are part of the workflow
+template. The `limit` of a fix rule sets the number of fix rounds. The epic
+branch pattern is a workflow setting, which `.loupe.yaml` can override.
 
 In the Lifecycle template, Loupe posts a comment on the pull request each time
 a bridge queues a fix run for it. The comment gives the reason for the fix and

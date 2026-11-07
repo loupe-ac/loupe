@@ -234,7 +234,9 @@ final readonly class TemplateParser
         }
 
         $onWorkFailed = self::onWorkFailed($source['onWorkFailed'] ?? null, $errors);
-        $epicBranch = self::epicBranch($source['epicBranch'] ?? null, $lenient, $errors);
+        $settings = \array_key_exists('settings', $source) ? TemplateSettings::declared($source['settings'], $lenient, $errors) : [];
+        $settingValues = TemplateSettings::projectValues($source['settingValues'] ?? null, $settings, $lenient, $errors);
+        $requirements = TemplateSettings::requirements($source['requirements'] ?? null, $lenient, $errors);
         $failingSeverities = self::agentReviewFailingSeverities($source['agentReviewFailingSeverities'] ?? null, $lenient, $errors);
         $approvalCoversConflictResolution = \array_key_exists('approvalCoversConflictResolution', $source)
             ? self::approvalCoversConflictResolution($source['approvalCoversConflictResolution'], $lenient, $errors)
@@ -295,7 +297,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile);
+        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile, $settings, $requirements, $settingValues);
     }
 
     /**
@@ -1627,27 +1629,6 @@ final readonly class TemplateParser
         }
 
         return new WorkFailurePolicy($retryOn, $retries, $backoffMinutes, $recoveryKind, $repeatGoesToRepair);
-    }
-
-    /**
-     * A template with no value has no epic branches. A stored copy with a value that is not a branch name has none either.
-     *
-     * @param list<string> $errors
-     */
-    private static function epicBranch(mixed $value, bool $lenient, array &$errors): ?string
-    {
-        if (null === $value) {
-            return null;
-        }
-        if (!\is_string($value) || \strlen($value) > Template::EPIC_BRANCH_MAX_LENGTH || 1 !== preg_match(Template::EPIC_BRANCH_RULE, $value)) {
-            if (!$lenient) {
-                $errors[] = 'epicBranch: must be a Git branch name that holds the placeholder {number} exactly once';
-            }
-
-            return null;
-        }
-
-        return $value;
     }
 
     /**

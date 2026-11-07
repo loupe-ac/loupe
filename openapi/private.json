@@ -9670,7 +9670,8 @@
                                 "subcommandPrograms",
                                 "skillPackages",
                                 "needsProfile",
-                                "discoveryRemains"
+                                "discoveryRemains",
+                                "github"
                             ],
                             "properties": {
                                 "id": {
@@ -9709,6 +9710,77 @@
                                 "discoveryRemains": {
                                     "description": "Whether the owner still has to start discovery. It is true when the project has no discovery run, or when its latest run failed. A reader with no value takes true.",
                                     "type": "boolean"
+                                },
+                                "github": {
+                                    "description": "What the app knows of the GitHub repositories of the project, from its stored repository check. The list makes no call to GitHub. A reader that finds no github object takes every fact as unknown.",
+                                    "required": [
+                                        "appInstalled",
+                                        "repositories"
+                                    ],
+                                    "properties": {
+                                        "appInstalled": {
+                                            "description": "Whether the Loupe GitHub App is installed for the project and neither suspended nor removed. The appInstalled fact of each repository says whether that installation covers the repository.",
+                                            "type": "boolean"
+                                        },
+                                        "repositories": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "path",
+                                                    "appInstalled",
+                                                    "defaultBranch",
+                                                    "rulesRead",
+                                                    "reviewRequired",
+                                                    "mergeApproval",
+                                                    "mergeApprovalSource"
+                                                ],
+                                                "properties": {
+                                                    "path": {
+                                                        "type": "string"
+                                                    },
+                                                    "appInstalled": {
+                                                        "description": "Whether a live installation of the Loupe GitHub App delivers this repository. A repository that the project claims through its own hook reads false, also when the App is installed for another repository of the project.",
+                                                        "type": "boolean"
+                                                    },
+                                                    "defaultBranch": {
+                                                        "description": "The default branch, or null when no read of the repository succeeded yet.",
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "rulesRead": {
+                                                        "description": "Whether the app read the rules of the default branch. plan-limited means the plan has no rules, so GitHub enforces none. refused means the last read failed. null means no read happened yet.",
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "enum": [
+                                                            "ok",
+                                                            "plan-limited",
+                                                            "refused"
+                                                        ]
+                                                    },
+                                                    "reviewRequired": {
+                                                        "description": "Whether the rules require an approving review. It is false when the plan has no rules, and null when the rules are unknown.",
+                                                        "type": "boolean",
+                                                        "nullable": true
+                                                    },
+                                                    "mergeApproval": {
+                                                        "description": "The resolved merge-approval setting, or null while it is unset.",
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "enum": [
+                                                            "agent",
+                                                            "person"
+                                                        ]
+                                                    },
+                                                    "mergeApprovalSource": {
+                                                        "description": "Where the value came from, one of file, invalid, stored, default, unset, conflict or template.",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             },
                             "type": "object"

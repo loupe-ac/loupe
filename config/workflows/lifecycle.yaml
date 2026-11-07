@@ -3,7 +3,17 @@ version: 44
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
-epicBranch: 'epic/{number}'
+settings:
+    - { key: merge-approval, type: enum, scope: repository, values: [agent, person] }
+    - { key: epic-branches, type: bool, scope: project, default: true }
+    - { key: epic-branch-pattern, type: string, scope: project, default: 'epic/{number}', format: epic-branch }
+    - { key: epic-child-merge-method, type: enum, scope: repository, values: [squash, merge, rebase], default: squash }
+requirements:
+    - A pull request opens as a draft
+    - An agent never merges its own pull request
+    - An agent never approves its own pull request
+    - Open work goes to the board
+    - A worker works in its own folder
 outcomes:
     - { key: merged, delivered: true }
 metrics:
@@ -117,6 +127,7 @@ facts:
             - not: { card.run.worker_active: {} }
             - any:
                   - card.review.needs_person: {}
+                  - pr.merge_approval_needs_person: {}
                   - not: { pr.can_post_check: {} }
                   - agent_review.failed: {}
     tech-design-sent-agent:
@@ -472,7 +483,7 @@ rules:
                   - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry"
                   - "A preview URL per branch, with the review widget on it. When it fails, the actor is owner, and the action says to give each worker folder its own URL, or to remove the preview steps from the profile"
                   - The .loupe/lifecycle.md sections that the stage skills read
-                  - "The Environment section of .loupe/lifecycle.md matches the folder that the bridge gives a worker. When it does not, the actor is owner, and the action names the line to correct"
+                  - "The before command of the bridge work entry gives the worker the folder that the instruction files describe. When it does not, the actor is owner, and the action names the line to correct"
                   - A build command and a test command that an agent can run
                   - "The bridge commands of this kind resolve for this project and exist in its folder. Read loupe bridge check --project <slug> --json on the bridge machine. When one does not, the actor is owner, and the action names the command and the folder"
                   - "Each tool that the profile names exists for the worker account. Read the same bridge check for the configuration folder and the MCP servers of the account. When one is missing, the actor is owner, and the action names the tool and the account"
@@ -482,8 +493,8 @@ rules:
                   - A draft pull request that a separate agent reviews after the push
                   - "Conflict check: agent instruction files. No instruction file contradicts what a stage skill does"
                   - "Conflict check: repository hooks. No hook refuses a command that a stage skill runs"
-                  - "Conflict check: repository profile. .loupe/lifecycle.md holds each section and value that a stage skill reads, also when no value carries a marker"
-                  - "Conflict check: workflow template. The profile agrees with the columns, epicBranch and approvalCoversConflictResolution that workflow_get returns"
+                  - "Conflict check: repository profile. .loupe/lifecycle.md holds a routing table that routing-check.sh accepts, and each optional section holds a value that the repository shows. A stage ignores an old section"
+                  - "Conflict check: workflow template. The instruction files and the profile agree with the columns, epicBranch and approvalCoversConflictResolution that workflow_get returns"
 
     # After implement, so a card that comes back opens its new request before these read the latest request.
     - id: nothing-to-build
@@ -576,9 +587,9 @@ rules:
               cancelReason: head-moved
               checks:
                   - The worktree of the card is still available, or the agent can make it again
-                  - The gate commands of .loupe/lifecycle.md
+                  - The push gate of the instruction files
                   - Read access to the CI check logs
-                  - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
+                  - "Conflict check: CI and the gate. The push gate of the instruction files runs each check that CI requires"
                   - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"
               refill:
                   all:
@@ -623,7 +634,7 @@ rules:
               limit: 10
               checks:
                   - The worktree of the card is still available, or the agent can make it again
-                  - The gate commands of .loupe/lifecycle.md
+                  - The push gate of the instruction files
                   - Read access to the CI check logs
               refill:
                   agent_review.passed: {}
@@ -674,9 +685,9 @@ rules:
               cancelReason: head-moved
               checks:
                   - The worktree of the card is still available, or the agent can make it again
-                  - The gate commands of .loupe/lifecycle.md
+                  - The push gate of the instruction files
                   - Read access to the CI check logs
-                  - "Conflict check: CI and the gate. The Gate section of the profile runs each check that CI requires"
+                  - "Conflict check: CI and the gate. The push gate of the instruction files runs each check that CI requires"
                   - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"
               refill:
                   all:
@@ -727,7 +738,7 @@ rules:
               limit: 10
               checks:
                   - The worktree of the card is still available, or the agent can make it again
-                  - The gate commands of .loupe/lifecycle.md
+                  - The push gate of the instruction files
                   - Read access to the CI check logs
               refill:
                   agent_review.passed: {}
@@ -772,6 +783,7 @@ rules:
               - pr.checks_on_head: {}
               - pr.can_post_check: {}
               - not: { card.review.needs_person: {} }
+              - not: { pr.merge_approval_needs_person: {} }
               - not: { pr.approval_check_passed: {} }
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
@@ -804,7 +816,9 @@ rules:
               - pr.checks_passed: {}
               - pr.approval_check_passed: {}
               - any:
-                    - not: { card.review.needs_person: {} }
+                    - all:
+                          - not: { card.review.needs_person: {} }
+                          - not: { pr.merge_approval_needs_person: {} }
                     - pr.approval_covers_head: { min: 1, by: person }
               - pr.base_is_merge_target: {}
               - not: { pr.base_is_epic_branch: {} }
@@ -1020,7 +1034,9 @@ rules:
           all:
               - pr.open: {}
               - pr.approval_check_passed: {}
-              - card.review.needs_person: {}
+              - any:
+                    - card.review.needs_person: {}
+                    - pr.merge_approval_needs_person: {}
               - not: { pr.approval_covers_head: { min: 1, by: person } }
       then: { forge-write: { write: approval-check, state: revoke } }
 
@@ -1162,6 +1178,15 @@ markers:
                           - card.in_slot: { slot: tech-design }
                           - card.document.in_review: { tag: tech-design }
               - not: { card.document.agent_review_open: {} }
+    - key: waits-for-merge-approval-answer
+      kind: needs-you
+      label: marker.waits_for_merge_approval_answer
+      remedy: marker.waits_for_merge_approval_answer.remedy
+      link: inbox
+      when:
+          all:
+              - fact.pr-waits-for-approval: {}
+              - pr.merge_approval_unanswered: {}
     - key: waits-for-approval
       kind: needs-you
       label: marker.waits_for_approval

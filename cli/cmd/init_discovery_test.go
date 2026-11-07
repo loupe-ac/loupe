@@ -46,7 +46,7 @@ func TestInitWithAnOpenProfileStartsNothingAndSaysToRunInitAgain(t *testing.T) {
 	if len(*calls) != 0 || strings.Contains(out, "Start discovery now?") {
 		t.Errorf("discovery was offered or started: %v\n%s", *calls, out)
 	}
-	for _, want := range []string{"Finish the profile", "Run `loupe init` again when these are done. It then offers to start discovery."} {
+	for _, want := range []string{"Look for blockers", "Run `loupe init` again when these are done. It then offers to start discovery."} {
 		if !strings.Contains(last, want) {
 			t.Errorf("last lines lack %q:\n%s", want, last)
 		}
@@ -184,7 +184,7 @@ func TestDiscoveryStartRefusesWhenTheGateFails(t *testing.T) {
 	calls := stubDiscovery(t, api.Discovery{}, nil)
 
 	out, err := runDiscoveryCmd(t, "--project", "dev")
-	if err == nil || !strings.Contains(err.Error(), "discovery is not ready to start") || !strings.Contains(err.Error(), "Finish the profile") {
+	if err == nil || !strings.Contains(err.Error(), "discovery is not ready to start") || !strings.Contains(err.Error(), "Check the accounts") {
 		t.Fatalf("err = %v, out = %q", err, out)
 	}
 	if len(*calls) != 0 {
