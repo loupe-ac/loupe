@@ -190,27 +190,30 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertNull($second['startRefused']);
     }
 
-    /** @return iterable<string, array{string, string}> */
+    /** @return iterable<string, array{string, string, bool}> */
     public static function changedStartColumns(): iterable
     {
-        yield 'Backlog, then an allowed column' => ['backlog', 'in-progress'];
-        yield 'a refused column, then Backlog' => ['done', 'backlog'];
+        yield 'Backlog, then an allowed column' => ['backlog', 'in-progress', false];
+        yield 'a refused column, then Backlog' => ['done', 'backlog', true];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('changedStartColumns')]
-    public function test_a_retry_that_names_another_start_column_conflicts(string $firstSlug, string $retrySlug): void
+    public function test_a_retry_that_names_another_start_column_repeats_the_first_answer(string $firstSlug, string $retrySlug, bool $firstRefused): void
     {
         $client = static::createClient();
         [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-other-start-'.$firstSlug.'@example.com');
         $extra = ['deliveryId' => '0199c0de-0000-4000-8000-000000000005'];
 
-        $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $firstSlug)->id]], $extra));
+        $first = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $firstSlug)->id]], $extra));
         self::assertResponseStatusCodeSame(201);
-        $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $retrySlug)->id]], $extra));
+        $second = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $retrySlug)->id]], $extra));
 
-        self::assertResponseStatusCodeSame(409);
-        self::assertStringContainsString('delivery_conflict', (string) $client->getResponse()->getContent());
-        self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($first, $second);
+        self::assertSame($firstRefused ? $this->translated($this->column($project, $firstSlug)->label) : null, $second['startRefused']);
+        $cards = $this->service(CardRepository::class)->findBy(['project' => $project]);
+        self::assertCount(1, $cards);
+        self::assertSame('backlog', $cards[0]->column->slug);
     }
 
     public function test_a_preview_token_offers_no_start_column_and_starts_its_card_in_backlog(): void

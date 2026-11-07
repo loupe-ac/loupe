@@ -303,17 +303,6 @@ class CardEventRepository extends ServiceEntityRepository
         return \is_string($type) && '' !== $type ? $type : null;
     }
 
-    /** The id of the column the card was created in, or null when its `created` row records none. */
-    public function createdColumnId(Card $card): ?string
-    {
-        $id = $this->getEntityManager()->getConnection()->fetchOne(
-            "SELECT detail->'column'->>'id' FROM board_card_events WHERE card_id = :card AND kind = :kind ORDER BY occurred_at, id LIMIT 1",
-            ['card' => (string) $card->id, 'kind' => CardEventKind::Created->value],
-        );
-
-        return \is_string($id) && '' !== $id ? $id : null;
-    }
-
     public function findFirstOccurredAt(Project $project): ?\DateTimeImmutable
     {
         $connection = $this->getEntityManager()->getConnection();

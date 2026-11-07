@@ -5219,9 +5219,14 @@
                               newCard: startColumnId ? { startColumnId } : {},
                           };
                 // A retry keeps its delivery id only while it names the same
-                // target and start column. The server refuses a known id sent
-                // to another one, because both join its delivery hash.
-                const targetKey = JSON.stringify(target);
+                // target. The server refuses a known id sent to another one.
+                // The start column stays out of the key, because the server
+                // leaves it out of the delivery hash too.
+                const targetKey = JSON.stringify(
+                    destination.mode === 'per-review'
+                        ? target
+                        : { newCard: {} },
+                );
                 if (
                     state.deliveryId === null ||
                     state.deliveryTarget !== targetKey

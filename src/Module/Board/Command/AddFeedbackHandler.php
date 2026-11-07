@@ -12,7 +12,6 @@ use App\Module\Board\Entity\CardSource;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\BoardColumnRepository;
-use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\FeedbackCardTitle;
@@ -59,7 +58,6 @@ final readonly class AddFeedbackHandler
         private WidgetStartOptions $startOptions,
         private WidgetSignIn $signIn,
         private TranslatorInterface $translator,
-        private CardEventRepository $cardEvents,
     ) {
     }
 
@@ -98,7 +96,7 @@ final readonly class AddFeedbackHandler
                 if (null === $replayed) {
                     return new DomainErrors(['deliveryId' => 'delivery_conflict']);
                 }
-                $startRefused = $this->replayedRefusal($command, $replayed);
+                $startRefused = $replayed->startRefused;
 
                 return $replayed;
             }
@@ -124,7 +122,7 @@ final readonly class AddFeedbackHandler
             ));
 
             $comment = ($this->addComment)($this->addCommentCommand($command, $screenshot));
-            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null);
+            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null, $startRefused);
             $this->em->persist($link);
             $created = true;
 
@@ -202,27 +200,6 @@ final readonly class AddFeedbackHandler
         return \in_array($column, $this->startOptions->allowedAmong($command->project, $columns), true) ? $column : null;
     }
 
-    /**
-     * The refusal of the first answer, read again for a retry whose answer was
-     * lost. The start column joins the delivery hash, so the retry names the
-     * column of the first save. A refused start always lands in Backlog. The
-     * `created` row keeps that column, and a later move does not change it.
-     */
-    private function replayedRefusal(AddFeedbackCommand $command, CardSiteReviewComment $link): ?string
-    {
-        if (!$link->createdCard || null === $command->startColumnId) {
-            return null;
-        }
-        $createdInId = $this->cardEvents->createdColumnId($link->card);
-        $createdIn = null === $createdInId ? null : $this->boardColumns->findOneByIdAndProjectId($createdInId, (string) $command->project->id);
-        if (null === $createdIn || !$createdIn->backlog) {
-            return null;
-        }
-        $askedForBacklog = strtolower($command->startColumnId) === (string) $createdIn->id;
-
-        return $askedForBacklog && !$this->signIn->isPreviewToken() ? null : $this->refusedColumnName($command);
-    }
-
     /** The name of the refused column for the answer, or an empty string when the id names no column of the project. */
     private function refusedColumnName(AddFeedbackCommand $command): string
     {
@@ -251,17 +228,15 @@ final readonly class AddFeedbackHandler
     }
 
     /**
-     * The target as the request named it, with its start column. It joins the
-     * delivery hash, so a retry to another target or another start column
-     * conflicts whatever happened to the card since.
+     * The target as the request named it. It joins the delivery hash, so a
+     * retry to another target conflicts whatever happened to the card since.
+     * The start column stays out, so a retry with another column lands on the
+     * first card and repeats the start result that its link stored.
      */
     private static function deliveryScope(AddFeedbackCommand $command): string
     {
         if (null !== $command->cardId) {
             return 'card:'.strtolower(trim($command->cardId));
-        }
-        if (null !== $command->startColumnId) {
-            return 'new:'.strtolower(trim($command->startColumnId));
         }
 
         return 'new';
