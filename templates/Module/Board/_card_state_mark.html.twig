@@ -9,11 +9,12 @@
     <span class="lp-tooltip__line--quiet">{{ card_state_text(main.kind.sinceKey, main.since) }}</span>
     {% if link %}
     {% if main.link is not null %}
+    {% set mainLink = marker_link_target(main.link) %}
     <a class="lp-tooltip__link"
        draggable="false"
-       href="{{ marker_link_href(main.link, card.project) }}"
+       href="{{ marker_link_href(mainLink, card.project) }}"
        data-turbo-frame="_top"
-       data-marker-link="{{ main.link.value }}">{{ main.link.translationKey|trans }}</a>
+       data-marker-link="{{ mainLink.value }}">{{ mainLink.translationKey|trans }}</a>
     {% endif %}
     {% if inboxItem is not null %}
     <a class="lp-tooltip__link"

@@ -121,6 +121,7 @@ final class ForgeRepositoriesTest extends KernelTestCase
         $claim = $this->installation($project, '1017', 'acme/widgets', '7');
 
         self::assertSame(ForgeClaimOutcome::AlreadyOwned, $claim->outcome);
+        self::assertTrue($claim->tookOver);
         self::assertSame(1, $this->rowCount('1017'));
         $row = $this->rowOf($project, '1017');
         self::assertNotNull($row);

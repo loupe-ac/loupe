@@ -31,11 +31,15 @@ use App\Module\Bridge\Workflow\RefusalFacts;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState as ForgePullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Review\Entity\Document;
@@ -53,10 +57,13 @@ use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
+use App\Module\Workflow\Entity\WorkflowRepositorySetting;
+use App\Module\Workflow\Entity\WorkflowSettingOverride;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\PassMemo;
+use App\Module\Workflow\Service\SettingValues;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -455,6 +462,51 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->coveredSha = null;
         $this->em()->flush();
         self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
+    }
+
+    public function test_the_merge_question_reaches_the_facts_of_an_open_pull_request(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-merge-question');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-review');
+        $this->pullRequest($card);
+        $installationId = random_int(1, \PHP_INT_MAX);
+        $this->em()->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::All));
+        $repository = new ForgeRepository($project, 'github', 'ext-'.uniqid(), self::REPOSITORY, ForgeRepositorySource::Installation, (string) $installationId);
+        $this->em()->persist($repository);
+        $this->em()->flush();
+
+        $unanswered = $this->facts($card)->pullRequest;
+        self::assertTrue($unanswered?->canPostCheck);
+        self::assertTrue($unanswered->mergeApprovalUnanswered);
+        self::assertTrue($unanswered->mergeApprovalNeedsPerson);
+
+        $this->em()->persist(new WorkflowRepositorySetting($project, $repository->id ?? throw new \LogicException('No id.'), 'merge-approval', SettingValues::encode('agent')));
+        $this->em()->flush();
+        $agent = $this->facts($card)->pullRequest;
+        self::assertFalse($agent?->mergeApprovalUnanswered);
+        self::assertFalse($agent->mergeApprovalNeedsPerson);
+
+        $this->em()->persist(new WorkflowSettingOverride($project, $repository->id, 'merge-approval', SettingValues::encode('person'), true, 'blob', 'head'));
+        $this->em()->flush();
+        $person = $this->facts($card)->pullRequest;
+        self::assertFalse($person?->mergeApprovalUnanswered);
+        self::assertTrue($person->mergeApprovalNeedsPerson);
+    }
+
+    public function test_a_pull_request_of_a_repository_without_a_row_asks_no_merge_question(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-merge-question-no-row');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-review');
+        $this->pullRequest($card);
+
+        $facts = $this->facts($card)->pullRequest;
+
+        self::assertFalse($facts?->mergeApprovalUnanswered);
+        self::assertFalse($facts->mergeApprovalNeedsPerson);
     }
 
     public function test_changes_are_requested_until_a_done_fix_run_that_opened_after_the_review_answers_them(): void
@@ -1026,8 +1078,8 @@ final class FactsBuilderTest extends KernelTestCase
     {
         $binding = $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
         $definition = $binding->definition;
-        unset($definition['epicBranch']);
-        $binding->definition = null === $pattern ? $definition : [...$definition, 'epicBranch' => $pattern];
+        $values = null === $pattern ? ['epic-branches' => false] : ['epic-branch-pattern' => $pattern];
+        $binding->definition = [...$definition, 'settingValues' => $values];
         $this->em()->flush();
     }
 

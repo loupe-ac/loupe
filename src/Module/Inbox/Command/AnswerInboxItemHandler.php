@@ -9,6 +9,9 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxMergeApprovalQuestion;
+use App\Module\Inbox\Messenger\OpenMergeApprovalPullRequest;
+use App\Module\Inbox\Repository\InboxMergeApprovalQuestionRepository;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Workflow\Messenger\RunRuleAskAnswer;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -33,6 +36,7 @@ final readonly class AnswerInboxItemHandler
         private InboxItemCloser $closer,
         private Auditor $auditor,
         private MessageBusInterface $bus,
+        private InboxMergeApprovalQuestionRepository $inboxMergeApprovalQuestions,
     ) {
     }
 
@@ -66,6 +70,14 @@ final readonly class AnswerInboxItemHandler
             $item->note = '' === $text ? null : $text;
             if (InboxItemKind::Workflow === $item->kind) {
                 $this->bus->dispatch(new RunRuleAskAnswer((string) $item->id, $selected[0]));
+            }
+            $mergeQuestion = $this->inboxMergeApprovalQuestions->findOneForItem($item);
+            if (null !== $mergeQuestion && [] !== $selected) {
+                // The answer is stored here, so a reconcile between this commit and the pull request keeps the row.
+                $mergeQuestion->answer = InboxMergeApprovalQuestion::VALUES[$selected[0]] ?? null;
+                if (null !== $mergeQuestion->answer) {
+                    $this->bus->dispatch(new OpenMergeApprovalPullRequest((string) $item->id));
+                }
             }
 
             return null;

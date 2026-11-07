@@ -31,7 +31,10 @@ use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\RepositorySuggestion;
 use App\Module\Workflow\Contract\RepositorySuggestionKey;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\SettingType;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
@@ -87,6 +90,18 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(\count($names), preg_match_all('/^\d+\. `Conflict check: /m', $skill));
     }
 
+    public function test_the_discovery_skill_lists_twelve_deep_checks_and_writes_the_routing_table_after_an_owner_answer(): void
+    {
+        $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
+        preg_match('/## Deep checks\n(.*?)\n### /s', $skill, $section);
+
+        self::assertSame(12, preg_match_all('/^\d+\. /m', $section[1] ?? ''));
+        self::assertStringContainsString('the 12 deep checks', $skill);
+        self::assertStringContainsString('with one blocking `inbox_ask` question that holds the whole table', $skill);
+        self::assertStringNotContainsString('routing-table', $skill);
+        self::assertStringNotContainsString('The owner then runs `loupe init`', $skill);
+    }
+
     public function test_the_discovery_skill_names_each_onboarding_check_and_the_actor_of_findings(): void
     {
         $skill = (string) file_get_contents(\dirname(__DIR__, 4).'/plugins/loupe/skills/loupe-discovery/SKILL.md');
@@ -95,7 +110,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach (['## Actor and action', 'loupe bridge check --project <slug> --json', 'One e2e run at a time on a shared stack', 'an `actor` and an `action`'] as $text) {
             self::assertStringContainsString($text, $skill);
         }
-        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The Environment section', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
+        foreach (['The bridge commands of this kind', 'Each tool that the profile names', 'The before command of the bridge work entry gives the worker', 'A gate step that serves the main checkout', 'Each fact that a worker needs', 'A new worktree has what the gate needs', 'A preview URL per branch, with the review widget on it. When it fails, the actor is owner'] as $check) {
             self::assertStringContainsString($check, $source);
         }
     }
@@ -113,6 +128,34 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertTrue($this->template('lifecycle')->needsProfile);
         self::assertSame(['loupe'], $this->template('simple')->skillPackages);
         self::assertFalse($this->template('simple')->needsProfile);
+    }
+
+    public function test_each_template_declares_its_settings(): void
+    {
+        $epic = [
+            new TemplateSetting('epic-branches', SettingType::Boolean, SettingScope::Project, default: true),
+            new TemplateSetting('epic-branch-pattern', SettingType::Text, SettingScope::Project, default: 'epic/{number}', format: 'epic-branch'),
+            new TemplateSetting('epic-child-merge-method', SettingType::Choice, SettingScope::Repository, ['squash', 'merge', 'rebase'], 'squash'),
+        ];
+        $lifecycle = $this->template('lifecycle');
+        self::assertEquals([new TemplateSetting('merge-approval', SettingType::Choice, SettingScope::Repository, ['agent', 'person']), ...$epic], $lifecycle->settings);
+        self::assertSame('epic/12', $lifecycle->epicBranchOf(12));
+
+        $simple = $this->template('simple');
+        self::assertEquals($epic, $simple->settings);
+        self::assertSame('epic/12', $simple->epicBranchOf(12));
+    }
+
+    public function test_each_template_lists_its_requirements(): void
+    {
+        self::assertSame([
+            'A pull request opens as a draft',
+            'An agent never merges its own pull request',
+            'An agent never approves its own pull request',
+            'Open work goes to the board',
+            'A worker works in its own folder',
+        ], $this->template('lifecycle')->requirements);
+        self::assertSame([], $this->template('simple')->requirements);
     }
 
     public function test_each_template_suggests_its_repository_settings(): void
@@ -902,6 +945,10 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $passed, pullRequests: [$passed])));
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $byPerson, pullRequests: [$byPerson], provided: $needsPerson)));
+        $held = FactsMother::pullRequest(checks: ChecksState::Passed, approvalCheckPassed: true, mergeApprovalNeedsPerson: true);
+        self::assertContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $held, pullRequests: [$held])), 'A passed check turns to failure when the merge question holds the merge.');
+        $heldByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, approvalCheckPassed: true, mergeApprovalNeedsPerson: true);
+        self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldByPerson, pullRequests: [$heldByPerson])));
         $failed = FactsMother::pullRequest(checks: ChecksState::Passed);
         self::assertNotContains('approval-check-revoke', $this->firingRuleIds(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $failed, pullRequests: [$failed], provided: $needsPerson)));
     }
@@ -1368,6 +1415,34 @@ final class ShippedTemplatesTest extends KernelTestCase
             FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $checkPassed, pullRequests: [$checkPassed], provided: [HumanReviewFacts::class => new HumanReviewFacts(true)]),
             ['approval-check-auto', 'merge-ready', 'approval-check-revoke'],
             'approval-check-revoke',
+        ];
+
+        $unanswered = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request in a repository with no answer to the merge question gets no approval check' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $unanswered, pullRequests: [$unanswered]),
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            null,
+        ];
+
+        $answeredPerson = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, canPostCheck: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request in a repository that answered person gets no approval check' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $answeredPerson, pullRequests: [$answeredPerson]),
+            ['approval-check-auto', 'approval-check-person', 'merge-ready'],
+            null,
+        ];
+
+        $heldWithCheck = FactsMother::pullRequest(checks: ChecksState::Passed, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a pull request whose check passed before the question was open does not merge' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldWithCheck, pullRequests: [$heldWithCheck]),
+            ['approval-check-auto', 'merge-ready'],
+            null,
+        ];
+
+        $heldApprovedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true, approvalCheckPassed: true, canPostCheck: true, mergeApprovalUnanswered: true, mergeApprovalNeedsPerson: true);
+        yield 'a person approval merges a pull request in a repository with no answer' => [
+            FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $heldApprovedByPerson, pullRequests: [$heldApprovedByPerson]),
+            ['merge-ready'],
+            'merge-ready',
         ];
 
         $approvedByPerson = FactsMother::pullRequest(checks: ChecksState::Passed, approvalsCoveringHead: 1, checksOnHead: true, baseIsDefault: true);
