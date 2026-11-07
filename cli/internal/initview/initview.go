@@ -186,7 +186,7 @@ func ShortPath(s string) string {
 		if start > 0 && (isNameChar(s[start-1]) || s[start-1] == '/' || s[start-1] == '.') {
 			continue
 		}
-		if end < len(s) && isNameChar(s[end]) {
+		if !endsName(s, end) {
 			continue
 		}
 		b.WriteString(s[rest:start] + "~")
@@ -195,6 +195,25 @@ func ShortPath(s string) string {
 	b.WriteString(s[rest:])
 
 	return b.String()
+}
+
+// endsName reports whether the home path that stops before s[i] is a whole
+// folder name: the text ends, a path or a space follows, or punctuation that
+// ends a sentence follows. A dot that more of a name follows, as in
+// "/home/ann.backup", continues the name.
+func endsName(s string, i int) bool {
+	for ; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '/' || c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			return true
+		case strings.IndexByte(",;:!?)]}'\"", c) >= 0:
+			return true
+		case c != '.':
+			return false
+		}
+	}
+
+	return true
 }
 
 // isNameChar reports whether c can continue a folder name, so the home path
