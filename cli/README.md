@@ -1144,7 +1144,7 @@ An interactive prompt gets none.
 | `{pullRequestNumber}` | the number of the pull request that the rule acts on, when the request opened |
 | `{pullRequestUrl}` | the link to that pull request, as the card holds it |
 | `{headSha}` | the head commit of that pull request when the request opened |
-| `{reason}` | why the pull request needs work: `conflict`, `checks-failed`, `changes-requested` or `agent-review`. For a `repair` request, the refusal code of the failed work, such as `failed` |
+| `{reason}` | why the pull request needs work: `conflict`, `checks-failed`, `changes-requested` or `agent-review`. For a `recover` request, the refusal code of the failed work, such as `failed` |
 | `{documentId}` | the id of the document that a revision works on, from the `document` parameter of the request rule |
 | `{epicBranch}` | the epic branch of the parent of the card, such as `epic/852`. Empty for a card with no epic branch |
 
@@ -1165,6 +1165,7 @@ account. The server pins the variant of each card, so a card keeps its model and
 its account on every later covered run.
 [Experiments](../docs/extending/cli-bridge.md#experiments) gives the checks, the
 pin and the fallback.
+A project can hold its own `experiments:` block under `projects.<slug>`, with the same keys. Its experiment covers the entry the project runs for each covered kind, and runs on that project alone. It needs the release after v2.2.1.
 
 An open request waits in [the queue](#the-queue). The bridge
 claims it when the run gets its worker slot and its card, just before the
@@ -2039,7 +2040,8 @@ CLI released after v2.0.2. It lists each warning on one line:
 
 - a `before`, `refresh`, `reset` or command path that the folder of its project lacks
 - a work kind that one project lists and another project does not
-- a project entry of a kind that an experiment covers, which runs without the variants
+- a project entry of a kind that a top-level experiment covers, which runs without the variants
+- a project experiment that covers a kind that a top-level experiment also covers, so the runs of that project leave the top-level experiment
 
 ```bash
 loupe bridge check

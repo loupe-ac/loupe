@@ -27,7 +27,7 @@ The workflow also makes the moves that follow a pull request.
 | In review | `in-review` | | `review`, `fix`, `merge`, `sync`, `rebase-stacked` |
 | Done | `done` | terminal | `teardown` |
 
-A `repair` request belongs to no column. The workflow opens it in any column,
+A `recover` request belongs to no column. The workflow opens it in any column,
 when the work of a rule fails and its retries run out.
 
 The implementation worker ends when it opens the pull request, and it reports
@@ -325,7 +325,7 @@ work:
       Loupe asks for epic preview work.
       Loupe instance https://app.loupe.ac.
 
-  repair:
+  recover:
     permissions: full
     before:
       run: [bin/worktrees/bridge-before.sh, "--git-only", "{cardNumber}", "{cardId}"]
@@ -333,7 +333,7 @@ work:
     reset:
       run: [just, worktree-down, "card-{cardNumber}"]
     prompt: |
-      Use the loupe-stage-repair skill.
+      Use the loupe-stage-recover skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Rule {ruleId} failed with {reason}.
       Loupe instance https://app.loupe.ac.
@@ -362,16 +362,16 @@ preview `.worktrees/epic-<number>` under a lock, and prints its path. The
 worker starts there and runs the `loupe-stage-merge` skill, which only seeds and
 proves the preview links.
 
-The `repair` entry runs the `loupe-stage-repair` skill after the work of a
+The `recover` entry runs the `loupe-stage-recover` skill after the work of a
 rule fails and its retries run out. Its `before` command takes `--git-only`, so
 it makes or keeps `.worktrees/card-<number>` with git alone, and provisions no
-app. The failed step is often the provisioning of the app, so the repair must
+app. The failed step is often the provisioning of the app, so the recovery must
 not depend on it. The
 worker finds the failed run of the rule with `worker_run_list` and
-`worker_run_get`. The `Repair` section of `.loupe/lifecycle.md` lists what it
+`worker_run_get`. The `Recovery` section of `.loupe/lifecycle.md` lists what it
 may change: the card branch, the card worktree, and a sync of the epic branch
 with `main`. To remove a broken card worktree, it runs `loupe env reset`, which
-runs the `reset` command of the entry in the main checkout. When the repair ends
+runs the `reset` command of the entry in the main checkout. When the recovery ends
 done, the rule gets one last try.
 [Workflows](../using/workflows.md#pauses-and-retries) describes the escalation.
 
@@ -401,7 +401,7 @@ The design entries use the `workspace` level, which runs Claude Code in `auto`
 mode. When a worker run reports a denied tool, add an `mcp__loupe__*` allow
 rule to `.claude/settings.local.json`.
 
-The `implement`, `breakdown`, `fix`, `merge`, `sync` and `repair` entries use
+The `implement`, `breakdown`, `fix`, `merge`, `sync` and `recover` entries use
 the `full` level, which runs Claude Code in `bypassPermissions` mode. The gate
 and the `gh` calls run arbitrary commands, and nobody answers a permission
 prompt in a worker. This choice has a cost. The worker can run any
@@ -415,7 +415,7 @@ that change from one setup to the next.
 
 1. The repository profile, `.loupe/lifecycle.md`, belongs to the repository. Its
    sections are `Instruction files`, `Environment`, `Gate`, `Code review`,
-   `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. It can also hold the optional
+   `Changelog`, `Pull request`, `Board`, `Merge` and `Recovery`. It can also hold the optional
    `Forge`, `Visual check` and `Epics` sections. The profile of this repository names
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage

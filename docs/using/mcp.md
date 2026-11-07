@@ -267,7 +267,7 @@ Loupe project:
 | `loupe-lifecycle:loupe-stage-review` | Reviewing the pull request of a card at its head commit |
 | `loupe-lifecycle:loupe-stage-design-review` | Reviewing a draft product design or tech design |
 | `loupe-lifecycle:loupe-stage-merge` | Merging a ready pull request, or updating one that is behind its base |
-| `loupe-lifecycle:loupe-stage-repair` | Fixing the cause of failed work, after its retries run out |
+| `loupe-lifecycle:loupe-stage-recover` | Fixing the cause of failed work, after its retries run out |
 
 The `loupe` plugin carried an MCP server until version 0.2.0, as an HTTP endpoint plus a
 project API token you typed at install. Two things were wrong with it. A plugin

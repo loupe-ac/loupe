@@ -727,3 +727,50 @@ func TestDiffRulesSeesAChangedVariant(t *testing.T) {
 		t.Fatalf("result = %+v", res)
 	}
 }
+
+// A shared entry that a project experiment covers is a copy for that project,
+// so a changed variant reads <slug>/<kind>.
+func TestDiffRulesSeesAChangedProjectExperimentCopy(t *testing.T) {
+	parse := func(model string) *rules.Set {
+		t.Helper()
+		body := "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\n" +
+			"    experiments:\n      plan-2:\n        covers: [plan]\n        baseline: a\n        variants:\n          - {name: a, weight: 1, model: " + model + "}\n" +
+			"work:\n  plan:\n    prompt: go\n"
+		set, err := rules.Parse([]byte(body), rules.Defaults{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return set
+	}
+
+	if res := diffRules(parse("opus"), parse("sonnet")); !slices.Equal(res.Changed, []string{"loupe/plan"}) {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+// A project entry that becomes a covered copy still runs the kind, so the
+// reload names it changed, not removed.
+func TestDiffRulesSeesAProjectEntryTurnIntoACoveredCopy(t *testing.T) {
+	dir := t.TempDir()
+	head := "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + dir + "\n"
+	trial := "    experiments:\n      plan-2:\n        covers: [plan]\n        baseline: a\n        variants:\n          - {name: a, weight: 1, model: opus}\n"
+	parse := func(body string) *rules.Set {
+		t.Helper()
+		set, err := rules.Parse([]byte(body), rules.Defaults{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return set
+	}
+	own := parse(head + "    work:\n      plan:\n        prompt: mine\n" + "work:\n  plan:\n    prompt: go\n")
+	covered := parse(head + trial + "work:\n  plan:\n    prompt: go\n")
+
+	for _, c := range []struct{ old, set *rules.Set }{{own, covered}, {covered, own}} {
+		res := diffRules(c.old, c.set)
+		if !slices.Equal(res.Changed, []string{"loupe/plan"}) || len(res.Removed) != 0 || len(res.Added) != 0 {
+			t.Fatalf("result = %+v", res)
+		}
+	}
+}

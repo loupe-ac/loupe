@@ -306,6 +306,9 @@ type Project struct {
 	// Work maps a kind to the entry this project runs in place of the shared
 	// entry of the same kind. A kind it does not list uses the shared entry.
 	Work map[string]WorkEntry `yaml:"work"`
+	// Experiments maps an experiment name to the kinds it covers for this
+	// project alone, and the variants they run on.
+	Experiments map[string]ExperimentBlock `yaml:"experiments"`
 }
 
 // BeforeConfig is the before block as written. No shell reads Run.
@@ -378,6 +381,10 @@ type Set struct {
 	// projectWork maps a project slug to the entries it lists, with the
 	// defaults filled. entryFor reads it before work.
 	projectWork map[string]map[string]WorkEntry
+	// coveredWork maps a project slug to a copy of each shared entry that a
+	// project experiment covers, for a kind the project does not list itself.
+	// entryFor reads it after projectWork.
+	coveredWork map[string]map[string]WorkEntry
 	// appPrompts runs the app prompt of a kind that work does not hold, with
 	// appRun.
 	appPrompts bool
@@ -439,7 +446,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		return nil, err
 	}
 
-	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, projectWork: map[string]map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, acceptEntries: f.AcceptEntries, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
+	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, projectWork: map[string]map[string]WorkEntry{}, coveredWork: map[string]map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, acceptEntries: f.AcceptEntries, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
 	s.appPrompts, s.defaults, s.fileDefaults = f.AppPrompts != nil && *f.AppPrompts, defaults, f.Defaults
 	if keyNode(root, "accounts") == nil {
 		s.agentsOff = agentsOffNoAccounts
@@ -512,15 +519,16 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 	for _, slug := range slices.Sorted(maps.Keys(f.Projects)) {
 		errs = append(errs, s.checkProjectWork(slug, f.Projects[slug], f.WorkerPools, pools, known, declared, root)...)
 	}
-	covered, experimentErrs := checkExperiments(s.work, f.Experiments)
+	covered, experimentErrs := checkExperiments(func(kind string) (WorkEntry, bool) { w, ok := s.work[kind]; return w, ok }, f.Experiments, "")
 	errs = append(errs, experimentErrs...)
 	for _, kind := range slices.Sorted(maps.Keys(covered)) {
 		e := covered[kind]
 		w := s.work[kind]
-		errs = append(errs, s.checkVariantAccounts(kind, &w, &e, declared, root)...)
+		errs = append(errs, s.checkVariantAccounts(kind, &w, &e, []any{"experiments", e.Name}, "", declared, root)...)
 		w.experiment = &e
 		s.work[kind] = w
 	}
+	errs = append(errs, s.attachProjectExperiments(f, declared, root)...)
 	if s.appPrompts {
 		if err := checkPool("", f.WorkerPools, pools, known, s.maxWorkers); err != nil {
 			errs = append(errs, fmt.Errorf("appPrompts: %w", err))
@@ -704,14 +712,14 @@ func (s *Set) checkEntryAccounts(base []any, prefix string, w *WorkEntry, declar
 // experiment for one covered kind, and fills its run settings. A setting takes
 // the first value that is not empty: the kinds entry of the variant for the
 // kind, the variant, the work entry, then the account.
-func (s *Set) checkVariantAccounts(kind string, w *WorkEntry, e *Experiment, declared []string, root *yaml.Node) []error {
+func (s *Set) checkVariantAccounts(kind string, w *WorkEntry, e *Experiment, base []any, label string, declared []string, root *yaml.Node) []error {
 	var errs []error
 	e.settings = make([]RunSettings, len(e.Variants))
 	for i, v := range e.Variants {
 		at := func(path ...any) string {
-			return lineOf(root, append([]any{"experiments", e.Name, "variants", i}, path...)...)
+			return lineOf(root, append(append(slices.Clone(base), "variants", i), path...)...)
 		}
-		prefix := fmt.Sprintf("experiment %q: variant %q: ", e.Name, v.Name)
+		prefix := fmt.Sprintf("%sexperiment %q: variant %q: ", label, e.Name, v.Name)
 		errs = append(errs, checkAccountName(at("account"), prefix+"account", v.Account, declared)...)
 		errs = append(errs, checkLevel(at("permissions"), prefix+"permissions", v.Permissions)...)
 		for _, k := range slices.Sorted(maps.Keys(v.Kinds)) {
@@ -796,13 +804,10 @@ func (s *Set) UsedAccounts() []string {
 // entries that the project does not replace, and the app prompt run.
 func (s *Set) UsedAccountsFor(slug string) []string {
 	runs := []RunSettings{}
-	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
-		if _, own := s.projectWork[slug][kind]; !own {
-			runs = append(runs, s.work[kind].runs()...)
+	for _, kind := range s.allKinds() {
+		if w, ok := s.entryFor(slug, kind); ok {
+			runs = append(runs, w.runs()...)
 		}
-	}
-	for _, kind := range slices.Sorted(maps.Keys(s.projectWork[slug])) {
-		runs = append(runs, s.projectWork[slug][kind].runs()...)
 	}
 	if s.appPrompts {
 		runs = append(runs, s.appRun)
