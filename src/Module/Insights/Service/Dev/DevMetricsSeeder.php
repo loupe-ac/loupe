@@ -116,7 +116,7 @@ final readonly class DevMetricsSeeder
         return $runsSeeded || $graphsSeeded || $resultsKept;
     }
 
-    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. The waiting graph loses the row that a Dashboard view and the worker gave it. */
+    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. The waiting graph loses a row that an older seed or a share page gave it. The worker skips it, as DevWaitingGraphHold says. */
     private function keepResults(Project $project, bool $all): bool
     {
         $kept = false;

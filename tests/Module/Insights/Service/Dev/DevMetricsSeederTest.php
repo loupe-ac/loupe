@@ -17,6 +17,8 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Service\Dev\DevMetricsCardSeeder;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Messenger\RefreshInsightsItemHandler;
 use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
@@ -122,6 +124,21 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         self::assertTrue($this->seed($project, self::NOW));
         self::assertNull($kept->findForGraph($graph));
+        self::assertFalse($this->seed($project, self::NOW));
+    }
+
+    public function test_a_dashboard_view_and_a_worker_run_leave_the_waiting_graph_waiting(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-hold');
+        $this->seed($project, self::NOW);
+
+        $waitingId = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG);
+        $this->service(RefreshInsightsItemHandler::class)(new RefreshInsightsItem((string) $project->id, $waitingId->toRfc4122(), null));
+        $this->em()->clear();
+
+        $graph = $this->service(InsightsSavedGraphRepository::class)->find($waitingId);
+        self::assertNotNull($graph);
+        self::assertNull($this->service(InsightsKeptResultRepository::class)->findForGraph($graph));
         self::assertFalse($this->seed($project, self::NOW));
     }
 
