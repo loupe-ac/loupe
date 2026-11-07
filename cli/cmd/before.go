@@ -51,11 +51,13 @@ type procSpec struct {
 
 // procResult is one finished command. err is set when the command never ran.
 // dir is the folder a before command printed, and reason says why the command
-// failed when its exit code does not. runDir holds its files.
+// failed when its exit code does not. runDir holds its files. noFolder is true
+// when the before command printed no folder, so dir is the project dir.
 type procResult struct {
 	exitCode int
 	killed   bool
 	timedOut bool
+	noFolder bool
 	err      error
 	dir      string
 	output   string
@@ -254,9 +256,10 @@ func procOutcome(k procKind, dir, project string, killed, timedOut bool) procRes
 		var folder string
 		folder, rest = lastOutputLine(stdout)
 		res.dir, res.reason = resolveFolder(folder, project)
+		res.noFolder = folder == ""
 		// Unread stdout can hide the folder, so the run must not start in the project dir.
 		if stdoutErr != nil {
-			res.dir, res.reason = "", "the bridge cannot read the "+k.label+"'s output: "+stdoutErr.Error()
+			res.dir, res.noFolder, res.reason = "", false, "the bridge cannot read the "+k.label+"'s output: "+stdoutErr.Error()
 		}
 	}
 

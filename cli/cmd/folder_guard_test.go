@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) {
@@ -223,6 +224,67 @@ func TestARefusedFolderFailsTheRunAndStartsNoWorker(t *testing.T) {
 	sent := rec.states()
 	wantStates(t, sent, api.RunQueued, api.RunPreparing, api.RunFailed)
 	if got := sent[2].report.Output; !strings.Contains(got, "folder-refused") {
+		t.Fatalf("output = %q", got)
+	}
+	if calls := h.worker.recorded(); len(calls) != 0 {
+		t.Fatalf("worker started: %+v", calls)
+	}
+}
+
+// gitBridge is a harness whose project dir is a git repository, with the real
+// folder guard and a before command that runs make and prints its folder.
+func gitBridge(t *testing.T, make func(project string) string) *harness {
+	t.Helper()
+	shortConfigHome(t)
+	h, _, _ := withBefore(t, "1m")
+	gitIn(t, h.dir, "init", "-q")
+	gitIn(t, h.dir, "commit", "-q", "--allow-empty", "-m", "first")
+	h.router.worker.folder = defaultWorkerOps().folder
+	h.router.worker.before = func(ctx context.Context, spec procSpec, onStart func(workerProc)) procResult {
+		onStart(workerProc{pid: 4242})
+		runs, err := config.RunsDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return procResult{dir: make(spec.dir), runDir: filepath.Join(runs, spec.runID)}
+	}
+
+	return h
+}
+
+// A bridge run saves the worktree list before its before command, so the
+// worktree that command makes passes the guard and gets the claim of the card.
+func TestABridgeRunClaimsTheWorktreeItsBeforeCommandMade(t *testing.T) {
+	var tree string
+	h := gitBridge(t, func(project string) string {
+		tree = addTree(t, project, "card-87")
+
+		return tree
+	})
+	rec := h.states()
+
+	h.send(cardMoved(87))
+
+	wantStates(t, rec.states(), api.RunQueued, api.RunPreparing, api.RunRunning, api.RunSucceeded)
+	if calls := h.worker.recorded(); len(calls) != 1 || calls[0].dir != tree {
+		t.Fatalf("worker = %+v, want it in %s", calls, tree)
+	}
+	if claimOf(t, tree) == "" {
+		t.Fatalf("no claim in %s", tree)
+	}
+}
+
+// A before command that prints the main checkout is judged, and refused.
+func TestABridgeRunRefusesAPrintedMainCheckout(t *testing.T) {
+	h := gitBridge(t, func(project string) string { return project })
+	rec := h.states()
+
+	h.send(cardMoved(87))
+
+	sent := rec.states()
+	wantStates(t, sent, api.RunQueued, api.RunPreparing, api.RunFailed)
+	if got := sent[2].report.Output; !strings.Contains(got, "folder-refused") || !strings.Contains(got, "main checkout") {
 		t.Fatalf("output = %q", got)
 	}
 	if calls := h.worker.recorded(); len(calls) != 0 {

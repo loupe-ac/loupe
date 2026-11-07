@@ -1259,7 +1259,7 @@ func (r *router) prepare(p pending) {
 	if run == nil {
 		run = runBefore
 	}
-	if runs, err := config.RunsDir(); err == nil && r.worker.folder == nil {
+	if runs, err := config.RunsDir(); err == nil {
 		writeWorktreeSnapshot(r.workerContext(), p.spec.dir, filepath.Join(runs, p.runID))
 	}
 	timeout := cmp.Or(p.spec.before.Timeout, rules.DefaultBeforeTimeout)
@@ -1275,7 +1275,7 @@ func (r *router) prepare(p pending) {
 // in its before phase, so the next image adopts it from its files.
 func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	failure := res.failure()
-	if failure == "" && res.dir != "" && !samePath(res.dir, p.spec.dir) {
+	if failure == "" && res.dir != "" && !res.noFolder {
 		failure = r.refuseFolder(p, res)
 		if failure != "" {
 			res.exitCode = -1
@@ -1329,11 +1329,6 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	}
 	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
-}
-
-// samePath reports whether a and b name the same folder.
-func samePath(a, b string) bool {
-	return realPath(a) == realPath(b)
 }
 
 // refuseFolder runs the folder guard on the folder the before command printed,
