@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Messenger\Middleware;
 
 use App\Messenger\Middleware\StampDispatchTimeMiddleware;
+use App\Messenger\Stamp\CauseStamp;
 use App\Messenger\Stamp\DispatchedAtStamp;
+use App\Observability\HandledMessage;
+use App\Observability\HandledMessageContext;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
@@ -43,9 +46,42 @@ final class StampDispatchTimeMiddlewareTest extends TestCase
         self::assertNull($this->dispatch(new Envelope(new \stdClass(), [new ReceivedStamp('jobs')]))->last(DispatchedAtStamp::class));
     }
 
+    public function test_it_holds_the_cause_while_a_received_message_is_handled_and_restores_it_after_a_throw(): void
+    {
+        $handled = new HandledMessage();
+        $cause = new CauseStamp('EvaluateCardsOnCardMoved', new \DateTimeImmutable('2026-11-07 09:59:00'));
+        $seen = new \ArrayObject();
+        $inner = new readonly class($handled, $seen) implements MiddlewareInterface {
+            /** @param \ArrayObject<int, mixed> $seen */
+            public function __construct(
+                private HandledMessage $handled,
+                private \ArrayObject $seen,
+            ) {
+            }
+
+            #[\Override]
+            public function handle(Envelope $envelope, StackInterface $stack): Envelope
+            {
+                $this->seen[] = $this->handled->current;
+
+                throw new \RuntimeException('boom');
+            }
+        };
+        $middleware = new StampDispatchTimeMiddleware(new MockClock('2026-11-07 10:00:00'), $handled);
+
+        try {
+            $middleware->handle(new Envelope(new \stdClass(), [new ReceivedStamp('card_eval'), $cause]), new StackMiddleware([$middleware, $inner]));
+        } catch (\RuntimeException $e) {
+            self::assertSame('boom', $e->getMessage());
+        }
+
+        self::assertEquals(new HandledMessageContext($cause, 'card_eval'), $seen[0]);
+        self::assertNull($handled->current);
+    }
+
     private function dispatch(Envelope $envelope): Envelope
     {
-        $middleware = new StampDispatchTimeMiddleware(new MockClock('2026-11-07 10:00:00'));
+        $middleware = new StampDispatchTimeMiddleware(new MockClock('2026-11-07 10:00:00'), new HandledMessage());
         $last = new class implements MiddlewareInterface {
             #[\Override]
             public function handle(Envelope $envelope, StackInterface $stack): Envelope
