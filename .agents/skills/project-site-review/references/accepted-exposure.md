@@ -6,7 +6,7 @@ That limits the holder to a person the project allows. What the scope reaches di
 
 ## The board half
 
-A holder of the `site-review` scope lists every open card in its project and creates new ones. `GET /api/v1/live-review-widget/cards` returns the number, title and status of the open cards of the project, and `POST /api/v1/live-review-widget/cards` files a new one. Card titles are planning content. `POST /api/v1/live-review-widget/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/v1/live-review-widget/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
+A holder of the `site-review` scope creates new cards. `POST /api/v1/live-review-widget/cards` files a new one, always of the default type. The widget no longer lists the open cards of the project. `POST /api/v1/live-review-widget/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/v1/live-review-widget/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
 
 This was decided, not inherited. The Loupe document 'Picking and creating cards from the site-review widget' records the choice, the alternatives and the cost of each. It also notes that the choice reverses the reasoning behind `/sites` refusing the widget's scope. Read it before you reopen this.
 
@@ -15,7 +15,6 @@ This was decided, not inherited. The Loupe document 'Picking and creating cards 
 - Creation takes no `status` and no `pullRequestUrls`, so a caller cannot file into a column or attach a URL of their choosing.
 - A card records `CardReporter::Reviewer`, which says the app could not name who raised it.
 - The write joins the `site_review_write` limiter through `WidgetApiPaths`, so the board is not an unbounded spam target.
-- Nothing bounds the read beyond the twenty-card page.
 
 ## The comment half
 

@@ -20,8 +20,6 @@ func TestSiteReviewSendsTheProjectOnlyWhenGiven(t *testing.T) {
 		data, _ := io.ReadAll(r.Body)
 		gotBody = string(data)
 		switch r.URL.Path {
-		case "/api/v1/live-review-widget/cards":
-			w.Write([]byte(`{"cards":[{"number":3}]}`))
 		case "/api/v1/bridge/projects":
 			w.Write([]byte(`{"sites":[]}`))
 		default:
@@ -32,20 +30,6 @@ func TestSiteReviewSendsTheProjectOnlyWhenGiven(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := New(server.URL, "t", server.Client())
 	ctx := context.Background()
-
-	cards, err := client.WithProject(reviewProject).SiteReviewTargets(ctx, "a b", false)
-	if err != nil || string(cards) != `[{"number":3}]` {
-		t.Fatalf("targets = %s, %v", cards, err)
-	}
-	if gotHeader != reviewProject || gotQuery != "q=a+b" {
-		t.Fatalf("targets sent header %q query %q", gotHeader, gotQuery)
-	}
-	if _, err := client.WithProject(reviewProject).SiteReviewTargets(ctx, "", true); err != nil || gotQuery != "parent=1" {
-		t.Fatalf("parent targets: %v, query %q", err, gotQuery)
-	}
-	if _, err := client.WithProject(reviewProject).SiteReviewTargets(ctx, "", false); err != nil || gotQuery != "" {
-		t.Fatalf("plain targets: %v, query %q", err, gotQuery)
-	}
 
 	if _, err := client.WithProject(reviewProject).SiteReviewNotes(ctx, "card:"+reviewProject); err != nil || gotQuery != "scope=card%3A"+reviewProject+"&surface=ios-simulator" || gotHeader != reviewProject {
 		t.Fatalf("notes: %v, query %q, header %q", err, gotQuery, gotHeader)
@@ -91,9 +75,6 @@ func TestSiteReviewMapsRefusals(t *testing.T) {
 			}
 			if _, err := client.SaveSiteReviewNote(context.Background(), []byte(`{}`)); !errors.Is(err, tc.want) {
 				t.Fatalf("save err = %v, want %v", err, tc.want)
-			}
-			if _, err := client.SiteReviewTargets(context.Background(), "", false); !errors.Is(err, tc.want) {
-				t.Fatalf("targets err = %v, want %v", err, tc.want)
 			}
 		})
 	}

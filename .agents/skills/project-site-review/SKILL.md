@@ -82,7 +82,6 @@ Every widget route sits under `/api/v1/live-review-widget`, and `WidgetApiPaths`
 | `/api/v1/live-review-widget/comments/{id}/resolve` | POST | Resolve (Pending only) |
 | `/api/v1/live-review-widget/feedback` | POST | Save a comment, its target card and the link in one request |
 | `/api/v1/live-review-widget/feedback/{id}` | DELETE | Delete a pending comment, and the card it created while that card is untouched: still in Backlog, no other comment, its site-review type and note title, empty body, no pull request, document or card link |
-| `/api/v1/live-review-widget/cards` | GET | Open cards for the widget's picker; `type=epic` lists epics alone |
 | `/api/v1/live-review-widget/cards` | POST | Create a card from the widget |
 
 This module holds two more routes that are not widget paths. `/api/v1/bridge/projects` and `/api/v1/bridge/events` serve the loupe CLI. `/api/v1/bridge/events` returns the caller's own user topic and a subscriber JWT for that one topic. `DrainOutboxHandler` publishes each event on its project topic and on the user topic of the project owner. The URL and the JWT thus keep one size, however many projects a user owns. The firewall grants each route by its own rule to `ROLE_API_AGENT`. The `site-review` scope does not carry that role, so a widget sign-in gets a 403 Problem JSON answer with the code `credential_not_allowed`. The routes keep their `ShowEventsController` and `ListSitesController` classes here because their command handlers live here.

@@ -1245,9 +1245,8 @@ has no event.
 ## Cards raised from the review widget
 
 Every note from the [live-review widget](live-review.md) lands on a card. The
-reviewer chooses once where notes go: a new card for each note, one card for
-the whole review, or a new card for each note under an epic. The widget can
-pick an open card or epic, and it can create one.
+reviewer chooses once where notes go: a new card for each note, or one new
+card for the whole review.
 
 A card raised that way records its reporter as **reviewer**. That says the app
 could not name who raised it, because the widget authenticates a project and
@@ -1256,7 +1255,7 @@ template.
 
 Such a card always lands in Backlog, and carries no pull request
 link. The widget offers neither, so a page visitor cannot file work straight
-into a column. The widget refuses a card or an epic in a terminal column.
+into a column. The widget refuses a card in a terminal column.
 
 ## Artifacts on a card
 

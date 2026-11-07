@@ -1036,31 +1036,6 @@ when@dev: &generator
                                     stored:
                                         type: integer
                                         description: The calls the server stored for the first time.
-                            PickerCards:
-                                type: object
-                                required:
-                                - cards
-                                properties:
-                                    cards:
-                                        type: array
-                                        items:
-                                            type: object
-                                            required:
-                                            - cardId
-                                            - number
-                                            - title
-                                            - status
-                                            properties:
-                                                cardId:
-                                                    type: string
-                                                    format: uuid
-                                                number:
-                                                    type: integer
-                                                title:
-                                                    type: string
-                                                status:
-                                                    type: string
-                                        maxItems: 20
                             WidgetCardCreated:
                                 type: object
                                 required:
@@ -1305,6 +1280,7 @@ when@dev: &generator
                                         type: boolean
                                     parentTypes:
                                         type: array
+                                        description: Always empty. An older copy of the widget hides its epic mode when the list is empty.
                                         items:
                                             type: object
                                             required:

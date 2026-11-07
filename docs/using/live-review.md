@@ -71,8 +71,7 @@ one option and press **Start reviewing**:
 | Choice | What a save does |
 |---|---|
 | A new card for each note | Creates a new card for the note. |
-| One card for this review | Adds the note to one card. Create a new card, or pick an existing one. |
-| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Create a new epic, or pick an existing one. The widget shows this choice only when the workflow template has a card type with the children capability. |
+| One card for this review | Creates one new card for the review. Every note of the review joins that card. |
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
@@ -87,26 +86,22 @@ The destination also decides which notes the list shows:
 |---|---|
 | A new card for each note | The notes that you saved on the cards this browser tab made. A new tab starts with an empty list. |
 | One card for this review | Every open note on that card. |
-| A card for each note, under an epic | Every open note on the cards under that epic. |
 
 When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One card for this review**, the footer
 shows **Open #N in Loupe**, which opens that card.
 
-The first choice opens a switch with **New card** and **Existing card**. The
-third choice puts the epic on a second step: press **Next**, and the view
-shows "Pick or create an epic" with the same switch, as **New epic** and
-**Existing epic**. The back arrow returns to the choices. With **New card**, type a title and the button creates the card. The
-title starts as `Review: ` and the page path, and the view selects it so that
-you can replace it. With **Existing card**, search the open cards, pick one
-row and press the button. The third choice lists the open cards of every type
-that has the children capability, and it creates a card of one of those types.
-When the template has two or more such types, a **Type** selector shows under
-the title. The first type of the template is chosen at first.
+With **One card for this review**, type a title and the button creates the
+card. The title starts as `Review: ` and the page path, and the view selects it
+so that you can replace it. The widget cannot pick a card that already exists.
+Earlier versions had a mode for an epic and a search for an existing card. Both
+are gone. A browser that stored **A new card for each note** keeps that choice.
+A browser that stored any other choice asks again after the update. Notes that
+you saved under an epic stay as they are.
 
 A card that the widget creates has these values:
 
-- The type is the default type of the workflow template for a note card or a review card, and the type with the children capability for an epic.
+- The type is the default type of the workflow template.
 - The column is the board's Backlog.
 - The reporter is `reviewer`.
 - The source is the live review widget. The card shows a live review badge.
@@ -116,7 +111,7 @@ A card that the widget creates has these values:
 
 Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". An edit names the card too, such as "Note updated in #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
 
-When the card or the epic you chose is closed or deleted, the widget forgets the
+When the card you chose is closed or deleted, the widget forgets the
 choice and asks again. A card in a terminal column is closed. Your draft stays.
 
 ### A preview page locks the card
@@ -458,7 +453,7 @@ pinned controls out of the way.
 The widget needs very little. It is a `fetch` with a bearer header. It uses no
 clipboard, no cookies, and no browser API that needs a secure context. It
 writes two localStorage keys: `loupe.site-review.corner` for the corner, and
-one key that starts with `loupe-site-review:mode:` for where notes go. It works
+one key that starts with `loupe-site-review:destination:v2:` for where notes go. It works
 without them. Cross-origin embedding works because the API answers CORS itself.
 
 So you can serve Loupe over plain HTTP when the reviewed page is also plain
@@ -547,7 +542,7 @@ The panel marks the simulator only while Device Hub, or the panel in front of it
 
 When nothing at the point has an accessibility element, the panel says "Nothing to pick here." and offers **Draw**.
 
-The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note**, a card for each note under an epic, or an existing card.
+The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note** instead.
 
 The card page shows the note with a thumbnail of the screenshot. Choose the thumbnail to see the image at full size. The image holds your marks: the box of the element you picked, or your drawing. The note also lists the device, the iOS version, the app, the name of the screen, and the role, label and identifier of the element.
 

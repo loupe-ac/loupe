@@ -16,8 +16,6 @@ use App\Module\SiteReview\Context\ContextLabelResolver;
 use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
-use App\Module\SiteReview\ParentType\ParentType;
-use App\Module\SiteReview\ParentType\ParentTypeProviderInterface;
 use App\Module\SiteReview\SiteReviewDrawing;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -64,7 +62,6 @@ final class ShowPendingCommentsController extends AppController
         private readonly FeatureFlagService $featureFlags,
         private readonly ContextLabelResolver $contextLabels,
         private readonly CommentScopeResolver $commentScopes,
-        private readonly ParentTypeProviderInterface $parentTypes,
         private readonly CommentLinkResolverInterface $commentLinks,
     ) {
     }
@@ -106,12 +103,9 @@ final class ShowPendingCommentsController extends AppController
         return $this->json([
             'projectId' => (string) $project->id,
             'drawingEnabled' => $this->featureFlags->isEnabled(SiteReviewDrawing::FLAG, SiteReviewDrawing::DEFAULT),
-            // The types the mode "a card for each note, under an epic" can use.
-            // Empty hides the mode.
-            'parentTypes' => array_map(
-                static fn (ParentType $type): array => ['key' => $type->key, 'label' => $type->label],
-                $this->parentTypes->forProject($project),
-            ),
+            // Always empty. A copy of the widget that still has the epic mode
+            // hides it when this list is empty.
+            'parentTypes' => [],
             'context' => null === $label ? null : ['label' => $label->label, 'url' => $label->url],
             'comments' => array_values(array_map(
                 static function (SiteReviewComment $c) use ($links): array {

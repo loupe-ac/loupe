@@ -888,35 +888,6 @@ paths:
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards:
-    get:
-      operationId: listWidgetCards
-      summary: List the open cards for the widget picker
-      tags:
-      - Widget
-      parameters:
-      - $ref: '#/components/parameters/XLoupeProject'
-      - $ref: '#/components/parameters/Q'
-      - $ref: '#/components/parameters/Type'
-      - $ref: '#/components/parameters/Parent'
-      responses:
-        '200':
-          description: At most 20 cards.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PickerCards'
-        '401':
-          $ref: '#/components/responses/E401Unauthorized'
-        '402':
-          $ref: '#/components/responses/E402SubscriptionRequired'
-        '403':
-          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
-        '404':
-          $ref: '#/components/responses/E404RouteNotFound'
-        '405':
-          $ref: '#/components/responses/E405MethodNotAllowed'
-        '429':
-          $ref: '#/components/responses/E429RateLimited'
     post:
       operationId: createWidgetCard
       summary: Create a card from the widget
@@ -952,7 +923,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422UnknownTypeValidationFailed'
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards/{cardId}/verdict:
@@ -1331,24 +1302,6 @@ components:
       description: The marker of the preview card, or the target the widget stored.
       schema:
         type: string
-    Q:
-      name: q
-      in: query
-      description: Words to search for.
-      schema:
-        type: string
-    Type:
-      name: type
-      in: query
-      description: A type key. An unknown key means every type.
-      schema:
-        type: string
-    Parent:
-      name: parent
-      in: query
-      description: True lists cards of types that can have children.
-      schema:
-        type: boolean
   headers:
     Retry-After:
       description: The number of seconds to wait before the next request.
@@ -1422,18 +1375,6 @@ components:
             additionalProperties:
               type: string
             description: A translated message for each refused field, keyed by the field.
-    UnknownTypeProblem:
-      allOf:
-      - $ref: '#/components/schemas/Problem'
-      - type: object
-        required:
-        - types
-        properties:
-          types:
-            type: array
-            items:
-              type: string
-            description: The types this request could use.
     GitTokenRefusedProblem:
       allOf:
       - $ref: '#/components/schemas/Problem'
@@ -3322,6 +3263,7 @@ components:
           type: boolean
         parentTypes:
           type: array
+          description: Always empty. An older copy of the widget hides its epic mode when the list is empty.
           items:
             type: object
             required:
@@ -3396,31 +3338,6 @@ components:
                     type: string
                     nullable: true
                 nullable: true
-    PickerCards:
-      type: object
-      required:
-      - cards
-      properties:
-        cards:
-          type: array
-          items:
-            type: object
-            required:
-            - cardId
-            - number
-            - title
-            - status
-            properties:
-              cardId:
-                type: string
-                format: uuid
-              number:
-                type: integer
-              title:
-                type: string
-              status:
-                type: string
-          maxItems: 20
     WidgetCardCreate:
       type: object
       required:
@@ -3434,15 +3351,6 @@ components:
           type: string
           maxLength: 10000
           default: ''
-        type:
-          type: string
-          description: A type key. Null means the default type.
-          nullable: true
-          maxLength: 20
-        parent:
-          type: boolean
-          description: Asks for a type that can have children.
-          default: false
     WidgetCardCreated:
       type: object
       required:
@@ -4260,16 +4168,6 @@ components:
         title: Surface invalid
         status: 422
         code: surface_invalid
-    UnknownType:
-      summary: unknown_type
-      value:
-        type: https://loupe.ac/docs/reference/api/errors#unknown_type
-        title: Unknown type
-        status: 422
-        code: unknown_type
-        types:
-        - feature
-        - bug
     CardClosed:
       summary: card_closed
       value:
@@ -4803,19 +4701,6 @@ components:
           examples:
             surface_invalid:
               $ref: '#/components/examples/SurfaceInvalid'
-    E422UnknownTypeValidationFailed:
-      description: 'Refused: `unknown_type`, `validation_failed`.'
-      content:
-        application/problem+json:
-          schema:
-            anyOf:
-            - $ref: '#/components/schemas/UnknownTypeProblem'
-            - $ref: '#/components/schemas/ValidationProblem'
-          examples:
-            unknown_type:
-              $ref: '#/components/examples/UnknownType'
-            validation_failed:
-              $ref: '#/components/examples/ValidationFailed'
     E404CardNotFoundRouteNotFound:
       description: 'Refused: `card_not_found`, `route_not_found`.'
       content:

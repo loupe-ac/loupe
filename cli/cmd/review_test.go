@@ -60,13 +60,6 @@ func newReviewServer(t *testing.T) *reviewServer {
 			return
 		}
 		switch r.URL.Path {
-		case "/api/v1/live-review-widget/cards":
-			if r.URL.Query().Get("parent") == "1" {
-				fmt.Fprint(w, `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}`)
-
-				return
-			}
-			fmt.Fprint(w, `{"cards":[{"cardId":"c1","number":7,"title":"T","status":"todo"}]}`)
 		case "/api/v1/live-review-widget/review":
 			// Each destination holds its own notes, as the server scopes them.
 			switch r.URL.Query().Get("scope") {
@@ -128,14 +121,10 @@ func signedInTo(t *testing.T) *reviewServer {
 	return rs
 }
 
-func TestReviewTargetsNotesAndSaveSendTheGivenProject(t *testing.T) {
+func TestReviewNotesAndSaveSendTheGivenProject(t *testing.T) {
 	rs := signedInTo(t)
 
-	got, err := runReview(t, "", "targets", "--project", reviewProjectB, "--query", "x")
-	if err != nil || !strings.HasPrefix(got, `{"cards":[{`) || rs.lastHeader() != reviewProjectB {
-		t.Fatalf("targets = %q, %v, header %q", got, err, rs.lastHeader())
-	}
-	got, err = runReview(t, "", "notes", "--project", reviewProjectA, "--scope", "card:"+reviewCardA)
+	got, err := runReview(t, "", "notes", "--project", reviewProjectA, "--scope", "card:"+reviewCardA)
 	if err != nil || got != `{"notes":{"comments":[{"id":"na"}]}}` || rs.lastHeader() != reviewProjectA {
 		t.Fatalf("notes = %q, %v, header %q", got, err, rs.lastHeader())
 	}
@@ -164,15 +153,6 @@ func TestReviewNotesListOnlyTheGivenDestination(t *testing.T) {
 		if q, _ := url.ParseQuery(rs.lastQuery()); q.Get("scope") != scope || q.Get("surface") != "ios-simulator" {
 			t.Fatalf("%s sent query %q", scope, rs.lastQuery())
 		}
-	}
-}
-
-func TestReviewTargetsAsksForParentCards(t *testing.T) {
-	rs := signedInTo(t)
-
-	got, err := runReview(t, "", "targets", "--project", reviewProjectA, "--parent")
-	if err != nil || got != `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}` || rs.lastQuery() != "parent=1" {
-		t.Fatalf("parent targets = %q, %v, query %q", got, err, rs.lastQuery())
 	}
 }
 
@@ -238,7 +218,7 @@ func TestReviewRefusesABadProjectBeforeAnyRequest(t *testing.T) {
 	rs := signedInTo(t)
 
 	for _, args := range [][]string{
-		{"targets", "--project", "nope"},
+		{"notes", "--project", "nope", "--scope", "card:" + reviewCardA},
 		{"notes", "--project", strings.ToUpper(reviewProjectA), "--scope", "card:" + reviewCardA},
 		{"notes", "--scope", "card:" + reviewCardA},
 		{"save", "--project", "nope"},
