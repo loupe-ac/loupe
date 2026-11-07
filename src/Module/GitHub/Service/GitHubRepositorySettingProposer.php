@@ -53,9 +53,9 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
                 throw new PullRequestWriteFailed('already_set', permanent: true);
             }
 
-            [$blobSha, $branchContent] = [$file->blobSha, null];
+            [$blobSha, $branchContent] = [$file->blobSha, $file->content];
             if (!$this->createBranch($installationId, $repositoryPath, $branch, $file->headSha)) {
-                [$blobSha, $branchContent] = $this->branchFile($installationId, $repositoryPath, $branch);
+                [$blobSha, $branchContent, $content] = $this->editBranchFile($installationId, $repositoryPath, $branch, $key, $value, $projectId, $file->content);
             }
             if ($branchContent !== $content) {
                 $this->api->put($installationId, $repositoryPath.'/contents/'.GitHubWorkflowFileReader::FILE, [
@@ -107,6 +107,25 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
         }
 
         return true;
+    }
+
+    /**
+     * Edits the file of a branch that an earlier proposal left, so a change that a person pushed there stays.
+     * A branch with no such file starts from the content of the default branch.
+     *
+     * @return array{?string, ?string, string} the blob sha and the content on the branch, and the edited content
+     *
+     * @throws GitHubAppApiFailed
+     * @throws PullRequestWriteFailed
+     */
+    private function editBranchFile(int $installationId, string $repositoryPath, string $branch, string $key, string $value, string $projectId, ?string $defaultContent): array
+    {
+        [$blobSha, $branchContent] = $this->branchFile($installationId, $repositoryPath, $branch);
+        if (null !== $blobSha && null === $branchContent) {
+            throw new PullRequestWriteFailed('file_unusable', permanent: true);
+        }
+
+        return [$blobSha, $branchContent, LoupeYamlSettingEditor::edit($branchContent ?? $defaultContent, $key, $value, $projectId)];
     }
 
     /**

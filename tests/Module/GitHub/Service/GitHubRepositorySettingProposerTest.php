@@ -162,6 +162,42 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
         self::assertSame(self::BRANCH_BLOB, $this->json(7)['sha']);
     }
 
+    public function test_an_existing_branch_keeps_the_other_keys_that_were_changed_there(): void
+    {
+        $repository = $this->repository(74_011);
+        $project = $repository->project->id?->toRfc4122();
+        $this->responses = [
+            ...$this->readAnswers("project: {$project}\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([]),
+            $this->answer(['message' => 'Reference already exists'], 422),
+            $this->fileAnswer("project: {$project}\nworkflow:\n  merge-approval: agent\n  review: off\n", self::BRANCH_BLOB),
+            $this->answer([], 200),
+            $this->answer(['html_url' => 'https://github.com/acme/app/pull/14'], 201),
+        ];
+
+        $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b');
+
+        $content = $this->json(7)['content'];
+        self::assertIsString($content);
+        self::assertSame("project: {$project}\nworkflow:\n  merge-approval: person\n  review: off\n", base64_decode($content, true));
+    }
+
+    public function test_an_existing_branch_whose_file_cannot_be_read_is_refused_with_no_write(): void
+    {
+        $repository = $this->repository(74_012);
+        $this->responses = [
+            ...$this->readAnswers("project: {$repository->project->id?->toRfc4122()}\nworkflow:\n  merge-approval: agent\n"),
+            $this->answer([]),
+            $this->answer(['message' => 'Reference already exists'], 422),
+            $this->answer(['type' => 'file', 'encoding' => 'none', 'sha' => self::BRANCH_BLOB, 'content' => '']),
+        ];
+
+        $e = $this->failure(fn () => $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+
+        self::assertSame('file_unusable', $e->cause);
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'PUT' === $r['method']));
+    }
+
     public function test_an_existing_branch_without_the_file_is_written_without_a_blob_sha(): void
     {
         $repository = $this->repository(74_007);
