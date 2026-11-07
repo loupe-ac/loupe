@@ -258,6 +258,7 @@ final readonly class ReportWorkerRunStateHandler
         if (WorkerRunState::Stopped === $command->state) {
             $run->recordStop($command->endedAt ?? $command->at, $command->output);
             $this->fillPeakContext($run, $command);
+            $this->fillWake($run, $command);
             $this->fillHarnessEvents($run, $command);
             if (null !== $command->usage) {
                 $this->usageRecorder->record($run, $command->usage, $billed);
@@ -285,6 +286,7 @@ final readonly class ReportWorkerRunStateHandler
             $command->resultReason,
         );
         $this->fillPeakContext($run, $command);
+        $this->fillWake($run, $command);
         $this->fillHarnessEvents($run, $command);
 
         if (null !== $command->usage) {
@@ -296,6 +298,13 @@ final readonly class ReportWorkerRunStateHandler
     {
         if (null !== $command->peakContextTokens) {
             $run->peakContextTokens = $command->peakContextTokens;
+        }
+    }
+
+    private function fillWake(WorkerRun $run, ReportWorkerRunStateCommand $command): void
+    {
+        if (null !== $command->wake) {
+            $run->recordWake($command->wake);
         }
     }
 

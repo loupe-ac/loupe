@@ -476,6 +476,7 @@ when@dev: &generator
                                         - person
                                         - ask-closed
                                         - inbox-action
+                                        - agent
                                     context:
                                         $ref: '#/components/schemas/WorkContext'
                                     model:

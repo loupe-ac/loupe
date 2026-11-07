@@ -80,6 +80,17 @@ type Output struct {
 	// and are empty when it has none.
 	HarnessVersion string
 	SkillVersion   string
+	// FirstTurn is the input usage of the first main-session assistant
+	// message, and nil when the run holds none.
+	FirstTurn *TurnUsage
+}
+
+// TurnUsage is the input side of one assistant message: what it read, what it
+// read from the cache and what it wrote to the cache.
+type TurnUsage struct {
+	InputTokens      int64
+	CacheReadTokens  int64
+	CacheWriteTokens int64
 }
 
 // End is how one call ended. Result is the time of its own result, and zero

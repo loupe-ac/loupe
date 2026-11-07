@@ -308,7 +308,7 @@ func CheckCommand(c api.Command) (api.Command, error) {
 	if c.Cause == "" {
 		c.Cause = api.CausePerson
 	}
-	if c.Cause != api.CausePerson && c.Cause != api.CauseAskClosed && c.Cause != api.CauseInboxAction {
+	if !slices.Contains([]string{api.CausePerson, api.CauseAskClosed, api.CauseInboxAction, api.CauseAgent}, c.Cause) {
 		return c, fmt.Errorf("command has an unknown cause %q", c.Cause)
 	}
 	if err := checkWorkContext(c.Context); err != nil {

@@ -30,6 +30,9 @@ type Harness interface {
 	SessionUsage(sessionID string, from, to time.Time) (transcript.Usage, error)
 	// SessionTotal is what the whole session spent before a resume.
 	SessionTotal(sessionID string) (transcript.Usage, error)
+	// SessionLastTurn is the time of the last assistant message of the
+	// session, and the zero time when the harness cannot say.
+	SessionLastTurn(sessionID string) (time.Time, error)
 	// StartDir is the folder the session started in, and "" with no error
 	// when this machine holds no record of the session.
 	StartDir(sessionID string) (string, error)
@@ -150,6 +153,9 @@ type Output struct {
 	// AssistantTurns counts the turns of the agent in the run. It is 0 when
 	// the harness does not count them.
 	AssistantTurns int
+	// FirstTurn is the input usage of the first assistant message of the
+	// run, and nil when the harness cannot say.
+	FirstTurn *stream.TurnUsage
 	// LastRetryNoStatus says the last retry of the agent had no HTTP status.
 	LastRetryNoStatus bool
 	// HarnessVersion is the version of the harness binary that ran, and

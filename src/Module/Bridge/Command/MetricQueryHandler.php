@@ -90,8 +90,10 @@ final readonly class MetricQueryHandler
         foreach ($previousByGroup as $key => $part) {
             $byGroup[$key] ??= ['label' => $part['label'], 'group' => $part['group'], 'groupKey' => $part['groupKey'], 'rows' => []];
         }
-        // Series sort by label, with the key to break a tie. The series with no group goes last.
-        uasort($byGroup, static fn (array $a, array $b): int => [null === $a['group'], $a['label'], $a['groupKey']?->id()] <=> [null === $b['group'], $b['label'], $b['groupKey']?->id()]);
+        // Series sort by label, with the key to break a tie. A grouping that buckets a number has a fixed order. The series with no group goes last.
+        $order = $command->group->seriesOrder() ?? [];
+        $rank = static fn (?string $group): int => null === $group ? 0 : (false === ($at = array_search($group, $order, true)) ? \count($order) : $at);
+        uasort($byGroup, static fn (array $a, array $b): int => [null === $a['group'], $rank($a['group']), $a['label'], $a['groupKey']?->id()] <=> [null === $b['group'], $rank($b['group']), $b['label'], $b['groupKey']?->id()]);
 
         $compare = null !== $previousWindow;
         // Every line that has a sign widens every range, so a graph with many lines draws a sign by chance more rarely.

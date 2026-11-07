@@ -1066,6 +1066,26 @@ the account now names another harness. The reason names the account. An
 automatic continuation of an unfinished run uses the account that the rule
 names now.
 
+The outcome report of a resumed run carries a `wake` object. It says what woke
+the session, in these keys:
+
+| Key | Meaning |
+|---|---|
+| `trigger` | The cause of the resume: `ask-closed`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
+| `lastTurnAt` | The time of the last assistant message of the session before the resume. The bridge reads it from the transcript before it starts the process |
+| `firstTurn` | The `inputTokens`, `cacheReadTokens` and `cacheWriteTokens` of the first assistant message of the resume |
+
+A streamed message repeats its line as it grows, so the bridge takes the
+largest count of each field over the lines of the first message. A Codex
+resume sends the `trigger` alone. A run that is no resume sends no `wake`.
+The object holds a cause, a time and three counts. No message text leaves the
+machine. An `agent` resume uses the prompt of a person's resume.
+
+`loupe usage backfill-wakes` sends the same data for resumes that ended before
+the bridge reported it, with the trigger `backfill`. It reads the bridge log
+and the transcripts in the way `loupe usage backfill` does, and it needs a
+Loupe version that takes session wakes.
+
 ## Expired login
 
 A running bridge that finds its login expired does not retry every 30 seconds.

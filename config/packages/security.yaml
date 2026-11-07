@@ -110,6 +110,7 @@ security:
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/wake$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/output$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/interactive-runs/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/experiments/[^/]+/pins/[^/]+$', roles: ROLE_API_AGENT }

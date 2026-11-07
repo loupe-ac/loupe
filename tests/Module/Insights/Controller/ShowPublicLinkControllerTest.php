@@ -295,6 +295,33 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         }
     }
 
+    public function test_a_shared_graph_of_wakes_by_gap_and_cache_renders_its_six_series(): void
+    {
+        $client = $this->client('');
+        $project = $this->scenarioProject('public-wakes');
+        $em = $this->em();
+        $cells = [[60_000, 1], [60_000, 900], [1_800_000, 1], [1_800_000, 900], [7_200_000, 1], [7_200_000, 900]];
+        foreach ($cells as $index => [$gapMs, $write]) {
+            $run = $this->seedRun($em, $project, cardNumber: $index + 1, endedAt: new \DateTimeImmutable('-5 days'));
+            $em->getConnection()->executeStatement(
+                "UPDATE bridge_worker_run_facts SET wake_trigger = 'person', wake_gap_ms = :gap, wake_first_input_tokens = 10, wake_first_cache_read_tokens = 100, wake_first_cache_write_tokens = :write WHERE run_id = :run",
+                ['gap' => $gapMs, 'write' => $write, 'run' => (string) $run->id],
+            );
+        }
+        $graph = $this->costGraph($project, 'Wakes by gap and cache', MetricGroup::WakeCache);
+        $graph->metric = 'wakes';
+        $em->flush();
+        $link = $this->share($graph);
+
+        $client->request(Request::METHOD_GET, '/s/'.$link->code);
+
+        self::assertResponseIsSuccessful();
+        $source = (string) $client->getResponse()->getContent();
+        foreach (['Under 5 minutes, warm', 'Under 5 minutes, cold', '5 to 60 minutes, warm', '5 to 60 minutes, cold', 'Over 1 hour, warm', 'Over 1 hour, cold'] as $label) {
+            self::assertStringContainsString($label, $source);
+        }
+    }
+
     /**
      * The exception behind the 404, which alone decides the error page a visitor
      * sees. The debug page of the test kernel is not stable between requests.

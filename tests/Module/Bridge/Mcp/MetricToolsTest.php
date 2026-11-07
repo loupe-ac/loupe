@@ -411,7 +411,7 @@ final class MetricToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         self::assertSame(
-            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time-each, bucket-time-all-each, bucket-calls-each, account-usage, session-usage, week-usage, peak-context, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
+            'Unknown metric "speed". Use one of: cost, input-tokens, output-tokens, cache-read-tokens, cache-write-tokens, duration, runs, stop-rate, bucket-time-each, bucket-time-all-each, bucket-calls-each, account-usage, session-usage, week-usage, peak-context, wakes, cold-wakes, cold-wake-cache-write-tokens, cold-wake-share, merge-rate, hours-to-merge, bucket-time:<name>, bucket-time-all:<name>, bucket-calls:<name>, harness-events:<kind>.',
             $this->refusal(unit: 'run', metric: 'speed', statistic: 'sum'),
         );
         self::assertSame(

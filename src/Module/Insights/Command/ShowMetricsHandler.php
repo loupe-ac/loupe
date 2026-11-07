@@ -49,7 +49,7 @@ final readonly class ShowMetricsHandler
         $labels = array_map(
             fn (MetricSeries $series): string => null === $series->group
                 ? ($lines > 1 ? $this->translator->trans('analytics.metrics.series.none') : $metricName)
-                : ($groupLabels[$series->group] ?? $series->group),
+                : ($groupLabels[$series->group] ?? $this->seriesLabel($query->group, $series->group)),
             $ordered,
         );
 
@@ -63,5 +63,10 @@ final readonly class ShowMetricsHandler
             $labels,
             $ordered,
         );
+    }
+
+    private function seriesLabel(MetricGroup $group, string $value): string
+    {
+        return $group->isWakeGrouping() ? $this->translator->trans('analytics.metrics.series.'.$group->value.'.'.$value) : $value;
     }
 }

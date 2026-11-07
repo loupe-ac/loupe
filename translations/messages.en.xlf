@@ -8808,6 +8808,10 @@
             <trans-unit id="analytics.metrics.metric.session-usage"><source>analytics.metrics.metric.session-usage</source><target>Session usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.week-usage"><source>analytics.metrics.metric.week-usage</source><target>Week usage of a run</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.peak-context"><source>analytics.metrics.metric.peak-context</source><target>Peak context</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.wakes"><source>analytics.metrics.metric.wakes</source><target>Wakes</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.cold-wakes"><source>analytics.metrics.metric.cold-wakes</source><target>Cold wakes</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.cold-wake-cache-write-tokens"><source>analytics.metrics.metric.cold-wake-cache-write-tokens</source><target>Cold wake cache write tokens</target></trans-unit>
+            <trans-unit id="analytics.metrics.metric.cold-wake-share"><source>analytics.metrics.metric.cold-wake-share</source><target>Cold wake share</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.bucket_time_named"><source>analytics.metrics.metric.bucket_time_named</source><target>Time in %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.harness_events_named"><source>analytics.metrics.metric.harness_events_named</source><target>Harness events: %kind%</target></trans-unit>
             <trans-unit id="analytics.metrics.metric_group.harness_events"><source>analytics.metrics.metric_group.harness_events</source><target>Harness events</target></trans-unit>
@@ -8821,6 +8825,8 @@
             <trans-unit id="analytics.metrics.unit.reading"><source>analytics.metrics.unit.reading</source><target>Per reading</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.max"><source>analytics.metrics.statistic.max</source><target>Maximum</target></trans-unit>
             <trans-unit id="analytics.metrics.group.account-window"><source>analytics.metrics.group.account-window</source><target>By account window</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.wake-gap"><source>analytics.metrics.group.wake-gap</source><target>By wake gap</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.wake-cache"><source>analytics.metrics.group.wake-cache</source><target>By wake gap and cache</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.median"><source>analytics.metrics.statistic.median</source><target>Median</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.mean"><source>analytics.metrics.statistic.mean</source><target>Mean</target></trans-unit>
             <trans-unit id="analytics.metrics.statistic.sum"><source>analytics.metrics.statistic.sum</source><target>Sum</target></trans-unit>
@@ -8846,6 +8852,15 @@
             <trans-unit id="analytics.metrics.bucket.month"><source>analytics.metrics.bucket.month</source><target>Per month</target></trans-unit>
             <trans-unit id="analytics.metrics.unknown"><source>analytics.metrics.unknown</source><target>unknown</target></trans-unit>
             <trans-unit id="analytics.metrics.series.none"><source>analytics.metrics.series.none</source><target>No group</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-gap.under-5m"><source>analytics.metrics.series.wake-gap.under-5m</source><target>Under 5 minutes</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-gap.5m-to-1h"><source>analytics.metrics.series.wake-gap.5m-to-1h</source><target>5 to 60 minutes</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-gap.over-1h"><source>analytics.metrics.series.wake-gap.over-1h</source><target>Over 1 hour</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.under-5m-warm"><source>analytics.metrics.series.wake-cache.under-5m-warm</source><target>Under 5 minutes, warm</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.under-5m-cold"><source>analytics.metrics.series.wake-cache.under-5m-cold</source><target>Under 5 minutes, cold</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.5m-to-1h-warm"><source>analytics.metrics.series.wake-cache.5m-to-1h-warm</source><target>5 to 60 minutes, warm</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.5m-to-1h-cold"><source>analytics.metrics.series.wake-cache.5m-to-1h-cold</source><target>5 to 60 minutes, cold</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.over-1h-warm"><source>analytics.metrics.series.wake-cache.over-1h-warm</source><target>Over 1 hour, warm</target></trans-unit>
+            <trans-unit id="analytics.metrics.series.wake-cache.over-1h-cold"><source>analytics.metrics.series.wake-cache.over-1h-cold</source><target>Over 1 hour, cold</target></trans-unit>
             <trans-unit id="analytics.chart.label.line"><source>analytics.chart.label.line</source><target>Line chart</target></trans-unit>
             <trans-unit id="analytics.chart.label.bars"><source>analytics.chart.label.bars</source><target>Bar chart</target></trans-unit>
             <trans-unit id="analytics.chart.label.stacked_bars"><source>analytics.chart.label.stacked_bars</source><target>Stacked bar chart</target></trans-unit>
@@ -8904,6 +8919,8 @@
             <trans-unit id="analytics.metrics.title.group.cli-version"><source>analytics.metrics.title.group.cli-version</source><target>by CLI version</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.skill-version"><source>analytics.metrics.title.group.skill-version</source><target>by plugin version</target></trans-unit>
             <trans-unit id="analytics.metrics.title.group.account-window"><source>analytics.metrics.title.group.account-window</source><target>by account window</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.wake-gap"><source>analytics.metrics.title.group.wake-gap</source><target>by wake gap</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.group.wake-cache"><source>analytics.metrics.title.group.wake-cache</source><target>by wake gap and cache</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.last"><source>analytics.metrics.title.range.last</source><target>last %days% days</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.compared"><source>analytics.metrics.title.range.compared</source><target>last %days% days vs the %days% days before</target></trans-unit>
             <trans-unit id="analytics.metrics.title.range.all"><source>analytics.metrics.title.range.all</source><target>all time</target></trans-unit>

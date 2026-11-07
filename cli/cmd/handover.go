@@ -78,7 +78,9 @@ type handoverPending struct {
 	handoverSeries
 	SessionID string `json:"sessionId,omitempty"`
 	Prompt    string `json:"prompt,omitempty"`
-	Pool      string `json:"pool,omitempty"`
+	// Cause is the wake cause of the resume.
+	Cause string `json:"cause,omitempty"`
+	Pool  string `json:"pool,omitempty"`
 	// Action is the action of the rule, and empty for a worker.
 	Action string `json:"action,omitempty"`
 	// Work is the work request of a queued offer, and Origin the work of the
@@ -121,7 +123,9 @@ type handoverRun struct {
 	// Resume says the run resumed the session its event names, and Fresh that
 	// it replaced such a resume. A missing session reads both.
 	Resume bool `json:"resume,omitempty"`
-	Fresh  bool `json:"fresh,omitempty"`
+	// Cause is the wake cause of a resume.
+	Cause string `json:"cause,omitempty"`
+	Fresh bool   `json:"fresh,omitempty"`
 	// Pool is the pool the run took its slot from. An older image writes none.
 	Pool string `json:"pool,omitempty"`
 	handoverSeries
@@ -368,7 +372,7 @@ func (r *router) freeze() handoverState {
 			Pool: p.pool, handoverSeries: seriesOf(p), Action: p.action,
 		}
 		if p.continues != "" {
-			q.SessionID, q.Prompt = p.spec.sessionID, p.spec.prompt
+			q.SessionID, q.Prompt, q.Cause = p.spec.sessionID, p.spec.prompt, p.spec.cause
 		}
 		q.Work, q.Origin = workOf(p), originOf(p)
 		st.Queue = append(st.Queue, q)
@@ -376,7 +380,7 @@ func (r *router) freeze() handoverState {
 	for _, run := range r.live {
 		h := handoverRun{
 			RunID: run.p.runID, Key: run.p.key, Rule: run.p.rule, Event: run.p.event, SessionID: run.p.spec.sessionID,
-			Began: run.began, PID: run.proc.pid, Dir: run.proc.dir, Seq: run.p.seq, Resume: run.p.spec.resume, Fresh: run.p.fresh,
+			Began: run.began, PID: run.proc.pid, Dir: run.proc.dir, Seq: run.p.seq, Resume: run.p.spec.resume, Cause: run.p.spec.cause, Fresh: run.p.fresh,
 			Pool: run.p.slot, handoverSeries: seriesOf(run.p), runPin: run.p.pin,
 			Work: workOf(run.p), ClaimToken: run.p.claimToken, Origin: originOf(run.p), CLIVersion: run.p.runCLIVersion(),
 		}
@@ -469,7 +473,7 @@ func (r *router) adopt(st handoverState) {
 		}
 		q.applyTo(&p)
 		if p.continues != "" {
-			p.spec.resume, p.spec.sessionID, p.spec.prompt = true, q.SessionID, q.Prompt
+			p.spec.resume, p.spec.sessionID, p.spec.prompt, p.spec.cause = true, q.SessionID, q.Prompt, q.Cause
 		}
 		r.queue = append(r.queue, p)
 	}
@@ -495,7 +499,7 @@ func (r *router) adoptLocked(run handoverRun) {
 		p.origin = *run.Origin
 	}
 	run.applyTo(&p)
-	p.spec.sessionID, p.spec.resume = run.SessionID, run.Resume
+	p.spec.sessionID, p.spec.resume, p.spec.cause = run.SessionID, run.Resume, run.Cause
 	p.spec.useSettings(rules.RunSettings{
 		Account: run.Account, Harness: run.Harness, ConfigDir: run.ConfigDir, Profile: run.Profile, EnvFiles: run.EnvFiles,
 		Model: run.Model, PermissionMode: run.PermissionMode,

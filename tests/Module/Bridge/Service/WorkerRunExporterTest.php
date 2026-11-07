@@ -13,6 +13,8 @@ use App\Module\Bridge\Service\WorkerRunExporter;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use PHPUnit\Framework\MockObject\Stub;
@@ -65,6 +67,7 @@ final class WorkerRunExporterTest extends TestCase
         $run->idleGapMs = 500;
         $run->peakContextTokens = 64_000;
         $run->harnessEvents = ['diagnostics' => 2];
+        $run->recordWake(new WorkerRunWakeReport(WorkerRunWakeTrigger::Agent, new \DateTimeImmutable('2026-09-13T09:30:00+00:00'), 5, 6, 7));
         $history = [
             new WorkerRunStateChange($run, WorkerRunState::Running, new \DateTimeImmutable('2026-09-13T10:00:00+00:00'), new \DateTimeImmutable('2026-09-13T10:00:01+00:00')),
             new WorkerRunStateChange($run, WorkerRunState::Succeeded, new \DateTimeImmutable('2026-09-13T10:00:21+00:00'), new \DateTimeImmutable('2026-09-13T10:00:22+00:00')),
@@ -115,6 +118,11 @@ final class WorkerRunExporterTest extends TestCase
             'idleGapMs' => 500,
             'peakContextTokens' => 64_000,
             'harnessEvents' => ['diagnostics' => 2],
+            'wakeTrigger' => 'agent',
+            'wakeGapMs' => 1_800_000,
+            'wakeFirstInputTokens' => 5,
+            'wakeFirstCacheReadTokens' => 6,
+            'wakeFirstCacheWriteTokens' => 7,
             'history' => [
                 ['state' => 'running', 'at' => '2026-09-13T10:00:00+00:00', 'receivedAt' => '2026-09-13T10:00:01+00:00'],
                 ['state' => 'succeeded', 'at' => '2026-09-13T10:00:21+00:00', 'receivedAt' => '2026-09-13T10:00:22+00:00'],
