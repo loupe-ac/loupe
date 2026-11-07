@@ -2,7 +2,7 @@
 # Finds the Preview and Prototype map gaps that the text of a pull request can show before the push.
 # Usage: prepush-check.sh --profile <file> --body <file> --notes <file> --base <ref> --card-type <type> --prototype yes|no
 # Run it from the worker folder. It makes no network call and opens no link.
-# --profile is .loupe/lifecycle.md, --body is the pull request body file, --notes is the build notes saved from document_get.
+# --profile is the file with the "## Preview" section, which is .agents/skills/project-review/SKILL.md, --body is the pull request body file, --notes is the build notes saved from document_get.
 # --base is the base ref of the pull request. --prototype is yes when the card, its parent, its source card or a linked design links an artifact.
 # Prints one line for each gap: "gap: <text>" or "not-proven: <text>". Prints "clean" when there is none.
 # Exits 0 when clean, 1 when a gap needs a fix, 2 when the only gaps are "Not proven" lines.

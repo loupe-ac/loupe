@@ -138,3 +138,21 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 6. Sync the epic branch `epic/<parent number>` of the card with `main`. Run `git fetch origin`, then `git switch --detach origin/epic/<parent number>`, then `git merge origin/main`. When the merge conflicts, run `git merge --abort` and stop blocked. Otherwise run `git push origin HEAD:refs/heads/epic/<parent number>`, and never force it. When the push fails, stop blocked. Then run `git switch <card branch>` when the card has a branch, and take item 5.
 7. Remove a broken card worktree, so the next full `before` command builds it again. Record the recovery on the card first. Then run `loupe env reset` as your last command. The `reset` command of the `recover` work entry, `just worktree-down card-{cardNumber}`, runs from the main checkout. It removes the worker folder and the databases of the card, and keeps the branch. Any exit code other than 0 means the folder stays, so stop blocked.
 8. The worker never pushes to `main`, never force-pushes, and never changes application code. It never changes the folder, the branch or the databases of another card. It never commits, except the merge commit of item 6.
+
+## Routing
+
+### Implementation
+
+Load skill `project-review` when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`, after the build and before the push.
+
+### Fix round
+
+Load skill `project-review` when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`, before the push.
+
+### Review
+
+Load skill `project-review` when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`, before you judge the preview and visual check of the pull request.
+
+### Epic preview
+
+Load skill `project-review` when you refresh the epic preview.

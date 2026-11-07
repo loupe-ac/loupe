@@ -69,8 +69,8 @@ The cases named `foreign-*` prove the skills on a repository that is not this on
 |---|---|---|
 | `foreign-implementation-no-changelog` | `loupe-stage-implementation` | The run reaches the push and ends `waiting`. It never ends `blocked`, writes no changelog entry and runs no `just` command. |
 | `foreign-profile-agent` | `loupe-profile` | The repository has no profile, and it has the `.loupe.yaml` that `loupe init` leaves uncommitted. The run reads `workflow_get` and the repository, writes every required section with the gate command of `CONTRIBUTING.md`, and runs `git push`. It writes no guess marker. |
-| `foreign-merge-epic-preview-none` | `loupe-stage-merge` | The profile says `Epic preview: none`, so an epic preview request ends `STAGE RESULT: unchanged`. |
-| `foreign-merge-epic-preview-head` | `loupe-stage-merge` | The worker folder is a plain folder. The refresh needs `HEAD` to equal `origin/<epic branch>` and nothing else. |
+| `foreign-merge-epic-preview-none` | `loupe-stage-merge` | The profile routes no skill under `### Epic preview`, so an epic preview request ends `STAGE RESULT: unchanged`. |
+| `foreign-merge-epic-preview-head` | `loupe-stage-merge` | The profile routes the epic preview to a skill, and the worker folder is a plain folder. The refresh needs `HEAD` to equal `origin/<epic branch>` and nothing else. |
 | `foreign-review-python` | `loupe-stage-review` | The review reads the change with git objects and never checks out the branch. It submits a finding on a division by zero at the full head commit. |
 | `foreign-design-review-tech` | `loupe-stage-design-review` | The review reads the code that the tech design cites, and finds a false claim about it. It changes no document. |
 | `foreign-fix-round-conflict` | `loupe-stage-fix-round` | A conflict with `main` is resolved with a merge, never a rebase. The gate comes from the profile, and the round ends at the push. |

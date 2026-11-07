@@ -28,9 +28,9 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
    - How to build and test the project, and whether CI runs those commands.
    - An instructions file for agents, such as `AGENTS.md` or `CLAUDE.md`.
    - The GitHub remote, the GitHub App, the bridge and the agent GitHub account. Use the `readiness_get` rows for what Loupe sees.
-   - Run this check only when the profile has a `Visual check` section that names a browser tool. With no such section, write no finding for it.
-   - The browser tool of the visual check is installed, and an agent can use it. The stage skills use it for the visual check of `loupe-stage-implementation/references/visual-check.md`. Check neither the profile section nor the app.
-     - The tool is the one that the profile `Visual check` section names. Find it in the repository and its installed copy, such as a `package.json` for Playwright.
+   - Run this check only when a routed skill holds a visual check method that names a browser tool. With no such skill, write no finding for it.
+   - The browser tool of the visual check is installed, and an agent can use it. The stage skills use it for the visual check of that routed skill. Check neither the skill nor the app.
+     - The tool is the one that the routed skill names. Find it in the repository and its installed copy, such as a `package.json` for Playwright.
      - From a new temporary directory, launch it headless. Take one screenshot of a static HTML file, and read the image.
      - A missing tool is a suggested finding. Propose a card that installs the tool, or that makes its browser start.
    - The repository profile, `.loupe/lifecycle.md`. Every stage reads it.
