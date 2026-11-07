@@ -45,7 +45,7 @@ final readonly class GitHubWorkflowFileReader
             $file = $this->api->get($installationId, $repositoryPath.'/contents/'.self::FILE, ['ref' => $head]);
         } catch (GitHubAppApiFailed $e) {
             if ('http_status' === $e->reason && 404 === $e->status && !$e->rateLimited) {
-                return GitHubWorkflowFile::unusable($head, $default);
+                return GitHubWorkflowFile::missing($head, $default);
             }
 
             throw $e;

@@ -44,6 +44,9 @@ final readonly class GitHubRepositorySettingProposer implements RepositorySettin
             if (null !== $existing) {
                 return $existing;
             }
+            if ($file->exists && null === $file->content) {
+                throw new PullRequestWriteFailed('file_unusable', permanent: true);
+            }
 
             $content = LoupeYamlSettingEditor::edit($file->content, $key, $value, $projectId);
             if ($content === $file->content) {

@@ -18,6 +18,7 @@ use App\Module\GitHub\Service\GitHubRepositorySettingProposer;
 use App\Module\GitHub\Service\GitHubWorkflowFileReader;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -113,6 +114,34 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
             'project: '.$repository->project->id?->toRfc4122()."\nworkflow:\n  merge-approval: person\n",
             base64_decode((string) $put['content'], true),
         );
+    }
+
+    /** @return iterable<string, array{array<mixed>}> */
+    public static function unusableFiles(): iterable
+    {
+        yield 'too large' => [['type' => 'file', 'encoding' => 'base64', 'size' => GitHubWorkflowFileReader::MAX_BYTES + 1, 'sha' => self::BLOB, 'content' => '']];
+        yield 'a directory' => [[['type' => 'file', 'name' => 'x']]];
+        yield 'no content' => [['type' => 'file', 'encoding' => 'none', 'size' => 10, 'sha' => self::BLOB, 'content' => '']];
+    }
+
+    /** @param array<mixed> $file */
+    #[DataProvider('unusableFiles')]
+    public function test_an_existing_file_that_cannot_be_read_is_a_permanent_refusal_with_no_write(array $file): void
+    {
+        $repository = $this->repository(74_009);
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer(['default_branch' => 'main']),
+            $this->answer(['commit' => ['sha' => self::HEAD]]),
+            $this->answer($file),
+            $this->answer([]),
+        ];
+
+        $e = $this->failure(fn () => $this->proposer()->propose($repository, 'merge-approval', 'person', 't', 'b'));
+
+        self::assertSame('file_unusable', $e->cause);
+        self::assertTrue($e->permanent);
+        self::assertSame([], array_filter($this->requests, static fn (array $r): bool => 'GET' !== $r['method'] && !str_ends_with($r['url'], '/access_tokens')));
     }
 
     public function test_an_existing_branch_is_written_with_the_blob_of_that_branch(): void

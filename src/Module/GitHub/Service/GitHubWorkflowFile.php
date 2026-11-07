@@ -15,9 +15,16 @@ final readonly class GitHubWorkflowFile
         public ?string $blobSha,
         public ?string $content,
         public string $defaultBranch,
+        public bool $exists = true,
     ) {
     }
 
+    public static function missing(string $headSha, string $defaultBranch): self
+    {
+        return new self($headSha, null, null, $defaultBranch, exists: false);
+    }
+
+    /** The path holds something, but not a file that Loupe can read and write back. */
     public static function unusable(string $headSha, string $defaultBranch): self
     {
         return new self($headSha, null, null, $defaultBranch);
