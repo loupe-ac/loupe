@@ -7,12 +7,17 @@ namespace App\Module\Workflow\Command;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\BoardColumns;
 use App\Module\Workflow\Contract\ColumnView;
+use App\Module\Workflow\Contract\ProjectRepositories;
+use App\Module\Workflow\Contract\SettingScope;
+use App\Module\Workflow\Contract\TemplateSetting;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowWorkflowHandler
 {
@@ -22,6 +27,8 @@ final readonly class ShowWorkflowHandler
         private BoardColumns $boardColumns,
         private AppRules $appRules,
         private Actions $actions,
+        private WorkflowSettings $settings,
+        private ProjectRepositories $projectRepositories,
 
         #[Autowire(env: 'default::GITHUB_APP_ID')]
         private ?string $githubAppId = null,
@@ -76,6 +83,34 @@ final readonly class ShowWorkflowHandler
             epicBranch: $template->epicBranchPattern(),
             requirements: $template->requirements,
             githubAppId: '' === $this->githubAppId ? null : $this->githubAppId,
+            settings: $this->resolveSettings($project->requireId(), $template->settings),
         );
+    }
+
+    /**
+     * @param list<TemplateSetting> $declared
+     *
+     * @return list<WorkflowSettingView>
+     */
+    private function resolveSettings(Uuid $projectId, array $declared): array
+    {
+        $repositories = [] === array_filter($declared, static fn (TemplateSetting $setting): bool => SettingScope::Repository === $setting->scope)
+            ? []
+            : $this->projectRepositories->of($projectId);
+
+        $views = [];
+        foreach ($declared as $setting) {
+            if (SettingScope::Project === $setting->scope) {
+                $resolved = $this->settings->forProject($projectId, $setting->key);
+                $views[] = new WorkflowSettingView($setting->key, $setting->scope, null, $resolved->value, $resolved->source, $resolved->warnings);
+                continue;
+            }
+            foreach ($repositories as $repository) {
+                $resolved = $this->settings->forRepository($projectId, $repository->id, $setting->key);
+                $views[] = new WorkflowSettingView($setting->key, $setting->scope, $repository, $resolved->value, $resolved->source, $resolved->warnings);
+            }
+        }
+
+        return $views;
     }
 }
