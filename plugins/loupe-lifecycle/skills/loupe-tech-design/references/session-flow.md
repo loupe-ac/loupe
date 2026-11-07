@@ -12,7 +12,7 @@ Each phase has a stable ID, so a comment can cite it. The workflow starts this s
    - When you stop at any point after T0, call `card_run_close` before you stop.
 2. T1: Intake. Take the requirement from the card before you ask anything.
    - Read the approved product document and its answers, as `../../loupe-stage-product-design/references/stage-contract.md` "Read the answers of a design" says. An unapproved product document stops the session. Tell the owner. With no product document, the card body is the requirement source. Say so in the first section of the design.
-   - Read the code and the design inputs that the profile names. Answer each entry that applies. Send a subagent to find facts when that helps.
+   - Read the code and the design inputs that the routed skills name. Answer each entry that applies. Send a subagent to find facts when that helps.
    - Read the open `blocked-by` links of the card and the tech designs of the cards it follows.
 3. T2: Options. Show the solution shapes as the options shape of `../../loupe-interviewing/SKILL.md` says. Skip this phase when the solution is obvious from the code and the requirement. The options and the reason each lost go in "Alternatives".
 4. T3: Decisions. Ask one question per open decision, with the question rules of `../../loupe-interviewing/SKILL.md`. Ask about every decision in the chat, including a low-impact one. The rule that parks technical choices (Q6 of a product design session) does not apply, because this session settles the technical choices. Name the cost of each option in proportion (`tech-document.md` "Facts and recommendations"). Defer a decision only on the owner's word (Q8).

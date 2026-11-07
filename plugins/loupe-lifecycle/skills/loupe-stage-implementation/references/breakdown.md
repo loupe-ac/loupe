@@ -61,7 +61,7 @@ A rerun matches a card to its entry by this line first, and that match is certai
 
 ## Run the breakdown
 
-The breakdown changes the board, and the remote branches when the profile has an `Epics` section. It writes no code and no file. `<design>` is the approved tech design, and `<default>`, `<implementation>`, `<review>` and `<terminal>` are the slugs of the profile `Board` section.
+The breakdown changes the board, and the remote branches when step 6 applies. It writes no code and no file. `<design>` is the approved tech design. `<default>`, `<implementation>`, `<review>` and `<terminal>` are the slugs `backlog`, `implementation`, `in-review` and `done`.
 
 1. Read every page of `card_list` with `parentCardId` set to the card id and `full` set, so each row carries its body and its `pullRequests`. Match each entry of the Breakdown section to a child, as "The entry line of a child" says. Match a follow-up entry through the `relatedCards` of the epic (`card_get`), where a follow-up reads `has-follow-up`. Read each such card with `card_get`, and match it by its follow-up line, or by judgement when it has none. A follow-up has no parent, so `card_list` never returns it.
 2. When a match is unsure, load the `loupe-inbox` instruction. Read the answers of your earlier asks with `inbox_list` and `readerSessionId`, as `loupe-inbox` says. A card that the owner picks matches the entry. An entry for which the owner picks no card gets a new card. An item that closed with no clear answer stays unsure.

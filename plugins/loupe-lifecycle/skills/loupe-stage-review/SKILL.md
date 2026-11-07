@@ -15,14 +15,14 @@ Review the pull request of one card at one head commit, and send the result to L
 4. Never move the card. Never approve the pull request or post a comment on it. Loupe posts the check.
 5. Read the change at the head commit only. Use git objects and the forge, never the working files.
 6. Review the whole change of the pull request each time. Keep no memory of earlier rounds, and read no earlier review.
-7. Write in the writing style of the profile. Write each finding for a reader who has the code open.
+7. Write in the writing style of the repository, as its instruction files and routed skills name it. Write each finding for a reader who has the code open.
 8. Never end your turn while a command runs in the background.
 9. Create no card. A problem outside the change is a finding with the severity `pre-existing`.
 
 ## Procedure
 
-1. Read `../loupe-stage-product-design/references/stage-contract.md` "Run notes and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
-2. Load the instructions the profile `Instruction files` section names for the files the change touches, so you review against the conventions of the repository.
+1. Read `../loupe-stage-product-design/references/stage-contract.md` "Run notes and routing" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
+2. Load the skills that the `### Review` heading routes, at the moments its lines name, so you review against the conventions of the repository.
 3. Find the pull request. The prompt names its URL and the commit to review. When it names none, take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter. When the card has none, stop with `STAGE RESULT: no open pull request`. When it has more than one open, stop with `STAGE RESULT: blocked: more than one open pull request`.
 4. Find and validate the pull request with the forge adapter. When it is outside this repository, stop with `STAGE RESULT: blocked: pull request outside this repository`. When it is not open, stop with `STAGE RESULT: no open pull request`.
 5. Compare the head commit on the forge with the commit to review. When they differ, a push landed after the request. Stop with `STAGE RESULT: not ready <url>: head moved`. Submit nothing. The workflow counts the request as a failed try and asks again after a short wait, so nobody needs to act.

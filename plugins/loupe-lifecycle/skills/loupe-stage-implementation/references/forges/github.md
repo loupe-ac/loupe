@@ -71,7 +71,7 @@ gh pr view <url> --json headRefOid -q .headRefOid
 gh pr checks <url> --required --json name,bucket,link
 ```
 
-`bucket` is `pass`, `fail`, `pending`, `skipping` or `cancel`. The reading describes the head only when `headRefOid` equals the commit you care about. A rollup can still describe an earlier head, when a check has not yet started on the new head. The repository profile says where the list of required checks comes from.
+`bucket` is `pass`, `fail`, `pending`, `skipping` or `cancel`. The reading describes the head only when `headRefOid` equals the commit you care about. A rollup can still describe an earlier head, when a check has not yet started on the new head. The ruleset of the base branch holds the list of required checks. Read it live.
 
 A stacked pull request has no required checks when no ruleset covers its base. For it, drop `--required`, and count every check. `--required` fails there with "No required checks reported".
 
@@ -184,7 +184,7 @@ Set `--conflicts` from the project rule: `hold` when `workflow_get` returns `app
 
 Set `--app-id` to `githubAppId` from `workflow_get`. The script needs it when no rule names the check. When `githubAppId` is null, omit the flag. The script then stops with `UNREAD` in that case.
 
-Set `APPROVER` when the profile `Merge` section names an approver. The named reviewer must then also hold a current approval that covers the head. This adds a condition and lowers no count that the rules require. Otherwise omit it.
+Set `APPROVER` when the instruction files of the repository name an approver. The named reviewer must then also hold a current approval that covers the head. This adds a condition and lowers no count that the rules require. Otherwise omit it.
 
 The script reads `repos/<nameWithOwner>/rules/branches/<base>`, which lists the active rules of every ruleset that applies:
 
@@ -220,7 +220,7 @@ A rebase or a force push rewrites commits, so they hold as commits after approva
 gh pr update-branch <url>
 ```
 
-This merges the base into the head branch on the forge. Never pass `--rebase`. Whether an update keeps an approval depends on the branch rules, and the repository profile says it.
+This merges the base into the head branch on the forge. Never pass `--rebase`. Whether an update keeps an approval depends on the branch rules, and the rules of the repository say it.
 
 ## Change the base
 
@@ -270,4 +270,4 @@ The first command answers `403` with the message "Upgrade to GitHub Pro or make 
 gh pr merge <url> --<method> --match-head-commit <sha>
 ```
 
-`<method>` comes from the profile `Merge` section. For an epic child it is the `epic-child-merge-method` setting that `workflow_get` returns for the repository of the pull request: `squash`, `merge` or `rebase`. `--match-head-commit` refuses the merge when the head moved. Never pass `--admin` or `--auto`. On a branch with a merge queue, `gh pr merge` turns on auto-merge by itself, so the state stays `OPEN`. After the merge, read `state` again, and accept only `MERGED`, which is the state `merged`.
+`<method>` comes from the rules of the repository. For an epic child it is the `epic-child-merge-method` setting that `workflow_get` returns for the repository of the pull request: `squash`, `merge` or `rebase`. `--match-head-commit` refuses the merge when the head moved. Never pass `--admin` or `--auto`. On a branch with a merge queue, `gh pr merge` turns on auto-merge by itself, so the state stays `OPEN`. After the merge, read `state` again, and accept only `MERGED`, which is the state `merged`.
