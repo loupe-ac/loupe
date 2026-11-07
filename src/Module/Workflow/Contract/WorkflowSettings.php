@@ -18,4 +18,7 @@ interface WorkflowSettings
      * @throws \LogicException when the template declares the key with the repository scope
      */
     public function forProject(Uuid $projectId, string $key): ResolvedSetting;
+
+    /** @return list<string> one warning for each project setting that the repositories of the project set to different valid values */
+    public function projectConflicts(Uuid $projectId): array;
 }

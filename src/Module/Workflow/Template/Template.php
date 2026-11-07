@@ -118,9 +118,13 @@ final readonly class Template
     /** The epic branch pattern of the project with {number} for the card number, or null when the project has no epic branches. */
     public function epicBranchPattern(): ?string
     {
-        $pattern = $this->projectSettingValue(self::SETTING_EPIC_BRANCH_PATTERN);
+        return self::epicBranchPatternOf($this->projectSettingValue(self::SETTING_EPIC_BRANCHES), $this->projectSettingValue(self::SETTING_EPIC_BRANCH_PATTERN));
+    }
 
-        return true === $this->projectSettingValue(self::SETTING_EPIC_BRANCHES) && \is_string($pattern) ? $pattern : null;
+    /** The pattern when the project has epic branches on and a pattern, else null. */
+    public static function epicBranchPatternOf(mixed $enabled, mixed $pattern): ?string
+    {
+        return true === $enabled && \is_string($pattern) ? $pattern : null;
     }
 
     public function epicBranchOf(int $number): ?string

@@ -42,6 +42,6 @@ final class TemplateEpicBranches implements EpicBranches, ResetInterface
         $enabled = $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCHES)->value;
         $pattern = $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCH_PATTERN)->value;
 
-        return true === $enabled && \is_string($pattern) ? $pattern : null;
+        return Template::epicBranchPatternOf($enabled, $pattern);
     }
 }

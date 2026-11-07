@@ -171,6 +171,21 @@ final class WorkflowSettingsTest extends WorkflowSettingsTestCase
         self::assertStringContainsString('acme/b', $resolved->warnings[0]);
     }
 
+    public function test_project_conflicts_lists_the_conflict_warning_of_each_conflicting_key(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('project-conflicts-list');
+        $this->bindingValues($project, ['epic-branch-pattern' => 'project/{number}']);
+        $this->read($project, $this->repository($project, 'acme/a'), ['epic-branch-pattern' => 'a/{number}']);
+        $this->read($project, $this->repository($project, 'acme/b'), ['epic-branch-pattern' => 'b/{number}']);
+
+        $conflicts = $this->settings()->projectConflicts($project->requireId());
+
+        self::assertCount(1, $conflicts);
+        self::assertStringContainsString('acme/a', $conflicts[0]);
+        self::assertStringContainsString('acme/b', $conflicts[0]);
+    }
+
     public function test_a_conflict_with_no_template_value_resolves_from_the_default(): void
     {
         self::bootKernel();

@@ -104,6 +104,23 @@ final readonly class TemplateWorkflowSettings implements WorkflowSettings
         return new ResolvedSetting($key, $fallback->value, \count($distinct) > 1 ? SettingSource::Conflict : $fallback->source, $warnings);
     }
 
+    #[\Override]
+    public function projectConflicts(Uuid $projectId): array
+    {
+        $conflicts = [];
+        foreach ($this->templates->of($projectId)->settings as $setting) {
+            if (SettingScope::Project !== $setting->scope) {
+                continue;
+            }
+            $resolved = $this->forProject($projectId, $setting->key);
+            if (SettingSource::Conflict === $resolved->source && [] !== $resolved->warnings) {
+                $conflicts[] = array_last($resolved->warnings);
+            }
+        }
+
+        return $conflicts;
+    }
+
     private function fromTemplate(Uuid $projectId, TemplateSetting $setting): ResolvedSetting
     {
         $value = $this->templates->of($projectId)->settingValues[$setting->key] ?? null;

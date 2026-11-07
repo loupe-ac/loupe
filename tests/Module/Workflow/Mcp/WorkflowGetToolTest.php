@@ -187,6 +187,23 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertTrue($byRepository('epic-branches')['-']['value']);
     }
 
+    public function test_epic_branch_follows_the_project_settings_of_the_repository_file(): void
+    {
+        $project = $this->workflowProject('workflow-get-epic-branch');
+        $this->bindLifecycle($project);
+        $this->writer()->apply($project->requireId(), $this->repository($project, 'acme/file'), 'blob-a', 'head-a', ['epic-branch-pattern' => 'work/{number}'], true);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame('work/{number}', $this->tool()()['epicBranch']);
+
+        $off = $this->workflowProject('workflow-get-epic-off');
+        $this->bindLifecycle($off);
+        $this->writer()->apply($off->requireId(), $this->repository($off, 'acme/off'), 'blob-b', 'head-b', ['epic-branches' => false], true);
+        $this->actAsMcpTokenBoundTo($off);
+
+        self::assertNull($this->tool()()['epicBranch']);
+    }
+
     public function test_a_project_without_repositories_lists_its_project_settings_only(): void
     {
         $project = $this->workflowProject('workflow-get-no-repositories');

@@ -9,6 +9,7 @@ use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\View\RepositoryCheckLine;
 use App\Module\Workflow\Contract\SuggestionMark;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -41,6 +42,7 @@ final readonly class GitHubRepositoryCheckLines
 
     public function __construct(
         private TranslatorInterface $translator,
+        private WorkflowSettings $workflowSettings,
     ) {
     }
 
@@ -67,6 +69,10 @@ final readonly class GitHubRepositoryCheckLines
             }
         }
         foreach ($check->repository->fileWarnings as $warning) {
+            $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
+        }
+        $projectId = $check->repository->project->id;
+        foreach (null === $projectId ? [] : $this->workflowSettings->projectConflicts($projectId) as $warning) {
             $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
         }
 

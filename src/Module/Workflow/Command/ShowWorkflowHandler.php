@@ -14,6 +14,7 @@ use App\Module\Workflow\Contract\WorkflowSettings;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\RuleOrigin;
+use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -39,7 +40,8 @@ final readonly class ShowWorkflowHandler
     public function __invoke(ShowWorkflowCommand $command): WorkflowView
     {
         $project = $command->project;
-        $template = $this->templates->forProject($project->id ?? throw new \LogicException('The project is not persisted.'));
+        $projectId = $project->id ?? throw new \LogicException('The project is not persisted.');
+        $template = $this->templates->forProject($projectId);
 
         $slots = [];
         foreach ($this->workflowSlotLinks->findColumnsBySlot($project) as $slot => $column) {
@@ -72,7 +74,7 @@ final readonly class ShowWorkflowHandler
             templateVersion: $template->version,
             columns: array_map(
                 static fn (ColumnView $column): WorkflowColumnView => new WorkflowColumnView($column, $slots[(string) $column->id] ?? null),
-                $this->boardColumns->forProject($project->id ?? throw new \LogicException('The project is not persisted.')),
+                $this->boardColumns->forProject($projectId),
             ),
             kinds: array_map(
                 static fn (string $kind, array $entry): WorkflowKindView => new WorkflowKindView($kind, $entry['origin'], $entry['rules'], $entry['checks']),
@@ -80,10 +82,13 @@ final readonly class ShowWorkflowHandler
                 array_values($kinds),
             ),
             approvalCoversConflictResolution: $template->approvalCoversConflictResolution,
-            epicBranch: $template->epicBranchPattern(),
+            epicBranch: Template::epicBranchPatternOf(
+                $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCHES)->value,
+                $this->settings->forProject($projectId, Template::SETTING_EPIC_BRANCH_PATTERN)->value,
+            ),
             requirements: $template->requirements,
             githubAppId: '' === $this->githubAppId ? null : $this->githubAppId,
-            settings: $this->resolveSettings($project->requireId(), $template->settings),
+            settings: $this->resolveSettings($projectId, $template->settings),
         );
     }
 
