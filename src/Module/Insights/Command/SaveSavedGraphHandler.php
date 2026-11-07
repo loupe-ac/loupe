@@ -10,6 +10,7 @@ use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use Doctrine\DBAL\LockMode;
@@ -28,6 +29,7 @@ final readonly class SaveSavedGraphHandler
         private SavedGraphCap $cap,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
+        private InsightsRefreshRequester $refreshes,
     ) {
     }
 
@@ -77,6 +79,7 @@ final readonly class SaveSavedGraphHandler
         );
 
         $this->dashboard->graphChanged($project, $graph->id ?? throw new \LogicException('A stored graph has an id.'), DashboardChange::Saved);
+        $this->refreshes->graph($graph);
 
         return new SavedGraphResult($graph, $query);
     }

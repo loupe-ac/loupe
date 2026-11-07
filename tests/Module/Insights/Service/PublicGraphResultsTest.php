@@ -12,13 +12,17 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\PublicSeriesLabelRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
+use App\Module\Insights\Service\InsightsRefreshSettings;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\Service\PublicGraphResults;
 use App\Module\Insights\Service\PublicSeriesLabels;
 use App\Module\Insights\Service\SavedGraphHealth;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class PublicGraphResultsTest extends KernelTestCase
@@ -36,7 +40,7 @@ final class PublicGraphResultsTest extends KernelTestCase
         $graph = $this->seedSavedGraph($project, 'Tests', 0);
 
         self::assertNull($this->publicResults()->forGraph($graph));
-        self::assertNull($this->dashboardResults()->get($project, $graph));
+        self::assertNull($this->dashboardResults()->get($graph));
     }
 
     public function test_a_graph_split_by_account_shows_numbers_and_the_kept_entry_keeps_the_names(): void
@@ -52,7 +56,7 @@ final class PublicGraphResultsTest extends KernelTestCase
 
         self::assertNotNull($result);
         self::assertSame(['Account 1'], $result->labels);
-        self::assertSame(['secret-account'], $this->keptLabels($project, $graph));
+        self::assertSame(['secret-account'], $this->keptLabels($graph));
     }
 
     public function test_a_graph_with_no_split_keeps_its_labels(): void
@@ -66,7 +70,48 @@ final class PublicGraphResultsTest extends KernelTestCase
         $result = $this->publicResults()->forGraph($graph);
 
         self::assertNotNull($result);
-        self::assertSame($this->keptLabels($project, $graph), $result->labels);
+        self::assertSame($this->keptLabels($graph), $result->labels);
+    }
+
+    public function test_a_page_that_computes_keeps_the_result_for_the_next_visitor(): void
+    {
+        $project = $this->scenarioProject('public-keeps');
+        $em = $this->em();
+        $this->seedUsage($em, $this->seedRun($em, $project, cardNumber: 1, endedAt: new \DateTimeImmutable('-5 days')), costUsd: '3.00');
+        $graph = $this->costGraph($project);
+        self::assertNull($this->dashboardResults()->get($graph));
+
+        $this->publicResults()->forGraph($graph);
+
+        self::assertNotNull($this->dashboardResults()->get($graph));
+    }
+
+    public function test_a_result_younger_than_the_sweep_interval_is_used_as_it_is(): void
+    {
+        $project = $this->scenarioProject('public-fresh');
+        $graph = $this->costGraph($project);
+        $this->publicResults()->forGraph($graph);
+        $firstAt = $this->dashboardResults()->get($graph)?->computedAt;
+
+        $this->publicResults()->forGraph($graph);
+
+        self::assertEquals($firstAt, $this->dashboardResults()->get($graph)?->computedAt);
+    }
+
+    public function test_a_result_older_than_the_sweep_interval_is_computed_again(): void
+    {
+        $project = $this->scenarioProject('public-old');
+        $graph = $this->costGraph($project);
+        $keeper = self::getContainer()->get(InsightsResultKeeper::class);
+        self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
+        $keeper->graph($graph);
+        $old = $this->dashboardResults()->get($graph)?->computedAt;
+        usleep(1_100_000);
+        $clock = new MockClock(new \DateTimeImmutable()->modify('+20 minutes'));
+
+        $this->publicResultsWithClock($clock)->forGraph($graph);
+
+        self::assertGreaterThan($old, $this->dashboardResults()->get($graph)?->computedAt);
     }
 
     private function costGraph(Project $project): InsightsSavedGraph
@@ -85,6 +130,14 @@ final class PublicGraphResultsTest extends KernelTestCase
 
     private function publicResults(): PublicGraphResults
     {
+        $clock = self::getContainer()->get(ClockInterface::class);
+        self::assertInstanceOf(ClockInterface::class, $clock);
+
+        return $this->publicResultsWithClock($clock);
+    }
+
+    private function publicResultsWithClock(ClockInterface $clock): PublicGraphResults
+    {
         $translator = self::getContainer()->get(TranslatorInterface::class);
         $labels = self::getContainer()->get(PublicSeriesLabelRepository::class);
         $health = self::getContainer()->get(SavedGraphHealth::class);
@@ -92,13 +145,18 @@ final class PublicGraphResultsTest extends KernelTestCase
         self::assertInstanceOf(PublicSeriesLabelRepository::class, $labels);
         self::assertInstanceOf(SavedGraphHealth::class, $health);
 
-        return new PublicGraphResults($health, $this->dashboardResults(), new PublicSeriesLabels($this->em(), $labels, $translator), $this->keptView());
+        $keeper = self::getContainer()->get(InsightsResultKeeper::class);
+        $settings = self::getContainer()->get(InsightsRefreshSettings::class);
+        self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
+        self::assertInstanceOf(InsightsRefreshSettings::class, $settings);
+
+        return new PublicGraphResults($health, $this->dashboardResults(), $keeper, $settings, new PublicSeriesLabels($this->em(), $labels, $translator), $this->keptView(), $clock);
     }
 
     /** @return list<string>|null */
-    private function keptLabels(Project $project, InsightsSavedGraph $graph): ?array
+    private function keptLabels(InsightsSavedGraph $graph): ?array
     {
-        $kept = $this->dashboardResults()->get($project, $graph);
+        $kept = $this->dashboardResults()->get($graph);
 
         return null === $kept ? null : $this->keptView()->build($kept, 'en')->labels;
     }

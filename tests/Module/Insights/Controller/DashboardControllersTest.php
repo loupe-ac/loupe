@@ -6,7 +6,10 @@ namespace App\Tests\Module\Insights\Controller;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,6 +17,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class DashboardControllersTest extends WebTestCase
 {
@@ -70,10 +74,10 @@ final class DashboardControllersTest extends WebTestCase
         }
     }
 
-    public function test_the_dashboard_shows_a_lazy_frame_for_a_graph_with_no_kept_result_and_the_tile_once_it_is_kept(): void
+    public function test_the_dashboard_shows_a_waiting_tile_asks_the_worker_once_and_shows_the_tile_once_it_is_kept(): void
     {
         $client = static::createClient();
-        $project = $this->scenarioProject('page-lazy');
+        $project = $this->scenarioProject('page-waiting');
         $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
         $graph->metric = 'cost';
         $this->em()->flush();
@@ -87,18 +91,30 @@ final class DashboardControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $waiting = $crawler->filter('[data-dashboard-tile="waiting"]');
         self::assertCount(1, $waiting);
-        self::assertSame($base.'/graphs/'.$graphId, $waiting->attr('src'));
-        self::assertSame('lazy', $waiting->attr('loading'));
+        self::assertNull($waiting->attr('src'));
         self::assertSame('dashboard-graph-'.$graphId, $waiting->attr('id'));
         self::assertCount(1, $waiting->filter('[role="status"] svg.lp-graph-tile__spinner'));
+        $sent = $this->insightsTransport()->getSent();
+        self::assertCount(1, $sent);
+        $message = $sent[0]->getMessage();
+        self::assertInstanceOf(RefreshInsightsItem::class, $message);
+        self::assertSame($graphId, $message->graphId);
 
         $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-dashboard-tile="waiting"]'));
+        self::assertCount(0, $crawler->filter('[data-dashboard-tile="ready"]'));
+        self::assertCount(0, $crawler->filter('[data-kept-result]'));
+        self::assertNull($this->kept()->findForGraph($this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException()));
+
+        $this->keep($graphId);
+        $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="ready"]'));
 
         $crawler = $client->request(Request::METHOD_GET, $base);
         self::assertCount(0, $crawler->filter('[data-dashboard-tile="waiting"]'));
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="ready"]'));
+        self::assertCount(0, $this->insightsTransport()->getSent());
     }
 
     public function test_the_forms_of_a_tile_post_what_the_controllers_read(): void
@@ -118,12 +134,13 @@ final class DashboardControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         foreach ([$firstId, $secondId] as $id) {
-            $client->request(Request::METHOD_GET, $base.'/graphs/'.$id);
+            $this->keep($id);
         }
         $crawler = $client->request(Request::METHOD_GET, $base);
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][target="_top"]'));
+        self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][data-kept-result]'));
         self::assertCount(1, $crawler->filter('[data-dashboard-add]'));
         self::assertSame($base.'/graphs/'.$firstId.'/remove', $crawler->filter('#dashboard-graph-'.$firstId.' form[data-dashboard-remove-form]')->attr('action'));
         self::assertSame('Open in Metrics', trim($crawler->filter('#dashboard-graph-'.$firstId.' .lp-menu__item[href]')->text()));
@@ -539,5 +556,30 @@ final class DashboardControllersTest extends WebTestCase
         self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
 
         return $session->getFlashBag()->all();
+    }
+
+    private function keep(string $graphId): void
+    {
+        $graph = $this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException('The graph is missing.');
+        $keeper = self::getContainer()->get(InsightsResultKeeper::class);
+        self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
+        $keeper->graph($graph);
+        $this->em()->clear();
+    }
+
+    private function kept(): InsightsKeptResultRepository
+    {
+        $kept = self::getContainer()->get(InsightsKeptResultRepository::class);
+        self::assertInstanceOf(InsightsKeptResultRepository::class, $kept);
+
+        return $kept;
+    }
+
+    private function insightsTransport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
     }
 }

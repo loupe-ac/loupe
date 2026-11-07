@@ -12,7 +12,7 @@ use App\Module\Insights\Service\SavedGraphHealth;
 use App\Module\Insights\View\DashboardTileView;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-/** Reads one tile for its lazy frame, and computes and keeps the graph when no result is kept. A broken graph computes nothing. */
+/** Reads one tile for its frame. It computes nothing: a tile with no kept result waits for the worker. */
 final readonly class ShowDashboardGraphHandler
 {
     public function __construct(
@@ -36,7 +36,7 @@ final readonly class ShowDashboardGraphHandler
         $ids = array_map(static fn (\App\Module\Insights\Entity\InsightsSavedGraph $active): string => (string) $active->id, $this->insightsSavedGraphs->findActive($project));
         $index = array_search((string) $graph->id, $ids, true);
         $broken = $this->health->check($project, [$graph])[(string) $graph->id] ?? null;
-        $kept = null === $broken ? ($this->results->get($project, $graph) ?? $this->results->compute($project, $graph)) : null;
+        $kept = null === $broken ? $this->results->get($graph) : null;
         $result = null === $kept ? null : $this->keptView->build($kept, \Locale::getDefault());
 
         return new DashboardTileView($graph, $broken, $result, false !== $index && $index > 0, false !== $index && $index < \count($ids) - 1, $this->shares->for($graph));

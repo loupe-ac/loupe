@@ -29,8 +29,10 @@ use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\ArrayParameterType;
@@ -40,7 +42,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Writes daily runs of three models over the last 60 days, each linked to a
- * done card, and six saved graphs, so the Metrics and Dashboard pages of a
+ * done card, and seven saved graphs, so the Metrics and Dashboard pages of a
  * dev project show data and a change from the previous period. The graph split by account carries a public link
  * with a fixed code, so a worktree has a working address at /s/{code}. Each seed writes only the runs that are
  * missing, so a project seeded last week gains the days since then, and a deleted run comes back.
@@ -69,6 +71,9 @@ final readonly class DevMetricsSeeder
 
     private const string SHARED_GRAPH_SLUG = 'cost-per-run-by-account';
 
+    /** The graph that keeps no result, so the Dashboard draws it as a tile that waits for the worker. */
+    public const string WAITING_GRAPH_SLUG = 'waiting-for-the-worker';
+
     /** The account of the runs of each model, by index. */
     private const array ACCOUNTS = ['dev-work', 'dev-personal', 'dev-work'];
 
@@ -91,11 +96,13 @@ final readonly class DevMetricsSeeder
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
+        private InsightsResultKeeper $keeper,
+        private InsightsKeptResultRepository $insightsKeptResults,
     ) {
     }
 
     /**
-     * False when every run, usage row and saved graph exists.
+     * False when every run, usage row, saved graph and kept result exists.
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
@@ -104,7 +111,30 @@ final readonly class DevMetricsSeeder
         $runsSeeded = $this->seedRuns($context, $project, $context->now->setTime(0, 0), $cardFor);
         $graphsSeeded = $this->seedGraphs($context, $project);
 
-        return $runsSeeded || $graphsSeeded;
+        $resultsKept = $this->keepResults($project, $runsSeeded || $graphsSeeded);
+
+        return $runsSeeded || $graphsSeeded || $resultsKept;
+    }
+
+    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. The waiting graph loses a row that an older seed or a share page gave it. The worker skips it, as DevWaitingGraphHold says. */
+    private function keepResults(Project $project, bool $all): bool
+    {
+        $kept = false;
+        $waiting = DevSeedId::of('insights/graph/'.self::WAITING_GRAPH_SLUG);
+        foreach ($this->insightsSavedGraphs->findActive($project) as $graph) {
+            if ($waiting->equals($graph->id)) {
+                $kept = $this->insightsKeptResults->forgetGraph($graph) || $kept;
+
+                continue;
+            }
+            if (!$all && null !== $this->insightsKeptResults->findForGraph($graph)) {
+                continue;
+            }
+            $this->keeper->graph($graph);
+            $kept = true;
+        }
+
+        return $kept;
     }
 
     /** @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor */
@@ -287,6 +317,7 @@ final readonly class DevMetricsSeeder
             ['time-in-each-bucket', 'Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
             ['share-of-runs-by-model', 'Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
             [self::SHARED_GRAPH_SLUG, 'Cost per run by account', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Account, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
+            [self::WAITING_GRAPH_SLUG, 'Waiting for the worker', 'cost', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::Number, SavedGraphWidth::Half],
         ];
         $seeded = false;
         foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
