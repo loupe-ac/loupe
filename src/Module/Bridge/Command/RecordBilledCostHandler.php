@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRunBilledCost;
+use App\Module\Bridge\Event\WorkerRunBilledCostRecorded;
 use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\ValueObject\BilledCostState;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -29,6 +31,7 @@ final readonly class RecordBilledCostHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -57,6 +60,7 @@ final readonly class RecordBilledCostHandler
         }
 
         $this->publisher->runsChanged($row->project);
+        $this->events->dispatch(new WorkerRunBilledCostRecorded((string) $row->project->id));
         if ($row->state->isFinal()) {
             $this->auditor->record(
                 'bridge.billed_cost_recorded',

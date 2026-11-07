@@ -105,6 +105,7 @@ final class DashboardControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="waiting"]'));
         self::assertCount(0, $crawler->filter('[data-dashboard-tile="ready"]'));
         self::assertCount(0, $crawler->filter('[data-kept-result]'));
+        self::assertCount(0, $crawler->filter('[data-live-tile]'));
         self::assertNull($this->kept()->findForGraph($this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException()));
 
         $this->keep($graphId);
@@ -220,6 +221,8 @@ final class DashboardControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][target="_top"]'));
         self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][data-kept-result]'));
+        self::assertCount(1, $crawler->filter('turbo-frame[data-live-tile="'.$firstId.'"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame[data-live-tile="'.$secondId.'"]'));
         self::assertCount(1, $crawler->filter('[data-dashboard-add]'));
         self::assertSame($base.'/graphs/'.$firstId.'/remove', $crawler->filter('#dashboard-graph-'.$firstId.' form[data-dashboard-remove-form]')->attr('action'));
         self::assertSame('Open in Metrics', trim($crawler->filter('#dashboard-graph-'.$firstId.' .lp-menu__item[href]')->text()));

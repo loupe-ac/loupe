@@ -6,9 +6,11 @@ namespace App\Module\Insights\Service;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Module\Project\Entity\Project;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DeduplicateStamp;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Asks the insights worker to compute one item at once. A second request for the same item is dropped while the first
@@ -21,6 +23,7 @@ final readonly class InsightsRefreshRequester
 
     public function __construct(
         private MessageBusInterface $bus,
+        private InsightsRefreshSettings $settings,
     ) {
     }
 
@@ -39,6 +42,21 @@ final readonly class InsightsRefreshRequester
         $this->bus->dispatch(
             new RefreshInsightsItem($projectId, null, $experiment),
             [new DeduplicateStamp('insights_item:'.$projectId.':'.hash('sha256', $experiment), self::DEDUPLICATE_TTL, true)],
+        );
+    }
+
+    /**
+     * Asks for a refresh of the items of a project that read one kind of data, after the grouping delay. A second request
+     * for the same project and kind is dropped while the first one waits in the queue. The lock ends when the worker
+     * receives the message, so data that arrives during a compute queues a new refresh.
+     */
+    public function projectKind(string $projectId, InsightsDataKind $kind, ?string $experiment = null): void
+    {
+        $delay = $this->settings->refreshDelaySeconds();
+        $key = 'insights:'.$projectId.':'.$kind->value.(null === $experiment ? '' : ':'.hash('sha256', $experiment));
+        $this->bus->dispatch(
+            new RefreshProjectInsights($projectId, $kind->value, $experiment),
+            [new DelayStamp($delay * 1000), new DeduplicateStamp($key, $delay + self::DEDUPLICATE_TTL, true)],
         );
     }
 }
