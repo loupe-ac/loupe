@@ -529,6 +529,15 @@ class CardRepository extends ServiceEntityRepository
         );
     }
 
+    /** Reads the stored started flag from the row, never from the loaded entity. */
+    public function hasLeftBacklog(Card $card): bool
+    {
+        return (bool) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT left_backlog FROM board_cards WHERE id = :id',
+            ['id' => (string) $card->id],
+        );
+    }
+
     /**
      * Reads onto the card the column it is in.
      *

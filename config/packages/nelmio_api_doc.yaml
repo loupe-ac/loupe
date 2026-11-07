@@ -1348,12 +1348,22 @@ when@dev: &generator
                                                     required:
                                                     - label
                                                     - url
+                                                    - cardId
+                                                    - column
+                                                    - locked
                                                     properties:
                                                         label:
                                                             type: string
                                                         url:
                                                             type: string
                                                             nullable: true
+                                                        cardId:
+                                                            type: string
+                                                            format: uuid
+                                                        column:
+                                                            type: string
+                                                        locked:
+                                                            type: boolean
                                                     nullable: true
                             NativeFacts:
                                 type: object

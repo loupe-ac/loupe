@@ -509,6 +509,26 @@ while you look at the page.
 If you edit a note at the moment the agent picks it up, the widget refuses your
 save and tells you so. It does not discard your text without a word.
 
+### A note locks when its card starts
+
+A note on a widget card locks as soon as the card leaves Backlog. The card can
+leave Backlog when you start it from the widget, when a person moves it on the
+board, or when the workflow moves it. The lock stays when the card goes back to
+Backlog, because an agent may already have read the note.
+
+A locked row shows "#57 is being worked on in Tech design." When the card is
+back in Backlog, it shows "#57 already started and is back in Backlog." The menu
+of a locked row holds **Mark resolved** and **Open #57 in Loupe**. It has no
+**Edit text** and no **Delete note**. **Delete all** skips locked notes, and its
+question says how many notes stay on started cards.
+
+The server keeps the same rule. A request to edit or delete a locked note gets a
+409 answer with the code `note_locked`, and the widget then loads the list again.
+
+One exception applies. On the preview page of a started card, the notes that you
+save on that page stay open for **Edit text** and **Delete note**. The notes of
+the first review stay locked.
+
 ## Reviewing an iOS app in the simulator
 
 You can review an iOS app that runs in the iOS Simulator. The Live review panel is a small macOS app. It sits beside the simulator and saves notes to your project.

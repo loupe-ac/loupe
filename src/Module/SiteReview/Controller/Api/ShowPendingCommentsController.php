@@ -129,7 +129,13 @@ final class ShowPendingCommentsController extends AppController
                             $anchors,
                         )),
                         'strokes' => $c->strokes ?? [],
-                        'link' => null === $link ? null : ['label' => $link->label, 'url' => $link->url],
+                        'link' => null === $link ? null : [
+                            'label' => $link->label,
+                            'url' => $link->url,
+                            'cardId' => $link->cardId,
+                            'column' => $link->column,
+                            'locked' => $link->locked,
+                        ],
                     ];
                 },
                 $view->comments,

@@ -529,6 +529,16 @@
                             }
                         }
                     },
+                    "409": {
+                        "description": "Refused: `note_locked`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
                     "405": {
                         "description": "Refused: `method_not_allowed`.",
                         "content": {
@@ -4207,6 +4217,16 @@
                     },
                     "405": {
                         "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `note_locked`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -10080,7 +10100,10 @@
                                 "link": {
                                     "required": [
                                         "label",
-                                        "url"
+                                        "url",
+                                        "cardId",
+                                        "column",
+                                        "locked"
                                     ],
                                     "properties": {
                                         "label": {
@@ -10089,6 +10112,16 @@
                                         "url": {
                                             "type": "string",
                                             "nullable": true
+                                        },
+                                        "cardId": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "column": {
+                                            "type": "string"
+                                        },
+                                        "locked": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "type": "object",

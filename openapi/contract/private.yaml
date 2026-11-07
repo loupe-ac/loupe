@@ -1030,6 +1030,8 @@ paths:
           $ref: '#/components/responses/E404NotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409NoteLocked'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -1127,6 +1129,8 @@ paths:
           $ref: '#/components/responses/E404NotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409NoteLocked'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/review:
@@ -3331,12 +3335,22 @@ components:
                 required:
                 - label
                 - url
+                - cardId
+                - column
+                - locked
                 properties:
                   label:
                     type: string
                   url:
                     type: string
                     nullable: true
+                  cardId:
+                    type: string
+                    format: uuid
+                  column:
+                    type: string
+                  locked:
+                    type: boolean
                 nullable: true
     WidgetCardCreate:
       type: object
@@ -4083,6 +4097,13 @@ components:
         code: artifact_refused
         errors:
           files: The artifact has no files.
+    NoteLocked:
+      summary: note_locked
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#note_locked
+        title: Note locked
+        status: 409
+        code: note_locked
     CardFinished:
       summary: card_finished
       value:
@@ -4622,6 +4643,15 @@ components:
               $ref: '#/components/examples/ArtifactRefused'
             validation_failed:
               $ref: '#/components/examples/ValidationFailed'
+    E409NoteLocked:
+      description: 'Refused: `note_locked`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            note_locked:
+              $ref: '#/components/examples/NoteLocked'
     E409CardFinished:
       description: 'Refused: `card_finished`.'
       content:

@@ -8,6 +8,7 @@ use App\Api\OpenApi\RateLimitedResponse;
 use App\Api\Problem\ApiProblemException;
 use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
+use App\Module\SiteReview\Command\CommentLocked;
 use App\Module\SiteReview\Command\CommentNotFound;
 use App\Module\SiteReview\Command\UpdateCommentCommand;
 use App\Module\SiteReview\Command\UpdateCommentHandler;
@@ -29,6 +30,7 @@ use Symfony\Component\Uid\Uuid;
     new OA\Response(response: 403, description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 404, description: 'Refused: `not_found`, `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 409, description: 'Refused: `note_locked`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 422, description: 'Refused: `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new RateLimitedResponse(),
@@ -73,6 +75,8 @@ final class UpdateCommentController extends AppController
             ));
         } catch (CommentNotFound) {
             throw ApiProblemException::refused(JsonResponse::HTTP_NOT_FOUND, 'not_found', 'No such record exists for this token.');
+        } catch (CommentLocked) {
+            throw ApiProblemException::refused(JsonResponse::HTTP_CONFLICT, 'note_locked', 'The card of this note started work, so the note no longer changes.');
         }
 
         // The widget names the card in its save notice, as it does for a new note.
