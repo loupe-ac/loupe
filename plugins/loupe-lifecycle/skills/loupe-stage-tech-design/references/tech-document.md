@@ -28,7 +28,7 @@ A dependency is a part that the design needs, that is missing on the base branch
 
 ## The design sections
 
-Use these `##` sections, in this order. Follow `references/design-structure.md` of the `loupe-documents` skill for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the profile instructions add, such as the current state or the project checks, before Decided. Leave out a section that has nothing real to say.
+Use these `##` sections, in this order. Follow `references/design-structure.md` of the `loupe-documents` skill for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the instruction files or routed skills add, such as the current state or the project checks, before Decided. Leave out a section that has nothing real to say.
 
 1. At a glance.
 2. Problem. Say in plain words what goes wrong today, or what the product cannot do, and who feels it. Keep the trigger, the event that made someone look, apart from the problem. Leave the solution out.

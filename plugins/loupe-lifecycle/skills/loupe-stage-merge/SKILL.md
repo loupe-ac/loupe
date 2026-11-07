@@ -15,7 +15,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 4. Never move the card. The app moves it after the merge.
 5. `card_update` replaces the whole `body` and the whole `pullRequestUrls`. Send the `card_get` values plus your addition.
 6. Never approve the pull request. Never pass `--admin`, `--auto` or `--rebase`, and never skip a branch protection.
-7. Write in the writing style of the profile.
+7. Write in the writing style of the repository, as its instruction files and routed skills name it.
 8. Never end your turn while a command runs in the background.
 9. Create no card. Name a problem you find in the `STAGE RESULT` line, and the fix round or the owner takes it.
 
