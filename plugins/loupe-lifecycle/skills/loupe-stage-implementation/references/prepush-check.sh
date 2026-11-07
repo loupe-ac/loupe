@@ -115,17 +115,25 @@ if [ $applies = yes ]; then
   notes_lines=$(section "$notes" "## Preview" | grep -E '^- ')
   while IFS= read -r nl; do
     [ -n "$nl" ] || continue
-    grep -qi 'not proven' <<<"$nl" && continue
     item=${nl#- }
     if [[ $item =~ ^\[([^]]+)\] ]]; then label=${BASH_REMATCH[1]}
     else label=$(sed -E 's/[`:,].*$//; s/ [-—] .*$//; s/[[:space:]]+$//' <<<"$item"); fi
     [ -n "$label" ] || continue
-    body_line=$(grep -F -m1 -- "[$label]" <<<"$lines")
+    # A body line names the state as a link label, or as plain text at its start, the form of a Not proven line.
+    body_line=
+    while IFS= read -r bl; do
+      rest=${bl#- }
+      if [[ $rest == "[$label]"* ]] || [ "$(sed -E 's/[`:,].*$//; s/ [-—] .*$//; s/[[:space:]]+$//' <<<"$rest")" = "$label" ]; then
+        body_line=$bl
+        break
+      fi
+    done <<<"$lines"
     if [ -z "$body_line" ]; then
       gaps+=("the build notes Preview list names \"$label\", and the body has no line for it")
       continue
     fi
     [ -n "$data_patterns" ] || continue
+    grep -qi 'not proven' <<<"$nl" && continue
     grep -qi 'not proven' <<<"$body_line" && continue
     kind=$(sed -E 's/`[^`]*`//g; s/\[[^]]*\]\([^)]*\)//g' <<<"$item")
     if grep -qiE '(^|[^[:alnum:]])no records([^[:alnum:]]|$)' <<<"$kind"; then continue; fi

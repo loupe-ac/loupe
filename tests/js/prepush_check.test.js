@@ -243,6 +243,26 @@ describe('prepush-check.sh', () => {
         expect(r.out).not.toContain('names "Run list"');
     });
 
+    it('names a Not proven state of the build notes that the body lacks', () => {
+        const r = run(`## Preview\n\n${dataLine}\n`, {
+            notes: '## Preview\n\n- [Run list](/a), marker `m`, records\n- Settings: Not proven: cannot seed\n\n## Tasks\n',
+        });
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('names "Settings"');
+        expect(r.out).not.toContain('clean');
+    });
+
+    it('exits 2 when a Not proven state of the build notes has its Not proven body line', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Settings: Not proven: cannot seed\n`,
+            {
+                notes: '## Preview\n\n- [Run list](/a), marker `m`, records\n- Settings: Not proven: cannot seed\n\n## Tasks\n',
+            },
+        );
+        expect(r.status).toBe(2);
+        expect(r.out).not.toContain('gap:');
+    });
+
     it('skips the Preview for an epic', () => {
         const r = run('## Summary\n', { cardType: 'epic' });
         expect(r.out).toBe('clean\n');
