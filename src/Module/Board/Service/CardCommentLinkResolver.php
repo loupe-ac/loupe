@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Context\CommentLink;
 use App\Module\SiteReview\Context\CommentLinkResolverInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Links each listed comment to its card, as `#<number>` and the card page, with the column and the lock of the card. */
 final readonly class CardCommentLinkResolver implements CommentLinkResolverInterface
@@ -16,6 +17,7 @@ final readonly class CardCommentLinkResolver implements CommentLinkResolverInter
     public function __construct(
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private UrlGeneratorInterface $urls,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -40,7 +42,7 @@ final readonly class CardCommentLinkResolver implements CommentLinkResolverInter
                     UrlGeneratorInterface::ABSOLUTE_URL,
                 ),
                 (string) $card->id,
-                $card->column->label,
+                $this->translator->trans($card->column->label),
                 CardCommentEditLock::locks($byId[$commentId], $card, $card->leftBacklog),
             );
         }
