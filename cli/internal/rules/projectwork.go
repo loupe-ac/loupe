@@ -53,6 +53,9 @@ func (s *Set) entryFor(slug, kind string) (WorkEntry, bool) {
 	if w, ok := s.projectWork[slug][kind]; ok {
 		return w, true
 	}
+	if w, ok := s.coveredWork[slug][kind]; ok {
+		return w, true
+	}
 	w, ok := s.work[kind]
 
 	return w, ok
@@ -76,13 +79,26 @@ func (s *Set) allEntries() []WorkEntry {
 	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
 		out = append(out, s.work[kind])
 	}
-	for _, slug := range slices.Sorted(maps.Keys(s.projectWork)) {
+	for _, slug := range s.workSlugs() {
 		for _, kind := range slices.Sorted(maps.Keys(s.projectWork[slug])) {
 			out = append(out, s.projectWork[slug][kind])
+		}
+		for _, kind := range slices.Sorted(maps.Keys(s.coveredWork[slug])) {
+			out = append(out, s.coveredWork[slug][kind])
 		}
 	}
 
 	return out
+}
+
+// workSlugs lists the projects that hold an entry of their own or a covered
+// copy, in name order. A project with only covered copies has no projectWork
+// key, so the bridge-wide lists must read both maps.
+func (s *Set) workSlugs() []string {
+	out := slices.AppendSeq(slices.Collect(maps.Keys(s.projectWork)), maps.Keys(s.coveredWork))
+	slices.Sort(out)
+
+	return slices.Compact(out)
 }
 
 // entriesOf lists every entry of a kind: the shared one, then one for each
@@ -92,8 +108,11 @@ func (s *Set) entriesOf(kind string) []WorkEntry {
 	if w, ok := s.work[kind]; ok {
 		out = append(out, w)
 	}
-	for _, slug := range slices.Sorted(maps.Keys(s.projectWork)) {
+	for _, slug := range s.workSlugs() {
 		if w, ok := s.projectWork[slug][kind]; ok {
+			out = append(out, w)
+		}
+		if w, ok := s.coveredWork[slug][kind]; ok {
 			out = append(out, w)
 		}
 	}
@@ -151,8 +170,10 @@ func (s *Set) ProjectWorkKinds(slug string) []string {
 //   - A relative before, refresh, reset or command that names a file the
 //     project folder lacks.
 //   - A kind that another project lists and this project does not.
-//   - A project entry of a kind that an experiment covers, which runs
-//     without the variants.
+//   - A project entry of a kind that a top-level experiment covers, which
+//     runs without the variants.
+//   - A project experiment that covers a kind a top-level experiment also
+//     covers.
 func (s *Set) Warnings() []string {
 	var out []string
 	for _, slug := range s.Projects() {
@@ -176,8 +197,18 @@ func (s *Set) Warnings() []string {
 					out = append(out, fmt.Sprintf("project %s: work %s %s runs %s, which does not exist in %s", slug, kind, c.field, c.argv[0], dir))
 				}
 			}
-			if _, own := s.projectWork[slug][kind]; own && s.work[kind].experiment != nil {
-				out = append(out, fmt.Sprintf("project %s: work %s covers an experiment on the shared entry only, so the entry of this project runs without the variants", slug, kind))
+			shared := s.work[kind].experiment
+			own := s.projectWork[slug][kind].experiment
+			if own == nil {
+				own = s.coveredWork[slug][kind].experiment
+			}
+			switch {
+			case own != nil && shared != nil:
+				out = append(out, fmt.Sprintf("project %s: experiment %q covers %s for this project, so its runs leave the top-level experiment %q", slug, own.Name, kind, shared.Name))
+			case own == nil && shared != nil:
+				if _, listed := s.projectWork[slug][kind]; listed {
+					out = append(out, fmt.Sprintf("project %s: work %s runs without the variants of experiment %q, which covers the shared entry only; add an experiments: block under the project to run a trial on it", slug, kind, shared.Name))
+				}
 			}
 		}
 	}
@@ -303,4 +334,69 @@ func (s *Set) advertisedLocked() []string {
 	}
 
 	return out
+}
+
+// rawEntryFor is the entry of a kind as written, for the project slug: the
+// entry of the project, else the shared entry. It skips the repair alias of
+// entryFor, so an experiment that covers the old kind finds no entry.
+func (s *Set) rawEntryFor(slug, kind string) (WorkEntry, bool) {
+	if w, ok := s.projectWork[slug][kind]; ok {
+		return w, true
+	}
+	w, ok := s.work[kind]
+
+	return w, ok
+}
+
+// attachProjectExperiments checks the experiments block of each project and
+// gives each covered kind its experiment. A project entry of the kind takes
+// the experiment. Otherwise the project gets a copy of the shared entry that
+// holds it. It runs after the project entries and the shared experiments.
+func (s *Set) attachProjectExperiments(f File, declared []string, root *yaml.Node) []error {
+	var errs []error
+	for _, slug := range slices.Sorted(maps.Keys(f.Projects)) {
+		blocks := f.Projects[slug].Experiments
+		if len(blocks) == 0 {
+			continue
+		}
+		for _, name := range slices.Sorted(maps.Keys(blocks)) {
+			if _, clash := f.Experiments[name]; clash {
+				errs = append(errs, fmt.Errorf("project %q: experiment %q: the top-level block also names an experiment %q, and both would join one trial on the project page; rename one", slug, name, name))
+			}
+		}
+		label := fmt.Sprintf("project %q: ", slug)
+		covered, checkErrs := checkExperiments(func(kind string) (WorkEntry, bool) { return s.rawEntryFor(slug, kind) }, blocks, label)
+		errs = append(errs, checkErrs...)
+		for _, kind := range slices.Sorted(maps.Keys(covered)) {
+			e := covered[kind]
+			w, _ := s.rawEntryFor(slug, kind)
+			errs = append(errs, s.checkVariantAccounts(kind, &w, &e, []any{"projects", slug, "experiments", e.Name}, label, declared, root)...)
+			w.experiment = &e
+			if _, own := s.projectWork[slug][kind]; own {
+				s.projectWork[slug][kind] = w
+
+				continue
+			}
+			if s.coveredWork[slug] == nil {
+				s.coveredWork[slug] = map[string]WorkEntry{}
+			}
+			s.coveredWork[slug][kind] = w
+		}
+	}
+
+	return errs
+}
+
+// CoveredWorkKinds lists the kinds for which the project holds a copy of the
+// shared entry that carries a project experiment, in name order.
+func (s *Set) CoveredWorkKinds(slug string) []string {
+	return slices.Sorted(maps.Keys(s.coveredWork[slug]))
+}
+
+// CoveredWorkEntry is the copy of the shared entry that a project experiment
+// covers.
+func (s *Set) CoveredWorkEntry(slug, kind string) (WorkEntry, bool) {
+	w, ok := s.coveredWork[slug][kind]
+
+	return w, ok
 }
