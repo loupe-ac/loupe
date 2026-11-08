@@ -118,7 +118,7 @@ Only you can create the artifact, in a browser on claude.ai.
 The Lifecycle workflow also adds the onboarding checks.
 They check that the bridge commands of each kind resolve for the project, and that each tool the profile names exists for the worker account.
 The worker reads both with `loupe bridge check --project <slug> --json` on the bridge machine.
-Other onboarding checks cover the merge setup, the `Environment` section of the profile, a gate step that tests the main checkout, facts that only a personal memory holds, the setup of a new worktree, and one e2e run at a time on a shared stack.
+Other onboarding checks cover the merge setup, the teardown of a worktree, a gate step that tests the main checkout, facts that only a personal memory holds, the setup of a new worktree, and one e2e run at a time on a shared stack.
 The merge setup finding says who approves a merge on the repository, and what enforces it: GitHub rulesets, classic branch protection, or Loupe alone.
 A check that the project does not meet is a suggestion, never a failure.
 A suggestion becomes a proposed card that leaves the method open.

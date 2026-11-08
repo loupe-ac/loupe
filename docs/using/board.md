@@ -788,9 +788,9 @@ where it is, as for any card.
 
 ### The epic branch
 
-A repository profile can give each epic its own branch. Its `.loupe/lifecycle.md`
-file then holds an `Epics` section. Under that profile, the breakdown of epic
-number n pushes a branch `epic/<n>` from the base branch of the profile. It pushes the branch only when
+A project can give each epic its own branch. The workflow setting `epic-branches`
+turns this on, and it is on by default. Under that setting, the breakdown of epic
+number n pushes a branch `epic/<n>` from the default branch. It pushes the branch only when
 no child of the epic links a pull request yet.
 
 The workflow setting `epic-branch-pattern` names the branch, such as
@@ -837,7 +837,7 @@ then falls behind `epic/<n>`, and the merge stage updates it before its merge.
 An epic with one child can close before the stage links its pull request. The
 merge stage then records a block on the epic card.
 
-An epic whose breakdown ran before its profile had an `Epics` section has no
+An epic whose breakdown ran before the project turned on `epic-branches` has no
 `epic/<n>` branch. The same applies to an epic with no `epic/<n>` branch and a
 child that already links a pull request. Its children keep their pull requests
 to `main`.
