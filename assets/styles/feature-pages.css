@@ -69,10 +69,10 @@
        Simplified drawings of the app screens. The canvas keeps a minimum
        width, so a narrow screen crops the right edge like a screenshot. */
     .lp-shot {
-        @apply relative block overflow-hidden rounded-xl border border-line bg-surface-1 text-left text-xs leading-snug text-fg shadow-2xl;
+        @apply relative block overflow-hidden rounded-xl bg-surface-1 text-left text-xs leading-snug text-fg shadow-2xl;
     }
     .lp-shot--dark {
-        @apply border-chrome-line bg-chrome font-mono text-chrome-fg;
+        @apply bg-chrome font-mono text-chrome-fg;
     }
     .lp-shot__canvas {
         @apply flex min-w-sm flex-col;
