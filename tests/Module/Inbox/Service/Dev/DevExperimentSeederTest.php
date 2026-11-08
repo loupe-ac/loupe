@@ -22,6 +22,7 @@ use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\PublicExperimentReport;
 use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
@@ -117,6 +118,28 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
     }
 
+    public function test_the_six_variants_experiment_is_shared_with_no_note_and_enough_cards_in_each_variant(): void
+    {
+        $project = $this->seeded();
+
+        $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::SIX_VARIANTS_EXPERIMENT);
+        self::assertNotNull($link);
+        self::assertSame(DevExperimentSeeder::SHARED_SIX_VARIANTS_EXPERIMENT_CODE, $link->code);
+        self::assertNull($link->note);
+        self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+        self::assertTrue(DevSeedId::of('insights/public-link/experiment/implement-six-variants')->equals($link->id));
+        $definition = $this->service(ExperimentDefinitionRepository::class)->find(DevSeedId::of('bridge/experiment/implement-six-variants'));
+        self::assertCount(6, $definition->weights ?? []);
+
+        $result = $this->service(PublicExperimentReport::class)->forExperiment($project, DevExperimentSeeder::SIX_VARIANTS_EXPERIMENT);
+        self::assertNotNull($result);
+        self::assertCount(6, $result->variants);
+        self::assertCount(5, $result->headline->comparisons ?? []);
+        foreach ($result->variants as $variant) {
+            self::assertSame(5, $variant->finishedCards, $variant->name);
+        }
+    }
+
     public function test_the_implement_experiment_is_shared_with_a_note_and_a_fixed_code(): void
     {
         $project = $this->seeded();
@@ -132,7 +155,7 @@ final class DevExperimentSeederTest extends KernelTestCase
 
         $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
         $this->em()->clear();
-        self::assertSame(2, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
+        self::assertSame(3, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
     }
 
     public function test_one_pinned_experiment_is_archived_once(): void

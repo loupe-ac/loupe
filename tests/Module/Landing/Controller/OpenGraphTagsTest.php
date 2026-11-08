@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
 use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
@@ -80,7 +81,7 @@ final class OpenGraphTagsTest extends WebTestCase
         self::assertSame('summary_large_image', $this->meta($client, 'meta[name="twitter:card"]'));
         self::assertSame('1200', $this->meta($client, 'meta[property="og:image:width"]'));
         self::assertSame('630', $this->meta($client, 'meta[property="og:image:height"]'));
-        self::assertNotSame('', $this->meta($client, 'meta[property="og:image:alt"]'));
+        self::assertSame(static::getContainer()->get(TranslatorInterface::class)->trans('landing.open_graph.image_alt'), $this->meta($client, 'meta[property="og:image:alt"]'));
         self::assertSame($this->base().$path, $this->meta($client, 'meta[property="og:url"]'));
         self::assertStringStartsWith($this->base().'/assets/images/og/hero-', $this->meta($client, 'meta[property="og:image"]'));
         self::assertStringNotContainsString('evil.example', (string) $client->getResponse()->getContent());

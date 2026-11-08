@@ -21,7 +21,7 @@ final readonly class PreviewRenderer
     /** @throws PreviewRenderFailed when the tool is missing, exits with an error, times out or writes no PNG */
     public function render(string $svg, int $width = 1200, int $height = 630): string
     {
-        $binary = new ExecutableFinder()->find($this->binary);
+        $binary = str_contains($this->binary, '/') && is_executable($this->binary) ? $this->binary : new ExecutableFinder()->find($this->binary);
         if (null === $binary) {
             throw new PreviewRenderFailed(\sprintf('The %s tool is not installed.', $this->binary));
         }

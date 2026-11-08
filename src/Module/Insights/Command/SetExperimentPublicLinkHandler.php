@@ -12,6 +12,7 @@ use App\Module\Bridge\Command\UnarchiveExperimentHandler;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\InsightsRefreshRequester;
+use App\Module\Insights\Service\PublicPreviewRequester;
 use App\Module\Insights\Service\PublicShareBlock;
 use App\Module\Insights\Service\PublicShareGuard;
 use Doctrine\DBAL\LockMode;
@@ -36,6 +37,7 @@ final readonly class SetExperimentPublicLinkHandler
         private UnarchiveExperimentHandler $unarchiveExperiment,
         private Auditor $auditor,
         private InsightsRefreshRequester $refreshes,
+        private PublicPreviewRequester $previews,
     ) {
     }
 
@@ -93,6 +95,10 @@ final readonly class SetExperimentPublicLinkHandler
 
         if ($command->enabled) {
             $this->refreshes->experiment($project, $experiment);
+            $link = $this->publicLinks->findForExperiment($project, $experiment);
+            if (null !== $link) {
+                $this->previews->draw($link->code);
+            }
         }
 
         return null !== $report && $report->archived;
