@@ -1066,6 +1066,26 @@ the account now names another harness. The reason names the account. An
 automatic continuation of an unfinished run uses the account that the rule
 names now.
 
+The outcome report of a resumed run carries a `wake` object. It says what woke
+the session, in these keys:
+
+| Key | Meaning |
+|---|---|
+| `trigger` | The cause of the resume: `ask-closed`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
+| `lastTurnAt` | The time of the last assistant message of the session before the resume. The bridge reads it from the transcript before it starts the process |
+| `firstTurn` | The `inputTokens`, `cacheReadTokens` and `cacheWriteTokens` of the first assistant message of the resume |
+
+A streamed message repeats its line as it grows, so the bridge takes the
+largest count of each field over the lines of the first message. A Codex
+resume sends the `trigger` alone. A run that is no resume sends no `wake`.
+The object holds a cause, a time and three counts. No message text leaves the
+machine. An `agent` resume uses the prompt of a person's resume.
+
+`loupe usage backfill-wakes` sends the same data for resumes that ended before
+the bridge reported it, with the trigger `backfill`. It reads the bridge log
+and the transcripts in the way `loupe usage backfill` does, and it needs a
+Loupe version that takes session wakes.
+
 ## Expired login
 
 A running bridge that finds its login expired does not retry every 30 seconds.
@@ -1292,7 +1312,9 @@ first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,
 The first helper entry is empty, which removes every helper that your git
 configuration names for `github.com`. The second helper runs
 `loupe credential`, which asks the bridge for the login and the stored token each
-time git needs them. The two `insteadOf` entries change a GitHub SSH remote,
+time git needs them. The helper and the `gh` wrapper name the installed `loupe`
+file, which every update replaces in place, so a worker that lives through
+several updates keeps its credentials. The two `insteadOf` entries change a GitHub SSH remote,
 `git@github.com:` or `ssh://git@github.com/`, to HTTPS. A worker then pushes
 with the token, never with the SSH key of the machine. A rule in your own git
 configuration that changes `https://github.com/` to SSH, with `insteadOf` or
@@ -1683,7 +1705,8 @@ of the archive with its line in `checksums.txt`. A mismatch logs
 `update_rejected`, and the bridge installs nothing. A match logs
 `update_verified`, and the bridge writes the binary to
 `versions/<version>/loupe` in its config directory. A later check uses that
-file again when it is still there.
+file again when it is still there. A worker never names that folder, because the
+bridge deletes all but the two newest version folders.
 
 Automatic updates are off unless `rules.yaml` holds `autoUpdate: true`. With
 them off, the check stops before the download. The bridge logs

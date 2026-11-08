@@ -108,6 +108,13 @@ type reader struct {
 	retryNoStatus bool
 	harness       string
 	skill         string
+	// first is the first main-session assistant message. A streamed message
+	// repeats its line as it grows, so the largest count of each field is the
+	// final one. A line with another message id ends the turn.
+	first     stream.TurnUsage
+	firstID   string
+	firstDone bool
+	firstSeen bool
 }
 
 func (rd *reader) line(raw []byte) {
@@ -154,6 +161,7 @@ func (rd *reader) line(raw []byte) {
 	}
 
 	var msg struct {
+		ID      string          `json:"id"`
 		Content json.RawMessage `json:"content"`
 		Usage   struct {
 			Input       *int64 `json:"input_tokens"`
@@ -168,6 +176,9 @@ func (rd *reader) line(raw []byte) {
 		if size := *u.Input + *u.CacheRead + *u.CacheCreate; rd.peak == nil || size > *rd.peak {
 			rd.peak = &size
 		}
+	}
+	if e.Type == "assistant" && parent == "" {
+		rd.firstTurn(msg.ID, msg.Content, msg.Usage.Input, msg.Usage.CacheRead, msg.Usage.CacheCreate)
 	}
 	var blocks []block
 	if json.Unmarshal(msg.Content, &blocks) != nil {
@@ -185,6 +196,34 @@ func (rd *reader) line(raw []byte) {
 			rd.answer(b, ts, timed, agent)
 		}
 	}
+}
+
+// firstTurn folds one main-session assistant line into the first turn. A line
+// with no id, a usage limit notice, or a missing count does not count.
+func (rd *reader) firstTurn(id string, content json.RawMessage, input, read, write *int64) {
+	if rd.firstDone || id == "" {
+		return
+	}
+	if rd.firstID == "" {
+		var blocks []block
+		_ = json.Unmarshal(content, &blocks)
+		if isLimitMessage(blocks) {
+			return
+		}
+		rd.firstID = id
+	}
+	if id != rd.firstID {
+		rd.firstDone = true
+
+		return
+	}
+	if input == nil || read == nil || write == nil {
+		return
+	}
+	rd.firstSeen = true
+	rd.first.InputTokens = max(rd.first.InputTokens, *input)
+	rd.first.CacheReadTokens = max(rd.first.CacheReadTokens, *read)
+	rd.first.CacheWriteTokens = max(rd.first.CacheWriteTokens, *write)
 }
 
 // asyncAgent is the id of the async agent a user line launched, and "" when
@@ -363,7 +402,12 @@ func (rd *reader) output() stream.Output {
 	}
 	timing := rd.clock.Finish(rd.calls, rd.ends)
 
-	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, AssistantTurns: rd.turns, LastRetryNoStatus: rd.retryNoStatus, HarnessVersion: rd.harness, SkillVersion: rd.skill}
+	var first *stream.TurnUsage
+	if rd.firstSeen {
+		first = &rd.first
+	}
+
+	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, AssistantTurns: rd.turns, LastRetryNoStatus: rd.retryNoStatus, HarnessVersion: rd.harness, SkillVersion: rd.skill, FirstTurn: first}
 }
 
 func stamp(s string) (time.Time, bool) {

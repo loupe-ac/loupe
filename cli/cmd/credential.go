@@ -71,10 +71,23 @@ type credentialBroker struct {
 	agent *config.AgentAccount
 	// socket is the control socket that a worker asks.
 	socket string
+	// binary is the installed loupe that a worker's helpers call. Every
+	// update replaces it in place, so it outlives the version folders. Empty
+	// means the running binary.
+	binary string
 
 	mu     sync.Mutex
 	runs   map[string]credentialRun
 	tokens map[tokenKey]*tokenEntry
+}
+
+// helperBinary is the loupe that a worker's helpers and MCP server name.
+func (b *credentialBroker) helperBinary() (string, error) {
+	if b != nil && b.binary != "" {
+		return b.binary, nil
+	}
+
+	return os.Executable()
 }
 
 func newCredentialBroker(client *api.Client, agent *config.AgentAccount, socket string) *credentialBroker {

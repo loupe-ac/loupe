@@ -29,6 +29,6 @@ final readonly class EvaluateCardsOnBoardColumnDeleted
         }
 
         $related = $event->terminal !== $event->targetTerminal ? $this->cards->findRelatedForEvaluation($event->movedCardIds) : [];
-        $this->trigger->forCards([...$event->movedCardIds, ...$related]);
+        $this->trigger->forCards([...$event->movedCardIds, ...$related], self::class);
     }
 }

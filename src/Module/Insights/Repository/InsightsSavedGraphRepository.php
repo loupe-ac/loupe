@@ -58,10 +58,17 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
     }
 
     /** Null for a malformed id and for a graph of another project alike. */
-    public function findOneByIdAndProjectId(string $graphId, string $projectId): ?InsightsSavedGraph
+    public function findOneByIdAndProjectId(string $graphId, string $projectId, bool $fresh = false): ?InsightsSavedGraph
     {
         if (!Uuid::isValid($graphId) || !Uuid::isValid($projectId)) {
             return null;
+        }
+
+        if ($fresh) {
+            $held = $this->getEntityManager()->getUnitOfWork()->tryGetById($graphId, InsightsSavedGraph::class);
+            if (false !== $held) {
+                $this->getEntityManager()->detach($held);
+            }
         }
 
         return $this->createQueryBuilder('g')

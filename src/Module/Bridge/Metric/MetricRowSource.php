@@ -386,6 +386,8 @@ final readonly class MetricRowSource
             MetricGroup::CliVersion => $fact->cliVersion,
             MetricGroup::SkillVersion => $fact->skillVersion,
             MetricGroup::CardType => 'card' === $fact->subjectType ? $types[(string) $fact->subjectId] ?? null : null,
+            MetricGroup::WakeGap => ColdWake::gapBucket($fact)?->key(),
+            MetricGroup::WakeCache => ColdWake::cacheGroup($fact),
             MetricGroup::None, MetricGroup::AccountWindow => null,
         };
     }
@@ -411,6 +413,10 @@ final readonly class MetricRowSource
             Metric::Duration => $fact->durationMs,
             Metric::StopRate => $fact->outcome->isOutcome() ? (int) $fact->outcome->isStop() : null,
             Metric::PeakContext => $fact->peakContextTokens,
+            Metric::Wakes => null === $fact->wakeTrigger ? 0 : 1,
+            Metric::ColdWakes => true === ColdWake::of($fact) ? 1 : 0,
+            Metric::ColdWakeCacheWriteTokens => true === ColdWake::of($fact) ? $fact->wakeFirstCacheWriteTokens : 0,
+            Metric::ColdWakeShare => null === ColdWake::of($fact) ? null : (int) ColdWake::of($fact),
             Metric::Runs, Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach, Metric::HarnessEvents, Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage => throw new \LogicException(\sprintf('The metric %s has no run value.', $metric->value)),
         };
     }

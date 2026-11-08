@@ -49,6 +49,7 @@
 @import './components/disclosure.css';
 @import './components/value-row.css';
 @import './feature-pages.css';
+@import './components/range-strip.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -7850,6 +7851,94 @@
     }
     .lp-experiment-table__range {
         @apply text-fg-dim;
+    }
+    /* The line under the goal heading: what each row is read against. */
+    .lp-experiment-result__header {
+        @apply mt-1 mb-0 text-sm text-fg-mute;
+    }
+    /* The result rows of an experiment. On a phone the figures join the row grid: name and chip on one line, the strip across, then the numbers. From the sm width the row has a name, a strip and a figures column. */
+    .lp-experiment-result {
+        @apply m-0 mt-3 flex list-none flex-col gap-4 rounded-xl border border-line bg-white p-5;
+    }
+    .lp-experiment-result__row {
+        @apply grid items-center gap-x-3 gap-y-2;
+        grid-template-columns: 1fr auto;
+    }
+    .lp-experiment-result__figures {
+        display: contents;
+    }
+    .lp-experiment-result__name {
+        @apply truncate text-sm font-semibold text-ink;
+        grid-area: 1 / 1;
+    }
+    .lp-experiment-result__chip {
+        grid-area: 1 / 2;
+    }
+    .lp-experiment-result__strip {
+        grid-area: 2 / 1 / 3 / 3;
+    }
+    .lp-experiment-result__value {
+        @apply font-mono text-xs text-fg-dim tabular-nums;
+        grid-area: 3 / 1;
+    }
+    .lp-experiment-result__change {
+        @apply text-right font-display text-lg font-bold tabular-nums;
+        grid-area: 3 / 2;
+    }
+    .lp-experiment-result__range {
+        @apply text-xs text-fg-dim;
+        grid-area: 4 / 1 / 5 / 3;
+    }
+    @media (width >= 40rem) {
+        .lp-experiment-result__row {
+            @apply gap-6;
+            grid-template-columns: calc(var(--spacing) * 28) 1fr calc(
+                    var(--spacing) * 80
+                );
+        }
+        .lp-experiment-result__figures {
+            @apply grid items-center gap-x-3 gap-y-1;
+            grid-template-columns: 1fr auto auto;
+            grid-area: 1 / 3;
+        }
+        .lp-experiment-result__name {
+            grid-area: 1 / 1;
+        }
+        .lp-experiment-result__strip {
+            grid-area: 1 / 2;
+        }
+        .lp-experiment-result__value,
+        .lp-experiment-result__change,
+        .lp-experiment-result__chip,
+        .lp-experiment-result__range {
+            grid-area: auto;
+        }
+        .lp-experiment-result__value {
+            @apply text-right;
+        }
+        .lp-experiment-result__range {
+            grid-column: 1 / -1;
+        }
+    }
+    .lp-experiment-result__change--better {
+        @apply text-status-ok-deep;
+    }
+    .lp-experiment-result__change--worse {
+        @apply text-status-danger-deep;
+    }
+    .lp-experiment-result__change--level,
+    .lp-experiment-result__change--none {
+        @apply text-fg-dim;
+    }
+    .lp-experiment-result__chip .lp-status-chip {
+        @apply ml-0;
+    }
+    .lp-experiment-result__table,
+    .lp-experiment-folded {
+        @apply mt-3;
+    }
+    .lp-experiment-folded .lp-experiment-section {
+        @apply mt-0 inline;
     }
     /* A key of the bridge rule inside a sentence, such as a metric key, shown as the reader types it. */
     .lp-experiment-config-key {

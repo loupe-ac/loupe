@@ -514,16 +514,17 @@ func (r *router) resumeRun(c api.Command) (state, reason string) {
 		return api.CommandRefused, reason
 	}
 
-	prompt := directive.RenderResumeByPerson()
+	// An agent's resume reads like a person's.
+	prompt, cause := directive.RenderResumeByPerson(), c.Cause
 	switch {
 	case c.Cause == api.CauseAskClosed:
 		prompt = directive.RenderResumeAskClosed()
 	case c.InboxActionID != "":
-		prompt = directive.RenderResumeByInboxAction(directive.InboxAction{ItemID: c.InboxItemID, ItemNumber: c.InboxItemNumber, ActionID: c.InboxActionID})
+		prompt, cause = directive.RenderResumeByInboxAction(directive.InboxAction{ItemID: c.InboxItemID, ItemNumber: c.InboxItemNumber, ActionID: c.InboxActionID}), api.CauseInboxAction
 	}
 	p := pending{
 		key: keyFor(e), event: e, set: current, runID: config.NewUUID(), continues: c.RunKey, startedOn: started, origin: commandWork(c),
-		spec: workerSpec{resume: true, sessionID: c.SessionID, prompt: prompt},
+		spec: workerSpec{resume: true, sessionID: c.SessionID, prompt: prompt, cause: cause},
 	}
 	p.apply(m)
 	if r.sessions == nil {

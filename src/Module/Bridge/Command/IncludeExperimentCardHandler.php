@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Bridge\Event\ExperimentSetupChanged;
 use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Service\ExperimentCardMembership;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -18,6 +20,7 @@ final readonly class IncludeExperimentCardHandler
         private ExperimentCardMembership $membership,
         private ExperimentExclusionRepository $experimentExclusions,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -39,6 +42,7 @@ final readonly class IncludeExperimentCardHandler
 
         $this->experimentExclusions->deleteOfCard($project, $command->experiment, $cardId);
 
+        $this->events->dispatch(new ExperimentSetupChanged((string) $project->requireId(), $command->experiment));
         $this->auditor->record(
             'experiment.card_included',
             AuditOutcome::Success,

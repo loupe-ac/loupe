@@ -61,7 +61,7 @@ final readonly class CardHolds
      *
      * @param list<Uuid> $cardIds
      */
-    public function release(Project $project, array $cardIds): int
+    public function release(Project $project, array $cardIds, bool $personWaiting = false): int
     {
         if ([] === $cardIds) {
             return 0;
@@ -69,7 +69,7 @@ final readonly class CardHolds
 
         $released = $this->cardHolds->deleteOfCards($project, $cardIds);
         if ([] !== $released) {
-            $this->events->dispatch(new CardHoldsReleased($project->id ?? throw new \LogicException('A persisted project has an id.'), $released));
+            $this->events->dispatch(new CardHoldsReleased($project->id ?? throw new \LogicException('A persisted project has an id.'), $released, $personWaiting));
         }
 
         return \count($released);

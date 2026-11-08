@@ -202,17 +202,11 @@ final class NoteTests: XCTestCase {
         XCTAssertEqual(shot["data"] as? String, "AQID")
     }
 
-    func testNewCardNoteUnderAnEpic() throws {
-        let note = Note(body: "b", destination: .eachNote(parentId: "e1"), native: native(), jpeg: Data(), deliveryId: "d")
-        let target = try object(note)["target"] as! [String: Any]
-        XCTAssertNil(target["cardId"])
-        XCTAssertEqual((target["newCard"] as? [String: Any])?["parentCardId"] as? String, "e1")
-    }
-
-    func testNewCardNoteWithoutParentSendsAnEmptyObject() throws {
-        for destination in [Destination.reviewCard, .eachNote(parentId: nil)] {
+    func testNewCardNoteSendsAnEmptyObjectWithNoParent() throws {
+        for destination in [Destination.reviewCard, .eachNote] {
             let note = Note(body: "b", destination: destination, native: native(), jpeg: Data(), deliveryId: "d")
             let target = try object(note)["target"] as! [String: Any]
+            XCTAssertNil(target["cardId"])
             XCTAssertEqual((target["newCard"] as? [String: Any])?.count, 0)
         }
     }
@@ -243,8 +237,7 @@ final class NoteTests: XCTestCase {
     func testOnlyTheReviewCardBecomesTheSavedCard() {
         let result = SaveResult(commentId: "n", cardId: "c9", number: 9, label: "#9 Review", url: "")
         XCTAssertEqual(Destination.reviewCard.afterSave(result), .card(id: "c9", label: "#9 Review"))
-        XCTAssertEqual(Destination.eachNote(parentId: nil).afterSave(result), .eachNote(parentId: nil))
-        XCTAssertEqual(Destination.eachNote(parentId: "e").afterSave(result), .eachNote(parentId: "e"))
+        XCTAssertEqual(Destination.eachNote.afterSave(result), .eachNote)
         XCTAssertEqual(Destination.card(id: "c1", label: "#1").afterSave(result), .card(id: "c1", label: "#1"))
     }
 
@@ -350,16 +343,11 @@ final class HelperClientTests: XCTestCase {
         }
     }
 
-    func testSignInAndProjectsAndTargets() async throws {
+    func testSignInAndProjects() async throws {
         let prompt = try await client("{\"code\":\"WDJB-MJHT\",\"url\":\"https://x\"}").signIn()
         XCTAssertEqual(prompt, SignInPrompt(code: "WDJB-MJHT", url: "https://x"))
         let projects = try await client("{\"projects\":[{\"id\":\"p\",\"name\":\"Loupe\"}]}").projects()
         XCTAssertEqual(projects, [Project(id: "p", name: "Loupe")])
-        let record = Recorder()
-        let cards = try await client("{\"cards\":[{\"cardId\":\"c\",\"number\":982,\"title\":\"Review\",\"status\":\"next\"}]}", record: record)
-            .targets(project: "p", query: "rev", parentsOnly: true)
-        XCTAssertEqual(cards.first?.label, "#982 Review")
-        XCTAssertEqual(record.calls.first?.0, ["targets", "--project", "p", "--query", "rev", "--parent"])
     }
 
     func testNotesReadComments() async throws {

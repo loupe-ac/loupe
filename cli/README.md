@@ -272,7 +272,7 @@ Opens the Live review panel for the current folder, beside the iOS Simulator in 
 
 ## `loupe review` (hidden helpers)
 
-`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. The helpers other than `ios` can change at any release.
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. The helpers other than `ios` can change at any release.
 
 `sign-in` starts a device sign-in, prints the code and the link, and exits. The panel then runs `status` until the sign-in ends. While nobody has approved the code, `status` prints `pending`. It finishes the sign-in with one token request at most per server interval. After an approval it saves the login and prints `ok`. After a denial or an expired code it prints `signedOut`.
 
@@ -2242,6 +2242,59 @@ It prints one line for each session:
 The command goes on after a refusal or a failure, and then exits with status 1.
 A skip is not a failure. A second run is safe, because Loupe never replaces
 reported usage and a repeat changes nothing. `--dry-run` needs no login.
+
+## `loupe usage backfill-wakes`
+
+Sends what woke each resumed worker run to Loupe. Use it once, for the resumes
+that ended before the bridge reported wakes. It needs a Loupe version that
+takes session wakes.
+
+```bash
+loupe usage backfill-wakes --dry-run
+loupe usage backfill-wakes
+loupe usage backfill-wakes --project 01a007cc-5419-7085-a0a2-23a0875be12c
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--log-file` | `bridge.log` in your config dir | Read this bridge log |
+| `--project` | every project | Send only the sessions of the project with this id, as the log names it |
+| `--dry-run` | off | Print the counts, and send nothing |
+
+The command reads the `worker_started` lines of the log and the Claude Code
+transcript of each session, as `loupe usage backfill` does. For each worker
+process, it finds the pause before the process: the time from the last
+assistant message before the process to the start of the process. A process
+with no assistant message before it has no pause. The first message of a
+process can repeat its line as it grows, so the command takes the largest
+count of each field over those lines.
+
+It sends one request for each session, to
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake`.
+The body is `{"wakes": [...]}` with one entry for each worker process in start
+order. An entry is `null` for a process with no pause. Otherwise it is
+`{"trigger": "backfill", "lastTurnAt": <time>, "firstTurn": {"inputTokens": n,
+"cacheReadTokens": n, "cacheWriteTokens": n}}`. No message text leaves the
+machine. Loupe fills only a run that has no wake yet and answers 204 either
+way. A session it does not know gets 404.
+
+It prints one line for each session:
+
+| Line | Meaning |
+|---|---|
+| `would send <session> (card <n>): <k> wakes` | `--dry-run` only. How many pauses the command would send |
+| `sent <session> (card <n>): <k> wakes` | Loupe took the wakes |
+| `skipped <session> (card <n>): <reason>` | The command cannot map the session, or no process of it resumed a pause |
+| `failed <session> (card <n>): <error>` | A read or a request failed |
+
+It then prints the count of pauses and of cold pauses for each bucket, such as
+`pauses 5m-1h: 4, cold 1`. The buckets are `under 5m`, `5m-1h` and `over 1h`.
+A pause is cold when the first message wrote more to the cache than it read
+as input and from the cache.
+
+The command goes on after a failure, and then exits with status 1. A second
+run is safe, because Loupe keeps the first wake of a run. `--dry-run` needs no
+login.
 
 ## `loupe update`
 

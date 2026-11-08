@@ -70,6 +70,12 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     /** The note that the owner wrote for the visitors of the shared experiment. */
     public const string SHARED_EXPERIMENT_NOTE = "A comparison of two models on the implement work.\n\nThe figures cover the pull requests that merged in the last three weeks.";
 
+    /** An experiment with a baseline and four other variants: one clear and better, one not clear and worse, one short of cards and one held by a failed control. */
+    public const string BASELINE_EXPERIMENT = 'implement-baseline';
+
+    /** The code of the public link of the baseline experiment. */
+    public const string SHARED_BASELINE_EXPERIMENT_CODE = 'devbaselines';
+
     /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
     public const string EMPTY_EXPERIMENT = 'implement-no-runs';
 
@@ -97,7 +103,16 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     /** The card of the first experiment that the owner left out by hand. */
     private const string EXCLUDED_CARD = 'Mute a noisy bridge';
 
-    private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5'];
+    private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5', 'haiku' => 'claude-haiku-5-5', 'gemini' => 'gemini-3-pro', 'codex' => 'gpt-5-codex'];
+
+    /** The variants of the baseline experiment, each with the cost of its finished cards. Gemini stays under the floor of finished cards. */
+    private const array BASELINE_COSTS = [
+        'opus' => ['3.800000', '4.200000', '4.000000', '3.600000', '4.400000', '4.000000'],
+        'sonnet' => ['1.400000', '1.600000', '1.500000', '1.300000', '1.700000', '1.500000'],
+        'haiku' => ['2.000000', '7.500000', '3.000000', '6.500000', '4.000000', '5.500000'],
+        'gemini' => ['3.000000', '3.200000', '2.800000'],
+        'codex' => ['4.100000', '3.900000', '4.300000', '4.000000', '3.800000', '4.200000'],
+    ];
 
     /** The last card has a pin and no run, so the figures leave it out. */
     private const array CARDS = [
@@ -157,21 +172,23 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         foreach (self::EXPERIMENTS as [$experiment, $headline, $metrics]) {
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
+        $this->seedBaselineExperiment($context, $project);
         $this->seedPinnedExperiment($context, $project, self::EMPTY_EXPERIMENT);
         $this->seedPinnedExperiment($context, $project, self::ARCHIVED_EXPERIMENT);
         $this->seedArchive($project, self::ARCHIVED_EXPERIMENT, $context->now->modify('-1 hour'));
-        $this->seedPublicLink($context, $project);
+        $this->seedPublicLink($context, $project, self::EXPERIMENT, self::SHARED_EXPERIMENT_CODE, self::SHARED_EXPERIMENT_NOTE);
+        $this->seedPublicLink($context, $project, self::BASELINE_EXPERIMENT, self::SHARED_BASELINE_EXPERIMENT_CODE, null);
     }
 
-    /** Shares the first experiment with a note, so a worktree has a working public link. A stored link stays as it is. */
-    private function seedPublicLink(SeedContext $context, Project $project): void
+    /** Shares an experiment, so a worktree has a working public link. A stored link stays as it is. */
+    private function seedPublicLink(SeedContext $context, Project $project, string $experiment, string $code, ?string $note): void
     {
-        $id = DevSeedId::of('insights/public-link/experiment/'.self::EXPERIMENT);
-        if ($this->publicLinks->find($id) instanceof PublicLink || $this->publicLinks->findForExperiment($project, self::EXPERIMENT) instanceof PublicLink) {
+        $id = DevSeedId::of('insights/public-link/experiment/'.$experiment);
+        if ($this->publicLinks->find($id) instanceof PublicLink || $this->publicLinks->findForExperiment($project, $experiment) instanceof PublicLink) {
             return;
         }
 
-        $link = new PublicLink($project, PublicLinkKind::Experiment, self::SHARED_EXPERIMENT_CODE, experiment: self::EXPERIMENT, note: self::SHARED_EXPERIMENT_NOTE);
+        $link = new PublicLink($project, PublicLinkKind::Experiment, $code, experiment: $experiment, note: $note);
         $context->ids->assign($link, $id);
         $this->em->persist($link);
         $this->em->flush();
@@ -188,6 +205,60 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $this->em->flush();
     }
 
+    /** The variants cost what BASELINE_COSTS says, so the page shows each state of a row. A stored record stays as it is. */
+    private function seedBaselineExperiment(SeedContext $context, Project $project): void
+    {
+        $experiment = self::BASELINE_EXPERIMENT;
+        $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
+                return;
+            }
+
+            $definition = new ExperimentDefinition($project, $experiment, array_map(static fn (string $name): array => ['name' => $name, 'weight' => 1], array_keys(self::BASELINE_COSTS)));
+            $definition->baseline = 'opus';
+            $definition->metrics = ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
+            $definition->headline = [
+                'goal' => ['metric' => 'cost', 'better' => 'lower'],
+                'controls' => [['metric' => 'cost', 'variant' => 'codex', 'expect' => '< 1', 'share' => 1.0]],
+            ];
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
+        }
+
+        $column = null;
+        foreach ($this->boardColumns->findForProject($project) as $candidate) {
+            if ('done' === $candidate->slug) {
+                $column = $candidate;
+            }
+        }
+        $column ?? throw new \LogicException('The project has a done column.');
+        $at = $context->now->modify('-20 days');
+        foreach (self::BASELINE_COSTS as $variant => $costs) {
+            foreach ($costs as $position => $cost) {
+                $title = \sprintf('%s task %d', ucfirst($variant), $position + 1);
+                $key = $experiment.'/'.Slug::fromName($title);
+                $at = $at->modify('+20 hours');
+                $stored = $this->cards->find(DevSeedId::of('board/card/'.$key));
+                $card = $stored ?? $this->card($context, $project, $column, $title, 'feature', $this->cards->nextNumber($project), $at->modify('-10 days'), DevSeedId::of('board/card/'.$key));
+                $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+                if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
+                    $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
+                }
+                $runId = DevSeedId::of(\sprintf('bridge/run/%s/0', $key));
+                $run = $this->workerRuns->find($runId) ?? $this->run($context, $project, $card, $experiment, $variant, $at, 30, $runId);
+                $tokens = (int) round((float) $cost * 40_000);
+                $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), $cost);
+                if (!$stored instanceof Card) {
+                    $this->cardEvents->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => [], 'cause' => CardEventCause::workflowRule('merged', 'merged')->detail()], $at->modify('+2 hours'));
+                    $this->runCardLinks->relink($project, $cardId, $card->number);
+                    $card->completedAt = $at->modify('+2 hours');
+                }
+            }
+        }
+        $this->em->flush();
+    }
+
     private function seedPinnedExperiment(SeedContext $context, Project $project, string $experiment): void
     {
         $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
@@ -197,6 +268,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             }
 
             $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $definition->baseline = 'opus';
             $context->ids->assign($definition, $definitionId);
             $this->em->persist($definition);
         }

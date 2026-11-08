@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
@@ -495,6 +496,73 @@ final class WorkerRunStatesApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(187_654, $this->onlyRun()->peakContextTokens);
+    }
+
+    public function test_an_outcome_stores_its_wake_with_the_gap_and_the_fact_row_copies_it(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-wake@example.com');
+        $project = $this->project($em, $owner, 'Run States Wake');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+
+        $this->put($client, $path, $raw, $this->payload(array_merge(self::outcome(), [
+            'wake' => [
+                'trigger' => 'agent',
+                'lastTurnAt' => '2026-09-23T08:30:00.500+00:00',
+                'firstTurn' => ['inputTokens' => 12, 'cacheReadTokens' => 3, 'cacheWriteTokens' => 90_000],
+            ],
+        ])));
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->onlyRun();
+        self::assertSame(WorkerRunWakeTrigger::Agent, $run->wakeTrigger);
+        self::assertSame(5_399_500, $run->wakeGapMs);
+        self::assertSame([12, 3, 90_000], [$run->wakeFirstInputTokens, $run->wakeFirstCacheReadTokens, $run->wakeFirstCacheWriteTokens]);
+        $fact = $em->getConnection()->fetchAssociative('SELECT wake_trigger, wake_gap_ms, wake_first_input_tokens, wake_first_cache_read_tokens, wake_first_cache_write_tokens FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
+        self::assertSame(['wake_trigger' => 'agent', 'wake_gap_ms' => 5_399_500, 'wake_first_input_tokens' => 12, 'wake_first_cache_read_tokens' => 3, 'wake_first_cache_write_tokens' => 90_000], $fact);
+    }
+
+    public function test_a_wake_with_a_trigger_alone_has_no_gap_and_no_figures(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-wake-bare@example.com');
+        $project = $this->project($em, $owner, 'Run States Wake Bare');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(array_merge(self::outcome(), ['wake' => ['trigger' => 'work-request']])));
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->onlyRun();
+        self::assertSame(WorkerRunWakeTrigger::WorkRequest, $run->wakeTrigger);
+        self::assertSame([null, null, null, null], [$run->wakeGapMs, $run->wakeFirstInputTokens, $run->wakeFirstCacheReadTokens, $run->wakeFirstCacheWriteTokens]);
+    }
+
+    public function test_a_stop_stores_its_wake_and_a_run_that_reports_none_has_none(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-wake-stop@example.com');
+        $project = $this->project($em, $owner, 'Run States Wake Stop');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+        $start = ['sessionId' => (string) Uuid::v4(), 'startedAt' => '2026-09-23T10:00:00+00:00'];
+
+        $this->put($client, $path, $raw, $this->payload(['state' => 'running', ...$start]));
+        $this->put($client, $path, $raw, $this->payload(['state' => 'stopping', 'at' => '2026-09-23T10:02:00+00:00']));
+        self::assertNull($this->onlyRun()->wakeTrigger);
+        $this->put($client, $path, $raw, $this->payload([
+            'state' => 'stopped',
+            'at' => '2026-09-23T10:03:00+00:00',
+            'endedAt' => '2026-09-23T10:02:30+00:00',
+            'wake' => ['trigger' => 'person', 'lastTurnAt' => '2026-09-23T09:59:00+00:00'],
+            ...$start,
+        ]));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame([WorkerRunWakeTrigger::Person, 60_000], [$this->onlyRun()->wakeTrigger, $this->onlyRun()->wakeGapMs]);
     }
 
     public function test_an_outcome_with_no_peak_context_leaves_it_unknown(): void
@@ -1244,6 +1312,11 @@ final class WorkerRunStatesApiTest extends WebTestCase
         yield 'a harness event count of null' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => ['diagnostics' => null]])];
         yield 'more than 100 harness event kinds' => [array_merge($result, ['state' => 'succeeded', 'harnessEvents' => array_fill_keys(array_map(static fn (int $i): string => 'kind'.$i, range(1, 101)), 1)])];
         yield 'a negative peak context' => [array_merge($result, ['state' => 'succeeded', 'peakContextTokens' => -1])];
+        yield 'a wake with an unknown trigger' => [array_merge($result, ['state' => 'succeeded', 'wake' => ['trigger' => 'whim']])];
+        yield 'a wake with no trigger' => [array_merge($result, ['state' => 'succeeded', 'wake' => ['lastTurnAt' => '2026-09-23T09:00:00+00:00']])];
+        yield 'a wake with a negative count' => [array_merge($result, ['state' => 'succeeded', 'wake' => ['trigger' => 'person', 'firstTurn' => ['inputTokens' => -1, 'cacheReadTokens' => 0, 'cacheWriteTokens' => 0]]])];
+        yield 'a wake with a missing count' => [array_merge($result, ['state' => 'succeeded', 'wake' => ['trigger' => 'person', 'firstTurn' => ['inputTokens' => 1, 'cacheReadTokens' => 0]]])];
+        yield 'a wake that follows the start of the run' => [array_merge($result, ['state' => 'succeeded', 'wake' => ['trigger' => 'person', 'lastTurnAt' => '2026-09-23T10:00:01+00:00']])];
         yield 'a peak context as text' => [array_merge($result, ['state' => 'succeeded', 'peakContextTokens' => 'many'])];
         foreach (self::invalidUsage() as $name => $usage) {
             yield $name => [array_merge($result, ['state' => 'succeeded', 'usage' => $usage])];

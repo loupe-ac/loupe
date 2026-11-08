@@ -49,13 +49,13 @@ final class EvaluateParentOnChildMarkersChangedTest extends KernelTestCase
             }
 
             #[\Override]
-            public function forCards(array $cardIds): void
+            public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
                 $this->test->record($cardIds);
             }
 
             #[\Override]
-            public function forPersonWaiting(array $cardIds): void
+            public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
             {
             }
 

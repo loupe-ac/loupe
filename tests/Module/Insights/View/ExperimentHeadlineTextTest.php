@@ -215,6 +215,33 @@ final class ExperimentHeadlineTextTest extends TestCase
         self::assertSame('Review rounds', self::text()->metricName(new ExperimentMetric('review-rounds', [], null, label: 'Review rounds')));
     }
 
+    public function test_the_signed_change_shows_the_sign_and_the_unit(): void
+    {
+        $lower = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(-0.4, -0.2, -0.31), [4.0, 2.76]);
+        $higher = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(0.1, 0.3, 0.2), [4.0, 4.8]);
+        $level = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(0.0, 0.0, 0.0), [4.0, 4.0]);
+        $tiny = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(-0.01, 0.0, -0.002), [4.0, 4.0]);
+        $points = self::subject(self::built(Metric::Cost), GoalDirection::Higher, GoalState::Clear, new Interval(0.02, 0.1, 0.06), [0.5, 0.56], false);
+        $none = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::NotEnoughCards, null, [4.0, 4.0]);
+
+        self::assertSame(self::MINUS.'31%', self::text()->signedChange($lower[1]));
+        self::assertSame('+20%', self::text()->signedChange($higher[1]));
+        self::assertSame('0%', self::text()->signedChange($level[1]));
+        self::assertSame(self::MINUS.'<1%', self::text()->signedChange($tiny[1]));
+        self::assertSame('+6 pp', self::text()->signedChange($points[1]));
+        self::assertNull(self::text()->signedChange($none[1]));
+    }
+
+    public function test_the_result_label_names_the_chip_of_each_state(): void
+    {
+        $baseline = new ExperimentArm('opus', 4.0, 9);
+        $clear = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::Clear, new Interval(-0.4, -0.2, -0.31), [4.0, 2.76]);
+        $unclear = self::subject(self::built(Metric::Cost), GoalDirection::Lower, GoalState::NotClear, new Interval(-0.4, 0.2, -0.1), [4.0, 3.6]);
+
+        self::assertSame('Clear', self::text()->resultLabel($clear[1], $baseline));
+        self::assertSame('Not clear yet', self::text()->resultLabel($unclear[1], $baseline));
+    }
+
     private static function text(): ExperimentHeadlineText
     {
         $translator = new Translator('en');

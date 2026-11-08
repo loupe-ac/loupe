@@ -25,6 +25,6 @@ final readonly class EvaluateChildrenOnBridgeRepositoriesChanged
             return;
         }
 
-        $this->trigger->forCards(array_column($this->cards->findOpenChildren($event->projectIds), 'id'));
+        $this->trigger->forCards(array_column($this->cards->findOpenChildren($event->projectIds), 'id'), self::class);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -75,7 +76,7 @@ final readonly class WorkerRunResumeTool
                         continue;
                     }
 
-                    $command = ($this->requestCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $user));
+                    $command = ($this->requestCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $user, null, BridgeCommandCause::Agent));
                     $results[] = ['runId' => $runId, 'outcome' => 'resumed', 'commandId' => (string) $command->id];
                 } catch (DomainErrors $e) {
                     $results[] = $this->refusals->refused($runId, $e);

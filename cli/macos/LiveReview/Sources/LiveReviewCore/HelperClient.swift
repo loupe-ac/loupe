@@ -26,13 +26,6 @@ public struct Project: Equatable, Sendable, Identifiable {
     public var name: String
 }
 
-public struct TargetCard: Equatable, Sendable, Identifiable {
-    public var id: String
-    public var number: Int
-    public var title: String
-    public var label: String { "#\(number) \(title)" }
-}
-
 public struct OpenNote: Equatable, Sendable, Identifiable {
     public var id: String
     public var body: String
@@ -102,18 +95,6 @@ public struct HelperClient: Sendable {
         return list.compactMap { entry in
             guard let id = entry["id"] as? String, let name = entry["name"] as? String else { return nil }
             return Project(id: id, name: name)
-        }
-    }
-
-    public func targets(project: String, query: String = "", parentsOnly: Bool = false) async throws -> [TargetCard] {
-        var args = ["targets", "--project", project]
-        if query != "" { args += ["--query", query] }
-        if parentsOnly { args.append("--parent") }
-        let list = try await object(args)["cards"] as? [[String: Any]] ?? []
-
-        return list.compactMap { entry in
-            guard let id = entry["cardId"] as? String, let number = entry["number"] as? Int, let title = entry["title"] as? String else { return nil }
-            return TargetCard(id: id, number: number, title: title)
         }
     }
 

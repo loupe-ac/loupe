@@ -18,7 +18,7 @@ The pre-push check is the script `references/prepush-check.sh`. `references/prev
 
 ## Preview
 
-1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it. A change under `templates/Module/DesignSystem/export/` does not count either, because only `app:design-system:export` reads those files.
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change to an email template, in a folder named `email` under `templates/`, does not count, because no page shows it. A change under `templates/Module/DesignSystem/export/` does not count either, because only `app:design-system:export` reads those files. A Markdown template, a file that ends in `.md.twig`, does not count, because it serves plain text and no app page shows it.
 2. Section: `## Preview`, at the top of the pull request body.
 3. Line: one Markdown list item per state, exactly `` - [<label>](<signed link>), marker `<marker>`, empty `<path>` `` for a data state, or `` - [<label>](<signed link>), marker `<marker>`, no data `` for a state that shows no records, such as a form, a dialog or an empty state. A data state is a state whose page shows records: rows, chart series, tiles or feed entries. A signed-out page, as item 7 says, takes `` - [<label>](<plain link>), marker `<marker>`. Signed out. `` instead, with no field. The signed link goes into the body only through the temporary body file of `references/preview.md`.
 4. Seed: seed each state by extending the module seeder in the branch, as `working-with-prs` "Make the branch testable, not just reviewable" says, and run `app:dev:seed` in the worker folder. When the page sits behind a flag, add the flag to `DevFeatureFlagSeeder`. A link to an account page names a demo account of the seed, never the dev or the admin account, because those two keep ids that differ between databases. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
@@ -27,7 +27,7 @@ The pre-push check is the script `references/prepush-check.sh`. `references/prev
 6. Prove: `working-with-prs` "Prove each preview link shows its state". The effective URL ends in the path, and the marker count is 1 or more. Write the marker you found on the line of each link.
    On a data state the marker must show only when the page holds its data. The template must print it once for each record, inside a loop over the records, or inside a condition that is true only when records exist. Examples are a row id, a `data-series` attribute, or a data attribute on a filled tile. A page title, a heading, a panel id or a chart container never counts, because the page renders them with no data too. Prove the count is 1 or more on the seeded page, and 0 on the page of the empty twin. The review reads the Twig templates under `templates/` and the Twig component classes under `src/` that feed them.
 7. Signed-out page: a page that only a signed-out visitor sees, such as the landing page at `/`, takes a plain link to the app of the worker folder. A signed link signs the reader in, and the page then redirects. Prove the plain link as item 6 says, with no cookie jar. The marker must not be on `main`.
-8. Excluded paths: `^templates/(.*/)?email/` and `^templates/Module/DesignSystem/export/`. The pre-push check reads these extended regexes and skips a changed path that matches one.
+8. Excluded paths: `^templates/(.*/)?email/`, `^templates/Module/DesignSystem/export/` and `^templates/.*\.md\.twig$`. The pre-push check reads these extended regexes and skips a changed path that matches one.
 9. Line patterns: the pre-push check accepts a line of the body when it matches one extended regex of the fenced block below. The block holds the data state, the state with no data, and the signed-out state. The first two need the signed link of item 5, and the signed-out state needs the plain link of item 7, with no query.
 
    ```
@@ -45,7 +45,7 @@ The pre-push check is the script `references/prepush-check.sh`. `references/prev
 
 ## Visual check
 
-1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change under `templates/Module/DesignSystem/export/` does not count, because no page shows those files.
+1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`. A change under `templates/Module/DesignSystem/export/` does not count, because no page shows those files. A file that ends in `.md.twig` does not count either.
 2. App: `https://card-<number>.loupe.dev.localhost`, the app of the worker folder.
 3. Worker folder: `<main checkout>/.worktrees/card-<number>`. The main checkout is the first `worktree` line of `git worktree list --porcelain`. The review stage reads it.
 4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link. It signs in `dev@loupe.test`. Never write the link of a visual check to a file, a log or the pull request. A preview link follows the `Preview` section.

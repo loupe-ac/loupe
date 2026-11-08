@@ -70,9 +70,8 @@ one option and press **Start reviewing**:
 
 | Choice | What a save does |
 |---|---|
-| A new card for each note | Creates a new card for the note. |
-| One card for this review | Adds the note to one card. Create a new card, or pick an existing one. |
-| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Create a new epic, or pick an existing one. The widget shows this choice only when the workflow template has a card type with the children capability. |
+| A new card for each note | Creates a new card for the note, in the column that you choose. |
+| One new card for this review | Creates one new card for the review. Every note of the review joins that card. |
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
@@ -86,28 +85,75 @@ The destination also decides which notes the list shows:
 | Choice | What the list shows |
 |---|---|
 | A new card for each note | The notes that you saved on the cards this browser tab made. A new tab starts with an empty list. |
-| One card for this review | Every open note on that card. |
-| A card for each note, under an epic | Every open note on the cards under that epic. |
+| One new card for this review | Every open note on that card. |
 
 When you change the destination, the list changes with it. Until you choose a
-destination, the list is empty. With **One card for this review**, the footer
-shows **Open #N in Loupe**, which opens that card.
+destination, the list is empty. With **One new card for this review**, the footer
+shows **Finish review**. See [Finish a one-card review](#finish-a-one-card-review).
 
-The first choice opens a switch with **New card** and **Existing card**. The
-third choice puts the epic on a second step: press **Next**, and the view
-shows "Pick or create an epic" with the same switch, as **New epic** and
-**Existing epic**. The back arrow returns to the choices. With **New card**, type a title and the button creates the card. The
-title starts as `Review: ` and the page path, and the view selects it so that
-you can replace it. With **Existing card**, search the open cards, pick one
-row and press the button. The third choice lists the open cards of every type
-that has the children capability, and it creates a card of one of those types.
-When the template has two or more such types, a **Type** selector shows under
-the title. The first type of the template is chosen at first.
+### Finish a one-card review
+
+**Finish review** ends a review that sends every note to one new card. Press it
+and the widget asks the server which columns the card may start in.
+
+| Answer | What the widget does |
+|---|---|
+| The workflow starts work on its own | The review ends with **#N is in Tech design.** The column is the one the card is in. |
+| No column is open to you | The review ends with **#N stays in Backlog.** |
+| One or more columns are open | A menu titled **Start #N in** lists them. Each entry shows the column name and a hint line. |
+
+Pick a column in the menu and the card moves there. The review then ends with
+**#N started in Tech design.** If the workflow changed since the menu opened, the
+server refuses the move. The menu then reloads with the columns that are open
+now, and a line names the column that was refused.
+
+A review that ends clears the destination. The widget shows a notice with
+**Open #N in Loupe**, which opens the card, and the list is empty. The notice
+stays until you close it. The footer then shows **Choose where notes go**. Press
+it to start a new review. A page that a preview locks to one card keeps its own
+footer.
+
+If the card is closed or gone, or the sign-in cannot start cards, the widget
+shows an error and keeps **Finish review**. A sign-in from a preview page cannot
+start cards.
+
+### The column of a new card
+
+With **A new card for each note**, the view shows **Start new cards in**, a
+select with the Backlog first. The other entries are the columns that the
+workflow of the project lets a person start a card in from the Backlog. The
+server builds the list from the same move rules as the board, and it never
+offers a terminal column. In Lifecycle, the list holds Backlog, Next, Product
+design and Tech design. Implementation is not on it, because only a session
+that an owner opens can start that move.
+
+A column that carries a hint shows it under the select. For example, Tech design
+shows "An agent writes the tech design." A project with no workflow, or with the
+workflow switched off, shows no hint. A board that offers only the Backlog shows
+no select.
+
+The widget keeps the column with the choice. The line "Saves to ..." names it,
+such as "Saves to a new card in Tech design". The workflow runs the rules of that
+column for the new card, so a column can start an agent.
+
+The server checks the column again at each save. When the workflow no longer
+allows it, the card lands in Backlog. The notice then reads, for example,
+"Saved to #12 in Backlog. Tech design is no longer a start column." The widget
+forgets the column, and your note is saved. A preview page gets no list, and
+its notes never start a card.
+
+With **One new card for this review**, type a title and the button creates the
+card. The title starts as `Review: ` and the page path, and the view selects it
+so that you can replace it. The widget cannot pick a card that already exists.
+Earlier versions had a mode for an epic and a search for an existing card. Both
+are gone. A browser that stored **A new card for each note** keeps that choice.
+A browser that stored any other choice asks again after the update. Notes that
+you saved under an epic stay as they are.
 
 A card that the widget creates has these values:
 
-- The type is the default type of the workflow template for a note card or a review card, and the type with the children capability for an epic.
-- The column is the board's Backlog.
+- The type is the default type of the workflow template.
+- The column is the one you chose with **A new card for each note**, or the board's Backlog.
 - The reporter is `reviewer`.
 - The source is the live review widget. The card shows a live review badge.
 - A note card takes its title from the start of the note, cut at a word to 80 characters, with "…" at the end when the note is longer.
@@ -116,7 +162,7 @@ A card that the widget creates has these values:
 
 Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". An edit names the card too, such as "Note updated in #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
 
-When the card or the epic you chose is closed or deleted, the widget forgets the
+When the card you chose is closed or deleted, the widget forgets the
 choice and asks again. A card in a terminal column is closed. Your draft stays.
 
 ### A preview page locks the card
@@ -458,7 +504,7 @@ pinned controls out of the way.
 The widget needs very little. It is a `fetch` with a bearer header. It uses no
 clipboard, no cookies, and no browser API that needs a secure context. It
 writes two localStorage keys: `loupe.site-review.corner` for the corner, and
-one key that starts with `loupe-site-review:mode:` for where notes go. It works
+one key that starts with `loupe-site-review:destination:v2:` for where notes go. It works
 without them. Cross-origin embedding works because the API answers CORS itself.
 
 So you can serve Loupe over plain HTTP when the reviewed page is also plain
@@ -514,6 +560,26 @@ while you look at the page.
 If you edit a note at the moment the agent picks it up, the widget refuses your
 save and tells you so. It does not discard your text without a word.
 
+### A note locks when its card starts
+
+A note on a widget card locks as soon as the card leaves Backlog. The card can
+leave Backlog when you start it from the widget, when a person moves it on the
+board, or when the workflow moves it. The lock stays when the card goes back to
+Backlog, because an agent may already have read the note.
+
+A locked row shows "#57 is being worked on in Tech design." When the card is
+back in Backlog, it shows "#57 already started and is back in Backlog." The menu
+of a locked row holds **Mark resolved** and **Open #57 in Loupe**. It has no
+**Edit text** and no **Delete note**. **Delete all** skips locked notes, and its
+question says how many notes stay on started cards.
+
+The server keeps the same rule. A request to edit or delete a locked note gets a
+409 answer with the code `note_locked`, and the widget then loads the list again.
+
+One exception applies. On the preview page of a started card, the notes that you
+save on that page stay open for **Edit text** and **Delete note**. The notes of
+the first review stay locked.
+
 ## Reviewing an iOS app in the simulator
 
 You can review an iOS app that runs in the iOS Simulator. The Live review panel is a small macOS app. It sits beside the simulator and saves notes to your project.
@@ -547,7 +613,7 @@ The panel marks the simulator only while Device Hub, or the panel in front of it
 
 When nothing at the point has an accessibility element, the panel says "Nothing to pick here." and offers **Draw**.
 
-The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note**, a card for each note under an epic, or an existing card.
+The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One new card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note** instead.
 
 The card page shows the note with a thumbnail of the screenshot. Choose the thumbnail to see the image at full size. The image holds your marks: the box of the element you picked, or your drawing. The note also lists the device, the iOS version, the app, the name of the screen, and the role, label and identifier of the element.
 

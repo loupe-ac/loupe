@@ -133,6 +133,7 @@ order.
 | `resumeSkipped` | why the bridge did not resume a run that did not finish, at most 50 characters. The bridge sends `card_moved`, `shutdown`, `rule_dead` or `reload` |
 | `continues` | the `runId` of the run that this run resumes, a uuid |
 | `usage` | the tokens the worker spent. See [Usage](#usage) |
+| `wake` | on the outcome of a resumed run, why it resumed and what its first turn cost. See [Wake](#wake) |
 | `workerPool` | the worker pool the bridge runs the worker in. It starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens, such as `default` |
 | `experiment` | the experiment of the rule that ran the worker, such as `impl-model`. It matches `^[a-z0-9][a-z0-9_-]{0,63}$` |
 | `variant` | the variant of the experiment that the card runs with, such as `sonnet`. It matches the same pattern |
@@ -256,6 +257,31 @@ reported counts, and a second report from the same source changes nothing. The
 
 Send any timestamp in any offset. The server converts each one to UTC and
 stores it to the second.
+
+### Wake
+
+An outcome or a `stopped` report of a resumed run can carry `wake`. The app
+derives the gap, the cold flag and the gap bucket from these raw figures.
+
+```json
+{
+  "wake": {
+    "trigger": "ask-closed",
+    "lastTurnAt": "2026-11-07T10:00:02Z",
+    "firstTurn": {"inputTokens": 7, "cacheReadTokens": 300, "cacheWriteTokens": 900}
+  }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `wake.trigger` | required. `ask-closed`, `inbox-action`, `person`, `agent`, `work-request` or `backfill` |
+| `wake.lastTurnAt` | when the session last spoke before the resume. It cannot be after `startedAt` of the run. Null when the harness gives none |
+| `wake.firstTurn` | the final token counts of the first turn after the resume, as integers of 0 or more. Null when the harness gives none |
+
+A wake is cold when the cache write of the first turn is greater than its input
+plus its cache read. The server stores the wake from the outcome or the
+`stopped` report that closes the run, and keeps the first one it reads.
 
 ### Peak context
 
@@ -433,6 +459,21 @@ unknown id count as no run, so the server writes nothing and answers 409 with
 | 422 | `invalid_run_id` | `runId` is not a uuid |
 | 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
 | 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
+
+## Reporting the wakes of a session
+
+`PUT /api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake`
+adds wakes to runs that already ended. `loupe usage backfill-wakes` sends it
+for the past transcripts of a machine.
+
+```json
+{"wakes": [null, {"trigger": "backfill", "lastTurnAt": "2026-09-20T10:00:02Z", "firstTurn": {"inputTokens": 7, "cacheReadTokens": 300, "cacheWriteTokens": 900}}]}
+```
+
+1. `wakes` has 1 to 100 entries, one for each started run of the session, in start order. A `null` entry leaves that run alone.
+2. A run that already holds a wake keeps it.
+3. The answer is 204, also when no run needed a wake.
+4. The errors are the same as for the usage report of a session: 404 `project_not_found`, 409 `process_count_mismatch`, 409 `ambiguous_start_order` and 422 `invalid_session_id`. A `lastTurnAt` after the start of its run gives 422 `validation_failed`, and nothing is written.
 
 ## Reporting the tool calls of a run
 

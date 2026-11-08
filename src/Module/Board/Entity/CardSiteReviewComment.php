@@ -53,6 +53,14 @@ class CardSiteReviewComment
         #[ORM\Column(type: Types::TEXT, nullable: true)]
         public ?string $createdBody = null,
 
+        /**
+         * The start column that the save of the card refused, by name, so a
+         * retried delivery repeats the first answer. Empty when the id named
+         * no column of the project.
+         */
+        #[ORM\Column(length: 255, nullable: true)]
+        public readonly ?string $startRefused = null,
+
         #[ORM\Column]
         public readonly \DateTimeImmutable $linkedAt = new \DateTimeImmutable(),
     ) {

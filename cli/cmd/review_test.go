@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -60,13 +62,6 @@ func newReviewServer(t *testing.T) *reviewServer {
 			return
 		}
 		switch r.URL.Path {
-		case "/api/v1/live-review-widget/cards":
-			if r.URL.Query().Get("parent") == "1" {
-				fmt.Fprint(w, `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}`)
-
-				return
-			}
-			fmt.Fprint(w, `{"cards":[{"cardId":"c1","number":7,"title":"T","status":"todo"}]}`)
 		case "/api/v1/live-review-widget/review":
 			// Each destination holds its own notes, as the server scopes them.
 			switch r.URL.Query().Get("scope") {
@@ -128,14 +123,10 @@ func signedInTo(t *testing.T) *reviewServer {
 	return rs
 }
 
-func TestReviewTargetsNotesAndSaveSendTheGivenProject(t *testing.T) {
+func TestReviewNotesAndSaveSendTheGivenProject(t *testing.T) {
 	rs := signedInTo(t)
 
-	got, err := runReview(t, "", "targets", "--project", reviewProjectB, "--query", "x")
-	if err != nil || !strings.HasPrefix(got, `{"cards":[{`) || rs.lastHeader() != reviewProjectB {
-		t.Fatalf("targets = %q, %v, header %q", got, err, rs.lastHeader())
-	}
-	got, err = runReview(t, "", "notes", "--project", reviewProjectA, "--scope", "card:"+reviewCardA)
+	got, err := runReview(t, "", "notes", "--project", reviewProjectA, "--scope", "card:"+reviewCardA)
 	if err != nil || got != `{"notes":{"comments":[{"id":"na"}]}}` || rs.lastHeader() != reviewProjectA {
 		t.Fatalf("notes = %q, %v, header %q", got, err, rs.lastHeader())
 	}
@@ -164,15 +155,6 @@ func TestReviewNotesListOnlyTheGivenDestination(t *testing.T) {
 		if q, _ := url.ParseQuery(rs.lastQuery()); q.Get("scope") != scope || q.Get("surface") != "ios-simulator" {
 			t.Fatalf("%s sent query %q", scope, rs.lastQuery())
 		}
-	}
-}
-
-func TestReviewTargetsAsksForParentCards(t *testing.T) {
-	rs := signedInTo(t)
-
-	got, err := runReview(t, "", "targets", "--project", reviewProjectA, "--parent")
-	if err != nil || got != `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}` || rs.lastQuery() != "parent=1" {
-		t.Fatalf("parent targets = %q, %v, query %q", got, err, rs.lastQuery())
 	}
 }
 
@@ -238,7 +220,7 @@ func TestReviewRefusesABadProjectBeforeAnyRequest(t *testing.T) {
 	rs := signedInTo(t)
 
 	for _, args := range [][]string{
-		{"targets", "--project", "nope"},
+		{"notes", "--project", "nope", "--scope", "card:" + reviewCardA},
 		{"notes", "--project", strings.ToUpper(reviewProjectA), "--scope", "card:" + reviewCardA},
 		{"notes", "--scope", "card:" + reviewCardA},
 		{"save", "--project", "nope"},
@@ -495,6 +477,27 @@ func TestReviewReportsAnExpiredLoginAsSignedOut(t *testing.T) {
 		save()
 		if got, err := runReview(t, "", args...); err == nil || !strings.Contains(got, `"error":"signed_out"`) {
 			t.Fatalf("%v = %q, %v", args, got, err)
+		}
+	}
+}
+
+// The macOS panel runs `loupe review <subcommand>`, so a removed subcommand breaks the panel silently.
+func TestReviewHasEverySubcommandTheMacPanelRuns(t *testing.T) {
+	source, err := os.ReadFile("../macos/LiveReview/Sources/LiveReviewCore/HelperClient.swift")
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := regexp.MustCompile(`(?:object\(|args = )\["([a-z-]+)"`).FindAllStringSubmatch(string(source), -1)
+	if len(calls) == 0 {
+		t.Fatal("found no subcommand call in HelperClient.swift")
+	}
+	have := map[string]bool{}
+	for _, sub := range newReviewCmd().Commands() {
+		have[sub.Name()] = true
+	}
+	for _, call := range calls {
+		if !have[call[1]] {
+			t.Errorf("the macOS panel runs `loupe review %s`, which does not exist", call[1])
 		}
 	}
 }

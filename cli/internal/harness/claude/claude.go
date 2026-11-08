@@ -155,6 +155,7 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 	if err == nil {
 		doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens = true, out.Calls, out.Timing, out.PeakContextTokens
 		doc.AssistantTurns = out.AssistantTurns
+		doc.FirstTurn = out.FirstTurn
 		doc.LastRetryNoStatus = out.LastRetryNoStatus
 		doc.HarnessVersion, doc.SkillVersion = out.HarnessVersion, out.SkillVersion
 	}
@@ -223,6 +224,16 @@ func (h Harness) SessionTotal(sessionID string) (transcript.Usage, error) {
 	}
 
 	return transcript.LastCostState(path)
+}
+
+// SessionLastTurn is the time of the last assistant message in the transcript.
+func (h Harness) SessionLastTurn(sessionID string) (time.Time, error) {
+	path, err := h.find(sessionID)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return transcript.LastAssistantAt(path)
 }
 
 func (h Harness) StartDir(sessionID string) (string, error) {

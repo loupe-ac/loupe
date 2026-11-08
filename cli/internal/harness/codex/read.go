@@ -584,6 +584,12 @@ func (h Harness) SessionTotal(runID string) (transcript.Usage, error) {
 	return h.SessionUsage(runID, time.Time{}, time.Time{})
 }
 
+// SessionLastTurn is the zero time, because the Codex files give no turn time
+// that the wake report uses.
+func (h Harness) SessionLastTurn(string) (time.Time, error) {
+	return time.Time{}, nil
+}
+
 func (h Harness) StartDir(runID string) (string, error) {
 	sess, err := h.session(runID)
 	if errors.Is(err, transcript.ErrNotFound) {

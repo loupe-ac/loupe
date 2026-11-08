@@ -38,6 +38,9 @@ func TestAWorkRequestResumesTheSessionItNames(t *testing.T) {
 	if len(calls) != 1 || !calls[0].resume || calls[0].sessionID != unfinishedSession || !strings.HasPrefix(calls[0].prompt, directive.RenderResumeUnfinished("status unfinished")) {
 		t.Fatalf("workers = %+v", calls)
 	}
+	if calls[0].cause != api.CauseWorkRequest {
+		t.Fatalf("cause = %q, want %q", calls[0].cause, api.CauseWorkRequest)
+	}
 	sent := rec.states()
 	wantStates(t, sent, api.RunQueued, api.RunRunning, api.RunSucceeded)
 	if sent[1].report.SessionID != unfinishedSession {

@@ -49,7 +49,7 @@ final readonly class GraphUpdateTool
      * @param ?string $metric     the key of a metric from metric_list
      * @param ?string $unit       run, card or reading
      * @param ?string $statistic  median, mean, sum, p90, count or max
-     * @param ?string $group      stage, model, variant, card-type, bridge, harness, account, harness-version, cli-version, skill-version, account-window or none
+     * @param ?string $group      stage, model, variant, card-type, bridge, harness, account, harness-version, cli-version, skill-version, account-window, wake-gap, wake-cache or none
      * @param ?string $range      seven-days, thirty-days, ninety-days or all
      * @param ?string $bucket     day, week or month; seven-days takes day alone
      * @param ?string $compare    off, or previous

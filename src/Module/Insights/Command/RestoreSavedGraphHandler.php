@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Insights\Entity\InsightsKeptResult;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\Service\SavedGraphConfirmations;
 use App\Module\Insights\Service\SavedGraphLocker;
@@ -32,6 +35,8 @@ final readonly class RestoreSavedGraphHandler
         private DashboardChangedPublisher $dashboard,
         private SavedGraphConfirmations $confirmations,
         private ClockInterface $clock,
+        private InsightsKeptResultRepository $insightsKeptResults,
+        private InsightsRefreshRequester $refreshes,
     ) {
     }
 
@@ -84,5 +89,10 @@ final readonly class RestoreSavedGraphHandler
             new AuditSubject('project', $projectId),
         );
         $this->dashboard->graphChanged($project, $graphId, DashboardChange::Restored);
+
+        // A removed graph keeps its row, so a restore asks for a compute only when the row is missing or fits other settings.
+        if ($this->insightsKeptResults->findForGraph($graph)?->settingsHash !== InsightsKeptResult::hashOf($graph)) {
+            $this->refreshes->graph($graph);
+        }
     }
 }

@@ -407,7 +407,7 @@ func (p *pending) apply(m rules.Match) {
 	// The server asks the work to resume the session of an unfinished run,
 	// which the offer found on this machine.
 	if p.isWork() && p.event.SessionID != "" && m.Action == "" && !p.fresh {
-		p.spec.resume, p.spec.prompt = true, directive.RenderResumeUnfinished("status unfinished")
+		p.spec.resume, p.spec.prompt, p.spec.cause = true, directive.RenderResumeUnfinished("status unfinished"), api.CauseWorkRequest
 	}
 }
 
@@ -1785,6 +1785,7 @@ func (r *router) outcome(p pending, e endedRun) api.RunStateReport {
 	report.CostSource = e.res.costSource
 	report.PeakContextTokens = e.res.peakContextTokens
 	report.HarnessVersion, report.SkillVersion = e.res.harnessVersion, e.res.skillVersion
+	report.Wake = e.res.wake
 	if e.res.harnessEvents != nil {
 		report.HarnessEvents = &e.res.harnessEvents
 	}

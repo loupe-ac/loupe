@@ -31,4 +31,20 @@ final readonly class DashboardChangedPublisher
             ['type' => self::TYPE, 'graphId' => (string) $graphId, 'kind' => $change->value],
         );
     }
+
+    /**
+     * Tells the open Dashboards that these graphs have a newer result, so each one reloads only those tiles.
+     *
+     * @param list<string> $graphIds
+     */
+    public function graphsRefreshed(Uuid $projectId, array $graphIds): void
+    {
+        if ([] === $graphIds) {
+            return;
+        }
+        $this->publisher->queue(
+            $this->topics->forDashboard($projectId),
+            ['type' => self::TYPE, 'kind' => DashboardChange::Refreshed->value, 'graphIds' => array_values(array_unique($graphIds))],
+        );
+    }
 }

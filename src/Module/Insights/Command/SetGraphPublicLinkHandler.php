@@ -7,6 +7,7 @@ namespace App\Module\Insights\Command;
 use App\Exception\DomainErrors;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\PublicShareBlock;
 use App\Module\Insights\Service\PublicShareGuard;
 use App\Module\Insights\Service\SavedGraphLocker;
@@ -28,6 +29,7 @@ final readonly class SetGraphPublicLinkHandler
         private SavedGraphLocker $locker,
         private PublicShareGuard $guard,
         private Auditor $auditor,
+        private InsightsRefreshRequester $refreshes,
     ) {
     }
 
@@ -75,5 +77,9 @@ final readonly class SetGraphPublicLinkHandler
             ['projectId' => $projectId, 'graphId' => (string) $graphId, 'enabled' => $command->enabled],
             new AuditSubject('project', $projectId),
         );
+
+        if ($command->enabled) {
+            $this->refreshes->graph($graph);
+        }
     }
 }

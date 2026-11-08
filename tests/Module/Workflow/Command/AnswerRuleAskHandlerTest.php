@@ -227,7 +227,7 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
     private function answer(Uuid $itemId, int $optionIndex): void
     {
         $this->em()->clear();
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 
@@ -366,7 +366,7 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
     /** @return list<string> */
     private function queuedEvaluations(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        $transport = self::getContainer()->get('messenger.transport.interactive');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         $ids = [];

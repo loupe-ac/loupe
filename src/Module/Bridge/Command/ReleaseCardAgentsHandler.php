@@ -43,7 +43,7 @@ final readonly class ReleaseCardAgentsHandler
         $refusal = $this->em->wrapInTransaction(function () use ($command, $project, $cardId): ?string {
             // The lock a pause takes, so a pause and a release of one card run one after the other.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
-            if (0 === $this->cardHolds->release($project, [$cardId])) {
+            if (0 === $this->cardHolds->release($project, [$cardId], 'human' === $command->actor)) {
                 return self::NOT_PAUSED;
             }
 

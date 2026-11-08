@@ -142,7 +142,7 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         $run->endedAt = $this->clock->now();
         $this->em->flush();
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')]);
+            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
         }
 
         // The approval wins over a revision under way. The run is Done first, so the cancel of the request fails no run.

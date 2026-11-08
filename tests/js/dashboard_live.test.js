@@ -310,3 +310,80 @@ it('keeps an open table open when a stream replaces its tile', async () => {
             .hasAttribute('open'),
     ).toBe(false);
 });
+
+const TILE_URL = '/projects/p/analytics/dashboard/graphs/';
+
+async function mountTiles(inside) {
+    document.body.innerHTML = `<div data-controller="dashboard-live" data-dashboard-live-url-value="${URL}" data-dashboard-live-stopped-value="${STOPPED}">
+        <div id="dashboard-grid">${inside}</div>
+    </div>`;
+    await vi.advanceTimersByTimeAsync(0);
+}
+
+function refreshed(graphIds) {
+    subscription().handler({
+        type: SIGNAL_TYPE,
+        kind: 'refreshed',
+        graphIds,
+        local: false,
+        own: false,
+    });
+}
+
+it('reloads only the frames of the named graphs after a refreshed signal', async () => {
+    await mountTiles(
+        '<turbo-frame id="dashboard-graph-a1"></turbo-frame><turbo-frame id="dashboard-graph-b2"></turbo-frame>',
+    );
+
+    refreshed(['a1']);
+    await vi.advanceTimersByTimeAsync(SETTLE_MILLISECONDS);
+
+    const frames = document.querySelectorAll('turbo-frame');
+    expect(frames[0].getAttribute('src')).toBe(`${TILE_URL}a1`);
+    expect(frames[1].hasAttribute('src')).toBe(false);
+    expect(fetchCalls).toHaveLength(0);
+});
+
+it('merges the graphs of a burst of refreshed signals into one reload', async () => {
+    await mountTiles(
+        '<turbo-frame id="dashboard-graph-a1"></turbo-frame><turbo-frame id="dashboard-graph-b2"></turbo-frame>',
+    );
+
+    refreshed(['a1']);
+    await vi.advanceTimersByTimeAsync(SETTLE_MILLISECONDS - 50);
+    refreshed(['b2']);
+    await vi.advanceTimersByTimeAsync(SETTLE_MILLISECONDS);
+
+    const frames = document.querySelectorAll('turbo-frame');
+    expect(frames[0].hasAttribute('src')).toBe(true);
+    expect(frames[1].hasAttribute('src')).toBe(true);
+});
+
+it('waits for an open dialog before it reloads a tile', async () => {
+    await mountTiles(
+        '<turbo-frame id="dashboard-graph-a1"></turbo-frame><dialog open></dialog>',
+    );
+
+    refreshed(['a1']);
+    await vi.advanceTimersByTimeAsync(SETTLE_MILLISECONDS);
+    expect(document.querySelector('turbo-frame').hasAttribute('src')).toBe(
+        false,
+    );
+
+    document.querySelector('dialog').remove();
+    await vi.advanceTimersByTimeAsync(BUSY_RETRY_MILLISECONDS);
+    expect(document.querySelector('turbo-frame').hasAttribute('src')).toBe(
+        true,
+    );
+});
+
+it('skips a named graph that the page does not show', async () => {
+    await mountTiles('<turbo-frame id="dashboard-graph-a1"></turbo-frame>');
+
+    refreshed(['zz']);
+    await vi.advanceTimersByTimeAsync(SETTLE_MILLISECONDS);
+
+    expect(document.querySelector('turbo-frame').hasAttribute('src')).toBe(
+        false,
+    );
+});

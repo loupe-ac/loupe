@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -678,5 +679,45 @@ func TestReportRunStateSendsTheVersionsItCanTake(t *testing.T) {
 		if _, ok := body[key]; ok {
 			t.Fatalf("%s was sent: %v", key, body)
 		}
+	}
+}
+
+// The wake rides the outcome of a resumed run, and a run that is no resume
+// sends none. It holds a trigger, a time and counts, never text.
+func TestReportRunStateSendsTheWakeOfAResume(t *testing.T) {
+	code, has := 0, true
+	outcome := stateReport(RunSucceeded)
+	outcome.ExitCode, outcome.HasResult = &code, &has
+	last := time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
+	outcome.Wake = &Wake{Trigger: CauseAskClosed, LastTurnAt: &last, FirstTurn: &TurnUsage{InputTokens: 7, CacheReadTokens: 300, CacheWriteTokens: 1200}}
+	_, body, _, err := putState(t, outcome, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"trigger":    "ask-closed",
+		"lastTurnAt": "2026-09-13T09:00:00Z",
+		"firstTurn":  map[string]any{"inputTokens": float64(7), "cacheReadTokens": float64(300), "cacheWriteTokens": float64(1200)},
+	}
+	if !reflect.DeepEqual(body["wake"], want) {
+		t.Fatalf("wake = %v, want %v", body["wake"], want)
+	}
+
+	outcome.Wake = &Wake{Trigger: CauseWorkRequest}
+	_, body, _, err = putState(t, outcome, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]any{"trigger": "work-request"}; !reflect.DeepEqual(body["wake"], want) {
+		t.Fatalf("wake = %v, want %v", body["wake"], want)
+	}
+
+	outcome.Wake = nil
+	_, body, _, err = putState(t, outcome, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["wake"]; ok {
+		t.Fatalf("a run with no wake sent %v", body["wake"])
 	}
 }

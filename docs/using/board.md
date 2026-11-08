@@ -788,9 +788,9 @@ where it is, as for any card.
 
 ### The epic branch
 
-A repository profile can give each epic its own branch. Its `.loupe/lifecycle.md`
-file then holds an `Epics` section. Under that profile, the breakdown of epic
-number n pushes a branch `epic/<n>` from the base branch of the profile. It pushes the branch only when
+A project can give each epic its own branch. The workflow setting `epic-branches`
+turns this on, and it is on by default. Under that setting, the breakdown of epic
+number n pushes a branch `epic/<n>` from the default branch. It pushes the branch only when
 no child of the epic links a pull request yet.
 
 The workflow setting `epic-branch-pattern` names the branch, such as
@@ -821,8 +821,8 @@ with no changes, so the stage cannot open it earlier. From then on, the epic
 pull request behaves as the section above says. You approve it once, and the
 merge stage squash-merges it into `main`.
 
-A profile can also name an epic preview, a local copy of the app that runs the
-code of `epic/<n>`. Once the epic is in review, the merge stage creates or refreshes
+A profile can also route a skill that holds the epic preview method. The preview is a local copy of the app that
+runs the code of `epic/<n>`. Once the epic is in review, the merge stage creates or refreshes
 the preview for each new head of the epic pull request. It then copies the preview links of the child into the epic pull
 request, each with the result of its check. A link reads "not proved" when the
 data the child seeded for it is missing from the preview. It reads "not minted",
@@ -837,7 +837,7 @@ then falls behind `epic/<n>`, and the merge stage updates it before its merge.
 An epic with one child can close before the stage links its pull request. The
 merge stage then records a block on the epic card.
 
-An epic whose breakdown ran before its profile had an `Epics` section has no
+An epic whose breakdown ran before the project turned on `epic-branches` has no
 `epic/<n>` branch. The same applies to an epic with no `epic/<n>` branch and a
 child that already links a pull request. Its children keep their pull requests
 to `main`.
@@ -1244,18 +1244,22 @@ has no event.
 ## Cards raised from the review widget
 
 Every note from the [live-review widget](live-review.md) lands on a card. The
-reviewer chooses once where notes go: a new card for each note, one card for
-the whole review, or a new card for each note under an epic. The widget can
-pick an open card or epic, and it can create one.
+reviewer chooses once where notes go: a new card for each note, or one new
+card for the whole review.
 
 A card raised that way records its reporter as **reviewer**. That says the app
 could not name who raised it, because the widget authenticates a project and
 never a person. A note card and a review card have the default type of the workflow
 template.
 
-Such a card always lands in Backlog, and carries no pull request
-link. The widget offers neither, so a page visitor cannot file work straight
-into a column. The widget refuses a card or an epic in a terminal column.
+A card from **A new card for each note** starts in the column that the
+reviewer chose. The workflow decides which columns the reviewer may choose: the
+columns that a person may move a card to from Backlog, never a terminal column.
+Other cards, such as a review card, land in Backlog. A card from the widget
+carries no pull request link. The server checks the chosen column again at each
+save, and a column that the workflow refuses leaves the card in Backlog. The
+card history names **A reviewer** for the card, because the widget does not name
+its visitor.
 
 ## Artifacts on a card
 

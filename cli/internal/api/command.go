@@ -28,12 +28,18 @@ const (
 
 // The causes of a command. A resume after an ask close says that the owner
 // answered, a person's resume says that a person fixed the cause, and a click
-// on an inbox action resumes like a person's resume.
+// on an inbox action resumes like a person's resume. An agent's resume says
+// that another agent asked for it, and it reads like a person's resume.
 const (
 	CausePerson      = "person"
 	CauseAskClosed   = "ask-closed"
 	CauseInboxAction = "inbox-action"
+	CauseAgent       = "agent"
 )
+
+// CauseWorkRequest is the wake cause of a resume that a work request asked
+// for. No command carries it.
+const CauseWorkRequest = "work-request"
 
 // The states a bridge answers a command with.
 const (

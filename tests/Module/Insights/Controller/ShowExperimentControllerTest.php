@@ -60,8 +60,8 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertSame('Goal · Cost per merged card · lower is better', trim($crawler->filter('[data-experiment-goal-heading]')->text()));
         self::assertSame(['Variant', 'Cost per merged card', 'Change against a', 'Likely range of the change', 'Result'], $this->cells($crawler->filter('[data-experiment-goal] thead tr')));
-        self::assertSame(['a Baseline', '$2.00', '–', '–', ''], $this->cells($crawler->filter('[data-experiment-goal-row="a"]')));
-        self::assertSame(['b', '$1.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-row="b"]')));
+        self::assertSame(['a Baseline', '$2.00', '–', '–', ''], $this->cells($crawler->filter('[data-experiment-goal-table-row="a"]')));
+        self::assertSame(['b', '$1.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-table-row="b"]')));
         self::assertSame('clear', $crawler->filter('[data-experiment-goal-row="b"]')->attr('data-experiment-goal-state'));
         self::assertSame('Baseline', trim($crawler->filter('[data-experiment-goal-baseline] .lp-tag--neutral')->text()));
         self::assertCount(1, $crawler->filter('[data-experiment-goal-row="b"] .lp-status-chip--ok'));
@@ -189,8 +189,9 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-experiment-goal-row="b"]');
+        $tableRow = $crawler->filter('[data-experiment-goal-table-row="b"]');
         self::assertSame('not-clear', $row->attr('data-experiment-goal-state'));
-        $cells = $this->cells($row);
+        $cells = $this->cells($tableRow);
         self::assertSame(['b', '$2.00', '33% cheaper'], \array_slice($cells, 0, 3));
         self::assertMatchesRegularExpression('/^\d+% lower to \d+% higher$/', $cells[3]);
         self::assertSame('Not clear yet', $cells[4]);
@@ -215,8 +216,9 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-experiment-goal-row="b"]');
+        $tableRow = $crawler->filter('[data-experiment-goal-table-row="b"]');
         self::assertSame('not-enough-cards', $row->attr('data-experiment-goal-state'));
-        self::assertSame(['b', '$1.00', '–', '–', 'a needs 2 more cards'], $this->cells($row));
+        self::assertSame(['b', '$1.00', '–', '–', 'a needs 2 more cards'], $this->cells($tableRow));
         self::assertCount(1, $row->filter('.lp-status-chip--neutral'));
     }
 
@@ -369,9 +371,10 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-experiment-goal-row="b"]');
+        $tableRow = $crawler->filter('[data-experiment-goal-table-row="b"]');
         self::assertSame('held', $row->attr('data-experiment-goal-state'));
         self::assertCount(0, $crawler->filter('[data-experiment-goal-problem]'));
-        self::assertSame(['b', '$1.00', '–', '–', 'Control failed'], $this->cells($row));
+        self::assertSame(['b', '$1.00', '–', '–', 'Control failed'], $this->cells($tableRow));
         self::assertCount(1, $row->filter('.lp-status-chip--failed'));
         $hold = $crawler->filter('[data-experiment-goal-hold="b"]');
         self::assertSame('b: Controls failed: 1 of 3. The comparison names no winner.', trim($hold->text()));
@@ -403,8 +406,9 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-experiment-goal-row="b"]');
+        $tableRow = $crawler->filter('[data-experiment-goal-table-row="b"]');
         self::assertSame('held', $row->attr('data-experiment-goal-state'));
-        self::assertSame(['b', '$1.00', '–', '–', 'No data'], $this->cells($row));
+        self::assertSame(['b', '$1.00', '–', '–', 'No data'], $this->cells($tableRow));
         self::assertCount(1, $row->filter('.lp-status-chip--neutral'));
         self::assertSame('b: Controls with an unknown metric: 1 of 1. The comparison names no winner.', trim($crawler->filter('[data-experiment-goal-hold="b"]')->text()));
         self::assertSame(['lsp-diagnostcs > 0', 'a', '–', '50%', '–', 'No data'], $this->cells($crawler->filter('[data-experiment-control="lsp-diagnostcs"]')));
@@ -449,10 +453,21 @@ final class ShowExperimentControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/experiments/model-test');
 
         self::assertResponseIsSuccessful();
-        self::assertSame(['a', 'b', 'c'], $crawler->filter('[data-experiment-goal-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-goal-row')));
+        self::assertSame(['a', 'b', 'c'], $crawler->filter('[data-experiment-goal-table-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-goal-table-row')));
         self::assertSame('Baseline', trim($crawler->filter('[data-experiment-goal-baseline] .lp-tag--neutral')->text()));
-        self::assertSame(['b', '$2.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-row="b"]')));
-        self::assertSame(['c', '$5.00', '25% more expensive', '25% to 25% higher', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-row="c"]')));
+        self::assertSame(['b', '$2.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-table-row="b"]')));
+        self::assertSame(['c', '$5.00', '25% more expensive', '25% to 25% higher', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-table-row="c"]')));
+        self::assertSame(['b', 'c'], $crawler->filter('li[data-experiment-goal-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-experiment-goal-row')));
+        self::assertSame('better', $crawler->filter('li[data-experiment-goal-row="b"]')->attr('data-experiment-result-tone'));
+        self::assertSame('worse', $crawler->filter('li[data-experiment-goal-row="c"]')->attr('data-experiment-result-tone'));
+        self::assertSame('−50%', trim($crawler->filter('li[data-experiment-goal-row="b"] .lp-experiment-result__change--better')->text()));
+        self::assertSame('+25%', trim($crawler->filter('li[data-experiment-goal-row="c"] .lp-experiment-result__change--worse')->text()));
+        self::assertSame('b: $2.00, change −50%, likely range 50% to 50% lower, Clear', $crawler->filter('li[data-experiment-goal-row="b"]')->attr('aria-label'));
+        self::assertCount(2, $crawler->filter('li[data-experiment-goal-row] svg[data-experiment-result-strip]'));
+        self::assertCount(1, $crawler->filter('.lp-range-strip__label'));
+        self::assertSame('Each variant against a ($4.00)', trim($crawler->filter('[data-experiment-result-header]')->text()));
+        self::assertCount(1, $crawler->filter('details[data-experiment-goal-table-section]:not([open])'));
+        self::assertCount(2, $crawler->filter('details[data-experiment-folded]:not([open])'));
         self::assertSame('The ranges are widened to 97.5% because the page makes 2 comparisons against a.', trim($crawler->filter('[data-experiment-goal-widened]')->text()));
         self::assertSame(['Guard', 'a (baseline)', 'b', 'Change, likely range', 'c', 'Change, likely range'], $this->cells($crawler->filter('[data-experiment-guards] thead tr')));
         self::assertCount(6, $this->cells($crawler->filter('[data-experiment-guard="merge-rate"]')));
@@ -486,9 +501,9 @@ final class ShowExperimentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('clear', $crawler->filter('[data-experiment-goal-row="b"]')->attr('data-experiment-goal-state'));
-        self::assertSame(['b', '$2.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-row="b"]')));
+        self::assertSame(['b', '$2.00', '50% cheaper', '50% to 50% lower', 'Clear'], $this->cells($crawler->filter('[data-experiment-goal-table-row="b"]')));
         self::assertSame('held', $crawler->filter('[data-experiment-goal-row="c"]')->attr('data-experiment-goal-state'));
-        self::assertSame(['c', '$5.00', '–', '–', 'Control failed'], $this->cells($crawler->filter('[data-experiment-goal-row="c"]')));
+        self::assertSame(['c', '$5.00', '–', '–', 'Control failed'], $this->cells($crawler->filter('[data-experiment-goal-table-row="c"]')));
         self::assertCount(0, $crawler->filter('[data-experiment-goal-hold="b"]'));
         self::assertSame('c: Controls failed: 1 of 1. The comparison names no winner.', trim($crawler->filter('[data-experiment-goal-hold="c"]')->text()));
         self::assertStringStartsWith('Harness events: diagnostics', $this->cells($crawler->filter('[data-metric="harness-events:diagnostics"]'))[0]);

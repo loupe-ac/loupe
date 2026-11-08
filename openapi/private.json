@@ -286,7 +286,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.",
+                        "description": "Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -314,125 +314,6 @@
             }
         },
         "/api/v1/live-review-widget/cards": {
-            "get": {
-                "tags": [
-                    "Widget"
-                ],
-                "summary": "List the open cards for the widget picker",
-                "operationId": "listWidgetCards",
-                "parameters": [
-                    {
-                        "name": "X-Loupe-Project",
-                        "in": "header",
-                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
-                    {
-                        "name": "q",
-                        "in": "query",
-                        "description": "Words to search for.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "type",
-                        "in": "query",
-                        "description": "A type key. An unknown key means every type.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "parent",
-                        "in": "query",
-                        "description": "True lists cards of types that can have children.",
-                        "schema": {
-                            "type": "boolean"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "At most 20 cards.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PickerCards"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Refused: `invalid_credentials`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "402": {
-                        "description": "Refused: `subscription_required`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Refused: `route_not_found`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "405": {
-                        "description": "Refused: `method_not_allowed`.",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "429": {
-                        "description": "Refused: `rate_limited`.",
-                        "headers": {
-                            "Retry-After": {
-                                "$ref": "#/components/headers/Retry-After"
-                            }
-                        },
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
             "post": {
                 "tags": [
                     "Widget"
@@ -543,7 +424,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `unknown_type`, `validation_failed`.",
+                        "description": "Refused: `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -640,6 +521,16 @@
                     },
                     "404": {
                         "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `note_locked`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1121,6 +1012,275 @@
                     },
                     "405": {
                         "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/live-review-widget/cards/{cardId}/start": {
+            "get": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Show where a widget card may start",
+                "operationId": "showWidgetCardStart",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id. A value that is not a uuid answers 404 `not_found`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The card and its moves.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WidgetCardStart"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`, `start_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Widget"
+                ],
+                "summary": "Move a widget card to a column",
+                "operationId": "startWidgetCard",
+                "parameters": [
+                    {
+                        "name": "X-Loupe-Project",
+                        "in": "header",
+                        "description": "The project id this request acts on, for a credential that covers several projects. A credential bound to one project may only confirm it.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "cardId",
+                        "in": "path",
+                        "description": "The card id. A value that is not a uuid answers 404 `not_found`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "columnId"
+                                ],
+                                "properties": {
+                                    "columnId": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The card moved.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WidgetCardStarted"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `token_not_bound_to_site`, `credential_not_allowed`, `start_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `start_refused`. The problem carries the `column` the card is in and the `moves` it has now.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WidgetCardStartRefused"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2361,6 +2521,157 @@
                     },
                     "422": {
                         "description": "Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Record the wakes of a session",
+                "operationId": "reportWorkerSessionWake",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportSessionWakeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "The wakes are taken, also when no run needed one."
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `process_count_mismatch`, `ambiguous_start_order`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_session_id`, `validation_failed`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4326,6 +4637,16 @@
                     },
                     "405": {
                         "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `note_locked`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -9003,7 +9324,8 @@
                         "enum": [
                             "person",
                             "ask-closed",
-                            "inbox-action"
+                            "inbox-action",
+                            "agent"
                         ]
                     },
                     "context": {
@@ -9846,42 +10168,6 @@
                 },
                 "type": "object"
             },
-            "PickerCards": {
-                "required": [
-                    "cards"
-                ],
-                "properties": {
-                    "cards": {
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "cardId",
-                                "number",
-                                "title",
-                                "status"
-                            ],
-                            "properties": {
-                                "cardId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "number": {
-                                    "type": "integer"
-                                },
-                                "title": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "maxItems": 20
-                    }
-                },
-                "type": "object"
-            },
             "WidgetCardCreated": {
                 "required": [
                     "cardId",
@@ -10163,6 +10449,9 @@
                     "cardId",
                     "number",
                     "label",
+                    "column",
+                    "startRefused",
+                    "locked",
                     "url"
                 ],
                 "properties": {
@@ -10179,6 +10468,19 @@
                     },
                     "label": {
                         "type": "string"
+                    },
+                    "column": {
+                        "description": "The name of the column the card is in.",
+                        "type": "string"
+                    },
+                    "startRefused": {
+                        "description": "The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "locked": {
+                        "description": "Whether the note is locked, because its card left Backlog at some point.",
+                        "type": "boolean"
                     },
                     "url": {
                         "type": "string",
@@ -10199,11 +10501,97 @@
                 },
                 "type": "object"
             },
+            "WidgetCardStart": {
+                "required": [
+                    "number",
+                    "url",
+                    "column",
+                    "startsWork",
+                    "moves"
+                ],
+                "properties": {
+                    "number": {
+                        "type": "integer"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "column": {
+                        "description": "The name of the column the card is in.",
+                        "type": "string"
+                    },
+                    "startsWork": {
+                        "description": "Whether the workflow asks a bridge for work while the card sits in that column.",
+                        "type": "boolean"
+                    },
+                    "moves": {
+                        "description": "The columns the card may move to now. It never lists the Backlog or a terminal column.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "name",
+                                "hint"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "hint": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "WidgetCardStarted": {
+                "required": [
+                    "column"
+                ],
+                "properties": {
+                    "column": {
+                        "description": "The name of the column the card is in.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "WidgetCardStartRefused": {
+                "description": "The card did not move. The body holds the column the card is in and the moves it has now.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Problem"
+                    },
+                    {
+                        "required": [
+                            "column",
+                            "moves"
+                        ],
+                        "properties": {
+                            "column": {
+                                "description": "The name of the column the card is in.",
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "PendingComments": {
                 "required": [
                     "projectId",
                     "drawingEnabled",
                     "parentTypes",
+                    "startColumns",
                     "context",
                     "comments"
                 ],
@@ -10216,6 +10604,7 @@
                         "type": "boolean"
                     },
                     "parentTypes": {
+                        "description": "Always empty. An older copy of the widget hides its epic mode when the list is empty.",
                         "type": "array",
                         "items": {
                             "required": [
@@ -10228,6 +10617,31 @@
                                 },
                                 "label": {
                                     "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "startColumns": {
+                        "description": "The columns a new card may start in, with Backlog first. It is empty for a preview token.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "id",
+                                "name",
+                                "hint"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "hint": {
+                                    "type": "string",
+                                    "nullable": true
                                 }
                             },
                             "type": "object"
@@ -10306,7 +10720,10 @@
                                 "link": {
                                     "required": [
                                         "label",
-                                        "url"
+                                        "url",
+                                        "cardId",
+                                        "column",
+                                        "locked"
                                     ],
                                     "properties": {
                                         "label": {
@@ -10315,6 +10732,16 @@
                                         "url": {
                                             "type": "string",
                                             "nullable": true
+                                        },
+                                        "cardId": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "column": {
+                                            "type": "string"
+                                        },
+                                        "locked": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "type": "object",
@@ -10497,8 +10924,8 @@
             },
             "NewCardInput": {
                 "properties": {
-                    "parentCardId": {
-                        "title": "An epic of the project, which the new card goes under.",
+                    "startColumnId": {
+                        "title": "The column the new card starts in. Null starts it in Backlog.",
                         "type": "string",
                         "nullable": true,
                         "default": null
@@ -10844,18 +11271,6 @@
                         "type": "string",
                         "default": "",
                         "maxLength": 10000
-                    },
-                    "type": {
-                        "title": "A type key of the project's template. Null means the default type.",
-                        "type": "string",
-                        "nullable": true,
-                        "default": null,
-                        "maxLength": 20
-                    },
-                    "parent": {
-                        "title": "Asks for a type that can have children: the given one, or the first of the template.",
-                        "type": "boolean",
-                        "default": false
                     }
                 },
                 "type": "object"
@@ -10900,6 +11315,16 @@
                     },
                     "submissionId": {
                         "title": "One id for each Send, kept by the widget across a retry of the same content. A cached older script sends none.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "StartWidgetCardRequest": {
+                "properties": {
+                    "columnId": {
                         "type": "string",
                         "nullable": true,
                         "default": null
@@ -11918,6 +12343,94 @@
                 },
                 "type": "object"
             },
+            "WorkerRunTurnUsageInput": {
+                "properties": {
+                    "inputTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheReadTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheWriteTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunWakeInput": {
+                "properties": {
+                    "trigger": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "ask-closed",
+                            "inbox-action",
+                            "person",
+                            "agent",
+                            "work-request",
+                            "backfill"
+                        ]
+                    },
+                    "lastTurnAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "firstTurn": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunTurnUsageInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "ReportSessionWakeRequest": {
+                "properties": {
+                    "wakes": {
+                        "type": "array",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/WorkerRunWakeInput"
+                                },
+                                {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "enum": [
+                                        null
+                                    ]
+                                }
+                            ]
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 100,
+                        "minItems": 1
+                    }
+                },
+                "type": "object"
+            },
             "WorkerRunToolCallInput": {
                 "properties": {
                     "seq": {
@@ -12241,6 +12754,22 @@
                         "oneOf": [
                             {
                                 "$ref": "#/components/schemas/WorkerRunUsageInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "wake": {
+                        "title": "Checked on every state, and stored from an outcome or a stop alone. Null for a run that is no resume.",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunWakeInput"
                             },
                             {
                                 "type": "object",

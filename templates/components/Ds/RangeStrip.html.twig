@@ -1,0 +1,24 @@
+{#
+  Props:  @comment-budget-ignore
+    low       float   Start of the range, from 0 to 100.
+    point     float   Position of the dot, from 0 to 100.
+    high      float   End of the range, from 0 to 100.
+    baseline  float   Position of the dashed line, from 0 to 100. Optional, no line without it.
+    label     string  Translated name of the line, drawn under it. Optional, and the svg is taller with it.
+  Draws a range around a point on a shared scale, as an inline SVG of full width. It is hidden from screen readers, so the page gives the same facts as text.
+  A full-width track line sits under the range. A range of zero width draws no band. Any other attribute, class included, is passed to the svg.
+#}
+{%- props low, point, high, baseline = null, label = null -%}
+{# twig-cs-fixer-disable-line InlineSvg #}<svg{{ attributes.defaults({class: 'lp-range-strip' ~ (label is not null ? ' lp-range-strip--labelled'), 'aria-hidden': 'true', focusable: 'false'}) }}>
+    <line class="lp-range-strip__track" x1="0" x2="100%" y1="16" y2="16" />
+    {%- if high > low -%}
+        <rect class="lp-range-strip__band" x="{{ low }}%" y="7" width="{{ high - low }}%" height="18" />
+    {%- endif -%}
+    {%- if baseline is not null -%}
+        <line class="lp-range-strip__baseline" x1="{{ baseline }}%" x2="{{ baseline }}%" y1="0" y2="32" />
+    {%- endif -%}
+    {%- if baseline is not null and label is not null -%}
+        <text class="lp-range-strip__label" x="{{ baseline }}%" y="46" text-anchor="middle">{{ label }}</text>
+    {%- endif -%}
+    <circle class="lp-range-strip__point" cx="{{ point }}%" cy="16" r="6" />
+</svg>
