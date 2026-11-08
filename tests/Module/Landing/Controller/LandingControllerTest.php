@@ -78,7 +78,7 @@ final class LandingControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.lp-home[data-controller~="analytics"][data-controller~="modal"]');
         $buttons = $client->getCrawler()->filter('a[href="/waitlist"][data-action~="click->modal#open"]');
-        self::assertCount(7, $buttons);
+        self::assertCount(8, $buttons);
         $names = $buttons->each(static function ($button): string {
             self::assertSame('click->analytics#track click->modal#open', $button->attr('data-action'));
             self::assertSame('waitlist-click', $button->attr('data-analytics-name-param'));
@@ -87,7 +87,7 @@ final class LandingControllerTest extends WebTestCase
         });
         sort($names);
         self::assertSame(
-            ['closing', 'footer', 'hero', 'nav', 'open-source', 'requirements-missing', 'requirements-ready'],
+            ['closing', 'footer', 'hero', 'nav', 'open-source', 'phone-menu', 'requirements-missing', 'requirements-ready'],
             $names,
         );
     }

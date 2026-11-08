@@ -7,7 +7,7 @@
 {% block body_unauthenticated %}
 <div class="lp-home"{% for name, value in marketingAttributes|default({}) %} {{ name }}="{{ value }}"{% endfor %}>
     {% block marketing_header %}
-    {% include '@Landing/landing/_nav.html.twig' only %}
+    {% include '@Landing/landing/_nav.html.twig' with {currentFeature: currentFeature|default(null)} only %}
     {% endblock %}
 
     <main id="main-content" tabindex="-1">{% block marketing_main %}{{ block('body') }}{% endblock %}</main>

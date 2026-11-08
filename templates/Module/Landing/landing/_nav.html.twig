@@ -1,11 +1,43 @@
 {# The site bar: the brand, the section links, and the sign-in and waitlist links.
    Every link names a full address, so the bar also works inside the docs pages.
-   The docs stamp passes docs: true, which adds the Discord link. #}
+   The docs stamp passes docs: true, which adds the Discord link and leaves out the phone menu.
+   The two menus are popovers, so they need no script and also work inside the docs pages.
+   The Umami attributes count their clicks. The docs pages read them in site-docs.js. #}
+{% set docs = docs is defined and docs %}
+{% set currentFeature = currentFeature|default(null) %}
+{% set signedIn = site_signed_in() %}
+{% set features = landing_features() %}
 <header class="lp-home-nav">
     <a href="{{ site_url('/') }}" data-turbo="false" class="lp-home-brand">
         <twig:Ds:BrandMark />
     </a>
     <nav class="lp-home-nav__links" aria-label="{{ 'landing.nav.label'|trans }}">
+        <button type="button" class="lp-home-nav__link lp-features-toggle" popovertarget="site-features">
+            {{ 'landing.nav.features'|trans }}
+            <twig:ux:icon name="lucide:chevron-down" class="lp-icon lp-icon--md lp-features-toggle__icon" aria-hidden="true" />
+        </button>
+        <div id="site-features" popover class="lp-features-panel">
+            <div class="lp-home-container lp-features-panel__inner">
+                <div class="lp-features-panel__intro">
+                    <span class="lp-features-panel__kicker">{{ 'landing.nav.features'|trans }}</span>
+                    <p class="lp-features-panel__lead">{{ 'landing.features_menu.lead'|trans }}</p>
+                    <a href="{{ site_url('/features') }}" class="lp-features-panel__all" data-umami-event="feature-click" data-umami-event-button="menu" data-umami-event-feature="all">{{ 'landing.features_menu.all'|trans }}</a>
+                </div>
+                <ul class="lp-features-panel__grid">
+                    {% for feature in features %}
+                        <li>
+                            <a href="{{ site_url('/features/' ~ feature.slug) }}" class="lp-features-panel__item"{% if feature.key == currentFeature %} aria-current="page"{% endif %} data-umami-event="feature-click" data-umami-event-button="menu" data-umami-event-feature="{{ feature.slug }}">
+                                <span class="lp-features-panel__icon"><twig:ux:icon :name="feature.icon" class="lp-icon lp-icon--lg" aria-hidden="true" /></span>
+                                <span class="lp-features-panel__text">
+                                    <span class="lp-features-panel__name">{{ ('landing.features.' ~ feature.key ~ '.name')|trans }}</span>
+                                    <span class="lp-features-panel__caption">{{ ('landing.features.' ~ feature.key ~ '.caption')|trans }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
         <a href="{{ app_docs_url }}/" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.docs'|trans }}</a>
         {% if site_is_split() or has_blog() %}
             <a href="{{ site_url('/blog') }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.blog'|trans }}</a>
@@ -13,14 +45,47 @@
         {% if site_source_url() %}
             <a href="{{ site_source_url() }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
         {% endif %}
-        {% if docs is defined and docs and site_discord_url() %}
+        {% if docs and site_discord_url() %}
             <a href="{{ site_discord_url() }}" class="lp-home-nav__link lp-home-nav__link--section" target="_blank" rel="noopener noreferrer">{{ 'landing.nav.discord'|trans }}</a>
         {% endif %}
-        {% set signedIn = site_signed_in() %}
-        <div class="lp-home-nav__actions">
+        <div class="lp-home-nav__actions{% if not docs %} lp-home-nav__actions--wide{% endif %}">
             <a href="{{ app_url('app_login') }}" data-site-chrome="signed-out" class="lp-home-nav__link"{% if signedIn %} hidden{% endif %}>{{ 'landing.nav.login'|trans }}</a>
             <twig:Ds:Button variant="primary" size="sm" href="{{ site_url(path('app_waitlist_join')) }}" data-site-chrome="signed-out" :hidden="signedIn" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="nav">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
             <twig:Ds:Button variant="primary" size="sm" href="{{ app_url('app_home') }}" data-site-chrome="go-to-app" :hidden="not signedIn">{{ 'landing.nav.go_to_app'|trans }}</twig:Ds:Button>
         </div>
+        {% if not docs %}
+            <button type="button" class="lp-site-menu-toggle" popovertarget="site-menu" aria-label="{{ 'landing.nav.menu'|trans }}">
+                <twig:ux:icon name="lucide:menu" class="lp-icon lp-icon--lg lp-site-menu-toggle__open" aria-hidden="true" />
+                <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--lg lp-site-menu-toggle__close" aria-hidden="true" />
+            </button>
+            <div id="site-menu" popover class="lp-site-menu">
+                <p class="lp-site-menu__heading">{{ 'landing.nav.features'|trans }}</p>
+                <ul class="lp-site-menu__features">
+                    {% for feature in features %}
+                        <li>
+                            <a href="{{ site_url('/features/' ~ feature.slug) }}" class="lp-site-menu__feature"{% if feature.key == currentFeature %} aria-current="page"{% endif %} data-umami-event="feature-click" data-umami-event-button="phone-menu" data-umami-event-feature="{{ feature.slug }}">
+                                <span class="lp-site-menu__icon"><twig:ux:icon :name="feature.icon" class="lp-icon lp-icon--lg" aria-hidden="true" /></span>
+                                {{ ('landing.features.' ~ feature.key ~ '.name')|trans }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ site_url('/features') }}" class="lp-site-menu__all" data-umami-event="feature-click" data-umami-event-button="phone-menu" data-umami-event-feature="all">{{ 'landing.features_menu.all'|trans }}</a>
+                <div class="lp-site-menu__links">
+                    <a href="{{ app_docs_url }}/" class="lp-home-nav__link lp-site-menu__link">{{ 'landing.nav.docs'|trans }}</a>
+                    {% if site_is_split() or has_blog() %}
+                        <a href="{{ site_url('/blog') }}" class="lp-home-nav__link lp-site-menu__link">{{ 'landing.nav.blog'|trans }}</a>
+                    {% endif %}
+                    {% if site_source_url() %}
+                        <a href="{{ site_source_url() }}" class="lp-home-nav__link lp-site-menu__link">{{ 'landing.nav.github'|trans }}</a>
+                    {% endif %}
+                </div>
+                <div class="lp-site-menu__actions">
+                    <twig:Ds:Button variant="outline" href="{{ app_url('app_login') }}" data-site-chrome="signed-out" :hidden="signedIn">{{ 'landing.nav.login'|trans }}</twig:Ds:Button>
+                    <twig:Ds:Button variant="primary" href="{{ site_url(path('app_waitlist_join')) }}" data-site-chrome="signed-out" :hidden="signedIn" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="phone-menu">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+                    <twig:Ds:Button variant="primary" href="{{ app_url('app_home') }}" data-site-chrome="go-to-app" :hidden="not signedIn">{{ 'landing.nav.go_to_app'|trans }}</twig:Ds:Button>
+                </div>
+            </div>
+        {% endif %}
     </nav>
 </header>

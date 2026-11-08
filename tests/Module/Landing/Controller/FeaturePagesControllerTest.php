@@ -36,7 +36,7 @@ final class FeaturePagesControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Features');
-        self::assertCount(8, $client->getCrawler()->filter('a[href^="/features/"]'));
+        self::assertCount(8, $client->getCrawler()->filter('main a[href^="/features/"]'));
     }
 
     /** @return iterable<string, array{string, string}> */

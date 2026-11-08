@@ -4886,6 +4886,18 @@
                 <source>landing.nav.go_to_app</source>
                 <target>Go to app</target>
             </trans-unit>
+            <trans-unit id="landing.nav.menu">
+                <source>landing.nav.menu</source>
+                <target>Menu</target>
+            </trans-unit>
+            <trans-unit id="landing.features_menu.lead">
+                <source>landing.features_menu.lead</source>
+                <target>Everything the factory does, from the first card to the merged pull request.</target>
+            </trans-unit>
+            <trans-unit id="landing.features_menu.all">
+                <source>landing.features_menu.all</source>
+                <target>See every feature</target>
+            </trans-unit>
             <trans-unit id="landing.hero.title_before">
                 <source>landing.hero.title_before</source>
                 <target>From ideas to </target>

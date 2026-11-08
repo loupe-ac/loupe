@@ -5914,6 +5914,176 @@
     }
 
     /* The light band behind the lower part of the explainer frame. */
+    /* ── Site bar menus ─────────────────────────────────────────────────
+       The Features panel and the phone menu are popovers. The browser gives
+       Escape, a click outside and the return of focus. The docs pages stamp
+       this markup into a shadow root, so every selector names a class. */
+    .lp-home-nav {
+        --lp-nav-height: calc(var(--spacing) * 17);
+    }
+    @media (width >= 64rem) {
+        .lp-home-nav {
+            --lp-nav-height: calc(var(--spacing) * 15);
+        }
+    }
+    .lp-home-nav__actions--wide {
+        @apply hidden lg:flex;
+    }
+    .lp-features-toggle {
+        @apply hidden lg:inline-flex items-center gap-1 cursor-pointer;
+    }
+    .lp-features-toggle__icon {
+        @apply transition-transform;
+    }
+    .lp-features-toggle:has(+ .lp-features-panel:popover-open) {
+        @apply text-chrome-fg;
+    }
+    .lp-features-toggle:has(+ .lp-features-panel:popover-open)
+        .lp-features-toggle__icon {
+        @apply rotate-180;
+    }
+
+    /* The panel opens under the bar. A closed popover stays display none, so
+       the display and overlay transitions keep it on screen for the fade out. */
+    .lp-features-panel {
+        @apply fixed inset-x-0 bottom-auto m-0 h-auto w-auto max-w-none overflow-visible border-y border-chrome-line bg-chrome-raised p-0 text-chrome-fg opacity-0 shadow-2xl;
+        top: var(--lp-nav-height);
+        translate: 0 calc(var(--spacing) * -3);
+        transition:
+            opacity var(--duration-slow) var(--ease-deck),
+            translate var(--duration-slow) var(--ease-deck),
+            display var(--duration-slow) allow-discrete,
+            overlay var(--duration-slow) allow-discrete;
+    }
+    .lp-features-panel:popover-open {
+        @apply opacity-100;
+        translate: none;
+    }
+    @starting-style {
+        .lp-features-panel:popover-open {
+            @apply opacity-0;
+            translate: 0 calc(var(--spacing) * -3);
+        }
+    }
+    @media (width < 64rem) {
+        .lp-features-panel {
+            display: none;
+        }
+    }
+    .lp-features-panel__inner {
+        @apply grid gap-12 pt-8 pb-10;
+        grid-template-columns: calc(var(--spacing) * 65) minmax(0, 1fr);
+    }
+    .lp-features-panel__kicker,
+    .lp-site-menu__heading {
+        @apply m-0 mb-3 block font-mono text-xs uppercase tracking-widest text-chrome-dim;
+    }
+    .lp-features-panel__lead {
+        @apply m-0 mb-5 text-xl leading-snug font-semibold text-chrome-fg;
+    }
+    .lp-features-panel__all,
+    .lp-site-menu__all {
+        @apply text-sm font-semibold text-accent no-underline underline-offset-2 hover:underline;
+    }
+    .lp-features-panel__grid {
+        @apply m-0 grid list-none grid-cols-2 gap-x-4 gap-y-1 p-0;
+    }
+    .lp-features-panel__item {
+        @apply flex items-start gap-3 rounded-lg p-3 text-chrome-fg no-underline transition-colors hover:bg-chrome-control focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent;
+    }
+    .lp-features-panel__item[aria-current='page'] {
+        @apply bg-chrome-control;
+    }
+    .lp-features-panel__icon,
+    .lp-site-menu__icon {
+        @apply inline-flex shrink-0 items-center justify-center rounded-lg bg-chrome text-chrome-mute;
+    }
+    .lp-features-panel__icon {
+        @apply size-9;
+    }
+    .lp-features-panel__item[aria-current='page'] .lp-features-panel__icon,
+    .lp-site-menu__feature[aria-current='page'] .lp-site-menu__icon {
+        @apply bg-accent text-ink;
+    }
+    .lp-features-panel__text {
+        @apply flex flex-col gap-0.5;
+    }
+    .lp-features-panel__name {
+        @apply text-base font-semibold;
+    }
+    .lp-features-panel__caption {
+        @apply text-sm leading-snug text-chrome-mute;
+    }
+
+    .lp-site-menu-toggle {
+        @apply ml-auto inline-flex size-11 cursor-pointer items-center justify-center rounded-lg border-0 bg-chrome-raised text-chrome-fg lg:hidden;
+    }
+    .lp-site-menu-toggle__close {
+        @apply hidden;
+    }
+    .lp-home-nav:has(.lp-site-menu:popover-open) .lp-site-menu-toggle__open {
+        @apply hidden;
+    }
+    .lp-home-nav:has(.lp-site-menu:popover-open) .lp-site-menu-toggle__close {
+        @apply block;
+    }
+    /* Only the open state sets display, because a closed popover must stay display none. */
+    .lp-site-menu {
+        @apply fixed inset-x-0 bottom-0 m-0 h-auto w-auto max-w-none overflow-y-auto border-0 border-t border-chrome-line bg-chrome px-5 pt-4 pb-6 text-chrome-fg opacity-0;
+        top: var(--lp-nav-height);
+        translate: 0 calc(var(--spacing) * -3);
+        transition:
+            opacity var(--duration-slow) var(--ease-deck),
+            translate var(--duration-slow) var(--ease-deck),
+            display var(--duration-slow) allow-discrete,
+            overlay var(--duration-slow) allow-discrete;
+    }
+    .lp-site-menu:popover-open {
+        @apply flex flex-col gap-2 opacity-100 lg:hidden;
+        translate: none;
+    }
+    @starting-style {
+        .lp-site-menu:popover-open {
+            @apply opacity-0;
+            translate: 0 calc(var(--spacing) * -3);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .lp-features-panel,
+        .lp-features-panel:popover-open,
+        .lp-site-menu,
+        .lp-site-menu:popover-open {
+            translate: none;
+        }
+        @starting-style {
+            .lp-features-panel:popover-open,
+            .lp-site-menu:popover-open {
+                translate: none;
+            }
+        }
+    }
+    .lp-site-menu__features {
+        @apply m-0 flex list-none flex-col gap-0.5 p-0;
+    }
+    .lp-site-menu__feature {
+        @apply flex min-h-11 items-center gap-3 py-1 text-base font-semibold text-chrome-fg no-underline;
+    }
+    .lp-site-menu__icon {
+        @apply size-8 bg-chrome-control;
+    }
+    .lp-site-menu__all {
+        @apply py-1 pb-3;
+    }
+    .lp-site-menu__links {
+        @apply flex flex-col gap-1 border-t border-chrome-line pt-3;
+    }
+    .lp-site-menu .lp-site-menu__link {
+        @apply flex min-h-10 items-center px-0 py-0 text-base;
+    }
+    .lp-site-menu__actions {
+        @apply mt-auto grid grid-cols-2 gap-2.5;
+    }
+
     .lp-home-hero {
         @apply relative bg-chrome pt-14;
     }
@@ -6558,7 +6728,7 @@
         @apply m-0 text-sm leading-relaxed;
     }
     .lp-home-footer__social {
-        @apply flex gap-2;
+        @apply flex items-center gap-2;
     }
     .lp-home-footer__icon {
         @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border border-chrome-line text-chrome-mute transition-colors hover:text-chrome-fg;
