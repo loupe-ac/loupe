@@ -84,7 +84,7 @@ final readonly class FailDiscoveryRunHandler
         );
         // The rule records its falling edge, so a later requested run fires it again.
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$command->cardId]);
+            $this->evaluations->forCards([$command->cardId], self::class);
         }
 
         return true;

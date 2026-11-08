@@ -22,6 +22,6 @@ final readonly class EvaluateCardsOnCardBlockersChanged
         $this->trigger->forCards(array_values(array_filter(
             array_map(static fn (Card $card) => $card->id, $event->cards),
             static fn ($id): bool => null !== $id,
-        )));
+        )), self::class);
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\EventListener;
 
+use App\Messenger\Stamp\CauseStamp;
+use App\Messenger\Stamp\DispatchedAtStamp;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardLink;
@@ -123,7 +125,43 @@ final class EvaluationListenersTest extends KernelTestCase
             new CardMoved($card, new CardMove($this->column($this->project, 'in-progress')), Actor::Human),
         );
 
-        self::assertSame($this->ids($card, $epic, $blocked), $this->sent());
+        self::assertSame($this->ids($epic, $blocked), $this->sent());
+        self::assertSame($this->ids($card), $this->sent('interactive'));
+    }
+
+    public function test_a_move_of_the_app_asks_for_every_card_on_the_shared_queue(): void
+    {
+        $epic = $this->card($this->project, 'next');
+        $card = $this->card($this->project, 'next');
+        $card->parent = $epic;
+        $this->em()->flush();
+        $this->transport()->reset();
+        $this->interactiveTransport()->reset();
+
+        new EvaluateCardsOnCardMoved($this->service(CardRepository::class), $this->trigger())(
+            new CardMoved($card, new CardMove($this->column($this->project, 'in-progress')), Actor::System),
+        );
+
+        self::assertSame($this->ids($card, $epic), $this->sent());
+        self::assertSame([], $this->sent('interactive'));
+    }
+
+    public function test_a_move_stamps_the_queued_check_with_the_cause_and_the_event_time(): void
+    {
+        $card = $this->card($this->project, 'next');
+        $at = new \DateTimeImmutable('2026-11-07 10:00:00');
+
+        new EvaluateCardsOnCardMoved($this->service(CardRepository::class), $this->trigger())(
+            new CardMoved($card, new CardMove($this->column($this->project, 'in-progress')), Actor::System, null, $at),
+        );
+
+        $envelopes = $this->transport()->getSent();
+        self::assertCount(1, $envelopes);
+        $stamp = $envelopes[0]->last(CauseStamp::class);
+        self::assertInstanceOf(CauseStamp::class, $stamp);
+        self::assertSame('EvaluateCardsOnCardMoved', $stamp->cause);
+        self::assertEquals($at, $stamp->occurredAt);
+        self::assertInstanceOf(DispatchedAtStamp::class, $envelopes[0]->last(DispatchedAtStamp::class));
     }
 
     public function test_a_creation_asks_for_the_new_card_alone(): void
@@ -537,6 +575,18 @@ final class EvaluationListenersTest extends KernelTestCase
 
         $this->transport()->reset();
         $listener(new ForgeBranchPushed($this->projectId(), 'github', 'acme/loupe', 'main'));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_release_by_a_person_asks_for_the_cards_on_the_interactive_queue(): void
+    {
+        $card = $this->card($this->project, 'next');
+        $this->transport()->reset();
+        $this->interactiveTransport()->reset();
+
+        $this->rearmListener()(new CardHoldsReleased($this->projectId(), [$card->id ?? throw new \LogicException('A flushed card has an id.')], true));
+
+        self::assertSame($this->ids($card), $this->sent('interactive'));
         self::assertSame([], $this->sent());
     }
 

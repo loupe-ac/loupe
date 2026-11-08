@@ -32,6 +32,6 @@ final readonly class EvaluateCardsOnRepositoryWorkflowSettingsApplied
             return;
         }
 
-        $this->trigger->forCards($this->cardPullRequests->findCardIdsWithOpenPullRequests($event->projectId, $repository->path));
+        $this->trigger->forCards($this->cardPullRequests->findCardIdsWithOpenPullRequests($event->projectId, $repository->path), self::class);
     }
 }

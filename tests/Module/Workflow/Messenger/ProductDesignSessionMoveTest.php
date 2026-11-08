@@ -22,6 +22,7 @@ use App\Tests\Support\McpTokenScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
 /** A Lifecycle card that card_run_open moves into Product design, run through the real tool and the real engine. */
@@ -41,6 +42,20 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
 
         self::assertSame('product-design', $this->reload($card)->column->slug);
         self::assertSame([], $this->sessionRequests($card));
+    }
+
+    public function test_the_move_of_the_session_tool_queues_its_check_on_the_card_eval_queue_only(): void
+    {
+        $card = $this->lifecycleCard('session-move-queue');
+        $interactive = $this->transport('interactive');
+        $cardEval = $this->transport('card_eval');
+        $interactive->reset();
+        $cardEval->reset();
+
+        $this->service(CardRunOpenTool::class)((string) Uuid::v7(), self::SKILL, (string) $card->id, status: 'product-design');
+
+        self::assertSame([], $interactive->getSent());
+        self::assertContainsEquals(new EvaluateCard((string) $card->id), array_map(static fn ($envelope): object => $envelope->getMessage(), $cardEval->getSent()));
     }
 
     public function test_the_card_gets_a_session_once_the_session_that_moved_it_closes(): void
@@ -86,6 +101,14 @@ final class ProductDesignSessionMoveTest extends KernelTestCase
         $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock($now)), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
+    }
+
+    private function transport(string $name): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.'.$name);
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
     }
 
     private function reload(Card $card): Card

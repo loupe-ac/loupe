@@ -26,6 +26,6 @@ final readonly class EvaluateCardOnCardChanged
         if ($event->markersOnly || CardChanged::UPDATED !== $event->change) {
             return;
         }
-        $this->trigger->forCards([$event->cardId]);
+        $this->trigger->forCards([$event->cardId], self::class);
     }
 }

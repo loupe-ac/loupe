@@ -55,7 +55,7 @@ final readonly class RecordEpicBranchSyncOnWorkRequestSettled
             'merged' => $merged,
         ]);
         if ($merged && $this->evaluations->isOn()) {
-            $this->evaluations->forCards($this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')));
+            $this->evaluations->forCards($this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')), self::class);
         }
     }
 }

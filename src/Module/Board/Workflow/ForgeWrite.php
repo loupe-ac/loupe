@@ -194,7 +194,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         if (null !== $result) {
             // The engine keeps the truth of the facts it built before the write, so only a new evaluation resets it.
             if ($result->changed && $this->evaluations->isOn()) {
-                $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')]);
+                $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
             }
 
             return null === $result->failure ? ActionOutcome::done() : ActionOutcome::refused($result->failure);
@@ -229,7 +229,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             }
             // The stored row turns the condition false, and only a new evaluation reads it.
             if ($queued && $this->evaluations->isOn()) {
-                $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')]);
+                $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
             }
 
             return ActionOutcome::done();
@@ -331,7 +331,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
     private function evaluateAgain(Card $card): void
     {
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')]);
+            $this->evaluations->forCards([$card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
         }
     }
 
@@ -426,7 +426,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             'repositories' => $repositories,
         ]);
         if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards($this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')));
+            $this->evaluations->forCards($this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')), self::class);
         }
 
         return ActionOutcome::done();
