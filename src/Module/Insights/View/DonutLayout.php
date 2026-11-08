@@ -16,9 +16,8 @@ final readonly class DonutLayout
 {
     public const int SIZE = 280;
 
-    private const float CENTRE = 140.0;
-    private const float OUTER = 130.0;
-    private const float INNER = 80.0;
+    private const float OUTER_RATIO = 130 / 280;
+    private const float INNER_RATIO = 80 / 280;
 
     /**
      * @param list<MetricChartSeries>      $series
@@ -36,6 +35,8 @@ final readonly class DonutLayout
         /** The sum of all series. Null when no series has a known value. */
         public ?string $total,
         public bool $comparing,
+        /** The side of the square view box. */
+        public int $size = self::SIZE,
     ) {
     }
 
@@ -44,11 +45,16 @@ final readonly class DonutLayout
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter): ?self
+    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): ?self
     {
         if ([] === $series) {
             return null;
         }
+
+        $size = null === $box ? self::SIZE : $box->height;
+        $centre = $size / 2;
+        $outer = $size * self::OUTER_RATIO;
+        $inner = $size * self::INNER_RATIO;
 
         $chartSeries = MetricChartScale::series($series);
         $sum = 0;
@@ -74,9 +80,9 @@ final readonly class DonutLayout
                 $start = round($running / $positive * 360, 4);
                 $running += $value;
                 $end = round($running / $positive * 360, 4);
-                $slice = new MetricChartSlice($chartSeries[$position], $value, $value / $positive, $start, $end, self::path($start, $end));
+                $slice = new MetricChartSlice($chartSeries[$position], $value, $value / $positive, $start, $end, self::path($start, $end, $centre, $outer, $inner));
                 $middle = deg2rad(($start + $end) / 2);
-                $radius = (self::OUTER + self::INNER) / 2;
+                $radius = ($outer + $inner) / 2;
                 $targets[] = new MetricChartHoverTarget(
                     'hover-'.\count($slices),
                     null,
@@ -86,8 +92,8 @@ final readonly class DonutLayout
                     0.0,
                     0.0,
                     0.0,
-                    round(self::CENTRE + $radius * sin($middle), 2),
-                    round(self::CENTRE - $radius * cos($middle), 2),
+                    round($centre + $radius * sin($middle), 2),
+                    round($centre - $radius * cos($middle), 2),
                     $slice->path,
                     [new MetricChartHoverRow($slice->series, $formatter->format($value, $metric, $statistic), null, $formatter->share($slice->share))],
                     null,
@@ -105,6 +111,7 @@ final readonly class DonutLayout
             table: MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, true),
             total: $known ? $formatter->format($sum, $metric, $statistic) : null,
             comparing: MetricChartReadout::comparing($series),
+            size: $size,
         );
     }
 
@@ -115,27 +122,27 @@ final readonly class DonutLayout
     }
 
     /** A slice of the ring. A slice of the whole circle is two half arcs on each edge, because one arc cannot close on itself. */
-    private static function path(float $start, float $end): string
+    private static function path(float $start, float $end, float $centre, float $outerRadius, float $innerRadius): string
     {
-        $outer = MetricChartScale::number(self::OUTER);
-        $inner = MetricChartScale::number(self::INNER);
+        $outer = MetricChartScale::number($outerRadius);
+        $inner = MetricChartScale::number($innerRadius);
         if ($end - $start >= 360 - 1e-6) {
             return \sprintf(
                 'M%sA%s %s 0 1 1 %sA%s %s 0 1 1 %sZM%sA%s %s 0 1 0 %sA%s %s 0 1 0 %sZ',
-                self::at(0, self::OUTER),
+                self::at(0, $outerRadius, $centre),
                 $outer,
                 $outer,
-                self::at(180, self::OUTER),
+                self::at(180, $outerRadius, $centre),
                 $outer,
                 $outer,
-                self::at(0, self::OUTER),
-                self::at(0, self::INNER),
+                self::at(0, $outerRadius, $centre),
+                self::at(0, $innerRadius, $centre),
                 $inner,
                 $inner,
-                self::at(180, self::INNER),
+                self::at(180, $innerRadius, $centre),
                 $inner,
                 $inner,
-                self::at(0, self::INNER),
+                self::at(0, $innerRadius, $centre),
             );
         }
 
@@ -143,24 +150,24 @@ final readonly class DonutLayout
 
         return \sprintf(
             'M%sA%s %s 0 %d 1 %sL%sA%s %s 0 %d 0 %sZ',
-            self::at($start, self::OUTER),
+            self::at($start, $outerRadius, $centre),
             $outer,
             $outer,
             $large,
-            self::at($end, self::OUTER),
-            self::at($end, self::INNER),
+            self::at($end, $outerRadius, $centre),
+            self::at($end, $innerRadius, $centre),
             $inner,
             $inner,
             $large,
-            self::at($start, self::INNER),
+            self::at($start, $innerRadius, $centre),
         );
     }
 
     /** The point at an angle in degrees clockwise from the top, as "x y". */
-    private static function at(float $angle, float $radius): string
+    private static function at(float $angle, float $radius, float $centre): string
     {
         $radians = deg2rad($angle);
 
-        return MetricChartScale::number(self::CENTRE + $radius * sin($radians)).' '.MetricChartScale::number(self::CENTRE - $radius * cos($radians));
+        return MetricChartScale::number($centre + $radius * sin($radians)).' '.MetricChartScale::number($centre - $radius * cos($radians));
     }
 }

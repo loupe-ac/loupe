@@ -20,6 +20,7 @@ final readonly class NumberLayout
         public MetricStatistic $statistic,
         public array $series,
         public array $figures,
+        public ChartBox $box = new ChartBox(),
     ) {
     }
 
@@ -28,14 +29,14 @@ final readonly class NumberLayout
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter): ?self
+    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ChartBox $box = new ChartBox()): ?self
     {
         if ([] === $series) {
             return null;
         }
         $chartSeries = MetricChartScale::series($series);
 
-        return new self($metric, $statistic, $chartSeries, MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, false));
+        return new self($metric, $statistic, $chartSeries, MetricChartReadout::tableRows($metric, $statistic, $series, $chartSeries, $formatter, false), $box);
     }
 
     /** A legend names the series when there is more than one. */

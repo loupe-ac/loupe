@@ -19,6 +19,22 @@ RUN apk add --no-cache nodejs npm \
     && npm install --global esbuild@0.28.2 \
     && npm cache clean --force
 
+# The share preview images come from rsvg-convert, which finds fonts through
+# fontconfig. The repo holds the brand fonts as WOFF2, and rsvg-convert reads TTF,
+# so woff2 converts them and is then removed. Only the regular and bold faces of
+# font-dejavu stay, as the fallback.
+COPY assets/fonts /tmp/fonts
+RUN apk add --no-cache rsvg-convert fontconfig font-dejavu \
+    && find /usr/share/fonts/dejavu -type f ! -name 'DejaVuSans.ttf' ! -name 'DejaVuSans-Bold.ttf' -delete \
+    && apk add --no-cache --virtual .font-tools woff2 \
+    && mkdir -p /usr/share/fonts/loupe \
+    && for font in /tmp/fonts/DMSans-*.woff2 /tmp/fonts/Manrope-*.woff2; do \
+        woff2_decompress "$font" && mv "${font%.woff2}.ttf" /usr/share/fonts/loupe/; \
+    done \
+    && fc-cache -f \
+    && apk del .font-tools \
+    && rm -rf /tmp/fonts
+
 # bin/rotate-secrets reads tfvars with terraform console and escapes values with
 # jq, and its PHPUnit test runs both. The zip is checked against a pinned SHA-256.
 ARG TARGETARCH

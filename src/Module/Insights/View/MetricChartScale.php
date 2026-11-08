@@ -10,7 +10,7 @@ use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricValueType;
 
-/** The plot box in view-box units and the value axis that the layouts share. */
+/** The value axis that the layouts share, and the constants of the default plot box in view-box units. */
 final class MetricChartScale
 {
     public const int WIDTH = 960;
@@ -73,27 +73,27 @@ final class MetricChartScale
     }
 
     /** @return list<MetricChartTick> */
-    public static function yTicks(float $top, float $step, float $bottom = 0.0): array
+    public static function yTicks(float $top, float $step, float $bottom = 0.0, ChartBox $box = new ChartBox()): array
     {
         $ticks = [];
         $tickCount = (int) round(($top - $bottom) / $step);
         for ($tick = 0; $tick <= $tickCount; ++$tick) {
             $value = round($bottom + $tick * $step, 10);
-            $ticks[] = new MetricChartTick(self::y($value, $top, $bottom), $value);
+            $ticks[] = new MetricChartTick(self::y($value, $top, $bottom, $box), $value);
         }
 
         return $ticks;
     }
 
     /** The y of a value on an axis that runs from $bottom to $top. */
-    public static function y(float $value, float $top, float $bottom = 0.0): float
+    public static function y(float $value, float $top, float $bottom = 0.0, ChartBox $box = new ChartBox()): float
     {
-        return round(self::BASELINE - ($value - $bottom) / ($top - $bottom) * self::plotHeight(), 2);
+        return round($box->baseline - ($value - $bottom) / ($top - $bottom) * $box->plotHeight(), 2);
     }
 
-    public static function plotHeight(): int
+    public static function plotHeight(ChartBox $box = new ChartBox()): int
     {
-        return self::BASELINE - self::PLOT_TOP;
+        return $box->plotHeight();
     }
 
     public static function moneyDecimals(float $step): int
