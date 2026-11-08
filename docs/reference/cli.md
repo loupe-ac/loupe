@@ -527,7 +527,7 @@ When it finds no log, the command names each path it checked.
 - `--log-file <path>` reads that bridge log and its dated files. The default is `bridge.log` in your config directory.
 - `--project <id>` sends only the sessions of that project.
 
-The command reads the `worker_started` lines of the bridge log and the Claude Code transcript of each session. For each worker process that resumed a session, it finds the pause before the process. The pause runs from the last assistant message before the process to the first assistant message of the process. The command sends the time of that last message, and the input tokens, cache read tokens and cache write tokens of that first message. It sends no message text.
+The command reads the `worker_started` lines of the bridge log and the Claude Code transcript of each session. For each worker process that resumed a session, it finds the pause before the process. The pause runs from the last assistant message before the process to the start of the process. The command sends the time of that last message, and the input tokens, cache read tokens and cache write tokens of that first message. It sends no message text.
 
 It prints one line for each session, and then the count of pauses in three buckets: under 5 minutes, 5 minutes to 1 hour, and over 1 hour. Each bucket also gives the count of cold pauses. A pause is cold when the first message wrote more to the cache than it read as input and from the cache. Run the command on the machine that ran the bridge, before the transcripts expire after about 30 days.
 

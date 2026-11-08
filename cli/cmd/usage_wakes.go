@@ -19,9 +19,9 @@ func newUsageBackfillWakesCmd() *cobra.Command {
 		Short: "Send what woke each resumed worker run to Loupe",
 		Long: "Reads the worker_started lines of the bridge log and the Claude Code transcript " +
 			"of each session. For each worker process that resumed a session, it finds the pause " +
-			"before it: the time from the last assistant message before the process to its first " +
-			"assistant message, and the tokens that first message read, read from the cache and " +
-			"wrote to the cache. It sends them to Loupe with the trigger \"backfill\". " +
+			"before it: the time from the last assistant message before the process to the start " +
+			"of the process, and the tokens that the first assistant message of the process read, " +
+			"read from the cache and wrote to the cache. It sends them to Loupe with the trigger \"backfill\". " +
 			"Loupe fills only a run that has no wake yet. No message text leaves the machine.\n\n" +
 			"A pause is cold when the first message wrote more to the cache than it read as " +
 			"input and from the cache. The command prints the count of pauses and of cold pauses " +

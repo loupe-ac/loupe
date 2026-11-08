@@ -2264,7 +2264,7 @@ loupe usage backfill-wakes --project 01a007cc-5419-7085-a0a2-23a0875be12c
 The command reads the `worker_started` lines of the log and the Claude Code
 transcript of each session, as `loupe usage backfill` does. For each worker
 process, it finds the pause before the process: the time from the last
-assistant message before the process to its first assistant message. A process
+assistant message before the process to the start of the process. A process
 with no assistant message before it has no pause. The first message of a
 process can repeat its line as it grows, so the command takes the largest
 count of each field over those lines.
