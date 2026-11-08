@@ -880,14 +880,14 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->sessionBridge();
         $item = $this->todoWithSessionPrompt('Use the skill.');
         $flags = $this->service(FeatureFlagRepository::class);
-        $flags->findAllIndexed()[SessionPromptLimit::FLAG]->value = 5;
+        $flags->findAllIndexed()[SessionPromptLimit::FLAG]->value = SessionPromptLimit::MINIMUM;
         $this->em()->flush();
         $reader = $this->service(FeatureFlagReaderInterface::class);
         self::assertInstanceOf(ResetInterface::class, $reader);
         $reader->reset();
 
         try {
-            $this->runAction($item, InboxActionKind::StartSession, '', 'abcdef');
+            $this->runAction($item, InboxActionKind::StartSession, '', str_repeat('a', SessionPromptLimit::MINIMUM + 1));
             self::fail('Expected a refusal.');
         } catch (DomainErrors $e) {
             self::assertSame(['action' => RunInboxActionHandler::SESSION_PROMPT_TOO_LONG], $e->errors);

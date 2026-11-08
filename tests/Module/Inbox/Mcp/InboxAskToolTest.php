@@ -431,16 +431,16 @@ final class InboxAskToolTest extends KernelTestCase
         $this->enableInbox();
         $flags = self::getContainer()->get(FeatureFlagRepository::class);
         self::assertInstanceOf(FeatureFlagRepository::class, $flags);
-        $flags->findAllIndexed()[SessionPromptLimit::FLAG]->value = 10;
+        $flags->findAllIndexed()[SessionPromptLimit::FLAG]->value = SessionPromptLimit::MINIMUM;
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-prompt-flag'));
 
-        $result = $this->askTodo(null, ['action' => 'start-session', 'reason' => 'Talk', 'prompt' => str_repeat('a', 10)]);
-        self::assertSame(10, mb_strlen($this->storedSuggestions($result)[0]['prompt'] ?? ''));
+        $result = $this->askTodo(null, ['action' => 'start-session', 'reason' => 'Talk', 'prompt' => str_repeat('a', SessionPromptLimit::MINIMUM)]);
+        self::assertSame(SessionPromptLimit::MINIMUM, mb_strlen($this->storedSuggestions($result)[0]['prompt'] ?? ''));
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('A suggestion prompt must be at most');
-        $this->askTodo(null, ['action' => 'start-session', 'reason' => 'Talk', 'prompt' => str_repeat('a', 11)]);
+        $this->askTodo(null, ['action' => 'start-session', 'reason' => 'Talk', 'prompt' => str_repeat('a', SessionPromptLimit::MINIMUM + 1)]);
     }
 
     public function test_an_item_is_dismissible_unless_the_agent_says_otherwise(): void

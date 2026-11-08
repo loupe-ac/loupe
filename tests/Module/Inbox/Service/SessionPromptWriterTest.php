@@ -180,10 +180,23 @@ final class SessionPromptWriterTest extends KernelTestCase
         $this->link($item, 7, 9);
         $this->em->flush();
 
-        $prompt = $this->writer(250)->write($item);
+        $prompt = $this->writer(SessionPromptLimit::MINIMUM)->write($item);
 
         self::assertStringNotContainsString('/documents/', $prompt);
         self::assertStringContainsString('</item>', $prompt);
+    }
+
+    public function test_the_smallest_limit_keeps_the_whole_frame_and_instruction(): void
+    {
+        $item = $this->item(InboxItemKind::Question, str_repeat('Long title ', 20), str_repeat('word ', 100));
+
+        foreach ([1, 250, SessionPromptLimit::MINIMUM] as $limit) {
+            $prompt = $this->writer($limit)->write($item);
+
+            self::assertLessThanOrEqual(SessionPromptLimit::MINIMUM, mb_strlen($prompt), 'limit '.$limit);
+            self::assertStringContainsString("\n</item>\n\nInvestigate the item", $prompt);
+            self::assertStringEndsWith('Then wait for my choice before you change anything.', $prompt);
+        }
     }
 
     private function link(InboxItem $item, int ...$numbers): void

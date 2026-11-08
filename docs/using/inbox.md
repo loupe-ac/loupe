@@ -895,7 +895,8 @@ for your choice before it changes anything. Read the prompt
 before you start the session, because the text of an item comes from an agent.
 
 The limit of the prompt is 2000 characters, and an admin changes it with the
-`inbox.session_prompt_max_length` flag on the flags page. The action hides only
+`inbox.session_prompt_max_length` flag on the flags page. A value below 400
+reads as 400, because the written prompt needs that much room. The action hides only
 while a session request of the same card or the same item is live. You can
 cancel the action until a bridge takes it. A request that no bridge takes
 within 2 minutes expires. See
@@ -1005,4 +1006,4 @@ migration writes it on an instance that upgrades. A missing row reads as off.
 
 The `inbox.session_prompt_max_length` flag sets the longest prompt that an agent
 can suggest for a session, and the longest prompt that Loupe writes. It is an
-integer, and it defaults to 2000.
+integer, and it defaults to 2000. A value below 400 reads as 400.
