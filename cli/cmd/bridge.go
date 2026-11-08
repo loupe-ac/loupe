@@ -316,6 +316,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
 		r.credentials = newCredentialBroker(apiClient(cfg), cfg.AgentAccount, control.Addr().String())
+		useInstalledBinary(r, b)
 	}
 	r.identities = newIdentityReporter(cmd.Context(), cfg.AgentAccount, pushLogin, r.credentials, bl.log)
 	if dir, err := config.Dir(); err == nil {
@@ -883,4 +884,16 @@ func (r *router) status() statusResult {
 	slices.SortFunc(res.Workers, func(a, b statusWorker) int { return a.StartedAt.Compare(b.StartedAt) })
 
 	return res
+}
+
+// useInstalledBinary makes the credential helpers and the MCP server of each
+// worker name the installed binary, which an update replaces in place. A
+// version folder is pruned after two updates.
+func useInstalledBinary(r *router, b *bridgeUpdate) {
+	if b != nil {
+		if installed, err := b.installed(); err == nil {
+			r.credentials.binary = installed
+		}
+	}
+	r.skills.exe = r.credentials.helperBinary
 }

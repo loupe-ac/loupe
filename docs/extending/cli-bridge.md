@@ -1312,7 +1312,9 @@ first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,
 The first helper entry is empty, which removes every helper that your git
 configuration names for `github.com`. The second helper runs
 `loupe credential`, which asks the bridge for the login and the stored token each
-time git needs them. The two `insteadOf` entries change a GitHub SSH remote,
+time git needs them. The helper and the `gh` wrapper name the installed `loupe`
+file, which every update replaces in place, so a worker that lives through
+several updates keeps its credentials. The two `insteadOf` entries change a GitHub SSH remote,
 `git@github.com:` or `ssh://git@github.com/`, to HTTPS. A worker then pushes
 with the token, never with the SSH key of the machine. A rule in your own git
 configuration that changes `https://github.com/` to SSH, with `insteadOf` or
@@ -1703,7 +1705,8 @@ of the archive with its line in `checksums.txt`. A mismatch logs
 `update_rejected`, and the bridge installs nothing. A match logs
 `update_verified`, and the bridge writes the binary to
 `versions/<version>/loupe` in its config directory. A later check uses that
-file again when it is still there.
+file again when it is still there. A worker never names that folder, because the
+bridge deletes all but the two newest version folders.
 
 Automatic updates are off unless `rules.yaml` holds `autoUpdate: true`. With
 them off, the check stops before the download. The bridge logs
