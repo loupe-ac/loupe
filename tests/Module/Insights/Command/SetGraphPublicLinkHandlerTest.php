@@ -10,6 +10,7 @@ use App\Module\Insights\Command\SetGraphPublicLinkHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Insights\Service\PublicShareGuard;
 use App\Module\Insights\Service\SavedGraphLocker;
@@ -125,6 +126,7 @@ final class SetGraphPublicLinkHandlerTest extends KernelTestCase
             $this->service(SavedGraphLocker::class),
             $this->service(PublicShareGuard::class),
             $this->service(Auditor::class),
+            $this->service(InsightsRefreshRequester::class),
         );
         $handler(new SetGraphPublicLinkCommand($this->em()->find(InsightsSavedGraph::class, $graph->id) ?? throw new \LogicException(), $enabled));
     }

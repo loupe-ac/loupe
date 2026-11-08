@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Event\WorkerRunToolCallsRecorded;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
@@ -15,6 +16,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Stores the tool calls of a run, and the timing when the batch carries it.
@@ -32,13 +34,15 @@ final readonly class ReportToolCallsHandler
         private ToolCallCollectionSettings $collectionSettings,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
+        private EventDispatcherInterface $events,
     ) {
     }
 
     public function __invoke(ReportToolCallsCommand $command): ReportToolCallsResult
     {
+        $projectId = null;
         /** @var ReportToolCallsResult $result */
-        $result = $this->em->wrapInTransaction(function () use ($command): ReportToolCallsResult {
+        $result = $this->em->wrapInTransaction(function () use ($command, &$projectId): ReportToolCallsResult {
             // The same lock a state report takes, so the two never write one run at once.
             $project = $this->lockedProject($command);
             if (null === $project) {
@@ -54,6 +58,7 @@ final readonly class ReportToolCallsHandler
             if (!$this->collectionSettings->collectFullText($project)) {
                 $calls = array_map(static fn (WorkerRunToolCallReport $call): WorkerRunToolCallReport => $call->withoutFullText(), $calls);
             }
+            $projectId = (string) $project->id;
             $stored = $this->workerRunToolCalls->insertNew($run, $calls);
             if (null !== $command->timing) {
                 $run->toolTimeMs = $command->timing->toolTimeMs;
@@ -74,6 +79,10 @@ final readonly class ReportToolCallsHandler
 
             return new ReportToolCallsResult(projectFound: true, runFound: true, stored: $stored);
         });
+
+        if (null !== $projectId) {
+            $this->events->dispatch(new WorkerRunToolCallsRecorded($projectId));
+        }
 
         return $result;
     }

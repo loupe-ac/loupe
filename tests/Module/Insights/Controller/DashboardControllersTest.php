@@ -6,7 +6,12 @@ namespace App\Tests\Module\Insights\Controller;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Messenger\RefreshProjectInsights;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Service\InsightsDataKind;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,6 +19,8 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class DashboardControllersTest extends WebTestCase
 {
@@ -70,10 +77,10 @@ final class DashboardControllersTest extends WebTestCase
         }
     }
 
-    public function test_the_dashboard_shows_a_lazy_frame_for_a_graph_with_no_kept_result_and_the_tile_once_it_is_kept(): void
+    public function test_the_dashboard_shows_a_waiting_tile_asks_the_worker_once_and_shows_the_tile_once_it_is_kept(): void
     {
         $client = static::createClient();
-        $project = $this->scenarioProject('page-lazy');
+        $project = $this->scenarioProject('page-waiting');
         $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
         $graph->metric = 'cost';
         $this->em()->flush();
@@ -87,18 +94,112 @@ final class DashboardControllersTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $waiting = $crawler->filter('[data-dashboard-tile="waiting"]');
         self::assertCount(1, $waiting);
-        self::assertSame($base.'/graphs/'.$graphId, $waiting->attr('src'));
-        self::assertSame('lazy', $waiting->attr('loading'));
+        self::assertNull($waiting->attr('src'));
         self::assertSame('dashboard-graph-'.$graphId, $waiting->attr('id'));
         self::assertCount(1, $waiting->filter('[role="status"] svg.lp-graph-tile__spinner'));
+        $messages = array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $this->insightsTransport()->getSent());
+        $items = array_values(array_filter($messages, static fn (object $message): bool => $message instanceof RefreshInsightsItem));
+        self::assertCount(1, $items);
+        self::assertSame($graphId, $items[0]->graphId);
+        $wakes = array_values(array_filter($messages, static fn (object $message): bool => $message instanceof RefreshProjectInsights));
+        self::assertCount(1, $wakes);
+        self::assertSame(InsightsDataKind::Wake->value, $wakes[0]->kind);
 
         $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-dashboard-tile="waiting"]'));
+        self::assertCount(0, $crawler->filter('[data-dashboard-tile="ready"]'));
+        self::assertCount(0, $crawler->filter('[data-kept-result]'));
+        self::assertCount(0, $crawler->filter('[data-live-tile]'));
+        self::assertNull($this->kept()->findForGraph($this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException()));
+
+        $this->keep($graphId);
+        $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="ready"]'));
 
         $crawler = $client->request(Request::METHOD_GET, $base);
         self::assertCount(0, $crawler->filter('[data-dashboard-tile="waiting"]'));
         self::assertCount(1, $crawler->filter('[data-dashboard-tile="ready"]'));
+        self::assertCount(0, $this->insightsTransport()->getSent());
+    }
+
+    public function test_the_waiting_tile_carries_the_notice_delay_and_the_slow_tile(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('page-slow');
+        $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
+        $graph->metric = 'cost';
+        $this->em()->flush();
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.self::BASE);
+
+        $waiting = $crawler->filter('[data-dashboard-tile="waiting"]');
+        self::assertSame('slow-notice', $waiting->attr('data-controller'));
+        self::assertSame('30', $waiting->attr('data-slow-notice-delay-value'));
+        $slow = (new \Symfony\Component\DomCrawler\Crawler($waiting->filter('template[data-slow-notice-target="slow"]')->html()));
+        self::assertSame('This graph is taking longer than usual.', trim($slow->filter('.lp-graph-tile__broken-title')->text()));
+        self::assertSame('The numbers are still being worked out.', trim($slow->filter('.lp-graph-tile__broken-body')->text()));
+        self::assertSame('/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh', $slow->filter('form')->attr('action'));
+        self::assertCount(1, $slow->filter('form button'));
+        self::assertCount(1, $slow->filter('[data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > article [data-graph-grip]'));
+        self::assertCount(1, $waiting->filter('turbo-frame > form[data-graph-drag-form] [data-graph-drag-steps]'));
+        self::assertCount(0, $slow->filter('form[data-graph-drag-form]'));
+        self::assertNotSame('', trim($slow->filter('.lp-graph-tile__settings')->text()));
+        self::assertNotSame('', trim($waiting->filter('turbo-frame > article .lp-graph-tile__settings')->text()));
+    }
+
+    public function test_retry_asks_the_worker_again_and_answers_the_waiting_tile_as_a_stream(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('retry-stream');
+        $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
+        $graph->metric = 'cost';
+        $this->em()->flush();
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+        $path = '/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh';
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_POST, $path, ['_csrf_token' => 'csrf-token'], [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'] + self::HEADERS);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        self::assertStringContainsString('<turbo-stream action="replace" target="dashboard-graph-'.$graphId.'">', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('data-dashboard-tile="waiting"', (string) $client->getResponse()->getContent());
+        $sent = $this->insightsTransport()->getSent();
+        self::assertCount(1, $sent);
+        $message = $sent[0]->getMessage();
+        self::assertInstanceOf(RefreshInsightsItem::class, $message);
+        self::assertSame($graphId, $message->graphId);
+
+        $client->request(Request::METHOD_POST, $path, ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseRedirects('/projects/'.$project->id.self::BASE);
+    }
+
+    public function test_retry_is_refused_for_a_stranger_and_not_found_for_a_removed_graph(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('retry-refused');
+        $graph = $this->seedSavedGraph($project, 'Theirs', 0);
+        $removed = $this->seedSavedGraph($project, 'Gone', 1, new \DateTimeImmutable('-1 hour'));
+        $stranger = $this->user($this->em(), 'retry-stranger-'.uniqid().'@example.com');
+        $base = '/projects/'.$project->id.self::BASE.'/graphs/';
+        $paths = [$base.$graph->id.'/refresh', $base.$removed->id.'/refresh'];
+        $owner = $project->owner;
+        $this->em()->clear();
+
+        $client->loginUser($stranger);
+        $client->request(Request::METHOD_POST, $paths[0], ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseStatusCodeSame(403);
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_POST, $paths[1], ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+        self::assertResponseStatusCodeSame(404);
+        self::assertCount(0, $this->insightsTransport()->getSent());
     }
 
     public function test_the_forms_of_a_tile_post_what_the_controllers_read(): void
@@ -118,12 +219,15 @@ final class DashboardControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         foreach ([$firstId, $secondId] as $id) {
-            $client->request(Request::METHOD_GET, $base.'/graphs/'.$id);
+            $this->keep($id);
         }
         $crawler = $client->request(Request::METHOD_GET, $base);
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][target="_top"]'));
+        self::assertCount(2, $crawler->filter('turbo-frame[data-dashboard-tile="ready"][data-kept-result]'));
+        self::assertCount(1, $crawler->filter('turbo-frame[data-live-tile="'.$firstId.'"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame[data-live-tile="'.$secondId.'"]'));
         self::assertCount(1, $crawler->filter('[data-dashboard-add]'));
         self::assertSame($base.'/graphs/'.$firstId.'/remove', $crawler->filter('#dashboard-graph-'.$firstId.' form[data-dashboard-remove-form]')->attr('action'));
         self::assertSame('Open in Metrics', trim($crawler->filter('#dashboard-graph-'.$firstId.' .lp-menu__item[href]')->text()));
@@ -539,5 +643,30 @@ final class DashboardControllersTest extends WebTestCase
         self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
 
         return $session->getFlashBag()->all();
+    }
+
+    private function keep(string $graphId): void
+    {
+        $graph = $this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException('The graph is missing.');
+        $keeper = self::getContainer()->get(InsightsResultKeeper::class);
+        self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
+        $keeper->graph($graph);
+        $this->em()->clear();
+    }
+
+    private function kept(): InsightsKeptResultRepository
+    {
+        $kept = self::getContainer()->get(InsightsKeptResultRepository::class);
+        self::assertInstanceOf(InsightsKeptResultRepository::class, $kept);
+
+        return $kept;
+    }
+
+    private function insightsTransport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
     }
 }

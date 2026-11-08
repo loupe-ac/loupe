@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Event\WorkerRunWakesRecorded;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Gives each started worker run of a session the wake at the same place in the start order, for
@@ -25,14 +27,16 @@ final readonly class ReportSessionWakeHandler
         private WorkerRunRepository $workerRuns,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
+        private EventDispatcherInterface $events,
     ) {
     }
 
     public function __invoke(ReportSessionWakeCommand $command): ReportSessionWakeResult
     {
         $count = \count($command->wakes);
+        $projectId = null;
         /** @var ReportSessionWakeResult $result */
-        $result = $this->em->wrapInTransaction(function () use ($command, $count): ReportSessionWakeResult {
+        $result = $this->em->wrapInTransaction(function () use ($command, $count, &$projectId): ReportSessionWakeResult {
             // The same lock a state report takes, so the two never write one run at once.
             $project = $this->lockedProject($command);
             if (null === $project) {
@@ -66,8 +70,16 @@ final readonly class ReportSessionWakeHandler
             }
             $this->em->flush();
 
+            if ($filled > 0) {
+                $projectId = (string) $project->id;
+            }
+
             return new ReportSessionWakeResult(\count($runs), $count, $filled);
         });
+
+        if (null !== $projectId) {
+            $this->events->dispatch(new WorkerRunWakesRecorded($projectId));
+        }
 
         if (null !== $result->runs) {
             $this->logger->info('bridge.session_wake_reported', [

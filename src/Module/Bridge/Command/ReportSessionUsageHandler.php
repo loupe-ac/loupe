@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Event\WorkerRunUsageRecorded;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
@@ -14,6 +15,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Gives each started worker run of a session the usage of the process at the
@@ -31,6 +33,7 @@ final readonly class ReportSessionUsageHandler
         private EntityManagerInterface $em,
         private WorkerRunChangedPublisher $publisher,
         private LoggerInterface $logger,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -95,6 +98,7 @@ final readonly class ReportSessionUsageHandler
         $this->logger->info('bridge.session_usage_reported', $context);
         if ($result->updated > 0) {
             $this->publisher->runsChanged($project);
+            $this->events->dispatch(new WorkerRunUsageRecorded((string) $project->id));
         }
 
         return $result;

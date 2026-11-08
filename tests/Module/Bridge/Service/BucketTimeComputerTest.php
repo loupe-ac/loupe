@@ -234,7 +234,7 @@ final class BucketTimeComputerTest extends KernelTestCase
     {
         $first = self::source([new BucketRule('Read', 'first')]);
         $second = self::source([new BucketRule('Read', 'second'), new BucketRule('Grep', 'grep')]);
-        $computer = new BucketTimeComputer([$first, $second], $this->toolCalls(), $this->bucketTimes(), $this->em());
+        $computer = new BucketTimeComputer([$first, $second], $this->toolCalls(), $this->bucketTimes(), $this->em(), new \Symfony\Component\EventDispatcher\EventDispatcher());
         $project = $this->project($this->em(), $this->user($this->em(), 'bucket-computer-sources-'.uniqid().'@example.com'), 'Bucket sources');
         $run = $this->seedRun($this->em(), $project);
         $this->store($run, [$this->call(0, 100, ['Read']), $this->call(1000, 200, ['Grep'])]);
@@ -249,7 +249,7 @@ final class BucketTimeComputerTest extends KernelTestCase
     {
         self::bootKernel();
 
-        return new BucketTimeComputer([self::source($rules)], $this->toolCalls(), $this->bucketTimes(), $this->em());
+        return new BucketTimeComputer([self::source($rules)], $this->toolCalls(), $this->bucketTimes(), $this->em(), new \Symfony\Component\EventDispatcher\EventDispatcher());
     }
 
     /** @param list<BucketRule> $rules */

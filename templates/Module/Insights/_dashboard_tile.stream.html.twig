@@ -1,0 +1,6 @@
+{# One tile as a Turbo stream, for the Retry button. Props: project (Project), tile (DashboardTileView). #}
+<turbo-stream action="replace" target="{{ tile.frameId }}">
+    <template>
+        {% include '@Insights/_dashboard_tile.html.twig' with {project: project, tile: tile} only %}
+    </template>
+</turbo-stream>

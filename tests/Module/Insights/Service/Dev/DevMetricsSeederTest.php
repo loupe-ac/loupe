@@ -22,9 +22,13 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Service\Dev\DevMetricsCardSeeder;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Messenger\RefreshInsightsItemHandler;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\Dev\DevMetricsSeeder;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Project\Entity\Project;
 use App\Tests\DevSeed\SeedContextFactory;
@@ -72,7 +76,7 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         self::assertNotSame([], $this->service(WorkerRunBucketTimeRepository::class)->findBucketNamesOfProject($project));
         self::assertSame(
-            ['Cost per run by model', 'Cost per run', 'Runs by model', 'Time in each bucket', 'Share of runs by model', 'Cost per run by account', 'Wakes by wake gap and cache'],
+            ['Cost per run by model', 'Cost per run', 'Runs by model', 'Time in each bucket', 'Share of runs by model', 'Cost per run by account', 'Waiting for the worker', 'Wakes by wake gap and cache'],
             array_map(static fn ($graph): string => $graph->name, $this->service(InsightsSavedGraphRepository::class)->findActive($project)),
         );
     }
@@ -110,10 +114,63 @@ final class DevMetricsSeederTest extends KernelTestCase
         $this->seed($project, self::NOW);
 
         $graphs = $this->service(InsightsSavedGraphRepository::class)->findActive($project);
-        self::assertCount(7, $graphs);
+        self::assertCount(8, $graphs);
         foreach ($graphs as $graph) {
             self::assertContains($graph->unit, Metric::from($graph->metric)->units(), $graph->name);
         }
+    }
+
+    public function test_only_the_waiting_graph_keeps_no_result(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-waiting');
+
+        $this->seed($project, self::NOW);
+        $this->seed($project, self::NOW);
+
+        $this->em()->clear();
+        $kept = $this->service(InsightsKeptResultRepository::class);
+        foreach ($this->service(InsightsSavedGraphRepository::class)->findActive($project) as $graph) {
+            $waiting = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG)->equals($graph->id);
+            self::assertSame($waiting, null === $kept->findForGraph($graph), $graph->name);
+        }
+    }
+
+    public function test_a_reseed_makes_the_waiting_graph_wait_again_after_the_worker_kept_it(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-rewait');
+        $this->seed($project, self::NOW);
+
+        $graphs = $this->service(InsightsSavedGraphRepository::class);
+        $waiting = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG);
+        $graph = null;
+        foreach ($graphs->findActive($project) as $candidate) {
+            if ($waiting->equals($candidate->id)) {
+                $graph = $candidate;
+            }
+        }
+        self::assertNotNull($graph);
+        $this->service(InsightsResultKeeper::class)->graph($graph);
+        $kept = $this->service(InsightsKeptResultRepository::class);
+        self::assertNotNull($kept->findForGraph($graph));
+
+        self::assertTrue($this->seed($project, self::NOW));
+        self::assertNull($kept->findForGraph($graph));
+        self::assertFalse($this->seed($project, self::NOW));
+    }
+
+    public function test_a_dashboard_view_and_a_worker_run_leave_the_waiting_graph_waiting(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-hold');
+        $this->seed($project, self::NOW);
+
+        $waitingId = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG);
+        $this->service(RefreshInsightsItemHandler::class)(new RefreshInsightsItem((string) $project->id, $waitingId->toRfc4122(), null));
+        $this->em()->clear();
+
+        $graph = $this->service(InsightsSavedGraphRepository::class)->find($waitingId);
+        self::assertNotNull($graph);
+        self::assertNull($this->service(InsightsKeptResultRepository::class)->findForGraph($graph));
+        self::assertFalse($this->seed($project, self::NOW));
     }
 
     public function test_a_second_run_on_the_same_day_adds_nothing(): void
@@ -128,7 +185,7 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         $this->em()->clear();
         self::assertCount(self::RUNS, $this->demoRuns($project));
-        self::assertCount(7, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
+        self::assertCount(8, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
     public function test_one_graph_split_by_account_is_shared_with_a_fixed_code(): void
@@ -225,7 +282,7 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertSame(4, $days['2026-10-31'], 'The first day of a span also gains a fourth run.');
         self::assertSame(4, $days['2026-10-28'], 'A day that held runs gains none.');
         self::assertSame(3, $days['2026-10-27'], 'A day that held runs gains none when its distance from today changes.');
-        self::assertCount(7, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
+        self::assertCount(8, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
     public function test_the_runs_the_cards_and_the_graphs_have_fixed_ids(): void

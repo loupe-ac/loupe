@@ -32,6 +32,7 @@ framework:
             - insights-proposal-accept
             - insights-bucket-rule-delete
             - insights-bucket-rule-move
+            - insights-graph-refresh
             - insights-dashboard-graph-move
             - insights-dashboard-graph-remove
             - insights-dashboard-graph-undo

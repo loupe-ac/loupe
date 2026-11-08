@@ -4,67 +4,58 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Service;
 
-use App\Module\Bridge\Metric\MetricGroupKey;
-use App\Module\Bridge\Metric\MetricSeries;
-use App\Module\Insights\Command\ShowMetricsCommand;
-use App\Module\Insights\Command\ShowMetricsHandler;
+use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
-use App\Module\Insights\View\DashboardGraphResult;
-use App\Module\Insights\View\MetricsQuery;
-use App\Module\Project\Entity\Project;
-use App\Module\Workflow\Contract\TemplateMetrics;
-use Psr\Cache\CacheItemPoolInterface;
-use Psr\Clock\ClockInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\HttpFoundation\InputBag;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
+use App\Module\Insights\View\KeptGraphResult;
+use App\Module\Insights\View\KeptResultRow;
 
 /**
- * Keeps each computed graph for 15 minutes in the shared cache. The key holds the project id and a hash of the
- * settings, so a rename, a move or a resize keeps the result and an edit misses. Expired entries
- * leave the table through PruneAppCacheTask.
+ * Reads the kept results of the graphs, with no language in them. It computes nothing. A row of other settings than the
+ * graph holds now counts as missing, so a settings edit shows a waiting tile until the worker keeps the new result.
  */
 final readonly class DashboardGraphResults
 {
-    public const int LIFETIME = 900;
-
     public function __construct(
-        #[Autowire(service: 'cache.app')]
-        private CacheItemPoolInterface $cache,
-        private ShowMetricsHandler $showMetrics,
-        private TemplateMetrics $templateMetrics,
-        private ClockInterface $clock,
+        private InsightsKeptResultRepository $insightsKeptResults,
     ) {
     }
 
-    /** The kept result, or null. It never computes. */
-    public function get(Project $project, InsightsSavedGraph $graph): ?DashboardGraphResult
+    /** The kept result, or null. */
+    public function get(InsightsSavedGraph $graph): ?KeptGraphResult
     {
-        $item = $this->cache->getItem($this->key($project, $graph));
-        $result = $item->isHit() ? $item->get() : null;
+        $row = $this->insightsKeptResults->findForGraph($graph);
 
-        return $result instanceof DashboardGraphResult ? $result : null;
+        return null === $row ? null : $this->read($graph, $row);
     }
 
-    /** Computes the graph, keeps the result and returns it. */
-    public function compute(Project $project, InsightsSavedGraph $graph): DashboardGraphResult
+    /**
+     * @param list<InsightsSavedGraph> $graphs
+     *
+     * @return array<string, KeptGraphResult> the kept results by graph id, for the graphs that have a current one
+     */
+    public function forGraphs(array $graphs): array
     {
-        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
-        /** @var InputBag<string> $settings */
-        $settings = new InputBag($graph->settings());
-        $query = MetricsQuery::fromQuery($settings, $this->templateMetrics->forProject($project->requireId()));
-        $view = ($this->showMetrics)(new ShowMetricsCommand($project, $query, $now));
+        $rows = $this->insightsKeptResults->findForGraphs($graphs);
+        $results = [];
+        foreach ($graphs as $graph) {
+            $row = $rows[(string) $graph->id] ?? null;
+            $result = null === $row ? null : $this->read($graph, $row);
+            if (null !== $result) {
+                $results[(string) $graph->id] = $result;
+            }
+        }
 
-        $result = new DashboardGraphResult($now, $view->title, $view->chart, $view->layout, $view->labels, array_map(static fn (MetricSeries $series): ?MetricGroupKey => $series->groupKey, $view->series), $view->metrics->current, $view->metrics->previous);
-        $item = $this->cache->getItem($this->key($project, $graph));
-        $item->set($result)->expiresAfter(self::LIFETIME);
-        $this->cache->save($item);
-
-        return $result;
+        return $results;
     }
 
-    /** The locale is part of the key, because the layout holds formatted numbers and translated texts. */
-    public function key(Project $project, InsightsSavedGraph $graph): string
+    private function read(InsightsSavedGraph $graph, KeptResultRow $row): ?KeptGraphResult
     {
-        return 'insights_dashboard_v2_'.$project->requireId()->toRfc4122().'_'.hash('sha256', implode('|', [...$graph->settings(), \Locale::getDefault()]));
+        if ($row->settingsHash !== InsightsKeptResult::hashOf($graph)) {
+            return null;
+        }
+        $result = $row->result();
+
+        return $result instanceof KeptGraphResult ? $result : null;
     }
 }

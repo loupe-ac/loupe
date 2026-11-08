@@ -15,4 +15,5 @@ enum DashboardChange: string
     case Moved = 'moved';
     case Removed = 'removed';
     case Restored = 'restored';
+    case Refreshed = 'refreshed';
 }
