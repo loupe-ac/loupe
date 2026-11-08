@@ -1,0 +1,21 @@
+{% extends 'marketing_base.html.twig' %}
+
+{% block title %}{{ 'landing.features.index_title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block description %}{{ 'landing.features.index_description'|trans }}{% endblock %}
+
+{% set marketingAttributes = {'data-controller': 'analytics'} %}
+
+{% block body %}
+<section class="lp-feature-index">
+    <div class="lp-home-container">
+        <h1 class="lp-home-title">{{ 'landing.features.index_title'|trans }}</h1>
+        <p class="lp-feature-index__lead">{{ 'landing.features.index_lead'|trans }}</p>
+        <ul class="lp-home-tiles">
+            {% for feature in pages %}
+                {% include '@Landing/features/_tile.html.twig' with {feature: feature} only %}
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+{% endblock %}

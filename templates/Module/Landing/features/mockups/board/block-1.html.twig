@@ -1,0 +1,17 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__stack">
+            {{ shot.card(38, 'landing.shot.add_a_booking_calendar'|trans, 'working', 'landing.shot.feature'|trans, 1, 2) }}
+            <p class="lp-shot__why">{{ 'landing.shot.working_tom_s_agent_is_building'|trans }}</p>
+        </div>
+        <div class="lp-shot__stack">
+            {{ shot.card(40, 'landing.shot.make_checkout_safer'|trans, 'stuck', 'landing.shot.bug'|trans, 1, 1) }}
+            <p class="lp-shot__why">{{ 'landing.shot.stuck_the_checkout_tests_failed_twice'|trans }}</p>
+        </div>
+        <div class="lp-shot__stack">
+            {{ shot.card(42, 'landing.shot.show_the_nightly_price_on_the'|trans, 'needs-you', 'landing.shot.feature'|trans, 0, 1) }}
+            <p class="lp-shot__why">{{ 'landing.shot.needs_you_the_product_design_waits'|trans }}</p>
+        </div>
+    </div>
+</div>

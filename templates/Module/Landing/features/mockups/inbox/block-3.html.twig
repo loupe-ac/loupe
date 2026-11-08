@@ -1,0 +1,23 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__phone">
+            <div class="lp-shot__notification">
+                <span class="lp-shot__app-icon">{{ shot.icon('lucide:inbox', 'md') }}</span>
+                <span class="lp-shot__grow">
+                    <span class="lp-shot__row lp-shot__row--between"><span class="lp-shot__strong">{{ 'landing.shot.loupe'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.now'|trans }}</span></span>
+                    <span class="lp-shot__strong">{{ 'landing.shot.an_agent_is_blocked'|trans }}</span><br>
+                    <span class="lp-shot__text">{{ '#40 asks which test the checkout fix should keep.' }}</span>
+                </span>
+            </div>
+            <div class="lp-shot__notification">
+                <span class="lp-shot__app-icon">{{ shot.icon('lucide:inbox', 'md') }}</span>
+                <span class="lp-shot__grow">
+                    <span class="lp-shot__row lp-shot__row--between"><span class="lp-shot__strong">{{ 'landing.shot.loupe'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.1h_ago'|trans }}</span></span>
+                    <span class="lp-shot__strong">{{ 'landing.shot.review_needed'|trans }}</span><br>
+                    <span class="lp-shot__text">{{ 'landing.shot.product_design_seasonal_rates_2'|trans }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>

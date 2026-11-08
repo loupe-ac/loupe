@@ -104,7 +104,7 @@ final class SiteSignedInSignalTest extends WebTestCase
         self::assertSelectorExists('.lp-home');
         self::assertSelectorExists('a[data-site-chrome="go-to-app"]:not([hidden])');
         self::assertSelectorNotExists('[data-site-chrome="signed-out"]:not([hidden])');
-        self::assertSelectorCount(2, '[data-site-chrome="signed-out"][hidden]');
+        self::assertSelectorCount(4, '[data-site-chrome="signed-out"][hidden]');
         $response = $client->getResponse();
         self::assertTrue($response->headers->hasCacheControlDirective('private'));
         self::assertTrue($response->headers->hasCacheControlDirective('no-cache'));
@@ -118,7 +118,7 @@ final class SiteSignedInSignalTest extends WebTestCase
         $this->get($client, '/');
 
         self::assertSelectorExists('a[data-site-chrome="go-to-app"][hidden]');
-        self::assertSelectorCount(2, '[data-site-chrome="signed-out"]:not([hidden])');
+        self::assertSelectorCount(4, '[data-site-chrome="signed-out"]:not([hidden])');
     }
 
     public function test_the_home_page_shows_a_visitor_with_no_cookie(): void

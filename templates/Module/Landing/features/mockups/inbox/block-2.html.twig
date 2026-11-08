@@ -1,0 +1,10 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <span class="lp-shot__label">{{ 'landing.shot.next_step'|trans }}</span>
+        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:play', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.resume_the_run'|trans }}</span></div>
+        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:bot', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.send_another_agent'|trans }}</span></div>
+        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:terminal', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.run_a_command_on_your_machine'|trans }}</span></div>
+        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:hand', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.take_the_work_yourself'|trans }}</span></div>
+    </div>
+</div>

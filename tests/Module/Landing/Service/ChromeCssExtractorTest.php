@@ -158,6 +158,18 @@ final class ChromeCssExtractorTest extends TestCase
         self::assertStringContainsString("\n.lp-home-nav ".$comment." { color: red; }\n.w-4 { width: 4px; }\n}", $css);
     }
 
+    /** The Features panel fades in from its starting style, and the stamped docs pages need the same rule. */
+    public function test_it_keeps_a_starting_style_rule_of_a_class_in_the_markup(): void
+    {
+        $stylesheet = "@layer components {\n  .lp-features-panel:popover-open { opacity: 1; }\n  @starting-style {\n    .lp-features-panel:popover-open { opacity: 0; }\n    .lp-review-doc__prose { opacity: 0; }\n  }\n}\n@layer components {\n  @starting-style { .lp-review-doc__prose { opacity: 0; } }\n}\n";
+
+        $css = new ChromeCssExtractor()->extract($stylesheet, '<div popover class="lp-features-panel"></div>');
+
+        self::assertMatchesRegularExpression('/@starting-style \{\s*\.lp-features-panel:popover-open \{ opacity: 0; \}\s*\}/', $css);
+        self::assertStringNotContainsString('lp-review-doc__prose', $css);
+        self::assertSame(1, substr_count($css, '@starting-style'));
+    }
+
     public function test_markup_with_no_known_class_gives_the_base_alone(): void
     {
         $css = new ChromeCssExtractor()->extract(self::CSS, '<p>plain</p>');

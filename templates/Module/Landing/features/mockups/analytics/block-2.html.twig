@@ -1,0 +1,16 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel">
+            <div class="lp-shot__row"><span class="lp-shot__heading">{{ 'landing.shot.experiment_two_models'|trans }}</span><span class="lp-shot__spacer">{{ shot.pill('landing.shot.running'|trans, 'active') }}</span></div>
+            <span class="lp-shot__label">{{ 'landing.shot.merge_rate'|trans }}</span>
+            <div class="lp-shot__stack">
+                <div class="lp-shot__row"><span class="lp-shot__strong">{{ 'landing.shot.model_a'|trans }}</span><span class="lp-shot__spacer lp-shot__dim">{{ '88%' }}</span></div>
+                <div class="lp-shot__range"><span class="lp-shot__range-span lp-shot__range-span--a"></span></div>
+                <div class="lp-shot__row"><span class="lp-shot__strong">{{ 'landing.shot.model_b'|trans }}</span><span class="lp-shot__spacer lp-shot__dim">{{ '94%' }}</span></div>
+                <div class="lp-shot__range"><span class="lp-shot__range-span lp-shot__range-span--second lp-shot__range-span--b"></span></div>
+            </div>
+            <p class="lp-shot__text">{{ 'landing.shot.bars_show_the_confidence_range_model'|trans }}</p>
+        </div>
+    </div>
+</div>

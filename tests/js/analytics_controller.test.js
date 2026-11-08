@@ -63,3 +63,14 @@ it('does nothing when the tracker is not loaded', async () => {
     await mount(`<div data-controller="analytics">${BUTTON('hero')}</div>`);
     expect(() => document.querySelector('a').click()).not.toThrow();
 });
+
+it('adds the feature when the button names one', async () => {
+    await mount(`<div data-controller="analytics"><a href="#x" data-action="click->analytics#track"
+        data-analytics-name-param="feature-click" data-analytics-button-param="carousel-card"
+        data-analytics-feature-param="inbox">Learn more</a></div>`);
+    document.querySelector('a').click();
+    expect(umami.track).toHaveBeenCalledWith('feature-click', {
+        button: 'carousel-card',
+        feature: 'inbox',
+    });
+});

@@ -1,0 +1,23 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel">
+            <span class="lp-shot__label">{{ 'landing.shot.decision'|trans }}</span>
+            <span class="lp-shot__heading">{{ 'landing.shot.how_are_peak_prices_set'|trans }}</span>
+            <div class="lp-shot__option lp-shot__option--picked">
+                <span class="lp-shot__radio"></span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.a_rate_table_per_season'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.owners_edit_one_table_easy_to'|trans }}</span></span>
+                {{ shot.pill('landing.shot.recommended'|trans, 'accent') }}
+            </div>
+            <div class="lp-shot__option">
+                <span class="lp-shot__radio"></span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.a_percent_on_top_of_the'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.less_to_set_harder_to_predict'|trans }}</span></span>
+            </div>
+            <div class="lp-shot__option">
+                <span class="lp-shot__radio"></span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.prices_from_a_booking_service'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.needs_an_outside_account'|trans }}</span></span>
+            </div>
+            <span class="lp-shot__button lp-shot__button--primary">{{ 'landing.shot.decide'|trans }}</span>
+        </div>
+    </div>
+</div>

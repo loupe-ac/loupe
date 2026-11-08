@@ -1,0 +1,23 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__row">
+            {{ shot.pill('landing.shot.cost_per_card'|trans, 'outline') }}
+            {{ shot.pill('landing.shot.weekly'|trans, 'outline') }}
+            <span class="lp-shot__spacer">{{ shot.pill('landing.shot.save_to_dashboard'|trans, 'accent') }}</span>
+        </div>
+        <div class="lp-shot__chart">
+            {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-shot__chart-svg" viewBox="0 0 160 80" preserveAspectRatio="none">
+                <rect class="lp-shot__bar" x="4" y="30" width="14" height="50" />
+                <rect class="lp-shot__bar" x="24" y="24" width="14" height="56" />
+                <rect class="lp-shot__bar" x="44" y="36" width="14" height="44" />
+                <rect class="lp-shot__bar" x="64" y="28" width="14" height="52" />
+                <rect class="lp-shot__bar" x="84" y="40" width="14" height="40" />
+                <rect class="lp-shot__bar" x="104" y="34" width="14" height="46" />
+                <rect class="lp-shot__bar" x="124" y="44" width="14" height="36" />
+                <rect class="lp-shot__bar" x="144" y="38" width="12" height="42" />
+            </svg>
+            <div class="lp-shot__row lp-shot__row--between"><span class="lp-shot__dim">{{ 'landing.shot.8_weeks'|trans }}</span><span class="lp-shot__strong">{{ '$4.20 average' }}</span></div>
+        </div>
+    </div>
+</div>

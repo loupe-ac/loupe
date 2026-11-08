@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const source = readFileSync(
     fileURLToPath(
@@ -18,6 +18,10 @@ function tree() {
 
 function rootOf(nodes) {
     return {
+        listeners: [],
+        addEventListener(type, listener) {
+            this.listeners.push({ type, listener });
+        },
         querySelectorAll: (selector) =>
             selector.includes('go-to-app') ? [nodes.go] : [nodes.out],
     };
@@ -26,6 +30,8 @@ function rootOf(nodes) {
 function run(cookie, config = {}) {
     const light = tree();
     const shadow = tree();
+    const lightRoot = rootOf(light);
+    const shadowRoot = rootOf(shadow);
     const added = [];
     const fakeDocument = {
         cookie,
@@ -38,8 +44,8 @@ function run(cookie, config = {}) {
         }),
         querySelectorAll: (selector) =>
             selector === '*'
-                ? [{}, { shadowRoot: rootOf(shadow) }]
-                : rootOf(light).querySelectorAll(selector),
+                ? [{}, { shadowRoot }]
+                : lightRoot.querySelectorAll(selector),
     };
     const settings = {
         appOrigin: 'https://app.test',
@@ -49,7 +55,7 @@ function run(cookie, config = {}) {
     };
     new Function('document', 'loupeSiteDocs', source)(fakeDocument, settings);
 
-    return { light, shadow, added };
+    return { light, shadow, added, shadowRoot, lightRoot };
 }
 
 describe('site docs script', () => {
@@ -104,5 +110,121 @@ describe('site docs script', () => {
                 (tag) => tag.src,
             ),
         ).toEqual([src]);
+    });
+});
+
+describe('site docs script counting', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    function link(attributes, extra = {}) {
+        return {
+            tagName: 'A',
+            href: 'https://site.test/features',
+            target: '',
+            attributes: Object.entries(attributes).map(([name, value]) => ({
+                name,
+                value,
+            })),
+            getAttribute: (name) => attributes[name] ?? null,
+            ...extra,
+        };
+    }
+
+    function click(target, init = {}) {
+        const event = {
+            target: { closest: () => target },
+            ctrlKey: false,
+            shiftKey: false,
+            metaKey: false,
+            button: 0,
+            preventDefault: vi.fn(),
+            ...init,
+        };
+        const { shadowRoot } = run('');
+        shadowRoot.listeners.forEach(({ listener }) => listener(event));
+
+        return event;
+    }
+
+    const attributes = {
+        'data-umami-event': 'feature-click',
+        'data-umami-event-button': 'menu',
+        'data-umami-event-feature': 'inbox',
+    };
+
+    it('listens in each shadow root and not on the page, where Umami listens', () => {
+        const { shadowRoot, lightRoot } = run('');
+
+        expect(shadowRoot.listeners.map((entry) => entry.type)).toEqual([
+            'click',
+        ]);
+        expect(lightRoot.listeners).toEqual([]);
+    });
+
+    it('sends the event name and its data, then follows a link in the same tab', async () => {
+        const track = vi.fn(() => Promise.resolve());
+        const location = { href: '' };
+        vi.stubGlobal('umami', { track });
+        vi.stubGlobal('location', location);
+
+        const event = click(link(attributes));
+
+        expect(track).toHaveBeenCalledWith('feature-click', {
+            button: 'menu',
+            feature: 'inbox',
+        });
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(location.href).toBe('');
+        await vi.waitFor(() =>
+            expect(location.href).toBe('https://site.test/features'),
+        );
+    });
+
+    it('holds the navigation until the call settles, and not for ever', async () => {
+        vi.useFakeTimers();
+        const location = { href: '' };
+        vi.stubGlobal('umami', { track: () => new Promise(() => {}) });
+        vi.stubGlobal('location', location);
+
+        click(link(attributes));
+        await vi.advanceTimersByTimeAsync(500);
+        expect(location.href).toBe('');
+        await vi.advanceTimersByTimeAsync(600);
+        expect(location.href).toBe('https://site.test/features');
+        vi.useRealTimers();
+    });
+
+    it('leaves a new tab, a modified click and a failed call to the browser', async () => {
+        const track = vi.fn(() => Promise.reject(new Error('blocked')));
+        const location = { href: '' };
+        vi.stubGlobal('umami', { track });
+        vi.stubGlobal('location', location);
+
+        const newTab = click(link(attributes, { target: '_blank' }));
+        const modified = click(link(attributes), { ctrlKey: true });
+
+        expect(track).toHaveBeenCalledTimes(2);
+        expect(newTab.preventDefault).not.toHaveBeenCalled();
+        expect(modified.preventDefault).not.toHaveBeenCalled();
+        expect(location.href).toBe('');
+
+        click(link(attributes));
+        await vi.waitFor(() =>
+            expect(location.href).toBe('https://site.test/features'),
+        );
+    });
+
+    it('does nothing for a click on an element with no event, or when Umami is not loaded', () => {
+        const track = vi.fn();
+        vi.stubGlobal('umami', { track });
+        const plain = click(null);
+        expect(track).not.toHaveBeenCalled();
+        expect(plain.preventDefault).not.toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+        const event = click(link(attributes));
+        expect(event.preventDefault).not.toHaveBeenCalled();
     });
 });

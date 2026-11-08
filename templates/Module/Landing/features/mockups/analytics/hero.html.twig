@@ -1,0 +1,34 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('analytics') }}
+            <div class="lp-shot__main">
+                <div class="lp-shot__top">
+                    <h3 class="lp-shot__title">{{ 'landing.shot.analytics'|trans }}</h3>
+                    {{ shot.pill('landing.shot.last_30_days'|trans, 'outline') }}
+                    {{ shot.pill('landing.shot.compared_with_the_30_days_before'|trans, 'outline') }}
+                </div>
+                <div class="lp-shot__body">
+                    <div class="lp-shot__tiles">
+                        <div class="lp-shot__stat"><span class="lp-shot__label">{{ 'landing.shot.cost_per_card'|trans }}</span><span class="lp-shot__stat-value">{{ '$4.20' }}</span>{{ shot.pill('-12%', 'ok') }}</div>
+                        <div class="lp-shot__stat"><span class="lp-shot__label">{{ 'landing.shot.merge_rate'|trans }}</span><span class="lp-shot__stat-value">{{ '92%' }}</span>{{ shot.pill('+4 pts', 'ok') }}</div>
+                        <div class="lp-shot__stat"><span class="lp-shot__label">{{ 'landing.shot.fix_rounds'|trans }}</span><span class="lp-shot__stat-value">{{ '1.4' }}</span>{{ shot.pill('-0.3', 'ok') }}</div>
+                        <div class="lp-shot__stat"><span class="lp-shot__label">{{ 'landing.shot.hours_to_merge'|trans }}</span><span class="lp-shot__stat-value">{{ '6.5' }}</span>{{ shot.pill('+0.4', 'warn') }}</div>
+                    </div>
+                    <div class="lp-shot__chart">
+                        <span class="lp-shot__heading">{{ 'landing.shot.cost_per_finished_card'|trans }}</span>
+                        {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-shot__chart-svg" viewBox="0 0 300 120" preserveAspectRatio="none">
+                            <polyline class="lp-shot__line lp-shot__line--previous" points="0,50 50,44 100,54 150,40 200,46 250,36 300,42" />
+                            <polyline class="lp-shot__line" points="0,70 50,62 100,76 150,58 200,66 250,52 300,60" />
+                        </svg>
+                        <div class="lp-shot__legend">
+                            <span><i class="lp-shot__swatch"></i>{{ 'landing.shot.this_period'|trans }}</span>
+                            <span><i class="lp-shot__swatch lp-shot__swatch--second"></i>{{ 'landing.shot.before'|trans }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

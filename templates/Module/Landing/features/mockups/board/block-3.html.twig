@@ -1,0 +1,30 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel lp-shot__panel--raised">
+            <div class="lp-shot__row">
+                <span class="lp-shot__mono lp-shot__dim">{{ '#38' }}</span>
+                {{ shot.pill('landing.shot.feature'|trans, 'outline') }}
+                <span class="lp-shot__spacer lp-shot__row"><span class="lp-shot__dot lp-shot__dot--ok"></span><span class="lp-shot__dim">{{ 'landing.shot.updated_just_now'|trans }}</span></span>
+            </div>
+            <h3 class="lp-shot__heading lp-shot__heading--lg">{{ 'landing.shot.add_a_booking_calendar'|trans }}</h3>
+            <hr class="lp-shot__rule">
+            <span class="lp-shot__label">{{ 'landing.shot.linked'|trans }}</span>
+            <div class="lp-shot__action">
+                <span class="lp-shot__action-icon">{{ shot.icon('lucide:file-text', 'sm') }}</span>
+                <span class="lp-shot__grow">{{ 'landing.shot.tech_design_booking_calendar'|trans }}</span>
+                {{ shot.pill('landing.shot.approved'|trans, 'ok') }}
+            </div>
+            <div class="lp-shot__action">
+                <span class="lp-shot__action-icon">{{ shot.icon('lucide:app-window', 'sm') }}</span>
+                <span class="lp-shot__grow">{{ 'landing.shot.prototype_month_view'|trans }}</span>
+                {{ shot.pill('v2') }}
+            </div>
+            <div class="lp-shot__action">
+                <span class="lp-shot__action-icon">{{ shot.icon('lucide:git-pull-request', 'sm') }}</span>
+                <span class="lp-shot__grow">{{ 'landing.shot.pull_request_118'|trans }}</span>
+                {{ shot.pill('landing.shot.checks_pass'|trans, 'ok') }}
+            </div>
+        </div>
+    </div>
+</div>

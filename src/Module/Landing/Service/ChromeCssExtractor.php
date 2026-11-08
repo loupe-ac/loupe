@@ -19,7 +19,7 @@ final class ChromeCssExtractor
 
     private const array ROOT_SELECTORS = [':root', ':host', 'html'];
 
-    private const array NESTING_AT_RULES = ['layer', 'media', 'supports', 'container'];
+    private const array NESTING_AT_RULES = ['layer', 'media', 'supports', 'container', 'starting-style'];
 
     public function extract(string $css, string $html): string
     {

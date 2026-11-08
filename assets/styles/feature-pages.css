@@ -1,0 +1,616 @@
+/* The public feature pages and the pictures on them. The Twig partials under
+   `templates/Module/Landing/features/` use these classes. */
+@layer components {
+    /* ── Feature page ───────────────────────────────────────────────── */
+
+    /* The dark hero of a feature page. It sits on `lp-home-hero`, which adds the light band under the picture. */
+    .lp-feature-hero {
+        @apply pb-0;
+    }
+    .lp-feature-hero__copy {
+        @apply py-12;
+    }
+    .lp-feature-hero__label {
+        @apply font-mono text-xs uppercase tracking-widest text-chrome-mute;
+    }
+    .lp-feature-hero__actions {
+        @apply flex flex-wrap justify-center gap-3;
+    }
+    .lp-feature-hero__stage {
+        @apply relative z-10 pb-0;
+    }
+    /* The hero picture hangs over the section that follows. */
+    .lp-feature-hero__shot {
+        @apply relative min-w-0 -mb-20 sm:-mb-50;
+    }
+
+    /* The blocks start below the overhang of the hero picture. */
+    .lp-feature-blocks {
+        @apply pt-44 pb-20 sm:pt-74 md:pb-28;
+    }
+    .lp-feature-blocks__list {
+        @apply flex flex-col gap-20 md:gap-24;
+    }
+    .lp-feature-block {
+        @apply grid items-center gap-8 md:grid-cols-2 md:gap-12;
+    }
+    .lp-feature-block > * {
+        @apply min-w-0;
+    }
+    .lp-feature-block--flip .lp-feature-block__shot {
+        @apply md:order-first;
+    }
+    .lp-feature-block__title {
+        @apply font-display font-extrabold tracking-tighter text-ink m-0 mb-3 text-3xl leading-tight sm:text-4xl;
+    }
+    .lp-feature-block__text {
+        @apply m-0 max-w-xl text-lg leading-relaxed text-fg-mute;
+    }
+
+    .lp-feature-more {
+        @apply py-20 md:py-28 bg-surface-1 border-y border-line;
+    }
+    .lp-feature-more__tiles {
+        @apply mt-8;
+    }
+
+    /* A tile that is one link: the whole tile is the click target and takes the focus ring. */
+    .lp-feature-tile {
+        @apply no-underline transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+
+    /* The /features index. */
+    .lp-feature-index {
+        @apply py-16 md:py-24;
+    }
+    .lp-feature-index__lead {
+        @apply m-0 mb-12 max-w-2xl text-lg leading-relaxed text-fg-mute;
+    }
+
+    /* ── Pictures (lp-shot) ─────────────────────────────────────────────
+       Simplified drawings of the app screens. The canvas keeps a minimum
+       width, so a narrow screen crops the right edge like a screenshot. */
+    .lp-shot {
+        @apply relative block overflow-hidden rounded-xl border border-line bg-surface-1 text-left text-xs leading-snug text-fg shadow-2xl;
+    }
+    .lp-shot--dark {
+        @apply border-chrome-line bg-chrome font-mono text-chrome-fg;
+    }
+    .lp-shot__canvas {
+        @apply flex min-w-sm flex-col;
+    }
+    .lp-shot__canvas--wide {
+        @apply min-w-3xl sm:min-h-112;
+    }
+    .lp-shot__canvas--panel {
+        @apply gap-3 bg-app p-4;
+    }
+
+    /* The app shell: the dark sidebar and the page beside it. */
+    .lp-shot__app {
+        @apply flex min-h-0;
+    }
+    .lp-shot__sidebar {
+        @apply flex w-36 shrink-0 flex-col gap-0.5 bg-chrome p-2.5 text-chrome-mute;
+    }
+    .lp-shot__sidebar-brand {
+        @apply mb-2 flex items-center gap-1.5 px-1.5 py-1 font-display text-sm font-extrabold tracking-tight text-chrome-fg;
+    }
+    .lp-shot__sidebar-item {
+        @apply flex items-center gap-2 rounded-md px-2 py-1.5 text-xs;
+    }
+    .lp-shot__sidebar-item--active {
+        @apply bg-chrome-control text-chrome-fg;
+    }
+    .lp-shot__main {
+        @apply flex min-w-0 flex-1 flex-col bg-app;
+    }
+    .lp-shot__top {
+        @apply flex items-center gap-2 border-b border-line bg-surface-1 px-4 py-2.5;
+    }
+    .lp-shot__title {
+        @apply m-0 font-display text-sm font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__crumb {
+        @apply text-fg-dim;
+    }
+    .lp-shot__body {
+        @apply flex flex-col gap-3 p-4;
+    }
+
+    /* Small building blocks. */
+    .lp-shot__row {
+        @apply flex items-center gap-2;
+    }
+    .lp-shot__row--between {
+        @apply justify-between;
+    }
+    .lp-shot__row--top {
+        @apply items-start;
+    }
+    .lp-shot__stack {
+        @apply flex flex-col gap-1.5;
+    }
+    .lp-shot__grow {
+        @apply min-w-0 flex-1;
+    }
+    .lp-shot__spacer {
+        @apply ml-auto;
+    }
+    .lp-shot__strong {
+        @apply font-semibold text-ink;
+    }
+    .lp-shot__heading {
+        @apply m-0 font-display text-sm font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__heading--lg {
+        @apply text-base;
+    }
+    .lp-shot__text {
+        @apply m-0 text-xs leading-relaxed text-fg-mute;
+    }
+    .lp-shot__mono {
+        @apply font-mono;
+    }
+    .lp-shot__dim {
+        @apply text-fg-dim;
+    }
+    .lp-shot__label {
+        @apply font-mono text-xs uppercase tracking-wider text-fg-dim;
+    }
+    .lp-shot__rule {
+        @apply m-0 border-0 border-t border-line-faint;
+    }
+
+    .lp-shot__panel {
+        @apply flex flex-col gap-2 rounded-lg border border-line bg-surface-1 p-3 shadow-xs;
+    }
+    .lp-shot__panel--raised {
+        @apply shadow-lg;
+    }
+    .lp-shot__panel--accent {
+        @apply border-accent-border bg-accent-faint;
+    }
+
+    .lp-shot__pill {
+        @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-surface-3 px-1.5 py-0.5 text-xs font-semibold text-fg-mute;
+    }
+    .lp-shot__pill--ok {
+        @apply bg-status-ok-bg text-status-ok-deep;
+    }
+    .lp-shot__pill--warn {
+        @apply bg-status-pending-bg text-status-pending-deep;
+    }
+    .lp-shot__pill--danger {
+        @apply bg-status-danger-bg text-status-danger-deep;
+    }
+    .lp-shot__pill--active {
+        @apply bg-status-active-bg text-status-active;
+    }
+    .lp-shot__pill--accent {
+        @apply bg-accent-soft text-accent-ink;
+    }
+    .lp-shot__pill--outline {
+        @apply border border-line bg-surface-1;
+    }
+
+    .lp-shot__avatar {
+        @apply inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent-ink;
+    }
+    .lp-shot__avatar--ink {
+        @apply bg-ink text-accent;
+    }
+    .lp-shot__avatar--agent {
+        @apply bg-status-active-bg text-status-active;
+    }
+
+    .lp-shot__button {
+        @apply inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md border border-line bg-surface-1 px-2.5 py-1 text-xs font-semibold text-ink;
+    }
+    .lp-shot__button--primary {
+        @apply border-transparent bg-accent text-ink;
+    }
+    .lp-shot__button--danger {
+        @apply border-status-danger-border bg-status-danger-bg text-status-danger-deep;
+    }
+
+    .lp-shot__field {
+        @apply min-h-12 rounded-md border border-line-field bg-field px-2.5 py-2 text-xs text-fg-dim;
+    }
+
+    .lp-shot__dot {
+        @apply inline-block size-2 shrink-0 rounded-full bg-fg-faint;
+    }
+    .lp-shot__dot--ok {
+        @apply bg-status-ok;
+    }
+    .lp-shot__dot--warn {
+        @apply bg-status-pending;
+    }
+    .lp-shot__dot--danger {
+        @apply bg-status-danger;
+    }
+    .lp-shot__dot--active {
+        @apply bg-status-active;
+    }
+
+    /* A progress bar. The width modifiers carry the fraction. */
+    .lp-shot__track {
+        @apply h-1.5 w-full overflow-hidden rounded-full bg-surface-3;
+    }
+    .lp-shot__fill {
+        @apply h-full rounded-full bg-accent;
+    }
+    .lp-shot__fill--quarter {
+        @apply w-1/4;
+    }
+    .lp-shot__fill--half {
+        @apply w-1/2;
+    }
+    .lp-shot__fill--three-quarters {
+        @apply w-3/4;
+    }
+    .lp-shot__fill--full {
+        @apply w-full;
+    }
+    .lp-shot__fill--ok {
+        @apply bg-status-ok;
+    }
+
+    /* The state mark is the app's own icon. A picture shows it still. */
+    .lp-shot .lp-state-mark__icon {
+        @apply cursor-default;
+    }
+    .lp-shot .lp-state-mark--working .lp-state-mark__glyph {
+        @apply animate-none;
+    }
+
+    /* Board */
+    .lp-shot__columns {
+        @apply flex items-start gap-2.5 p-3;
+    }
+    .lp-shot__column {
+        @apply flex min-w-0 flex-1 flex-col gap-2 rounded-xl bg-surface-3 p-2;
+    }
+    .lp-shot__column-head {
+        @apply flex items-center gap-1.5 px-1 py-0.5 text-xs font-bold text-ink;
+    }
+    .lp-shot__column-count {
+        @apply ml-auto font-mono font-normal text-fg-dim;
+    }
+    .lp-shot__card {
+        @apply flex flex-col gap-1.5 rounded-lg border border-line bg-surface-1 px-2.5 py-2 shadow-xs;
+    }
+    .lp-shot__card--stuck {
+        @apply border-status-danger-border;
+    }
+    .lp-shot__card-title {
+        @apply font-display text-xs font-semibold leading-snug text-ink;
+    }
+    .lp-shot__card-meta {
+        @apply flex items-center gap-2 text-xs text-fg-dim;
+    }
+    .lp-shot__card-meta span {
+        @apply inline-flex items-center gap-1;
+    }
+    .lp-shot__why {
+        @apply m-0 rounded-md bg-surface-2 px-2 py-1.5 text-xs leading-snug text-fg-mute;
+    }
+    .lp-shot__lane {
+        @apply flex flex-col gap-2 rounded-xl border border-line bg-surface-1 p-2.5;
+    }
+    .lp-shot__lane-head {
+        @apply flex items-center gap-2;
+    }
+    .lp-shot__lane-cells {
+        @apply grid grid-cols-3 gap-2;
+    }
+
+    /* A numbered or arrowed ladder of steps. */
+    .lp-shot__steps {
+        @apply m-0 flex list-none flex-col p-0;
+    }
+    .lp-shot__step {
+        @apply relative flex items-start gap-2.5 pb-3;
+    }
+    .lp-shot__step:last-child {
+        @apply pb-0;
+    }
+    .lp-shot__step::before {
+        content: '';
+        @apply absolute top-5 bottom-0 left-2.5 w-px bg-line;
+    }
+    .lp-shot__step:last-child::before {
+        @apply hidden;
+    }
+    .lp-shot__step-mark {
+        @apply relative inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-fg-mute;
+    }
+    .lp-shot__step-mark--ok {
+        @apply bg-status-ok-bg text-status-ok-deep;
+    }
+    .lp-shot__step-mark--warn {
+        @apply bg-status-pending-bg text-status-pending-deep;
+    }
+    .lp-shot__step-mark--danger {
+        @apply bg-status-danger-bg text-status-danger-deep;
+    }
+    .lp-shot__step-mark--active {
+        @apply bg-status-active-bg text-status-active;
+    }
+
+    /* A table of rows with a head. */
+    .lp-shot__table {
+        @apply flex flex-col rounded-lg border border-line bg-surface-1;
+    }
+    .lp-shot__table-row {
+        @apply grid grid-cols-3 items-center gap-3 border-b border-line-faint px-3 py-2;
+    }
+    .lp-shot__table-row:last-child {
+        @apply border-b-0;
+    }
+    .lp-shot__table-row--head {
+        @apply font-mono text-xs uppercase tracking-wider text-fg-dim;
+    }
+
+    /* Terminal */
+    .lp-shot__terminal-bar {
+        @apply flex items-center gap-1.5 border-b border-chrome-line px-3 py-2 text-chrome-dim;
+    }
+    .lp-shot__terminal-bar i {
+        @apply size-2.5 rounded-full bg-chrome-control;
+    }
+    .lp-shot__terminal-bar span {
+        @apply mx-auto;
+    }
+    .lp-shot__terminal-body {
+        @apply flex flex-col gap-2.5 p-4 leading-relaxed;
+    }
+    .lp-shot__terminal-dim {
+        @apply text-chrome-dim;
+    }
+    .lp-shot__terminal-call::before {
+        content: '● ';
+        @apply text-accent;
+    }
+    .lp-shot__terminal-call b {
+        @apply font-semibold text-chrome-fg;
+    }
+    .lp-shot__terminal-result {
+        @apply pl-4 text-chrome-mute;
+    }
+    .lp-shot__terminal-reply::before {
+        content: '● ';
+        @apply text-chrome-fg;
+    }
+    .lp-shot__terminal-option {
+        @apply pl-4 text-chrome-mute;
+    }
+    .lp-shot__terminal-option--picked {
+        @apply text-accent;
+    }
+    .lp-shot__terminal-input {
+        @apply rounded-md border border-chrome-line px-2.5 py-1.5 text-chrome-fg;
+    }
+
+    /* Document review */
+    .lp-shot__doc {
+        @apply flex min-w-0 flex-1 gap-4 p-4;
+    }
+    .lp-shot__doc-aside {
+        @apply flex w-56 shrink-0 flex-col gap-2;
+    }
+    .lp-shot__prose {
+        @apply flex min-w-0 flex-1 flex-col gap-2.5 text-xs leading-relaxed text-fg;
+    }
+    .lp-shot__prose h4 {
+        @apply m-0 font-display text-base font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__prose p {
+        @apply m-0;
+    }
+    .lp-shot__anchor {
+        @apply rounded-sm border-b-2 border-review-anchor-line bg-review-anchor px-0.5;
+    }
+    .lp-shot__ins {
+        @apply rounded-sm bg-status-ok-bg px-0.5 text-status-ok-deep no-underline;
+    }
+    .lp-shot__del {
+        @apply rounded-sm bg-status-danger-bg px-0.5 text-status-danger-deep line-through;
+    }
+    .lp-shot__strike {
+        @apply text-strike line-through;
+    }
+    .lp-shot__thread {
+        @apply flex flex-col gap-2;
+    }
+    .lp-shot__comment {
+        @apply flex flex-col gap-1 rounded-lg border border-line bg-surface-1 p-2.5 shadow-xs;
+    }
+    .lp-shot__comment-head {
+        @apply flex items-center gap-1.5 font-semibold text-ink;
+    }
+    .lp-shot__toolbar {
+        @apply inline-flex items-stretch overflow-hidden rounded-lg bg-ink text-xs font-semibold text-white shadow-lg;
+    }
+    .lp-shot__toolbar span {
+        @apply inline-flex items-center gap-1 px-2.5 py-1.5;
+    }
+    .lp-shot__toolbar span + span {
+        @apply border-l border-line-strong;
+    }
+    .lp-shot__option {
+        @apply flex items-start gap-2 rounded-lg border border-line bg-surface-1 p-2.5;
+    }
+    .lp-shot__option--picked {
+        @apply border-accent-border bg-accent-faint;
+    }
+    .lp-shot__radio {
+        @apply mt-0.5 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border border-line-strong bg-surface-1;
+    }
+    .lp-shot__option--picked .lp-shot__radio {
+        @apply border-ink;
+    }
+    .lp-shot__option--picked .lp-shot__radio::after {
+        content: '';
+        @apply size-2 rounded-full bg-ink;
+    }
+
+    /* Inbox */
+    .lp-shot__list {
+        @apply flex w-60 shrink-0 flex-col border-r border-line bg-surface-1;
+    }
+    .lp-shot__list-item {
+        @apply flex flex-col gap-1 border-b border-line-faint px-3 py-2.5;
+    }
+    .lp-shot__list-item--active {
+        @apply bg-accent-faint;
+    }
+    .lp-shot__action {
+        @apply flex items-center gap-2.5 rounded-lg border border-line bg-surface-1 px-3 py-2.5 font-semibold text-ink;
+    }
+    .lp-shot__action-icon {
+        @apply inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-3 text-fg-mute;
+    }
+    .lp-shot__phone {
+        @apply mx-auto flex w-60 flex-col gap-3 rounded-2xl border border-line-strong bg-surface-3 p-3 shadow-xl;
+    }
+    .lp-shot__notification {
+        @apply flex items-start gap-2.5 rounded-xl bg-surface-1 p-3 shadow-sm;
+    }
+    .lp-shot__app-icon {
+        @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-chrome text-accent;
+    }
+
+    /* Agent review */
+    .lp-shot__diff {
+        @apply overflow-hidden rounded-lg border border-line bg-surface-1 font-mono;
+    }
+    .lp-shot__diff-file {
+        @apply border-b border-line bg-surface-2 px-3 py-1.5 text-fg-mute;
+    }
+    .lp-shot__diff-line {
+        @apply px-3 py-0.5;
+    }
+    .lp-shot__diff-line--add {
+        @apply bg-status-ok-bg text-status-ok-deep;
+    }
+    .lp-shot__diff-line--del {
+        @apply bg-status-danger-bg text-status-danger-deep;
+    }
+    .lp-shot__finding {
+        @apply flex flex-col gap-1 rounded-lg border border-status-pending-border bg-status-pending-bg p-2.5 text-status-pending-deep;
+    }
+    .lp-shot__switch {
+        @apply relative inline-block h-4 w-7 shrink-0 rounded-full bg-line-strong;
+    }
+    .lp-shot__switch::after {
+        content: '';
+        @apply absolute top-0.5 left-0.5 size-3 rounded-full bg-surface-1;
+    }
+    .lp-shot__switch--on {
+        @apply bg-ink;
+    }
+    .lp-shot__switch--on::after {
+        @apply left-3.5;
+    }
+
+    /* Live review: the customer's own site, with the widget on top. */
+    .lp-shot__site {
+        @apply relative flex flex-1 flex-col gap-4 bg-warm p-4;
+    }
+    .lp-shot__site-head {
+        @apply flex items-center gap-4 font-display text-sm font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__site-links {
+        @apply ml-auto flex gap-3 font-sans text-xs font-medium text-fg-mute;
+    }
+    .lp-shot__cabins {
+        @apply grid grid-cols-3 gap-3;
+    }
+    .lp-shot__cabin {
+        @apply flex flex-col gap-1 rounded-lg border border-line-warm bg-surface-1 p-2.5;
+    }
+    .lp-shot__cabin-photo {
+        @apply mb-1 h-16 rounded-md bg-tone-teal-bg;
+    }
+    .lp-shot__cabin-photo--sky {
+        @apply bg-tone-sky-bg;
+    }
+    .lp-shot__cabin-photo--orange {
+        @apply bg-tone-orange-bg;
+    }
+    .lp-shot__picked {
+        @apply relative mt-5 inline-block rounded-sm px-1 outline-2 outline-offset-2 outline-tone-blue;
+    }
+    .lp-shot__picked-tag {
+        @apply absolute -top-5 left-0 whitespace-nowrap rounded-sm bg-tone-blue px-1.5 py-0.5 font-mono text-xs font-semibold text-white;
+    }
+    .lp-shot__note {
+        @apply flex w-56 flex-col gap-2 rounded-lg border border-line bg-surface-1 p-3 shadow-xl;
+    }
+    .lp-shot__widget {
+        @apply inline-flex items-center gap-1.5 rounded-full bg-chrome px-3 py-1.5 font-semibold text-chrome-fg shadow-lg;
+    }
+    .lp-shot__scribble {
+        @apply absolute -inset-1.5 rounded-full border-2 border-status-danger;
+    }
+
+    /* Analytics */
+    .lp-shot__tiles {
+        @apply grid grid-cols-4 gap-2.5;
+    }
+    .lp-shot__stat {
+        @apply flex flex-col gap-0.5 rounded-lg border border-line bg-surface-1 p-2.5;
+    }
+    .lp-shot__stat-value {
+        @apply font-display text-xl font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__chart {
+        @apply flex flex-col gap-2 rounded-lg border border-line bg-surface-1 p-3;
+    }
+    .lp-shot__chart-svg {
+        @apply block h-36 w-full border-b border-line-strong;
+    }
+    .lp-shot__chart-svg--short {
+        @apply h-24;
+    }
+    .lp-shot__line {
+        @apply fill-none stroke-chart-1 stroke-2;
+        vector-effect: non-scaling-stroke;
+    }
+    .lp-shot__line--previous {
+        @apply stroke-chart-2 opacity-60;
+        stroke-dasharray: 5 4;
+    }
+    .lp-shot__bar {
+        @apply fill-chart-1;
+    }
+    .lp-shot__bar--second {
+        @apply fill-chart-2;
+    }
+    .lp-shot__legend {
+        @apply flex gap-4 text-fg-mute;
+    }
+    .lp-shot__swatch {
+        @apply mr-1.5 inline-block size-2 rounded-sm bg-chart-1;
+    }
+    .lp-shot__swatch--second {
+        @apply bg-chart-2;
+    }
+    .lp-shot__range {
+        @apply relative h-2 rounded-full bg-surface-3;
+    }
+    .lp-shot__range-span {
+        @apply absolute inset-y-0 rounded-full bg-chart-1;
+    }
+    .lp-shot__range-span--second {
+        @apply bg-chart-2;
+    }
+    .lp-shot__range-span--a {
+        @apply left-1/4 w-1/3;
+    }
+    .lp-shot__range-span--b {
+        @apply left-1/2 w-1/3;
+    }
+}

@@ -1,0 +1,21 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__row">
+            <span class="lp-shot__button lp-shot__button--primary">{{ shot.icon('lucide:mouse-pointer-click') }}{{ 'landing.shot.pick'|trans }}</span>
+            <span class="lp-shot__button">{{ shot.icon('lucide:quote') }}{{ 'landing.shot.quote'|trans }}</span>
+            <span class="lp-shot__button">{{ shot.icon('lucide:pencil') }}{{ 'landing.shot.draw'|trans }}</span>
+        </div>
+        <div class="lp-shot__cabin">
+            <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
+            <span class="lp-shot__row">
+                <span class="lp-shot__picked"><span class="lp-shot__picked-tag">{{ 'div.price' }}</span><span class="lp-shot__strong">{{ '$180' }}</span></span>
+                <span class="lp-shot__picked"><span class="lp-shot__picked-tag">{{ 'button.book' }}</span><span class="lp-shot__strong">{{ 'landing.shot.book_now'|trans }}</span></span>
+            </span>
+        </div>
+        <div class="lp-shot__note">
+            <span class="lp-shot__label">{{ 'landing.shot.2_elements_selected'|trans }}</span>
+            <span class="lp-shot__strong">{{ 'landing.shot.the_price_and_the_button_should'|trans }}</span>
+        </div>
+    </div>
+</div>

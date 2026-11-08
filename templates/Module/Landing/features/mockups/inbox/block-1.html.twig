@@ -1,0 +1,13 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel lp-shot__panel--raised">
+            <div class="lp-shot__row">{{ shot.avatar('AI', 'agent') }}<span class="lp-shot__strong">{{ 'landing.shot.tech_design_agent'|trans }}</span>{{ shot.pill('landing.shot.blocking'|trans, 'warn') }}</div>
+            <span class="lp-shot__heading">{{ 'landing.shot.should_a_booking_hold_the_dates'|trans }}</span>
+            <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.yes_for_10_minutes'|trans }}</span></div>
+            <div class="lp-shot__option lp-shot__option--picked"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.yes_until_the_payment_fails'|trans }}</span></div>
+            <div class="lp-shot__field">{{ 'landing.shot.add_a_note_for_the_agent'|trans }}</div>
+            <span class="lp-shot__button lp-shot__button--primary">{{ 'landing.shot.send_answer'|trans }}</span>
+        </div>
+    </div>
+</div>
