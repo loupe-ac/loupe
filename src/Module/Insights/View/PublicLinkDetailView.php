@@ -20,17 +20,21 @@ final readonly class PublicLinkDetailView
         public ?string $noteHtml,
         /** The code in the address, which the admin bar names. */
         public string $code,
+        /** The version of the result the page reads, which the address of the preview image carries. */
+        public string $previewVersion,
+        /** The plain text under the item: the settings of a graph, the note or the goal of an experiment. */
+        public string $description,
     ) {
     }
 
-    public static function forGraph(Project $project, InsightsSavedGraph $graph, ?DashboardGraphResult $result, string $code): self
+    public static function forGraph(Project $project, InsightsSavedGraph $graph, ?DashboardGraphResult $result, string $code, string $previewVersion, string $description): self
     {
-        return new self($project, $graph, $result, null, null, $code);
+        return new self($project, $graph, $result, null, null, $code, $previewVersion, $description);
     }
 
-    public static function forExperiment(Project $project, PublicExperimentResult $experiment, ?string $noteHtml, string $code): self
+    public static function forExperiment(Project $project, PublicExperimentResult $experiment, ?string $noteHtml, string $code, string $previewVersion, string $description): self
     {
-        return new self($project, null, null, $experiment, $noteHtml, $code);
+        return new self($project, null, null, $experiment, $noteHtml, $code, $previewVersion, $description);
     }
 
     public function isExperiment(): bool

@@ -9,14 +9,18 @@ use App\Module\Insights\Command\SetGraphPublicLinkCommand;
 use App\Module\Insights\Command\SetGraphPublicLinkHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Messenger\DrawPublicPreview;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\PublicLinkCode;
+use App\Module\Insights\Service\PublicPreviewRequester;
 use App\Module\Insights\Service\PublicShareGuard;
 use App\Module\Insights\Service\SavedGraphLocker;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
@@ -39,6 +43,30 @@ final class SetGraphPublicLinkHandlerTest extends KernelTestCase
         self::assertNotNull($link);
         self::assertTrue($link->enabled);
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+    }
+
+    public function test_turning_a_link_on_asks_for_its_preview_image_and_turning_it_off_does_not(): void
+    {
+        $graph = $this->seedSavedGraph($this->scenarioProject('share-preview'));
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $this->share($graph, true);
+
+        $drawn = array_values(array_filter(
+            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof DrawPublicPreview,
+        ));
+        self::assertCount(1, $drawn);
+        self::assertSame($this->linkOf($graph)?->code, $drawn[0]->code);
+
+        $transport->reset();
+        $this->share($graph, false);
+        self::assertSame([], array_filter(
+            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof DrawPublicPreview,
+        ));
     }
 
     public function test_off_and_on_change_the_switch_and_keep_the_code(): void
@@ -127,6 +155,7 @@ final class SetGraphPublicLinkHandlerTest extends KernelTestCase
             $this->service(PublicShareGuard::class),
             $this->service(Auditor::class),
             $this->service(InsightsRefreshRequester::class),
+            $this->service(PublicPreviewRequester::class),
         );
         $handler(new SetGraphPublicLinkCommand($this->em()->find(InsightsSavedGraph::class, $graph->id) ?? throw new \LogicException(), $enabled));
     }

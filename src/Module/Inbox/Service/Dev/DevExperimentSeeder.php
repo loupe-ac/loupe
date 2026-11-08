@@ -76,6 +76,18 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     /** The code of the public link of the baseline experiment. */
     public const string SHARED_BASELINE_EXPERIMENT_CODE = 'devbaselines';
 
+    /** An experiment with a baseline and six other variants, so the preview image of its link shows four rows and "+2 more variants". It has no note. */
+    public const string SIX_VARIANTS_EXPERIMENT = 'implement-six-variants';
+
+    /** The code of the public link of the six variants experiment. */
+    public const string SHARED_SIX_VARIANTS_EXPERIMENT_CODE = 'devsixvarian';
+
+    /** An experiment with six variants and no baseline, so the preview image of its link shows four value cards and "+2 more variants". It has no note. */
+    public const string SIX_NO_BASELINE_EXPERIMENT = 'implement-six-no-baseline';
+
+    /** The code of the public link of the six variants experiment with no baseline. */
+    public const string SHARED_SIX_NO_BASELINE_EXPERIMENT_CODE = 'devsixnobase';
+
     /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
     public const string EMPTY_EXPERIMENT = 'implement-no-runs';
 
@@ -103,7 +115,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     /** The card of the first experiment that the owner left out by hand. */
     private const string EXCLUDED_CARD = 'Mute a noisy bridge';
 
-    private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5', 'haiku' => 'claude-haiku-5-5', 'gemini' => 'gemini-3-pro', 'codex' => 'gpt-5-codex'];
+    private const array MODELS = ['opus' => 'claude-opus-5-5', 'sonnet' => 'claude-sonnet-5-5', 'haiku' => 'claude-haiku-5-5', 'gemini' => 'gemini-3-pro', 'codex' => 'gpt-5-codex', 'mistral' => 'mistral-large-3', 'qwen' => 'qwen-3-coder'];
 
     /** The variants of the baseline experiment, each with the cost of its finished cards. Gemini stays under the floor of finished cards. */
     private const array BASELINE_COSTS = [
@@ -112,6 +124,17 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         'haiku' => ['2.000000', '7.500000', '3.000000', '6.500000', '4.000000', '5.500000'],
         'gemini' => ['3.000000', '3.200000', '2.800000'],
         'codex' => ['4.100000', '3.900000', '4.300000', '4.000000', '3.800000', '4.200000'],
+    ];
+
+    /** The variants of the six variants experiments, each with the cost of five finished cards. The first is the baseline when one exists. */
+    private const array SIX_VARIANT_COSTS = [
+        'opus' => ['3.800000', '4.200000', '4.000000', '3.600000', '4.400000'],
+        'sonnet' => ['1.400000', '1.600000', '1.500000', '1.300000', '1.700000'],
+        'haiku' => ['2.000000', '2.400000', '2.200000', '1.900000', '2.100000'],
+        'gemini' => ['3.000000', '3.200000', '2.800000', '3.100000', '2.900000'],
+        'codex' => ['4.100000', '3.900000', '4.300000', '4.000000', '3.800000'],
+        'mistral' => ['2.600000', '2.800000', '2.700000', '2.500000', '2.900000'],
+        'qwen' => ['2.300000', '2.500000', '2.400000', '2.200000', '2.600000'],
     ];
 
     /** The last card has a pin and no run, so the figures leave it out. */
@@ -173,11 +196,15 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
             $this->seedExperiment($context, $project, $experiment, $headline, $metrics);
         }
         $this->seedBaselineExperiment($context, $project);
+        $this->seedBaselineExperiment($context, $project, self::SIX_VARIANTS_EXPERIMENT, self::SIX_VARIANT_COSTS, ['goal' => ['metric' => 'cost', 'better' => 'lower']]);
+        $this->seedBaselineExperiment($context, $project, self::SIX_NO_BASELINE_EXPERIMENT, \array_slice(self::SIX_VARIANT_COSTS, 0, 6, true), ['goal' => ['metric' => 'cost', 'better' => 'lower']], baseline: false);
         $this->seedPinnedExperiment($context, $project, self::EMPTY_EXPERIMENT);
         $this->seedPinnedExperiment($context, $project, self::ARCHIVED_EXPERIMENT);
         $this->seedArchive($project, self::ARCHIVED_EXPERIMENT, $context->now->modify('-1 hour'));
         $this->seedPublicLink($context, $project, self::EXPERIMENT, self::SHARED_EXPERIMENT_CODE, self::SHARED_EXPERIMENT_NOTE);
         $this->seedPublicLink($context, $project, self::BASELINE_EXPERIMENT, self::SHARED_BASELINE_EXPERIMENT_CODE, null);
+        $this->seedPublicLink($context, $project, self::SIX_VARIANTS_EXPERIMENT, self::SHARED_SIX_VARIANTS_EXPERIMENT_CODE, null);
+        $this->seedPublicLink($context, $project, self::SIX_NO_BASELINE_EXPERIMENT, self::SHARED_SIX_NO_BASELINE_EXPERIMENT_CODE, null);
     }
 
     /** Shares an experiment, so a worktree has a working public link. A stored link stays as it is. */
@@ -205,20 +232,25 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $this->em->flush();
     }
 
-    /** The variants cost what BASELINE_COSTS says, so the page shows each state of a row. A stored record stays as it is. */
-    private function seedBaselineExperiment(SeedContext $context, Project $project): void
+    /**
+     * The variants cost what $costs says, so the page shows each state of a row. A stored record stays as it is. The
+     * first variant is the baseline. Without a headline, the baseline experiment names its goal and its failed control.
+     *
+     * @param array<string, list<string>> $costs
+     * @param array<string, mixed>|null   $headline
+     */
+    private function seedBaselineExperiment(SeedContext $context, Project $project, string $experiment = self::BASELINE_EXPERIMENT, array $costs = self::BASELINE_COSTS, ?array $headline = null, bool $baseline = true): void
     {
-        $experiment = self::BASELINE_EXPERIMENT;
         $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
         if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
             if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
                 return;
             }
 
-            $definition = new ExperimentDefinition($project, $experiment, array_map(static fn (string $name): array => ['name' => $name, 'weight' => 1], array_keys(self::BASELINE_COSTS)));
-            $definition->baseline = 'opus';
+            $definition = new ExperimentDefinition($project, $experiment, array_map(static fn (string $name): array => ['name' => $name, 'weight' => 1], array_keys($costs)));
+            $definition->baseline = $baseline ? 'opus' : null;
             $definition->metrics = ['cost', 'merge-rate', 'duration', 'input-tokens', 'tool-time'];
-            $definition->headline = [
+            $definition->headline = $headline ?? [
                 'goal' => ['metric' => 'cost', 'better' => 'lower'],
                 'controls' => [['metric' => 'cost', 'variant' => 'codex', 'expect' => '< 1', 'share' => 1.0]],
             ];
@@ -234,8 +266,8 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         }
         $column ?? throw new \LogicException('The project has a done column.');
         $at = $context->now->modify('-20 days');
-        foreach (self::BASELINE_COSTS as $variant => $costs) {
-            foreach ($costs as $position => $cost) {
+        foreach ($costs as $variant => $variantCosts) {
+            foreach ($variantCosts as $position => $cost) {
                 $title = \sprintf('%s task %d', ucfirst($variant), $position + 1);
                 $key = $experiment.'/'.Slug::fromName($title);
                 $at = $at->modify('+20 hours');

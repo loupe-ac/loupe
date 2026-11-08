@@ -1,0 +1,73 @@
+{#
+  Props:  @comment-budget-ignore
+    layout   ExperimentPreviewLayout      The rows or cards, the header and the count of variants left out.
+    palette  array<string, mixed>         The hex colours of PreviewPalette. An SVG image has no CSS variables.
+
+  The 1200 by 630 image of a shared experiment: one row for each variant against a baseline, or value cards. The template holds no href, no image and no foreignObject, so the renderer loads no outside file.
+  Every text goes through Twig escaping, and PreviewText::fit cuts a text to its slot.
+#}
+{% set footerY = 561 %}
+{% set stripLeft = 250 %}
+{% set stripWidth = 370 %}
+{% set count = layout.items|length %}
+{# twig-cs-fixer-disable-line InlineSvg #}<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="DM Sans, DejaVu Sans, sans-serif">
+    <rect width="1200" height="630" fill="{{ palette.surface }}"/>
+    <text x="56" y="76" fill="{{ palette.text }}"><tspan font-size="26" font-weight="600">{{ layout.title|preview_fit(30) }}</tspan>{% if layout.subtitle != '' %}<tspan dx="16" font-size="20" fill="{{ palette.muted }}">{{ layout.subtitle|preview_fit(58) }}</tspan>{% endif %}</text>
+    {% if layout.rows %}
+        {% set top = 170 + (4 - count) * 39 %}
+        {% set last = top + (count - 1) * 78 %}
+        {% if layout.baselineAt is not null and count > 0 %}
+            {% set baselineX = stripLeft + layout.baselineAt / 100 * stripWidth %}
+            <line x1="{{ baselineX|round(2) }}" x2="{{ baselineX|round(2) }}" y1="{{ top - 40 }}" y2="{{ last + 34 }}" stroke="{{ palette.borderStrong }}" stroke-width="2" stroke-dasharray="10 8"/>
+            <text x="{{ baselineX|round(2) }}" y="{{ last + 60 }}" text-anchor="middle" font-size="16" fill="{{ palette.muted }}">{{ 'insights.public_link.preview.image.baseline'|trans }}</text>
+        {% endif %}
+        {% for item in layout.items %}
+            {% set y = top + loop.index0 * 78 %}
+            {% set chip = palette.chips[item.chipTone] %}
+            {% set chipLabel = item.chip|preview_fit(26) %}
+            <text x="56" y="{{ y }}" dominant-baseline="middle" font-size="26" font-weight="600" fill="{{ palette.text }}">{{ item.name|preview_fit(11) }}</text>
+            <line x1="{{ stripLeft }}" x2="{{ stripLeft + stripWidth }}" y1="{{ y }}" y2="{{ y }}" stroke="{{ palette.border }}" stroke-width="2"/>
+            {% if item.strip is not null %}
+                {% set from = stripLeft + item.strip.low / 100 * stripWidth %}
+                {% set to = stripLeft + item.strip.high / 100 * stripWidth %}
+                <rect x="{{ from|round(2) }}" y="{{ y - 9 }}" width="{{ max(to - from, 4)|round(2) }}" height="18" rx="9" fill="{{ palette.accentSoft }}"/>
+                <circle cx="{{ (stripLeft + item.strip.point / 100 * stripWidth)|round(2) }}" cy="{{ y }}" r="10" fill="{{ palette.accentInk }}"/>
+            {% endif %}
+            <text x="720" y="{{ y }}" text-anchor="end" dominant-baseline="middle" font-size="22" fill="{{ palette.dim }}">{{ item.value|preview_fit(8) }}</text>
+            {% if item.change is not null %}
+                <text x="830" y="{{ y }}" text-anchor="end" dominant-baseline="middle" font-size="30" font-weight="700" fill="{{ item.tone.value == 'better' ? palette.better : (item.tone.value == 'worse' ? palette.worse : palette.muted) }}">{{ item.change|preview_fit(8) }}</text>
+            {% endif %}
+            <rect x="850" y="{{ y - 16 }}" width="{{ chipLabel|length * 10 + 42 }}" height="32" rx="8" fill="{{ chip.background }}" stroke="{{ chip.border }}" stroke-width="1.5"/>
+            <circle cx="868" cy="{{ y }}" r="5" fill="{{ chip.dot }}"/>
+            <text x="882" y="{{ y }}" dominant-baseline="middle" font-size="18" font-weight="500" fill="{{ chip.ink }}">{{ chipLabel }}</text>
+        {% endfor %}
+        {% if layout.more > 0 %}
+            <text x="{{ stripLeft }}" y="{{ last + 104 }}" font-size="20" fill="{{ palette.muted }}">{{ 'insights.public_link.preview.image.more'|trans({'%count%': layout.more}) }}</text>
+        {% endif %}
+        <rect x="56" y="{{ footerY - 6 }}" width="32" height="12" rx="6" fill="{{ palette.accentSoft }}"/>
+        <text x="100" y="{{ footerY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.muted }}">{{ 'insights.public_link.preview.image.range'|trans }}</text>
+    {% else %}
+        {% set columns = count <= 3 ? max(count, 1) : 2 %}
+        {% set grid = max((count / columns)|round(0, 'ceil'), 1) %}
+        {% set cardWidth = (1088 - (columns - 1) * 24) / columns %}
+        {% set cardHeight = min((380 - (grid - 1) * 24) / grid, 200) %}
+        {% set gridTop = 112 + (400 - (grid * cardHeight + (grid - 1) * 24)) / 2 %}
+        {% for item in layout.items %}
+            {% set left = 56 + (loop.index0 % columns) * (cardWidth + 24) %}
+            {% set top = gridTop + (loop.index0 // columns) * (cardHeight + 24) %}
+            <rect x="{{ left|round(2) }}" y="{{ top|round(2) }}" width="{{ cardWidth|round(2) }}" height="{{ cardHeight|round(2) }}" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2"/>
+            <text x="{{ (left + 36)|round(2) }}" y="{{ (top + cardHeight / 2 - 30)|round(2) }}" dominant-baseline="middle" font-size="26" font-weight="600" fill="{{ palette.text }}">{{ item.name|preview_fit(18) }}</text>
+            <text x="{{ (left + 36)|round(2) }}" y="{{ (top + cardHeight / 2 + 30)|round(2) }}" dominant-baseline="middle" font-size="56" font-weight="700" fill="{{ palette.text }}">{{ item.value|preview_fit(12) }}</text>
+        {% endfor %}
+        {% if layout.more > 0 %}
+            <text x="56" y="{{ footerY }}" dominant-baseline="middle" font-size="20" fill="{{ palette.muted }}">{{ 'insights.public_link.preview.image.more'|trans({'%count%': layout.more}) }}</text>
+        {% endif %}
+    {% endif %}
+    <g transform="translate(956 {{ footerY - 14 }})" fill="{{ palette.muted }}">
+        <g transform="translate(14 14) rotate(-6)">
+            <rect x="-14" y="-14" width="28" height="28" rx="8" fill="{{ palette.accent }}"/>
+            <circle cx="0" cy="0" r="3.5" fill="none" stroke="{{ palette.chrome }}" stroke-width="3"/>
+        </g>
+        <text x="38" y="14" dominant-baseline="middle" font-size="18">{{ 'analytics.public.made_with'|trans }}</text>
+    </g>
+</svg>

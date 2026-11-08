@@ -9185,6 +9185,7 @@ workflow:
             <trans-unit id="analytics.public.series.bridge"><source>analytics.public.series.bridge</source><target>Bridge %number%</target></trans-unit>
             <trans-unit id="analytics.public.series.bridge_account"><source>analytics.public.series.bridge_account</source><target>Bridge %bridge% / Account %account% %window%</target></trans-unit>
             <trans-unit id="analytics.public.broken"><source>analytics.public.broken</source><target>This graph cannot be drawn right now.</target></trans-unit>
+            <trans-unit id="analytics.public.legend_more"><source>analytics.public.legend_more</source><target>+%count% more</target></trans-unit>
             <trans-unit id="analytics.public.made_with"><source>analytics.public.made_with</source><target>Made with Loupe</target></trans-unit>
             <trans-unit id="analytics.public.title"><source>analytics.public.title</source><target>%graph% · %project%</target></trans-unit>
             <trans-unit id="insights.public_link.block.flag_off"><source>insights.public_link.block.flag_off</source><target>Public links are switched off on this instance.</target></trans-unit>
@@ -9201,6 +9202,16 @@ workflow:
             <trans-unit id="insights.public_link.admin_bar.text"><source>insights.public_link.admin_bar.text</source><target>You see this bar because you are an admin.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.action"><source>insights.public_link.admin_bar.action</source><target>Take down the public links of this project</target></trans-unit>
             <trans-unit id="insights.public_link.experiment.totals_only"><source>insights.public_link.experiment.totals_only</source><target>Totals only. The cards of each variant stay private.</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.goal_line"><source>insights.public_link.preview.goal_line</source><target>{0}%metric%, no variants against %baseline%|{1}%metric%, %count% variant against %baseline%|]1,Inf[%metric%, %count% variants against %baseline%</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.goal_line_no_baseline"><source>insights.public_link.preview.goal_line_no_baseline</source><target>{0}%metric%, no variants|{1}%metric%, %count% variant|]1,Inf[%metric%, %count% variants</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.experiment_line"><source>insights.public_link.preview.experiment_line</source><target>A shared experiment of the project %project%.</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image_alt"><source>insights.public_link.preview.image_alt</source><target>Preview image of %name% from the project %project%</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.against"><source>insights.public_link.preview.image.against</source><target>each variant against %baseline% (%value%)</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.better_lower"><source>insights.public_link.preview.image.better_lower</source><target>lower is better</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.better_higher"><source>insights.public_link.preview.image.better_higher</source><target>higher is better</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.baseline"><source>insights.public_link.preview.image.baseline</source><target>baseline</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.range"><source>insights.public_link.preview.image.range</source><target>likely range</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image.more"><source>insights.public_link.preview.image.more</source><target>{0}No more variants|{1}+%count% more variant|]1,Inf[+%count% more variants</target></trans-unit>
             <trans-unit id="insights.admin.public_links.page.title"><source>insights.admin.public_links.page.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.title"><source>insights.admin.public_links.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.unit"><source>insights.admin.public_links.unit</source><target>project</target></trans-unit>
@@ -9554,6 +9565,9 @@ workflow:
             <trans-unit id="check.oauth_keys.label"><source>check.oauth_keys.label</source><target>OAuth keys</target></trans-unit>
             <trans-unit id="oauth.system_status.keys.ok"><source>oauth.system_status.keys.ok</source><target>The OAuth signing key pair and the encryption key are set and readable.</target></trans-unit>
             <trans-unit id="oauth.system_status.keys.missing"><source>oauth.system_status.keys.missing</source><target>The OAuth keys are missing or unreadable, so no app can connect. Set OAUTH_PRIVATE_KEY, OAUTH_PUBLIC_KEY and OAUTH_ENCRYPTION_KEY.</target></trans-unit>
+            <trans-unit id="check.preview_renderer.label"><source>check.preview_renderer.label</source><target>Preview images</target></trans-unit>
+            <trans-unit id="insights.system_status.preview_renderer.ok"><source>insights.system_status.preview_renderer.ok</source><target>The rsvg-convert tool renders a share preview image.</target></trans-unit>
+            <trans-unit id="insights.system_status.preview_renderer.failed"><source>insights.system_status.preview_renderer.failed</source><target>The rsvg-convert tool is missing or fails, so a share link has no preview image. Install the rsvg-convert package.</target></trans-unit>
             <trans-unit id="check.web_push.label"><source>check.web_push.label</source><target>Web push</target></trans-unit>
             <trans-unit id="notifications.system_status.web_push.available"><source>notifications.system_status.web_push.available</source><target>Web push is on. The key pair is valid, so a device can subscribe and receive a push.</target></trans-unit>
             <trans-unit id="notifications.system_status.web_push.flag_off"><source>notifications.system_status.web_push.flag_off</source><target>Web push is off. Set the key pair, then switch on the notifications.web_push.enabled flag.</target></trans-unit>

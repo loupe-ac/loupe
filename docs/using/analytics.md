@@ -480,6 +480,24 @@ does not change after that. A renamed bridge keeps its number.
 A graph whose metric is gone shows "This graph cannot be drawn right now." The
 page gives no reason.
 
+### Link previews
+
+A chat app that gets the link shows a preview of it. The preview has a title,
+a description and an image. The title is the name of the graph and the name of
+the project. The description is the settings line of the graph. The image is a
+picture of the chart, in the chart type, size and legend that you saved. It shows
+the numbers of the kept result, and "Made with Loupe".
+
+The worker draws the image when you turn the link on. It draws it again after
+each new result that it keeps for the graph. The address of the image carries the
+version of the result, so a link that someone pastes after a new result gets a
+new image.
+
+A chat app keeps a preview after it fetches the link. A link that someone
+already pasted can show older numbers than the page, and the app decides when it
+asks again. A link that is switched off, removed or taken down gives no preview,
+because the page and the image show "not found".
+
 ### When the link shows "not found"
 
 The link shows "not found", the same page as an unknown address, in these cases:

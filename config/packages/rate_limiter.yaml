@@ -218,6 +218,12 @@ framework:
             limit: 60
             interval: '1 minute'
 
+        # A chat app spends two fetches for one paste: the page and its image.
+        public_link_image:
+            policy: 'sliding_window'
+            limit: 120
+            interval: '1 minute'
+
 # The e2e suite drives one dev instance, and PHPUnit drives one kernel, both
 # from a single client address. A per-address limit therefore accumulates across
 # unrelated specs. Relax it there, never in prod.
@@ -225,6 +231,10 @@ when@dev:
     framework:
         rate_limiter:
             public_link:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            public_link_image:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'
@@ -289,6 +299,10 @@ when@test:
     framework:
         rate_limiter:
             public_link:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            public_link_image:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

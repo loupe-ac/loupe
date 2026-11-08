@@ -1,12 +1,5 @@
 {# A shared graph with no grip and no actions. It draws the series names of the public result and no other name.
-   Props: graph (InsightsSavedGraph), result (DashboardGraphResult or null for a graph that cannot be drawn). #}
-{% set settings = [
-    ('analytics.metrics.unit.' ~ graph.unit.value)|trans,
-    ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans,
-    ('analytics.metrics.range.' ~ graph.range.value)|trans,
-    ('analytics.metrics.bucket.' ~ graph.bucket.value)|trans,
-    ('analytics.metrics.chart_type.' ~ graph.chartType.value|replace({'-': '_'}))|trans,
-]|join(' · ') %}
+   Props: graph (InsightsSavedGraph), result (DashboardGraphResult or null for a graph that cannot be drawn), settings (the plain settings line). #}
 {# The name is text that a person wrote, so the component prints it escaped. Never add |raw here. #}
 <twig:Ds:GraphTile
     :name="graph.name"
