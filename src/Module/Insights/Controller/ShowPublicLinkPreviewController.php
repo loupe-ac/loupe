@@ -32,8 +32,6 @@ use Symfony\Component\Routing\Attribute\Route;
 )]
 final class ShowPublicLinkPreviewController extends AppController
 {
-    private const int MAX_AGE = 300;
-
     public function __construct(
         private readonly ShowPublicLinkPreviewHandler $showPublicLinkPreview,
         private readonly LandingExtension $landing,
@@ -59,8 +57,7 @@ final class ShowPublicLinkPreviewController extends AppController
             $response->headers->set('Cache-Control', 'no-store');
         } else {
             $response = new Response($view->png, Response::HTTP_OK, ['Content-Type' => 'image/png']);
-            $response->setPublic();
-            $response->setMaxAge(self::MAX_AGE);
+            $response->headers->set('Cache-Control', 'no-store');
             $response->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, 'true');
         }
         \Sentry\traceMetrics()->distribution('public_preview.serve_ms', (hrtime(true) - $startedAt) / 1_000_000, ['source' => $view->source], Unit::millisecond());

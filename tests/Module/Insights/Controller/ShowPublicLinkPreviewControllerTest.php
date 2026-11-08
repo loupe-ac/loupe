@@ -25,7 +25,7 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
 
     private const string PNG = "\x89PNG\r\n\x1a\n";
 
-    public function test_a_kept_png_of_the_current_version_is_served_with_a_public_cache_header(): void
+    public function test_a_kept_png_of_the_current_version_is_served_with_no_store_so_a_hidden_link_leaves_no_cached_image(): void
     {
         $client = $this->client();
         $link = $this->sharedCostGraph('image-kept');
@@ -38,8 +38,9 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
         self::assertSame($kept, $client->getResponse()->getContent());
         self::assertResponseHeaderSame('Content-Type', 'image/png');
         $cacheControl = (string) $client->getResponse()->headers->get('Cache-Control');
-        self::assertStringContainsString('public', $cacheControl);
-        self::assertStringContainsString('max-age=300', $cacheControl);
+        self::assertStringContainsString('no-store', $cacheControl);
+        self::assertStringNotContainsString('public', $cacheControl);
+        self::assertStringNotContainsString('max-age', $cacheControl);
     }
 
     public function test_the_image_sets_no_cookie_and_starts_no_session(): void
