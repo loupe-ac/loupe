@@ -17,6 +17,7 @@ use App\Module\Insights\Command\SetGraphPublicLinkHandler;
 use App\Module\Insights\Command\UpdateSavedGraphCommand;
 use App\Module\Insights\Command\UpdateSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Messenger\DrawPublicPreview;
 use App\Module\Insights\Messenger\RefreshInsightsItem;
 use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\InsightsResultKeeper;
@@ -108,7 +109,8 @@ final class InsightsRefreshRequestsTest extends KernelTestCase
         $this->em()->flush();
 
         $this->service(SetGraphPublicLinkHandler::class)(new SetGraphPublicLinkCommand($graph, true));
-        $this->assertAskedForGraph($graph);
+        $this->assertAskedForGraph($graph, 2);
+        self::assertInstanceOf(DrawPublicPreview::class, $this->transport()->getSent()[1]->getMessage());
 
         $this->transport()->reset();
         $this->service(SetGraphPublicLinkHandler::class)(new SetGraphPublicLinkCommand($graph, false));
@@ -123,7 +125,8 @@ final class InsightsRefreshRequestsTest extends KernelTestCase
         $this->service(SetExperimentPublicLinkHandler::class)(new SetExperimentPublicLinkCommand($project, 'trial', true, null));
 
         $sent = $this->transport()->getSent();
-        self::assertCount(1, $sent);
+        self::assertCount(2, $sent);
+        self::assertInstanceOf(DrawPublicPreview::class, $sent[1]->getMessage());
         $message = $sent[0]->getMessage();
         self::assertInstanceOf(RefreshInsightsItem::class, $message);
         self::assertSame('trial', $message->experiment);
@@ -158,10 +161,10 @@ final class InsightsRefreshRequestsTest extends KernelTestCase
         self::assertCount(3, $this->transport()->getSent());
     }
 
-    private function assertAskedForGraph(InsightsSavedGraph $graph): void
+    private function assertAskedForGraph(InsightsSavedGraph $graph, int $messages = 1): void
     {
         $sent = $this->transport()->getSent();
-        self::assertCount(1, $sent);
+        self::assertCount($messages, $sent);
         $message = $sent[0]->getMessage();
         self::assertInstanceOf(RefreshInsightsItem::class, $message);
         self::assertSame((string) $graph->id, $message->graphId);

@@ -12,12 +12,15 @@ use App\Module\Bridge\Command\ListExperimentsHandler;
 use App\Module\Insights\Command\SetExperimentPublicLinkCommand;
 use App\Module\Insights\Command\SetExperimentPublicLinkHandler;
 use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Messenger\DrawPublicPreview;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Service\PublicLinkCode;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class SetExperimentPublicLinkHandlerTest extends KernelTestCase
@@ -157,6 +160,22 @@ final class SetExperimentPublicLinkHandlerTest extends KernelTestCase
         $this->share($project, 'trial', false, null);
 
         self::assertSame(['trial'], $this->archivedNames($project));
+    }
+
+    public function test_turning_an_experiment_link_on_asks_for_its_preview_image(): void
+    {
+        $project = $this->projectWithExperiment('share-preview', 'trial');
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $this->share($project, 'trial', true, null);
+
+        $drawn = array_filter(
+            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof DrawPublicPreview,
+        );
+        self::assertCount(1, $drawn);
     }
 
     private function projectWithExperiment(string $name, string $experiment): Project

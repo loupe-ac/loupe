@@ -2,6 +2,14 @@
 
 {% block title %}{{ 'analytics.public.title'|trans({'%graph%': view.itemName, '%project%': view.project.name}) }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block description %}{{ view.description }}{% endblock %}
+
+{% block og_title %}{{ view.itemName }} · {{ view.project.name }}{% endblock %}
+
+{% block og_image %}{{ public_url(path('app_public_link_preview', {code: view.code})) ~ '?v=' ~ view.previewVersion }}{% endblock %}
+
+{% block og_image_alt %}{{ 'insights.public_link.preview.image_alt'|trans({'%name%': view.itemName, '%project%': view.project.name}) }}{% endblock %}
+
 {% block public_bar %}
     {% set takedownUrl = public_link_takedown_url(view.code) %}
     {% if takedownUrl is not null %}
@@ -19,7 +27,7 @@
         {% if view.isExperiment %}
             {% include '@Insights/public/_public_experiment.html.twig' with {experiment: view.experiment, noteHtml: view.noteHtml} only %}
         {% else %}
-            {% include '@Insights/public/_public_graph.html.twig' with {graph: view.graph, result: view.result} only %}
+            {% include '@Insights/public/_public_graph.html.twig' with {graph: view.graph, result: view.result, settings: view.description} only %}
         {% endif %}
         <div class="lp-public__meta">
             <span data-dashboard-age-target="line"{% if computedAt is null %} hidden{% endif %}>

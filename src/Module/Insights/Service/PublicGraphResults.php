@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Insights\Service;
 
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\View\ChartBox;
 use App\Module\Insights\View\DashboardGraphResult;
+use App\Module\Insights\View\KeptGraphResult;
+use App\Module\Project\Entity\Project;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -30,8 +33,15 @@ final readonly class PublicGraphResults
     /** @return DashboardGraphResult|null null when the graph names something the project no longer has */
     public function forGraph(InsightsSavedGraph $graph): ?DashboardGraphResult
     {
-        $project = $graph->project;
-        if ([] !== $this->health->check($project, [$graph])) {
+        $kept = $this->kept($graph);
+
+        return null === $kept ? null : $this->view($graph->project, $kept);
+    }
+
+    /** @return KeptGraphResult|null null when the graph names something the project no longer has */
+    public function kept(InsightsSavedGraph $graph): ?KeptGraphResult
+    {
+        if ([] !== $this->health->check($graph->project, [$graph])) {
             return null;
         }
         $kept = $this->results->get($graph);
@@ -39,6 +49,11 @@ final readonly class PublicGraphResults
             $kept = $this->keeper->graph($graph);
         }
 
-        return $this->labels->apply($project, $this->keptView->build($kept, \Locale::getDefault()));
+        return $kept;
+    }
+
+    public function view(Project $project, KeptGraphResult $kept, ChartBox $box = new ChartBox()): DashboardGraphResult
+    {
+        return $this->labels->apply($project, $this->keptView->build($kept, \Locale::getDefault(), $box));
     }
 }

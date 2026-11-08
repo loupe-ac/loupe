@@ -111,6 +111,40 @@ shows no card, no card number you did not write in the note, no account name,
 no bridge name and no person. It does not list unknown metrics or unknown
 guards.
 
+### Link previews
+
+A chat app that gets the link shows a preview of it. The preview has a title,
+a description and an image. The title is the name of the experiment and the name
+of the project. The description is your note as plain text, cut after about 200
+characters. An experiment with no note shows its goal and the number of its
+variants, such as "Cost per merged card, 3 variants against opus". The image
+shows the comparison and "Made with Loupe".
+
+When the goal names a baseline, a metric and a better direction, the image has
+one row for each variant. A row shows the name, the likely range of the change
+around a dashed baseline line, the value, the signed change and the result chip
+of the page. A change in the better direction is green, and a change in the
+worse direction is red. The best change comes first. The rows of variants with
+no change, such as a variant that is short of data, come after the others.
+
+The image shows four rows at most, and then a line such as "+2 more variants".
+A variant that is short of data counts in that line when four variants already
+have a change. In every other case the image shows one card for each variant
+with its value of the goal, best first, and the same four-card limit. This
+holds when the experiment names no baseline and when the goal key is not a
+metric. For a goal key that is not a metric, the cards show the cost per merged
+card. A goal with no `better` key has no best variant, so its cards follow the
+order of the page, with no colour.
+
+The worker draws the image when you turn the link on. It draws it again after
+each new report that it keeps. The address of the image carries the version of
+the report, so a link that someone pastes after a new report gets a new image.
+
+A chat app keeps a preview after it fetches the link. A link that someone
+already pasted can show older numbers than the page, and the app decides when it
+asks again. A link that is switched off, archived or taken down gives no preview,
+because the page and the image show "not found".
+
 ### When the link shows "not found"
 
 The link shows "not found", the same page as an unknown address, in these cases:

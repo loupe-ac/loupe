@@ -18,6 +18,8 @@ use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\Service\PublicGraphResults;
 use App\Module\Insights\Service\PublicSeriesLabels;
 use App\Module\Insights\Service\SavedGraphHealth;
+use App\Module\Insights\View\ChartBox;
+use App\Module\Insights\View\LineLayout;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use Psr\Clock\ClockInterface;
@@ -112,6 +114,47 @@ final class PublicGraphResultsTest extends KernelTestCase
         $this->publicResultsWithClock($clock)->forGraph($graph);
 
         self::assertGreaterThan($old, $this->dashboardResults()->get($graph)?->computedAt);
+    }
+
+    public function test_a_broken_graph_has_no_kept_result(): void
+    {
+        $graph = $this->seedSavedGraph($this->scenarioProject('public-kept-broken'), 'Tests', 0);
+
+        self::assertNull($this->publicResults()->kept($graph));
+        self::assertNull($this->dashboardResults()->get($graph));
+    }
+
+    public function test_the_view_of_a_kept_result_is_what_the_share_page_shows(): void
+    {
+        $project = $this->scenarioProject('public-view');
+        $em = $this->em();
+        $this->seedUsage($em, $this->seedRun($em, $project, cardNumber: 1, endedAt: new \DateTimeImmutable('-5 days')), costUsd: '3.00');
+        $graph = $this->costGraph($project);
+        $results = $this->publicResults();
+
+        $kept = $results->kept($graph);
+
+        self::assertNotNull($kept);
+        self::assertEquals($results->forGraph($graph), $results->view($project, $kept));
+    }
+
+    public function test_the_view_draws_into_the_box_it_is_given(): void
+    {
+        $project = $this->scenarioProject('public-box');
+        $em = $this->em();
+        $this->seedUsage($em, $this->seedRun($em, $project, cardNumber: 1, endedAt: new \DateTimeImmutable('-5 days')), costUsd: '3.00');
+        $graph = $this->costGraph($project);
+        $results = $this->publicResults();
+        $kept = $results->kept($graph);
+        self::assertNotNull($kept);
+
+        $default = $results->view($project, $kept)->layout;
+        $preview = $results->view($project, $kept, ChartBox::preview())->layout;
+
+        self::assertInstanceOf(LineLayout::class, $default);
+        self::assertInstanceOf(LineLayout::class, $preview);
+        self::assertNotEquals($default->yTicks[0]->position, $preview->yTicks[0]->position);
+        self::assertSame((float) ChartBox::preview()->baseline, $preview->yTicks[0]->position);
     }
 
     private function costGraph(Project $project): InsightsSavedGraph

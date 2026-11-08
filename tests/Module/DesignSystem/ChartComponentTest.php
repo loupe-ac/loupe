@@ -12,6 +12,7 @@ use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\DesignSystem\Catalog;
 use App\Module\Insights\View\BarLayout;
+use App\Module\Insights\View\ChartBox;
 use App\Module\Insights\View\DonutLayout;
 use App\Module\Insights\View\LineLayout;
 use App\Module\Insights\View\MetricChartSpecimen;
@@ -277,6 +278,32 @@ final class ChartComponentTest extends KernelTestCase
         self::assertCount(0, $crawler->filter('template'));
         self::assertCount(0, $crawler->filter('.lp-chart__target[aria-describedby]'));
         self::assertSame('No values to show', trim($crawler->filter('.lp-chart__donut-note')->text()));
+    }
+
+    public function test_a_resized_donut_centres_its_text_and_ring_on_the_view_box(): void
+    {
+        $formatter = new MetricValueFormatter('en');
+        $metric = new MetricShape(new MetricKey(Metric::Runs));
+        $size = ChartBox::preview()->height;
+        $centre = (string) ($size / 2);
+
+        $empty = DonutLayout::build($metric, MetricStatistic::Sum, [ChartSeries::total('a', 0), ChartSeries::total('b', 0)], $formatter, ChartBox::preview());
+        self::assertNotNull($empty);
+        $crawler = $this->chart($empty, ['a', 'b']);
+        self::assertSame("0 0 {$size} {$size}", $crawler->filter('svg.lp-chart__svg')->attr('viewBox'));
+        self::assertSame((string) $size, $crawler->filter('svg.lp-chart__svg')->attr('data-size'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__ring-empty')->attr('cx'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__ring-empty')->attr('cy'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__donut-note')->attr('x'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__donut-note')->attr('y'));
+
+        $full = DonutLayout::build($metric, MetricStatistic::Sum, [ChartSeries::total('a', 3), ChartSeries::total('b', 1)], $formatter, ChartBox::preview());
+        self::assertNotNull($full);
+        $crawler = $this->chart($full, ['a', 'b']);
+        self::assertSame($centre, $crawler->filter('.lp-chart__donut-total')->attr('x'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__donut-total')->attr('y'));
+        self::assertSame($centre, $crawler->filter('.lp-chart__donut-caption')->attr('x'));
+        self::assertGreaterThan((float) $centre, (float) $crawler->filter('.lp-chart__donut-caption')->attr('y'));
     }
 
     public function test_a_bucket_with_no_rows_has_no_hover_target_and_no_template(): void
