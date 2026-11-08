@@ -153,11 +153,11 @@ A message waits when it is due and no worker holds a live claim on it. A claim s
 
 Each gauge has two attributes. `queue_name` is the queue in the database: `interactive`, `jobs`, `card_eval`, `card_sweep` and `failed`. Each queue has the name of its transport. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
 
-Create three metric monitors in Sentry once the first points arrive:
+Create these metric monitors in Sentry once the first points arrive. Each one uses a 5-minute window, because Sentry refuses a shorter window for a metric monitor. A monitor on `min(messenger.queue.oldest_age)` alerts only when every point of the window is above the limit, so one slow minute does not alert.
 
-1. **Stuck queue.** Monitor `max(messenger.queue.oldest_age)` with the filter `queue_name:!failed`. Alert when it stays above 60 seconds for 5 minutes. The `failed` queue is left out, because its oldest age grows until somebody clears it.
+1. **Stuck queue.** Create one monitor for each of `interactive`, `jobs` and `card_sweep`. Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:<queue>`. Alert when it is above 60 seconds. One monitor over several queues does not work, because its minimum is the age of the queue that moves best. The `failed` queue is left out, because its oldest age grows until somebody clears it.
 2. **Failed messages.** Monitor `max(messenger.queue.pending)` with the filter `queue_name:failed`. Alert when it is above 0. [Failed messages](failed-messages.md) says how to retry or remove them.
-3. **Slow card checks.** Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:card_eval`, over a 5-minute window. Alert when it is above 30 seconds. The minimum is above 30 seconds only when every point of the window is, so the monitor ignores one slow minute. Sentry refuses a window shorter than 5 minutes for a metric monitor. The first monitor covers every queue at a higher limit, and this one catches a delay in the queue that holds the card checks.
+3. **Slow card checks.** Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:card_eval`. Alert when it is above 30 seconds. This queue holds the card checks, so it gets a lower limit than the queues of monitor 1.
 
 ## Worker timing metrics
 
