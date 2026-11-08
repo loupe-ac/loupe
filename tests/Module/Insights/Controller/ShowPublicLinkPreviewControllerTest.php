@@ -216,6 +216,17 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function test_the_site_host_of_a_split_instance_serves_the_image(): void
+    {
+        $client = $this->client(siteHost: 'loupe.example');
+        $link = $this->sharedCostGraph('image-site-host');
+
+        $client->request(Request::METHOD_GET, $this->url($link), server: ['HTTP_HOST' => 'loupe.example']);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'image/png');
+    }
+
     private function assertGenericImage(KernelBrowser $client): void
     {
         self::assertResponseRedirects();
@@ -245,9 +256,9 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
         return $entries;
     }
 
-    private function client(string $tool = __DIR__.'/../Preview/fake-rsvg-convert'): KernelBrowser
+    private function client(string $tool = __DIR__.'/../Preview/fake-rsvg-convert', string $siteHost = ''): KernelBrowser
     {
-        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = '';
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $siteHost;
         $client = static::createClient();
         $client->disableReboot();
         InstalledInstance::ensure(static::getContainer());

@@ -41,6 +41,7 @@ final readonly class PublicPages
         'app_faq',
         'app_site_about',
         'app_public_link',
+        'app_public_link_preview',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_waitlist_modal',
