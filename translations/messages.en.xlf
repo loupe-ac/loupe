@@ -9059,7 +9059,11 @@ workflow:
             <trans-unit id="analytics.dashboard.broken.bucket"><source>analytics.dashboard.broken.bucket</source><target>No time bucket rule names the bucket %name% now.</target></trans-unit>
             <trans-unit id="analytics.dashboard.broken.harness_event"><source>analytics.dashboard.broken.harness_event</source><target>No run of this project records the harness event %name% now.</target></trans-unit>
             <trans-unit id="analytics.dashboard.empty.title"><source>analytics.dashboard.empty.title</source><target>No graphs on the Dashboard yet</target></trans-unit>
-            <trans-unit id="analytics.dashboard.updated"><source>analytics.dashboard.updated</source><target>Updated %minutes% min ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated.minutes"><source>analytics.dashboard.updated.minutes</source><target>Updated %count% min ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated.hour"><source>analytics.dashboard.updated.hour</source><target>Updated 1 hour ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated.hours"><source>analytics.dashboard.updated.hours</source><target>Updated %count% hours ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated.day"><source>analytics.dashboard.updated.day</source><target>Updated 1 day ago</target></trans-unit>
+            <trans-unit id="analytics.dashboard.updated.days"><source>analytics.dashboard.updated.days</source><target>Updated %count% days ago</target></trans-unit>
             <trans-unit id="analytics.public.series.account"><source>analytics.public.series.account</source><target>Account %number%</target></trans-unit>
             <trans-unit id="analytics.public.series.bridge"><source>analytics.public.series.bridge</source><target>Bridge %number%</target></trans-unit>
             <trans-unit id="analytics.public.series.bridge_account"><source>analytics.public.series.bridge_account</source><target>Bridge %bridge% / Account %account% %window%</target></trans-unit>

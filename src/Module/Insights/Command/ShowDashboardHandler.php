@@ -8,6 +8,7 @@ use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkTakedownRepository;
 use App\Module\Insights\Service\DashboardGraphResults;
 use App\Module\Insights\Service\GraphShareStates;
+use App\Module\Insights\Service\InsightsProjectActivities;
 use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\KeptGraphView;
 use App\Module\Insights\Service\SavedGraphCap;
@@ -16,7 +17,10 @@ use App\Module\Insights\View\DashboardTileView;
 use App\Module\Insights\View\DashboardView;
 use Psr\Clock\ClockInterface;
 
-/** Reads the Dashboard. It computes nothing: a tile with no kept result waits, and the page asks the worker for it. */
+/**
+ * Reads the Dashboard. It computes nothing: a tile with no kept result waits, and the page asks the worker for it. A view
+ * of a dormant project asks the worker for every graph, and draws the old results with their real age.
+ */
 final readonly class ShowDashboardHandler
 {
     public function __construct(
@@ -28,6 +32,7 @@ final readonly class ShowDashboardHandler
         private GraphShareStates $shares,
         private PublicLinkTakedownRepository $publicLinkTakedowns,
         private InsightsRefreshRequester $refreshes,
+        private InsightsProjectActivities $activities,
         private ClockInterface $clock,
     ) {
     }
@@ -35,6 +40,7 @@ final readonly class ShowDashboardHandler
     public function __invoke(ShowDashboardCommand $command): DashboardView
     {
         $project = $command->project;
+        $this->activities->recordView((string) $project->requireId());
         $graphs = $this->insightsSavedGraphs->findActive($project);
         $broken = $this->health->check($project, $graphs);
 

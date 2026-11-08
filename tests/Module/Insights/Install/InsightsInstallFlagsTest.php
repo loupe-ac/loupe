@@ -36,4 +36,16 @@ final class InsightsInstallFlagsTest extends TestCase
         self::assertSame(FeatureFlagType::Int, $defaults[InsightsRefreshSettings::SLOW_NOTICE_FLAG]->type);
         self::assertSame(30, $defaults[InsightsRefreshSettings::SLOW_NOTICE_FLAG]->value);
     }
+
+    public function test_a_project_goes_dormant_after_seven_days_by_default(): void
+    {
+        $defaults = [];
+        foreach (new InsightsInstallFlags()->defaults(new SeedInstallFlagsCommand(10, true, false, 0, null, false, false)) as $default) {
+            $defaults[$default->name] = $default;
+        }
+
+        self::assertArrayHasKey(InsightsRefreshSettings::DORMANT_DAYS_FLAG, $defaults);
+        self::assertSame(FeatureFlagType::Int, $defaults[InsightsRefreshSettings::DORMANT_DAYS_FLAG]->type);
+        self::assertSame(7, $defaults[InsightsRefreshSettings::DORMANT_DAYS_FLAG]->value);
+    }
 }

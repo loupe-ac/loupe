@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Service;
 
+use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Service\InsightsDataKind;
 use App\Module\Insights\Service\InsightsDataKinds;
@@ -49,6 +50,22 @@ final class InsightsDataKindsTest extends KernelTestCase
         self::assertTrue($kinds->experimentReads(InsightsDataKind::BucketTimes));
         self::assertTrue($kinds->experimentReads(InsightsDataKind::Cards));
         self::assertFalse($kinds->experimentReads(InsightsDataKind::Readings));
+    }
+
+    public function test_the_sweep_keeps_a_rolling_range_and_a_template_metric_fresh(): void
+    {
+        $graph = $this->seedSavedGraph($this->scenarioProject('kinds-sweep-'.uniqid()));
+        $kinds = self::getContainer()->get(InsightsDataKinds::class);
+        self::assertInstanceOf(InsightsDataKinds::class, $kinds);
+
+        self::assertTrue($kinds->sweeps($graph));
+
+        $graph->range = MetricRange::All;
+        $graph->metric = 'cost';
+        self::assertFalse($kinds->sweeps($graph));
+
+        $graph->metric = 'review-rounds';
+        self::assertTrue($kinds->sweeps($graph));
     }
 
     /** @return list<InsightsDataKind> */

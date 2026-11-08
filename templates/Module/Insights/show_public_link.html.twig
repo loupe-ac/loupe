@@ -14,7 +14,7 @@
 
 {% block public_body %}
     {% set computedAt = view.isExperiment ? view.experiment.computedAt : (view.result ? view.result.computedAt : null) %}
-    <div class="lp-public__item" data-controller="dashboard-age" data-dashboard-age-now-value="{{ date().timestamp }}" data-dashboard-age-text-value="{{ 'analytics.dashboard.updated'|trans({'%minutes%': '%minutes%'}) }}">
+    <div class="lp-public__item" data-controller="dashboard-age" data-dashboard-age-now-value="{{ date().timestamp }}" data-dashboard-age-texts-value="{{ dashboard_age_texts()|json_encode }}">
         <p class="lp-public__project">{{ view.project.name }}</p>
         {% if view.isExperiment %}
             {% include '@Insights/public/_public_experiment.html.twig' with {experiment: view.experiment, noteHtml: view.noteHtml} only %}
@@ -24,7 +24,7 @@
         <div class="lp-public__meta">
             <span data-dashboard-age-target="line"{% if computedAt is null %} hidden{% endif %}>
                 {%- if computedAt is not null -%}
-                    {{ 'analytics.dashboard.updated'|trans({'%minutes%': max(0, (date().timestamp - computedAt.timestamp) // 60)}) }}
+                    {{ dashboard_age_text((date().timestamp - computedAt.timestamp)) }}
                 {%- endif -%}
             </span>
             <a href="{{ site_url('/') }}" data-turbo="false" class="lp-public__made-with">{{ 'analytics.public.made_with'|trans }}</a>

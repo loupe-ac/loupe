@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Service;
 
 use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Workflow\Contract\TemplateMetrics;
@@ -40,6 +41,18 @@ final readonly class InsightsDataKinds
         }
 
         return $kinds;
+    }
+
+    /** Whether the sweep keeps the graph fresh: a rolling range, or a template metric that no data event covers. */
+    public function sweeps(InsightsSavedGraph $graph): bool
+    {
+        return MetricRange::All !== $graph->range || null === Metric::tryFrom(explode(':', $graph->metric, 2)[0]);
+    }
+
+    /** @return list<string> the keys of the built-in metrics */
+    public function builtInMetrics(): array
+    {
+        return array_map(static fn (Metric $metric): string => $metric->value, Metric::cases());
     }
 
     /** A shared experiment reads these kinds, and its own setup. */
