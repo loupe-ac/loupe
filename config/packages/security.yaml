@@ -186,6 +186,8 @@ security:
         - { path: ^/faq$, roles: PUBLIC_ACCESS }
         # A shared graph or experiment. The code is 12 characters, and the page answers 404 for any code it does not show.
         - { path: '^/s/[a-z2-7]{12}$', roles: PUBLIC_ACCESS }
+        # The preview image of that page. A chat app fetches it with no session.
+        - { path: '^/s/[a-z2-7]{12}/preview\.png$', roles: PUBLIC_ACCESS }
         # Crawlers fetch these without a session. Both answer from the public page list.
         - { path: ^/robots\.txt$,    roles: PUBLIC_ACCESS }
         - { path: ^/sitemap\.xml$,   roles: PUBLIC_ACCESS }
