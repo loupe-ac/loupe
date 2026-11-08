@@ -71,9 +71,9 @@ Read the log file until it shows a page URL and a code. Show both to the user, a
 - With no terminal, `loupe init` skips the Playwright browser. If the rule file does not set `autoUpdate` yet, it also answers no to automatic updates. Tell the user, and give them `loupe update auto on` and `loupe init` for later.
 - If the command ends with an error, show the output to the user and stop.
 
-`loupe init` writes the gate commands of `.loupe/lifecycle.md` from the files it finds, such as a `justfile`. It does not read the rules in `CLAUDE.md` or `AGENTS.md`. Read those files, and propose to the user any gate rule that `.loupe/lifecycle.md` does not have yet, such as a command order or a test that must run alone.
+`loupe init` writes no gate commands. The rules of the repository live in `CLAUDE.md`, `AGENTS.md` and the repository skills. The optional `## Routing` table of `.loupe/lifecycle.md` names the skills that each stage loads. Read the instruction files, and propose to the user a routing line for any skill that a stage needs, such as the skill that holds the gate.
 
-Tell the user to commit `.loupe/lifecycle.md`, because a worker sees only what the user pushes.
+Tell the user to commit `.loupe/lifecycle.md` when it changes, because a worker sees only what the user pushes.
 
 ## 4. Check
 
