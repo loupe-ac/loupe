@@ -129,6 +129,7 @@ func TestAManagedWorkerNamesTheInstalledBinaryInBothHelpers(t *testing.T) {
 	if err != nil || !strings.Contains(string(wrapper), "/installed/loupe") {
 		t.Fatalf("wrapper = %q, %v", wrapper, err)
 	}
+	spec.runDir = t.TempDir()
 	creds, _, err := spec.credentialEnv(context.Background())
 	if err != nil || creds.loupe != "/installed/loupe" {
 		t.Fatalf("creds = %+v, %v", creds, err)
