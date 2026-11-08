@@ -1,24 +1,14 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__panel lp-shot__panel--accent">
-            <div class="lp-shot__row">
-                {{ shot.icon('lucide:hand', 'sm') }}
-                <span class="lp-shot__heading">{{ 'landing.shot.waiting_for_a_person'|trans }}</span>
-            </div>
-            <p class="lp-shot__text">{{ 'landing.shot.tech_design_seasonal_rates_no_code'|trans }}</p>
-            <div class="lp-shot__row">
-                <span class="lp-shot__button lp-shot__button--primary">{{ shot.icon('lucide:check') }}{{ 'landing.shot.approve'|trans }}</span>
-                <span class="lp-shot__button">{{ 'landing.shot.ask_for_changes'|trans }}</span>
-            </div>
-        </div>
-        <div class="lp-shot__panel">
-            <div class="lp-shot__row">
-                <span class="lp-shot__mono lp-shot__dim">{{ '#47' }}</span>
-                <span class="lp-shot__strong">{{ 'landing.shot.preview_the_price_at_booking'|trans }}</span>
-                <span class="lp-shot__spacer">{{ shot.mark('waiting') }}</span>
-            </div>
-            <p class="lp-shot__text">{{ 'landing.shot.blocked_by_46_it_waits_until'|trans }}</p>
+        <div class="lp-card-overview lp-shot__section">
+            <section class="lp-card-overview__section">
+                    <twig:Ds:SectionHeading>{{ 'workflow.panel.title'|trans }}</twig:Ds:SectionHeading>
+                    <dl class="lp-card-fields">
+                        <div class="lp-card-field"><dt>{{ 'workflow.panel.slot.label'|trans }}</dt><dd>{{ 'workflow.slot.tech_design'|trans }}</dd></div>
+                        <div class="lp-card-field lp-card-field--prose"><dt>{{ 'workflow.panel.next_action'|trans }}</dt><dd>{{ 'workflow.panel.action.move'|trans({'%slot%': 'workflow.slot.implementation'|trans}) }}</dd></div>
+                        <div class="lp-card-field lp-card-field--wide lp-card-field--prose"><dt>{{ 'workflow.panel.waiting'|trans }}</dt><dd>{{ 'workflow.waiting.card_document_approved'|trans({'%tag%': 'tech-design'}) }}</dd></div>
+                    </dl>
+                </section>
         </div>
     </div>
 </div>

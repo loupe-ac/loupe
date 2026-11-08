@@ -1,0 +1,14 @@
+/* Pictures of the analytics feature page. */
+@layer components {
+    /* The picture is narrower than the app, so the title row and the result rows get narrower tracks. */
+    .lp-shot__metric-head {
+        @apply flex-wrap;
+    }
+    .lp-shot__experiment .lp-experiment-result__row {
+        @apply gap-4;
+        grid-template-columns: calc(var(--spacing) * 16) 1fr calc(var(--spacing) * 52);
+    }
+    .lp-shot__experiment .lp-experiment-heading__name {
+        @apply font-display;
+    }
+}

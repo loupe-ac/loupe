@@ -1,0 +1,13 @@
+/* Pictures of the inbox feature page. */
+@layer components {
+    .lp-shot__inbox-pane {
+        @apply p-6;
+    }
+    /* Room under the split button for its open menu. */
+    .lp-shot__canvas--menu {
+        @apply pb-64;
+    }
+    .lp-shot__push-icon {
+        @apply size-8 shrink-0 rounded-lg;
+    }
+}

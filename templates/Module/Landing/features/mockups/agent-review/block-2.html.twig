@@ -1,25 +1,46 @@
 {% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/agent-review/_parts.html.twig' as part %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <ol class="lp-shot__steps">
-            <li class="lp-shot__step">
-                <span class="lp-shot__step-mark lp-shot__step-mark--warn">{{ '1' }}</span>
-                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.review_round_1'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.3_findings_on_pull_request_118'|trans }}</span></span>
-            </li>
-            <li class="lp-shot__step">
-                <span class="lp-shot__step-mark lp-shot__step-mark--active">{{ shot.icon('lucide:wrench') }}</span>
-                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.fix_round_1'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.the_agent_pushes_to_the_same'|trans }}</span></span>
-                {{ shot.pill('landing.shot.pushed'|trans, 'ok') }}
-            </li>
-            <li class="lp-shot__step">
-                <span class="lp-shot__step-mark lp-shot__step-mark--ok">{{ shot.icon('lucide:check') }}</span>
-                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.review_round_2'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.no_findings'|trans }}</span></span>
-                {{ shot.pill('landing.shot.passed'|trans, 'ok') }}
-            </li>
-            <li class="lp-shot__step">
-                <span class="lp-shot__step-mark">{{ shot.icon('lucide:circle-user') }}</span>
-                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.card_comes_to_you'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.ready_for_a_last_look'|trans }}</span></span>
-            </li>
-        </ol>
+        <div class="lp-shot__document">
+            <h2 class="lp-section-heading__title">{{ 'Tech design: Nightly price on the search card' }}</h2>
+            <div class="prose lp-prose"><p>{{ 'The search card shows the price per night next to the cabin name.' }}</p></div>
+            <section class="lp-agent-review" data-state="passed">
+                <details class="lp-disclosure lp-agent-review__details" open>
+                    <summary class="lp-disclosure__summary">
+                        <span class="lp-agent-review__line">
+                            <span class="lp-status-chip lp-status-chip--ok lp-agent-review__chip"><span class="lp-status-chip__dot"></span>{{ 'review.document.agent_review.state.passed'|trans }}</span>
+                            <span class="lp-agent-review__meta">{{ ['review.document.agent_review.meta.rounds'|trans({'%count%': 2}), 'review.document.agent_review.meta.fixed'|trans({'%count%': 1}), 'review.document.agent_review.meta.not_changed'|trans({'%count%': 1})]|join(' · ') }}</span>
+                            <span class="{{ ds_button_class('ghost', 'sm') }} lp-agent-review__toggle">{{ 'review.document.agent_review.show_rounds'|trans }} {{ shot.icon('lucide:chevron-right', 'sm') }}</span>
+                        </span>
+                    </summary>
+                    <div class="lp-disclosure__body">
+                        <div class="lp-agent-review__rounds">
+                            <h3 class="lp-agent-review__round-title">{{ 'review.document.agent_review.round.failed_important'|trans({'%round%': 1, '%version%': 1, '%count%': 1}) }}</h3>
+                            <ol class="lp-agent-review__findings">
+                                <li class="lp-agent-review__finding">
+                                    <div class="lp-agent-review__finding-head">
+                                        <span class="lp-tag lp-tag--red">{{ 'review.document.agent_review.severity.important'|trans }}</span>
+                                        <span class="lp-agent-review__finding-title">{{ 'The price shows per stay' }}</span>
+                                    </div>
+                                    <p class="lp-agent-review__finding-body">{{ 'The approved design shows the price per night next to the cabin name. The change passes the stay total.' }}</p>
+                                    <p class="lp-agent-review__answer">{{ 'review.document.agent_review.answer.fixed_in'|trans({'%version%': 2}) }}</p>
+                                </li>
+                                <li class="lp-agent-review__finding">
+                                    <div class="lp-agent-review__finding-head">
+                                        <span class="lp-tag lp-tag--neutral">{{ 'review.document.agent_review.severity.nit'|trans }}</span>
+                                        <span class="lp-agent-review__finding-title">{{ 'The currency symbol is hard coded' }}</span>
+                                    </div>
+                                    <p class="lp-agent-review__finding-body">{{ 'Read the currency from the cabin, not from the component.' }}</p>
+                                    <p class="lp-agent-review__answer lp-agent-review__answer--kept"><span class="lp-tag lp-tag--amber">{{ 'review.document.agent_review.answer.not_changed'|trans }}</span> {{ 'Every Driftwood cabin bills in dollars.' }}</p>
+                                </li>
+                            </ol>
+                            <h3 class="lp-agent-review__round-title">{{ 'review.document.agent_review.round.passed'|trans({'%round%': 2, '%version%': 2}) }}</h3>
+                            <p class="lp-agent-review__more">{{ 'review.document.agent_review.round.summary'|trans({'%count%': 0, '%fixed%': 0, '%version%': 2}) }}</p>
+                        </div>
+                    </div>
+                </details>
+            </section>
+        </div>
     </div>
 </div>

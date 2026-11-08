@@ -1,0 +1,103 @@
+{# Pieces of the document review page, drawn with the page's own classes. #}
+
+{% macro icon(name, class) %}{{ ux_icon(name, {class: class ?? 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{% endmacro %}
+
+{# The top bar of the review page: crumbs with the version pill, the verdict button, the compact search and New work. #}
+{% macro topbar(title, version) %}
+<div class="lp-topbar lp-shot__topbar">
+    <div class="lp-topbar__lead">
+        <nav class="lp-crumbs">
+            <ol class="lp-crumbs__list">
+                <li class="lp-crumbs__item"><span class="lp-crumbs__link">{{ 'nav.link.documents'|trans }}</span><span class="lp-crumbs__sep" aria-hidden="true">{{ '/' }}</span></li>
+                <li class="lp-crumbs__item lp-crumbs__item--current"><span class="lp-crumbs__here">{{ title }}</span></li>
+            </ol>
+            <span class="lp-version-pill">{{ 'v' ~ version }}</span>
+        </nav>
+    </div>
+    <div class="lp-review-topbar-actions lp-review-topbar-actions--finish">
+        <span class="{{ ds_button_class('primary') }}">{{ ux_icon('lucide:check', {'aria-hidden': 'true'}) }}<span>{{ 'review.document.finish.title'|trans }}</span></span>
+    </div>
+    <div class="lp-topbar__global-actions">
+        <div class="lp-topsearch lp-topsearch--compact">
+            <span class="lp-topbar__global-action lp-topsearch__icon">
+                {{ ux_icon('lucide:search', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}
+                <kbd class="lp-kbd">{{ 'search.shortcut'|trans }}</kbd>
+            </span>
+        </div>
+        <span class="{{ ds_button_class('primary') }}">{{ ux_icon('lucide:plus', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}<span class="lp-topbar__new-work-label">{{ 'nav.new_work'|trans }}</span></span>
+    </div>
+</div>
+{% endmacro %}
+
+{# The title and the byline. updated is the text after the author. #}
+{% macro head(title, author, updated, revise) %}
+<div class="lp-review-doc__head">
+    <h1 class="lp-review-doc__title">{{ title }}</h1>
+    <div class="lp-review-doc__byline">
+        <span class="lp-review-doc__author">{{ author }}</span>
+        <span class="lp-review-doc__middot" aria-hidden="true">{{ '·' }}</span>
+        <span>{{ updated }}</span>
+        <span class="lp-review-doc__byline-actions">
+            {% if revise %}
+            <div><span class="{{ ds_button_class('ghost', 'sm') }} lp-revise-document__open">{{ ux_icon('lucide:pencil', {'aria-hidden': 'true'}) }}{{ 'review.revise.open'|trans }}</span></div>
+            {% endif %}
+            <div class="lp-menu lp-menu--md"><span class="{{ ds_button_class('ghost', 'sm') }} lp-page-menu__trigger">{{ ux_icon('lucide:ellipsis', {'aria-hidden': 'true'}) }}</span></div>
+        </span>
+    </div>
+</div>
+{% endmacro %}
+
+{# The icon strip of the panels. Each entry is [icon, label or null, on]. #}
+{% macro toolbar(buttons) %}
+<div class="lp-review-toolbar">
+    {% for button in buttons %}
+    <span class="lp-review-toolbar__button"{% if button[3]|default(false) %} aria-disabled="true"{% endif %} aria-pressed="{{ button[2] ? 'true' : 'false' }}">{{ ux_icon(button[0], {'aria-hidden': 'true'}) }}{% if button[1] is not null %}<span>{{ button[1] }}</span>{% endif %}</span>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# One row of the Comments panel. kind is comment, suggestion or strike. #}
+{% macro comment_row(kind, quote, body) %}
+<span class="lp-comment-row">
+    <span class="lp-comment-row__quote">{% if kind == 'comment' %}{{ quote }}{% else %}<del>{{ quote }}</del>{% endif %}</span>
+    <span class="lp-comment-row__body">{% if kind == 'strike' %}{{ 'review.document.kind.strike'|trans }}{% elseif kind == 'suggestion' %}<ins>{{ body }}</ins>{% else %}{{ body }}{% endif %}</span>
+</span>
+{% endmacro %}
+
+{# The Comments panel. rows is the markup of its comment rows. #}
+{% macro comments_panel(count, rows) %}
+<section class="lp-review-panel">
+    <div class="lp-review-panel__head">
+        <h2>{{ 'review.document.panels.comments'|trans }}</h2>
+        <span class="lp-review-filter"><span class="lp-review-filter__toggle">{{ ux_icon('lucide:list-filter', {'aria-hidden': 'true'}) }}<span>{{ 'review.document.margin.filter_open'|trans }}{{ ' · ' }}{{ count }}</span></span></span>
+    </div>
+    <div class="lp-comment-rows">
+        <div class="lp-review-margin lp-comment-rail">
+            <p class="lp-comment-group-title">{{ 'review.document.group.in_text'|trans }} <span class="lp-comment-group-title__count">{{ count }}</span></p>
+            {{ rows|raw }}
+        </div>
+    </div>
+    <span class="{{ ds_button_class('ghost') }} lp-comment-whole-document">{{ ux_icon('lucide:message-square-plus', {'aria-hidden': 'true'}) }}{{ 'review.document.comment.whole_document'|trans }}</span>
+</section>
+{% endmacro %}
+
+{# The Decisions panel with one row. answer is empty for an open decision. #}
+{% macro decisions_panel(title, answer) %}
+<section class="lp-review-panel">
+    <div class="lp-review-panel__head">
+        <h2>{{ 'review.document.panels.decisions'|trans }}</h2>
+        <span class="lp-review-panel__count">{{ 'review.document.panels.decisions_count'|trans({'%answered%': answer ? 1 : 0, '%total%': 1}) }}</span>
+    </div>
+    <ul class="lp-decision-summary__list">
+        <li class="lp-decision-summary__item">
+            <span class="lp-decision-summary__link">
+                <span class="lp-decision-summary__tag{{ answer ? ' lp-decision-summary__tag--answered' }}">{{ 'D1' }}</span>
+                <span class="lp-decision-summary__text">
+                    <span class="lp-decision-summary__title">{{ title }}</span>
+                    {% if answer %}<span class="lp-decision-summary__answer">{{ answer }}</span>{% else %}<span class="lp-decision-summary__pending">{{ 'review.document.decisions.pending'|trans }}</span>{% endif %}
+                </span>
+            </span>
+        </li>
+    </ul>
+</section>
+{% endmacro %}

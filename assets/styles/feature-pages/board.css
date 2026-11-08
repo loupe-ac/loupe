@@ -1,0 +1,18 @@
+/* Pictures of the board feature page. */
+@layer components {
+    /* A card with the tooltip of its state mark drawn open beneath it. */
+    .lp-shot__marked {
+        @apply flex flex-col gap-2;
+    }
+    .lp-shot .lp-shot__tooltip {
+        @apply static visible self-end opacity-100;
+    }
+    /* These pictures keep the room of the real screen, and a narrow screen crops its right edge. */
+    .lp-shot .lp-shot__canvas--room {
+        @apply min-w-3xl;
+    }
+    /* The card drawer sits on its own surface, as it does over the dimmed board. */
+    .lp-shot .lp-shot__drawer {
+        @apply max-h-200 min-w-xl overflow-hidden bg-surface-1;
+    }
+}

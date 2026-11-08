@@ -1,15 +1,11 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/analytics/_chart.html.twig' as chart %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__panel">
-            <div class="lp-shot__row"><span class="lp-shot__heading">{{ 'landing.shot.cost_per_card'|trans }}</span><span class="lp-shot__spacer">{{ shot.pill('landing.shot.clear_difference'|trans, 'ok') }}</span></div>
-            <div class="lp-shot__row"><span class="lp-shot__stat-value">{{ '$4.20' }}</span><span class="lp-shot__dim">{{ 'was $4.77' }}</span></div>
-            <p class="lp-shot__text">{{ 'landing.shot.based_on_46_cards_this_month'|trans }}</p>
-        </div>
-        <div class="lp-shot__panel">
-            <div class="lp-shot__row"><span class="lp-shot__heading">{{ 'landing.shot.hours_to_merge'|trans }}</span><span class="lp-shot__spacer">{{ shot.pill('landing.shot.need_more_cards'|trans, 'warn') }}</span></div>
-            <div class="lp-shot__row"><span class="lp-shot__stat-value">{{ '6.5' }}</span><span class="lp-shot__dim">{{ 'was 6.1' }}</span></div>
-            <p class="lp-shot__text">{{ 'landing.shot.the_change_is_small_next_to'|trans }}</p>
+        <div class="lp-dashboard-grid">
+            {{ chart.tile('landing.shot.cost_per_card'|trans, 'analytics.metrics.compare.previous'|trans, 'full',
+                chart.number('$4.20', '↓', '12%', 'bridge.experiments.goal.state.clear'|trans, '$4.77')) }}
+            {{ chart.tile('landing.shot.hours_to_merge'|trans, 'analytics.metrics.compare.previous'|trans, 'full',
+                chart.number('6.5', '↑', '7%', 'bridge.experiments.goal.state.not_clear'|trans, '6.1', 'not-clear-yet')) }}
         </div>
     </div>
 </div>

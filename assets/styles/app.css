@@ -49,6 +49,14 @@
 @import './components/disclosure.css';
 @import './components/value-row.css';
 @import './feature-pages.css';
+@import './feature-pages/board.css';
+@import './feature-pages/workflow-rules.css';
+@import './feature-pages/interactive-sessions.css';
+@import './feature-pages/document-review.css';
+@import './feature-pages/inbox.css';
+@import './feature-pages/agent-review.css';
+@import './feature-pages/live-review.css';
+@import './feature-pages/analytics.css';
 @import './components/range-strip.css';
 @plugin "@tailwindcss/typography";
 

@@ -1,19 +1,15 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/agent-review/_parts.html.twig' as part %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__panel">
-            <div class="lp-shot__row"><span class="lp-shot__switch"></span><span class="lp-shot__strong">{{ 'landing.shot.human_review_off'|trans }}</span></div>
-            <div class="lp-shot__row">{{ shot.icon('lucide:check') }}{{ 'landing.shot.agent_review_passed'|trans }}</div>
-            <div class="lp-shot__row">{{ shot.icon('lucide:check') }}{{ 'landing.shot.checks_are_green'|trans }}</div>
-            <hr class="lp-shot__rule">
-            {{ shot.pill('landing.shot.ready_to_merge'|trans, 'ok') }}
-        </div>
-        <div class="lp-shot__panel">
-            <div class="lp-shot__row"><span class="lp-shot__switch lp-shot__switch--on"></span><span class="lp-shot__strong">{{ 'landing.shot.human_review_on'|trans }}</span></div>
-            <div class="lp-shot__row">{{ shot.icon('lucide:check') }}{{ 'landing.shot.agent_review_passed'|trans }}</div>
-            <div class="lp-shot__row">{{ shot.icon('lucide:check') }}{{ 'landing.shot.checks_are_green'|trans }}</div>
-            <hr class="lp-shot__rule">
-            {{ shot.pill('landing.shot.waiting_for_maya_chen_to_approve'|trans, 'warn') }}
-        </div>
+        {% for on in [false, true] %}
+            <div class="lp-card-drawer lp-shot__drawer lp-shot__drawer--panel">
+                <div class="lp-card-drawer__body">
+                    <div class="lp-card-overview">
+                        <dl class="lp-card-fields">{{ part.human_review(on) }}</dl>
+                        <section class="lp-card-overview__section">{{ part.linked_work(on ? 'required' : 'ok') }}</section>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
     </div>
 </div>

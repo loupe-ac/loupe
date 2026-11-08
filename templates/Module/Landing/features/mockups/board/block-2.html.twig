@@ -1,28 +1,69 @@
 {% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% macro lane_column(label, tone, count, cards) %}
+<section class="lp-board__column lp-board-lane__column">
+    <header class="lp-board__column-head">
+        <span class="lp-tone-dot lp-tone-dot--{{ tone }}" aria-hidden="true"></span>
+        <h2 class="lp-board__column-title">{{ label }}</h2>
+        <span class="lp-board__column-count">{{ count }}</span>
+    </header>
+    <div class="lp-board-lane__cell">{{ cards|raw }}</div>
+</section>
+{% endmacro %}
+{% macro deck_card(index, number, title) %}
+<article class="lp-deck__card" data-deck-index="{{ index }}">
+    <div class="lp-board-card__identity">
+        <span class="lp-board-card__number">{{ '#' }}{{ number }}</span>
+        <span class="lp-tag lp-tag--lime">{{ 'board.card.type.feature'|trans }}</span>
+    </div>
+    <span class="lp-deck__title">{{ title }}</span>
+</article>
+{% endmacro %}
+{% import _self as lane %}
 <div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__lane">
-            <div class="lp-shot__lane-head">
-                {{ shot.icon('lucide:layers', 'sm') }}
-                <span class="lp-shot__heading">{{ 'landing.shot.seasonal_rates'|trans }}</span>
-                <span class="lp-shot__mono lp-shot__dim">{{ '#45' }}</span>
-                <span class="lp-shot__spacer">{{ shot.pill('2 of 4 done', 'accent') }}</span>
-            </div>
-            {{ shot.bar('half') }}
-            <div class="lp-shot__lane-cells">
-                <div class="lp-shot__column">
-                    <div class="lp-shot__column-head">{{ 'landing.shot.implementation'|trans }}</div>
-                    {{ shot.card(47, 'landing.shot.preview_the_price_at_booking'|trans, 'working', null, 1, 0) }}
-                </div>
-                <div class="lp-shot__column">
-                    <div class="lp-shot__column-head">{{ 'landing.shot.in_review'|trans }}</div>
-                    {{ shot.card(48, 'landing.shot.let_owners_override_a_rate'|trans, 'waiting', null, 1, 0) }}
-                </div>
-                <div class="lp-shot__column">
-                    <div class="lp-shot__column-head">{{ 'landing.shot.done'|trans }}</div>
-                    {{ shot.card(46, 'landing.shot.add_a_peak_season_rate_table'|trans, null, null, 1, 0) }}
-                    {{ shot.card(50, 'landing.shot.round_prices_to_whole_dollars'|trans, null, null, 1, 0) }}
-                </div>
+    <div class="lp-shot__canvas lp-shot__canvas--room lp-shot__page lp-workspace lp-core-board">
+        <div class="lp-board__columns lp-board__columns--lanes">
+            <div class="lp-board-lanes">
+                <section class="lp-board-lane lp-board-lane--epic">
+                    <header class="lp-board-lane__head">
+                        <span class="lp-board-lane__collapse">{{ ux_icon('lucide:chevron-right', {class: 'lp-board-lane__chevron', 'aria-hidden': 'true'}) }}</span>
+                        <span class="lp-board-lane__tool">{{ ux_icon('lucide:eye-off', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                        <span class="lp-board-lane__move {{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:ellipsis', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                        <div class="lp-board-lane__heading">
+                            <span class="lp-board-card__number lp-board-lane__number">{{ '#45' }}</span>
+                            <span class="lp-board-lane__status">
+                                {{ shot.mark('working') }}
+                                <span class="lp-tag lp-tag--purple">{{ 'landing.shot.implementation'|trans }}</span>
+                            </span>
+                            <span class="lp-board-lane__progress">
+                                <progress class="lp-board-lane__bar" value="2" max="4" aria-hidden="true"></progress>
+                                {{ 'board.lane.progress.fraction'|trans({'%done%': 2, '%total%': 4}) }}
+                                <span class="lp-board-lane__done">{{ 'board.lane.progress.done'|trans }}</span>
+                            </span>
+                            <span class="lp-board-lane__title">{{ 'landing.shot.seasonal_rates'|trans }}</span>
+                        </div>
+                        <div class="lp-board-lane__up-next">
+                            <p class="lp-board-lane__deck-label">
+                                <strong class="lp-board-lane__deck-title">{{ 'board.lane.deck.title'|trans }}</strong>
+                                <span class="lp-board-lane__deck-count">{{ 'board.lane.deck.count'|trans({'%count%': 2}) }}</span>
+                            </p>
+                            <div class="lp-deck">
+                                {{ lane.deck_card(0, 51, 'Show seasonal rates to guests') }}
+                                {{ lane.deck_card(1, 52, 'Warn when two rates overlap') }}
+                            </div>
+                        </div>
+                    </header>
+                    <div class="lp-board-lane__body">
+                        <div class="lp-board-lane__cells">
+                            {{ lane.lane_column('landing.shot.implementation'|trans, 'purple', 1,
+                                shot.card(47, 'landing.shot.preview_the_price_at_booking'|trans, 'working', 'landing.shot.feature'|trans, 1, 0)) }}
+                            {{ lane.lane_column('landing.shot.in_review'|trans, 'amber', 1,
+                                shot.card(48, 'landing.shot.let_owners_override_a_rate'|trans, 'waiting', 'landing.shot.feature'|trans, 1, 0)) }}
+                            {{ lane.lane_column('landing.shot.done'|trans, 'green', 2,
+                                shot.card(46, 'landing.shot.add_a_peak_season_rate_table'|trans, null, 'landing.shot.feature'|trans, 1, 0)
+                                ~ shot.card(50, 'landing.shot.round_prices_to_whole_dollars'|trans, null, 'landing.shot.feature'|trans, 1, 0)) }}
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>

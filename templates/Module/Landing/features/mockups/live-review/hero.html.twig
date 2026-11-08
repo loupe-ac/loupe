@@ -1,17 +1,25 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
-<div class="lp-shot" aria-hidden="true">
+{% import '@Landing/features/mockups/live-review/_widget.html.twig' as widget %}
+<div class="lp-shot" aria-hidden="true" inert>
     <div class="lp-shot__canvas lp-shot__canvas--wide">
-        <div class="lp-shot__site">
+        <div class="lp-shot__site lp-shot__review-stage">
             <div class="lp-shot__site-head">
                 {{ 'landing.shot.driftwood'|trans }}
                 <span class="lp-shot__site-links"><span>{{ 'landing.shot.cabins'|trans }}</span><span>{{ 'landing.shot.guides'|trans }}</span><span>{{ 'landing.shot.contact'|trans }}</span></span>
+            </div>
+            <div class="flex flex-col gap-1">
+                <span class="font-display text-2xl font-extrabold tracking-tight text-ink">{{ 'Stay by the lake' }}</span>
+                <span class="lp-shot__dim">{{ 'Three cabins, open all year.' }}</span>
             </div>
             <div class="lp-shot__cabins">
                 <div class="lp-shot__cabin">
                     <div class="lp-shot__cabin-photo"></div>
                     <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
                     <span class="lp-shot__dim">{{ 'landing.shot.sleeps_4_lake_view'|trans }}</span>
-                    <span class="lp-shot__picked"><span class="lp-shot__picked-tag">{{ 'div.price' }}</span><span class="lp-shot__strong">{{ '$180' }}</span></span>
+                    <span class="lp-shot__review-target self-start">
+                        <span class="lp-shot__review-box"></span>
+                        <span class="lp-shot__review-pin">{{ '1' }}</span>
+                        <span class="lp-shot__strong">{{ '$180' }}</span>
+                    </span>
                 </div>
                 <div class="lp-shot__cabin">
                     <div class="lp-shot__cabin-photo lp-shot__cabin-photo--sky"></div>
@@ -26,16 +34,24 @@
                     <span class="lp-shot__strong">{{ '$210' }}</span>
                 </div>
             </div>
-            <div class="lp-shot__row lp-shot__row--between lp-shot__row--top">
-                <span class="lp-shot__widget">{{ shot.icon('lucide:message-square-plus', 'sm') }}{{ 'landing.shot.review_3_notes'|trans }}</span>
-                <div class="lp-shot__note">
-                    <span class="lp-shot__label">{{ 'Selected: div.price' }}</span>
-                    <span class="lp-shot__strong">{{ 'landing.shot.the_price_should_say_per_night'|trans }}</span>
-                    <div class="lp-shot__row lp-shot__row--between">
-                        <span class="lp-shot__dim">{{ 'landing.shot.saved_on_card_42'|trans }}</span>
-                        <span class="lp-shot__button lp-shot__button--primary">{{ 'landing.shot.save_note'|trans }}</span>
-                    </div>
+            <div class="flex flex-col gap-2">
+                <span class="font-display text-sm font-extrabold tracking-tight text-ink">{{ 'What guests say' }}</span>
+                <div class="lp-shot__cabins">
+                    <div class="lp-shot__cabin"><span class="lp-shot__strong">{{ 'Quiet, warm and close to the water.' }}</span><span class="lp-shot__dim">{{ 'Maya, May' }}</span></div>
+                    <div class="lp-shot__cabin"><span class="lp-shot__strong">{{ 'We will be back next summer.' }}</span><span class="lp-shot__dim">{{ 'Tomas, July' }}</span></div>
                 </div>
+            </div>
+            <div class="lp-shot__review-dock">
+                <div class="lp-shot__review-panel">
+                    {{ widget.head('#42 Show the nightly price', 'PR #57 · Changes requested', false, true) }}
+                    {{ widget.actions('') }}
+                    <div class="lp-shot__review-section"><span>On this page</span><span>{{ '3' }}</span></div>
+                    {{ widget.item(1, 'landing.shot.the_price_should_say_per_night'|trans, '$180') }}
+                    {{ widget.item(2, 'Make the book button easier to see.', 'landing.shot.book_now'|trans) }}
+                    {{ widget.item(3, 'Add the check-in time.', 'Whole page', true) }}
+                    <div class="lp-shot__review-foot"><span class="lp-shot__review-button">Finish review</span></div>
+                </div>
+                {{ widget.launcher(3, true) }}
             </div>
         </div>
     </div>

@@ -1,0 +1,232 @@
+/* Pictures of the live-review feature page. The widget runs inside a shadow
+   root on the customer's site, so these rules redraw its own panels with the
+   same tokens. The card page in the last picture uses the real app classes. */
+@layer components {
+    .lp-shot__review-stage {
+        @apply min-h-132;
+    }
+
+    /* The widget face is the system font, as on the customer's page. */
+    .lp-shot__review-panel,
+    .lp-shot__review-launcher,
+    .lp-shot__review-toast {
+        font-family:
+            ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+            'Segoe UI', Roboto, sans-serif;
+    }
+    .lp-shot__review-dock {
+        @apply absolute bottom-4 left-4 flex flex-col items-start gap-3 md:right-4 md:left-auto md:items-end;
+    }
+    .lp-shot__review-top {
+        @apply absolute top-4 left-1/2 -translate-x-1/2;
+    }
+
+    /* The panel */
+    .lp-shot__review-panel {
+        @apply flex w-90 max-w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface-1 text-sm leading-snug text-fg shadow-composer;
+    }
+    .lp-shot__review-head {
+        @apply flex items-start gap-1 border-b border-line-faint py-3 pr-2.5 pl-4;
+    }
+    .lp-shot__review-head--back {
+        @apply pl-2;
+    }
+    .lp-shot__review-head-text {
+        @apply min-w-0 flex-1;
+    }
+    .lp-shot__review-head--back .lp-shot__review-head-text {
+        @apply pt-1;
+    }
+    .lp-shot__review-title {
+        @apply mt-1.5 truncate text-base leading-5 font-semibold;
+    }
+    .lp-shot__review-head--back .lp-shot__review-title {
+        @apply mt-0;
+    }
+    .lp-shot__review-sub {
+        @apply mt-0.5 truncate text-xs leading-4 text-fg-mute;
+    }
+    .lp-shot__review-icon {
+        @apply flex size-8 shrink-0 items-center justify-center rounded-xl text-fg-mute;
+    }
+    .lp-shot__review-icon--small {
+        @apply size-6 rounded-md;
+    }
+    .lp-shot__review-actions {
+        @apply flex gap-2 px-4 py-3;
+    }
+    .lp-shot__review-action {
+        @apply flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-sunken font-semibold whitespace-nowrap text-fg;
+    }
+    .lp-shot__review-action--active {
+        @apply bg-accent-soft text-accent-ink ring-1 ring-accent-border ring-inset;
+    }
+    .lp-shot__review-section {
+        @apply flex items-center justify-between px-4 pt-2.5 pb-1 text-xs font-bold tracking-wider text-fg-dim uppercase;
+    }
+    .lp-shot__review-item {
+        @apply flex gap-2.5 py-2.5 pr-3 pl-4;
+    }
+    .lp-shot__review-badge {
+        @apply flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold;
+    }
+    .lp-shot__review-badge--element {
+        @apply bg-accent text-ink;
+    }
+    .lp-shot__review-badge--general {
+        @apply border border-dashed border-fg-dim text-fg-dim;
+    }
+    .lp-shot__review-item-body {
+        @apply min-w-0 flex-1;
+    }
+    .lp-shot__review-chips {
+        @apply mt-1.5 flex flex-wrap items-center gap-1.5;
+    }
+    .lp-shot__review-chip {
+        @apply inline-flex h-5.5 max-w-full items-center gap-1.5 rounded-md bg-sunken px-2 text-xs text-fg-mute;
+    }
+    .lp-shot__review-foot {
+        @apply flex gap-2 border-t border-line-faint bg-surface-2 px-4 pt-3 pb-4;
+    }
+    .lp-shot__review-button {
+        @apply inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent font-semibold text-ink;
+    }
+    .lp-shot__review-ghost {
+        @apply inline-flex h-10 items-center rounded-xl px-3 font-semibold text-fg-mute;
+    }
+
+    .lp-shot__review-ghost--small {
+        @apply h-8;
+    }
+
+    /* The launcher and the bars the widget draws over the page */
+    .lp-shot__review-launcher {
+        @apply flex h-11 items-center rounded-full border border-chrome-line bg-chrome px-1 text-sm text-chrome-fg shadow-toolbar;
+    }
+    .lp-shot__review-quick {
+        @apply flex size-9 items-center justify-center rounded-full text-chrome-mute;
+    }
+    .lp-shot__review-divider {
+        @apply mx-1 h-5 w-px bg-chrome-line;
+    }
+    .lp-shot__review-main {
+        @apply flex h-9 items-center gap-2 rounded-full pr-2.5 pl-3 font-semibold;
+    }
+    .lp-shot__review-main--open {
+        @apply bg-chrome-raised;
+    }
+    .lp-shot__review-count {
+        @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-ink;
+    }
+    .lp-shot__review-toast {
+        @apply inline-flex h-10 items-center gap-2.5 rounded-full border border-chrome-line bg-chrome pr-1.5 pl-3.5 font-medium whitespace-nowrap text-chrome-fg shadow-toolbar;
+    }
+    .lp-shot__review-toast-dim {
+        @apply text-chrome-mute;
+    }
+    .lp-shot__review-toast-sep {
+        @apply text-chrome-line;
+    }
+    .lp-shot__review-toast-key {
+        @apply inline-flex h-7 items-center rounded-full bg-chrome-raised px-2.5 text-xs font-semibold;
+    }
+
+    /* The marks over the page: the picked box, its label and the pin */
+    .lp-shot__review-target {
+        @apply relative inline-block;
+    }
+    .lp-shot__review-box {
+        @apply pointer-events-none absolute -inset-1 rounded-xl border-2 border-accent bg-accent/20 shadow-sm;
+    }
+    .lp-shot__review-box--lit {
+        @apply border-accent-ink;
+    }
+    .lp-shot__review-box--sibling {
+        @apply bg-transparent shadow-none;
+    }
+    .lp-shot__review-label {
+        @apply absolute -top-8 -left-0.5 inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-xs font-semibold whitespace-nowrap text-ink shadow-sm;
+    }
+    .lp-shot__review-pin {
+        @apply absolute -top-4 -right-5 flex size-6.5 items-center justify-center rounded-full rounded-bl-sm border border-accent-ink bg-accent text-xs font-bold text-ink shadow-sm;
+    }
+
+    /* The note composer */
+    .lp-shot__review-composer {
+        @apply mx-3 mt-3 mb-4 flex flex-col rounded-xl border border-accent-border bg-field shadow-focus;
+    }
+    .lp-shot__review-compose-chips {
+        @apply flex flex-wrap gap-1.5 px-2.5 pt-2.5;
+    }
+    .lp-shot__review-compose-chip {
+        @apply inline-flex h-6 items-center gap-1.5 rounded-md bg-sunken pr-1 pl-2 text-xs text-fg;
+    }
+    .lp-shot__review-compose-chip--lit {
+        @apply bg-accent text-ink;
+    }
+    .lp-shot__review-compose-x {
+        @apply inline-flex size-4.5 items-center justify-center text-fg-dim;
+    }
+    .lp-shot__review-compose-add {
+        @apply inline-flex h-6 items-center gap-1.5 rounded-md border border-dashed border-line px-2 text-xs text-fg-mute;
+    }
+    .lp-shot__review-kbd {
+        @apply inline-flex h-4.5 items-center rounded-sm border border-line px-1.5 text-xs font-semibold text-fg-dim;
+    }
+    .lp-shot__review-textarea {
+        @apply min-h-18 px-3 py-2.5 text-fg;
+    }
+    .lp-shot__review-compose-foot {
+        @apply flex items-center gap-1 py-1.5 pr-2 pl-1.5;
+    }
+    .lp-shot__review-compose-save {
+        @apply inline-flex h-8 items-center rounded-xl bg-accent px-3 font-semibold text-ink;
+    }
+
+    /* The destination view */
+    .lp-shot__review-body {
+        @apply flex flex-col gap-2 p-4;
+    }
+    .lp-shot__review-option {
+        @apply flex items-start gap-2.5 rounded-xl border border-line p-3;
+    }
+    .lp-shot__review-option--on {
+        @apply border-accent-border bg-accent-soft;
+    }
+    .lp-shot__review-radio {
+        @apply mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-line-strong bg-surface-1;
+    }
+    .lp-shot__review-radio--on {
+        @apply border-accent-ink bg-accent-ink;
+    }
+    .lp-shot__review-radio--on::after {
+        content: '';
+        @apply size-1.5 rounded-full bg-surface-1;
+    }
+    .lp-shot__review-option-title {
+        @apply block font-semibold;
+    }
+    .lp-shot__review-option-text {
+        @apply mt-0.5 block text-xs leading-4 text-fg-mute;
+    }
+    .lp-shot__review-field-label {
+        @apply mt-2.5 mb-1 block text-xs font-semibold text-fg-mute;
+    }
+    .lp-shot__review-field {
+        @apply flex h-8 items-center rounded-lg border border-line bg-field px-2.5;
+    }
+
+    /* The marked-up screenshot of a simulator note, in the card feedback list */
+    .lp-shot__review-screen {
+        @apply relative flex h-36 w-full flex-col gap-2 bg-surface-1 p-3;
+    }
+    .lp-shot__review-screen-photo {
+        @apply h-12 rounded-md bg-tone-teal-bg;
+    }
+    .lp-shot__review-card {
+        @apply min-w-lg;
+    }
+    .lp-shot__review-card .lp-card-drawer {
+        @apply min-h-0 border-x-0 shadow-none;
+    }
+}

@@ -1,0 +1,15 @@
+/* Pictures of the document-review feature page. */
+@layer components {
+    /* A piece of the review page, without its sidebar and its margin column. */
+    .lp-shot__sheet {
+        @apply flex flex-col gap-4 bg-surface-1 p-5;
+    }
+    /* The passage a comment points at, as the review page tints it. */
+    .lp-shot__passage {
+        @apply bg-accent-faint underline decoration-accent-hover decoration-2;
+    }
+    /* The selection toolbar sits under its passage here, not at the pointer. */
+    .lp-shot__sheet .lp-shot__anchor-toolbar {
+        @apply static w-fit animate-none;
+    }
+}

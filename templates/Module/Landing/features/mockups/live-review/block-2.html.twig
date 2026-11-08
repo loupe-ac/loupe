@@ -1,15 +1,35 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
-<div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__panel">
-            <span class="lp-shot__label">{{ 'landing.shot.3_notes_from_priya_nair'|trans }}</span>
-            <div class="lp-shot__option lp-shot__option--picked"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.send_to_one_new_card'|trans }}</span></div>
-            <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.send_to_one_card_per_note'|trans }}</span></div>
-            <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.add_to_card_42'|trans }}</span></div>
-            <hr class="lp-shot__rule">
-            <div class="lp-shot__row">
-                <span class="lp-shot__button lp-shot__button--primary">{{ shot.icon('lucide:check') }}{{ 'landing.shot.approve'|trans }}</span>
-                <span class="lp-shot__button">{{ 'landing.shot.ask_for_changes'|trans }}</span>
+{% import '@Landing/features/mockups/live-review/_widget.html.twig' as widget %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__site">
+            <div class="lp-shot__site-head">
+                {{ 'landing.shot.driftwood'|trans }}
+                <span class="lp-shot__site-links"><span>{{ 'landing.shot.cabins'|trans }}</span><span>{{ 'landing.shot.guides'|trans }}</span><span>{{ 'landing.shot.contact'|trans }}</span></span>
+            </div>
+            <div class="lp-shot__review-panel self-end">
+                {{ widget.head('Where should your notes go?') }}
+                <div class="lp-shot__review-body">
+                    <div class="lp-shot__review-option lp-shot__review-option--on">
+                        <span class="lp-shot__review-radio lp-shot__review-radio--on"></span>
+                        <div class="min-w-0 flex-1">
+                            <span class="lp-shot__review-option-title">{{ 'One new card for this review' }}</span>
+                            <span class="lp-shot__review-option-text">{{ 'Every note lands on one new card.' }}</span>
+                            <span class="lp-shot__review-field-label">{{ 'Card title' }}</span>
+                            <span class="lp-shot__review-field">{{ 'Review of the Driftwood site' }}</span>
+                        </div>
+                    </div>
+                    <div class="lp-shot__review-option">
+                        <span class="lp-shot__review-radio"></span>
+                        <div class="min-w-0 flex-1">
+                            <span class="lp-shot__review-option-title">{{ 'A new card for each note' }}</span>
+                            <span class="lp-shot__review-option-text">{{ 'Good for unrelated issues across the site.' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="lp-shot__review-foot">
+                    <span class="lp-shot__review-ghost">{{ 'Cancel' }}</span>
+                    <span class="lp-shot__review-button">{{ 'Start reviewing' }}</span>
+                </div>
             </div>
         </div>
     </div>

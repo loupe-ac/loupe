@@ -1,10 +1,35 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
-<div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <span class="lp-shot__label">{{ 'landing.shot.next_step'|trans }}</span>
-        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:play', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.resume_the_run'|trans }}</span></div>
-        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:bot', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.send_another_agent'|trans }}</span></div>
-        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:terminal', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.run_a_command_on_your_machine'|trans }}</span></div>
-        <div class="lp-shot__action"><span class="lp-shot__action-icon">{{ shot.icon('lucide:hand', 'sm') }}</span><span class="lp-shot__grow">{{ 'landing.shot.take_the_work_yourself'|trans }}</span></div>
+{% import '@Landing/features/mockups/inbox/_parts.html.twig' as inbox %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas lp-shot__canvas--menu">
+        <div class="lp-shot__page lp-shot__inbox-pane lp-needs-you lp-core-prototype-page lp-core-inbox">
+            <section class="lp-inbox-ask">
+                <div class="lp-inbox-ask__main">
+                    <div class="lp-inbox-ask__items">
+                        <article class="lp-inbox-item">
+                            <div class="lp-inbox-thread">
+                                <ul class="lp-inbox-thread__messages">
+                                    {{ inbox.message('landing.shot.implementation_agent'|trans, 'inbox.thread.stopped'|trans({'%time%': 'landing.shot.2m_ago'|trans}), 'The run stopped at the usage limit of the plan. It can carry on with its session.') }}
+                                </ul>
+                                <div class="lp-inbox-item__actions">
+                                    <div class="lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply">
+                                        <textarea class="{{ ds_input_class('textarea') }}" rows="2" tabindex="-1" readonly placeholder="{{ 'inbox.thread.note_placeholder'|trans }}"></textarea>
+                                        <div class="lp-comment-composer__actions">
+                                            <span class="lp-form-hint inbox-split__hint"></span>
+                                            <span class="{{ ds_button_class('ghost', 'sm') }}">{{ 'inbox.action.dismiss.label'|trans }}</span>
+                                            {{ inbox.split('inbox.action.resume-run.label'|trans,
+                                                inbox.menu_row('bot', 'inbox.action.send-agent.label'|trans, 'inbox.action.send-agent.effect'|trans)
+                                                ~ inbox.menu_row('terminal', 'inbox.action.run-command.run'|trans({'%entry%': 'unit-tests', '%branch%': 'card-40'}), 'inbox.action.run-command.effect'|trans)
+                                                ~ inbox.menu_row('terminal', 'inbox.action.start-session.label'|trans, 'inbox.action.start-session.effect'|trans)
+                                                ~ inbox.menu_row('circle-pause', 'inbox.action.hold-card.label'|trans, 'inbox.action.hold-card.effect'|trans)
+                                            ) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
 </div>

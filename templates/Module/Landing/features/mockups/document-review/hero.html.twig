@@ -1,39 +1,36 @@
 {% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/document-review/_review.html.twig' as review %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--wide">
         <div class="lp-shot__app">
             {{ shot.sidebar('documents') }}
             <div class="lp-shot__main">
-                <div class="lp-shot__top">
-                    <h3 class="lp-shot__title">{{ 'landing.shot.product_design_seasonal_rates'|trans }}</h3>
-                    {{ shot.pill('v2') }}
-                    {{ shot.pill('landing.shot.agent_review_passed'|trans, 'ok') }}
-                    <span class="lp-shot__spacer lp-shot__button lp-shot__button--primary">{{ 'landing.shot.finish_review'|trans }}</span>
-                </div>
-                <div class="lp-shot__doc">
-                    <div class="lp-shot__prose">
-                        <h4>{{ 'landing.shot.seasonal_rates'|trans }}</h4>
-                        <p>{{ 'landing.shot.owners_set_a_nightly_rate_for'|trans }}</p>
-                        <h4>{{ 'landing.shot.peak_season'|trans }}</h4>
-                        <p>{{ 'landing.shot.peak_rates_apply_from_june_to'|trans }} <span class="lp-shot__anchor">{{ 'landing.shot.owners_can_override_a_rate_for'|trans }}</span>{{ 'landing.shot.and_the_booking_page_shows_the'|trans }}</p>
-                        <p>{{ 'landing.shot.rates_change_at_midnight_in_the'|trans }}</p>
-                        <h4>{{ 'landing.shot.out_of_scope'|trans }}</h4>
-                        <p>{{ 'landing.shot.discount_codes_and_long_stay_rates'|trans }}</p>
-                    </div>
-                    <div class="lp-shot__doc-aside">
-                        <div class="lp-shot__comment">
-                            <div class="lp-shot__comment-head">{{ shot.avatar('MC', 'ink') }}{{ 'landing.shot.maya_chen'|trans }}</div>
-                            <span>{{ 'landing.shot.can_an_override_apply_to_a'|trans }}</span>
-                            <span class="lp-shot__dim">{{ 'landing.shot.open'|trans }}</span>
-                        </div>
-                        <div class="lp-shot__comment">
-                            <div class="lp-shot__comment-head">{{ shot.avatar('AI', 'agent') }}{{ 'landing.shot.design_agent'|trans }}</div>
-                            <span>{{ 'landing.shot.yes_i_changed_the_passage_so'|trans }}</span>
-                        </div>
-                        <div class="lp-shot__comment">
-                            <div class="lp-shot__comment-head">{{ shot.avatar('TA') }}{{ 'landing.shot.tom_alvarez'|trans }}</div>
-                            <span>{{ 'landing.shot.please_keep_paid_bookings_at_their'|trans }}</span>
-                            {{ shot.pill('landing.shot.resolved'|trans, 'ok') }}
+                {{ review.topbar('landing.shot.product_design_seasonal_rates'|trans, 2) }}
+                <div class="lp-shot__page lp-review">
+                    <div class="lp-review-block">
+                        <div class="lp-review-doc">
+                            {{ review.head('landing.shot.product_design_seasonal_rates'|trans, 'landing.shot.maya_chen'|trans, 'review.document.byline_updated'|trans({'%updated%': '2h ago'}), true) }}
+                            <aside class="lp-review-panels lp-review-panels--document">
+                                <div class="lp-review-panels__inner">
+                                    {{ review.toolbar([['lucide:list-checks', null, false, true], ['lucide:message-square', '2', true], ['lucide:list', null, false]]) }}
+                                    {{ review.comments_panel(2,
+                                        review.comment_row('comment', 'landing.shot.owners_can_override_a_rate_for'|trans, 'landing.shot.can_an_override_apply_to_a'|trans)
+                                        ~ review.comment_row('suggestion', 'landing.shot.for_a_single_night'|trans, 'landing.shot.for_one_night_or_a_range'|trans)) }}
+                                </div>
+                            </aside>
+                            <div class="prose lp-prose lp-review-doc__prose">
+                                <h2>{{ 'landing.shot.seasonal_rates'|trans }}</h2>
+                                <p>{{ 'landing.shot.owners_set_a_nightly_rate_for'|trans }}</p>
+                                <h2>{{ 'landing.shot.peak_season'|trans }}</h2>
+                                <p>{{ 'landing.shot.peak_rates_apply_from_june_to'|trans }} <span class="lp-shot__passage">{{ 'landing.shot.owners_can_override_a_rate_for'|trans }}</span>{{ 'landing.shot.and_the_booking_page_shows_the'|trans }}</p>
+                            </div>
+                            <section class="lp-agent-review">
+                                <div class="lp-agent-review__line">
+                                    {{ component('Ds:StatusChip', {modifier: 'ok', label: 'review.document.agent_review.state.passed'|trans, class: 'lp-agent-review__chip'}) }}
+                                    <span class="lp-agent-review__meta">{{ 'review.document.agent_review.meta.rounds'|trans({'%count%': 2}) }}{{ ' · ' }}{{ 'review.document.agent_review.meta.fixed'|trans({'%count%': 3}) }}</span>
+                                    <span class="{{ ds_button_class('ghost', 'sm') }} lp-agent-review__toggle">{{ 'review.document.agent_review.show_rounds'|trans }} {{ ux_icon('lucide:chevron-right', {class: 'lp-icon lp-icon--sm lp-disclosure__caret', 'aria-hidden': 'true'}) }}</span>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>

@@ -1,15 +1,15 @@
 <div class="lp-shot lp-shot--dark" aria-hidden="true">
     <div class="lp-shot__canvas">
         <div class="lp-shot__terminal-bar"><i></i><i></i><i></i><span>{{ 'claude · driftwood' }}</span></div>
-        <div class="lp-shot__terminal-body">
-            <div><span class="lp-shot__terminal-dim">{{ '>' }} </span>{{ 'landing.shot.build_card_38_with_me'|trans }}</div>
+        <div class="lp-shot__terminal-body lp-shot__session">
+            <div class="lp-shot__session-prompt"><span class="lp-shot__session-dim">{{ '>' }}</span> {{ 'landing.shot.build_card_38_with_me'|trans }}</div>
             <div>
-                <div class="lp-shot__terminal-call"><b>{{ 'loupe - card_run_open' }}</b> <span class="lp-shot__terminal-dim">{{ '(status: "implementation")' }}</span></div>
-                <div class="lp-shot__terminal-result">{{ 'landing.shot.card_38_moved_to_implementation_no'|trans }}</div>
+                <div class="lp-shot__session-call">{{ 'loupe - card_run_open' }}<span class="lp-shot__session-dim">{{ ' (MCP)(card: 38, status: "implementation")' }}</span></div>
+                <div class="lp-shot__session-result">{{ 'landing.shot.card_38_moved_to_implementation_no'|trans }}</div>
             </div>
             <div>
-                <div class="lp-shot__terminal-call"><b>{{ 'Bash' }}</b> <span class="lp-shot__terminal-dim">{{ '(gh pr create)' }}</span></div>
-                <div class="lp-shot__terminal-result">{{ 'landing.shot.opened_pull_request_118_linked_to'|trans }}</div>
+                <div class="lp-shot__session-call">{{ 'Bash' }}<span class="lp-shot__session-dim">{{ '(gh pr create)' }}</span></div>
+                <div class="lp-shot__session-result">{{ 'landing.shot.opened_pull_request_118_linked_to'|trans }}</div>
             </div>
         </div>
     </div>

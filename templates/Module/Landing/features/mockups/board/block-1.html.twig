@@ -1,17 +1,26 @@
 {% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{# The tooltip a state mark opens on the board, drawn open under its card. #}
+{% macro tip(kind, text, clock, age) %}
+<span class="lp-tooltip lp-tooltip--interactive lp-shot__tooltip" data-open role="tooltip">
+    <span><strong class="lp-tooltip__title">{{ ('board.card_state.' ~ (kind == 'needs-you' ? 'needs_you' : kind))|trans }}.</strong> {{ text }}</span>
+    <span class="lp-tooltip__line--quiet">{{ ('board.card_state.since.' ~ (kind == 'needs-you' ? 'needs_you' : kind))|trans({'%clock%': clock, '%age%': age}) }}</span>
+    <span class="lp-tooltip__link">{{ 'board.card_state.open_card'|trans }}</span>
+</span>
+{% endmacro %}
+{% import _self as tooltip %}
 <div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__stack">
+    <div class="lp-shot__canvas lp-shot__canvas--panel lp-core-board">
+        <div class="lp-shot__marked">
             {{ shot.card(38, 'landing.shot.add_a_booking_calendar'|trans, 'working', 'landing.shot.feature'|trans, 1, 2) }}
-            <p class="lp-shot__why">{{ 'landing.shot.working_tom_s_agent_is_building'|trans }}</p>
+            {{ tooltip.tip('working', 'marker.run_open'|trans, '09:41', 'board.card_state.ago.minutes'|trans({'%count%': 12})) }}
         </div>
-        <div class="lp-shot__stack">
+        <div class="lp-shot__marked">
             {{ shot.card(40, 'landing.shot.make_checkout_safer'|trans, 'stuck', 'landing.shot.bug'|trans, 1, 1) }}
-            <p class="lp-shot__why">{{ 'landing.shot.stuck_the_checkout_tests_failed_twice'|trans }}</p>
+            {{ tooltip.tip('stuck', 'marker.checks_failed'|trans({'%number%': 118}), '08:15', 'board.card_state.ago.hours'|trans({'%count%': 2})) }}
         </div>
-        <div class="lp-shot__stack">
+        <div class="lp-shot__marked">
             {{ shot.card(42, 'landing.shot.show_the_nightly_price_on_the'|trans, 'needs-you', 'landing.shot.feature'|trans, 0, 1) }}
-            <p class="lp-shot__why">{{ 'landing.shot.needs_you_the_product_design_waits'|trans }}</p>
+            {{ tooltip.tip('needs-you', 'marker.document_in_review'|trans({'%title%': 'Product design: nightly price'}), '07:30', 'board.card_state.ago.hours'|trans({'%count%': 3})) }}
         </div>
     </div>
 </div>

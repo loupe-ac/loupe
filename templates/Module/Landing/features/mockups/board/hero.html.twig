@@ -4,34 +4,21 @@
         <div class="lp-shot__app">
             {{ shot.sidebar('board') }}
             <div class="lp-shot__main">
-                <div class="lp-shot__top">
-                    <h3 class="lp-shot__title">{{ 'landing.shot.board'|trans }}</h3>
-                    <span class="lp-shot__crumb">{{ 'landing.shot.driftwood'|trans }}</span>
-                    <span class="lp-shot__button lp-shot__button--primary lp-shot__spacer">{{ shot.icon('lucide:plus') }}{{ 'landing.shot.new_card'|trans }}</span>
-                </div>
-                <div class="lp-shot__columns">
-                    <div class="lp-shot__column">
-                        <div class="lp-shot__column-head"><span class="lp-shot__dot lp-shot__dot--warn"></span>{{ 'landing.shot.product_design'|trans }}<span class="lp-shot__column-count">{{ '2' }}</span></div>
-                        {{ shot.card(42, 'landing.shot.show_the_nightly_price_on_the'|trans, 'needs-you', 'landing.shot.feature'|trans, 0, 1) }}
-                        {{ shot.card(49, 'landing.shot.email_guests_a_check_in_guide'|trans, null, 'landing.shot.feature'|trans, 0, 0) }}
-                    </div>
-                    <div class="lp-shot__column">
-                        <div class="lp-shot__column-head"><span class="lp-shot__dot lp-shot__dot--active"></span>{{ 'landing.shot.tech_design'|trans }}<span class="lp-shot__column-count">{{ '1' }}</span></div>
-                        {{ shot.card(44, 'landing.shot.add_a_photo_gallery_to_each'|trans, 'waiting', 'landing.shot.feature'|trans, 0, 2) }}
-                    </div>
-                    <div class="lp-shot__column">
-                        <div class="lp-shot__column-head"><span class="lp-shot__dot lp-shot__dot--active"></span>{{ 'landing.shot.implementation'|trans }}<span class="lp-shot__column-count">{{ '2' }}</span></div>
-                        {{ shot.card(38, 'landing.shot.add_a_booking_calendar'|trans, 'working', 'landing.shot.feature'|trans, 1, 2) }}
-                        {{ shot.card(40, 'landing.shot.make_checkout_safer'|trans, 'stuck', 'landing.shot.bug'|trans, 1, 1) }}
-                    </div>
-                    <div class="lp-shot__column">
-                        <div class="lp-shot__column-head"><span class="lp-shot__dot lp-shot__dot--warn"></span>{{ 'landing.shot.in_review'|trans }}<span class="lp-shot__column-count">{{ '1' }}</span></div>
-                        {{ shot.card(36, 'landing.shot.show_guest_reviews_on_each_cabin'|trans, 'waiting', 'landing.shot.feature'|trans, 1, 2) }}
-                    </div>
-                    <div class="lp-shot__column">
-                        <div class="lp-shot__column-head"><span class="lp-shot__dot lp-shot__dot--ok"></span>{{ 'landing.shot.done'|trans }}<span class="lp-shot__column-count">{{ '2' }}</span></div>
-                        {{ shot.card(31, 'landing.shot.make_cabin_search_faster'|trans, null, 'landing.shot.feature'|trans, 1, 2) }}
-                        {{ shot.card(29, 'landing.shot.fix_the_broken_map_pin'|trans, null, 'landing.shot.bug'|trans, 1, 0) }}
+                {{ shot.topbar(['nav.link.board'|trans]) }}
+                <div class="lp-shot__page lp-workspace lp-core-board">
+                    {{ shot.board_header(7) }}
+                    <div class="lp-board__columns">
+                        {{ shot.column('landing.shot.product_design'|trans, 'sky', 2,
+                            shot.card(42, 'landing.shot.show_the_nightly_price_on_the'|trans, 'needs-you', 'landing.shot.feature'|trans, 0, 1)
+                            ~ shot.card(49, 'landing.shot.email_guests_a_check_in_guide'|trans, null, 'landing.shot.feature'|trans, 0, 0)) }}
+                        {{ shot.column('landing.shot.implementation'|trans, 'purple', 2,
+                            shot.card(38, 'landing.shot.add_a_booking_calendar'|trans, 'working', 'landing.shot.feature'|trans, 1, 2)
+                            ~ shot.card(40, 'landing.shot.make_checkout_safer'|trans, 'stuck', 'landing.shot.bug'|trans, 1, 1)) }}
+                        {{ shot.column('landing.shot.in_review'|trans, 'amber', 1,
+                            shot.card(36, 'landing.shot.show_guest_reviews_on_each_cabin'|trans, 'waiting', 'landing.shot.feature'|trans, 1, 2)) }}
+                        {{ shot.column('landing.shot.done'|trans, 'green', 2,
+                            shot.card(31, 'landing.shot.make_cabin_search_faster'|trans, null, 'landing.shot.feature'|trans, 1, 2)
+                            ~ shot.card(29, 'landing.shot.fix_the_broken_map_pin'|trans, null, 'landing.shot.bug'|trans, 1, 0)) }}
                     </div>
                 </div>
             </div>

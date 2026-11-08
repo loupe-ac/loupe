@@ -1,23 +1,15 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/analytics/_chart.html.twig' as chart %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__row">
-            {{ shot.pill('landing.shot.cost_per_card'|trans, 'outline') }}
-            {{ shot.pill('landing.shot.weekly'|trans, 'outline') }}
-            <span class="lp-shot__spacer">{{ shot.pill('landing.shot.save_to_dashboard'|trans, 'accent') }}</span>
-        </div>
-        <div class="lp-shot__chart">
-            {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-shot__chart-svg" viewBox="0 0 160 80" preserveAspectRatio="none">
-                <rect class="lp-shot__bar" x="4" y="30" width="14" height="50" />
-                <rect class="lp-shot__bar" x="24" y="24" width="14" height="56" />
-                <rect class="lp-shot__bar" x="44" y="36" width="14" height="44" />
-                <rect class="lp-shot__bar" x="64" y="28" width="14" height="52" />
-                <rect class="lp-shot__bar" x="84" y="40" width="14" height="40" />
-                <rect class="lp-shot__bar" x="104" y="34" width="14" height="46" />
-                <rect class="lp-shot__bar" x="124" y="44" width="14" height="36" />
-                <rect class="lp-shot__bar" x="144" y="38" width="12" height="42" />
-            </svg>
-            <div class="lp-shot__row lp-shot__row--between"><span class="lp-shot__dim">{{ 'landing.shot.8_weeks'|trans }}</span><span class="lp-shot__strong">{{ '$4.20 average' }}</span></div>
-        </div>
+        <section class="lp-panel lp-metric-graph">
+            <div class="lp-metric-graph__head lp-shot__metric-head">
+                <h2 class="lp-metric-table__title">{{ 'landing.shot.cost_per_finished_card'|trans }}</h2>
+                <div class="lp-metric-save">
+                    <div class="lp-metric-save__name"><div class="lp-input lp-input--compact">{{ 'landing.shot.cost_per_card'|trans }}</div></div>
+                    <span class="{{ ds_button_class('primary', 'sm') }}">{{ ux_icon('lucide:bookmark', {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}{{ 'analytics.metrics.save.button'|trans }}</span>
+                </div>
+            </div>
+            {{ chart.line([4.9, 4.6, 4.8, 4.4, 4.5, 4.3, 4.4, 4.2], [], [0, 2, 4, 6], ['Sep 14', 'Sep 28', 'Oct 12', 'Oct 26']) }}
+        </section>
     </div>
 </div>

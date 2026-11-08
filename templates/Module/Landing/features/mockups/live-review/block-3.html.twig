@@ -1,18 +1,64 @@
-{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
-<div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__phone">
-            <div class="lp-shot__cabin">
-                <div class="lp-shot__cabin-photo"></div>
-                <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
-                <span class="lp-shot__row">
-                    <span class="lp-shot__picked"><span class="lp-shot__scribble"></span><span class="lp-shot__strong">{{ '$180' }}</span></span>
-                </span>
-            </div>
-            <div class="lp-shot__panel">
-                <span class="lp-shot__label">{{ 'landing.shot.ios_simulator'|trans }}</span>
-                <span class="lp-shot__strong">{{ 'landing.shot.price_is_cut_off_on_small'|trans }}</span>
-                <span class="lp-shot__dim">{{ 'landing.shot.marked_up_screenshot_and_the_element'|trans }}</span>
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas lp-shot__review-card">
+        <div class="lp-card-drawer">
+            <header class="lp-card-drawer__header">
+                <div class="lp-card-drawer__identity">
+                    <span class="lp-card-drawer__icon">{{ ux_icon('lucide:layout-list', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                    <span class="lp-card-number">{{ '#42' }}</span>
+                    <twig:Ds:Tag tone="lime">{{ 'landing.shot.feature'|trans }}</twig:Ds:Tag>
+                    <twig:Ds:Tag tone="purple">{{ 'landing.shot.implementation'|trans }}</twig:Ds:Tag>
+                </div>
+                <div class="lp-card-drawer__header-actions">
+                    <span class="{{ ds_button_class('ghost') }}">{{ ux_icon('lucide:pencil', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.edit.action'|trans }}</span>
+                    <span class="{{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:x', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                </div>
+            </header>
+            <div class="lp-card-drawer__body">
+                <h3 class="lp-card-drawer__title">{{ 'landing.shot.show_the_nightly_price_on_the'|trans }}</h3>
+                <div class="lp-overflow-cue lp-overflow-cue--scroll">
+                    <div class="lp-tabs" role="tablist">
+                        {% for tab in ['overview', 'details', 'conversation', 'feedback', 'history'] %}
+                        <span class="lp-tabs__tab" role="tab" aria-selected="{{ tab == 'feedback' ? 'true' : 'false' }}">{{ ('board.card.tab.' ~ tab)|trans }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <section class="lp-card-panel">
+                    <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.feedback.description'|trans">{{ 'board.card.site_review.title'|trans }}</twig:Ds:SectionHeading></div>
+                    <ul class="lp-card-feedback-list">
+                        <li>
+                            <article class="lp-conversation-entry">
+                                <twig:Ds:Avatar icon="lucide:smartphone" size="sm" shape="square" tone="tint" />
+                                <div>
+                                    <div class="lp-card-feedback-list__head"><span>{{ 'site_review.source.ios_simulator'|trans }}</span><twig:Ds:StatusChip modifier="pending" :dot="false">{{ 'site_review.comment.status.pending'|trans }}</twig:Ds:StatusChip></div>
+                                    <p class="lp-inbox-item__answer-text">{{ 'landing.shot.price_is_cut_off_on_small'|trans }}</p>
+                                    <div class="lp-feedback-screenshot">
+                                        <div class="lp-feedback-screenshot__trigger">
+                                            <div class="lp-shot__review-screen">
+                                                <div class="lp-shot__review-screen-photo"></div>
+                                                <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
+                                                <span class="lp-shot__review-target self-start">
+                                                    <span class="lp-shot__scribble"></span>
+                                                    <span class="lp-shot__strong">{{ '$180' }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <twig:Ds:Disclosure class="lp-site-review-selector" open>
+                                        <twig:block name="summary">{{ 'site_review.feedback.captured_elements'|trans }}</twig:block>
+                                        <dl class="lp-feedback-native-facts">
+                                            {% for key, value in {'site_review.native.device': 'iPhone 15', 'site_review.native.os_version': '17.4', 'site_review.native.app': 'Driftwood / com.driftwood.app', 'site_review.native.screen': 'Cabin details', 'site_review.native.element_label': '$180'} %}
+                                            <div><dt>{{ key|trans }}</dt><dd>{{ value }}</dd></div>
+                                            {% endfor %}
+                                        </dl>
+                                    </twig:Ds:Disclosure>
+                                    <div class="lp-feedback-detail__actions">
+                                        <span class="{{ ds_button_class('primary') }}">{{ 'site_review.comment.action.resolve'|trans }}</span>
+                                    </div>
+                                </div>
+                            </article>
+                        </li>
+                    </ul>
+                </section>
             </div>
         </div>
     </div>

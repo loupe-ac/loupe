@@ -1,34 +1,55 @@
 {% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% macro rule(id, applies, action, groups) %}
+<div class="lp-data-table__row">
+    <span class="lp-data-table__cell lp-data-table__title">{{ id }}</span>
+    <span class="lp-data-table__cell">{{ applies }}</span>
+    <div class="lp-data-table__cell">{{ action }}</div>
+    <div class="lp-data-table__cell">{{ groups|raw }}</div>
+</div>
+{% endmacro %}
+{% import _self as hero %}
 <div class="lp-shot" aria-hidden="true">
     <div class="lp-shot__canvas lp-shot__canvas--wide">
         <div class="lp-shot__app">
             {{ shot.sidebar('workflow') }}
             <div class="lp-shot__main">
-                <div class="lp-shot__top">
-                    <h3 class="lp-shot__title">{{ 'landing.shot.workflow'|trans }}</h3>
-                    <span class="lp-shot__crumb">{{ 'landing.shot.driftwood'|trans }}</span>
-                    <span class="lp-shot__spacer">{{ shot.pill('landing.shot.lifecycle_template'|trans) }}</span>
-                </div>
-                <div class="lp-shot__body">
-                    <div class="lp-shot__row">
-                        {% for stage in ['landing.shot.product_design'|trans, 'landing.shot.tech_design'|trans, 'landing.shot.implementation'|trans, 'landing.shot.in_review'|trans, 'landing.shot.done'|trans] %}
-                            {{ shot.pill(stage, 'outline') }}
-                            {% if not loop.last %}{{ shot.icon('lucide:arrow-right') }}{% endif %}
-                        {% endfor %}
-                    </div>
-                    <div class="lp-shot__table">
-                        <div class="lp-shot__table-row lp-shot__table-row--head"><span>{{ 'landing.shot.rule'|trans }}</span><span>{{ 'landing.shot.applies_in'|trans }}</span><span>{{ 'landing.shot.action'|trans }}</span></div>
-                        <div class="lp-shot__table-row"><span class="lp-shot__strong lp-shot__mono">{{ 'design-approved' }}</span><span>{{ 'landing.shot.product_design'|trans }}</span><span>{{ 'landing.shot.move_to_tech_design'|trans }}</span></div>
-                        <div class="lp-shot__table-row"><span class="lp-shot__strong lp-shot__mono">{{ 'tech-design-approved' }}</span><span>{{ 'landing.shot.tech_design'|trans }}</span><span>{{ 'landing.shot.move_to_implementation'|trans }}</span></div>
-                        <div class="lp-shot__table-row"><span class="lp-shot__strong lp-shot__mono">{{ 'pull-request-ready' }}</span><span>{{ 'landing.shot.implementation'|trans }}</span><span>{{ 'landing.shot.move_to_in_review_ask_for'|trans }}</span></div>
-                        <div class="lp-shot__table-row"><span class="lp-shot__strong lp-shot__mono">{{ 'review-passed' }}</span><span>{{ 'landing.shot.in_review'|trans }}</span><span>{{ 'landing.shot.merge_then_move_to_done'|trans }}</span></div>
-                        <div class="lp-shot__table-row"><span class="lp-shot__strong lp-shot__mono">{{ 'work-failed' }}</span><span>{{ 'landing.shot.any_column'|trans }}</span><span>{{ 'landing.shot.run_again_then_send_the_repair'|trans }}</span></div>
-                    </div>
-                    <div class="lp-shot__row">
-                        <span class="lp-shot__label">{{ 'landing.shot.agents_run_on'|trans }}</span>
-                        {{ shot.pill("Maya's laptop", 'ok') }}
-                        {{ shot.pill('landing.shot.build_server'|trans, 'ok') }}
-                    </div>
+                {{ shot.topbar(['nav.link.workflow'|trans]) }}
+                <div class="lp-shot__page lp-workspace lp-orchestration-page lp-redesign-secondary">
+                    <header class="lp-orchestration-header">
+                        <div>
+                            <h1 class="lp-workspace-title">{{ 'workflow.template.lifecycle.label'|trans }}</h1>
+                            <p class="lp-workspace-desc">{{ 'workflow.template.lifecycle.description'|trans }}</p>
+                            <p class="lp-workspace-desc">{{ 'workflow.settings.version'|trans({'%version%': '44'}) }} · {{ 'workflow.settings.bound_at'|trans({'%date%': '8 Nov 2026'}) }}</p>
+                        </div>
+                    </header>
+                    <section class="lp-workflow-section">
+                        <twig:Ds:SectionHeading>{{ 'workflow.settings.rules.heading'|trans }}</twig:Ds:SectionHeading>
+                        <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-table-cue--data">
+<div class="lp-data-table">
+                            <div class="lp-data-table__header">
+                                <span class="lp-data-table__cell">{{ 'workflow.settings.rules.id'|trans }}</span>
+                                <span class="lp-data-table__cell">{{ 'workflow.settings.rules.applies_to'|trans }}</span>
+                                <span class="lp-data-table__cell">{{ 'workflow.settings.rules.action'|trans }}</span>
+                                <span class="lp-data-table__cell">{{ 'workflow.settings.rules.conditions'|trans }}</span>
+                            </div>
+                            {{ hero.rule('product-design-approved', 'workflow.slot.product_design'|trans,
+                                'workflow.settings.action.move'|trans({'%target%': 'workflow.slot.tech_design'|trans}),
+                                '<div>' ~ 'workflow.source.board'|trans ~ ': <code>card.document.approved</code> (tag: product-design)</div>') }}
+                            {{ hero.rule('tech-design-approved', 'workflow.slot.tech_design'|trans,
+                                'workflow.settings.action.move'|trans({'%target%': 'workflow.slot.implementation'|trans}),
+                                '<div>' ~ 'workflow.source.board'|trans ~ ': <code>card.document.approved</code> (tag: tech-design)</div>') }}
+                            {{ hero.rule('implement', 'workflow.slot.implementation'|trans,
+                                'workflow.settings.action.request'|trans({'%kind%': 'implement'}),
+                                '<div>' ~ 'workflow.source.board'|trans ~ ': ' ~ 'workflow.settings.rules.not'|trans ~ ' <code>card.pr.linked</code></div>') }}
+                            {{ hero.rule('reviewable', 'workflow.slot.implementation'|trans,
+                                'workflow.settings.action.move'|trans({'%target%': 'workflow.slot.in_review'|trans}),
+                                '<div>' ~ 'workflow.source.forge'|trans ~ ': <code>pr.open</code>, <code>pr.checks_passed</code></div><div>' ~ 'workflow.source.agent_review'|trans ~ ': <code>agent_review.passed</code></div>') }}
+                            {{ hero.rule('merge-ready', 'workflow.slot.in_review'|trans,
+                                'workflow.settings.action.forge_write'|trans({'%kind%': 'merge'}),
+                                '<div>' ~ 'workflow.source.forge'|trans ~ ': <code>pr.open</code>, <code>pr.checks_passed</code></div>') }}
+                        </div>
+</div>
+                    </section>
                 </div>
             </div>
         </div>

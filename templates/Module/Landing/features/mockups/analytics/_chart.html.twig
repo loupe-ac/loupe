@@ -1,0 +1,83 @@
+{# The line chart of the app, drawn with its own classes on the app's 960 by 280 plot.
+   values and previous are dollars for each week, labels are the dollar tick texts on the y axis. #}
+{% macro line(values, previous, ticks, weeks) %}
+{% set left = 64 %}
+{% set right = 936 %}
+{% set top = 16 %}
+{% set base = 248 %}
+{% set top_value = ticks|last %}
+{% set step = (right - left - 2 * 14.5) / (values|length - 1) %}
+{% set current_path = '' %}
+{% set previous_path = '' %}
+{% for value in values %}
+    {% set x = left + 14.5 + loop.index0 * step %}
+    {% set current_path = current_path ~ (loop.first ? 'M' : ' L') ~ x|round(2) ~ ' ' ~ (base - value / top_value * (base - top))|round(2) %}
+{% endfor %}
+{% for value in previous %}
+    {% set x = left + 14.5 + loop.index0 * step %}
+    {% set previous_path = previous_path ~ (loop.first ? 'M' : ' L') ~ x|round(2) ~ ' ' ~ (base - value / top_value * (base - top))|round(2) %}
+{% endfor %}
+<figure class="lp-chart lp-chart--line">
+    <div class="lp-chart__scroll">
+        <div class="lp-chart__surface lp-chart__surface--wide">
+            {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 960 280" role="group">
+                {% for tick in ticks %}
+                    {% set y = base - tick / top_value * (base - top) %}
+                    <line class="lp-chart__grid" x1="{{ left }}" x2="{{ right }}" y1="{{ y|round(2) }}" y2="{{ y|round(2) }}" />
+                    <text class="lp-chart__tick" x="{{ left - 8 }}" y="{{ y|round(2) }}" text-anchor="end" dominant-baseline="middle">{{ '$' ~ tick }}</text>
+                {% endfor %}
+                {% for week in weeks %}
+                    <text class="lp-chart__tick" x="{{ (left + 14.5 + (loop.index0 * 2) * step)|round(2) }}" y="274" text-anchor="middle">{{ week }}</text>
+                {% endfor %}
+                <line class="lp-chart__baseline" x1="{{ left }}" x2="{{ right }}" y1="{{ base }}" y2="{{ base }}" />
+                <g class="lp-chart-slot--1">
+                    {% if previous %}<path class="lp-chart__line lp-chart__line--previous" d="{{ previous_path }}" />{% endif %}
+                    <path class="lp-chart__line" d="{{ current_path }}" />
+                    {% for value in values %}
+                        <circle class="lp-chart__dot" cx="{{ (left + 14.5 + loop.index0 * step)|round(2) }}" cy="{{ (base - value / top_value * (base - top))|round(2) }}" r="3.5" />
+                    {% endfor %}
+                </g>
+            </svg>
+        </div>
+    </div>
+    {% if previous %}
+    <ul class="lp-chart__legend">
+        <li class="lp-chart__key"><span class="lp-chart__dash" aria-hidden="true"></span>{{ 'analytics.chart.legend.previous'|trans }}</li>
+    </ul>
+    {% endif %}
+    <span class="lp-disclosure lp-chart__table"><span class="lp-disclosure__summary">{{ ux_icon('lucide:chevron-right', {class: 'lp-icon lp-icon--sm lp-disclosure__caret', 'aria-hidden': 'true'}) }}{{ 'analytics.chart.table.toggle'|trans }}</span></span>
+</figure>
+{% endmacro %}
+
+{# The big number of a Number chart. change is the percent text, sign is the chip text. #}
+{% macro number(value, arrow, change, sign, previous, state) %}
+<figure class="lp-chart lp-chart--number">
+    <div class="lp-chart__figures">
+        <div class="lp-chart__figure">
+            <p class="lp-chart__figure-value">{{ value }}</p>
+            <p class="lp-chart__figure-change">
+                <span class="lp-chart__change"><span aria-hidden="true">{{ arrow }}</span> {{ change }}</span>
+                <span class="lp-chart__sign-anchor"><span class="lp-chart__sign lp-chart__sign--{{ state|default('clear') }}">{{ sign }}</span></span>
+            </p>
+            <p class="lp-chart__figure-previous">{{ 'analytics.chart.hover.previous'|trans({'%value%': previous}) }}</p>
+        </div>
+    </div>
+</figure>
+{% endmacro %}
+
+{# A graph tile of the dashboard, with its grip, name, settings line and menu. width is full or half. #}
+{% macro tile(name, settings, width, body) %}
+<div class="lp-dashboard-grid__cell lp-dashboard-grid__cell--{{ width }}">
+    <article class="lp-graph-tile">
+        <header class="lp-graph-tile__head">
+            <span class="lp-graph-tile__grip" aria-hidden="true">{{ ux_icon('lucide:grip-vertical', {class: 'lp-icon lp-icon--md'}) }}</span>
+            <div class="lp-graph-tile__text">
+                <h3 class="lp-graph-tile__title">{{ name }}</h3>
+                <p class="lp-graph-tile__settings">{{ settings }}</p>
+            </div>
+            <div class="lp-graph-tile__actions"><span class="{{ ds_button_class('ghost icon sm') }}">{{ ux_icon('lucide:ellipsis', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span></div>
+        </header>
+        <div class="lp-graph-tile__body">{{ body|raw }}</div>
+    </article>
+</div>
+{% endmacro %}
