@@ -316,6 +316,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
 		r.credentials = newCredentialBroker(apiClient(cfg), cfg.AgentAccount, control.Addr().String())
+		if installed, err := b.installed(); b != nil && err == nil {
+			r.credentials.binary = installed
+		}
+		r.skills.exe = r.credentials.helperBinary
 	}
 	r.identities = newIdentityReporter(cmd.Context(), cfg.AgentAccount, pushLogin, r.credentials, bl.log)
 	if dir, err := config.Dir(); err == nil {

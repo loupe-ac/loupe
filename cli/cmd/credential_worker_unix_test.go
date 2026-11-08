@@ -114,3 +114,35 @@ func TestAnAgentWorkerWithNoBrokerDoesNotStart(t *testing.T) {
 		t.Fatalf("runWorker = %+v, want an error", res)
 	}
 }
+
+func TestAManagedWorkerNamesTheInstalledBinaryInBothHelpers(t *testing.T) {
+	workerSees(t)
+	f := newTokenFixture()
+	f.broker.binary = "/installed/loupe"
+	spec := workerSpec{dir: t.TempDir(), sessionID: testSession, runID: "run-2", prompt: "go", credentials: f.broker, project: "p1"}
+
+	res := runWorker(context.Background(), spec, nil)
+	if res.err != nil {
+		t.Fatalf("runWorker = %+v", res)
+	}
+	wrapper, err := os.ReadFile(filepath.Join(res.dir, "bin", "gh"))
+	if err != nil || !strings.Contains(string(wrapper), "/installed/loupe") {
+		t.Fatalf("wrapper = %q, %v", wrapper, err)
+	}
+	creds, _, err := spec.credentialEnv(context.Background())
+	if err != nil || creds.loupe != "/installed/loupe" {
+		t.Fatalf("creds = %+v, %v", creds, err)
+	}
+}
+
+func TestTheHelperBinaryFallsBackToTheRunningOne(t *testing.T) {
+	want, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range []*credentialBroker{nil, {}} {
+		if got, err := b.helperBinary(); err != nil || got != want {
+			t.Fatalf("helperBinary = %q, %v, want %q", got, err, want)
+		}
+	}
+}

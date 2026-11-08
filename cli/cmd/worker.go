@@ -555,7 +555,7 @@ func (s workerSpec) credentialEnv(ctx context.Context) (creds *credentialEnv, ma
 	if s.credentials == nil {
 		return nil, false, errors.New("the bridge has no credential service for this worker")
 	}
-	loupe, err := os.Executable()
+	loupe, err := s.credentials.helperBinary()
 	if err != nil {
 		return nil, false, fmt.Errorf("find the loupe binary: %w", err)
 	}
