@@ -48,4 +48,18 @@ final class PreviewTextTest extends TestCase
             self::assertLessThanOrEqual(24, mb_strlen($key['name']));
         }
     }
+
+    public function test_a_legend_of_more_series_than_fit_at_full_size_shrinks_and_keeps_every_label(): void
+    {
+        $names = array_map(static fn (int $i): string => 'Series '.$i, range(1, 80));
+
+        $legend = PreviewText::legend($names);
+
+        self::assertCount(80, $legend);
+        self::assertSame([0, 1], array_values(array_unique(array_column($legend, 'row'))));
+        self::assertLessThan(1.0, $legend[0]['scale']);
+        foreach ($legend as $key) {
+            self::assertLessThanOrEqual(1144, $key['x']);
+        }
+    }
 }

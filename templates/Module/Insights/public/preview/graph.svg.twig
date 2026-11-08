@@ -9,7 +9,7 @@
   The 1200 by 630 image of a shared graph. The template holds no href, no image and no foreignObject, so the renderer loads no outside file.
   Every text goes through Twig escaping, and PreviewText::fit cuts a text to its slot.
 #}
-{% macro swatch(x, y, colour) %}<rect x="{{ x }}" y="{{ y }}" width="14" height="14" rx="3" fill="{{ colour }}"/>{% endmacro %}
+{% macro swatch(x, y, colour, size = 14) %}<rect x="{{ x }}" y="{{ y }}" width="{{ size }}" height="{{ size }}" rx="3" fill="{{ colour }}"/>{% endmacro %}
 {% set layout = view.layout ?? null %}
 {% set labels = view.labels ?? [] %}
 {% set chartX = (1200 - box.width) / 2 %}
@@ -98,8 +98,8 @@
         {% for key in layout.series|map(series => labels[series.position] ?? '')|preview_legend %}
             {% set series = layout.series[loop.index0] %}
             {% set keyY = footerY + key.row * 30 %}
-            {{ _self.swatch(key.x, keyY - 7, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other)) }}
-            <text x="{{ key.x + 24 }}" y="{{ keyY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.text }}">{{ key.name }}</text>
+            {{ _self.swatch(key.x|round(2), keyY - 7 * key.scale, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other), 14 * key.scale) }}
+            <text x="{{ (key.x + 24 * key.scale)|round(2) }}" y="{{ keyY }}" dominant-baseline="middle" font-size="{{ 18 * key.scale }}" fill="{{ palette.text }}">{{ key.name }}</text>
         {% endfor %}
     {% endif %}
     <g transform="translate(956 {{ footerY - 14 }})" fill="{{ palette.muted }}">

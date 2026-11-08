@@ -30,17 +30,24 @@ final class PreviewText
 
     /**
      * Places every legend label on at most two rows of the image footer, and cuts the names to the widest budget at which all of them fit.
+     * When even one character a name overflows, the whole legend shrinks until every label has a place.
      * The first row stops before the "Made with Loupe" line, and the second row spans the image.
      *
      * @param list<string> $names
      *
-     * @return list<array{x: int, row: int, name: string}>
+     * @return list<array{x: float, row: int, name: string, scale: float}>
      */
     public static function legend(array $names): array
     {
         $placed = [];
         foreach ([24, 16, 12, 8, 6, 4, 3, 2, 1] as $budget) {
-            $placed = self::place($names, $budget);
+            $placed = self::place($names, $budget, 1.0);
+            if (\count($placed) === \count($names)) {
+                return $placed;
+            }
+        }
+        for ($tenths = 90; $tenths >= 1; $tenths -= 2) {
+            $placed = self::place($names, 1, $tenths / 100);
             if (\count($placed) === \count($names)) {
                 return $placed;
             }
@@ -52,24 +59,24 @@ final class PreviewText
     /**
      * @param list<string> $names
      *
-     * @return list<array{x: int, row: int, name: string}>
+     * @return list<array{x: float, row: int, name: string, scale: float}>
      */
-    private static function place(array $names, int $budget): array
+    private static function place(array $names, int $budget, float $scale): array
     {
         $placed = [];
         $row = 0;
-        $x = self::LEGEND_LEFT;
+        $x = (float) self::LEGEND_LEFT;
         foreach ($names as $name) {
             $fit = self::fit($name, $budget);
-            $width = 14 + 10 + mb_strlen($fit) * 10 + 28;
+            $width = (14 + 10 + mb_strlen($fit) * 10 + 28) * $scale;
             if ($x + $width > self::LEGEND_RIGHT[$row]) {
                 ++$row;
-                $x = self::LEGEND_LEFT;
+                $x = (float) self::LEGEND_LEFT;
                 if (!isset(self::LEGEND_RIGHT[$row])) {
                     break;
                 }
             }
-            $placed[] = ['x' => $x, 'row' => $row, 'name' => $fit];
+            $placed[] = ['x' => $x, 'row' => $row, 'name' => $fit, 'scale' => $scale];
             $x += $width;
         }
 
