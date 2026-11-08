@@ -15,10 +15,12 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const (
@@ -30,14 +32,37 @@ const (
 	profileSkill   = "loupe-profile"
 )
 
-// initAgent runs an agent in the foreground, on the terminal of init. A test
-// replaces it.
+// initAgent runs an agent in the foreground, on the terminal of init. It needs
+// the *os.File of the terminal as out: Go gives the child a pipe for any other
+// writer, and Claude Code then runs in print mode. A test replaces it.
 var initAgent = func(dir string, in io.Reader, out io.Writer, name string, args ...string) error {
 	c := exec.Command(name, args...)
 	c.Dir = dir
 	c.Stdin, c.Stdout, c.Stderr = in, out, os.Stderr
 
 	return c.Run()
+}
+
+// agentOutput is the output that an agent writes to: the one under the view of
+// init, with the pending step lines drawn first.
+func agentOutput(out io.Writer) io.Writer {
+	if view, ok := out.(*initview.Writer); ok {
+		return view.Unwrap()
+	}
+
+	return out
+}
+
+// isTerminalOutput reports whether an agent on out can draw for a person. A
+// file counts only when it is a real terminal. Any other writer counts, so
+// tests can capture the output.
+func isTerminalOutput(out io.Writer) bool {
+	f, ok := out.(*os.File)
+	if !ok {
+		return true
+	}
+
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // initExecutable finds this binary. A test replaces it.
@@ -113,7 +138,7 @@ func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions) (
 	}
 	step(out, "Profile", "started", "The "+agent+" agent looks for blockers with you")
 	agentRan = true
-	if err := initAgent(dir, cmd.InOrStdin(), out, agent, args...); err != nil {
+	if err := initAgent(dir, cmd.InOrStdin(), agentOutput(out), agent, args...); err != nil {
 		step(out, "Profile", "failed", agent+" stopped: "+err.Error()+". Paste this prompt into an agent in this folder:")
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, prompt)
@@ -186,7 +211,7 @@ func pickProfileAgent(cmd *cobra.Command, flag string, haveSkill bool) (string, 
 		return "", "--agent takes " + agentClaude + " or " + agentCodex
 	}
 	in := cmd.InOrStdin()
-	if !isTerminal(in) {
+	if !isTerminal(in) || !isTerminalOutput(agentOutput(cmd.OutOrStdout())) {
 		return "", "no terminal to run an agent on"
 	}
 	var found []string
