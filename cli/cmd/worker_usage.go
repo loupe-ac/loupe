@@ -5,6 +5,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
@@ -17,6 +18,31 @@ func sessionBaseline(h harn.Harness, sessionID string) *transcript.Usage {
 	}
 
 	return &usage
+}
+
+// sessionLastTurn is when the session last answered before a resume, and nil
+// when the harness cannot say.
+func sessionLastTurn(h harn.Harness, sessionID string) *time.Time {
+	at, err := h.SessionLastTurn(sessionID)
+	if err != nil || at.IsZero() {
+		return nil
+	}
+
+	return &at
+}
+
+// wakeOf is what woke the resume of rec, and nil for a run that is no resume
+// or a record with no cause. It holds a count and a time, never text.
+func wakeOf(rec runRecord, first *stream.TurnUsage) *api.Wake {
+	if !rec.Resume || rec.Cause == "" {
+		return nil
+	}
+	wake := &api.Wake{Trigger: rec.Cause, LastTurnAt: rec.LastTurnAt}
+	if first != nil {
+		wake.FirstTurn = &api.TurnUsage{InputTokens: first.InputTokens, CacheReadTokens: first.CacheReadTokens, CacheWriteTokens: first.CacheWriteTokens}
+	}
+
+	return wake
 }
 
 // workerUsage is what the process of rec spent. claude's own counts cover the

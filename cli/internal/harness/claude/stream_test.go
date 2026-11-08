@@ -600,3 +600,44 @@ func TestReadsWhetherTheLastRetryHadNoStatus(t *testing.T) {
 		})
 	}
 }
+
+// A resumed stream repeats the first message as it grows. The first turn takes
+// the largest count of each field over those lines, and a line of another
+// message, of a subagent, or a later repeat after another message adds nothing.
+func TestReadsTheFirstTurnOfAResumeAsTheLargestCounts(t *testing.T) {
+	out := readFixture(t, "resumed_first_turn.jsonl")
+
+	want := &stream.TurnUsage{InputTokens: 7, CacheReadTokens: 300, CacheWriteTokens: 1200}
+	if !reflect.DeepEqual(out.FirstTurn, want) {
+		t.Fatalf("FirstTurn = %+v, want %+v", out.FirstTurn, want)
+	}
+}
+
+// A stream with no main-session assistant line with all three counts has no
+// first turn, and a usage limit notice is no first turn.
+func TestAStreamWithNoCountedFirstTurnHasNone(t *testing.T) {
+	for name, in := range map[string]string{
+		"no assistant line": `{"type":"result","result":"x"}` + "\n",
+		"a missing count":   `{"type":"assistant","message":{"id":"m","usage":{"input_tokens":1,"cache_read_input_tokens":2}}}` + "\n",
+		"a subagent only":   `{"type":"assistant","parent_tool_use_id":"t","message":{"id":"m","usage":{"input_tokens":1,"cache_read_input_tokens":2,"cache_creation_input_tokens":3}}}` + "\n",
+		"a limit notice": `{"type":"assistant","message":{"id":"m","content":[{"type":"text","text":"You've hit your session limit · resets 3:45pm"}],"usage":{"input_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n" +
+			`{"type":"assistant","message":{"id":"n","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":1,"cache_read_input_tokens":2,"cache_creation_input_tokens":3}}}` + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, err := Read(strings.NewReader(in))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if name == "a limit notice" {
+				if want := (&stream.TurnUsage{InputTokens: 1, CacheReadTokens: 2, CacheWriteTokens: 3}); !reflect.DeepEqual(out.FirstTurn, want) {
+					t.Fatalf("FirstTurn = %+v, want %+v", out.FirstTurn, want)
+				}
+
+				return
+			}
+			if out.FirstTurn != nil {
+				t.Fatalf("FirstTurn = %+v, want nil", out.FirstTurn)
+			}
+		})
+	}
+}

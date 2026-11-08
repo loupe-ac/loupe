@@ -219,6 +219,7 @@ final class ApiAccessControlTest extends KernelTestCase
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}',
             '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage',
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls',
+            '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake',
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/output',
             '/api/v1/bridge/projects/{handle}/interactive-runs/{sessionId}',
             '/api/v1/bridge/projects/{handle}/experiments/{experiment}/pins/{cardId}',

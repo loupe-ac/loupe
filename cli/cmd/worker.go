@@ -82,8 +82,10 @@ type workerResult struct {
 	// streamed says the harness read the calls of the run, and calls and
 	// timing are what the run held.
 	streamed bool
-	calls    []stream.Call
-	timing   stream.Timing
+	// wake says what woke a resumed run, and is nil for any other run.
+	wake   *api.Wake
+	calls  []stream.Call
+	timing stream.Timing
 	// limit is the limited reading that stopped the run, and nil when no
 	// reading of the run was limited. assistantTurn says the agent took at
 	// least one turn, so the run did work.
@@ -125,6 +127,9 @@ type workerSpec struct {
 	sessionID      string
 	resume         bool
 	prompt         string
+	// cause is why a resume woke the session: a cause of a command, or
+	// api.CauseWorkRequest. It is empty for a run that is no resume.
+	cause string
 	// runID names the run directory. rule and key only go into run.json.
 	runID string
 	rule  string
@@ -341,6 +346,10 @@ type runRecord struct {
 	// Baseline is the session's usage before a resume started. A resume with
 	// no baseline could not read it.
 	Baseline *transcript.Usage `json:"baseline,omitempty"`
+	// Cause and LastTurnAt say what woke a resume: its cause, and when the
+	// session last answered before it started. A nil time could not be read.
+	Cause      string     `json:"cause,omitempty"`
+	LastTurnAt *time.Time `json:"lastTurnAt,omitempty"`
 	// Project is the project handle the run asks the server about. Agent says
 	// the run pushes as the agent account, and Managed that Loupe manages its
 	// git identity. An adopting image answers credential requests for a run
@@ -488,8 +497,10 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	// claude adds to the session's totals as it runs, so the baseline is read
 	// before it starts.
 	var baseline *transcript.Usage
+	var lastTurn *time.Time
 	if spec.resume {
 		baseline = sessionBaseline(h, spec.sessionID)
+		lastTurn = sessionLastTurn(h, spec.sessionID)
 	}
 	launched := time.Now()
 	// The helper can ask as soon as the process runs, so the run is known first.
@@ -509,6 +520,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		Dir: spec.dir, PermissionMode: spec.permissionMode, Model: spec.model, Effort: spec.effort,
 		SessionID: spec.sessionID, Resume: spec.resume, Prompt: spec.prompt,
 		Harness: h.Name(), Account: spec.account, ConfigDir: spec.configDir, Profile: spec.profile, Baseline: baseline,
+		Cause: spec.cause, LastTurnAt: lastTurn,
 		Project: spec.project, Agent: spec.agent != nil, Managed: managed, CostSource: command.CostSource,
 	}
 	// A worker with no record cannot outlive this bridge, so it does not run.
@@ -580,6 +592,9 @@ func workerOutcome(dir string, killed bool, waitErr error) workerResult {
 	res.harnessVersion, res.skillVersion = doc.HarnessVersion, doc.SkillVersion
 	res.harnessEvents = doc.HarnessEvents
 	res.assistantTurn = doc.AssistantTurns > 0 || len(doc.Calls) > 0
+	if recErr == nil {
+		res.wake = wakeOf(rec, doc.FirstTurn)
+	}
 	res.retryNoStatus = doc.LastRetryNoStatus
 	if readErr := errors.Join(cmp.Or(doc.ReadErr, headErr), stderrErr); readErr != nil {
 		res.output = strings.TrimLeft(res.output+"\n"+readErr.Error(), "\n")

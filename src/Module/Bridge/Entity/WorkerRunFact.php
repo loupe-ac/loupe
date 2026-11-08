@@ -8,6 +8,7 @@ use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -171,6 +172,22 @@ class WorkerRunFact
 
         #[ORM\Column(name: 'week_usage_delta', nullable: true)]
         public readonly ?float $weekUsageDelta,
+
+        /** The five wake columns copy the run. All are null for a run that is no resume. */
+        #[ORM\Column(name: 'wake_trigger', length: 20, nullable: true, enumType: WorkerRunWakeTrigger::class)]
+        public readonly ?WorkerRunWakeTrigger $wakeTrigger,
+
+        #[ORM\Column(name: 'wake_gap_ms', type: Types::BIGINT, nullable: true)]
+        public readonly ?int $wakeGapMs,
+
+        #[ORM\Column(name: 'wake_first_input_tokens', type: Types::BIGINT, nullable: true)]
+        public readonly ?int $wakeFirstInputTokens,
+
+        #[ORM\Column(name: 'wake_first_cache_read_tokens', type: Types::BIGINT, nullable: true)]
+        public readonly ?int $wakeFirstCacheReadTokens,
+
+        #[ORM\Column(name: 'wake_first_cache_write_tokens', type: Types::BIGINT, nullable: true)]
+        public readonly ?int $wakeFirstCacheWriteTokens,
     ) {
     }
 }

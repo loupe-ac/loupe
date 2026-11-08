@@ -26,6 +26,10 @@ enum Metric: string
     case SessionUsage = 'session-usage';
     case WeekUsage = 'week-usage';
     case PeakContext = 'peak-context';
+    case Wakes = 'wakes';
+    case ColdWakes = 'cold-wakes';
+    case ColdWakeCacheWriteTokens = 'cold-wake-cache-write-tokens';
+    case ColdWakeShare = 'cold-wake-share';
 
     /**
      * The metrics whose key says all. A named metric needs a name too, so a
@@ -47,6 +51,12 @@ enum Metric: string
         };
     }
 
+    /** The metrics that read the wake of a run, the first turn after a resume. */
+    public function isWake(): bool
+    {
+        return \in_array($this, [self::Wakes, self::ColdWakes, self::ColdWakeCacheWriteTokens, self::ColdWakeShare], true);
+    }
+
     /** A grouped bucket metric reads every bucket at once, and the bucket is the line. */
     public function isBucketEach(): bool
     {
@@ -58,7 +68,7 @@ enum Metric: string
     {
         return match ($this) {
             self::Runs => [MetricUnit::Card],
-            self::StopRate, self::SessionUsage, self::WeekUsage, self::PeakContext => [MetricUnit::Run],
+            self::StopRate, self::SessionUsage, self::WeekUsage, self::PeakContext, self::ColdWakeShare => [MetricUnit::Run],
             self::AccountUsage => [MetricUnit::Reading],
             default => [MetricUnit::Run, MetricUnit::Card],
         };
@@ -68,10 +78,10 @@ enum Metric: string
     {
         return match ($this) {
             self::Cost => MetricValueType::Money,
-            self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens, self::PeakContext => MetricValueType::Tokens,
+            self::InputTokens, self::OutputTokens, self::CacheReadTokens, self::CacheWriteTokens, self::PeakContext, self::ColdWakeCacheWriteTokens => MetricValueType::Tokens,
             self::Duration, self::BucketTime, self::BucketTimeAll, self::BucketTimeEach, self::BucketTimeAllEach => MetricValueType::Duration,
-            self::Runs, self::HarnessEvents, self::BucketCalls, self::BucketCallsEach => MetricValueType::Count,
-            self::StopRate => MetricValueType::Ratio,
+            self::Runs, self::HarnessEvents, self::BucketCalls, self::BucketCallsEach, self::Wakes, self::ColdWakes => MetricValueType::Count,
+            self::StopRate, self::ColdWakeShare => MetricValueType::Ratio,
             self::AccountUsage, self::SessionUsage, self::WeekUsage => MetricValueType::Percent,
         };
     }
@@ -87,8 +97,9 @@ enum Metric: string
     }
 
     /**
-     * The account usage splits by account window alone, because a reading belongs to no run. Every other metric
-     * splits by what a run or a card names.
+     * The account usage splits by account window alone, because a reading belongs to no run. The wake groups belong
+     * to the wake metrics alone, because a gap belongs to a resumed run. Every other metric splits by what a run or a
+     * card names.
      *
      * @return list<MetricGroup>
      */
@@ -101,7 +112,10 @@ enum Metric: string
             return [MetricGroup::None];
         }
 
-        return array_values(array_filter(MetricGroup::cases(), static fn (MetricGroup $group): bool => MetricGroup::AccountWindow !== $group));
+        return array_values(array_filter(
+            MetricGroup::cases(),
+            fn (MetricGroup $group): bool => MetricGroup::AccountWindow !== $group && ($this->isWake() || !$group->isWakeGrouping()),
+        ));
     }
 
     /**
@@ -110,13 +124,13 @@ enum Metric: string
      */
     public function readsExperimentCards(): bool
     {
-        return !$this->isBucketEach() && !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext], true);
+        return !$this->isBucketEach() && !\in_array($this, [self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext, self::Wakes, self::ColdWakes, self::ColdWakeCacheWriteTokens, self::ColdWakeShare], true);
     }
 
     /** A sum over the runs of a card gives its value on the card unit. */
     public function isAdditive(): bool
     {
-        return !\in_array($this, [self::StopRate, self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext], true);
+        return !\in_array($this, [self::StopRate, self::AccountUsage, self::SessionUsage, self::WeekUsage, self::PeakContext, self::ColdWakeShare], true);
     }
 
     public function description(): string
@@ -134,6 +148,10 @@ enum Metric: string
             self::SessionUsage => 'The change in the use of the session window of the account of a run, in percentage points, from the first to the last reading inside the run. A run with fewer than two readings in the window is unknown. A run that overlaps other runs or sessions on the same account also counts their use.', // @translation-check-ignore
             self::WeekUsage => 'The change in the use of the weekly window of the account of a run, in percentage points, from the first to the last reading inside the run. A run with fewer than two readings in the window is unknown. A run that overlaps other runs or sessions on the same account also counts their use.', // @translation-check-ignore
             self::PeakContext => 'The largest context of the main session in one turn of a run, in tokens. Subagents do not count, and a run with no value is unknown. A group by model names the model with the highest cost in the run, which can differ from the model at the peak.', // @translation-check-ignore
+            self::Wakes => 'The number of runs that resumed the session of an earlier run. A run that is no resume counts 0. Runs from before wakes were recorded count 0.', // @translation-check-ignore
+            self::ColdWakes => 'The number of resumes whose first turn wrote more tokens to the prompt cache than it read from the input and the cache together. A resume with no first-turn figures counts 0.', // @translation-check-ignore
+            self::ColdWakeCacheWriteTokens => 'The tokens that the first turn of a cold resume wrote to the prompt cache. A run that is no cold resume counts 0.', // @translation-check-ignore
+            self::ColdWakeShare => 'The share of resumes that were cold, as a mean of 1 for a cold resume and 0 for a warm one. A run that is no resume, or has no first-turn figures, is unknown.', // @translation-check-ignore
             self::HarnessEvents => 'The number of harness events of one kind in a run, such as diagnostics. A run that reported events but none of this kind counts 0, and a run that reported none is unknown. Name the kind after a colon: harness-events:<kind>.', // @translation-check-ignore
             self::BucketTime => 'The time of the main-session tool calls of a run in one bucket of the project rules, in milliseconds. Name the bucket after a colon: bucket-time:<name>.', // @translation-check-ignore
             self::BucketTimeAll => 'The time of the tool calls of a run in one bucket of the project rules, in milliseconds. It includes the calls of subagents, so it can exceed the run time. Name the bucket after a colon: bucket-time-all:<name>.', // @translation-check-ignore

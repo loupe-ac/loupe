@@ -11,6 +11,8 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Security\ProjectScopedSubject;
@@ -238,6 +240,24 @@ class WorkerRun implements ProjectScopedSubject
     #[ORM\Column(name: 'peak_context_tokens', type: Types::BIGINT, nullable: true)]
     public ?int $peakContextTokens = null;
 
+    /** The cause of the resume that made this run. Null when the run is no resume, or its bridge predates wakes. */
+    #[ORM\Column(name: 'wake_trigger', length: 20, nullable: true, enumType: WorkerRunWakeTrigger::class)]
+    public ?WorkerRunWakeTrigger $wakeTrigger = null;
+
+    /** The time from the last turn of the session to the start of this run, in milliseconds. Null when unknown. */
+    #[ORM\Column(name: 'wake_gap_ms', type: Types::BIGINT, nullable: true)]
+    public ?int $wakeGapMs = null;
+
+    /** The final usage of the first turn after the resume. All three are null when unknown. */
+    #[ORM\Column(name: 'wake_first_input_tokens', type: Types::BIGINT, nullable: true)]
+    public ?int $wakeFirstInputTokens = null;
+
+    #[ORM\Column(name: 'wake_first_cache_read_tokens', type: Types::BIGINT, nullable: true)]
+    public ?int $wakeFirstCacheReadTokens = null;
+
+    #[ORM\Column(name: 'wake_first_cache_write_tokens', type: Types::BIGINT, nullable: true)]
+    public ?int $wakeFirstCacheWriteTokens = null;
+
     /**
      * The count of each kind of harness event in the run, as the bridge counted them. Null when the bridge sent none.
      * A kind the map lacks counts as zero.
@@ -384,6 +404,16 @@ class WorkerRun implements ProjectScopedSubject
         $this->skillVersion = $skillVersion ?? $this->skillVersion;
 
         return $before !== [$this->harness, $this->account, $this->model, $this->harnessSessionId, $this->harnessVersion, $this->cliVersion, $this->skillVersion];
+    }
+
+    /** The gap runs from the last turn of the session to the start of this run. */
+    public function recordWake(WorkerRunWakeReport $wake): void
+    {
+        $this->wakeTrigger = $wake->trigger;
+        $this->wakeGapMs = $wake->gapMs($this->startedAt);
+        $this->wakeFirstInputTokens = $wake->firstInputTokens;
+        $this->wakeFirstCacheReadTokens = $wake->firstCacheReadTokens;
+        $this->wakeFirstCacheWriteTokens = $wake->firstCacheWriteTokens;
     }
 
     /** A stop carries no exit code. A null output keeps the output the run holds. */

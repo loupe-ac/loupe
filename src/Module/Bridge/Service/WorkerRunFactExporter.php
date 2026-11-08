@@ -70,6 +70,11 @@ final readonly class WorkerRunFactExporter implements UserDataExporterInterface
                 'onBattery' => $fact->onBattery,
                 'sessionUsageDelta' => $fact->sessionUsageDelta,
                 'weekUsageDelta' => $fact->weekUsageDelta,
+                'wakeTrigger' => $fact->wakeTrigger?->value,
+                'wakeGapMs' => $fact->wakeGapMs,
+                'wakeFirstInputTokens' => $fact->wakeFirstInputTokens,
+                'wakeFirstCacheReadTokens' => $fact->wakeFirstCacheReadTokens,
+                'wakeFirstCacheWriteTokens' => $fact->wakeFirstCacheWriteTokens,
             ];
         }
     }

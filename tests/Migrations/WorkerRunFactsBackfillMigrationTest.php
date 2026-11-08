@@ -91,6 +91,11 @@ final class WorkerRunFactsBackfillMigrationTest extends KernelTestCase
             'skill_version' => null,
             'session_usage_delta' => null,
             'week_usage_delta' => null,
+            'wake_trigger' => null,
+            'wake_gap_ms' => null,
+            'wake_first_input_tokens' => null,
+            'wake_first_cache_read_tokens' => null,
+            'wake_first_cache_write_tokens' => null,
         ], $this->fact($run));
     }
 

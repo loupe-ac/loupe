@@ -28,7 +28,7 @@ final class ShowMetricsControllerTemplateMetricsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $options = $crawler->filter('select[name="metric"] option');
         $values = $options->each(static fn (Crawler $option): string => (string) $option->attr('value'));
-        self::assertSame(['cost', 'input-tokens', 'output-tokens', 'cache-read-tokens', 'cache-write-tokens', 'duration', 'runs', 'stop-rate', 'bucket-time-each', 'bucket-time-all-each', 'bucket-calls-each', 'account-usage', 'session-usage', 'week-usage', 'peak-context', 'design-rounds', 'merge-rate'], $values);
+        self::assertSame(['cost', 'input-tokens', 'output-tokens', 'cache-read-tokens', 'cache-write-tokens', 'duration', 'runs', 'stop-rate', 'bucket-time-each', 'bucket-time-all-each', 'bucket-calls-each', 'account-usage', 'session-usage', 'week-usage', 'peak-context', 'wakes', 'cold-wakes', 'cold-wake-cache-write-tokens', 'cold-wake-share', 'design-rounds', 'merge-rate'], $values);
         $merge = $crawler->filter('select[name="metric"] option[value="merge-rate"]');
         self::assertSame('Merge <rate>', trim($merge->text()));
         self::assertSame('The share of cards that merged.', $merge->attr('title'));

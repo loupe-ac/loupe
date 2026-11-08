@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -119,5 +120,36 @@ func TestRunWorkerEstimatesAKilledRun(t *testing.T) {
 	res := runWorker(ctx, workerSpec{dir: t.TempDir(), sessionID: testSession, resume: true, prompt: "go"}, nil)
 	if !res.killed || !sameUsage(res.usage, estimated) {
 		t.Fatalf("usage = %s, killed = %v", usageText(res.usage), res.killed)
+	}
+}
+
+// A resume reports what woke it: the cause, the time of the last message
+// before it, and the largest counts of its first message.
+func TestRunWorkerReportsTheWakeOfAResume(t *testing.T) {
+	shortConfigHome(t)
+	claudeHome(t, testSession, early, costState)
+	fakeClaude(t, "echo '{\"type\":\"assistant\",\"message\":{\"id\":\"m\",\"usage\":{\"input_tokens\":2,\"cache_read_input_tokens\":100,\"cache_creation_input_tokens\":900}}}'\n"+
+		"echo '{\"type\":\"assistant\",\"message\":{\"id\":\"m\",\"usage\":{\"input_tokens\":7,\"cache_read_input_tokens\":50,\"cache_creation_input_tokens\":1200}}}'\n"+
+		"echo '{\"type\":\"result\",\"result\":\"ok\"}'\n")
+
+	res := runWorker(context.Background(), workerSpec{dir: t.TempDir(), sessionID: testSession, resume: true, cause: api.CauseAgent, prompt: "go"}, nil)
+
+	last := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	want := &api.Wake{Trigger: api.CauseAgent, LastTurnAt: &last, FirstTurn: &api.TurnUsage{InputTokens: 7, CacheReadTokens: 100, CacheWriteTokens: 1200}}
+	if res.err != nil || !reflect.DeepEqual(res.wake, want) {
+		t.Fatalf("wake = %+v, want %+v (%+v)", res.wake, want, res)
+	}
+}
+
+// A new session has no wake.
+func TestRunWorkerReportsNoWakeForANewSession(t *testing.T) {
+	shortConfigHome(t)
+	claudeHome(t, testSession)
+	fakeClaude(t, `echo '{"type":"result","result":"ok"}'`)
+
+	res := runWorker(context.Background(), workerSpec{dir: t.TempDir(), sessionID: testSession, cause: api.CauseAgent, prompt: "go"}, nil)
+
+	if res.wake != nil {
+		t.Fatalf("wake = %+v", res.wake)
 	}
 }

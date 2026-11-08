@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Service;
 
+use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Insights\View\DashboardGraphResult;
 use App\Module\Insights\View\KeptGraphResult;
@@ -31,7 +32,7 @@ final readonly class KeptGraphView
         $labels = array_map(
             fn (MetricSeries $series): string => null === $series->group
                 ? ($lines > 1 ? $this->translator->trans('analytics.metrics.series.none') : $metricName)
-                : ($kept->groupLabels[$series->group] ?? $series->group),
+                : ($kept->groupLabels[$series->group] ?? $this->seriesLabel($query->group, $series->group)),
             $kept->series,
         );
 
@@ -45,5 +46,10 @@ final readonly class KeptGraphView
             $kept->current,
             $kept->previous,
         );
+    }
+
+    private function seriesLabel(MetricGroup $group, string $value): string
+    {
+        return $group->isWakeGrouping() ? $this->translator->trans('analytics.metrics.series.'.$group->value.'.'.$value) : $value;
     }
 }
