@@ -10,13 +10,14 @@ use App\Module\Insights\Preview\PreviewResultUnsettled;
 use App\Module\Insights\Preview\PublicPreviewDrawer;
 use App\Module\Insights\Preview\PublicPreviewEntries;
 use App\Module\Insights\Preview\PublicPreviewSubjects;
+use App\Module\Insights\Service\PublicExperimentReport;
 use App\Module\Insights\Service\PublicLinkVisibility;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Reads the preview image of the link behind a code. The kept PNG answers when it shows the version of the page now.
- * Otherwise the drawer draws it. A result that never settles, a failed tool and an experiment give no image.
+ * Otherwise the drawer draws it. A result that never settles, a failed tool and an experiment with a report give no image. An experiment with no report gives 404, as its share page does.
  */
 final readonly class ShowPublicLinkPreviewHandler
 {
@@ -25,6 +26,7 @@ final readonly class ShowPublicLinkPreviewHandler
         private PublicPreviewSubjects $subjects,
         private PublicPreviewEntries $entries,
         private PublicPreviewDrawer $drawer,
+        private PublicExperimentReport $experimentReport,
         private LoggerInterface $logger,
     ) {
     }
@@ -33,6 +35,10 @@ final readonly class ShowPublicLinkPreviewHandler
     public function __invoke(ShowPublicLinkPreviewCommand $command): ShowPublicLinkPreviewView
     {
         $link = $this->visibility->resolve($command->code) ?? throw new NotFoundHttpException('No public link shows for this code.');
+        if (PublicLinkKind::Experiment === $link->kind && (null === $link->experiment || null === $this->experimentReport->forExperiment($link->project, $link->experiment))) {
+            throw new NotFoundHttpException('No public link shows for this code.');
+        }
+
         $subject = PublicLinkKind::Graph === $link->kind ? $this->subjects->read($link) : null;
         if (null === $subject) {
             return new ShowPublicLinkPreviewView(null, 'fallback');

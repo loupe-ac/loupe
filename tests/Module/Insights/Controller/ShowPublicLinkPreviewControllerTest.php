@@ -182,6 +182,19 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
         $this->assertGenericImage($client);
     }
 
+    public function test_an_experiment_link_with_no_report_gets_404(): void
+    {
+        $client = $this->client();
+        $project = $this->scenarioProject('image-experiment-missing');
+        $link = PublicLink::forExperiment($project, 'no-such-trial');
+        $this->em()->persist($link);
+        $this->em()->flush();
+
+        $client->request(Request::METHOD_GET, $this->url($link));
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     private function assertGenericImage(KernelBrowser $client): void
     {
         self::assertResponseRedirects();
