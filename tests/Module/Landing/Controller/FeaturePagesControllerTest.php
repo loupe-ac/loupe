@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Landing\Controller;
 
+use App\Module\Account\Entity\User;
+use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\InstalledInstance;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -115,6 +118,26 @@ final class FeaturePagesControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $path);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    #[DataProvider('paths')]
+    public function test_a_signed_in_visitor_on_a_single_host_instance_sees_the_page_content(string $path): void
+    {
+        $client = $this->clientWithSiteHost('localhost');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $user = new User('Featureviewer', 'feature-pages-viewer@example.com');
+        AcceptedTerms::stamp($user, static::getContainer());
+        $user->password = 'hashed-password-placeholder';
+        $user->emailVerifiedAt = new \DateTimeImmutable();
+        $em->persist($user);
+        $em->flush();
+        $client->loginUser($user);
+
+        $client->request(Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('h1');
+        self::assertSelectorExists('a.lp-feature-tile');
     }
 
     #[DataProvider('paths')]
