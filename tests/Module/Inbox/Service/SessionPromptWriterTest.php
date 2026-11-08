@@ -160,7 +160,7 @@ final class SessionPromptWriterTest extends KernelTestCase
 
             self::assertLessThanOrEqual($limit, mb_strlen($prompt), 'limit '.$limit);
             self::assertStringContainsString('</item>', $prompt);
-            self::assertStringEndsWith('Read the item. Then wait for my instruction.', $prompt);
+            self::assertStringEndsWith('Then wait for my choice before you change anything.', $prompt);
             foreach (explode("\n", $prompt) as $line) {
                 if (str_starts_with($line, '- ')) {
                     self::assertMatchesRegularExpression('~^- Design \d+ https?://\S+/documents/[0-9a-f-]{36}/review$~', $line, 'a link line is whole');

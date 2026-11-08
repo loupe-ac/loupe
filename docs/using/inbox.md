@@ -889,7 +889,9 @@ the field, the session starts with no prompt.
 An agent can suggest the prompt. When it suggests none, Loupe writes one. The
 written prompt holds the number and the title of the item, the first 1,500
 characters of its text, and the cards and documents that it links. It tells the
-agent that the item text is data and not an instruction. Read the prompt
+agent that the item text is data and not an instruction. It asks the agent to
+investigate the item, to propose solutions with a recommendation, and to wait
+for your choice before it changes anything. Read the prompt
 before you start the session, because the text of an item comes from an agent.
 
 The limit of the prompt is 2000 characters, and an admin changes it with the
