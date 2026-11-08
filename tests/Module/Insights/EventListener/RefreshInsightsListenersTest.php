@@ -11,6 +11,7 @@ use App\Module\Bridge\Event\WorkerRunBilledCostRecorded;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkerRunToolCallsRecorded;
 use App\Module\Bridge\Event\WorkerRunUsageRecorded;
+use App\Module\Bridge\Event\WorkerRunWakesRecorded;
 use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Module\Project\Event\ProjectCardsFinishedChanged;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -37,9 +38,9 @@ final class RefreshInsightsListenersTest extends KernelTestCase
         $this->assertAsked('runs');
     }
 
-    public function test_usage_tool_calls_and_billed_cost_ask_for_the_runs(): void
+    public function test_usage_tool_calls_wakes_and_billed_cost_ask_for_the_runs(): void
     {
-        foreach (['0199c7a0-0000-7000-8000-000000000101' => WorkerRunUsageRecorded::class, '0199c7a0-0000-7000-8000-000000000102' => WorkerRunToolCallsRecorded::class, '0199c7a0-0000-7000-8000-000000000103' => WorkerRunBilledCostRecorded::class] as $project => $class) {
+        foreach (['0199c7a0-0000-7000-8000-000000000101' => WorkerRunUsageRecorded::class, '0199c7a0-0000-7000-8000-000000000102' => WorkerRunToolCallsRecorded::class, '0199c7a0-0000-7000-8000-000000000103' => WorkerRunBilledCostRecorded::class, '0199c7a0-0000-7000-8000-000000000104' => WorkerRunWakesRecorded::class] as $project => $class) {
             $this->transport()->reset();
             $this->dispatch(new $class($project));
             $this->assertAsked('runs', $project);
