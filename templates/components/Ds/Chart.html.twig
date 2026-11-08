@@ -53,7 +53,7 @@
         <div class="lp-chart__scroll" data-chart-hover-target="viewport">
             <div class="lp-chart__surface lp-chart__surface--donut" data-chart-hover-target="surface">
                 {# A chart drawn from data, not an icon. #}
-                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }} {{ constant('App\\Module\\Insights\\View\\DonutLayout::SIZE') }}" role="group" aria-label="{{ chartLabel }}">
+                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ layout.size }} {{ layout.size }}" role="group" aria-label="{{ chartLabel }}">
                     {% for slice in layout.slices %}
                         {% set target = layout.hoverTargets[loop.index0] %}
                         {% set row = target.rows[0] %}

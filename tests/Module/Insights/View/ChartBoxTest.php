@@ -7,18 +7,24 @@ namespace App\Tests\Module\Insights\View;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricKey;
+use App\Module\Bridge\Metric\MetricPoint;
+use App\Module\Bridge\Metric\MetricRow;
+use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Insights\View\BarLayout;
 use App\Module\Insights\View\ChartBox;
+use App\Module\Insights\View\DonutLayout;
 use App\Module\Insights\View\LineLayout;
 use App\Module\Insights\View\MetricChartLayouts;
 use App\Module\Insights\View\MetricChartScale;
 use App\Module\Insights\View\MetricChartTick;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricValueFormatter;
+use App\Module\Insights\View\NumberLayout;
 use App\Tests\Support\ChartSeries;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class ChartBoxTest extends TestCase
 {
@@ -97,5 +103,35 @@ final class ChartBoxTest extends TestCase
             MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter),
             MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, new ChartBox()),
         );
+    }
+
+    public function test_donut_takes_the_box_and_keeps_the_default_layout(): void
+    {
+        $series = [ChartSeries::total('a', 3.0), ChartSeries::total('b', 1.0)];
+        $metric = new MetricShape(new MetricKey(Metric::Runs));
+        $formatter = new MetricValueFormatter('en');
+        $donut = static fn (?ChartBox $box): DonutLayout => DonutLayout::build($metric, MetricStatistic::Sum, $series, $formatter, $box) ?? throw new \LogicException('no layout');
+
+        self::assertEquals($donut(null), $donut(new ChartBox()));
+        self::assertSame(DonutLayout::SIZE, $donut(null)->size);
+        self::assertSame(480, $donut(ChartBox::preview())->size);
+        self::assertNotSame($donut(null)->slices[0]->path, $donut(ChartBox::preview())->slices[0]->path);
+    }
+
+    public function test_the_layouts_pass_the_box_to_donut_and_number(): void
+    {
+        $row = new MetricRow(Uuid::v7(), null, null, new \DateTimeImmutable('2026-09-14'), 3);
+        $series = [new MetricSeries('a', [], new MetricPoint(null, 3, 1), [$row]), new MetricSeries('b', [], new MetricPoint(null, 1, 1), [$row])];
+        $metric = new MetricShape(new MetricKey(Metric::Runs));
+        $formatter = new MetricValueFormatter('en');
+        $build = static fn (MetricChartType $type): mixed => MetricChartLayouts::build($type, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, ChartBox::preview());
+
+        $donut = $build(MetricChartType::Donut);
+        $number = $build(MetricChartType::Number);
+
+        self::assertInstanceOf(DonutLayout::class, $donut);
+        self::assertSame(480, $donut->size);
+        self::assertInstanceOf(NumberLayout::class, $number);
+        self::assertSame(1120, $number->box->width);
     }
 }
