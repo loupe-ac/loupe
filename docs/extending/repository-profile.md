@@ -1,12 +1,13 @@
 ---
 title: "Repository profile"
-description: "The .loupe/lifecycle.md file holds the values of one repository that the stage skills of the Loupe plugin read."
+description: "The .loupe/lifecycle.md file holds the skill routing table of one repository that the stage skills of the Loupe plugin read."
 ---
 
 The stage skills of the Loupe plugin hold the procedure of each stage. They
 run in every repository that uses Loupe, so they hold no command, branch or
-column name of one repository. Each repository writes those values in its
-profile, `.loupe/lifecycle.md`, at the repository root.
+column name of one repository. Each repository keeps those rules in its own
+instruction files and skills. Its profile, `.loupe/lifecycle.md`, at the
+repository root, tells each stage which of those skills to load.
 
 A worker reads the profile at the start of each stage. It first runs
 `routing-check.sh`. When a skill that the routing table names is missing from
@@ -65,13 +66,13 @@ Two sections are optional, and a missing one blocks nothing.
    `tech-design` with `decisions`. Workflow rules match these tags, so set
    them only when your workflow template matches other tags.
 
-The `Visual check` and `Preview` sections stay in use until the preview method
-moves into a skill of the repository. `Visual check` tells a worker how to
-screenshot a changed page. `Preview` tells a worker how to prove a preview link
-for each state of a changed page. Without them, no stage checks previews.
+The preview method and the visual check live in a skill of the repository, such
+as `project-review`. Route that skill from the `Implementation`, `Fix round`,
+`Review` and `Epic preview` headings of the routing table. Without a routed
+skill, no stage checks previews.
 
 A stage ignores an older section, such as `Instruction files`, `Gate`,
-`Pull request`, `Board`, `Merge` or `Epics`. Remove it when your routing table
+`Pull request`, `Board`, `Merge`, `Epics`, `Visual check` or `Preview`. Remove it when your routing table
 and instruction files hold the same rules. The stages use the column slugs
 `product-design`, `tech-design`, `implementation`, `in-review`, `backlog` and
 `done`.
