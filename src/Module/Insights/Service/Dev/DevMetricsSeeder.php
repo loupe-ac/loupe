@@ -73,6 +73,16 @@ final readonly class DevMetricsSeeder
 
     private const string SHARED_GRAPH_SLUG = 'cost-per-run-by-account';
 
+    /** The code of the public link of a graph that names a bucket the project no longer has. */
+    public const string SHARED_BROKEN_GRAPH_CODE = 'devgraphbrok';
+
+    /** The code of the public link of a graph with no rows in its range. */
+    public const string SHARED_EMPTY_GRAPH_CODE = 'devgraphempt';
+
+    private const string BROKEN_GRAPH_SLUG = 'time-in-a-removed-bucket';
+
+    private const string EMPTY_GRAPH_SLUG = 'account-usage-without-readings';
+
     /** The graph that keeps no result, so the Dashboard draws it as a tile that waits for the worker. */
     public const string WAITING_GRAPH_SLUG = 'waiting-for-the-worker';
 
@@ -353,6 +363,8 @@ final readonly class DevMetricsSeeder
             [self::SHARED_GRAPH_SLUG, 'Cost per run by account', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Account, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
             [self::WAITING_GRAPH_SLUG, 'Waiting for the worker', 'cost', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::Number, SavedGraphWidth::Half],
             ['wakes-by-wake-gap-and-cache', 'Wakes by wake gap and cache', 'wakes', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::WakeCache, MetricBucket::Week, MetricCompare::Off, MetricChartType::Bars, SavedGraphWidth::Full],
+            [self::BROKEN_GRAPH_SLUG, 'Time in a removed bucket', 'bucket-time:removed-bucket', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
+            [self::EMPTY_GRAPH_SLUG, 'Account usage without readings', 'account-usage', MetricUnit::Reading, MetricStatistic::Mean, MetricGroup::AccountWindow, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
         ];
         $seeded = false;
         foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
@@ -369,7 +381,11 @@ final readonly class DevMetricsSeeder
 
         $legend = $this->showSharedLegend();
 
-        return $this->seedPublicLink($context, $project) || $legend || $seeded;
+        $linked = $this->seedPublicLink($context, $project, self::SHARED_GRAPH_SLUG, self::SHARED_GRAPH_CODE);
+        $linked = $this->seedPublicLink($context, $project, self::BROKEN_GRAPH_SLUG, self::SHARED_BROKEN_GRAPH_CODE) || $linked;
+        $linked = $this->seedPublicLink($context, $project, self::EMPTY_GRAPH_SLUG, self::SHARED_EMPTY_GRAPH_CODE) || $linked;
+
+        return $linked || $legend || $seeded;
     }
 
     /** The preview image of the shared graph draws a legend, so a graph stored without one gets it. */
@@ -385,17 +401,17 @@ final readonly class DevMetricsSeeder
         return true;
     }
 
-    private function seedPublicLink(SeedContext $context, Project $project): bool
+    private function seedPublicLink(SeedContext $context, Project $project, string $slug, string $code): bool
     {
-        $id = DevSeedId::of('insights/public-link/'.self::SHARED_GRAPH_SLUG);
+        $id = DevSeedId::of('insights/public-link/'.$slug);
         if ($this->publicLinks->find($id) instanceof PublicLink) {
             return false;
         }
-        $graph = $this->insightsSavedGraphs->find(DevSeedId::of('insights/graph/'.self::SHARED_GRAPH_SLUG));
+        $graph = $this->insightsSavedGraphs->find(DevSeedId::of('insights/graph/'.$slug));
         if (!$graph instanceof InsightsSavedGraph || $graph->project !== $project) {
             return false;
         }
-        $link = new PublicLink($project, PublicLinkKind::Graph, self::SHARED_GRAPH_CODE, savedGraph: $graph);
+        $link = new PublicLink($project, PublicLinkKind::Graph, $code, savedGraph: $graph);
         $context->ids->assign($link, $id);
         $this->em->persist($link);
         $this->em->flush();
