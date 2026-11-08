@@ -2547,6 +2547,157 @@
                 }
             }
         },
+        "/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake": {
+            "put": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Record the wakes of a session",
+                "operationId": "reportWorkerSessionWake",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "The session id. A value that is not a uuid answers 422 `invalid_session_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReportSessionWakeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "The wakes are taken, also when no run needed one."
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `process_count_mismatch`, `ambiguous_start_order`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_session_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls": {
             "put": {
                 "tags": [
@@ -9173,7 +9324,8 @@
                         "enum": [
                             "person",
                             "ask-closed",
-                            "inbox-action"
+                            "inbox-action",
+                            "agent"
                         ]
                     },
                     "context": {
@@ -12191,6 +12343,94 @@
                 },
                 "type": "object"
             },
+            "WorkerRunTurnUsageInput": {
+                "properties": {
+                    "inputTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheReadTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    },
+                    "cacheWriteTokens": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunWakeInput": {
+                "properties": {
+                    "trigger": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "ask-closed",
+                            "inbox-action",
+                            "person",
+                            "agent",
+                            "work-request",
+                            "backfill"
+                        ]
+                    },
+                    "lastTurnAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "firstTurn": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunTurnUsageInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "ReportSessionWakeRequest": {
+                "properties": {
+                    "wakes": {
+                        "type": "array",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/WorkerRunWakeInput"
+                                },
+                                {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "enum": [
+                                        null
+                                    ]
+                                }
+                            ]
+                        },
+                        "nullable": true,
+                        "default": null,
+                        "maxItems": 100,
+                        "minItems": 1
+                    }
+                },
+                "type": "object"
+            },
             "WorkerRunToolCallInput": {
                 "properties": {
                     "seq": {
@@ -12514,6 +12754,22 @@
                         "oneOf": [
                             {
                                 "$ref": "#/components/schemas/WorkerRunUsageInput"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "default": null
+                    },
+                    "wake": {
+                        "title": "Checked on every state, and stored from an outcome or a stop alone. Null for a run that is no resume.",
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerRunWakeInput"
                             },
                             {
                                 "type": "object",

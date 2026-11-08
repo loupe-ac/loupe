@@ -539,6 +539,132 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertSame([null, 120_000, 246_540], $values);
     }
 
+    public function test_the_cold_rule_needs_a_write_above_the_input_and_the_read_together(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', wakeTrigger: 'person', wakeGapMs: 1_000, wakeInput: 100, wakeRead: 200, wakeWrite: 300);
+        $this->fact($card, endedAt: '2026-10-01 10:00:00', wakeTrigger: 'person', wakeGapMs: 1_000, wakeInput: 100, wakeRead: 200, wakeWrite: 301);
+        $this->fact($card, endedAt: '2026-10-01 11:00:00', wakeTrigger: 'person', wakeGapMs: 1_000, wakeInput: 0, wakeRead: 0, wakeWrite: 0);
+        $this->fact($card, endedAt: '2026-10-01 12:00:00', wakeTrigger: 'agent');
+        $this->fact($card, endedAt: '2026-10-01 13:00:00');
+
+        $wakes = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum);
+        $cold = $this->query(MetricUnit::Run, Metric::ColdWakes, MetricStatistic::Sum);
+        $write = $this->query(MetricUnit::Run, Metric::ColdWakeCacheWriteTokens, MetricStatistic::Sum);
+        $share = $this->query(MetricUnit::Run, Metric::ColdWakeShare, MetricStatistic::Mean);
+
+        self::assertEquals(new MetricPoint(null, 4, 5), $wakes->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 1, 5), $cold->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 301, 5), $write->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 1 / 3, 3), $share->series[0]->total);
+    }
+
+    public function test_a_card_adds_the_wakes_of_its_runs(): void
+    {
+        $card = $this->finishedCard(7, '2026-10-02 12:00:00');
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', wakeTrigger: 'person', wakeGapMs: 1_000, wakeInput: 1, wakeRead: 1, wakeWrite: 9);
+        $this->fact($card, endedAt: '2026-10-01 10:00:00', wakeTrigger: 'person', wakeGapMs: 1_000, wakeInput: 1, wakeRead: 1, wakeWrite: 1);
+        $this->fact($card, endedAt: '2026-10-01 11:00:00');
+
+        $wakes = $this->query(MetricUnit::Card, Metric::Wakes, MetricStatistic::Sum);
+        $cold = $this->query(MetricUnit::Card, Metric::ColdWakes, MetricStatistic::Sum);
+
+        self::assertEquals(new MetricPoint(null, 2, 1), $wakes->series[0]->total);
+        self::assertEquals(new MetricPoint(null, 1, 1), $cold->series[0]->total);
+    }
+
+    /** @return iterable<string, array{int, string}> */
+    public static function gapEdges(): iterable
+    {
+        yield 'just under 5 minutes' => [299_999, 'under-5m'];
+        yield 'exactly 5 minutes' => [300_000, '5m-to-1h'];
+        yield 'exactly 60 minutes' => [3_600_000, '5m-to-1h'];
+        yield 'just over 60 minutes' => [3_600_001, 'over-1h'];
+        yield 'no gap' => [0, 'under-5m'];
+    }
+
+    #[DataProvider('gapEdges')]
+    public function test_the_wake_gap_buckets_split_at_five_and_sixty_minutes(int $gapMs, string $expected): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00', wakeTrigger: 'person', wakeGapMs: $gapMs, wakeInput: 1, wakeRead: 1, wakeWrite: 1);
+
+        $view = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum, MetricGroup::WakeGap);
+
+        self::assertSame([$expected], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+    }
+
+    public function test_a_wake_with_no_gap_or_no_first_turn_goes_to_no_group(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', wakeTrigger: 'person', wakeInput: 1, wakeRead: 1, wakeWrite: 1);
+        $this->fact($card, endedAt: '2026-10-01 10:00:00', wakeTrigger: 'person', wakeGapMs: 1_000);
+        $this->fact($card, endedAt: '2026-10-01 11:00:00');
+
+        $gap = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum, MetricGroup::WakeGap);
+        $cache = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum, MetricGroup::WakeCache);
+
+        self::assertSame(['under-5m', null], array_map(static fn (MetricSeries $series): ?string => $series->group, $gap->series));
+        self::assertSame([null], array_map(static fn (MetricSeries $series): ?string => $series->group, $cache->series));
+        self::assertEquals(new MetricPoint(null, 2, 3), $cache->series[0]->total);
+    }
+
+    public function test_the_wake_cache_group_has_six_values_in_a_fixed_order(): void
+    {
+        $card = Uuid::v7();
+        // Inserted in reverse order and with a run that is no wake, so the order cannot come from the insert or the label.
+        $cells = [
+            [4_000_000, true], [4_000_000, false], [600_000, true], [600_000, false], [1_000, true], [1_000, false],
+        ];
+        foreach ($cells as $position => [$gap, $cold]) {
+            $this->fact($card, endedAt: \sprintf('2026-10-01 0%d:00:00', $position + 1), wakeTrigger: 'person', wakeGapMs: $gap, wakeInput: 10, wakeRead: 10, wakeWrite: $cold ? 100 : 5);
+        }
+        $this->fact($card, endedAt: '2026-10-01 09:00:00');
+
+        $view = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum, MetricGroup::WakeCache);
+
+        self::assertSame(
+            ['under-5m-warm', 'under-5m-cold', '5m-to-1h-warm', '5m-to-1h-cold', 'over-1h-warm', 'over-1h-cold', null],
+            array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series),
+        );
+        foreach (\array_slice($view->series, 0, 6) as $series) {
+            self::assertEquals(new MetricPoint(null, 1, 1), $series->total);
+        }
+    }
+
+    public function test_the_wake_groups_order_the_series_before_the_series_with_no_group(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00');
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 10:00:00', wakeTrigger: 'person', wakeGapMs: 4_000_000);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 11:00:00', wakeTrigger: 'person', wakeGapMs: 400_000);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 12:00:00', wakeTrigger: 'person', wakeGapMs: 10);
+
+        $view = $this->query(MetricUnit::Run, Metric::Wakes, MetricStatistic::Sum, MetricGroup::WakeGap);
+
+        self::assertSame(['under-5m', '5m-to-1h', 'over-1h', null], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+    }
+
+    /** @return iterable<string, array{Metric}> */
+    public static function otherMetrics(): iterable
+    {
+        yield 'cost' => [Metric::Cost];
+        yield 'runs' => [Metric::Runs];
+        yield 'peak context' => [Metric::PeakContext];
+    }
+
+    #[DataProvider('otherMetrics')]
+    public function test_only_the_wake_metrics_offer_the_wake_groups(Metric $metric): void
+    {
+        self::assertNotContains(MetricGroup::WakeGap, $metric->groups());
+        self::assertNotContains(MetricGroup::WakeCache, $metric->groups());
+        foreach ([Metric::Wakes, Metric::ColdWakes, Metric::ColdWakeCacheWriteTokens, Metric::ColdWakeShare] as $wake) {
+            self::assertContains(MetricGroup::WakeGap, $wake->groups());
+            self::assertContains(MetricGroup::WakeCache, $wake->groups());
+        }
+
+        $this->expectException(DomainErrors::class);
+        $this->query(MetricUnit::Run, $metric, MetricStatistic::Count, MetricGroup::WakeGap);
+    }
+
     private function request(Uuid $card, string $kind, ?string $role, ?string $reason): void
     {
         $request = $this->seedWorkRequest($this->em, $this->project, $card, $kind, state: WorkRequestState::Done, subject: WorkSubject::card($card));
@@ -1011,6 +1137,11 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?float $weekUsageDelta = null,
         ?int $peakContextTokens = null,
         ?Uuid $bridgeId = null,
+        ?string $wakeTrigger = null,
+        ?int $wakeGapMs = null,
+        ?int $wakeInput = null,
+        ?int $wakeRead = null,
+        ?int $wakeWrite = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -1037,6 +1168,11 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'week_usage_delta' => $weekUsageDelta,
             'peak_context_tokens' => $peakContextTokens,
             'bridge_id' => null === $bridgeId ? null : (string) $bridgeId,
+            'wake_trigger' => $wakeTrigger,
+            'wake_gap_ms' => $wakeGapMs,
+            'wake_first_input_tokens' => $wakeInput,
+            'wake_first_cache_read_tokens' => $wakeRead,
+            'wake_first_cache_write_tokens' => $wakeWrite,
         ]);
 
         return $runId;

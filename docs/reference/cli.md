@@ -519,6 +519,20 @@ bridges by time.
 
 When it finds no log, the command names each path it checked.
 
+## `loupe usage backfill-wakes`
+
+`loupe usage backfill-wakes` sends what woke each resumed worker run to Loupe. Use it once, for the resumes that ended before the bridge reported wakes. It needs a CLI that holds the command and a Loupe version that takes session wakes.
+
+- `--dry-run` prints the counts and sends nothing. It needs no login.
+- `--log-file <path>` reads that bridge log and its dated files. The default is `bridge.log` in your config directory.
+- `--project <id>` sends only the sessions of that project.
+
+The command reads the `worker_started` lines of the bridge log and the Claude Code transcript of each session. For each worker process that resumed a session, it finds the pause before the process. The pause runs from the last assistant message before the process to the start of the process. The command sends the time of that last message, and the input tokens, cache read tokens and cache write tokens of that first message. It sends no message text.
+
+It prints one line for each session, and then the count of pauses in three buckets: under 5 minutes, 5 minutes to 1 hour, and over 1 hour. Each bucket also gives the count of cold pauses. A pause is cold when the first message wrote more to the cache than it read as input and from the cache. Run the command on the machine that ran the bridge, before the transcripts expire after about 30 days.
+
+[`loupe usage backfill`](../../cli/README.md#loupe-usage-backfill) sends the usage of past runs in the same way.
+
 ## `loupe status`
 
 Checks the login, the project and the MCP connection with one real call. It

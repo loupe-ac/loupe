@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Service;
 
+use App\Module\Bridge\Event\BucketTimesRecomputed;
 use App\Module\Bridge\Repository\WorkerRunBucketTimeRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Sorts the tool calls of a run into the buckets of the project
@@ -26,6 +28,7 @@ final readonly class BucketTimeComputer
         private WorkerRunToolCallRepository $workerRunToolCalls,
         private WorkerRunBucketTimeRepository $workerRunBucketTimes,
         private EntityManagerInterface $em,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -50,6 +53,7 @@ final readonly class BucketTimeComputer
             }
             $this->workerRunBucketTimes->replaceForRuns($times);
         });
+        $this->events->dispatch(new BucketTimesRecomputed((string) $project->requireId()));
     }
 
     /**

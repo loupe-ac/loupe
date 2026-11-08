@@ -26,7 +26,7 @@ again when you change a control. Without JavaScript, press **Apply**.
 | Metric | one metric from [the list below](#the-metrics) | **Cost** |
 | Unit | **Per run**, **Per finished card** or **Per reading** | **Per finished card** |
 | Statistic | **Median**, **Mean**, **Sum**, **Maximum**, **90th percentile** or **Count** | **Median** |
-| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version**, **By account window** or **No grouping** | **No grouping** |
+| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version**, **By account window**, **By wake gap**, **By wake gap and cache** or **No grouping** | **No grouping** |
 | Range | **7 days**, **30 days**, **90 days** or **All time** | **90 days** |
 | Bucket | **Per day**, **Per week** or **Per month** | **Per week** |
 | Compare to | **Off** or **Previous period** | **Off** |
@@ -88,6 +88,10 @@ not counted.
 | **Session usage of a run** | how many points of the 5-hour [usage window](#account-usage) a run used, from its first to its last reading | run |
 | **Week usage of a run** | how many points of the weekly usage window a run used, from its first to its last reading | run |
 | **Peak context** | the largest context of the main session in one turn of a run, in tokens. Subagents do not count, and a run with no value is unknown | run |
+| **Wakes** | the number of runs that resumed the session of an earlier run. A run that is no resume counts 0 | run, card |
+| **Cold wakes** | the number of [cold wakes](#wakes). A wake with no first-turn figures counts 0 | run, card |
+| **Cold wake cache write tokens** | the tokens that the first turn of a cold wake wrote to the prompt cache. A run that is no cold wake counts 0 | run, card |
+| **Cold wake share** | the share of wakes that were cold. A run that is no wake, or has no first-turn figures, is unknown | run |
 | **Account usage** | the [use of a usage window](#account-usage) of a bridge account, as a percentage | reading |
 
 The workflow template of the project can declare more metrics. They appear
@@ -153,6 +157,30 @@ two readings with a use to have a value. Otherwise the value is unknown. The
 figure is approximate. A parallel run, or a session of your own on the same
 account, draws from the same window and shifts it.
 
+### Wakes
+
+A wake is a run that resumes the session of an earlier run. The bridge reports,
+for each wake, why it resumed, when the session last spoke, and the token
+figures of the first turn after the resume. The gap is the time from that last
+turn to the start of the run.
+
+A wake is cold when the first turn wrote more tokens to the prompt cache than
+the input tokens and the cache read tokens together. A cold wake pays for the
+whole context again. A warm wake reads most of it from the cache.
+
+The gap buckets are **Under 5 minutes**, **5 to 60 minutes** and **Over 1 hour**.
+A gap of exactly 5 minutes or exactly 60 minutes counts in the middle bucket.
+The series come in this order: the shortest gap first, warm before cold, and
+**No group** last. A run that is no wake, or has no gap, goes to **No group**.
+A wake of a harness that gives no first-turn figures counts in **Wakes**. It
+stays out of **Cold wake share** and of **By wake gap and cache**.
+
+The wake metrics start at the release that added them. A run that resumed
+before then counts as no wake, so a chart over **All time** steps up at that
+date. A backfill command can add the wakes of earlier runs. The wake groups
+give one chart of the wakes by gap and cache, for example **Wakes**, **Sum**,
+**By wake gap and cache**, **Bars**.
+
 ### Harness events
 
 The harness writes small events beside the messages of a run, such as
@@ -206,6 +234,8 @@ A group splits the rows into one series for each value:
 | **By CLI version** | version of the Loupe CLI that started the run |
 | **By plugin version** | version of the Loupe plugin that the worker loaded, such as `5.5.0` |
 | **By account window** | usage window of a bridge account, such as `desk/claude session`. Only **Account usage** takes it |
+| **By wake gap** | time from the last turn of the session to the resume: **Under 5 minutes**, **5 to 60 minutes** or **Over 1 hour**. Only the four wake metrics take it |
+| **By wake gap and cache** | the gap bucket and whether the wake was warm or cold, such as **Over 1 hour, cold**. Only the four wake metrics take it |
 | **No grouping** | one series for all the rows |
 
 A run from a bridge that does not send a version has no value for the three
@@ -386,11 +416,30 @@ gone, such as a time bucket that a bucket rule change removed, or a metric that
 the workflow template dropped. It offers **Open in Metrics** and **Remove**. The
 tile draws again when the metric comes back.
 
-The Dashboard keeps the result of each graph for up to 15 minutes, and a line
-under the tabs reads "Updated 4 min ago". The Metrics tab always computes live.
-When you save, edit, rename, resize, move or remove a graph in another tab, an
-open Dashboard follows the change at once, if the instance runs live updates.
-The numbers refresh on the next load.
+A tile that has no result yet shows a spinner. When the numbers take longer than
+30 seconds, the tile reads **This graph is taking longer than usual.** and offers
+**Retry**. **Retry** asks for the numbers again and starts the wait over. An
+admin sets the wait with the `insights.slow_notice_seconds` feature flag at
+`/admin/feature-flags`. A reload also starts the wait over.
+
+The Dashboard shows the last result that a worker kept for each graph, and a
+line under the tabs reads "Updated 4 min ago". A worker computes the result
+again in the background. New data for the project shows within about a minute.
+A sweep refreshes the graphs with a rolling range, such as 7 days, every 15
+minutes, also when no new data arrived. The sweep skips a dormant project, which
+has had no new data and no view of its Dashboard or its share links for 7 days.
+The sweep alone never keeps a project awake. A view or new data wakes the
+project, and its Dashboard first draws the old charts with their real age. The
+line counts in minutes under an hour, then in hours under a day, then in days,
+such as "Updated 9 days ago". A save, an edit or a
+change of the metrics queues the graph at once. An admin sets the sweep with the
+`insights.sweep_interval_minutes` feature flag at
+`/admin/feature-flags`, and the dormant period in days with the
+`insights.dormant_days` feature flag. The Metrics tab always computes live. When you save,
+edit, rename, resize, move or remove a graph in another tab, an open Dashboard
+follows the change at once, if the instance runs live updates. A new result
+reaches an open Dashboard when the worker keeps it, and a load shows the kept
+result.
 
 ## Share a graph publicly
 
@@ -417,8 +466,9 @@ A tile with a working link carries a **Public** tag after its settings line.
 
 The page shows the project name, the name of the graph, its settings line and
 the chart with its totals. It reads "Updated 4 min ago", because the page keeps
-the result of the graph for up to 15 minutes. A visitor cannot change the
-settings.
+the kept result of the graph. When the kept result is older than the sweep
+interval, or no result exists yet, the page computes the numbers in its own
+request. A visitor cannot change the settings.
 
 Account names and bridge names never reach the page. A split by account shows
 **Account 1**, **Account 2** and so on. A split by bridge shows **Bridge 1**,

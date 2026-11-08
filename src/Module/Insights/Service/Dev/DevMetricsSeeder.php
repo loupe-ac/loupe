@@ -24,13 +24,17 @@ use App\Module\Bridge\Service\Dev\DevRunUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
+use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\ArrayParameterType;
@@ -40,7 +44,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Writes daily runs of three models over the last 60 days, each linked to a
- * done card, and six saved graphs, so the Metrics and Dashboard pages of a
+ * done card, and seven saved graphs, so the Metrics and Dashboard pages of a
  * dev project show data and a change from the previous period. The graph split by account carries a public link
  * with a fixed code, so a worktree has a working address at /s/{code}. Each seed writes only the runs that are
  * missing, so a project seeded last week gains the days since then, and a deleted run comes back.
@@ -69,6 +73,9 @@ final readonly class DevMetricsSeeder
 
     private const string SHARED_GRAPH_SLUG = 'cost-per-run-by-account';
 
+    /** The graph that keeps no result, so the Dashboard draws it as a tile that waits for the worker. */
+    public const string WAITING_GRAPH_SLUG = 'waiting-for-the-worker';
+
     /** The account of the runs of each model, by index. */
     private const array ACCOUNTS = ['dev-work', 'dev-personal', 'dev-work'];
 
@@ -83,6 +90,19 @@ final readonly class DevMetricsSeeder
         ['Agent', 420, 240_000, ['Agent']],
     ];
 
+    /**
+     * @var list<array{int, int, int, int}> gap in minutes, then the input, cache read and cache write tokens of the first turn.
+     *                                      One wake in each gap bucket, warm and cold.
+     */
+    private const array WAKES = [
+        [2, 1_200, 150_000, 3_000],
+        [3, 800, 2_000, 120_000],
+        [20, 1_100, 140_000, 4_000],
+        [45, 900, 3_000, 110_000],
+        [90, 1_000, 130_000, 5_000],
+        [200, 700, 1_500, 160_000],
+    ];
+
     public function __construct(
         private EntityManagerInterface $em,
         private WorkerRunRepository $workerRuns,
@@ -91,11 +111,13 @@ final readonly class DevMetricsSeeder
         private BucketTimeComputer $bucketTimes,
         private DevRunCardLinks $runCardLinks,
         private DevRunUsage $runUsage,
+        private InsightsResultKeeper $keeper,
+        private InsightsKeptResultRepository $insightsKeptResults,
     ) {
     }
 
     /**
-     * False when every run, usage row and saved graph exists.
+     * False when every run, usage row, saved graph and kept result exists.
      *
      * @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor the id and number of the card of the runs in a span of days
      */
@@ -104,7 +126,30 @@ final readonly class DevMetricsSeeder
         $runsSeeded = $this->seedRuns($context, $project, $context->now->setTime(0, 0), $cardFor);
         $graphsSeeded = $this->seedGraphs($context, $project);
 
-        return $runsSeeded || $graphsSeeded;
+        $resultsKept = $this->keepResults($project, $runsSeeded || $graphsSeeded);
+
+        return $runsSeeded || $graphsSeeded || $resultsKept;
+    }
+
+    /** Computes and keeps the result of each graph, so a worktree draws the Dashboard at once. A seed that wrote runs or graphs computes them again. The waiting graph loses a row that an older seed or a share page gave it. The worker skips it, as DevWaitingGraphHold says. */
+    private function keepResults(Project $project, bool $all): bool
+    {
+        $kept = false;
+        $waiting = DevSeedId::of('insights/graph/'.self::WAITING_GRAPH_SLUG);
+        foreach ($this->insightsSavedGraphs->findActive($project) as $graph) {
+            if ($waiting->equals($graph->id)) {
+                $kept = $this->insightsKeptResults->forgetGraph($graph) || $kept;
+
+                continue;
+            }
+            if (!$all && null !== $this->insightsKeptResults->findForGraph($graph)) {
+                continue;
+            }
+            $this->keeper->graph($graph);
+            $kept = true;
+        }
+
+        return $kept;
     }
 
     /** @param \Closure(\DateTimeImmutable, \DateTimeImmutable): array{Uuid, int} $cardFor */
@@ -147,6 +192,7 @@ final readonly class DevMetricsSeeder
         $usageRestored = false;
         $peakFilled = false;
         $accountFilled = false;
+        $wakeFilled = false;
         for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
             foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
@@ -161,6 +207,11 @@ final readonly class DevMetricsSeeder
                     $run->peakContextTokens = self::peakContext($daysAgo, $index);
                     $peakFilled = true;
                 }
+                $wake = self::wakeOf($daysAgo, $index, $run);
+                if (null === $run->wakeTrigger && null !== $wake) {
+                    $run->recordWake($wake);
+                    $wakeFilled = true;
+                }
                 if (null === $run->account) {
                     $run->recordHarness(null, self::ACCOUNTS[$index % \count(self::ACCOUNTS)], null, null);
                     $accountFilled = true;
@@ -170,7 +221,7 @@ final readonly class DevMetricsSeeder
                 $usageRestored = $this->runUsage->record($context, $run, $model, $tokens, intdiv($tokens, 15), $tokens * 5, 0, $costUsd) || $usageRestored;
             }
         }
-        if ([] === $runs && !$usageRestored && !$peakFilled && !$accountFilled) {
+        if ([] === $runs && !$usageRestored && !$peakFilled && !$accountFilled && !$wakeFilled) {
             return [] !== $stale || [] !== $restored;
         }
 
@@ -194,6 +245,19 @@ final readonly class DevMetricsSeeder
     private static function peakContext(int $daysAgo, int $index): int
     {
         return 90_000 + (($daysAgo * 37 + $index * 53) % 18) * 10_000;
+    }
+
+    /** One run in three is a resume, and the wakes cycle through the six cells of the gap and the cache. */
+    private static function wakeOf(int $daysAgo, int $index, WorkerRun $run): ?WorkerRunWakeReport
+    {
+        $position = $daysAgo * 4 + $index;
+        if (0 !== $position % 3 || null === $run->startedAt) {
+            return null;
+        }
+
+        [$minutes, $input, $read, $write] = self::WAKES[intdiv($position, 3) % \count(self::WAKES)];
+
+        return new WorkerRunWakeReport(WorkerRunWakeTrigger::Person, $run->startedAt->modify(\sprintf('-%d minutes', $minutes)), $input, $read, $write);
     }
 
     private static function wave(int $daysAgo, int $index): float
@@ -287,6 +351,8 @@ final readonly class DevMetricsSeeder
             ['time-in-each-bucket', 'Time in each bucket', 'bucket-time-each', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::StackedBars, SavedGraphWidth::Half],
             ['share-of-runs-by-model', 'Share of runs by model', 'runs', MetricUnit::Card, MetricStatistic::Count, MetricGroup::Model, MetricBucket::Day, MetricCompare::Off, MetricChartType::Donut, SavedGraphWidth::Half],
             [self::SHARED_GRAPH_SLUG, 'Cost per run by account', 'cost', MetricUnit::Run, MetricStatistic::Mean, MetricGroup::Account, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
+            [self::WAITING_GRAPH_SLUG, 'Waiting for the worker', 'cost', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::Number, SavedGraphWidth::Half],
+            ['wakes-by-wake-gap-and-cache', 'Wakes by wake gap and cache', 'wakes', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::WakeCache, MetricBucket::Week, MetricCompare::Off, MetricChartType::Bars, SavedGraphWidth::Full],
         ];
         $seeded = false;
         foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {

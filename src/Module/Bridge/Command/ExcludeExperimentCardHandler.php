@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Bridge\Event\ExperimentSetupChanged;
 use App\Module\Bridge\Repository\ExperimentExclusionRepository;
 use App\Module\Bridge\Service\ExperimentCardMembership;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -20,6 +22,7 @@ final readonly class ExcludeExperimentCardHandler
         private ExperimentExclusionRepository $experimentExclusions,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -41,6 +44,7 @@ final readonly class ExcludeExperimentCardHandler
 
         $this->experimentExclusions->upsert($project, $command->experiment, $cardId, $command->reason, $command->user, $this->clock->now());
 
+        $this->events->dispatch(new ExperimentSetupChanged((string) $project->requireId(), $command->experiment));
         $this->auditor->record(
             'experiment.card_excluded',
             AuditOutcome::Success,

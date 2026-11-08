@@ -31,18 +31,9 @@ type Window struct {
 // totals, so a process spent its last line minus the line above its first. A
 // process that wrote more after its last line was killed, and gets an estimate.
 func Processes(path string, windows []Window) ([]Process, error) {
-	limits := make([]time.Time, len(windows))
-	for i, w := range windows {
-		limits[i] = w.End
-		if i+1 < len(windows) {
-			next := windows[i+1].Start
-			if !next.After(w.Start) || (!w.End.IsZero() && w.End.After(next)) {
-				return nil, fmt.Errorf("%w: the processes overlap or are not in start order", ErrUnmappable)
-			}
-			if w.End.IsZero() {
-				limits[i] = next
-			}
-		}
+	limits, err := windowLimits(windows)
+	if err != nil {
+		return nil, err
 	}
 	processOf := func(ts time.Time) int {
 		i := sort.Search(len(windows), func(i int) bool { return windows[i].Start.After(ts) }) - 1
@@ -60,7 +51,7 @@ func Processes(path string, windows []Window) ([]Process, error) {
 	}
 	var states []state
 	process, torn := -1, false
-	err := eachLine(path, "", func(line []byte) {
+	err = eachLine(path, "", func(line []byte) {
 		var entry struct {
 			Type       string          `json:"type"`
 			Timestamp  string          `json:"timestamp"`
@@ -122,6 +113,26 @@ func Processes(path string, windows []Window) ([]Process, error) {
 	}
 
 	return out, nil
+}
+
+// windowLimits gives the end of each window, which for a window with no end is
+// the start of the next.
+func windowLimits(windows []Window) ([]time.Time, error) {
+	limits := make([]time.Time, len(windows))
+	for i, w := range windows {
+		limits[i] = w.End
+		if i+1 < len(windows) {
+			next := windows[i+1].Start
+			if !next.After(w.Start) || (!w.End.IsZero() && w.End.After(next)) {
+				return nil, fmt.Errorf("%w: the processes overlap or are not in start order", ErrUnmappable)
+			}
+			if w.End.IsZero() {
+				limits[i] = next
+			}
+		}
+	}
+
+	return limits, nil
 }
 
 // covers reports whether no count of base is above the same count of u.

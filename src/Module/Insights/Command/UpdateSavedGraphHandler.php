@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Command;
 
+use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
+use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\SavedGraphLocker;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +28,7 @@ final readonly class UpdateSavedGraphHandler
         private SavedGraphSettingsResolver $settings,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
+        private InsightsRefreshRequester $refreshes,
     ) {
     }
 
@@ -36,12 +39,14 @@ final readonly class UpdateSavedGraphHandler
         $projectId = (string) $project->requireId();
         $query = $this->settings->resolve($project, $command->settings);
 
-        $graph = $this->em->wrapInTransaction(function () use ($command, $projectId, $query): ?InsightsSavedGraph {
+        $settingsChanged = false;
+        $graph = $this->em->wrapInTransaction(function () use ($command, $projectId, $query, &$settingsChanged): ?InsightsSavedGraph {
             // A caller can hold the graph already, so its removal time is read again under the lock.
             $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($command->graphId, $projectId);
             if (null === $graph || !$this->locker->lockActive($graph)) {
                 return null;
             }
+            $before = InsightsKeptResult::hashOf($graph);
             $graph->metric = $query->metric->key->key();
             $graph->unit = $query->unit;
             $graph->statistic = $query->statistic;
@@ -50,6 +55,7 @@ final readonly class UpdateSavedGraphHandler
             $graph->bucket = $query->bucket;
             $graph->compare = $query->compare;
             $graph->chartType = $query->chart;
+            $settingsChanged = $before !== InsightsKeptResult::hashOf($graph);
             if ('' !== trim($command->name ?? '')) {
                 $graph->name = $this->settings->name($command->name, $query);
             }
@@ -68,6 +74,9 @@ final readonly class UpdateSavedGraphHandler
         );
 
         $this->dashboard->graphChanged($project, $graph->id ?? throw new \LogicException('A stored graph has an id.'), DashboardChange::Updated);
+        if ($settingsChanged) {
+            $this->refreshes->graph($graph);
+        }
 
         return new SavedGraphResult($graph, $query);
     }

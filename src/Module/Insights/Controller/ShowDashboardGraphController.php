@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/** One tile for the lazy frame of a graph with no kept result. It computes the graph and keeps the result. */
+/** One tile in its frame. It reads the kept result and computes nothing, so a graph with no result answers the waiting tile. */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
     '/projects/{id:project}/analytics/dashboard/graphs/{graphId}',
@@ -37,7 +37,7 @@ class ShowDashboardGraphController extends AppController
         Project $project,
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(graphId, project)')] InsightsSavedGraph $graph,
     ): Response {
-        return $this->render('@Insights/_dashboard_tile_frame.html.twig', [
+        return $this->render('@Insights/_dashboard_tile.html.twig', [
             'project' => $project,
             'tile' => ($this->showGraph)(new ShowDashboardGraphCommand($graph)),
         ]);

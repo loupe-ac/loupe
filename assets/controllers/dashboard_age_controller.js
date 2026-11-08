@@ -3,7 +3,25 @@ import { Controller } from '@hotwired/stimulus';
 export const TICK_MILLISECONDS = 30_000;
 
 /**
- * Keeps the "Updated N min ago" line of the Dashboard true. The line counts
+ * The form of an age in the largest whole unit: minutes under an hour, hours
+ * under a day, then days. The form names the sentence, and the count fills it.
+ */
+export const ageForm = (seconds) => {
+    const minutes = Math.floor(Math.max(0, seconds) / 60);
+    if (minutes < 60) {
+        return ['minutes', minutes];
+    }
+    if (minutes < 1440) {
+        const hours = Math.floor(minutes / 60);
+        return [hours === 1 ? 'hour' : 'hours', hours];
+    }
+    const days = Math.floor(minutes / 1440);
+
+    return [days === 1 ? 'day' : 'days', days];
+};
+
+/**
+ * Keeps the "Updated 4 min ago" line of the Dashboard true. The line counts
  * from the oldest tile that shows a result, so a lazy tile that arrives, or
  * a grid that a live update replaces, moves it. It counts from the server
  * clock, so a wrong clock on this machine moves nothing.
@@ -11,7 +29,7 @@ export const TICK_MILLISECONDS = 30_000;
 export default class extends Controller {
     static targets = ['line'];
 
-    static values = { now: Number, text: String };
+    static values = { now: Number, texts: Object };
 
     connect() {
         this.offset = this.nowValue - Date.now() / 1000;
@@ -39,8 +57,11 @@ export default class extends Controller {
             return;
         }
         const seconds = Date.now() / 1000 + this.offset - Math.min(...stamps);
-        const minutes = Math.max(0, Math.floor(seconds / 60));
-        const text = this.textValue.replace('%minutes%', String(minutes));
+        const [form, count] = ageForm(seconds);
+        const text = (this.textsValue[form] ?? '').replace(
+            '%count%',
+            String(count),
+        );
         if (this.lineTarget.textContent !== text) {
             this.lineTarget.textContent = text;
         }

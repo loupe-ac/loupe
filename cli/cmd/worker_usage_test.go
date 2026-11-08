@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
@@ -241,5 +242,59 @@ func TestAStoppedRunCarriesTheCostSource(t *testing.T) {
 
 	if report.State != api.RunStopped || report.CostSource != "openrouter" {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestSessionLastTurn(t *testing.T) {
+	claudeHome(t, testSession, early, costState, streamed2)
+	got := sessionLastTurn(defaultHarness(), testSession)
+	if want := time.Date(2099, 1, 1, 0, 0, 2, 0, time.UTC); got == nil || !got.Equal(want) {
+		t.Fatalf("sessionLastTurn = %v, want %s", got, want)
+	}
+
+	claudeHome(t, testSession, costState)
+	if got := sessionLastTurn(defaultHarness(), testSession); got != nil {
+		t.Fatalf("sessionLastTurn of a session with no message = %v", got)
+	}
+
+	claudeHome(t, testSession)
+	if got := sessionLastTurn(defaultHarness(), testSession); got != nil {
+		t.Fatalf("sessionLastTurn of a missing session = %v", got)
+	}
+}
+
+// Only a resume with a cause has a wake. The first turn is what the harness
+// read, and a harness that read none sends the trigger alone.
+func TestWakeOf(t *testing.T) {
+	last := time.Date(2026, 9, 20, 10, 0, 0, 0, time.UTC)
+	first := &stream.TurnUsage{InputTokens: 7, CacheReadTokens: 300, CacheWriteTokens: 1200}
+
+	if got := wakeOf(runRecord{Cause: api.CausePerson}, first); got != nil {
+		t.Fatalf("wake of a new session = %+v", got)
+	}
+	if got := wakeOf(runRecord{Resume: true}, first); got != nil {
+		t.Fatalf("wake of a record with no cause = %+v", got)
+	}
+	want := &api.Wake{Trigger: api.CauseAskClosed, LastTurnAt: &last, FirstTurn: &api.TurnUsage{InputTokens: 7, CacheReadTokens: 300, CacheWriteTokens: 1200}}
+	if got := wakeOf(runRecord{Resume: true, Cause: api.CauseAskClosed, LastTurnAt: &last}, first); !reflect.DeepEqual(got, want) {
+		t.Fatalf("wake = %+v, want %+v", got, want)
+	}
+	if got := wakeOf(runRecord{Resume: true, Cause: api.CauseWorkRequest}, nil); !reflect.DeepEqual(got, &api.Wake{Trigger: api.CauseWorkRequest}) {
+		t.Fatalf("wake = %+v", got)
+	}
+}
+
+// The wake rides the outcome of a run that ran, and only that.
+func TestTheOutcomeCarriesTheWake(t *testing.T) {
+	h := newHarness(t)
+	rec := h.states()
+	wake := &api.Wake{Trigger: api.CauseWorkRequest}
+	h.worker.result = workerResult{hasResult: true, status: "finished", wake: wake}
+
+	h.send(cardMoved(87))
+
+	sent := rec.states()
+	if got := outcomeOf(t, sent, runIDs(sent)[0]); !reflect.DeepEqual(got.Wake, wake) {
+		t.Fatalf("wake = %+v", got.Wake)
 	}
 }

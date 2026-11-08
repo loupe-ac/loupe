@@ -4,10 +4,17 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardAgeController from '../../assets/controllers/dashboard_age_controller.js';
 
 const NOW = 1_800_000_000;
+const TEXTS = {
+    minutes: 'Updated %count% min ago',
+    hour: 'Updated 1 hour ago',
+    hours: 'Updated %count% hours ago',
+    day: 'Updated 1 day ago',
+    days: 'Updated %count% days ago',
+};
 let application;
 
 async function mount(tiles) {
-    document.body.innerHTML = `<div data-controller="dashboard-age" data-dashboard-age-now-value="${NOW}" data-dashboard-age-text-value="Updated %minutes% min ago">
+    document.body.innerHTML = `<div data-controller="dashboard-age" data-dashboard-age-now-value="${NOW}" data-dashboard-age-texts-value='${JSON.stringify(TEXTS)}'>
         <p data-dashboard-age-target="line" hidden></p>
         <div id="grid">${tiles}</div>
     </div>`;
@@ -68,4 +75,30 @@ it('skips a tile that holds no result', async () => {
     await mount(tile(120) + '<div data-computed-at=""></div>');
 
     expect(line().textContent).toBe('Updated 2 min ago');
+});
+
+it('counts in hours under a day and in days after', async () => {
+    await mount(tile(3600) + tile(60));
+    expect(line().textContent).toBe('Updated 1 hour ago');
+
+    document.body.replaceChildren();
+    await mount(tile(5 * 3600 + 120));
+    expect(line().textContent).toBe('Updated 5 hours ago');
+
+    document.body.replaceChildren();
+    await mount(tile(86400));
+    expect(line().textContent).toBe('Updated 1 day ago');
+
+    document.body.replaceChildren();
+    await mount(tile(9 * 86400 + 5000));
+    expect(line().textContent).toBe('Updated 9 days ago');
+});
+
+it('rolls the line over from minutes to hours as the page stays open', async () => {
+    await mount(tile(59 * 60));
+    expect(line().textContent).toBe('Updated 59 min ago');
+
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+
+    expect(line().textContent).toBe('Updated 1 hour ago');
 });
