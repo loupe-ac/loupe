@@ -1,0 +1,110 @@
+{#
+  Props:  @comment-budget-ignore
+    state    string                       chart, empty or broken.
+    view     DashboardGraphResult|null    The graph as the share page draws it, laid out in the preview box. Null when the state is broken.
+    legend   bool                         True when the saved graph shows its legend.
+    box      ChartBox                     The plot box that the layout was built for.
+    palette  array<string, mixed>         The hex colours of PreviewPalette. An SVG image has no CSS variables.
+
+  The 1200 by 630 image of a shared graph. The template holds no href, no image and no foreignObject, so the renderer loads no outside file.
+  Every text goes through Twig escaping, and PreviewText::fit cuts a text to its slot.
+#}
+{% macro swatch(x, y, colour) %}<rect x="{{ x }}" y="{{ y }}" width="14" height="14" rx="3" fill="{{ colour }}"/>{% endmacro %}
+{% set layout = view.layout ?? null %}
+{% set labels = view.labels ?? [] %}
+{% set chartX = (1200 - box.width) / 2 %}
+{% set chartY = 48 %}
+{% set footerY = 561 %}
+{% set isLine = layout.lines is defined %}
+{% set isBars = layout.buckets is defined %}
+{% set isDonut = layout.slices is defined %}
+{% set isNumber = layout.figures is defined %}
+{% set slotColours = palette.chart %}
+{# twig-cs-fixer-disable-line InlineSvg #}<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="DM Sans, DejaVu Sans, sans-serif">
+    <rect width="1200" height="630" fill="{{ palette.surface }}"/>
+    {% if state != 'chart' %}
+        <rect x="56" y="48" width="1088" height="480" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2" stroke-dasharray="10 8"/>
+        <text x="600" y="288" text-anchor="middle" dominant-baseline="middle" font-size="36" font-weight="700" fill="{{ palette.muted }}">{{ (state == 'empty' ? 'analytics.metrics.empty.title' : 'analytics.public.broken')|trans }}</text>
+    {% elseif isNumber %}
+        {% set count = min(layout.figures|length, 4) %}
+        {% set cardWidth = (1088 - (count - 1) * 24) / count %}
+        {% for figure in layout.figures|slice(0, 4) %}
+            {% set left = 56 + loop.index0 * (cardWidth + 24) %}
+            {% set middle = left + cardWidth / 2 %}
+            <rect x="{{ left }}" y="48" width="{{ cardWidth }}" height="480" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2"/>
+            {% if legend and layout.hasLegend %}
+                <text x="{{ middle }}" y="236" text-anchor="middle" font-size="24" font-weight="600" fill="{{ palette.muted }}">{{ (labels[figure.series.position] ?? '')|preview_fit(count > 2 ? 14 : 24) }}</text>
+            {% endif %}
+            <text x="{{ middle }}" y="316" text-anchor="middle" font-size="{{ count > 2 ? 56 : 80 }}" font-weight="700" fill="{{ palette.text }}">{{ (figure.value ?? 'analytics.metrics.unknown'|trans)|preview_fit(count > 2 ? 10 : 14) }}</text>
+            {% if figure.change is not null %}
+                <text x="{{ middle }}" y="372" text-anchor="middle" font-size="28" fill="{{ palette.muted }}">{{ figure.change.direction.arrow }} {{ figure.change.kind.value == 'points' ? 'analytics.chart.change.points'|trans({'%amount%': figure.change.amount}) : figure.change.amount }}</text>
+            {% endif %}
+        {% endfor %}
+    {% elseif isDonut %}
+        {% set donutX = chartX + (box.width - layout.size) / 2 %}
+        {% set centre = layout.size / 2 %}
+        {% set scale = layout.size / 280 %}
+        <g transform="translate({{ donutX }} {{ chartY }})">
+            {% for slice in layout.slices %}
+                <path d="{{ slice.path }}" fill="{{ slice.series.slot == 0 ? palette.other : (slotColours[slice.series.slot - 1] ?? palette.other) }}"/>
+            {% endfor %}
+            {% if layout.slices is empty %}
+                <circle cx="{{ centre }}" cy="{{ centre }}" r="{{ 105 * scale }}" fill="none" stroke="{{ palette.border }}" stroke-width="{{ 50 * scale }}"/>
+                <text x="{{ centre }}" y="{{ centre }}" text-anchor="middle" dominant-baseline="middle" font-size="22" fill="{{ palette.muted }}">{{ 'analytics.chart.donut.empty'|trans|preview_fit(24) }}</text>
+            {% elseif layout.total is not null %}
+                <text x="{{ centre }}" y="{{ centre }}" text-anchor="middle" dominant-baseline="middle" font-size="48" font-weight="700" fill="{{ palette.text }}">{{ layout.total|preview_fit(12) }}</text>
+                <text x="{{ centre }}" y="{{ centre + 40 }}" text-anchor="middle" dominant-baseline="middle" font-size="22" fill="{{ palette.muted }}">{{ 'analytics.chart.hover.total'|trans }}</text>
+            {% endif %}
+        </g>
+    {% else %}
+        {% set axisMetric = isBars ? layout.axisMetric : layout.metric %}
+        {% set axisStatistic = isBars ? layout.axisStatistic : layout.statistic %}
+        {% set longSpan = layout.longSpan %}
+        {% set dayFormat = longSpan ? 'M j, Y' : 'M j' %}
+        <g transform="translate({{ chartX }} {{ chartY }})" font-size="16" fill="{{ palette.muted }}">
+            {% for tick in layout.yTicks %}
+                <line x1="{{ box.plotLeft }}" x2="{{ box.plotRight }}" y1="{{ tick.position }}" y2="{{ tick.position }}" stroke="{{ palette.border }}" stroke-width="1"/>
+                <text x="{{ box.plotLeft - 10 }}" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.value|metric_tick(axisMetric, axisStatistic, layout.moneyDecimals)|preview_fit(9) }}</text>
+            {% endfor %}
+            {% for tick in layout.xTicks %}
+                <text x="{{ tick.position }}" y="{{ box.height - 8 }}" text-anchor="middle">{{ tick.start|date(layout.bucket.value == 'month' ? (longSpan ? 'M Y' : 'M') : dayFormat, 'UTC') }}</text>
+            {% endfor %}
+            <line x1="{{ box.plotLeft }}" x2="{{ box.plotRight }}" y1="{{ box.baseline }}" y2="{{ box.baseline }}" stroke="{{ palette.borderStrong }}" stroke-width="1.5"/>
+            {% if isLine %}
+                {% for line in layout.lines %}
+                    {% set colour = line.series.slot == 0 ? palette.other : (slotColours[line.series.slot - 1] ?? palette.other) %}
+                    {% if line.previousPath %}<path d="{{ line.previousPath }}" fill="none" stroke="{{ colour }}" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="8 7" stroke-linejoin="round" stroke-linecap="round"/>{% endif %}
+                    {% if line.path %}<path d="{{ line.path }}" fill="none" stroke="{{ colour }}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>{% endif %}
+                    {% for dot in line.dots %}
+                        <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="5" fill="{{ palette.surface }}" stroke="{{ colour }}" stroke-width="3"/>
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                {% for bucket in layout.buckets %}
+                    {% for bar in bucket.bars %}
+                        {% if bar.path %}<path d="{{ bar.path }}" fill="{{ bar.series.slot == 0 ? palette.other : (slotColours[bar.series.slot - 1] ?? palette.other) }}"/>{% endif %}
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+        </g>
+    {% endif %}
+    {% if state == 'chart' and legend and not isNumber and layout.hasLegend %}
+        {% set keyX = 56 %}
+        {% for series in layout.series %}
+            {% set name = (labels[series.position] ?? '')|preview_fit(24) %}
+            {% set keyWidth = 14 + 10 + name|length * 10 + 28 %}
+            {% if keyX + keyWidth <= 900 %}
+                {{ _self.swatch(keyX, footerY - 7, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other)) }}
+                <text x="{{ keyX + 24 }}" y="{{ footerY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.text }}">{{ name }}</text>
+                {% set keyX = keyX + keyWidth %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    <g transform="translate(956 {{ footerY - 14 }})" fill="{{ palette.muted }}">
+        <g transform="translate(14 14) rotate(-6)">
+            <rect x="-14" y="-14" width="28" height="28" rx="8" fill="{{ palette.accent }}"/>
+            <circle cx="0" cy="0" r="3.5" fill="none" stroke="{{ palette.chrome }}" stroke-width="3"/>
+        </g>
+        <text x="38" y="14" dominant-baseline="middle" font-size="18">{{ 'analytics.public.made_with'|trans }}</text>
+    </g>
+</svg>

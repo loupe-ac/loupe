@@ -13,7 +13,11 @@ final class PreviewPalette
     public const string SURFACE = '#ffffff';
     public const string TEXT = '#20241f';
     public const string MUTED_TEXT = '#555b52';
+    public const string SURFACE_2 = '#f7f8f3';
     public const string BORDER = '#e1e5da';
+    public const string BORDER_STRONG = '#cdd3c6';
+    public const string ACCENT = '#d4e94c';
+    public const string CHROME = '#181d18';
     public const string CHART_OTHER = '#898781';
 
     public const string STATUS_OK_INK = '#0f3d20';
@@ -28,6 +32,23 @@ final class PreviewPalette
         '#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300',
         '#4a3aa7', '#e34948', '#0e7c8c', '#8c5a2b', '#a43fc4', '#1d3f73',
     ];
+
+    /** @return array<string, string|list<string>> the colours by the names the preview templates read */
+    public static function forTemplate(): array
+    {
+        return [
+            'surface' => self::SURFACE,
+            'surface2' => self::SURFACE_2,
+            'text' => self::TEXT,
+            'muted' => self::MUTED_TEXT,
+            'border' => self::BORDER,
+            'borderStrong' => self::BORDER_STRONG,
+            'accent' => self::ACCENT,
+            'chrome' => self::CHROME,
+            'other' => self::CHART_OTHER,
+            'chart' => self::CHART,
+        ];
+    }
 
     /** The colour of a series slot as MetricChartSeries numbers it. Slot 0 is the "other" bucket. */
     public static function series(int $slot): string

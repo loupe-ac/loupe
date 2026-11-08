@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stands in for rsvg-convert where the tool is not installed: a PNG signature followed by a checksum of the SVG.
+printf '\211PNG\r\n\032\n'
+cksum
