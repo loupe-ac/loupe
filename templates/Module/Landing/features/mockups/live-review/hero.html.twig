@@ -45,11 +45,11 @@
                 <div class="lp-shot__review-panel">
                     {{ widget.head('#42 Show the nightly price', 'PR #57 · Changes requested', false, true) }}
                     {{ widget.actions('') }}
-                    <div class="lp-shot__review-section"><span>On this page</span><span>{{ '3' }}</span></div>
+                    <div class="lp-shot__review-section"><span>{{ 'landing.shot.widget_on_this_page'|trans }}</span><span>{{ '3' }}</span></div>
                     {{ widget.item(1, 'landing.shot.the_price_should_say_per_night'|trans, '$180') }}
                     {{ widget.item(2, 'Make the book button easier to see.', 'landing.shot.book_now'|trans) }}
                     {{ widget.item(3, 'Add the check-in time.', 'Whole page', true) }}
-                    <div class="lp-shot__review-foot"><span class="lp-shot__review-button">Finish review</span></div>
+                    <div class="lp-shot__review-foot"><span class="lp-shot__review-button">{{ 'landing.shot.widget_finish_review'|trans }}</span></div>
                 </div>
                 {{ widget.launcher(3, true) }}
             </div>

@@ -6,14 +6,6 @@
         @apply min-h-132;
     }
 
-    /* The widget face is the system font, as on the customer's page. */
-    .lp-shot__review-panel,
-    .lp-shot__review-launcher,
-    .lp-shot__review-toast {
-        font-family:
-            ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-            'Segoe UI', Roboto, sans-serif;
-    }
     .lp-shot__review-dock {
         @apply absolute bottom-4 left-4 flex flex-col items-start gap-3 md:right-4 md:left-auto md:items-end;
     }

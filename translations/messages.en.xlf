@@ -5362,6 +5362,30 @@
                 <source>landing.shot.which_test_should_the_checkout_fix</source>
                 <target>Which test should the checkout fix keep?</target>
             </trans-unit>
+            <trans-unit id="landing.shot.widget_draw">
+                <source>landing.shot.widget_draw</source>
+                <target>Draw</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_element">
+                <source>landing.shot.widget_element</source>
+                <target>Element</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_finish_review">
+                <source>landing.shot.widget_finish_review</source>
+                <target>Finish review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_note">
+                <source>landing.shot.widget_note</source>
+                <target>Note</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_on_this_page">
+                <source>landing.shot.widget_on_this_page</source>
+                <target>On this page</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_review">
+                <source>landing.shot.widget_review</source>
+                <target>Review</target>
+            </trans-unit>
             <trans-unit id="landing.features.board.name">
                 <source>landing.features.board.name</source>
                 <target>Board</target>

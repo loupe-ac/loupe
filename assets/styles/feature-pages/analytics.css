@@ -6,7 +6,9 @@
     }
     .lp-shot__experiment .lp-experiment-result__row {
         @apply gap-4;
-        grid-template-columns: calc(var(--spacing) * 16) 1fr calc(var(--spacing) * 52);
+        grid-template-columns: calc(var(--spacing) * 16) 1fr calc(
+                var(--spacing) * 52
+            );
     }
     .lp-shot__experiment .lp-experiment-heading__name {
         @apply font-display;
