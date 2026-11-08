@@ -53,7 +53,7 @@
         <div class="lp-chart__scroll" data-chart-hover-target="viewport">
             <div class="lp-chart__surface lp-chart__surface--donut" data-chart-hover-target="surface">
                 {# A chart drawn from data, not an icon. #}
-                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" viewBox="0 0 {{ layout.size }} {{ layout.size }}" role="group" aria-label="{{ chartLabel }}">
+                {# twig-cs-fixer-disable-line InlineSvg #}<svg class="lp-chart__svg" data-size="{{ layout.size }}" viewBox="0 0 {{ layout.size }} {{ layout.size }}" role="group" aria-label="{{ chartLabel }}">
                     {% for slice in layout.slices %}
                         {% set target = layout.hoverTargets[loop.index0] %}
                         {% set row = target.rows[0] %}
@@ -62,12 +62,14 @@
                             <path class="lp-chart__slice" d="{{ slice.path }}" />
                         </g>
                     {% endfor %}
+                    {% set centre = layout.size / 2 %}
+                    {% set scale = layout.size / 280 %}
                     {% if layout.slices is empty %}
-                        <circle class="lp-chart__ring-empty" cx="140" cy="140" r="105" />
-                        <text class="lp-chart__donut-note" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.donut.empty'|trans }}</text>
+                        <circle class="lp-chart__ring-empty" cx="{{ centre }}" cy="{{ centre }}" r="{{ 105 * scale }}" style="stroke-width: {{ 50 * scale }}px" />
+                        <text class="lp-chart__donut-note" x="{{ centre }}" y="{{ centre }}" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.donut.empty'|trans }}</text>
                     {% elseif layout.total is not null %}
-                        <text class="lp-chart__donut-total" x="140" y="140" text-anchor="middle" dominant-baseline="middle">{{ layout.total }}</text>
-                        <text class="lp-chart__donut-caption" x="140" y="166" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.hover.total'|trans }}</text>
+                        <text class="lp-chart__donut-total" x="{{ centre }}" y="{{ centre }}" text-anchor="middle" dominant-baseline="middle">{{ layout.total }}</text>
+                        <text class="lp-chart__donut-caption" x="{{ centre }}" y="{{ centre + 26 * scale }}" text-anchor="middle" dominant-baseline="middle">{{ 'analytics.chart.hover.total'|trans }}</text>
                     {% endif %}
                 </svg>
             </div>
