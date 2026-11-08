@@ -28,6 +28,18 @@ final class PreviewPaletteTest extends TestCase
             'status-pending-bg' => PreviewPalette::STATUS_PENDING_BACKGROUND,
             'status-danger-deep' => PreviewPalette::STATUS_DANGER_DEEP,
             'status-danger-chip' => PreviewPalette::STATUS_DANGER_CHIP,
+            'text-dim' => PreviewPalette::TEXT_DIM,
+            'faint' => PreviewPalette::FAINT,
+            'accent-soft' => PreviewPalette::ACCENT_SOFT,
+            'accent-ink' => PreviewPalette::ACCENT_INK,
+            'status-ok' => PreviewPalette::STATUS_OK,
+            'status-ok-deep' => PreviewPalette::STATUS_OK_DEEP,
+            'status-ok-bg' => PreviewPalette::STATUS_OK_BACKGROUND,
+            'status-pending' => PreviewPalette::STATUS_PENDING,
+            'status-pending-border' => PreviewPalette::STATUS_PENDING_BORDER,
+            'status-danger' => PreviewPalette::STATUS_DANGER,
+            'status-danger-bg' => PreviewPalette::STATUS_DANGER_BACKGROUND,
+            'status-danger-border' => PreviewPalette::STATUS_DANGER_BORDER,
         ];
         foreach (PreviewPalette::CHART as $index => $colour) {
             $expected['chart-'.($index + 1)] = $colour;

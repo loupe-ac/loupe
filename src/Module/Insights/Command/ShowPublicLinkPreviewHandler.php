@@ -17,7 +17,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Reads the preview image of the link behind a code. The kept PNG answers when it shows the version of the page now.
- * Otherwise the drawer draws it. A result that never settles, a failed tool and an experiment with a report give no image. An experiment with no report gives 404, as its share page does.
+ * Otherwise the drawer draws it. A result that never settles and a failed tool give the generic image. An experiment with no report gives 404, as its share page does.
  */
 final readonly class ShowPublicLinkPreviewHandler
 {
@@ -39,7 +39,7 @@ final readonly class ShowPublicLinkPreviewHandler
             throw new NotFoundHttpException('No public link shows for this code.');
         }
 
-        $subject = PublicLinkKind::Graph === $link->kind ? $this->subjects->read($link) : null;
+        $subject = $this->subjects->read($link);
         if (null === $subject) {
             return new ShowPublicLinkPreviewView(null, 'fallback');
         }

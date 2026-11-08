@@ -32,6 +32,7 @@ final readonly class PublicPreviewDrawer
         private PublicPreviewSubjects $subjects,
         private PublicPreviewEntries $entries,
         private PublicGraphResults $graphResults,
+        private ExperimentPreviewLayouts $experimentLayouts,
         private PreviewRenderer $renderer,
         private Environment $twig,
     ) {
@@ -94,6 +95,13 @@ final readonly class PublicPreviewDrawer
 
     private function svg(PublicLink $link, PublicPreviewSubject $subject): string
     {
+        if (null !== $subject->experiment) {
+            return $this->twig->render('@Insights/public/preview/experiment.svg.twig', [
+                'layout' => $this->experimentLayouts->build($subject->experiment),
+                'palette' => PreviewPalette::forTemplate(),
+            ]);
+        }
+
         $box = ChartBox::preview();
         $kept = $subject->graph;
         $view = null === $kept ? null : $this->graphResults->view($link->project, $kept, $box);
