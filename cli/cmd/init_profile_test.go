@@ -38,8 +38,17 @@ func newProfileWorld(t *testing.T) (*profileWorld, string) {
 	t.Helper()
 	t.Setenv(config.EnvVar, t.TempDir())
 	w := &profileWorld{agents: map[string]bool{agentClaude: true, "loupe": true}, codexServer: loupeMcpDeclaration}
-	oldAgent, oldLook, oldExe, oldExec := initAgent, initLookPath, initExecutable, initExec
-	t.Cleanup(func() { initAgent, initLookPath, initExecutable, initExec = oldAgent, oldLook, oldExe, oldExec })
+	oldAgent, oldLook, oldExe, oldExec, oldTerm := initAgent, initLookPath, initExecutable, initExec, isTerminalOutput
+	t.Cleanup(func() {
+		initAgent, initLookPath, initExecutable, initExec, isTerminalOutput = oldAgent, oldLook, oldExe, oldExec, oldTerm
+	})
+	isTerminalOutput = func(out io.Writer) bool {
+		if _, isFile := out.(*os.File); isFile {
+			return fileIsTerminal(out)
+		}
+
+		return true
+	}
 	initExec = func(_ context.Context, _ string, _ []string, name string, args ...string) ([]byte, error) {
 		if name == agentCodex && slices.Equal(args, []string{"mcp", "get", "loupe", "--json"}) && w.codexServer != "" {
 			return []byte(w.codexServer), nil
@@ -406,6 +415,20 @@ func TestInitProfilePrintsThePromptWhenTheOutputIsAPipe(t *testing.T) {
 	out := <-captured
 	if len(w.calls) != 0 {
 		t.Errorf("an agent ran on a pipe: %v", w.calls)
+	}
+	if !strings.Contains(out, "Paste this prompt") {
+		t.Errorf("out = %s", out)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenTheOutputIsNotAFile(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+	isTerminalOutput = fileIsTerminal
+
+	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 0 {
+		t.Errorf("an agent ran on a non-file output: %v", w.calls)
 	}
 	if !strings.Contains(out, "Paste this prompt") {
 		t.Errorf("out = %s", out)

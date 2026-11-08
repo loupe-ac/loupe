@@ -53,16 +53,15 @@ func agentOutput(out io.Writer) io.Writer {
 	return out
 }
 
-// isTerminalOutput reports whether an agent on out can draw for a person. A
-// file counts only when it is a real terminal. Any other writer counts, so
-// tests can capture the output.
-func isTerminalOutput(out io.Writer) bool {
-	f, ok := out.(*os.File)
-	if !ok {
-		return true
-	}
+// isTerminalOutput reports whether an agent on out can draw for a person. Only
+// a file that is a real terminal counts: Go gives the child a pipe for any
+// other writer. A test replaces it.
+var isTerminalOutput = fileIsTerminal
 
-	return term.IsTerminal(int(f.Fd()))
+func fileIsTerminal(out io.Writer) bool {
+	f, ok := out.(*os.File)
+
+	return ok && term.IsTerminal(int(f.Fd()))
 }
 
 // initExecutable finds this binary. A test replaces it.
