@@ -22,6 +22,7 @@ final readonly class SessionPromptWriter
 
     private const string CUT = ' [text cut]';
     private const string CLOSING_TAG = '</item>';
+    private const string INSTRUCTION = 'Investigate the item and the cards it links. Find the cause, or what the item needs. Propose solutions and recommend one. Then wait for my choice before you change anything.';
 
     public function __construct(
         private SessionPromptLimit $limit,
@@ -107,7 +108,7 @@ final readonly class SessionPromptWriter
         }
         $lines[] = self::CLOSING_TAG;
         $lines[] = '';
-        $lines[] = 'Read the item. Then wait for my instruction.';
+        $lines[] = self::INSTRUCTION;
 
         return implode("\n", $lines);
     }

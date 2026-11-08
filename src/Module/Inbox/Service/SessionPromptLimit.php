@@ -14,6 +14,9 @@ final readonly class SessionPromptLimit
     /** The coded fallback and the seeded value. The inbox_ask schema publishes no maxLength, because the flag can raise it. */
     public const int DEFAULT = 2000;
 
+    /** The smallest limit that holds the whole frame of the written prompt, so a lower flag value reads as this. */
+    public const int MINIMUM = 400;
+
     public function __construct(
         private FeatureFlagService $featureFlags,
     ) {
@@ -23,6 +26,6 @@ final readonly class SessionPromptLimit
     {
         $length = $this->featureFlags->getIntValue(self::FLAG, self::DEFAULT);
 
-        return $length >= 1 ? $length : self::DEFAULT;
+        return $length >= 1 ? max($length, self::MINIMUM) : self::DEFAULT;
     }
 }
