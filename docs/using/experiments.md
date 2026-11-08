@@ -161,7 +161,7 @@ these parts:
 
 1. The name of the variant.
 2. A strip. A soft band draws the likely range of the change, and a dot draws
-   the change. A dashed line marks no change and is labelled "baseline". All
+   the change, both on a thin scale line. A dashed line marks no change and is labelled "baseline". All
    rows share one scale, so you compare the rows by eye.
 3. The value of the goal metric for the variant, in small text.
 4. The signed change, such as −31% or +6 pp. It is green when the change goes

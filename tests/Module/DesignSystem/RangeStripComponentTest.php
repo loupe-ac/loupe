@@ -44,7 +44,7 @@ final class RangeStripComponentTest extends KernelTestCase
         $strip = $this->render('<twig:Ds:RangeStrip :low="50" :point="50" :high="50" :baseline="50" label="baseline" data-x />')->filter('svg.lp-range-strip');
 
         self::assertSame('50%', $strip->filter('circle')->attr('cx'));
-        self::assertSame('50%', $strip->filter('line')->attr('x1'));
+        self::assertSame('50%', $strip->filter('line.lp-range-strip__baseline')->attr('x1'));
         self::assertSame('baseline', trim($strip->filter('text.lp-range-strip__label')->text()));
         self::assertSame('50%', $strip->filter('text')->attr('x'));
         self::assertStringContainsString('lp-range-strip--labelled', (string) $strip->attr('class'));
@@ -55,6 +55,16 @@ final class RangeStripComponentTest extends KernelTestCase
     {
         $strip = $this->render('<twig:Ds:RangeStrip :low="10" :point="20" :high="30" />')->filter('svg.lp-range-strip');
 
-        self::assertCount(0, $strip->filter('line'));
+        self::assertCount(0, $strip->filter('line.lp-range-strip__baseline'));
+    }
+
+    public function test_the_strip_draws_a_full_width_track_first(): void
+    {
+        $strip = $this->render('<twig:Ds:RangeStrip :low="10" :point="20" :high="30" />')->filter('svg.lp-range-strip');
+
+        self::assertCount(1, $strip->filter('line.lp-range-strip__track'));
+        self::assertSame('0', $strip->filter('line.lp-range-strip__track')->attr('x1'));
+        self::assertSame('100%', $strip->filter('line.lp-range-strip__track')->attr('x2'));
+        self::assertStringContainsString('lp-range-strip__track', (string) $strip->children()->first()->attr('class'));
     }
 }
