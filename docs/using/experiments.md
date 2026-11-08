@@ -111,6 +111,24 @@ shows no card, no card number you did not write in the note, no account name,
 no bridge name and no person. It does not list unknown metrics or unknown
 guards.
 
+### Link previews
+
+A chat app that gets the link shows a preview of it. The preview has a title,
+a description and an image. The title is the name of the experiment and the name
+of the project. The description is your note as plain text, cut after about 200
+characters. An experiment with no note shows its goal and the number of its
+variants, such as "Cost per merged card, 3 variants against opus". The image
+shows the comparison and "Made with Loupe".
+
+The worker draws the image when you turn the link on. It draws it again after
+each new report that it keeps. The address of the image carries the version of
+the report, so a link that someone pastes after a new report gets a new image.
+
+A chat app keeps a preview after it fetches the link. A link that someone
+already pasted can show older numbers than the page, and the app decides when it
+asks again. A link that is switched off, archived or taken down gives no preview,
+because the page and the image show "not found".
+
 ### When the link shows "not found"
 
 The link shows "not found", the same page as an unknown address, in these cases:
