@@ -272,7 +272,7 @@ Opens the Live review panel for the current folder, beside the iOS Simulator in 
 
 ## `loupe review` (hidden helpers)
 
-`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. The helpers other than `ios` can change at any release.
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. The helpers other than `ios` can change at any release.
 
 `sign-in` starts a device sign-in, prints the code and the link, and exits. The panel then runs `status` until the sign-in ends. While nobody has approved the code, `status` prints `pending`. It finishes the sign-in with one token request at most per server interval. After an approval it saves the login and prints `ok`. After a denial or an expired code it prints `signedOut`.
 

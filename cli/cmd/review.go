@@ -99,7 +99,7 @@ func newReviewCmd() *cobra.Command {
 			"with a screenshot to a Loupe project. Run loupe review ios to open the panel. " +
 			"The other subcommands are helpers that the panel runs.",
 	}
-	cmd.AddCommand(newReviewIOSCmd(), newReviewStatusCmd(), newReviewSignInCmd(), newReviewProjectsCmd(), newReviewTargetsCmd(), newReviewNotesCmd(), newReviewSaveCmd())
+	cmd.AddCommand(newReviewIOSCmd(), newReviewStatusCmd(), newReviewSignInCmd(), newReviewProjectsCmd(), newReviewNotesCmd(), newReviewSaveCmd())
 
 	return cmd
 }
@@ -306,18 +306,6 @@ func newReviewReadCmd(use, key string, flags func(cmd *cobra.Command), check fun
 	})
 
 	return cmd
-}
-
-func newReviewTargetsCmd() *cobra.Command {
-	var query string
-	var parent bool
-
-	return newReviewReadCmd("targets", "cards", func(cmd *cobra.Command) {
-		cmd.Flags().StringVar(&query, "query", "", "search text")
-		cmd.Flags().BoolVar(&parent, "parent", false, "list only the cards that can hold children")
-	}, func() error { return nil }, func(ctx context.Context, c *api.Client) (json.RawMessage, error) {
-		return c.SiteReviewTargets(ctx, query, parent)
-	})
 }
 
 func newReviewNotesCmd() *cobra.Command {

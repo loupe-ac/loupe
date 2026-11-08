@@ -378,6 +378,12 @@ The kind must be the kind that a rule of the same slot requests. Lifecycle sets
 it for Tech design and for Implementation. The inbox action **Send an agent**
 reads it. A card in a column with no `stageWork` gets no such action.
 
+A slot can name a `hint`, a translation key for one short sentence that says
+what a card does in that column. A slot with no `hint` has none. The hint shows
+only while the board runs the workflow. Lifecycle sets a hint on Next, Product
+design and Tech design. The [live-review widget](live-review.md) shows the hint of
+a column under its **Start new cards in** select.
+
 A slot can name a `tone`, the colour of its column when a new project gets the
 template. The value is one of the label tones, such as `lime` or `sky`. A slot
 with no `tone` gets a neutral column.
@@ -781,6 +787,10 @@ from Implementation back to Tech design, for example when the card has no tech
 design yet. A card whose tech design is approved goes
 back to Implementation at once when it has no open blocker.
 When you withdraw the approval of a design, the card goes back to that design. See [Undoing a design](#undoing-a-design).
+
+Three Lifecycle slots carry a hint. Next says "Waits until you start it."
+Product design says "You write the product design with an agent, in a session
+that you join." Tech design says "An agent writes the tech design."
 
 | Slot | The workflow |
 |---|---|

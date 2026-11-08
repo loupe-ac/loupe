@@ -493,10 +493,10 @@ test('one card per review is chosen once and remembered after a reload', async (
     // No choice yet, so the modes come before the first note can be written.
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    // One card for this review is the choice the view opens on, and its title
+    // One new card for this review is the choice the view opens on, and its title
     // takes the focus.
     await expect(
-        picker.getByRole('radio', { name: 'One card for this review' }),
+        picker.getByRole('radio', { name: 'One new card for this review' }),
     ).toBeChecked();
     await expect(picker.getByLabel('Card title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
@@ -559,6 +559,34 @@ test('a card per note names the card each note became', async ({ page }) => {
     await expect(page.locator('#lp-last-card')).toHaveCount(0);
 });
 
+test('a card per note starts in the column chosen in the destination view', async ({
+    page,
+}) => {
+    await openHarness(page, null);
+    await openNoteOverDestination(page);
+    await chooseMode(page, 'A new card for each note');
+    const select = page.locator('#lp-picker-start-select');
+    await expect(select).toBeVisible();
+    await expect(select.locator('option').first()).toHaveText('Backlog');
+    const names = await select.locator('option').allTextContents();
+    expect(names.length).toBeGreaterThan(1);
+    expect(names).not.toContain('Done');
+    await select.selectOption({ index: 1 });
+    await page.locator('#lp-destination-save').click();
+    await fillNote(page, 'The logo is cut off');
+    await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
+        `a new card in ${names[1]}`,
+    );
+
+    const target = (await nextSaveTarget(page)) as {
+        newCard: { startColumnId: string };
+    };
+    expect(target.newCard.startColumnId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(page.locator('#lp-saved-text')).toHaveText(
+        /^Note saved to #\d+ The logo is cut off$/,
+    );
+});
+
 test('the mode comes before the first pick', async ({ page }) => {
     await openHarness(page, null);
     const panel = page.locator('#lp-panel');
@@ -581,81 +609,60 @@ test('the mode comes before the first pick', async ({ page }) => {
     await expect(picker).toBeHidden();
 });
 
-test('epic mode files each note as a card under the epic', async ({ page }) => {
-    await openHarness(page, null);
-    await openNoteOverDestination(page);
-    const picker = page.locator('#lp-picker');
-    await chooseMode(page, 'A card for each note, under an epic');
-    // The epic is the next step, so the modes view holds no epic controls.
-    await expect(picker.getByLabel('Epic title')).toBeHidden();
-    const save = page.locator('#lp-destination-save');
-    await expect(save).toHaveText('Next');
-    await save.click();
-    await expect(page.locator('#lp-destination-title')).toHaveText(
-        'Pick or create an epic',
-    );
-    await expect(
-        picker.getByRole('radio', { name: 'A new card for each note' }),
-    ).toBeHidden();
-    await expect(picker.getByLabel('Epic title')).toBeFocused();
-
-    // Back returns to the modes with the epic choice kept.
-    await page.locator('#lp-destination-back').click();
-    await expect(
-        picker.getByRole('radio', {
-            name: 'A card for each note, under an epic',
-        }),
-    ).toBeChecked();
-    await save.click();
-    await expect(picker.getByLabel('Epic title')).toHaveValue(
-        HARNESS_REVIEW_TITLE,
-    );
-    const [created] = await Promise.all([
-        page.waitForResponse(
-            (response) =>
-                response.url().endsWith('/api/v1/live-review-widget/cards') &&
-                response.request().method() === 'POST',
-        ),
-        page.locator('#lp-destination-save').click(),
-    ]);
-    const epic = await created.json();
-    await fillNote(page, 'The pricing table overflows');
-    await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
-        `a new card under ${cardNumber(epic.label)}`,
-    );
-
-    expect(await nextSaveTarget(page)).toEqual({
-        newCard: { parentCardId: epic.cardId },
-    });
-    await expect(page.locator('#lp-saved')).toContainText(
-        'The pricing table overflows',
-    );
-});
-
-test('epic mode shows a type selector when the template has two grouping types', async ({
+test('the destination view offers two modes and no epic or card search', async ({
     page,
 }) => {
-    // Both shipped templates declare one grouping type, so the start request
-    // is rewritten to name two. The server still holds the real template.
-    await page.route('**/api/v1/live-review-widget/review*', async (route) => {
-        const response = await route.fetch();
-        const payload = await response.json();
-        payload.parentTypes = [
-            { key: 'initiative', label: 'Initiative' },
-            { key: 'epic', label: 'Epic' },
-        ];
-        await route.fulfill({ response, json: payload });
-    });
     await openHarness(page, null);
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    await chooseMode(page, 'A card for each note, under an epic');
-    await page.locator('#lp-destination-save').click();
+    await expect(picker.getByRole('radio')).toHaveCount(2);
+    await expect(
+        picker.getByRole('radio', { name: 'One new card for this review' }),
+    ).toBeVisible();
+    await expect(
+        picker.getByRole('radio', { name: 'A new card for each note' }),
+    ).toBeVisible();
+    await expect(picker.getByText('Existing card')).toHaveCount(0);
+    await expect(picker.getByLabel('Search cards')).toHaveCount(0);
+    await expect(picker.getByLabel('Type', { exact: true })).toHaveCount(0);
+});
 
-    const selector = picker.getByLabel('Type', { exact: true });
-    await expect(selector.locator('option')).toHaveText(['Initiative', 'Epic']);
-    await selector.selectOption('epic');
-    const [created] = await Promise.all([
+const FINISH_MOVES = [
+    { id: 'col-next', name: 'Next', hint: 'Waits until you start it.' },
+    { id: 'col-tech', name: 'Tech design', hint: 'An agent writes it.' },
+];
+
+/**
+ * Answer the start read and write of the review card from the test, so each
+ * case controls the moves, and save one note so the footer shows Finish review.
+ */
+const openFinishReview = async (
+    page: Page,
+    answer: {
+        read: Record<string, unknown>;
+        write: { status: number; json: Record<string, unknown> };
+    },
+): Promise<unknown[]> => {
+    const posts: unknown[] = [];
+    await page.route('**/api/v1/live-review-widget/cards/*/start', (route) => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+            posts.push(request.postDataJSON());
+            return route.fulfill({
+                status: answer.write.status,
+                contentType:
+                    answer.write.status === 200
+                        ? 'application/json'
+                        : 'application/problem+json',
+                body: JSON.stringify(answer.write.json),
+            });
+        }
+        return route.fulfill({ json: answer.read });
+    });
+    await openHarness(page, null);
+    await openNoteOverDestination(page);
+    await chooseMode(page, 'One new card for this review');
+    await Promise.all([
         page.waitForResponse(
             (response) =>
                 response.url().endsWith('/api/v1/live-review-widget/cards') &&
@@ -663,12 +670,120 @@ test('epic mode shows a type selector when the template has two grouping types',
         ),
         page.locator('#lp-destination-save').click(),
     ]);
+    await expect(page.locator('#lp-picker')).toBeHidden();
+    await fillNote(page, 'A note before the review ends');
+    await clickSave(page);
+    await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
-    expect(created.status()).toBe(201);
-    expect(created.request().postDataJSON()).toMatchObject({
-        parent: true,
-        type: 'epic',
+    return posts;
+};
+
+const finishReviewButton = (page: Page) =>
+    page.getByRole('button', { name: 'Finish review' });
+
+test('Finish review in a one-card review picks a column and ends the review', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: FINISH_MOVES,
+        },
+        write: {
+            status: 200,
+            json: {
+                number: 42,
+                url: 'https://example.test/c',
+                column: 'Tech design',
+            },
+        },
     });
+
+    const finish = finishReviewButton(page);
+    await finish.click();
+    const menu = page.locator('#lp-menu');
+    await expect(menu.locator('.lp-menu-title')).toHaveText('Start #42 in');
+    await expect(menu.getByRole('menuitem')).toHaveCount(2);
+    await expect(menu.getByRole('menuitem').nth(1)).toContainText(
+        'An agent writes it.',
+    );
+    await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
+
+    const notice = page.locator('#lp-review-end');
+    await expect(notice).toContainText('#42 started in Tech design.');
+    await expect(
+        notice.getByRole('link', { name: 'Open #42 in Loupe' }),
+    ).toBeVisible();
+    expect(posts).toEqual([{ columnId: 'col-tech' }]);
+    await expect(
+        page.getByRole('button', { name: 'Choose where notes go' }),
+    ).toBeVisible();
+    await expect(finish).toHaveCount(0);
+});
+
+test('a refused Finish review pick reloads the menu with the moves allowed now', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: FINISH_MOVES,
+        },
+        write: {
+            status: 409,
+            json: {
+                code: 'start_refused',
+                column: 'Backlog',
+                moves: [FINISH_MOVES[0]],
+            },
+        },
+    });
+
+    await finishReviewButton(page).click();
+    const menu = page.locator('#lp-menu');
+    await menu.getByRole('menuitem', { name: /^Tech design/ }).click();
+
+    await expect(menu.locator('.lp-menu-reason')).toHaveText(
+        'Tech design is no longer open for this card.',
+    );
+    await expect(menu.getByRole('menuitem')).toHaveCount(1);
+    await expect(menu.getByRole('menuitem')).toContainText('Next');
+    await expect(page.locator('#lp-review-end')).toBeHidden();
+    expect(posts).toEqual([{ columnId: 'col-tech' }]);
+    await expect(finishReviewButton(page)).toBeVisible();
+});
+
+test('Finish review with no start column ends the review where the card is', async ({
+    page,
+}) => {
+    const posts = await openFinishReview(page, {
+        read: {
+            number: 42,
+            url: 'https://example.test/c',
+            column: 'Backlog',
+            startsWork: false,
+            moves: [],
+        },
+        write: { status: 200, json: {} },
+    });
+
+    const finish = finishReviewButton(page);
+    await finish.click();
+
+    await expect(page.locator('#lp-menu')).toBeHidden();
+    const notice = page.locator('#lp-review-end');
+    await expect(notice).toContainText('#42 stays in Backlog.');
+    await expect(
+        notice.getByRole('link', { name: 'Open #42 in Loupe' }),
+    ).toBeVisible();
+    expect(posts).toEqual([]);
+    await expect(finish).toHaveCount(0);
 });
 
 test('a keep=1 reload rehydrates the live comments into pins and list', async ({
@@ -4329,19 +4444,6 @@ test('a one-card review lists the notes of that card', async ({ page }) => {
     });
 });
 
-test('an epic review lists the notes on every card under the epic', async ({
-    page,
-}) => {
-    await registerUser(page, { mode: 'epic', cardId: REVIEW_CARD });
-    const requests = recordListRequests(page);
-    await gotoHarness(page, harnessUrl());
-
-    expect(requests[0]).toEqual({
-        scope: `epic:${REVIEW_CARD}`,
-        context: `epic:${REVIEW_CARD}`,
-    });
-});
-
 test('a card per note lists the cards this tab made, and a new destination clears them', async ({
     page,
 }) => {
@@ -4387,7 +4489,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     // Another destination is another list: the old cards go, and the
     // request names the new destination.
     await page.locator('#lp-dest').click();
-    await chooseMode(page, 'One card for this review');
+    await chooseMode(page, 'One new card for this review');
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -4461,4 +4563,157 @@ test('pins and the list number notes with this page first, then other pages', as
     await expect(rows.first()).toContainText('First, on this page');
     await expect(rows.first().locator('.lp-badge')).toHaveText('1');
     await expect(page.locator('.pin')).toHaveText('1');
+});
+
+type ReviewRow = { body: string; link: Record<string, unknown> | null };
+
+/**
+ * Answer GET /review with the given notes marked as locked, the way the server
+ * does for a note whose card left the Backlog.
+ */
+const routeLockedReview = async (
+    page: Page,
+    bodies: string[],
+    column: string,
+): Promise<void> => {
+    await page.route(REVIEW_ROUTE, async (route) => {
+        const response = await route.fetch();
+        const payload = (await response.json()) as {
+            comments: ReviewRow[];
+        };
+        await route.fulfill({
+            response,
+            json: {
+                ...payload,
+                comments: payload.comments.map((row) =>
+                    bodies.includes(row.body)
+                        ? {
+                              ...row,
+                              link: {
+                                  ...(row.link ?? {}),
+                                  locked: true,
+                                  column,
+                              },
+                          }
+                        : row,
+                ),
+            },
+        });
+    });
+};
+
+const lockNotesInReview = async (
+    page: Page,
+    bodies: string[],
+    column: string,
+): Promise<void> => {
+    await routeLockedReview(page, bodies, column);
+    await gotoHarness(page, keepHarnessUrl());
+    await page.getByRole('button', { name: 'Review' }).click();
+};
+
+test('a locked note says its card started and offers only Mark resolved and Open', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Locked note', '1');
+
+    await lockNotesInReview(page, ['Locked note'], 'Tech design');
+
+    const row = page.locator('#lp-list .lp-item').first();
+    await expect(row.locator('.lp-item-lock-text')).toHaveText(
+        /^#\d+ is being worked on in Tech design\.$/,
+    );
+    await expect(
+        row.getByRole('button', { name: /^Open #\d+ in Loupe$/ }),
+    ).toBeVisible();
+
+    await row.getByRole('button', { name: 'Note actions' }).click();
+    await expect(page.locator('#lp-menu').getByRole('menuitem')).toHaveText([
+        'Mark resolved',
+        /^Open #\d+ in Loupe$/,
+    ]);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a locked note whose card is back in Backlog says it already started', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Locked note', '1');
+
+    await lockNotesInReview(page, ['Locked note'], 'Backlog');
+
+    await expect(
+        page.locator('#lp-list .lp-item').first().locator('.lp-item-lock-text'),
+    ).toHaveText(/^#\d+ already started and is back in Backlog\.$/);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('Delete all counts only the notes that are not locked', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Open one', '1');
+    await addGeneralNote(page, 'Open two', '2');
+    await addGeneralNote(page, 'Open three', '3');
+    await addGeneralNote(page, 'Locked one', '4');
+    await addGeneralNote(page, 'Locked two', '5');
+
+    await lockNotesInReview(page, ['Locked one', 'Locked two'], 'Tech design');
+
+    await chooseHeadMenuItem(page, 'Delete all 3 notes…');
+    await expect(page.locator('#lp-clear-confirm-text')).toContainText(
+        'Delete 3 notes',
+    );
+    await expect(page.locator('#lp-clear-confirm-text')).toContainText(
+        '2 notes stay on started cards.',
+    );
+    await page.locator('#lp-clear-yes').click();
+    await expect(page.locator('#lp-list .lp-item')).toHaveCount(2);
+    await expect(page.locator('#lp-launch-count')).toHaveText('2');
+
+    // Only locked notes are left, so Delete all is gone.
+    await headMenuButton(page).click();
+    await expect(
+        page.locator('#lp-menu').getByRole('menuitem', { name: /^Delete / }),
+    ).toHaveCount(0);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a note_locked answer to an edit reloads the list and closes the composer', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'Racing note', '1');
+
+    await page.route('**/api/v1/live-review-widget/comments/*', (route) => {
+        if (route.request().method() !== 'PATCH') return route.fallback();
+        return route.fulfill({
+            status: 409,
+            contentType: 'application/json',
+            body: JSON.stringify({ code: 'note_locked' }),
+        });
+    });
+    await chooseRowMenuItem(
+        page,
+        page.locator('#lp-list .lp-item').first(),
+        'Edit text',
+    );
+    await page.getByPlaceholder(/What should change/).fill('Too late');
+    await routeLockedReview(page, ['Racing note'], 'Tech design');
+    await clickSave(page);
+
+    await expect(
+        page.locator('#lp-panel').getByText(/That note is locked/i),
+    ).toBeVisible();
+    await expect(page.getByPlaceholder(/What should change/)).toBeHidden();
+    await expect(
+        page.locator('#lp-list .lp-item').first().locator('.lp-item-lock-text'),
+    ).toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

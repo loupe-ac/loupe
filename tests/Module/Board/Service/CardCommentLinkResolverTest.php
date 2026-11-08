@@ -13,6 +13,7 @@ use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class CardCommentLinkResolverTest extends KernelTestCase
 {
@@ -49,6 +50,18 @@ final class CardCommentLinkResolverTest extends KernelTestCase
             \sprintf('/projects/%s/board/cards/%s', $project->id, $card->id),
             (string) $links[(string) $comment->id]->url,
         );
+    }
+
+    public function test_it_sends_the_translated_column_name(): void
+    {
+        [$project, $card, $comment] = $this->linkedComment('link-column');
+
+        $links = $this->resolver->resolve([$comment], $project);
+
+        $translator = self::getContainer()->get(TranslatorInterface::class);
+        self::assertInstanceOf(TranslatorInterface::class, $translator);
+        self::assertSame($translator->trans($card->column->label), $links[(string) $comment->id]->column);
+        self::assertStringStartsNotWith('board.', (string) $links[(string) $comment->id]->column);
     }
 
     public function test_a_card_of_another_project_links_nothing(): void

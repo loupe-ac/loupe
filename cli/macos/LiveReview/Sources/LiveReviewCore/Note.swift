@@ -1,13 +1,13 @@
 import CryptoKit
 import Foundation
 
-/// Where a note goes. These are the three choices of the web widget: one card for the
-/// review, a new card for each note, or a new card for each note under an epic.
+/// Where a note goes. These are the two choices of the web widget: one card for the
+/// review, or a new card for each note.
 public enum Destination: Equatable, Sendable {
     /// The first save makes the card, and the later notes of the review join it.
     case reviewCard
     case card(id: String, label: String)
-    case eachNote(parentId: String?)
+    case eachNote
 
     public func afterSave(_ result: SaveResult) -> Destination {
         switch self {
@@ -76,7 +76,7 @@ public struct Note: Sendable {
     private struct Target: Encodable {
         var cardId: String?
         var newCard: NewCard?
-        struct NewCard: Encodable { var parentCardId: String? }
+        struct NewCard: Encodable {}
     }
 
     private struct Screenshot: Encodable {
@@ -99,8 +99,7 @@ public struct Note: Sendable {
         let target: Target
         switch destination {
         case let .card(id, _): target = Target(cardId: id)
-        case .reviewCard: target = Target(newCard: .init(parentCardId: nil))
-        case let .eachNote(parent): target = Target(newCard: .init(parentCardId: parent))
+        case .reviewCard, .eachNote: target = Target(newCard: .init())
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]

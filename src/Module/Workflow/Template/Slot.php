@@ -12,12 +12,14 @@ final readonly class Slot
      * @param string     $label     a translation key
      * @param ?string    $stageWork the kind of work that does the stage of this slot, or null when the slot names none
      * @param ?LabelTone $tone      the colour of the column a new project gets for this slot, or null for neutral
+     * @param ?string    $hint      a translation key for one sentence on what a card does in this slot, or null when the slot has none
      */
     public function __construct(
         public string $key,
         public string $label,
         public ?string $stageWork = null,
         public ?LabelTone $tone = null,
+        public ?string $hint = null,
     ) {
     }
 }

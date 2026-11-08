@@ -59,7 +59,7 @@ final class WidgetFileTest extends TestCase
         // the browser, the launcher's corner and where notes go, so two writes
         // are the budget.
         self::assertStringContainsString("'loupe.site-review.corner'", $src);
-        self::assertStringContainsString('`loupe-site-review:mode:${BACKEND}:${PROJECT}`', $src);
+        self::assertStringContainsString('`loupe-site-review:destination:v2:${BACKEND}:${PROJECT}`', $src);
         self::assertSame(2, substr_count($src, 'localStorage.setItem'));
     }
 
@@ -71,7 +71,7 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString('encodeURIComponent(scope)', $src);
         self::assertStringContainsString('const scope = scopeOf();', $src);
         self::assertStringContainsString('return `card:${lock.cardId}`;', $src);
-        self::assertStringContainsString('return `epic:${target.cardId}`;', $src);
+        self::assertStringNotContainsString('epic:', $src);
         self::assertStringContainsString('return `cards:${sessionCards.slice(0, SESSION_CARDS_SENT).join(\',\')}`;', $src);
 
         // The cards a tab made live in session storage, so a new tab starts

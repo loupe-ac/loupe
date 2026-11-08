@@ -222,7 +222,7 @@ final class UpdateCardOnSiteReviewCommentUpdatedTest extends KernelTestCase
             url: 'https://preview.example/checkout',
             anchors: [new NewAnchor('.footer', 'Footer')],
             cardId: $cardId,
-        ));
+        ))->link;
     }
 
     private function project(string $label): Project

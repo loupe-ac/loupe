@@ -92,26 +92,48 @@
     // the API then refuses would lose the reviewer's gesture. Strokes already
     // saved render whatever this says, so switching the flag off hides no data.
     let drawingEnabled = false;
-    // The card types that can have children, from the boot load. Empty hides
-    // the mode "a card for each note, under an epic".
-    let parentTypes = [];
     // Where notes go, kept per instance and project until the reviewer changes
-    // it: `per-note` makes a card for each note, `per-review` adds every note
-    // to one card, and `epic` makes a card for each note under one epic.
-    const MODES = ['per-note', 'per-review', 'epic'];
-    const MODE_KEY = `loupe-site-review:mode:${BACKEND}:${PROJECT}`;
+    // it: `per-note` makes a card for each note, and `per-review` adds every
+    // note to one new card that the reviewer named.
+    const MODES = ['per-note', 'per-review'];
+    const DESTINATION_KEY = `loupe-site-review:destination:v2:${BACKEND}:${PROJECT}`;
+    // The key of the first stored shape, which could not tell a new review
+    // card from an existing one. It is read once and then removed.
+    const OLD_MODE_KEY = `loupe-site-review:mode:${BACKEND}:${PROJECT}`;
     const readStoredTarget = () => {
         try {
             const stored = JSON.parse(
-                window.localStorage.getItem(MODE_KEY) || 'null',
+                window.localStorage.getItem(DESTINATION_KEY) || 'null',
             );
-            if (!stored || !MODES.includes(stored.mode)) return null;
-            if (stored.mode === 'per-note') {
-                return { mode: 'per-note', cardId: null };
+            if (stored) {
+                if (!MODES.includes(stored.mode)) return null;
+                if (stored.mode === 'per-note') {
+                    return {
+                        mode: 'per-note',
+                        cardId: null,
+                        startColumnId:
+                            typeof stored.startColumnId === 'string'
+                                ? stored.startColumnId
+                                : null,
+                    };
+                }
+                return typeof stored.cardId === 'string' && stored.cardId
+                    ? { mode: 'per-review', cardId: stored.cardId }
+                    : null;
             }
-            return typeof stored.cardId === 'string' && stored.cardId
-                ? { mode: stored.mode, cardId: stored.cardId }
-                : null;
+            const old = JSON.parse(
+                window.localStorage.getItem(OLD_MODE_KEY) || 'null',
+            );
+            window.localStorage.removeItem(OLD_MODE_KEY);
+            if (old && old.mode === 'per-note') {
+                const migrated = {
+                    mode: 'per-note',
+                    cardId: null,
+                    startColumnId: null,
+                };
+                return migrated;
+            }
+            return null;
         } catch {
             return null;
         }
@@ -120,14 +142,15 @@
         try {
             if (target) {
                 window.localStorage.setItem(
-                    MODE_KEY,
+                    DESTINATION_KEY,
                     JSON.stringify({
                         mode: target.mode,
                         cardId: target.cardId,
+                        startColumnId: target.startColumnId || null,
                     }),
                 );
             } else {
-                window.localStorage.removeItem(MODE_KEY);
+                window.localStorage.removeItem(DESTINATION_KEY);
             }
         } catch {
             /* storage unavailable — the choice still holds for this page */
@@ -136,6 +159,12 @@
     // { mode, cardId, label, url }. The label arrives when the boot load
     // confirms the card, or from the picker that chose it.
     let storedTarget = readStoredTarget();
+    // Moves a choice read from the old key to the new one.
+    if (storedTarget) writeStoredTarget(storedTarget);
+    // The notice after a one-card review ended: { text, url, number }, or null.
+    // It stays until the reviewer closes it.
+    let reviewEnd = null;
+    let reviewEnding = false;
     // The cards this tab made for its notes, newest first. A per-note review
     // lists them and nothing else, and the list lives in session storage so a
     // reload keeps it while a new tab starts empty.
@@ -191,7 +220,7 @@
     // The marker the boot load checks. A per-note mode names no card.
     const markerOf = (target) => {
         if (!target || target.mode === 'per-note') return '';
-        return `${target.mode === 'epic' ? 'epic' : 'card'}:${target.cardId}`;
+        return `card:${target.cardId}`;
     };
     const bootMarker = () =>
         lock ? `card:${lock.cardId}` : markerOf(storedTarget);
@@ -204,7 +233,6 @@
         if (target && target.mode === 'per-review') {
             return `card:${target.cardId}`;
         }
-        if (target && target.mode === 'epic') return `epic:${target.cardId}`;
 
         return `cards:${sessionCards.slice(0, SESSION_CARDS_SENT).join(',')}`;
     };
@@ -222,30 +250,48 @@
     // The second header line of an open review: what the destination does.
     const targetLine = (target) =>
         target.mode === 'per-note'
-            ? 'Each note makes its own card'
-            : target.mode === 'epic'
-              ? 'Each note makes a card under the epic'
-              : 'One card for this review';
+            ? `Each note makes its own card${inStartColumn(target)}`
+            : 'One new card for this review';
+    // The columns a new card may start in, from the boot load: the Backlog
+    // first, then each column the workflow allows from it. Empty until the boot
+    // load answers, and for a preview token, which starts nothing.
+    let startColumns = [];
+    // The start column of a per-note choice, or null for the Backlog or a
+    // column the workflow no longer offers.
+    const startColumnOf = (target) => {
+        if (!target || target.mode !== 'per-note' || !target.startColumnId) {
+            return null;
+        }
+        const index = startColumns.findIndex(
+            (column) => column.id === target.startColumnId,
+        );
+        return index > 0 ? startColumns[index] : null;
+    };
+    // The kept start column that a save sends. A column the boot list no
+    // longer offers still goes, so the server refuses it and the answer says
+    // why. Only the Backlog stays out, because it starts nothing.
+    const keptStartColumnId = (target) => {
+        if (!target || target.mode !== 'per-note' || !target.startColumnId) {
+            return null;
+        }
+        return startColumns.length > 0 &&
+            startColumns[0].id === target.startColumnId
+            ? null
+            : target.startColumnId;
+    };
+    const inStartColumn = (target) => {
+        const column = startColumnOf(target);
+        return column ? ` in ${column.name}` : '';
+    };
     const targetLabel = (target) => {
         if (target.mode === 'per-note') return 'A new card for each note';
-        if (target.label) {
-            return target.mode === 'epic'
-                ? `Cards under ${target.label}`
-                : target.label;
-        }
-        return target.mode === 'epic'
-            ? 'Cards under an epic'
-            : 'One card for this review';
+        return target.label || 'One new card for this review';
     };
-    // The mode whose card the picker is searching for, or null while it lists
-    // the modes.
+    // The mode chosen in the destination view, or null while the view is closed.
     let pickerMode = null;
-    let pickerCards = [];
+    // The id chosen in the start column select, null for the Backlog.
+    let pickerStart = null;
     let pickerError = null;
-    let pickerBusy = false;
-    // Separate from pickerBusy on purpose. Typing a title and clicking Create
-    // is the fastest path through this panel, and the search it triggered is
-    // usually still in flight: a shared flag made Create do nothing at all.
     let pickerCreating = false;
     const MAX_ANCHORS = 10; // AddCommentRequest's cap — over it the API 422s
     const AT_CAP_MESSAGE = `A note can point at ${MAX_ANCHORS} elements at most.`;
@@ -458,6 +504,7 @@
             // tailor the fatal message. Guarded — a non-JSON body must never throw here.
             try {
                 const data = await response.json();
+                if (data && typeof data === 'object') error.data = data;
                 if (data && typeof data.code === 'string')
                     error.code = data.code;
                 else if (data && typeof data.error === 'string')
@@ -529,8 +576,13 @@
             comments = payload.comments || [];
             scopeUnread = false;
             drawingEnabled = true === payload.drawingEnabled;
-            parentTypes = Array.isArray(payload.parentTypes)
-                ? payload.parentTypes
+            startColumns = Array.isArray(payload.startColumns)
+                ? payload.startColumns.filter(
+                      (column) =>
+                          column &&
+                          typeof column.id === 'string' &&
+                          typeof column.name === 'string',
+                  )
                 : [];
             const named = payload.context || null;
             if (asked && asked === bootMarker()) {
@@ -541,7 +593,7 @@
                 } else if (named) {
                     storedTarget = { ...storedTarget, ...named };
                 } else {
-                    // Deleted, closed, another project's, or not an epic: the
+                    // Deleted, closed or another project's: the
                     // save would refuse it, so the reviewer chooses again.
                     storedTarget = null;
                     writeStoredTarget(null);
@@ -1337,22 +1389,11 @@
       .lp-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px;color:var(--text)}
       .lp-opt-d{display:block;margin-top:2px;font-size:12px;line-height:16px;color:var(--text-mute)}
       .lp-opt-more{cursor:default}
-      .lp-seg{display:flex;padding:2px;margin-top:10px;border-radius:8px;background:var(--surface-1);border:1px solid var(--border)}
-      .lp-seg button{flex:1;height:28px;border:0;border-radius:6px;background:transparent;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
-      .lp-seg button.is-on{background:var(--bg-sunken);color:var(--text)}
       .lp-field-label{display:block;margin:10px 0 4px;font-size:12px;font-weight:600;color:var(--text-mute)}
       .lp-field{display:block;width:100%;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--field);color:var(--text);font-family:inherit;font-size:13px}
       .lp-field::placeholder{color:var(--text-dim)}
       .lp-field:focus{outline-color:transparent;border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
-      .lp-field-search{margin-top:10px}
       .lp-opt-error{margin-top:8px;font-size:12px;line-height:16px;color:var(--status-danger)}
-      .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
-      .lp-picker-row{display:flex;align-items:center;gap:6px;width:100%;min-height:32px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
-      .lp-picker-row:hover{background:var(--bg-sunken)}
-      .lp-picker-row.is-picked{background:var(--surface-1);box-shadow:inset 0 0 0 1px var(--accent-border);font-weight:600}
-      .lp-picker-row .n{flex:0 0 auto;color:var(--text-mute)}
-      .lp-picker-row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-picker-note{padding:6px 8px;font-size:12px;color:var(--text-mute)}
       .lp-dest-foot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--border-faint);background:var(--surface-2)}
       .lp-dest-foot .lp-ghost{height:40px;font-size:14px}
       .lp-dest-foot .lp-foot-action{flex:1 1 auto;width:auto}
@@ -1441,6 +1482,8 @@
       .lp-badge.off{background:var(--bg-sunken);color:var(--text-mute)}
       .lp-item-body{flex:1;min-width:0}
       .lp-item-text{font-size:13px;line-height:18px;color:var(--text);word-break:break-word}
+      .lp-item-lock{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:6px;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-item-open{display:inline-flex;align-items:center;height:22px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--accent-ink);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
       .lp-item-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
       .lp-chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;background:var(--bg-sunken);color:var(--text-mute);border-radius:6px;font-size:12px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .lp-chip svg{flex:0 0 auto}
@@ -1462,6 +1505,14 @@
       .lp-menu-sep{height:1px;margin:4px 6px;background:var(--border-faint)}
       .lp-menu-conf{padding:8px 10px 6px;font-size:13px;line-height:18px;color:var(--text)}
       .lp-menu-conf-row{display:flex;gap:6px;padding:4px 6px 6px}
+      .lp-menu-title{padding:8px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+      .lp-menu-reason{padding:4px 10px 6px;font-size:12px;line-height:16px;color:var(--status-danger)}
+      .lp-menu-item2{height:auto;min-height:32px;padding:6px 10px;flex-direction:column;align-items:flex-start;white-space:normal}
+      .lp-menu-item2>span:first-child{font-weight:600}
+      .lp-menu-item2 .h{display:block;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-notice{display:flex;gap:10px;align-items:flex-start;margin:10px 12px 0;padding:10px 12px;border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:10px;font-size:13px;line-height:18px}
+      .lp-notice a{color:var(--accent-ink);font-weight:600}
+      .lp-footer .lp-foot-action:disabled{opacity:.45;cursor:default}
       .lp-ghost-sm{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:13px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost-sm:hover{background:var(--bg-sunken);color:var(--text)}
 
@@ -1520,6 +1571,7 @@
             <button class="lp-action" id="target" aria-pressed="false" aria-label="Pick element">${ICON.target(15)}<span>Element</span></button>
             <button class="lp-action" id="draw" aria-pressed="false" aria-label="Draw">${ICON.pen(15)}<span>Draw</span></button>
           </div>
+          <div class="lp-notice" id="lp-review-end" role="status" style="display:none"></div>
           <div class="lp-error" id="lp-list-error" style="display:none"></div>
           <div class="lp-body lp-scroll" id="lp-body">
             <div class="lp-empty" id="lp-empty" style="display:none">
@@ -1567,7 +1619,7 @@
               <div class="lp-opt" data-mode="per-review">
                 <input type="radio" name="lp-dest" id="lp-dest-per-review" value="per-review">
                 <div class="lp-opt-main">
-                  <label for="lp-dest-per-review"><span class="lp-opt-t">One card for this review</span><span class="lp-opt-d">Every note lands on the same card.</span></label>
+                  <label for="lp-dest-per-review"><span class="lp-opt-t">One new card for this review</span><span class="lp-opt-d">Every note lands on one new card.</span></label>
                   <div class="lp-opt-more" id="lp-picker-slot-per-review"></div>
                 </div>
               </div>
@@ -1575,32 +1627,18 @@
                 <input type="radio" name="lp-dest" id="lp-dest-per-note" value="per-note">
                 <div class="lp-opt-main">
                   <label for="lp-dest-per-note"><span class="lp-opt-t">A new card for each note</span><span class="lp-opt-d">Good for unrelated issues across the site.</span></label>
-                </div>
-              </div>
-              <div class="lp-opt" data-mode="epic">
-                <input type="radio" name="lp-dest" id="lp-dest-epic" value="epic">
-                <div class="lp-opt-main">
-                  <label for="lp-dest-epic"><span class="lp-opt-t">A card for each note, under an epic</span><span class="lp-opt-d">You pick or create the epic next.</span></label>
+                  <div class="lp-opt-more" id="lp-picker-start" style="display:none">
+                    <label class="lp-field-label" for="lp-picker-start-select">Start new cards in</label>
+                    <select class="lp-field" id="lp-picker-start-select" style="font-weight:600"></select>
+                    <span class="lp-opt-d" id="lp-picker-start-hint" style="margin-top:6px;display:none"></span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div id="lp-picker-slot-epic"></div>
             <div class="lp-picker-more" id="lp-picker-more" style="display:none">
-              <div class="lp-seg" id="lp-picker-seg" role="group" aria-label="Card">
-                <button type="button" data-sub="new" aria-pressed="true"></button>
-                <button type="button" data-sub="existing" aria-pressed="false"></button>
-              </div>
-              <div id="lp-picker-new">
-                <label class="lp-field-label" for="lp-picker-title" id="lp-picker-title-label">Card title</label>
-                <input class="lp-field" id="lp-picker-title" autocomplete="off">
-                <label class="lp-field-label" for="lp-picker-type" id="lp-picker-type-label" style="display:none">Type</label>
-                <select class="lp-field" id="lp-picker-type" style="display:none"></select>
-                <div class="lp-opt-error" id="lp-picker-error" role="alert" style="display:none"></div>
-              </div>
-              <div id="lp-picker-cards" style="display:none">
-                <input class="lp-field lp-field-search" id="lp-picker-search" placeholder="Search cards…" aria-label="Search cards" autocomplete="off">
-                <div class="lp-picker-list" id="lp-picker-list"></div>
-              </div>
+              <label class="lp-field-label" for="lp-picker-title">Card title</label>
+              <input class="lp-field" id="lp-picker-title" autocomplete="off">
+              <div class="lp-opt-error" id="lp-picker-error" role="alert" style="display:none"></div>
             </div>
           </div>
           <footer class="lp-dest-foot">
@@ -1794,10 +1832,10 @@
     const destNode = $('lp-dest');
     const subNode = $('lp-sub');
     const contextNode = $('lp-context');
-    const pickerSearchNode = $('lp-picker-search');
-    const pickerListNode = $('lp-picker-list');
     const pickerTitleNode = $('lp-picker-title');
-    const pickerTypeNode = $('lp-picker-type');
+    const pickerStartNode = $('lp-picker-start');
+    const pickerStartSelect = $('lp-picker-start-select');
+    const pickerStartHint = $('lp-picker-start-hint');
     const verdictNode = $('lp-verdict');
     const verdictFoot = $('lp-verdict-foot');
     const finishSub = $('lp-finish-sub');
@@ -2314,6 +2352,21 @@
     // The card (body + chip + delete) is built once on hover; the confirm overlay is
     // a separate node toggled in place, so arming/cancelling delete never rebuilds the
     // card (which would replay its fade-in and flicker).
+    // A note whose card left the Backlog is locked: the server refuses to edit
+    // or delete it, so the widget offers neither.
+    const isLocked = (comment) =>
+        !!comment && !!comment.link && comment.link.locked === true;
+    const linkUrlOf = (comment) =>
+        comment && comment.link && /^https?:\/\//.test(comment.link.url || '')
+            ? comment.link.url
+            : null;
+    const lockedText = (comment) => {
+        const label = comment.link.label || 'The card';
+        const column = String(comment.link.column || '');
+        return column.trim().toLowerCase() === 'backlog'
+            ? `${label} already started and is back in Backlog.`
+            : `${label} is being worked on${column ? ` in ${column}` : ''}.`;
+    };
     const buildPopover = (comment, index, info) => {
         const label = anchorLabel(info.anchor, info.kind);
         // A degraded comment names how many of its elements survived, so the reviewer
@@ -2329,22 +2382,36 @@
         const chip = chipText
             ? `<div class="lp-pop-meta"><span class="lp-pop-chip">${escapeHtml(chipText)}</span></div>`
             : '';
+        const locked = isLocked(comment);
+        const openUrl = locked ? linkUrlOf(comment) : null;
+        const lockedBlock = locked
+            ? `<div class="lp-pop-degraded">${escapeHtml(lockedText(comment))}</div>`
+            : '';
         return `<div class="lp-pop">
         <div class="lp-pop-card">
           <div class="lp-pop-main">
             <div class="lp-pop-body">${escapeHtml(comment.body)}</div>
             ${chip}
           </div>
-          ${warning}
+          ${warning}${lockedBlock}
           <div class="lp-pop-foot">
-            <button class="lp-pop-edit" data-pin-edit="${index}">Edit</button>
+            ${locked ? '' : `<button class="lp-pop-edit" data-pin-edit="${index}">Edit</button>`}
             <div style="flex:1"></div>
             <button class="lp-pop-more" data-pin-more="${index}" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>
           </div>
           <div class="lp-pop-menu" role="menu" hidden>
             <button class="lp-pop-menu-item" role="menuitem" data-pin-resolve="${index}">Mark resolved</button>
-            <div class="lp-pop-menu-sep" role="separator"></div>
-            <button class="lp-pop-menu-item danger" role="menuitem" data-pin-del="${index}">Delete note…</button>
+            ${
+                openUrl
+                    ? `<button class="lp-pop-menu-item" role="menuitem" data-pin-open="${index}">${escapeHtml(`Open ${comment.link.label} in Loupe`)}</button>`
+                    : ''
+            }
+            ${
+                locked
+                    ? ''
+                    : `<div class="lp-pop-menu-sep" role="separator"></div>
+            <button class="lp-pop-menu-item danger" role="menuitem" data-pin-del="${index}">Delete note…</button>`
+            }
           </div>
         </div>
       </div>`;
@@ -2396,15 +2463,27 @@
             menu.hidden = !menu.hidden;
             more.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
         });
-        holder.querySelector('[data-pin-del]').addEventListener('click', () => {
-            menu.hidden = true;
-            more.setAttribute('aria-expanded', 'false');
-            state.pinConfirmId = key;
-            renderPins();
-        });
-        holder
-            .querySelector('[data-pin-edit]')
-            .addEventListener('click', () => openEditComposer(commentIndex));
+        const del = holder.querySelector('[data-pin-del]');
+        if (del)
+            del.addEventListener('click', () => {
+                menu.hidden = true;
+                more.setAttribute('aria-expanded', 'false');
+                state.pinConfirmId = key;
+                renderPins();
+            });
+        const edit = holder.querySelector('[data-pin-edit]');
+        if (edit)
+            edit.addEventListener('click', () =>
+                openEditComposer(commentIndex),
+            );
+        const open = holder.querySelector('[data-pin-open]');
+        if (open)
+            open.addEventListener('click', () => {
+                const url = linkUrlOf(comments[commentIndex]);
+                menu.hidden = true;
+                more.setAttribute('aria-expanded', 'false');
+                if (url) window.open(url, '_blank', 'noopener');
+            });
         // No confirm step, unlike delete: resolving keeps the comment and the
         // owner can reopen it from its card's Feedback tab.
         holder
@@ -2671,6 +2750,9 @@
         if (error && /^target_/.test(error.code || '')) {
             return 'That card is closed or gone. Choose where your notes go, then save again.';
         }
+        if (error && error.code === 'note_locked') {
+            return 'That note is locked. Its card started work.';
+        }
         if (error && error.status === 404) {
             return 'Your agent has already picked that note up, so it can’t be changed now.';
         }
@@ -2771,9 +2853,15 @@
     };
     const footerAction = () => {
         if (!lock) {
-            return storedTarget && storedTarget.mode === 'per-review'
-                ? openAction(storedTarget)
-                : null;
+            if (
+                storedTarget &&
+                storedTarget.mode === 'per-review' &&
+                storedTarget.url
+            ) {
+                return { kind: 'end', busy: reviewEnding };
+            }
+
+            return !storedTarget && reviewEnd ? { kind: 'choose' } : null;
         }
         if (lock.state !== 'ok') return null;
         const data = verdictCurrent() ? verdict.data : null;
@@ -2852,7 +2940,7 @@
     }
 
     // ---- menus: one floating menu, owned by the button that opened it ----
-    let menu = null; // { button, kind: 'row' | 'head', id, count }
+    let menu = null; // { button, kind: 'row' | 'head' | 'finish', id, count }
     const MENU_GAP = 4;
     const closeMenu = (restoreFocus) => {
         if (!menu) return;
@@ -2935,8 +3023,10 @@
         const edge =
             menu.kind === 'head'
                 ? $('lp-close').getBoundingClientRect().right
-                : menu.button.closest('.lp-item').getBoundingClientRect()
-                      .right - 10;
+                : menu.kind === 'finish'
+                  ? rect.right
+                  : menu.button.closest('.lp-item').getBoundingClientRect()
+                        .right - 10;
         const gap = menu.kind === 'head' ? 2 : MENU_GAP;
         const left = Math.min(
             Math.max(edge - width, MENU_GAP),
@@ -2973,14 +3063,37 @@
         };
         // A per-note review files each note as its own card, so the row is
         // the only place that names it.
-        const link =
-            !lock &&
-            storedTarget &&
-            storedTarget.mode === 'per-note' &&
-            comment.link &&
-            /^https?:\/\//.test(comment.link.url || '')
+        const locked = isLocked(comment);
+        const link = locked
+            ? linkUrlOf(comment)
                 ? comment.link
-                : null;
+                : null
+            : !lock &&
+                storedTarget &&
+                storedTarget.mode === 'per-note' &&
+                linkUrlOf(comment)
+              ? comment.link
+              : null;
+        if (locked) {
+            openMenu(button, 'row', comment.id, [
+                menuItem('Mark resolved', act(resolveComment), {
+                    name: 'resolve',
+                }),
+                ...(link
+                    ? [
+                          menuItem(
+                              `Open ${link.label} in Loupe`,
+                              () => {
+                                  closeMenu(false);
+                                  window.open(link.url, '_blank', 'noopener');
+                              },
+                              { name: 'open' },
+                          ),
+                      ]
+                    : []),
+            ]);
+            return;
+        }
         openMenu(button, 'row', comment.id, [
             ...(link
                 ? [
@@ -3039,28 +3152,42 @@
                 ),
             );
         }
-        if (comments.length > 0) {
+        const deletable = comments.filter((comment) => !isLocked(comment));
+        const stays = comments.length - deletable.length;
+        if (deletable.length > 0) {
             items.push(
                 menuSeparator(),
                 menuItem(
-                    comments.length === 1
+                    deletable.length === 1
                         ? 'Delete 1 note…'
-                        : `Delete all ${comments.length} notes…`,
+                        : `Delete all ${deletable.length} notes…`,
                     () => {
                         const cardNumber = /^#(\d+)/.exec(deleteAllCardTitle());
-                        const count = comments.length;
+                        const count = deletable.length;
                         // Only a one-card scope leaves the notes of other cards.
                         const oneCard = scopeOf().startsWith('card:');
+                        const scopeText =
+                            stays > 0
+                                ? `${
+                                      stays === 1
+                                          ? '1 note stays'
+                                          : `${stays} notes stay`
+                                  } on started cards.${
+                                      oneCard
+                                          ? ''
+                                          : ' This deletes the rest on every card they belong to.'
+                                  }`
+                                : oneCard
+                                  ? 'Notes on other cards stay.'
+                                  : 'This deletes them on every card they belong to.';
                         menuConfirm(
                             `${
                                 count === 1
                                     ? 'Delete 1 note'
-                                    : `Delete all ${count} notes`
-                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? ${
-                                oneCard
-                                    ? 'Notes on other cards stay.'
-                                    : 'This deletes them on every card they belong to.'
-                            }`,
+                                    : stays > 0
+                                      ? `Delete ${count} notes`
+                                      : `Delete all ${count} notes`
+                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? ${scopeText}`,
                             confirmClearYes,
                             {
                                 text: 'lp-clear-confirm-text',
@@ -3150,12 +3277,8 @@
         ((label || '').match(/^#\d+/) || [label || ''])[0];
     const saveTargetText = (target) => {
         const named = cardNumberOf(target.label);
-        if (target.mode === 'per-note') return 'a new card';
-        if (target.mode === 'epic') {
-            return named
-                ? `a new card under ${named}`
-                : 'a new card under an epic';
-        }
+        if (target.mode === 'per-note')
+            return `a new card${inStartColumn(target)}`;
         return named || 'the review card';
     };
     // The line under the title of the note view: where a new note goes, or what
@@ -3168,7 +3291,7 @@
             newNote,
             lock ? lock.state : null,
             lock && lock.label,
-            target && [target.mode, target.label],
+            target && [target.mode, target.label, saveTargetText(target)],
         ]);
         if (key === contextKey) return;
         contextKey = key;
@@ -3517,6 +3640,8 @@
         emptyNode.style.display = n === 0 ? 'flex' : 'none';
         renderList();
 
+        renderReviewEnd();
+
         // footer
         const action = footerAction();
         footerNode.style.display = action ? 'flex' : 'none';
@@ -3526,6 +3651,198 @@
         setPanelShown(true);
     };
 
+    // ---- the end of a one-card review ----
+    // Finish review asks the server which columns the card may start in. The
+    // answer decides: start at once, stay, or let the reviewer pick a column.
+    const startPath = (cardId) =>
+        `/api/v1/live-review-widget/cards/${encodeURIComponent(cardId)}/start`;
+    const movesOf = (data) =>
+        Array.isArray(data && data.moves)
+            ? data.moves.filter(
+                  (move) =>
+                      move &&
+                      typeof move.id === 'string' &&
+                      typeof move.name === 'string',
+              )
+            : [];
+    const reviewEndNode = $('lp-review-end');
+    let reviewEndDrawn = null;
+    const renderReviewEnd = () => {
+        const key = JSON.stringify(reviewEnd);
+        if (key === reviewEndDrawn) return;
+        reviewEndDrawn = key;
+        reviewEndNode.textContent = '';
+        reviewEndNode.style.display = reviewEnd ? '' : 'none';
+        if (!reviewEnd) return;
+        const body = document.createElement('div');
+        body.style.flex = '1';
+        body.append(`${reviewEnd.text} `);
+        if (reviewEnd.url) {
+            const link = document.createElement('a');
+            link.id = 'lp-review-end-open';
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.href = reviewEnd.url;
+            link.textContent = `Open #${reviewEnd.number} in Loupe`;
+            body.appendChild(link);
+        }
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.id = 'lp-review-end-dismiss';
+        dismiss.className = 'lp-row-menu-btn';
+        dismiss.setAttribute('aria-label', 'Dismiss');
+        dismiss.innerHTML = ICON.close(14);
+        dismiss.addEventListener('click', () => {
+            reviewEnd = null;
+            sync();
+        });
+        reviewEndNode.append(body, dismiss);
+    };
+    const endReview = (cardId, info, text) => {
+        closeMenu(false);
+        reviewEnding = false;
+        reviewEnd = { text, url: info.url || null, number: info.number };
+        if (storedTarget && storedTarget.cardId === cardId) {
+            storedTarget = null;
+            writeStoredTarget(null);
+            pickerMode = null;
+            state.deliveryId = null;
+            comments = [];
+            refresh().then(sync);
+        }
+        sync();
+        focusFooterAction();
+    };
+    const failReviewEnd = (error) => {
+        reviewEnding = false;
+        if (error && error.status === 401) {
+            enterFatal(error);
+        } else {
+            state.actionError = {
+                message:
+                    error && error.status === 403
+                        ? 'This sign-in cannot finish the review.'
+                        : error && error.status === 404
+                          ? 'That card is closed or gone. Choose where your notes go.'
+                          : 'Couldn’t finish the review. Please try again.',
+            };
+        }
+        sync();
+    };
+    const pickMove = async (cardId, info, move) => {
+        menuNode
+            .querySelectorAll('button')
+            .forEach((button) => (button.disabled = true));
+        try {
+            const done = await api('POST', startPath(cardId), {
+                columnId: move.id,
+            });
+            endReview(
+                cardId,
+                info,
+                `#${info.number} started in ${(done && done.column) || move.name}.`,
+            );
+        } catch (error) {
+            if (
+                error &&
+                error.status === 409 &&
+                error.code === 'start_refused'
+            ) {
+                const data = error.data || {};
+                const fresh = {
+                    ...info,
+                    column: data.column || info.column,
+                    moves: movesOf(data),
+                };
+                const gone = move.name
+                    ? `${move.name} is no longer open for this card.`
+                    : 'That move is not allowed now.';
+                showStartMenu(
+                    cardId,
+                    fresh,
+                    fresh.moves.length === 0
+                        ? `${gone} No start column is open now.`
+                        : gone,
+                );
+                return;
+            }
+            closeMenu(false);
+            failReviewEnd(error);
+        }
+    };
+    const showStartMenu = (cardId, info, reason) => {
+        const button = footAction.querySelector('#lp-finish-review');
+        if (!button) return;
+        const title = document.createElement('div');
+        title.className = 'lp-menu-title';
+        title.textContent = `Start #${info.number} in`;
+        const items = [title];
+        if (reason) {
+            const line = document.createElement('div');
+            line.className = 'lp-menu-reason';
+            line.setAttribute('role', 'alert');
+            line.textContent = reason;
+            items.push(line);
+        }
+        info.moves.forEach((move) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'lp-menu-item lp-menu-item2';
+            item.setAttribute('role', 'menuitem');
+            item.dataset.menuAction = 'start';
+            item.dataset.columnId = move.id;
+            const name = document.createElement('span');
+            name.textContent = move.name;
+            item.appendChild(name);
+            if (typeof move.hint === 'string' && move.hint) {
+                const hint = document.createElement('span');
+                hint.className = 'h';
+                hint.textContent = move.hint;
+                item.appendChild(hint);
+            }
+            item.addEventListener('click', () => pickMove(cardId, info, move));
+            items.push(item);
+        });
+        closeMenu(false);
+        menuNode.style.width = '330px';
+        openMenu(button, 'finish', info.number, items);
+    };
+    const finishReview = async () => {
+        if (menu && menu.kind === 'finish') {
+            closeMenu(true);
+            return;
+        }
+        const target = storedTarget;
+        if (reviewEnding || lock || !target || target.mode !== 'per-review')
+            return;
+        const cardId = target.cardId;
+        reviewEnding = true;
+        state.actionError = null;
+        sync();
+        let info;
+        try {
+            info = await api('GET', startPath(cardId));
+        } catch (error) {
+            failReviewEnd(error);
+            return;
+        }
+        if (!storedTarget || storedTarget.cardId !== cardId) {
+            reviewEnding = false;
+            sync();
+            return;
+        }
+        const moves = movesOf(info);
+        if (info.startsWork === true) {
+            endReview(cardId, info, `#${info.number} is in ${info.column}.`);
+        } else if (moves.length === 0) {
+            endReview(cardId, info, `#${info.number} stays in ${info.column}.`);
+        } else {
+            reviewEnding = false;
+            sync();
+            showStartMenu(cardId, { ...info, moves }, null);
+        }
+    };
+
     let footerActionDrawn = null;
     const renderFooterAction = (action) => {
         const key = JSON.stringify(action);
@@ -3533,6 +3850,26 @@
         footerActionDrawn = key;
         footAction.textContent = '';
         if (!action) return;
+        if (action.kind === 'end' || action.kind === 'choose') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'lp-foot-action primary';
+            if (action.kind === 'choose') {
+                button.id = 'lp-choose-destination';
+                button.textContent = 'Choose where notes go';
+                button.addEventListener('click', openDestination);
+            } else {
+                button.id = 'lp-finish-review';
+                button.setAttribute('aria-haspopup', 'menu');
+                button.setAttribute('aria-expanded', 'false');
+                button.disabled = action.busy;
+                button.innerHTML = `Finish review${ICON.chevron(16)}`;
+                button.addEventListener('click', () => finishReview(button));
+            }
+            footAction.appendChild(button);
+
+            return;
+        }
         if (action.kind === 'finish') {
             const button = document.createElement('button');
             button.type = 'button';
@@ -3583,7 +3920,7 @@
                 row.className = 'lp-item';
                 row.innerHTML =
                     `<span class="lp-badge"></span>` +
-                    `<div class="lp-item-body"><div class="lp-item-text"></div><div class="lp-item-meta"><span class="lp-chip" style="display:none"></span>` +
+                    `<div class="lp-item-body"><div class="lp-item-text"></div><div class="lp-item-lock" style="display:none"><span class="lp-item-lock-text"></span><button class="lp-item-open" type="button"></button></div><div class="lp-item-meta"><span class="lp-chip" style="display:none"></span>` +
                     `<button class="lp-item-page" style="display:none" aria-label="Go to the page this note was made on">` +
                     `<span class="lp-item-page-label"></span>${ICON.arrowOut(12)}</button></div></div>` +
                     `<button class="lp-row-menu-btn" aria-label="Note actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>`;
@@ -3608,6 +3945,13 @@
                         if (target && target.url) location.href = target.url;
                     },
                 );
+                row.querySelector('.lp-item-open').addEventListener(
+                    'click',
+                    () => {
+                        const url = linkUrlOf(comments[index]);
+                        if (url) window.open(url, '_blank', 'noopener');
+                    },
+                );
                 row.querySelector('.lp-row-menu-btn').addEventListener(
                     'click',
                     (event) => openRowMenu(event.currentTarget, index),
@@ -3623,6 +3967,16 @@
                 (!here ? 'off' : isElement ? 'element' : 'general');
             badge.textContent = String(order.all.indexOf(index) + 1);
             row.querySelector('.lp-item-text').textContent = comment.body;
+            const lockEl = row.querySelector('.lp-item-lock');
+            const locked = isLocked(comment);
+            lockEl.style.display = locked ? '' : 'none';
+            if (locked) {
+                lockEl.querySelector('.lp-item-lock-text').textContent =
+                    lockedText(comment);
+                const openEl = lockEl.querySelector('.lp-item-open');
+                openEl.style.display = linkUrlOf(comment) ? '' : 'none';
+                openEl.textContent = `Open ${comment.link.label} in Loupe`;
+            }
             const chipEl = row.querySelector('.lp-chip');
             // A multi-anchor row names its count, and says so when some of its
             // elements are missing, rather than showing one element's text.
@@ -4322,13 +4676,13 @@
     // says so — the pin and the row look identical to an unsaved one. This is that
     // acknowledgement, on the same toast furniture pick mode uses.
     let savedToastTimer = 0;
-    const flashSaved = (text) => {
+    const flashSaved = (text, duration = 2400) => {
         state.savedNotice = text;
         clearTimeout(savedToastTimer);
         savedToastTimer = setTimeout(() => {
             state.savedNotice = null;
             renderOverlay();
-        }, 2400);
+        }, duration);
     };
 
     // ---- composer / focus ----
@@ -4779,54 +5133,31 @@
         sync();
         focusTextarea();
     };
-    let pickerDebounce = null;
-    let pickerGeneration = 0;
-    // The destination view. The radio group holds the choice. A card list
-    // loads only once the choice is an existing card. A choice holds for every
-    // later note until the reviewer changes it, and it outlives a reload.
+    // The destination view. The radio group holds the choice. A choice holds
+    // for every later note until the reviewer changes it, and it outlives a
+    // reload.
     const sameTarget = (a, b) =>
         !!a && !!b && a.mode === b.mode && a.cardId === b.cardId;
-    const pickerSubs = { 'per-review': 'new', epic: 'new' };
-    let pickerPicked = null;
-    // The epic is picked on a second step, after the reviewer chose the mode.
-    let pickerEpicStep = false;
-    const pickerHasCards = () =>
-        pickerMode === 'per-review' || pickerMode === 'epic';
-    const pickerShowsCards = () =>
-        pickerHasCards() && (pickerMode !== 'epic' || pickerEpicStep);
     const focusDestination = () => {
-        const field =
-            pickerShowsCards() &&
-            (pickerSubs[pickerMode] === 'existing'
-                ? pickerSearchNode
-                : pickerTitleNode);
         const control =
-            field ||
-            root.querySelector('#lp-picker-modes input[type="radio"]:checked');
+            pickerMode === 'per-review'
+                ? pickerTitleNode
+                : root.querySelector(
+                      '#lp-picker-modes input[type="radio"]:checked',
+                  );
         if (!control) return;
         control.focus({ preventScroll: true });
         if (control === pickerTitleNode) control.select();
     };
     // The view starts on the stored choice, or on one card for the review.
     const initDestination = () => {
-        const stored = storedTarget;
-        pickerMode = stored ? stored.mode : 'per-review';
-        pickerSubs['per-review'] = 'new';
-        pickerSubs.epic = 'new';
-        pickerEpicStep = false;
-        pickerPicked = null;
+        pickerMode = storedTarget ? storedTarget.mode : 'per-review';
+        pickerStart =
+            storedTarget && startColumnOf(storedTarget)
+                ? storedTarget.startColumnId
+                : null;
         pickerError = null;
-        pickerSearchNode.value = '';
         pickerTitleNode.value = `Review: ${location.pathname}`;
-        if (stored && stored.cardId && pickerHasCards()) {
-            pickerSubs[pickerMode] = 'existing';
-            pickerPicked = {
-                cardId: stored.cardId,
-                label: stored.label || '',
-                url: stored.url || null,
-            };
-            loadPickerCards('');
-        }
     };
     const openDestination = () => {
         initDestination();
@@ -4863,19 +5194,8 @@
     const selectMode = (mode) => {
         if (pickerMode === mode) return;
         pickerMode = mode;
-        pickerEpicStep = false;
-        pickerPicked = null;
         pickerError = null;
-        if (pickerSubs[mode] === 'existing') loadPickerCards('');
         sync();
-    };
-    const selectSub = (sub) => {
-        if (!pickerHasCards() || pickerSubs[pickerMode] === sub) return;
-        pickerSubs[pickerMode] = sub;
-        pickerError = null;
-        if (sub === 'existing') loadPickerCards(pickerSearchNode.value.trim());
-        sync();
-        focusDestination();
     };
     root.querySelectorAll('#lp-picker-modes [data-mode]').forEach((option) => {
         const choose = () => selectMode(option.dataset.mode);
@@ -4884,21 +5204,48 @@
             .querySelector('input[type="radio"]')
             .addEventListener('change', choose);
     });
-    root.querySelectorAll('#lp-picker-seg [data-sub]').forEach((button) =>
-        button.addEventListener('click', () => selectSub(button.dataset.sub)),
-    );
     const pickerCanCommit = () => {
         if (!pickerMode || pickerCreating) return false;
         if (pickerMode === 'per-note') return true;
-        if (pickerMode === 'epic' && !pickerEpicStep) return true;
-        if (pickerSubs[pickerMode] === 'existing') return !!pickerPicked;
         return !!pickerTitleNode.value.trim();
     };
+    // The select shows only when the server offers more than the Backlog, and
+    // only for the per-note choice, which is the one that starts cards.
+    const renderStartSelect = () => {
+        const offered = startColumns.length > 1;
+        pickerStartNode.style.display =
+            offered && pickerMode === 'per-note' ? '' : 'none';
+        if (!offered) return;
+        const signature = startColumns
+            .map((column) => `${column.id}\u0000${column.name}`)
+            .join('\u0001');
+        if (pickerStartSelect.dataset.signature !== signature) {
+            pickerStartSelect.dataset.signature = signature;
+            pickerStartSelect.textContent = '';
+            startColumns.forEach((column) => {
+                const option = document.createElement('option');
+                option.value = column.id;
+                option.textContent = column.name;
+                pickerStartSelect.appendChild(option);
+            });
+        }
+        const chosen = pickerStart || startColumns[0].id;
+        pickerStartSelect.value = chosen;
+        const entry = startColumns.find((column) => column.id === chosen);
+        const hint = chosen === startColumns[0].id ? '' : entry && entry.hint;
+        pickerStartHint.textContent = hint || '';
+        pickerStartHint.style.display = hint ? '' : 'none';
+    };
+    pickerStartSelect.addEventListener('change', () => {
+        pickerStart =
+            pickerStartSelect.value === (startColumns[0] || {}).id
+                ? null
+                : pickerStartSelect.value;
+        renderStartSelect();
+    });
     const renderPickerMode = () => {
         if (!pickerMode) initDestination();
-        const epic = pickerMode === 'epic';
-        const existing =
-            pickerHasCards() && pickerSubs[pickerMode] === 'existing';
+        const review = pickerMode === 'per-review';
         root.querySelectorAll('#lp-picker-modes [data-mode]').forEach(
             (option) => {
                 const on = option.dataset.mode === pickerMode;
@@ -4906,219 +5253,38 @@
                 option.querySelector('input[type="radio"]').checked = on;
             },
         );
-        root.querySelector(
-            '#lp-picker-modes [data-mode="epic"]',
-        ).style.display = parentTypes.length ? '' : 'none';
-        $('lp-picker-modes').style.display = pickerEpicStep ? 'none' : '';
-        $('lp-destination-title').textContent = pickerEpicStep
-            ? 'Pick or create an epic'
-            : 'Where should your notes go?';
+        renderStartSelect();
         const more = $('lp-picker-more');
-        more.style.display = pickerShowsCards() ? '' : 'none';
-        const slot = pickerShowsCards()
-            ? $(`lp-picker-slot-${pickerMode}`)
-            : null;
-        if (slot && more.parentNode !== slot) slot.appendChild(more);
-        const noun = epic ? 'epic' : 'card';
-        const labels = [`New ${noun}`, `Existing ${noun}`];
-        root.querySelectorAll('#lp-picker-seg [data-sub]').forEach(
-            (button, index) => {
-                const on = (button.dataset.sub === 'existing') === existing;
-                button.textContent = labels[index];
-                button.classList.toggle('is-on', on);
-                button.setAttribute('aria-pressed', on ? 'true' : 'false');
-            },
-        );
-        $('lp-picker-seg').setAttribute('aria-label', epic ? 'Epic' : 'Card');
-        $('lp-picker-new').style.display = existing ? 'none' : '';
-        $('lp-picker-cards').style.display = existing ? '' : 'none';
-        $('lp-picker-title-label').textContent = epic
-            ? 'Epic title'
-            : 'Card title';
-        pickerSearchNode.placeholder = epic ? 'Search epics…' : 'Search cards…';
-        pickerSearchNode.setAttribute(
-            'aria-label',
-            epic ? 'Search epics' : 'Search cards',
-        );
+        more.style.display = review ? '' : 'none';
+        const slot = $('lp-picker-slot-per-review');
+        if (more.parentNode !== slot) slot.appendChild(more);
         const errorNode = $('lp-picker-error');
         errorNode.textContent = pickerError || '';
-        errorNode.style.display = pickerError && !existing ? '' : 'none';
-        renderParentTypes();
-        renderPicker();
+        errorNode.style.display = pickerError ? '' : 'none';
         const exists = !!storedTarget;
-        const back = exists || pickerEpicStep;
-        $('lp-destination-head').classList.toggle('lp-hd--back', back);
-        $('lp-destination-back').style.display = back ? '' : 'none';
-        $('lp-destination-back').setAttribute(
-            'aria-label',
-            pickerEpicStep ? 'Back' : 'Back to notes',
-        );
+        $('lp-destination-head').classList.toggle('lp-hd--back', exists);
+        $('lp-destination-back').style.display = exists ? '' : 'none';
         const save = $('lp-destination-save');
         save.disabled = !pickerCanCommit();
         save.innerHTML = pickerCreating
             ? '<span class="lp-spin"></span>Creating…'
-            : epic && !pickerEpicStep
-              ? 'Next'
-              : exists
-                ? 'Save'
-                : 'Start reviewing';
-    };
-    // A new epic needs a type that can have children. The selector shows only
-    // for a new epic, and only when the template has more than one.
-    const renderParentTypes = () => {
-        const keys = parentTypes.map((type) => `${type.key}:${type.label}`);
-        const listed = [...pickerTypeNode.options].map(
-            (option) => `${option.value}:${option.textContent}`,
-        );
-        if (keys.join('\n') !== listed.join('\n')) {
-            const chosen = pickerTypeNode.value;
-            pickerTypeNode.textContent = '';
-            parentTypes.forEach((type) => {
-                const option = document.createElement('option');
-                option.value = type.key;
-                option.textContent = type.label;
-                pickerTypeNode.appendChild(option);
-            });
-            if (parentTypes.some((type) => type.key === chosen)) {
-                pickerTypeNode.value = chosen;
-            }
-        }
-        const shown =
-            pickerMode === 'epic' &&
-            pickerSubs.epic === 'new' &&
-            parentTypes.length > 1;
-        pickerTypeNode.style.display = shown ? '' : 'none';
-        $('lp-picker-type-label').style.display = shown ? '' : 'none';
-    };
-    const renderPicker = () => {
-        pickerListNode.textContent = '';
-        const note = (text) => {
-            const el = document.createElement('div');
-            el.className = 'lp-picker-note';
-            el.textContent = text;
-            pickerListNode.appendChild(el);
-        };
-        if (pickerBusy) return note('Loading…');
-        if (pickerError) return note(pickerError);
-        const shown = [...pickerCards];
-        // The card this review already uses stays in the list, picked, even
-        // when the search does not return it.
-        if (
-            pickerPicked &&
-            pickerPicked.label &&
-            !pickerSearchNode.value.trim() &&
-            !shown.some((card) => card.cardId === pickerPicked.cardId)
-        ) {
-            shown.unshift({
-                cardId: pickerPicked.cardId,
-                label: pickerPicked.label,
-            });
-        }
-        if (!shown.length) {
-            return note(
-                pickerMode === 'epic'
-                    ? 'No open epics match.'
-                    : 'No open cards match.',
-            );
-        }
-        shown.forEach((card) => {
-            const row = document.createElement('button');
-            row.type = 'button';
-            const picked =
-                !!pickerPicked && pickerPicked.cardId === card.cardId;
-            row.className = 'lp-picker-row' + (picked ? ' is-picked' : '');
-            row.setAttribute('aria-pressed', picked ? 'true' : 'false');
-            if (card.label) {
-                row.textContent = card.label;
-            } else {
-                const n = document.createElement('span');
-                n.className = 'n';
-                n.textContent = `#${card.number}`;
-                const t = document.createElement('span');
-                t.className = 't';
-                t.textContent = card.title;
-                row.append(n, t);
-            }
-            row.addEventListener('click', () => {
-                pickerPicked = {
-                    cardId: card.cardId,
-                    label: card.label || `#${card.number} ${card.title}`,
-                    url: null,
-                };
-                sync();
-            });
-            pickerListNode.appendChild(row);
-        });
-    };
-    const loadPickerCards = async (query) => {
-        // Debouncing spaces the requests out; it does not order the answers. Two
-        // searches can still overlap, and the slower one would otherwise land
-        // last and show results for a query the reviewer has moved past.
-        const generation = ++pickerGeneration;
-        const current = () => generation === pickerGeneration;
-        pickerBusy = true;
-        pickerError = null;
-        renderPicker();
-        try {
-            const parameters = new URLSearchParams();
-            if (query) parameters.set('q', query);
-            if (pickerMode === 'epic') parameters.set('parent', '1');
-            const search = parameters.toString();
-            const path =
-                '/api/v1/live-review-widget/cards' +
-                (search ? '?' + search : '');
-            const answer = await api('GET', path);
-            if (!current()) return;
-            pickerCards = answer.cards || [];
-        } catch (error) {
-            if (authFailed(error)) {
-                // enterFatal only sets state. Returning without a repaint left
-                // a revoked token showing the picker's "Loading…" for ever
-                // instead of the critical panel.
-                enterFatal(error);
-                sync();
-
-                return;
-            }
-            if (!current()) return;
-            pickerCards = [];
-            pickerError = 'Could not load cards.';
-        }
-        pickerBusy = false;
-        renderPicker();
+            : exists
+              ? 'Save'
+              : 'Start reviewing';
     };
     const createCardFromPicker = async () => {
         const title = pickerTitleNode.value.trim();
-        const mode = pickerMode;
-        if (!title || !mode || pickerCreating) return;
-        // A search may still be running, and its result would overwrite this
-        // panel underneath the create. Cancelling the timer stops one that has
-        // not started; bumping the generation discards one already in flight,
-        // which would otherwise replace a creation error with a card list and
-        // leave the reviewer believing the card was made.
-        clearTimeout(pickerDebounce);
-        // The superseded search returns early and never clears its own flag, so
-        // a creation error would render behind a "Loading…" that never lifts.
-        pickerGeneration++;
-        pickerBusy = false;
+        if (!title || pickerMode !== 'per-review' || pickerCreating) return;
         pickerCreating = true;
         pickerError = null;
         sync();
         try {
             const card = await api('POST', '/api/v1/live-review-widget/cards', {
                 title,
-                ...(mode === 'epic'
-                    ? {
-                          parent: true,
-                          ...(parentTypes.length > 1
-                              ? { type: pickerTypeNode.value }
-                              : {}),
-                      }
-                    : {}),
             });
             pickerCreating = false;
             chooseTarget({
-                mode,
+                mode: 'per-review',
                 cardId: card.cardId,
                 label: card.label,
                 url: card.url,
@@ -5127,8 +5293,7 @@
         } catch (error) {
             if (authFailed(error)) {
                 // enterFatal only sets state. Returning without a repaint left
-                // a revoked token showing the picker's "Loading…" for ever
-                // instead of the critical panel.
+                // the picker stuck instead of showing the critical panel.
                 enterFatal(error);
                 sync();
 
@@ -5142,38 +5307,21 @@
     // The one action of the view: the choice is made here, not on a row.
     const commitDestination = () => {
         if (!pickerCanCommit()) return;
-        if (pickerMode === 'epic' && !pickerEpicStep) {
-            pickerEpicStep = true;
-            pickerError = null;
-            if (pickerSubs.epic === 'existing') {
-                loadPickerCards(pickerSearchNode.value.trim());
-            }
-            sync();
-            focusDestination();
-            return;
-        }
         if (pickerMode === 'per-note') {
-            chooseTarget({ mode: 'per-note', cardId: null });
-        } else if (pickerSubs[pickerMode] === 'existing') {
             chooseTarget({
-                mode: pickerMode,
-                cardId: pickerPicked.cardId,
-                label: pickerPicked.label,
-                url: pickerPicked.url,
+                mode: 'per-note',
+                cardId: null,
+                startColumnId: startColumns.some(
+                    (column) => column.id === pickerStart,
+                )
+                    ? pickerStart
+                    : null,
             });
         } else {
             createCardFromPicker();
         }
     };
 
-    pickerSearchNode.addEventListener('input', () => {
-        clearTimeout(pickerDebounce);
-        // Debounced, because this is a keystroke on a public endpoint.
-        pickerDebounce = setTimeout(
-            () => loadPickerCards(pickerSearchNode.value.trim()),
-            250,
-        );
-    });
     pickerTitleNode.addEventListener('input', () => {
         $('lp-destination-save').disabled = !pickerCanCommit();
     });
@@ -5186,7 +5334,6 @@
         sync();
         focusAfterDestination();
     };
-    pickerSearchNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') commitDestination();
@@ -5204,16 +5351,7 @@
         focusAfterDestination();
     };
     $('lp-picker-cancel').addEventListener('click', cancelDestination);
-    $('lp-destination-back').addEventListener('click', () => {
-        if (!pickerEpicStep) {
-            cancelDestination();
-            return;
-        }
-        pickerEpicStep = false;
-        pickerError = null;
-        sync();
-        focusDestination();
-    });
+    $('lp-destination-back').addEventListener('click', cancelDestination);
     $('lp-destination-close').addEventListener('click', () => togglePanel());
     destNode.addEventListener('click', openDestination);
 
@@ -5257,6 +5395,7 @@
         if (!body || state.saving) return;
         const editing = state.editId != null;
         let savedLabel;
+        let savedNotice = null;
         state.saving = true;
         state.actionError = null;
         updatePanel();
@@ -5308,18 +5447,22 @@
                 // this copy long after a rollback, and that instance would otherwise save
                 // every comment as an unanchored note. The current API prefers anchors[].
                 const first = anchors[0];
+                const startColumnId = keptStartColumnId(destination);
                 const target =
                     destination.mode === 'per-review'
                         ? { cardId: destination.cardId }
                         : {
-                              newCard:
-                                  destination.mode === 'epic'
-                                      ? { parentCardId: destination.cardId }
-                                      : {},
+                              newCard: startColumnId ? { startColumnId } : {},
                           };
                 // A retry keeps its delivery id only while it names the same
                 // target. The server refuses a known id sent to another one.
-                const targetKey = JSON.stringify(target);
+                // The start column stays out of the key, because the server
+                // leaves it out of the delivery hash too.
+                const targetKey = JSON.stringify(
+                    destination.mode === 'per-review'
+                        ? target
+                        : { newCard: {} },
+                );
                 if (
                     state.deliveryId === null ||
                     state.deliveryTarget !== targetKey
@@ -5351,7 +5494,14 @@
                         id: saved.commentId,
                         ...comment,
                         link: saved.url
-                            ? { label: `#${saved.number}`, url: saved.url }
+                            ? {
+                                  label: `#${saved.number}`,
+                                  url: saved.url,
+                                  column: saved.column || '',
+                                  // The server says whether the card ever
+                                  // left Backlog, also after it came back.
+                                  locked: saved.locked === true,
+                              }
                             : null,
                     });
                     // A list request still in flight answers with a snapshot
@@ -5376,6 +5526,19 @@
                     if (stale) refresh().then(sync);
                 }
                 savedLabel = saved.label || targetLabel(destination);
+                if (typeof saved.startRefused === 'string') {
+                    // The workflow refused the column, so the card is in the
+                    // Backlog. The kept column goes, and the reviewer sees why.
+                    const refused = saved.startRefused
+                        ? `${saved.startRefused} is no longer a start column.`
+                        : 'That start column is no longer available.';
+                    savedNotice = `Saved to #${saved.number} in ${saved.column || 'Backlog'}. ${refused}`;
+                    if (storedTarget && storedTarget.mode === 'per-note') {
+                        storedTarget = { ...storedTarget, startColumnId: null };
+                        writeStoredTarget(storedTarget);
+                    }
+                    refresh().then(sync);
+                }
             }
             state.deliveryId = null;
             resetView();
@@ -5390,9 +5553,11 @@
             textareaNode.value = '';
             setDrawing(false);
             flashSaved(
-                savedLabel
-                    ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
-                    : 'Note updated',
+                savedNotice ||
+                    (savedLabel
+                        ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
+                        : 'Note updated'),
+                savedNotice ? 6000 : 2400,
             );
         } catch (error) {
             // A rejected token is fatal; anything else keeps the composer open with the text
@@ -5402,6 +5567,16 @@
             else {
                 state.actionError = error;
                 if (error && error.status === 404) await refresh();
+                if (error && error.code === 'note_locked') {
+                    await refresh();
+                    resetView();
+                    state.composeTarget = null;
+                    state.editId = null;
+                    state.draft = '';
+                    state.strokes = [];
+                    textareaNode.value = '';
+                    setDrawing(false);
+                }
                 forgetRefusedTarget(error);
             }
         }
@@ -5431,7 +5606,11 @@
             if (authFailed(error)) enterFatal(error);
             else {
                 state.actionError = error;
-                if (error && error.status === 404) await refresh();
+                if (
+                    error &&
+                    (error.status === 404 || error.code === 'note_locked')
+                )
+                    await refresh();
             }
         }
         state.deleting = false;
@@ -5460,7 +5639,11 @@
             if (authFailed(error)) enterFatal(error);
             else {
                 state.actionError = error;
-                if (error && error.status === 404) await refresh();
+                if (
+                    error &&
+                    (error.status === 404 || error.code === 'note_locked')
+                )
+                    await refresh();
             }
         }
         state.deleting = false;
@@ -5488,7 +5671,9 @@
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.
-            const doomed = comments.map((comment) => comment.id);
+            const doomed = comments
+                .filter((comment) => !isLocked(comment))
+                .map((comment) => comment.id);
             const results = await Promise.allSettled(
                 doomed.map((id) =>
                     api('DELETE', `/api/v1/live-review-widget/feedback/${id}`),

@@ -1092,31 +1092,6 @@ when@dev: &generator
                                     stored:
                                         type: integer
                                         description: The calls the server stored for the first time.
-                            PickerCards:
-                                type: object
-                                required:
-                                - cards
-                                properties:
-                                    cards:
-                                        type: array
-                                        items:
-                                            type: object
-                                            required:
-                                            - cardId
-                                            - number
-                                            - title
-                                            - status
-                                            properties:
-                                                cardId:
-                                                    type: string
-                                                    format: uuid
-                                                number:
-                                                    type: integer
-                                                title:
-                                                    type: string
-                                                status:
-                                                    type: string
-                                        maxItems: 20
                             WidgetCardCreated:
                                 type: object
                                 required:
@@ -1322,6 +1297,9 @@ when@dev: &generator
                                 - cardId
                                 - number
                                 - label
+                                - column
+                                - startRefused
+                                - locked
                                 - url
                                 properties:
                                     commentId:
@@ -1334,6 +1312,16 @@ when@dev: &generator
                                         type: integer
                                     label:
                                         type: string
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                                    startRefused:
+                                        type: string
+                                        nullable: true
+                                        description: The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.
+                                    locked:
+                                        type: boolean
+                                        description: Whether the note is locked, because its card left Backlog at some point.
                                     url:
                                         type: string
                                         format: uri
@@ -1345,12 +1333,89 @@ when@dev: &generator
                                     cardDeleted:
                                         type: boolean
                                         description: Whether the card the note created went too.
+                            WidgetCardStart:
+                                type: object
+                                required:
+                                - number
+                                - url
+                                - column
+                                - startsWork
+                                - moves
+                                properties:
+                                    number:
+                                        type: integer
+                                    url:
+                                        type: string
+                                        format: uri
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                                    startsWork:
+                                        type: boolean
+                                        description: Whether the workflow asks a bridge for work while the card sits in that column.
+                                    moves:
+                                        type: array
+                                        description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - name
+                                            - hint
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                name:
+                                                    type: string
+                                                hint:
+                                                    type: string
+                                                    nullable: true
+                            WidgetCardStarted:
+                                type: object
+                                required:
+                                - column
+                                properties:
+                                    column:
+                                        type: string
+                                        description: The name of the column the card is in.
+                            WidgetCardStartRefused:
+                                description: The card did not move. The body holds the column the card is in and the moves it has now.
+                                allOf:
+                                - $ref: '#/components/schemas/Problem'
+                                - type: object
+                                  required:
+                                  - column
+                                  - moves
+                                  properties:
+                                      column:
+                                          type: string
+                                          description: The name of the column the card is in.
+                                          moves:
+                                              type: array
+                                              description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+                                              items:
+                                                  type: object
+                                                  required:
+                                                  - id
+                                                  - name
+                                                  - hint
+                                                  properties:
+                                                      id:
+                                                          type: string
+                                                          format: uuid
+                                                      name:
+                                                          type: string
+                                                      hint:
+                                                          type: string
+                                                          nullable: true
                             PendingComments:
                                 type: object
                                 required:
                                 - projectId
                                 - drawingEnabled
                                 - parentTypes
+                                - startColumns
                                 - context
                                 - comments
                                 properties:
@@ -1361,6 +1426,7 @@ when@dev: &generator
                                         type: boolean
                                     parentTypes:
                                         type: array
+                                        description: Always empty. An older copy of the widget hides its epic mode when the list is empty.
                                         items:
                                             type: object
                                             required:
@@ -1371,6 +1437,24 @@ when@dev: &generator
                                                     type: string
                                                 label:
                                                     type: string
+                                    startColumns:
+                                        type: array
+                                        description: The columns a new card may start in, with Backlog first. It is empty for a preview token.
+                                        items:
+                                            type: object
+                                            required:
+                                            - id
+                                            - name
+                                            - hint
+                                            properties:
+                                                id:
+                                                    type: string
+                                                    format: uuid
+                                                name:
+                                                    type: string
+                                                hint:
+                                                    type: string
+                                                    nullable: true
                                     context:
                                         type: object
                                         required:
@@ -1428,12 +1512,22 @@ when@dev: &generator
                                                     required:
                                                     - label
                                                     - url
+                                                    - cardId
+                                                    - column
+                                                    - locked
                                                     properties:
                                                         label:
                                                             type: string
                                                         url:
                                                             type: string
                                                             nullable: true
+                                                        cardId:
+                                                            type: string
+                                                            format: uuid
+                                                        column:
+                                                            type: string
+                                                        locked:
+                                                            type: boolean
                                                     nullable: true
                             NativeFacts:
                                 type: object
