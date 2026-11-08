@@ -6,6 +6,7 @@ namespace App\Tests\Module\Insights\Preview;
 
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Insights\Entity\PublicLink;
+use App\Module\Insights\Preview\ExperimentPreviewLayouts;
 use App\Module\Insights\Preview\PreviewRenderer;
 use App\Module\Insights\Preview\PreviewResultUnsettled;
 use App\Module\Insights\Preview\PublicPreviewDrawer;
@@ -251,7 +252,7 @@ final class PublicPreviewDrawerTest extends KernelTestCase
         $renderer = new PreviewRenderer();
         $twig = self::getContainer()->get(Environment::class);
         self::assertInstanceOf(Environment::class, $twig);
-        $drawer = new PublicPreviewDrawer(new LockFactory(new InMemoryStore()), $this->liveSubjects(), $this->entries(), $this->results(), $renderer, $twig);
+        $drawer = new PublicPreviewDrawer(new LockFactory(new InMemoryStore()), $this->liveSubjects(), $this->entries(), $this->results(), $this->layouts(), $renderer, $twig);
 
         $preview = $drawer->draw($link, PublicPreviewDrawer::INLINE);
 
@@ -331,6 +332,14 @@ final class PublicPreviewDrawerTest extends KernelTestCase
         return $results;
     }
 
+    private function layouts(): ExperimentPreviewLayouts
+    {
+        $layouts = self::getContainer()->get(ExperimentPreviewLayouts::class);
+        self::assertInstanceOf(ExperimentPreviewLayouts::class, $layouts);
+
+        return $layouts;
+    }
+
     private function entries(): PublicPreviewEntries
     {
         $entries = self::getContainer()->get(PublicPreviewEntries::class);
@@ -352,6 +361,6 @@ final class PublicPreviewDrawerTest extends KernelTestCase
         $twig ??= self::getContainer()->get(Environment::class);
         self::assertInstanceOf(Environment::class, $twig);
 
-        return new PublicPreviewDrawer($locks ?? new LockFactory(new InMemoryStore()), $subjects, $this->entries(), $this->results(), new PreviewRenderer(__DIR__.'/fake-rsvg-convert'), $twig);
+        return new PublicPreviewDrawer($locks ?? new LockFactory(new InMemoryStore()), $subjects, $this->entries(), $this->results(), $this->layouts(), new PreviewRenderer(__DIR__.'/fake-rsvg-convert'), $twig);
     }
 }
