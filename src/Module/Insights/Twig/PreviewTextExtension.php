@@ -13,6 +13,9 @@ final class PreviewTextExtension extends AbstractExtension
     #[\Override]
     public function getFilters(): array
     {
-        return [new TwigFilter('preview_fit', PreviewText::fit(...))];
+        return [
+            new TwigFilter('preview_fit', PreviewText::fit(...)),
+            new TwigFilter('preview_legend', PreviewText::legend(...)),
+        ];
     }
 }

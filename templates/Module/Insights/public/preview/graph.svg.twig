@@ -26,18 +26,24 @@
         <rect x="56" y="48" width="1088" height="480" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2" stroke-dasharray="10 8"/>
         <text x="600" y="288" text-anchor="middle" dominant-baseline="middle" font-size="36" font-weight="700" fill="{{ palette.muted }}">{{ (state == 'empty' ? 'analytics.metrics.empty.title' : 'analytics.public.broken')|trans }}</text>
     {% elseif isNumber %}
-        {% set count = min(layout.figures|length, 4) %}
-        {% set cardWidth = (1088 - (count - 1) * 24) / count %}
-        {% for figure in layout.figures|slice(0, 4) %}
-            {% set left = 56 + loop.index0 * (cardWidth + 24) %}
+        {% set count = layout.figures|length %}
+        {% set columns = count <= 4 ? count : (count <= 6 ? 3 : 4) %}
+        {% set rows = (count / columns)|round(0, 'ceil') %}
+        {% set cardWidth = (1088 - (columns - 1) * 24) / columns %}
+        {% set cardHeight = (480 - (rows - 1) * 24) / rows %}
+        {% set unit = rows == 1 ? 1 : (rows == 2 ? 0.7 : 0.5) %}
+        {% for figure in layout.figures %}
+            {% set left = 56 + (loop.index0 % columns) * (cardWidth + 24) %}
+            {% set top = 48 + (loop.index0 // columns) * (cardHeight + 24) %}
             {% set middle = left + cardWidth / 2 %}
-            <rect x="{{ left }}" y="48" width="{{ cardWidth }}" height="480" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2"/>
+            {% set centre = top + cardHeight / 2 %}
+            <rect x="{{ middle - cardWidth / 2 }}" y="{{ top }}" width="{{ cardWidth }}" height="{{ cardHeight }}" rx="16" fill="{{ palette.surface2 }}" stroke="{{ palette.border }}" stroke-width="2"/>
             {% if legend and layout.hasLegend %}
-                <text x="{{ middle }}" y="236" text-anchor="middle" font-size="24" font-weight="600" fill="{{ palette.muted }}">{{ (labels[figure.series.position] ?? '')|preview_fit(count > 2 ? 14 : 24) }}</text>
+                <text x="{{ middle }}" y="{{ centre - 52 * unit }}" text-anchor="middle" font-size="{{ 24 * unit }}" font-weight="600" fill="{{ palette.muted }}">{{ (labels[figure.series.position] ?? '')|preview_fit(columns > 2 ? 14 : 24) }}</text>
             {% endif %}
-            <text x="{{ middle }}" y="316" text-anchor="middle" font-size="{{ count > 2 ? 56 : 80 }}" font-weight="700" fill="{{ palette.text }}">{{ (figure.value ?? 'analytics.metrics.unknown'|trans)|preview_fit(count > 2 ? 10 : 14) }}</text>
+            <text x="{{ middle }}" y="{{ centre + 28 * unit }}" text-anchor="middle" font-size="{{ (columns > 2 ? 56 : 80) * unit }}" font-weight="700" fill="{{ palette.text }}">{{ (figure.value ?? 'analytics.metrics.unknown'|trans)|preview_fit(columns > 2 ? 10 : 14) }}</text>
             {% if figure.change is not null %}
-                <text x="{{ middle }}" y="372" text-anchor="middle" font-size="28" fill="{{ palette.muted }}">{{ figure.change.direction.arrow }} {{ figure.change.kind.value == 'points' ? 'analytics.chart.change.points'|trans({'%amount%': figure.change.amount}) : figure.change.amount }}</text>
+                <text x="{{ middle }}" y="{{ centre + 84 * unit }}" text-anchor="middle" font-size="{{ 28 * unit }}" fill="{{ palette.muted }}">{{ figure.change.direction.arrow }} {{ figure.change.kind.value == 'points' ? 'analytics.chart.change.points'|trans({'%amount%': figure.change.amount}) : figure.change.amount }}</text>
             {% endif %}
         {% endfor %}
     {% elseif isDonut %}
@@ -89,15 +95,11 @@
         </g>
     {% endif %}
     {% if state == 'chart' and legend and not isNumber and layout.hasLegend %}
-        {% set keyX = 56 %}
-        {% for series in layout.series %}
-            {% set name = (labels[series.position] ?? '')|preview_fit(24) %}
-            {% set keyWidth = 14 + 10 + name|length * 10 + 28 %}
-            {% if keyX + keyWidth <= 900 %}
-                {{ _self.swatch(keyX, footerY - 7, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other)) }}
-                <text x="{{ keyX + 24 }}" y="{{ footerY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.text }}">{{ name }}</text>
-                {% set keyX = keyX + keyWidth %}
-            {% endif %}
+        {% for key in layout.series|map(series => labels[series.position] ?? '')|preview_legend %}
+            {% set series = layout.series[loop.index0] %}
+            {% set keyY = footerY + key.row * 30 %}
+            {{ _self.swatch(key.x, keyY - 7, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other)) }}
+            <text x="{{ key.x + 24 }}" y="{{ keyY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.text }}">{{ key.name }}</text>
         {% endfor %}
     {% endif %}
     <g transform="translate(956 {{ footerY - 14 }})" fill="{{ palette.muted }}">

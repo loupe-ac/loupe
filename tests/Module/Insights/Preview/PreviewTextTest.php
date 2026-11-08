@@ -34,4 +34,18 @@ final class PreviewTextTest extends TestCase
     {
         self::assertSame('', PreviewText::fit('abc', 0));
     }
+
+    public function test_a_legend_keeps_every_label_by_cutting_the_names_until_all_fit(): void
+    {
+        $names = array_map(static fn (int $i): string => 'claude-model-number-'.$i, range(1, 12));
+
+        $legend = PreviewText::legend($names);
+
+        self::assertCount(12, $legend);
+        self::assertSame([], array_filter(array_column($legend, 'row'), static fn (int $row): bool => $row > 1));
+        self::assertSame('claude-model-number-1', PreviewText::legend(['claude-model-number-1'])[0]['name']);
+        foreach ($legend as $key) {
+            self::assertLessThanOrEqual(24, mb_strlen($key['name']));
+        }
+    }
 }
