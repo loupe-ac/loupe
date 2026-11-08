@@ -23,7 +23,7 @@ func newUsageCmd() *cobra.Command {
 		Use:   "usage",
 		Short: "Work with the token usage of worker runs",
 	}
-	cmd.AddCommand(newUsageBackfillCmd())
+	cmd.AddCommand(newUsageBackfillCmd(), newUsageBackfillWakesCmd())
 
 	return cmd
 }

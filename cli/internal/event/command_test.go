@@ -87,6 +87,7 @@ func TestParseCommandReadsTheCause(t *testing.T) {
 		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"ask-closed"`, 1):   api.CauseAskClosed,
 		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"person"`, 1):       api.CausePerson,
 		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"inbox-action"`, 1): api.CauseInboxAction,
+		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"agent"`, 1):        api.CauseAgent,
 	} {
 		c, err := ParseCommand([]byte(payload))
 		if err != nil {

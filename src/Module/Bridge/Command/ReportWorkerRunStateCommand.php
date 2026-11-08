@@ -9,6 +9,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageReport;
+use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use Symfony\Component\Uid\Uuid;
 
@@ -69,6 +70,8 @@ final readonly class ReportWorkerRunStateCommand
         public ?string $skillVersion = null,
         /** Null keeps the peak the run holds. */
         public ?int $peakContextTokens = null,
+        /** Null keeps the wake the run holds. */
+        public ?WorkerRunWakeReport $wake = null,
         /**
          * Null keeps the map the run holds, and an empty map replaces it.
          *

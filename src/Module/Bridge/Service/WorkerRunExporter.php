@@ -81,6 +81,11 @@ final readonly class WorkerRunExporter implements UserDataExporterInterface
                 'idleGapMs' => $run->idleGapMs,
                 'peakContextTokens' => $run->peakContextTokens,
                 'harnessEvents' => $run->harnessEvents,
+                'wakeTrigger' => $run->wakeTrigger?->value,
+                'wakeGapMs' => $run->wakeGapMs,
+                'wakeFirstInputTokens' => $run->wakeFirstInputTokens,
+                'wakeFirstCacheReadTokens' => $run->wakeFirstCacheReadTokens,
+                'wakeFirstCacheWriteTokens' => $run->wakeFirstCacheWriteTokens,
                 'history' => $history[$run] ?? [],
             ];
         }

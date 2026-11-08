@@ -487,3 +487,37 @@ func TestAResumeOfAnotherSubjectReadsNoCard(t *testing.T) {
 		}
 	}
 }
+
+// A resume keeps its cause for the wake it reports. An agent's resume reads like
+// a person's, and a click on an inbox action wakes with its own trigger.
+func TestAResumeKeepsItsCauseForTheWake(t *testing.T) {
+	person := directive.RenderResumeByPerson()
+	for name, tc := range map[string]struct {
+		cause, action string
+		prompt        string
+		want          string
+	}{
+		"person":       {api.CausePerson, "", person, api.CausePerson},
+		"agent":        {api.CauseAgent, "", person, api.CauseAgent},
+		"ask closed":   {api.CauseAskClosed, "", directive.RenderResumeAskClosed(), api.CauseAskClosed},
+		"inbox action": {api.CauseInboxAction, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", "", api.CauseInboxAction},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newWorkHarness(t)
+			h.withWork()
+			h.states()
+			h.worker.result = finishedRun
+			c := workResumeOf(endedRunKey)
+			c.Cause, c.InboxActionID, c.InboxItemID, c.InboxItemNumber = tc.cause, tc.action, "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", 12
+
+			if state, reason := h.resume(c); state != api.CommandDone {
+				t.Fatalf("resume = %s %q", state, reason)
+			}
+
+			calls := h.worker.recorded()
+			if len(calls) != 1 || calls[0].cause != tc.want || (tc.prompt != "" && calls[0].prompt != tc.prompt) {
+				t.Fatalf("workers = %+v", calls)
+			}
+		})
+	}
+}

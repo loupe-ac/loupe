@@ -158,6 +158,29 @@ type RunStateReport struct {
 	CLIVersion     string `json:"cliVersion,omitempty"`
 	HarnessVersion string `json:"harnessVersion,omitempty"`
 	SkillVersion   string `json:"skillVersion,omitempty"`
+	// Wake says what woke a resumed run, and goes on its outcome alone. A
+	// run that is no resume sends none. It holds counts and times, never text.
+	Wake *Wake `json:"wake,omitempty"`
+}
+
+// The triggers of a wake. A trigger is the cause of the resume, or backfill
+// for a wake that `loupe usage backfill-wakes` read from a transcript.
+const WakeBackfill = "backfill"
+
+// Wake is what woke a resumed run. LastTurnAt is when the session last
+// answered before the resume, and FirstTurn is the input side of its first
+// message after. Either is nil when the harness cannot say.
+type Wake struct {
+	Trigger    string     `json:"trigger"`
+	LastTurnAt *time.Time `json:"lastTurnAt,omitempty"`
+	FirstTurn  *TurnUsage `json:"firstTurn,omitempty"`
+}
+
+// TurnUsage is the input side of one assistant message.
+type TurnUsage struct {
+	InputTokens      int64 `json:"inputTokens"`
+	CacheReadTokens  int64 `json:"cacheReadTokens"`
+	CacheWriteTokens int64 `json:"cacheWriteTokens"`
 }
 
 // MarshalJSON sends every field of an outcome, so an empty output, a null

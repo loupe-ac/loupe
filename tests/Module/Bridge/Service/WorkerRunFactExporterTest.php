@@ -6,6 +6,8 @@ namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Bridge\Repository\WorkerRunFactRepository;
 use App\Module\Bridge\Service\WorkerRunFactExporter;
+use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
+use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Tests\Module\Bridge\BridgeScenario;
 use DoctrineMigrations\Version20261006005345;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -32,6 +34,7 @@ final class WorkerRunFactExporterTest extends KernelTestCase
         $kept->toolTimeMs = 4000;
         $kept->idleGapMs = 6000;
         $kept->peakContextTokens = 77_000;
+        $kept->recordWake(new WorkerRunWakeReport(WorkerRunWakeTrigger::Person, new \DateTimeImmutable('2026-01-01 08:00:00'), 5, 6, 7));
         $em->flush();
         $swept = $this->seedRun($em, $project, cardNumber: 2);
         $this->seedRun($em, $this->project($em, $this->user($em, 'facts-export-other@example.com'), 'Other Facts'));
@@ -89,6 +92,11 @@ final class WorkerRunFactExporterTest extends KernelTestCase
             'onBattery' => false,
             'sessionUsageDelta' => 12.5,
             'weekUsageDelta' => 0.5,
+            'wakeTrigger' => 'person',
+            'wakeGapMs' => 7_200_000,
+            'wakeFirstInputTokens' => 5,
+            'wakeFirstCacheReadTokens' => 6,
+            'wakeFirstCacheWriteTokens' => 7,
         ], $rows[0]);
         self::assertNull($rows[1]['sessionUsageDelta']);
         self::assertNull($rows[1]['weekUsageDelta']);

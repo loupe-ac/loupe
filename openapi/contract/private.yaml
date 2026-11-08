@@ -887,6 +887,44 @@ paths:
           $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake:
+    put:
+      operationId: reportWorkerSessionWake
+      summary: Record the wakes of a session
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionWakes'
+      responses:
+        '204':
+          description: The wakes are taken, also when no run needed one.
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '409':
+          $ref: '#/components/responses/E409ProcessCountMismatchAmbiguousStartOrder'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidSessionIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards:
     post:
       operationId: createWidgetCard
@@ -1739,6 +1777,7 @@ components:
           - person
           - ask-closed
           - inbox-action
+          - agent
         context:
           $ref: '#/components/schemas/WorkContext'
         model:
@@ -2587,6 +2626,57 @@ components:
           - refused
           - expired
           - cancelled
+    SessionWakes:
+      type: object
+      required:
+      - wakes
+      properties:
+        wakes:
+          type: array
+          description: One entry for each worker process of the session, in start order. A null entry has no pause before it.
+          minItems: 1
+          maxItems: 100
+          items:
+            nullable: true
+            allOf:
+            - $ref: '#/components/schemas/RunWake'
+    RunWake:
+      type: object
+      description: A resume of a worker session. The server works out the gap and whether the wake was cold.
+      required:
+      - trigger
+      properties:
+        trigger:
+          type: string
+          enum:
+          - ask-closed
+          - inbox-action
+          - person
+          - agent
+          - work-request
+          - backfill
+        lastTurnAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the session last spoke. It cannot come after the start of the run.
+        firstTurn:
+          type: object
+          nullable: true
+          required:
+          - inputTokens
+          - cacheReadTokens
+          - cacheWriteTokens
+          properties:
+            inputTokens:
+              type: integer
+              minimum: 0
+            cacheReadTokens:
+              type: integer
+              minimum: 0
+            cacheWriteTokens:
+              type: integer
+              minimum: 0
     RunStateReport:
       type: object
       description: One state of one worker run. `docs/reference/worker-runs.md` gives the cross-field rules.
@@ -2740,6 +2830,10 @@ components:
           type: integer
           nullable: true
           minimum: 0
+        wake:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/RunWake'
         workerPool:
           type: string
           nullable: true

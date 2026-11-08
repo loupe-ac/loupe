@@ -14,4 +14,7 @@ enum BridgeCommandCause: string
 
     /** A person clicked an action on an inbox item. */
     case InboxAction = 'inbox-action';
+
+    /** An agent asked for the resume through the MCP tool. */
+    case Agent = 'agent';
 }

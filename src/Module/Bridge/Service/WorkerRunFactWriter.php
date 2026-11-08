@@ -27,7 +27,8 @@ final readonly class WorkerRunFactWriter
             duration_ms, cost_micro_usd, tokens_in, tokens_out, tokens_cache_read, tokens_cache_write,
             usage_source, tool_time_ms, model_time_ms, tool_calls, failed_calls, longest_call_ms,
             idle_gap_ms, subagent_ms, peak_context_tokens, mean_cpu_pct, peak_mem_bytes, peak_swap_bytes,
-            concurrent_runs, on_battery, session_usage_delta, week_usage_delta
+            concurrent_runs, on_battery, session_usage_delta, week_usage_delta,
+            wake_trigger, wake_gap_ms, wake_first_input_tokens, wake_first_cache_read_tokens, wake_first_cache_write_tokens
         )
         SELECT
             r.id,
@@ -87,7 +88,12 @@ final readonly class WorkerRunFactWriter
             ) END,
             hs.on_battery,
             su.usage_delta,
-            wu.usage_delta
+            wu.usage_delta,
+            r.wake_trigger,
+            r.wake_gap_ms,
+            r.wake_first_input_tokens,
+            r.wake_first_cache_read_tokens,
+            r.wake_first_cache_write_tokens
         FROM bridge_worker_runs r
         JOIN projects p ON p.id = r.project_id
         LEFT JOIN bridge_worker_run_billed_costs b ON b.run_id = r.id
@@ -201,7 +207,12 @@ final readonly class WorkerRunFactWriter
             concurrent_runs = EXCLUDED.concurrent_runs,
             on_battery = EXCLUDED.on_battery,
             session_usage_delta = EXCLUDED.session_usage_delta,
-            week_usage_delta = EXCLUDED.week_usage_delta
+            week_usage_delta = EXCLUDED.week_usage_delta,
+            wake_trigger = EXCLUDED.wake_trigger,
+            wake_gap_ms = EXCLUDED.wake_gap_ms,
+            wake_first_input_tokens = EXCLUDED.wake_first_input_tokens,
+            wake_first_cache_read_tokens = EXCLUDED.wake_first_cache_read_tokens,
+            wake_first_cache_write_tokens = EXCLUDED.wake_first_cache_write_tokens
         SQL;
 
     public function __construct(

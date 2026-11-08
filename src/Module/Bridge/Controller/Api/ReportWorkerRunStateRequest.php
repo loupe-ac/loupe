@@ -116,6 +116,10 @@ final class ReportWorkerRunStateRequest
         #[Assert\Valid]
         public ?WorkerRunUsageInput $usage = null,
 
+        /** Checked on every state, and stored from an outcome or a stop alone. Null for a run that is no resume. */
+        #[Assert\Valid]
+        public ?WorkerRunWakeInput $wake = null,
+
         /** The largest main-session context of the run, stored from an outcome or a stop alone. */
         #[Assert\PositiveOrZero]
         public ?int $peakContextTokens = null,
@@ -350,6 +354,14 @@ final class ReportWorkerRunStateRequest
 
         if (null !== $this->startedAt && null !== $this->endedAt && $this->endedAt < $this->startedAt) {
             $context->buildViolation('A run cannot end before it starts.')->atPath('endedAt')->addViolation();
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateWake(ExecutionContextInterface $context): void
+    {
+        if (null !== $this->wake?->lastTurnAt && null !== $this->startedAt && $this->wake->lastTurnAt > $this->startedAt) {
+            $context->buildViolation('The last turn of the session cannot come after the start of the run.')->atPath('wake.lastTurnAt')->addViolation();
         }
     }
 

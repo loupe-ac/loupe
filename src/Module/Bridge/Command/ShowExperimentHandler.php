@@ -422,7 +422,7 @@ final readonly class ShowExperimentHandler
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => static fn (array $card): ?int => MetricRowSource::cardSum($card['experimentFacts'], $of),
                 Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => static fn (array $card): ?int => MetricRowSource::namedCardSum($card['experimentFacts'], $named),
                 Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach => throw new \LogicException('shapeOf() leaves out a grouped bucket metric.'),
-                Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage, Metric::PeakContext => throw new \LogicException(\sprintf('The metric %s is no experiment metric.', $of->value)),
+                Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage, Metric::PeakContext, Metric::Wakes, Metric::ColdWakes, Metric::ColdWakeCacheWriteTokens, Metric::ColdWakeShare => throw new \LogicException(\sprintf('The metric %s is no experiment metric.', $of->value)),
             };
         }
 
@@ -608,7 +608,7 @@ final readonly class ShowExperimentHandler
                 Metric::InputTokens, Metric::OutputTokens, Metric::CacheReadTokens, Metric::CacheWriteTokens, Metric::Duration => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::cardSum($row['allFacts'], $of))),
                 Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls, Metric::HarnessEvents => $metric($key, $shape, $bootstrap($of->valueType(), $key, static fn (array $row): ?int => MetricRowSource::namedCardSum($row['experimentFacts'], $namedValues[$key] ?? []))),
                 Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach => throw new \LogicException('shapeOf() leaves out a grouped bucket metric.'),
-                Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage, Metric::PeakContext => throw new \LogicException(\sprintf('The metric %s is no experiment metric.', $of->value)),
+                Metric::AccountUsage, Metric::SessionUsage, Metric::WeekUsage, Metric::PeakContext, Metric::Wakes, Metric::ColdWakes, Metric::ColdWakeCacheWriteTokens, Metric::ColdWakeShare => throw new \LogicException(\sprintf('The metric %s is no experiment metric.', $of->value)),
             };
         }
 
