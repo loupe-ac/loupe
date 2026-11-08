@@ -1,0 +1,23 @@
+{% import '@Landing/features/mockups/document-review/_review.html.twig' as review %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__sheet lp-review">
+            <div class="prose lp-prose lp-review-doc__prose">
+                <fieldset class="lp-decision">
+                    <legend class="lp-decision__prompt">{{ 'landing.shot.how_are_peak_prices_set'|trans }}</legend>
+                    <span class="{{ ds_button_class('ghost', 'sm') }} lp-decision__clear">{{ 'review.decision.clear'|trans }}</span>
+                    <div class="lp-decision__options">
+                        <div class="lp-decision__option">
+                            <input type="radio" checked inert tabindex="-1"><label>{{ 'landing.shot.a_rate_table_per_season'|trans }}</label>
+                            <span class="lp-decision__badge"><span class="lp-decision__star lp-decision__star--filled"></span><span class="lp-decision__star lp-decision__star--filled"></span><span class="lp-decision__star lp-decision__star--filled"></span></span>
+                        </div>
+                        <div class="lp-decision__option"><input type="radio" inert tabindex="-1"><label>{{ 'landing.shot.a_percent_on_top_of_the'|trans }}</label></div>
+                        <div class="lp-decision__option"><input type="radio" inert tabindex="-1"><label>{{ 'landing.shot.prices_from_a_booking_service'|trans }}</label></div>
+                    </div>
+                    <div class="lp-decision__note"><textarea class="lp-input lp-decision__note-field" rows="1" placeholder="{{ 'review.decision.note.placeholder'|trans }}" inert tabindex="-1"></textarea></div>
+                </fieldset>
+            </div>
+            {{ review.decisions_panel('landing.shot.how_are_peak_prices_set'|trans, 'landing.shot.a_rate_table_per_season'|trans) }}
+        </div>
+    </div>
+</div>

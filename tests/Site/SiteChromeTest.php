@@ -38,6 +38,7 @@ final class SiteChromeTest extends KernelTestCase
     {
         yield 'bar' => ['@Landing/landing/_nav.html.twig'];
         yield 'footer' => ['@Landing/landing/_footer.html.twig'];
+        yield 'docs menu' => ['@Landing/landing/_docs_menu_links.html.twig'];
     }
 
     #[DataProvider('templates')]
@@ -90,10 +91,76 @@ final class SiteChromeTest extends KernelTestCase
 
         $button = new Crawler('<body>'.$html.'</body>')->filter('a[data-site-chrome="go-to-app"]');
 
-        self::assertCount(1, $button);
-        self::assertNotNull($button->attr('hidden'));
+        self::assertCount(2, $button, 'The bar and the phone menu each hold one.');
+        $button->each(static function (Crawler $element): void {
+            self::assertNotNull($element->attr('hidden'));
+        });
         self::assertStringContainsString('Go to app', $html);
-        self::assertCount(2, new Crawler('<body>'.$html.'</body>')->filter('[data-site-chrome="signed-out"]'));
+        self::assertCount(4, new Crawler('<body>'.$html.'</body>')->filter('[data-site-chrome="signed-out"]'));
+    }
+
+    public function test_the_bar_opens_a_features_panel_that_marks_the_current_feature(): void
+    {
+        $html = $this->render('@Landing/landing/_nav.html.twig', self::SITE_HOST, '', ['currentFeature' => 'inbox']);
+        $page = new Crawler('<body>'.$html.'</body>');
+
+        self::assertCount(1, $page->filter('button[popovertarget="site-features"]'));
+        $panel = $page->filter('#site-features[popover]');
+        self::assertCount(1, $panel);
+        self::assertCount(8, $panel->filter('a[data-umami-event="feature-click"][data-umami-event-button="menu"]:not([data-umami-event-feature="all"])'));
+        self::assertSame('https://loupe.example/features', $panel->filter('[data-umami-event-feature="all"]')->attr('href'));
+        $current = $panel->filter('a[aria-current="page"]');
+        self::assertCount(1, $current);
+        self::assertSame('https://loupe.example/features/inbox', $current->attr('href'));
+        self::assertStringContainsString('Everything the factory does, from the first card to the merged pull request.', $panel->text());
+        self::assertStringContainsString('See every feature', $panel->text());
+    }
+
+    public function test_no_feature_is_marked_current_outside_a_feature_page(): void
+    {
+        $html = $this->render('@Landing/landing/_nav.html.twig', self::SITE_HOST, '');
+
+        self::assertCount(0, new Crawler('<body>'.$html.'</body>')->filter('[aria-current="page"]'));
+    }
+
+    public function test_the_bar_holds_a_phone_menu_with_the_features_the_links_and_the_account_buttons(): void
+    {
+        $html = $this->render('@Landing/landing/_nav.html.twig', self::SITE_HOST, '', ['currentFeature' => 'board']);
+        $page = new Crawler('<body>'.$html.'</body>');
+
+        self::assertCount(1, $page->filter('button[popovertarget="site-menu"]'));
+        $menu = $page->filter('#site-menu[popover]');
+        self::assertCount(1, $menu);
+        self::assertCount(8, $menu->filter('a[data-umami-event-button="phone-menu"]:not([data-umami-event-feature="all"])'));
+        self::assertCount(1, $menu->filter('a[aria-current="page"]'));
+        self::assertCount(0, $menu->filter('.lp-features-panel__caption'));
+        $hrefs = $menu->filter('a')->each(static fn (Crawler $link): string => (string) $link->attr('href'));
+        self::assertContains('https://loupe.example/features', $hrefs);
+        self::assertContains('https://loupe.example/blog', $hrefs);
+        self::assertContains('https://github.com/loupe-ac/loupe', $hrefs);
+        self::assertCount(2, $menu->filter('[data-site-chrome="signed-out"]'));
+        self::assertCount(1, $menu->filter('[data-site-chrome="go-to-app"]'));
+    }
+
+    public function test_the_docs_bar_keeps_the_features_panel_and_leaves_out_the_phone_menu(): void
+    {
+        $html = $this->render('@Landing/landing/_nav.html.twig', self::SITE_HOST, '', ['docs' => true]);
+        $page = new Crawler('<body>'.$html.'</body>');
+
+        self::assertCount(1, $page->filter('#site-features'));
+        self::assertCount(0, $page->filter('#site-menu'));
+        self::assertCount(0, $page->filter('[popovertarget="site-menu"]'));
+        self::assertCount(1, $page->filter('[data-site-chrome="go-to-app"]'));
+        self::assertCount(0, $page->filter('.lp-home-nav__actions--wide'));
+    }
+
+    public function test_the_footer_and_the_docs_menu_link_the_features_page(): void
+    {
+        foreach (['@Landing/landing/_footer.html.twig', '@Landing/landing/_docs_menu_links.html.twig'] as $template) {
+            self::assertContains('https://loupe.example/features', ChromeLinks::hrefs($this->render($template, self::SITE_HOST, '')), $template);
+        }
+        $menu = new Crawler('<body>'.$this->render('@Landing/landing/_docs_menu_links.html.twig', self::SITE_HOST, '').'</body>');
+        self::assertCount(1, $menu->filter('a[data-umami-event="feature-click"][data-umami-event-button="docs-menu"]'));
     }
 
     public function test_the_footer_always_lists_blog_on_a_split_instance(): void
@@ -129,7 +196,8 @@ final class SiteChromeTest extends KernelTestCase
         return array_values(array_filter($hosts));
     }
 
-    private function render(string $template, string $siteHost, string $blogHost): string
+    /** @param array<string, mixed> $context */
+    private function render(string $template, string $siteHost, string $blogHost, array $context = []): string
     {
         self::ensureKernelShutdown();
         $this->setEnv('SITE_HOST', $siteHost);
@@ -138,7 +206,7 @@ final class SiteChromeTest extends KernelTestCase
         $twig = static::getContainer()->get('twig');
         self::assertInstanceOf(Environment::class, $twig);
 
-        return $twig->render($template);
+        return $twig->render($template, $context);
     }
 
     private function setEnv(string $name, string $value): void

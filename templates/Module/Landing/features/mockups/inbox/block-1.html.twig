@@ -1,0 +1,39 @@
+{% import '@Landing/features/mockups/inbox/_parts.html.twig' as inbox %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__page lp-shot__inbox-pane lp-needs-you lp-core-prototype-page lp-core-inbox">
+            <section class="lp-inbox-ask">
+                <div class="lp-inbox-ask__main">
+                    {{ inbox.head('landing.shot.which_test_should_the_checkout_fix'|trans) }}
+                    <div class="lp-inbox-ask__items">
+                        <article class="lp-inbox-item">
+                            <div class="lp-inbox-thread">
+                                <ul class="lp-inbox-thread__messages">
+                                    {{ inbox.message('inbox.thread.agent'|trans, 'inbox.thread.asked'|trans({'%time%': 'landing.shot.2m_ago'|trans}), 'landing.shot.two_tests_cover_the_same_payment'|trans) }}
+                                </ul>
+                                <div class="lp-inbox-item__actions">
+                                    <div class="lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply lp-inbox-answer">
+                                        <fieldset class="lp-decision lp-decision--inbox" data-decision-type="single">
+                                            <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ 'inbox.answer.pick_one'|trans }}</span></legend>
+                                            <span class="lp-decision__clear">{{ 'inbox.answer.clear'|trans }}</span>
+                                            <div class="lp-decision__options">
+                                                <div class="lp-decision__option"><input type="radio" tabindex="-1" id="shot-block-1-option-0" checked><label for="shot-block-1-option-0">{{ 'landing.shot.keep_the_new_test_drop_the'|trans }}</label></div>
+                                                <div class="lp-decision__option"><input type="radio" tabindex="-1" id="shot-block-1-option-1"><label for="shot-block-1-option-1">{{ 'landing.shot.keep_both_and_fix_the_retry'|trans }}</label></div>
+                                            </div>
+                                            <div class="lp-decision__note"><textarea class="lp-decision__note-field" rows="2" tabindex="-1" readonly placeholder="{{ 'inbox.answer.placeholder'|trans }}"></textarea></div>
+                                        </fieldset>
+                                        <div class="lp-comment-composer__actions">
+                                            <span class="lp-form-hint inbox-split__hint">{{ 'inbox.answer.final_hint'|trans }}</span>
+                                            <span class="{{ ds_button_class('ghost', 'sm') }}">{{ 'inbox.action.dismiss.label'|trans }}</span>
+                                            {{ inbox.split('inbox.action.answer.label'|trans, '') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>

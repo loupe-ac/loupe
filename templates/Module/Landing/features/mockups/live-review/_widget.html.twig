@@ -1,0 +1,65 @@
+{# Pieces of the live-review widget. #}
+
+{% macro glyph(name, size) %}
+{% set attributes = {class: 'lp-icon lp-icon--md shrink-0', 'aria-hidden': 'true'} %}
+{% if 'comment' == name %}{{ ux_icon('lucide:message-square', attributes) }}
+{% elseif 'target' == name %}{{ ux_icon('lucide:crosshair', attributes) }}
+{% elseif 'pen' == name %}{{ ux_icon('lucide:pen', attributes) }}
+{% elseif 'close' == name %}{{ ux_icon('lucide:x', attributes) }}
+{% elseif 'more' == name %}{{ ux_icon('lucide:ellipsis', attributes) }}
+{% elseif 'back' == name %}{{ ux_icon('lucide:chevron-left', attributes) }}
+{% elseif 'chevron' == name %}{{ ux_icon('lucide:chevron-down', attributes) }}
+{% elseif 'check' == name %}{{ ux_icon('lucide:check', attributes) }}
+{% endif %}
+{% endmacro %}
+
+{# The pill the widget docks in a corner. quick shows the three actions, open lights the main button. #}
+{% macro launcher(count, open) %}
+{% import _self as widget %}
+<div class="lp-shot__review-launcher">
+    {% if not open %}
+    <span class="lp-shot__review-quick">{{ widget.glyph('comment', 18) }}</span>
+    <span class="lp-shot__review-quick">{{ widget.glyph('target', 18) }}</span>
+    <span class="lp-shot__review-quick">{{ widget.glyph('pen', 18) }}</span>
+    <span class="lp-shot__review-divider"></span>
+    {% endif %}
+    <span class="lp-shot__review-main{{ open ? ' lp-shot__review-main--open' }}">{{ 'landing.shot.widget_review'|trans }}{% if count %}<span class="lp-shot__review-count">{{ count }}</span>{% endif %}</span>
+</div>
+{% endmacro %}
+
+{# The header of a panel view. back draws the arrow of the inner views. #}
+{% macro head(title, sub, back, menu) %}
+{% import _self as widget %}
+<header class="lp-shot__review-head{{ back ? ' lp-shot__review-head--back' }}">
+    {% if back %}<span class="lp-shot__review-icon">{{ widget.glyph('back', 18) }}</span>{% endif %}
+    <div class="lp-shot__review-head-text">
+        <div class="lp-shot__review-title">{{ title }}</div>
+        {% if sub %}<div class="lp-shot__review-sub">{{ sub }}</div>{% endif %}
+    </div>
+    {% if menu %}<span class="lp-shot__review-icon">{{ widget.glyph('more', 18) }}</span>{% endif %}
+    {% if not back %}<span class="lp-shot__review-icon">{{ widget.glyph('close', 18) }}</span>{% endif %}
+</header>
+{% endmacro %}
+
+{# The three buttons under the header. active names the lit one. #}
+{% macro actions(active) %}
+{% import _self as widget %}
+<div class="lp-shot__review-actions">
+    <span class="lp-shot__review-action{{ active == 'note' ? ' lp-shot__review-action--active' }}">{{ widget.glyph('comment', 15) }}{{ 'landing.shot.widget_note'|trans }}</span>
+    <span class="lp-shot__review-action{{ active == 'element' ? ' lp-shot__review-action--active' }}">{{ widget.glyph('target', 15) }}{{ 'landing.shot.widget_element'|trans }}</span>
+    <span class="lp-shot__review-action{{ active == 'draw' ? ' lp-shot__review-action--active' }}">{{ widget.glyph('pen', 15) }}{{ 'landing.shot.widget_draw'|trans }}</span>
+</div>
+{% endmacro %}
+
+{# One note of the list. chip is the element the note points at, and it may be empty. #}
+{% macro item(number, text, chip, general) %}
+{% import _self as widget %}
+<div class="lp-shot__review-item">
+    <span class="lp-shot__review-badge lp-shot__review-badge--{{ general ? 'general' : 'element' }}">{{ number }}</span>
+    <div class="lp-shot__review-item-body">
+        <div>{{ text }}</div>
+        <div class="lp-shot__review-chips"><span class="lp-shot__review-chip">{% if not general %}{{ widget.glyph('target', 12) }}{% endif %}{{ chip }}</span></div>
+    </div>
+    <span class="lp-shot__review-icon lp-shot__review-icon--small">{{ widget.glyph('more', 16) }}</span>
+</div>
+{% endmacro %}

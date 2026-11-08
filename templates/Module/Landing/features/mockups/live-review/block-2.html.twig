@@ -1,0 +1,36 @@
+{% import '@Landing/features/mockups/live-review/_widget.html.twig' as widget %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__site">
+            <div class="lp-shot__site-head">
+                {{ 'landing.shot.driftwood'|trans }}
+                <span class="lp-shot__site-links"><span>{{ 'landing.shot.cabins'|trans }}</span><span>{{ 'landing.shot.guides'|trans }}</span><span>{{ 'landing.shot.contact'|trans }}</span></span>
+            </div>
+            <div class="lp-shot__review-panel self-end">
+                {{ widget.head('Where should your notes go?') }}
+                <div class="lp-shot__review-body">
+                    <div class="lp-shot__review-option lp-shot__review-option--on">
+                        <span class="lp-shot__review-radio lp-shot__review-radio--on"></span>
+                        <div class="min-w-0 flex-1">
+                            <span class="lp-shot__review-option-title">{{ 'One new card for this review' }}</span>
+                            <span class="lp-shot__review-option-text">{{ 'Every note lands on one new card.' }}</span>
+                            <span class="lp-shot__review-field-label">{{ 'Card title' }}</span>
+                            <span class="lp-shot__review-field">{{ 'Review of the Driftwood site' }}</span>
+                        </div>
+                    </div>
+                    <div class="lp-shot__review-option">
+                        <span class="lp-shot__review-radio"></span>
+                        <div class="min-w-0 flex-1">
+                            <span class="lp-shot__review-option-title">{{ 'A new card for each note' }}</span>
+                            <span class="lp-shot__review-option-text">{{ 'Good for unrelated issues across the site.' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="lp-shot__review-foot">
+                    <span class="lp-shot__review-ghost">{{ 'Cancel' }}</span>
+                    <span class="lp-shot__review-button">{{ 'Start reviewing' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

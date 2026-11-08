@@ -1,0 +1,49 @@
+{% import '@Landing/features/mockups/live-review/_widget.html.twig' as widget %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__site">
+            <div class="flex justify-center">
+                <div class="lp-shot__review-toast">
+                    {{ widget.glyph('target', 15) }}
+                    <span>{{ 'Click to add a note' }}</span>
+                    <span class="lp-shot__review-toast-sep">{{ '·' }}</span>
+                    <span class="lp-shot__review-toast-dim">{{ '⌥ scroll to resize' }}</span>
+                    <span class="lp-shot__review-toast-key">{{ 'Esc' }}</span>
+                </div>
+            </div>
+            <div class="lp-shot__cabin">
+                <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
+                <span class="lp-shot__dim">{{ 'landing.shot.sleeps_4_lake_view'|trans }}</span>
+                <span class="mt-2 flex items-center gap-6">
+                    <span class="lp-shot__review-target">
+                        <span class="lp-shot__review-box lp-shot__review-box--lit"><span class="lp-shot__review-label">{{ '$180' }}</span></span>
+                        <span class="lp-shot__strong">{{ '$180' }}</span>
+                    </span>
+                    <span class="lp-shot__review-target">
+                        <span class="lp-shot__review-box lp-shot__review-box--sibling"></span>
+                        <span class="lp-shot__strong">{{ 'landing.shot.book_now'|trans }}</span>
+                    </span>
+                </span>
+            </div>
+            <div class="lp-shot__review-panel self-end">
+                {{ widget.head('New note', 'Saves to #42', true) }}
+                <div class="lp-shot__review-composer">
+                    <div class="lp-shot__review-compose-chips">
+                        <span class="lp-shot__review-compose-chip lp-shot__review-compose-chip--lit"><span>{{ '$180' }}</span><span class="lp-shot__review-compose-x">{{ widget.glyph('close', 12) }}</span></span>
+                        <span class="lp-shot__review-compose-chip"><span>{{ 'landing.shot.book_now'|trans }}</span><span class="lp-shot__review-compose-x">{{ widget.glyph('close', 12) }}</span></span>
+                        <span class="lp-shot__review-compose-add">{{ '+ Element' }}<span class="lp-shot__review-kbd">{{ '⌘ hold' }}</span></span>
+                    </div>
+                    <div class="lp-shot__review-textarea">{{ 'landing.shot.the_price_and_the_button_should'|trans }}</div>
+                    <div class="lp-shot__review-compose-foot">
+                        <span class="lp-shot__review-icon lp-shot__review-icon--small">{{ widget.glyph('target', 16) }}</span>
+                        <span class="lp-shot__review-icon lp-shot__review-icon--small">{{ widget.glyph('pen', 16) }}</span>
+                        <span class="grow"></span>
+                        <span class="lp-shot__review-kbd">{{ '⌘ ↵' }}</span>
+                        <span class="lp-shot__review-ghost lp-shot__review-ghost--small">{{ 'Cancel' }}</span>
+                        <span class="lp-shot__review-compose-save">{{ 'Save note' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

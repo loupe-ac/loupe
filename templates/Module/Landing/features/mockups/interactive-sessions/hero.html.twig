@@ -1,0 +1,23 @@
+<div class="lp-shot lp-shot--dark" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__terminal-bar"><i></i><i></i><i></i><span>{{ 'claude · driftwood' }}</span></div>
+        <div class="lp-shot__terminal-body lp-shot__session">
+            <div class="lp-shot__session-banner"><span class="lp-shot__session-star">{{ '✻' }}</span> {{ 'Welcome to Claude Code' }}<div class="lp-shot__session-dim">{{ '~/driftwood' }}</div></div>
+            <div class="lp-shot__session-prompt"><span class="lp-shot__session-dim">{{ '>' }}</span> {{ '/loupe-lifecycle:product-design 42' }}</div>
+            <div>
+                <div class="lp-shot__session-call">{{ 'loupe - card_get' }}<span class="lp-shot__session-dim">{{ ' (MCP)(card: 42)' }}</span></div>
+                <div class="lp-shot__session-result">{{ '#42 Show the nightly price on the cabin page' }}</div>
+            </div>
+            <div>
+                <div class="lp-shot__session-call">{{ 'loupe - card_run_open' }}<span class="lp-shot__session-dim">{{ ' (MCP)(card: 42, status: "product-design")' }}</span></div>
+                <div class="lp-shot__session-result">{{ 'landing.shot.run_opened_card_42_shows_as'|trans }}</div>
+            </div>
+            <div class="lp-shot__session-reply">{{ 'landing.shot.i_read_the_card_and_the'|trans }}</div>
+            <div class="lp-shot__session-choice"><span class="lp-shot__session-pointer">{{ ' ' }}</span>{{ 'landing.shot.1_every_visitor_before_they_pick'|trans }}</div>
+            <div class="lp-shot__session-choice lp-shot__session-choice--picked"><span class="lp-shot__session-pointer">{{ '❯' }}</span>{{ 'landing.shot.2_only_visitors_who_picked_dates'|trans }}</div>
+            <div class="lp-shot__session-choice"><span class="lp-shot__session-pointer">{{ ' ' }}</span>{{ 'landing.shot.3_signed_in_guests_only'|trans }}</div>
+            <div class="lp-shot__session-prompt"><span class="lp-shot__session-dim">{{ '>' }}</span> {{ '2' }}</div>
+            <div class="lp-shot__session-reply">{{ 'landing.shot.got_it_i_wrote_the_design'|trans }}</div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,15 @@
+{% import '@Landing/features/mockups/agent-review/_parts.html.twig' as part %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        {% for on in [false, true] %}
+            <div class="lp-card-drawer lp-shot__drawer lp-shot__drawer--panel">
+                <div class="lp-card-drawer__body">
+                    <div class="lp-card-overview">
+                        <dl class="lp-card-fields">{{ part.human_review(on) }}</dl>
+                        <section class="lp-card-overview__section">{{ part.linked_work(on ? 'required' : 'ok') }}</section>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>

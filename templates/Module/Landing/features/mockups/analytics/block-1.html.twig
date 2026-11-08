@@ -1,0 +1,15 @@
+{% import '@Landing/features/mockups/analytics/_chart.html.twig' as chart %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <section class="lp-panel lp-metric-graph">
+            <div class="lp-metric-graph__head lp-shot__metric-head">
+                <h2 class="lp-metric-table__title">{{ 'landing.shot.cost_per_finished_card'|trans }}</h2>
+                <div class="lp-metric-save">
+                    <div class="lp-metric-save__name"><div class="lp-input lp-input--compact">{{ 'landing.shot.cost_per_card'|trans }}</div></div>
+                    <span class="{{ ds_button_class('primary', 'sm') }}">{{ ux_icon('lucide:bookmark', {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}{{ 'analytics.metrics.save.button'|trans }}</span>
+                </div>
+            </div>
+            {{ chart.line([4.9, 4.6, 4.8, 4.4, 4.5, 4.3, 4.4, 4.2], [], [0, 2, 4, 6], ['Sep 14', 'Sep 28', 'Oct 12', 'Oct 26']) }}
+        </section>
+    </div>
+</div>

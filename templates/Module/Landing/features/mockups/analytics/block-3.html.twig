@@ -1,0 +1,11 @@
+{% import '@Landing/features/mockups/analytics/_chart.html.twig' as chart %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-dashboard-grid">
+            {{ chart.tile('landing.shot.cost_per_card'|trans, 'analytics.metrics.compare.previous'|trans, 'full',
+                chart.number('$4.20', '↓', '12%', 'bridge.experiments.goal.state.clear'|trans, '$4.77')) }}
+            {{ chart.tile('landing.shot.hours_to_merge'|trans, 'analytics.metrics.compare.previous'|trans, 'full',
+                chart.number('6.5', '↑', '7%', 'bridge.experiments.goal.state.not_clear'|trans, '6.1', 'not-clear-yet')) }}
+        </div>
+    </div>
+</div>

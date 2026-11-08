@@ -1,0 +1,14 @@
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-card-overview lp-shot__section">
+            <section class="lp-card-overview__section">
+                    <twig:Ds:SectionHeading>{{ 'workflow.panel.title'|trans }}</twig:Ds:SectionHeading>
+                    <dl class="lp-card-fields">
+                        <div class="lp-card-field"><dt>{{ 'workflow.panel.slot.label'|trans }}</dt><dd>{{ 'workflow.slot.tech_design'|trans }}</dd></div>
+                        <div class="lp-card-field lp-card-field--prose"><dt>{{ 'workflow.panel.next_action'|trans }}</dt><dd>{{ 'workflow.panel.action.move'|trans({'%slot%': 'workflow.slot.implementation'|trans}) }}</dd></div>
+                        <div class="lp-card-field lp-card-field--wide lp-card-field--prose"><dt>{{ 'workflow.panel.waiting'|trans }}</dt><dd>{{ 'workflow.waiting.card_document_approved'|trans({'%tag%': 'tech-design'}) }}</dd></div>
+                    </dl>
+                </section>
+        </div>
+    </div>
+</div>

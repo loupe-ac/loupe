@@ -1,0 +1,84 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/inbox/_parts.html.twig' as inbox %}
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('inbox') }}
+            <div class="lp-shot__main">
+                {{ shot.topbar(['inbox.page.title'|trans]) }}
+                <div class="lp-shot__page lp-split-page lp-workspace lp-workspace--full lp-needs-you lp-core-prototype-page lp-core-inbox">
+                    <section class="lp-inbox-section lp-inbox-section--queue lp-split-region">
+                        <div class="lp-split-view lp-inbox-split">
+                            <div class="lp-inbox-request-list lp-split-pane">
+                                <div class="lp-inbox-list-head">
+                                    <nav class="lp-tabs lp-tabs--segmented">
+                                        <span class="lp-tabs__tab" aria-current="page">{{ 'inbox.view.open'|trans({'%count%': 3}) }}</span>
+                                        <span class="lp-tabs__tab">{{ 'inbox.view.closed'|trans }}</span>
+                                    </nav>
+                                    <div class="lp-list-filters">
+                                        <div class="lp-filter-form">
+                                            <div class="lp-filter-search">
+                                                {{ ux_icon('lucide:search', {class: 'lp-filter-search__icon', 'aria-hidden': 'true'}) }}
+                                                <input class="lp-input lp-filter-input" type="search" tabindex="-1" readonly placeholder="{{ 'inbox.search.placeholder'|trans }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="lp-inbox-filter">
+                                        <span class="lp-inbox-filter__button lp-inbox-filter__button--all" aria-current="true">{{ 'inbox.filter.all'|trans }}</span>
+                                        <span class="lp-inbox-filter__button">{{ ux_icon('lucide:circle-help', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                                        <span class="lp-inbox-filter__button">{{ ux_icon('lucide:eye', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                                        <span class="lp-inbox-filter__button">{{ ux_icon('lucide:square-check-big', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                                        <span class="lp-inbox-filter__button">{{ ux_icon('lucide:hourglass', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                                        <span class="lp-inbox-filter__button">{{ ux_icon('lucide:workflow', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                                    </div>
+                                </div>
+                                <div class="lp-inbox-rows">
+                                    {{ inbox.row('question', 'landing.shot.which_test_should_the_checkout_fix'|trans, '<span>#40</span><span aria-hidden="true">·</span> <time>2m</time>', true, null, true) }}
+                                    {{ inbox.row('review', 'landing.shot.product_design_seasonal_rates'|trans, '<span>#45</span><span aria-hidden="true">·</span> <time>1h</time>', false, 'Document "Seasonal rates"', true) }}
+                                    {{ inbox.row('todo', 'landing.shot.add_the_payment_key_to_the'|trans, '<span>#38</span><span aria-hidden="true">·</span> <time>1d</time>', false, null, false) }}
+                                </div>
+                            </div>
+                            <div class="lp-inbox-request-detail lp-split-pane">
+                                <section class="lp-inbox-ask">
+                                    <div class="lp-inbox-ask__main">
+                                        {{ inbox.head('landing.shot.which_test_should_the_checkout_fix'|trans) }}
+                                        <div class="lp-inbox-ask__message">
+                                            <div class="prose lp-prose lp-inbox-ask__context"><p>{{ 'Working on the checkout fix. I need one decision before I go on.' }}</p></div>
+                                        </div>
+                                        <div class="lp-inbox-ask__items">
+                                            <article class="lp-inbox-item">
+                                                <div class="lp-inbox-thread">
+                                                    <ul class="lp-inbox-thread__messages">
+                                                        {{ inbox.message('inbox.thread.agent'|trans, 'inbox.thread.asked'|trans({'%time%': 'landing.shot.2m_ago'|trans}), 'landing.shot.two_tests_cover_the_same_payment'|trans) }}
+                                                    </ul>
+                                                    <div class="lp-inbox-item__actions">
+                                                        <div class="lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply lp-inbox-answer">
+                                                            <fieldset class="lp-decision lp-decision--inbox" data-decision-type="single">
+                                                                <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ 'inbox.answer.pick_one'|trans }}</span></legend>
+                                                                <span class="lp-decision__clear">{{ 'inbox.answer.clear'|trans }}</span>
+                                                                <div class="lp-decision__options">
+                                                                    <div class="lp-decision__option"><input type="radio" tabindex="-1" id="shot-hero-option-0" checked><label for="shot-hero-option-0">{{ 'landing.shot.keep_the_new_test_drop_the'|trans }}</label></div>
+                                                                    <div class="lp-decision__option"><input type="radio" tabindex="-1" id="shot-hero-option-1"><label for="shot-hero-option-1">{{ 'landing.shot.keep_both_and_fix_the_retry'|trans }}</label></div>
+                                                                </div>
+                                                                <div class="lp-decision__note"><textarea class="lp-decision__note-field" rows="2" tabindex="-1" readonly placeholder="{{ 'inbox.answer.placeholder'|trans }}"></textarea></div>
+                                                            </fieldset>
+                                                            <div class="lp-comment-composer__actions">
+                                                                <span class="lp-form-hint inbox-split__hint">{{ 'inbox.answer.final_hint'|trans }}</span>
+                                                                <span class="{{ ds_button_class('ghost', 'sm') }}">{{ 'inbox.action.dismiss.label'|trans }}</span>
+                                                                {{ inbox.split('inbox.action.answer.label'|trans, '') }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

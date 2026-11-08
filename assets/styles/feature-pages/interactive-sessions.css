@@ -1,0 +1,44 @@
+/* Pictures of the interactive-sessions feature page. They imitate Claude Code. */
+@layer components {
+    .lp-shot__session {
+        @apply gap-3;
+    }
+    .lp-shot__session-banner {
+        @apply rounded-md border border-accent px-3 py-2 text-chrome-fg;
+    }
+    .lp-shot__session-star {
+        @apply text-accent;
+    }
+    .lp-shot__session-dim {
+        @apply text-chrome-dim;
+    }
+    .lp-shot__session-prompt {
+        @apply rounded-md border border-chrome-line px-3 py-1.5 text-chrome-fg;
+    }
+    .lp-shot__session-call::before,
+    .lp-shot__session-reply::before {
+        content: '⏺ ';
+    }
+    .lp-shot__session-call::before {
+        @apply text-status-ok;
+    }
+    .lp-shot__session-call {
+        @apply font-semibold text-chrome-fg;
+    }
+    .lp-shot__session-result {
+        @apply text-chrome-mute;
+    }
+    .lp-shot__session-result::before {
+        content: '  ⎿  ';
+        @apply text-chrome-dim;
+    }
+    .lp-shot__session-choice {
+        @apply whitespace-pre pl-4 text-chrome-mute;
+    }
+    .lp-shot__session-choice--picked {
+        @apply text-accent;
+    }
+    .lp-shot__session-pointer {
+        @apply inline-block w-4;
+    }
+}

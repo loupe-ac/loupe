@@ -1,0 +1,53 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/analytics/_chart.html.twig' as chart %}
+{% set line_tile %}{{ chart.line([4.9, 4.6, 4.8, 4.4, 4.5, 4.3, 4.4, 4.2], [4.6, 4.9, 4.7, 4.8, 4.9, 4.6, 4.7, 4.5], [0, 2, 4, 6], ['Sep 14', 'Sep 28', 'Oct 12', 'Oct 26']) }}{% endset %}
+{% set cost_tile %}{{ chart.number('$4.20', '↓', '12%', 'bridge.experiments.goal.state.clear'|trans, '$4.77') }}{% endset %}
+{% set merge_tile %}{{ chart.number('92%', '↑', '4%', 'bridge.experiments.goal.state.clear'|trans, '88%') }}{% endset %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('analytics') }}
+            <div class="lp-shot__main">
+                {{ shot.topbar(['analytics.page.title'|trans]) }}
+                <div class="lp-shot__page lp-workspace lp-redesign-secondary lp-redesign-runs">
+                    <header class="lp-orchestration-header">
+                        <div>
+                            <h1 class="lp-workspace-title">{{ 'analytics.page.title'|trans }}</h1>
+                            <p class="lp-workspace-desc">{{ 'analytics.description'|trans }}</p>
+                        </div>
+                    </header>
+                    <nav class="lp-tabs lp-analytics-tabs">
+                        <span class="lp-tabs__tab" aria-current="page">{{ 'analytics.tabs.dashboard'|trans }}</span>
+                        <span class="lp-tabs__tab">{{ 'analytics.tabs.metrics'|trans }}</span>
+                        <span class="lp-tabs__tab">{{ 'analytics.tabs.experiments'|trans }}</span>
+                        <span class="lp-tabs__tab">{{ 'analytics.tabs.reports'|trans }}</span>
+                        <span class="lp-tabs__tab">{{ 'analytics.tabs.time_buckets'|trans }}</span>
+                    </nav>
+                    <div class="lp-dashboard-grid">
+                        {{ chart.tile('landing.shot.cost_per_finished_card'|trans, [
+                            'analytics.metrics.unit.card'|trans,
+                            'analytics.metrics.statistic.median'|trans,
+                            'analytics.metrics.range.ninety-days'|trans,
+                            'analytics.metrics.bucket.week'|trans,
+                            'analytics.metrics.chart_type.line'|trans,
+                        ]|join(' · '), 'full', line_tile) }}
+                        {{ chart.tile('landing.shot.cost_per_card'|trans, [
+                            'analytics.metrics.unit.card'|trans,
+                            'analytics.metrics.statistic.median'|trans,
+                            'analytics.metrics.range.thirty-days'|trans,
+                            'analytics.metrics.bucket.week'|trans,
+                            'analytics.metrics.chart_type.number'|trans,
+                        ]|join(' · '), 'half', cost_tile) }}
+                        {{ chart.tile('landing.shot.merge_rate'|trans, [
+                            'analytics.metrics.unit.card'|trans,
+                            'analytics.metrics.statistic.mean'|trans,
+                            'analytics.metrics.range.thirty-days'|trans,
+                            'analytics.metrics.bucket.week'|trans,
+                            'analytics.metrics.chart_type.number'|trans,
+                        ]|join(' · '), 'half', merge_tile) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

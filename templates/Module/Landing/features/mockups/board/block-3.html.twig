@@ -1,0 +1,69 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% macro open_button() %}<span class="{{ ds_button_class('ghost open') }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span>{{ ux_icon('lucide:chevron-right', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>{% endmacro %}
+{% macro chip(modifier, label) %}<span class="lp-status-chip lp-status-chip--{{ modifier }}"><span class="lp-status-chip__dot"></span>{{ label }}</span>{% endmacro %}
+{% import _self as part %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__drawer lp-card-drawer-overlay">
+        <div class="lp-card-drawer">
+            <header class="lp-card-drawer__header">
+                <div class="lp-card-drawer__identity">
+                    <span class="lp-card-drawer__icon">{{ ux_icon('lucide:layout-list', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                    <span class="lp-card-number">{{ '#31' }}</span>
+                    <span class="lp-tag lp-tag--lime">{{ 'landing.shot.feature'|trans }}</span>
+                    <span class="lp-tag lp-tag--green">{{ 'landing.shot.done'|trans }}</span>
+                </div>
+                <div class="lp-card-drawer__header-actions">
+                    <span class="{{ ds_button_class('ghost') }}">{{ ux_icon('lucide:pencil', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.edit.action'|trans }}</span>
+                    <span class="{{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:x', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+                </div>
+            </header>
+            <div class="lp-card-drawer__body">
+                <h1 class="lp-card-drawer__title">{{ 'landing.shot.make_cabin_search_faster'|trans }}</h1>
+                <div class="lp-tabs">
+                    <span class="lp-tabs__tab" aria-selected="true">{{ 'board.card.tab.overview'|trans }}</span>
+                    <span class="lp-tabs__tab" aria-selected="false">{{ 'board.card.tab.details'|trans }}</span>
+                    <span class="lp-tabs__tab" aria-selected="false">{{ 'board.card.tab.conversation'|trans }}</span>
+                    <span class="lp-tabs__tab" aria-selected="false">{{ 'board.card.tab.feedback'|trans }}</span>
+                    <span class="lp-tabs__tab" aria-selected="false">{{ 'board.card.tab.history'|trans }}</span>
+                </div>
+                <div class="lp-card-overview">
+                    <section class="lp-card-docs lp-card-pulls lp-card-overview__section">
+                        <div class="lp-inbox-linked-table-wrap">
+                            <table class="lp-inbox-linked-table">
+                                <caption>{{ 'board.card.linked_work.title'|trans }}</caption>
+                                <thead><tr><th>{{ 'inbox.linked_items.item'|trans }}</th><th>{{ 'inbox.linked_items.status'|trans }}</th><th></th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="lp-inbox-linked-table__type">{{ ux_icon('lucide:file-text', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'inbox.linked_items.document'|trans }}</span><strong>{{ 'Tech design: cabin search' }}</strong></td>
+                                        <td><span class="lp-tag">{{ 'document.status.approved'|trans }}</span></td>
+                                        <td>{{ part.open_button() }}</td>
+                                    </tr>
+                                    <tr class="lp-card-pulls__item">
+                                        <td><span class="lp-inbox-linked-table__type">{{ ux_icon('lucide:git-pull-request', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.link.pull_request'|trans }}</span><strong>{{ 'driftwood/cabins #104' }}</strong></td>
+                                        <td><span class="lp-pull-request-state">{{ part.chip('ok', 'board.card.link.state.merged'|trans) }}</span></td>
+                                        <td>{{ part.open_button() }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section class="lp-card-overview__section">
+                        <div class="lp-inbox-linked-table-wrap">
+                            <table class="lp-inbox-linked-table">
+                                <caption>{{ 'board.card.artifacts.title'|trans }}</caption>
+                                <thead><tr><th>{{ 'inbox.linked_items.item'|trans }}</th><th>{{ 'board.card.artifacts.version'|trans }}</th><th></th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="lp-inbox-linked-table__type">{{ ux_icon('lucide:app-window', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.artifacts.type'|trans }}</span><strong>{{ 'Prototype: search filters' }}</strong></td>
+                                        <td><span class="lp-tag">{{ 'board.card.artifacts.latest_version'|trans({'%number%': 2}) }}</span></td>
+                                        <td>{{ part.open_button() }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

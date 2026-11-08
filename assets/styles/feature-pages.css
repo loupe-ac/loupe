@@ -1,0 +1,199 @@
+/* The public feature pages and the pictures on them. The Twig partials under
+   `templates/Module/Landing/features/` use these classes. */
+@layer components {
+    /* The dark hero of a feature page. It sits on `lp-home-hero`, which adds the light band under the picture. */
+    .lp-feature-hero {
+        @apply pb-0;
+    }
+    .lp-feature-hero__copy {
+        @apply py-12;
+    }
+    .lp-feature-hero__label {
+        @apply font-mono text-xs uppercase tracking-widest text-chrome-mute;
+    }
+    .lp-feature-hero__actions {
+        @apply flex flex-wrap justify-center gap-3;
+    }
+    .lp-feature-hero__stage {
+        @apply relative z-10 pb-0;
+    }
+    /* The hero picture hangs over the section that follows. */
+    .lp-feature-hero__shot {
+        @apply relative min-w-0 -mb-20 sm:-mb-50;
+    }
+
+    /* The blocks start below the overhang of the hero picture. */
+    .lp-feature-blocks {
+        @apply pt-44 pb-20 sm:pt-74 md:pb-28;
+    }
+    .lp-feature-blocks__list {
+        @apply flex flex-col gap-20 md:gap-24;
+    }
+    .lp-feature-block {
+        @apply grid items-center gap-8 md:grid-cols-2 md:gap-12;
+    }
+    .lp-feature-block > * {
+        @apply min-w-0;
+    }
+    .lp-feature-block--flip .lp-feature-block__shot {
+        @apply md:order-first;
+    }
+    .lp-feature-block__title {
+        @apply font-display font-extrabold tracking-tighter text-ink m-0 mb-3 text-3xl leading-tight sm:text-4xl;
+    }
+    .lp-feature-block__text {
+        @apply m-0 max-w-xl text-lg leading-relaxed text-fg-mute;
+    }
+
+    .lp-feature-more {
+        @apply py-20 md:py-28 bg-surface-1 border-y border-line;
+    }
+    .lp-feature-more__tiles {
+        @apply mt-8;
+    }
+
+    /* A tile that is one link: the whole tile is the click target and takes the focus ring. */
+    .lp-feature-tile {
+        @apply no-underline transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+
+    /* The /features index. */
+    .lp-feature-index {
+        @apply py-16 md:py-24;
+    }
+    .lp-feature-index__lead {
+        @apply m-0 mb-12 max-w-2xl text-lg leading-relaxed text-fg-mute;
+    }
+
+    /* ── Pictures (lp-shot) ─────────────────────────────────────────────
+       Simplified drawings of the app screens. The canvas keeps a minimum
+       width, so a narrow screen crops the right edge like a screenshot. */
+    .lp-shot {
+        @apply relative block overflow-hidden rounded-xl bg-surface-1 text-left text-xs leading-snug text-fg shadow-2xl;
+    }
+    .lp-shot--dark {
+        @apply bg-chrome font-mono text-chrome-fg;
+    }
+    .lp-shot__canvas {
+        @apply flex min-w-sm flex-col;
+    }
+    .lp-shot__canvas--wide {
+        @apply min-w-3xl sm:min-h-112;
+    }
+    .lp-shot__canvas--panel {
+        @apply gap-3 bg-app p-4;
+    }
+
+    /* The app shell: the dark sidebar and the page beside it. */
+    .lp-shot__app {
+        @apply flex min-h-0;
+    }
+    .lp-shot__sidebar {
+        @apply flex shrink-0 bg-sidebar;
+    }
+    .lp-shot__sidebar .lp-sidebar {
+        @apply pt-5;
+    }
+    .lp-shot__main {
+        @apply flex min-w-0 flex-1 flex-col bg-app;
+    }
+    .lp-shot__page {
+        @apply min-w-0 flex-1 bg-surface-1;
+    }
+    .lp-shot__topbar {
+        @apply lg:px-7.5;
+    }
+    .lp-shot__search {
+        @apply relative flex w-60 items-center gap-2 rounded-lg border border-line-field bg-field px-3 py-2 text-sm text-fg-dim;
+    }
+    .lp-shot__top {
+        @apply flex items-center gap-2 border-b border-line bg-surface-1 px-4 py-2.5;
+    }
+
+    /* Small building blocks. */
+    .lp-shot__row {
+        @apply flex items-center gap-2;
+    }
+    .lp-shot__row--between {
+        @apply justify-between;
+    }
+    .lp-shot__grow {
+        @apply min-w-0 flex-1;
+    }
+    .lp-shot__strong {
+        @apply font-semibold text-ink;
+    }
+    .lp-shot__text {
+        @apply m-0 text-xs leading-relaxed text-fg-mute;
+    }
+    .lp-shot__dim {
+        @apply text-fg-dim;
+    }
+
+    /* The state mark is the app's own icon. A picture shows it still. */
+    .lp-shot .lp-state-mark__icon {
+        @apply cursor-default;
+    }
+    .lp-shot .lp-state-mark--working .lp-state-mark__glyph {
+        @apply animate-none;
+    }
+
+    /* Terminal */
+    .lp-shot__terminal-bar {
+        @apply flex items-center gap-1.5 border-b border-chrome-line px-3 py-2 text-chrome-dim;
+    }
+    .lp-shot__terminal-bar i {
+        @apply size-2.5 rounded-full bg-chrome-control;
+    }
+    .lp-shot__terminal-bar span {
+        @apply mx-auto;
+    }
+    .lp-shot__terminal-body {
+        @apply flex flex-col gap-2.5 p-4 leading-relaxed;
+    }
+
+    /* Document review */
+    .lp-shot__doc {
+        @apply flex min-w-0 flex-1 gap-4 p-4;
+    }
+    .lp-shot__anchor {
+        @apply rounded-sm border-b-2 border-review-anchor-line bg-review-anchor px-0.5;
+    }
+
+    /* Inbox */
+    .lp-shot__phone {
+        @apply mx-auto flex w-60 flex-col gap-3 rounded-2xl border border-line-strong bg-surface-3 p-3 shadow-xl;
+    }
+    .lp-shot__notification {
+        @apply flex items-start gap-2.5 rounded-xl bg-surface-1 p-3 shadow-sm;
+    }
+
+    /* Live review: the customer's own site, with the widget on top. */
+    .lp-shot__site {
+        @apply relative flex flex-1 flex-col gap-4 bg-warm p-4;
+    }
+    .lp-shot__site-head {
+        @apply flex items-center gap-4 font-display text-sm font-extrabold tracking-tight text-ink;
+    }
+    .lp-shot__site-links {
+        @apply ml-auto flex gap-3 font-sans text-xs font-medium text-fg-mute;
+    }
+    .lp-shot__cabins {
+        @apply grid grid-cols-3 gap-3;
+    }
+    .lp-shot__cabin {
+        @apply flex flex-col gap-1 rounded-lg border border-line-warm bg-surface-1 p-2.5;
+    }
+    .lp-shot__cabin-photo {
+        @apply mb-1 h-16 rounded-md bg-tone-teal-bg;
+    }
+    .lp-shot__cabin-photo--sky {
+        @apply bg-tone-sky-bg;
+    }
+    .lp-shot__cabin-photo--orange {
+        @apply bg-tone-orange-bg;
+    }
+    .lp-shot__scribble {
+        @apply absolute -inset-1.5 rounded-full border-2 border-status-danger;
+    }
+}

@@ -1,0 +1,6 @@
+/* Pictures of the workflow-rules feature page. */
+@layer components {
+    .lp-shot__section {
+        @apply min-w-sm rounded-xl border border-line bg-surface-1 p-5;
+    }
+}

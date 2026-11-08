@@ -4886,6 +4886,18 @@
                 <source>landing.nav.go_to_app</source>
                 <target>Go to app</target>
             </trans-unit>
+            <trans-unit id="landing.nav.menu">
+                <source>landing.nav.menu</source>
+                <target>Menu</target>
+            </trans-unit>
+            <trans-unit id="landing.features_menu.lead">
+                <source>landing.features_menu.lead</source>
+                <target>Everything the factory does, from the first card to the merged pull request.</target>
+            </trans-unit>
+            <trans-unit id="landing.features_menu.all">
+                <source>landing.features_menu.all</source>
+                <target>See every feature</target>
+            </trans-unit>
             <trans-unit id="landing.hero.title_before">
                 <source>landing.hero.title_before</source>
                 <target>From ideas to </target>
@@ -4986,381 +4998,489 @@
                 <source>landing.features.next</source>
                 <target>Next feature</target>
             </trans-unit>
-            <trans-unit id="landing.features.board.title">
-                <source>landing.features.board.title</source>
+            <trans-unit id="landing.features.learn_more">
+                <source>landing.features.learn_more</source>
+                <target>Learn more →</target>
+            </trans-unit>
+            <trans-unit id="landing.features.see_how">
+                <source>landing.features.see_how</source>
+                <target>See how it works →</target>
+            </trans-unit>
+            <trans-unit id="landing.features.index_title">
+                <source>landing.features.index_title</source>
+                <target>Features</target>
+            </trans-unit>
+            <trans-unit id="landing.features.index_lead">
+                <source>landing.features.index_lead</source>
+                <target>Everything the factory does, from the first card to the merged pull request. Pick a feature to see it in the real app.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.index_description">
+                <source>landing.features.index_description</source>
+                <target>The features of Loupe, a software factory for coding agents: board, workflow rules, sessions, document review, inbox, agent review, live review and analytics.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.page.docs">
+                <source>landing.features.page.docs</source>
+                <target>Read the docs</target>
+            </trans-unit>
+            <trans-unit id="landing.features.page.more_title">
+                <source>landing.features.page.more_title</source>
+                <target>More of the factory</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1_every_visitor_before_they_pick">
+                <source>landing.shot.1_every_visitor_before_they_pick</source>
+                <target>1. Every visitor, before they pick dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1_hide_the_price_and_show">
+                <source>landing.shot.1_hide_the_price_and_show</source>
+                <target>1. Hide the price and show "Ask us"</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1h_ago">
+                <source>landing.shot.1h_ago</source>
+                <target>1h ago</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_only_visitors_who_picked_dates">
+                <source>landing.shot.2_only_visitors_who_picked_dates</source>
+                <target>2. Only visitors who picked dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_show_the_nearest_available_dates">
+                <source>landing.shot.2_show_the_nearest_available_dates</source>
+                <target>2. Show the nearest available dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2m_ago">
+                <source>landing.shot.2m_ago</source>
+                <target>2m ago</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_signed_in_guests_only">
+                <source>landing.shot.3_signed_in_guests_only</source>
+                <target>3. Signed-in guests only</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_something_else">
+                <source>landing.shot.3_something_else</source>
+                <target>3. Something else</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_booking_that_is_already_paid">
+                <source>landing.shot.a_booking_that_is_already_paid</source>
+                <target>A booking that is already paid keeps</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_percent_on_top_of_the">
+                <source>landing.shot.a_percent_on_top_of_the</source>
+                <target>A percent on top of the base rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_rate_table_per_season">
+                <source>landing.shot.a_rate_table_per_season</source>
+                <target>A rate table per season</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_booking_calendar">
+                <source>landing.shot.add_a_booking_calendar</source>
+                <target>Add a booking calendar</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_peak_season_rate_table">
+                <source>landing.shot.add_a_peak_season_rate_table</source>
+                <target>Add a peak-season rate table</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_the_payment_key_to_the">
+                <source>landing.shot.add_the_payment_key_to_the</source>
+                <target>Add the payment key to the build server</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.and_the_booking_page_shows_the">
+                <source>landing.shot.and_the_booking_page_shows_the</source>
+                <target>, and the booking page shows the new total at once.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.book_now">
+                <source>landing.shot.book_now</source>
+                <target>Book now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.bug">
+                <source>landing.shot.bug</source>
+                <target>Bug</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.build_card_38_with_me">
+                <source>landing.shot.build_card_38_with_me</source>
+                <target>Build card 38 with me</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cabins">
+                <source>landing.shot.cabins</source>
+                <target>Cabins</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.can_an_override_apply_to_a">
+                <source>landing.shot.can_an_override_apply_to_a</source>
+                <target>Can an override apply to a range of nights, not only one?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.card_38_moved_to_implementation_no">
+                <source>landing.shot.card_38_moved_to_implementation_no</source>
+                <target>Card #38 moved to Implementation. No background agent runs on it.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cedar_retreat">
+                <source>landing.shot.cedar_retreat</source>
+                <target>Cedar Retreat</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.contact">
+                <source>landing.shot.contact</source>
+                <target>Contact</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cost_per_card">
+                <source>landing.shot.cost_per_card</source>
+                <target>Cost per card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cost_per_finished_card">
+                <source>landing.shot.cost_per_finished_card</source>
+                <target>Cost per finished card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.done">
+                <source>landing.shot.done</source>
+                <target>Done</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.driftwood">
+                <source>landing.shot.driftwood</source>
+                <target>Driftwood</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.email_guests_a_check_in_guide">
+                <source>landing.shot.email_guests_a_check_in_guide</source>
+                <target>Email guests a check-in guide</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.feature">
+                <source>landing.shot.feature</source>
+                <target>Feature</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fix_the_broken_map_pin">
+                <source>landing.shot.fix_the_broken_map_pin</source>
+                <target>Fix the broken map pin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.for_a_single_night">
+                <source>landing.shot.for_a_single_night</source>
+                <target>for a single night</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.for_one_night_or_a_range">
+                <source>landing.shot.for_one_night_or_a_range</source>
+                <target>for one night or a range of nights</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.got_it_i_wrote_the_design">
+                <source>landing.shot.got_it_i_wrote_the_design</source>
+                <target>Got it. I wrote the design and sent it for review. The card waits for you in Product design.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.guides">
+                <source>landing.shot.guides</source>
+                <target>Guides</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.hours_to_merge">
+                <source>landing.shot.hours_to_merge</source>
+                <target>Hours to merge</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.how_are_peak_prices_set">
+                <source>landing.shot.how_are_peak_prices_set</source>
+                <target>How are peak prices set?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.i_read_the_card_and_the">
+                <source>landing.shot.i_read_the_card_and_the</source>
+                <target>I read the card and the booking page. One question first: who sees the nightly price?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.implementation">
+                <source>landing.shot.implementation</source>
+                <target>Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.implementation_agent">
+                <source>landing.shot.implementation_agent</source>
+                <target>Implementation agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.in_review">
+                <source>landing.shot.in_review</source>
+                <target>In review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.june_to_august">
+                <source>landing.shot.june_to_august</source>
+                <target>June to August</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.keep_both_and_fix_the_retry">
+                <source>landing.shot.keep_both_and_fix_the_retry</source>
+                <target>Keep both and fix the retry</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.keep_the_new_test_drop_the">
+                <source>landing.shot.keep_the_new_test_drop_the</source>
+                <target>Keep the new test, drop the old one</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.lakeview_a_frame">
+                <source>landing.shot.lakeview_a_frame</source>
+                <target>Lakeview A-Frame</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.let_owners_override_a_rate">
+                <source>landing.shot.let_owners_override_a_rate</source>
+                <target>Let owners override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.make_cabin_search_faster">
+                <source>landing.shot.make_cabin_search_faster</source>
+                <target>Make cabin search faster</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.make_checkout_safer">
+                <source>landing.shot.make_checkout_safer</source>
+                <target>Make checkout safer</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.may_to_september">
+                <source>landing.shot.may_to_september</source>
+                <target>May to September</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.maya_chen">
+                <source>landing.shot.maya_chen</source>
+                <target>Maya Chen</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge">
+                <source>landing.shot.merge</source>
+                <target>Merge</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge_rate">
+                <source>landing.shot.merge_rate</source>
+                <target>Merge rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.model_a">
+                <source>landing.shot.model_a</source>
+                <target>Model A</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.model_b">
+                <source>landing.shot.model_b</source>
+                <target>Model B</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.now">
+                <source>landing.shot.now</source>
+                <target>now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.open">
+                <source>landing.shot.open</source>
+                <target>Open</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.opened_pull_request_118_linked_to">
+                <source>landing.shot.opened_pull_request_118_linked_to</source>
+                <target>Opened pull request #118, linked to card #38</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_can_override_a_rate">
+                <source>landing.shot.owners_can_override_a_rate</source>
+                <target>. Owners can override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_can_override_a_rate_for">
+                <source>landing.shot.owners_can_override_a_rate_for</source>
+                <target>Owners can override a rate for a single night</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_set_a_nightly_rate_for">
+                <source>landing.shot.owners_set_a_nightly_rate_for</source>
+                <target>Owners set a nightly rate for each season. A guest sees the rate for the nights they picked, and the total before they pay.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_rates_apply_from">
+                <source>landing.shot.peak_rates_apply_from</source>
+                <target>Peak rates apply from</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_rates_apply_from_june_to">
+                <source>landing.shot.peak_rates_apply_from_june_to</source>
+                <target>Peak rates apply from June to August.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_season">
+                <source>landing.shot.peak_season</source>
+                <target>Peak season</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.pine_hollow_cabin">
+                <source>landing.shot.pine_hollow_cabin</source>
+                <target>Pine Hollow Cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.preview_the_price_at_booking">
+                <source>landing.shot.preview_the_price_at_booking</source>
+                <target>Preview the price at booking</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.price_is_cut_off_on_small">
+                <source>landing.shot.price_is_cut_off_on_small</source>
+                <target>Price is cut off on small screens.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.prices_from_a_booking_service">
+                <source>landing.shot.prices_from_a_booking_service</source>
+                <target>Prices from a booking service</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design">
+                <source>landing.shot.product_design</source>
+                <target>Product design</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_seasonal_rates">
+                <source>landing.shot.product_design_seasonal_rates</source>
+                <target>Product design: seasonal rates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_written_review_it_in">
+                <source>landing.shot.product_design_written_review_it_in</source>
+                <target>Product design written. Review it in Loupe when you are ready.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.round_prices_to_whole_dollars">
+                <source>landing.shot.round_prices_to_whole_dollars</source>
+                <target>Round prices to whole dollars</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.run_opened_card_42_shows_as">
+                <source>landing.shot.run_opened_card_42_shows_as</source>
+                <target>Run opened. Card #42 shows as working.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.seasonal_rates">
+                <source>landing.shot.seasonal_rates</source>
+                <target>Seasonal rates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.show_guest_reviews_on_each_cabin">
+                <source>landing.shot.show_guest_reviews_on_each_cabin</source>
+                <target>Show guest reviews on each cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.show_the_nightly_price_on_the">
+                <source>landing.shot.show_the_nightly_price_on_the</source>
+                <target>Show the nightly price on the cabin page</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_2_hot_tub">
+                <source>landing.shot.sleeps_2_hot_tub</source>
+                <target>Sleeps 2, hot tub</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_4_lake_view">
+                <source>landing.shot.sleeps_4_lake_view</source>
+                <target>Sleeps 4, lake view</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_6_fire_pit">
+                <source>landing.shot.sleeps_6_fire_pit</source>
+                <target>Sleeps 6, fire pit</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_current_rate">
+                <source>landing.shot.the_current_rate</source>
+                <target>the current rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_and_the_button_should">
+                <source>landing.shot.the_price_and_the_button_should</source>
+                <target>The price and the button should sit together.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_should_say_per_night">
+                <source>landing.shot.the_price_should_say_per_night</source>
+                <target>The price should say per night.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_rate_it_was_sold_at">
+                <source>landing.shot.the_rate_it_was_sold_at</source>
+                <target>the rate it was sold at</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.two_tests_cover_the_same_payment">
+                <source>landing.shot.two_tests_cover_the_same_payment</source>
+                <target>Two tests cover the same payment error. The old one expects a retry. The new one expects a message.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.what_should_a_guest_see_when">
+                <source>landing.shot.what_should_a_guest_see_when</source>
+                <target>What should a guest see when a cabin has no price for the dates they picked?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.which_test_should_the_checkout_fix">
+                <source>landing.shot.which_test_should_the_checkout_fix</source>
+                <target>Which test should the checkout fix keep?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_draw">
+                <source>landing.shot.widget_draw</source>
+                <target>Draw</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_element">
+                <source>landing.shot.widget_element</source>
+                <target>Element</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_finish_review">
+                <source>landing.shot.widget_finish_review</source>
+                <target>Finish review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_note">
+                <source>landing.shot.widget_note</source>
+                <target>Note</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_on_this_page">
+                <source>landing.shot.widget_on_this_page</source>
+                <target>On this page</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.widget_review">
+                <source>landing.shot.widget_review</source>
+                <target>Review</target>
+            </trans-unit>
+            <trans-unit id="landing.features.board.name">
+                <source>landing.features.board.name</source>
                 <target>Board</target>
             </trans-unit>
             <trans-unit id="landing.features.board.text">
                 <source>landing.features.board.text</source>
-                <target>See every card, its stage and its state: working, waiting, stuck or needs you. Epics get their own lane, and each card links its documents and prototypes.</target>
+                <target>See every card, its stage and whether it needs you.</target>
             </trans-unit>
             <trans-unit id="landing.features.board.caption">
                 <source>landing.features.board.caption</source>
-                <target>Every card, its stage and its state at a glance.</target>
+                <target>Know which card needs you.</target>
             </trans-unit>
-            <trans-unit id="landing.features.workflow_rules.title">
-                <source>landing.features.workflow_rules.title</source>
+            <trans-unit id="landing.features.workflow_rules.name">
+                <source>landing.features.workflow_rules.name</source>
                 <target>Workflow rules</target>
             </trans-unit>
             <trans-unit id="landing.features.workflow_rules.text">
                 <source>landing.features.workflow_rules.text</source>
-                <target>Rules decide when a card moves, which work it needs and where it waits for a person.</target>
+                <target>Cards move through each stage, and wait where you decide.</target>
             </trans-unit>
             <trans-unit id="landing.features.workflow_rules.caption">
                 <source>landing.features.workflow_rules.caption</source>
-                <target>Rules move the cards and stop where a person decides.</target>
+                <target>The right agent starts at every stage.</target>
             </trans-unit>
-            <trans-unit id="landing.features.sessions.title">
-                <source>landing.features.sessions.title</source>
+            <trans-unit id="landing.features.sessions.name">
+                <source>landing.features.sessions.name</source>
                 <target>Interactive sessions</target>
             </trans-unit>
             <trans-unit id="landing.features.sessions.text">
                 <source>landing.features.sessions.text</source>
-                <target>Take the wheel on any card. Work it through with the agent, and the card carries on from there.</target>
+                <target>Work a card with your agent in your terminal, then hand it back.</target>
             </trans-unit>
             <trans-unit id="landing.features.sessions.caption">
                 <source>landing.features.sessions.caption</source>
-                <target>Work a card through with the agent, then hand it back.</target>
+                <target>Take a card into your terminal. The board keeps up.</target>
             </trans-unit>
-            <trans-unit id="landing.features.document_review.title">
-                <source>landing.features.document_review.title</source>
+            <trans-unit id="landing.features.document_review.name">
+                <source>landing.features.document_review.name</source>
                 <target>Document review</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.text">
                 <source>landing.features.document_review.text</source>
-                <target>Product and tech designs arrive rendered, after a second agent has reviewed them. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
+                <target>Comment on each design before any code starts.</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.caption">
                 <source>landing.features.document_review.caption</source>
-                <target>Select any line. Comment on it, then approve or ask for changes.</target>
+                <target>Comment on the exact passage, then approve or ask for changes.</target>
             </trans-unit>
-            <trans-unit id="landing.features.inbox.title">
-                <source>landing.features.inbox.title</source>
+            <trans-unit id="landing.features.inbox.name">
+                <source>landing.features.inbox.name</source>
                 <target>Inbox</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, run a command on your machine, or pick it up yourself. A push to your phone or laptop tells you when a blocking question opens.</target>
+                <target>Questions, reviews and to-dos from your agents, in one list.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>
-                <target>Every question from every agent, in one list.</target>
+                <target>Answer any agent from one place.</target>
             </trans-unit>
-            <trans-unit id="landing.features.agent_review.title">
-                <source>landing.features.agent_review.title</source>
+            <trans-unit id="landing.features.agent_review.name">
+                <source>landing.features.agent_review.name</source>
                 <target>Agent review</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design. When the GitHub App is installed on the repository and the card does not require your review, the pull request approves itself once the agent review passes and the checks are green.</target>
+                <target>A second agent reviews each design and pull request before you do.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
                 <target>A second agent checks the change against your design.</target>
             </trans-unit>
-            <trans-unit id="landing.features.site_review.title">
-                <source>landing.features.site_review.title</source>
+            <trans-unit id="landing.features.site_review.name">
+                <source>landing.features.site_review.name</source>
                 <target>Live review</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.text">
                 <source>landing.features.site_review.text</source>
-                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card. Review an iOS app in the simulator the same way.</target>
+                <target>Click anything on your preview app, and the note lands on the card.</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.caption">
                 <source>landing.features.site_review.caption</source>
-                <target>Click anything on your preview app. The note lands on the card.</target>
+                <target>Point at the page. The agent gets the note.</target>
             </trans-unit>
-            <trans-unit id="landing.features.analytics.title">
-                <source>landing.features.analytics.title</source>
+            <trans-unit id="landing.features.analytics.name">
+                <source>landing.features.analytics.name</source>
                 <target>Analytics</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.text">
                 <source>landing.features.analytics.text</source>
-                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments, and a period with the one before.</target>
+                <target>See what each finished card costs, and whether a change is real.</target>
             </trans-unit>
             <trans-unit id="landing.features.analytics.caption">
                 <source>landing.features.analytics.caption</source>
-                <target>See what each finished card costs, and whether a change is real or noise.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.product_design">
-                <source>landing.slide.board.lane.product_design</source>
-                <target>Product design</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.implementation">
-                <source>landing.slide.board.lane.implementation</source>
-                <target>Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.in_review">
-                <source>landing.slide.board.lane.in_review</source>
-                <target>In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.done">
-                <source>landing.slide.board.lane.done</source>
-                <target>Done</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.nightly_price">
-                <source>landing.slide.board.card.nightly_price</source>
-                <target>Nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.booking_calendar">
-                <source>landing.slide.board.card.booking_calendar</source>
-                <target>Booking calendar</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.safer_checkout">
-                <source>landing.slide.board.card.safer_checkout</source>
-                <target>Safer checkout</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.guest_reviews">
-                <source>landing.slide.board.card.guest_reviews</source>
-                <target>Guest reviews</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.faster_search">
-                <source>landing.slide.board.card.faster_search</source>
-                <target>Faster search</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.needs_you">
-                <source>landing.slide.board.state.needs_you</source>
-                <target>Needs you</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.working">
-                <source>landing.slide.board.state.working</source>
-                <target>Working</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.stuck">
-                <source>landing.slide.board.state.stuck</source>
-                <target>Stuck</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.merged">
-                <source>landing.slide.board.state.merged</source>
-                <target>Merged</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.heading">
-                <source>landing.slide.rules.heading</source>
-                <target>Lifecycle rules</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.rule">
-                <source>landing.slide.rules.rule</source>
-                <target>Rule</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.applies">
-                <source>landing.slide.rules.applies</source>
-                <target>Applies in</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.action">
-                <source>landing.slide.rules.action</source>
-                <target>Action</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_tech_design">
-                <source>landing.slide.rules.column_tech_design</source>
-                <target>Tech design</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_implementation">
-                <source>landing.slide.rules.column_implementation</source>
-                <target>Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_in_review">
-                <source>landing.slide.rules.column_in_review</source>
-                <target>In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.any_column">
-                <source>landing.slide.rules.any_column</source>
-                <target>Any column</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_implementation">
-                <source>landing.slide.rules.move_to_implementation</source>
-                <target>Move to Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_in_review">
-                <source>landing.slide.rules.move_to_in_review</source>
-                <target>Move to In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.request_review">
-                <source>landing.slide.rules.request_review</source>
-                <target>Request work: review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_done">
-                <source>landing.slide.rules.move_to_done</source>
-                <target>Move to Done</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.card_title">
-                <source>landing.slide.session.card_title</source>
-                <target>Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.run_open">
-                <source>landing.slide.session.run_open</source>
-                <target>Interactive run open</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.question">
-                <source>landing.slide.session.question</source>
-                <target>Where the price sits is a look-and-feel choice. Want two mockups to compare?</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.title">
-                <source>landing.slide.document.title</source>
-                <target>Product design: nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.finish">
-                <source>landing.slide.document.finish</source>
-                <target>Finish review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_first">
-                <source>landing.slide.document.paragraph_first</source>
-                <target>Guests compare cabins from the search page. Each card shows a photo, the name and the rating.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_before">
-                <source>landing.slide.document.paragraph_second_before</source>
-                <target>The card adds</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_marked">
-                <source>landing.slide.document.paragraph_second_marked</source>
-                <target>the nightly price and the total for the dates</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_after">
-                <source>landing.slide.document.paragraph_second_after</source>
-                <target>, so a guest never opens a cabin only to learn its price.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.note_author">
-                <source>landing.slide.document.note_author</source>
-                <target>You</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.note">
-                <source>landing.slide.document.note</source>
-                <target>Put the total first. That is what guests compare.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_comment">
-                <source>landing.slide.document.toolbar_comment</source>
-                <target>Comment</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_suggest">
-                <source>landing.slide.document.toolbar_suggest</source>
-                <target>Suggest</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_strike">
-                <source>landing.slide.document.toolbar_strike</source>
-                <target>Strike</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.heading">
-                <source>landing.slide.inbox.heading</source>
-                <target>Needs you</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.question">
-                <source>landing.slide.inbox.question</source>
-                <target>Show the total, the nightly price, or both?</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.review">
-                <source>landing.slide.inbox.review</source>
-                <target>Tech design: nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.todo">
-                <source>landing.slide.inbox.todo</source>
-                <target>Check the price against a real booking</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_question">
-                <source>landing.slide.inbox.kind_question</source>
-                <target>Question, blocking</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_review">
-                <source>landing.slide.inbox.kind_review</source>
-                <target>Review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_todo">
-                <source>landing.slide.inbox.kind_todo</source>
-                <target>To-do</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.status">
-                <source>landing.slide.agent_review.status</source>
-                <target>Changes requested, 1 finding</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.finding_label">
-                <source>landing.slide.agent_review.finding_label</source>
-                <target>spec</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.finding">
-                <source>landing.slide.agent_review.finding</source>
-                <target>The approved design puts the total for the dates first. This shows only the nightly price.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.tagline">
-                <source>landing.slide.site_review.tagline</source>
-                <target>Cabins near Lake Tahoe, Friday to Sunday</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_first">
-                <source>landing.slide.site_review.cabin_first</source>
-                <target>Pine Hollow cabin</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_first_meta">
-                <source>landing.slide.site_review.cabin_first_meta</source>
-                <target>4.9 stars, sleeps 4</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.price">
-                <source>landing.slide.site_review.price</source>
-                <target>$180 / night</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_second">
-                <source>landing.slide.site_review.cabin_second</source>
-                <target>Lakeview loft</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_second_meta">
-                <source>landing.slide.site_review.cabin_second_meta</source>
-                <target>4.7 stars, sleeps 2</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_third">
-                <source>landing.slide.site_review.cabin_third</source>
-                <target>Cedar ridge</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_third_meta">
-                <source>landing.slide.site_review.cabin_third_meta</source>
-                <target>4.8 stars, sleeps 6</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.widget">
-                <source>landing.slide.site_review.widget</source>
-                <target>Review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.selected">
-                <source>landing.slide.site_review.selected</source>
-                <target>Selected element</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.note">
-                <source>landing.slide.site_review.note</source>
-                <target>Show the total for the dates here too.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.saves">
-                <source>landing.slide.site_review.saves</source>
-                <target>Saves to card #42</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.submit">
-                <source>landing.slide.site_review.submit</source>
-                <target>Comment</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.metric">
-                <source>landing.slide.analytics.metric</source>
-                <target>Cost</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.per">
-                <source>landing.slide.analytics.per</source>
-                <target>Per finished card</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.statistic">
-                <source>landing.slide.analytics.statistic</source>
-                <target>Median</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.range">
-                <source>landing.slide.analytics.range</source>
-                <target>Last 30 days</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.compare">
-                <source>landing.slide.analytics.compare</source>
-                <target>Vs previous period</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.change">
-                <source>landing.slide.analytics.change</source>
-                <target>↓ 14% Clear</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.current">
-                <source>landing.slide.analytics.current</source>
-                <target>Current period</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.previous">
-                <source>landing.slide.analytics.previous</source>
-                <target>Previous period</target>
+                <target>Compare models on cost, merge rate and fix rounds.</target>
             </trans-unit>
             <trans-unit id="landing.works_with.title">
                 <source>landing.works_with.title</source>

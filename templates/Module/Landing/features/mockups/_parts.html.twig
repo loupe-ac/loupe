@@ -1,0 +1,138 @@
+{# Shared pieces of the feature pictures. Import with
+   {% import '@Landing/features/mockups/_parts.html.twig' as shot %}.
+   Icon names are literals at each call, so ux:icons:lock finds them. #}
+
+{% macro icon(name, size) %}{{ ux_icon(name, {class: 'lp-icon lp-icon--' ~ (size ?? 'xs'), 'aria-hidden': 'true'}) }}{% endmacro %}
+
+{# kind: stuck, needs-you, working or waiting. The glyphs are the app's own. #}
+{% macro mark(kind) %}
+{% set glyphs = {'stuck': 'lucide:circle-alert', 'needs-you': 'lucide:circle-user', 'working': 'lucide:loader-circle', 'waiting': 'lucide:hourglass'} %}
+<span class="lp-state-mark lp-state-mark--{{ kind }}"><span class="lp-state-mark__icon">{{ ux_icon(glyphs[kind], {class: 'lp-state-mark__glyph', 'aria-hidden': 'true'}) }}</span></span>
+{% endmacro %}
+
+{# One card of the board, with the classes of the board page. kind picks the state mark, and may be empty. #}
+{% macro card(number, title, kind, type, pulls, docs, extra) %}
+{% import _self as shot %}
+<article class="lp-board-card lp-board-card--static">
+    <div class="lp-board-card__identity">
+        <span class="lp-board-card__number">{{ '#' }}{{ number }}</span>
+        {% if type %}<span class="lp-tag lp-tag--{{ type == 'landing.shot.bug'|trans ? 'amber' : 'lime' }}">{{ type }}</span>{% endif %}
+        {{ extra|default('')|raw }}
+        {% if kind %}{{ shot.mark(kind) }}{% endif %}
+        <span class="lp-board-card__move {{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:ellipsis', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+    </div>
+    <span class="lp-board-card__title">{{ title }}</span>
+    {% if pulls or docs %}
+    <div class="lp-board-card__meta">
+        {% if pulls %}<span class="lp-board-card__pulls">{{ ux_icon('lucide:git-pull-request', {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}{{ pulls }}</span>{% endif %}
+        {% if docs %}<span class="lp-board-card__documents">{{ ux_icon('lucide:file-text', {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}{{ docs }}</span>{% endif %}
+    </div>
+    {% endif %}
+</article>
+{% endmacro %}
+
+{# The heading row of the board page: title, card count, the view switch and the Backlog button. #}
+{% macro board_header(count) %}
+<div class="lp-board-header">
+    <div class="lp-board-toolbar">
+        <h1 class="lp-board-toolbar__title">{{ 'board.page.title'|trans }}</h1>
+        <span class="lp-board-toolbar__count">{{ 'board.card.count'|trans({'%count%': count}) }}</span>
+        <div class="lp-board-toolbar__actions">
+            <span class="{{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:settings', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+            <div class="lp-board-toolbar__mode">
+                <span class="lp-board-toolbar__mode-button" aria-pressed="true">{{ ux_icon('lucide:square-kanban', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.view.board'|trans }}</span>
+                <span class="lp-board-toolbar__mode-button" aria-pressed="false">{{ ux_icon('lucide:list', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.view.list'|trans }}</span>
+            </div>
+        </div>
+    </div>
+    <span class="{{ ds_button_class('') }} lp-board-backlog">{{ ux_icon('lucide:inbox', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.backlog.button'|trans }}<span class="lp-board-backlog__count">{{ '4' }}</span></span>
+</div>
+{% endmacro %}
+
+{# One column of the board. tone is the colour of the dot. #}
+{% macro column(label, tone, count, cards) %}
+<section class="lp-board__column">
+    <header class="lp-board__column-head">
+        <span class="lp-tone-dot lp-tone-dot--{{ tone }}" aria-hidden="true"></span>
+        <h4 class="lp-board__column-title">{{ label }}</h4>
+        <span class="lp-board__column-count">{{ count }}</span>
+    </header>
+    <div class="lp-board__group">{{ cards|raw }}</div>
+</section>
+{% endmacro %}
+
+{# The sidebar of the app, drawn with its own classes. active names the lit item. #}
+{% macro sidebar(active) %}
+{% set groups = [
+    [
+        {key: 'workshop', label: 'nav.link.workshop', icon: 'lucide:layout-dashboard'},
+        {key: 'inbox', label: 'nav.link.inbox', icon: 'lucide:inbox', count: 3},
+        {key: 'board', label: 'nav.link.board', icon: 'lucide:square-kanban'},
+        {key: 'documents', label: 'nav.link.documents', icon: 'lucide:file-text'},
+        {key: 'artifacts', label: 'nav.link.artifacts', icon: 'lucide:app-window'},
+    ],
+    [
+        {key: 'agents', label: 'nav.link.agents', icon: 'lucide:bot'},
+        {key: 'workflow', label: 'nav.link.workflow', icon: 'lucide:workflow'},
+        {key: 'activity', label: 'nav.link.activity', icon: 'lucide:activity', count: 2},
+        {key: 'analytics', label: 'nav.link.analytics', icon: 'lucide:chart-column'},
+        {key: 'outbox', label: 'nav.link.outbox', icon: 'lucide:send'},
+    ],
+] %}
+<div class="lp-shot__sidebar">
+    <div class="lp-sidebar">
+        <span class="lp-sidebar__brand">{{ component('Ds:BrandMark') }}</span>
+        <span class="lp-sidebar__switcher">
+            {{ component('Ds:Avatar', {name: 'Driftwood', size: 'sm', shape: 'square', tone: 'chrome'}) }}
+            <span class="lp-sidebar__switcher-text">
+                <span class="lp-sidebar__switcher-label">{{ 'nav.switcher.project_label'|trans }}</span>
+                <span class="lp-sidebar__switcher-name">{{ 'landing.shot.driftwood'|trans }}</span>
+            </span>
+            {{ ux_icon('lucide:arrow-down', {class: 'lp-sidebar__switcher-caret', 'aria-hidden': 'true'}) }}
+        </span>
+        <div class="lp-sidebar__nav">
+            {% for group in groups %}
+                <span class="lp-sidebar__nav-label{{ loop.first ? '' : ' lp-sidebar__nav-label--spaced' }}">{{ (loop.first ? 'nav.group.workspace' : 'bridge.agents.heading')|trans }}</span>
+                {% for item in group %}
+                    <span class="lp-sidebar__link{{ item.key == active ? ' lp-sidebar__link--active' }}">
+                        {{ ux_icon(item.icon, {'aria-hidden': 'true'}) }}
+                        <span class="lp-sidebar__link-label">{{ item.label|trans }}</span>
+                        {% if item.count|default(0) %}<span class="lp-sidebar__pill">{{ item.count }}</span>{% endif %}
+                    </span>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <div class="lp-sidebar__spacer"></div>
+        <div class="lp-sidebar__nav lp-sidebar__nav--secondary">
+            <span class="lp-sidebar__link">{{ ux_icon('lucide:settings', {'aria-hidden': 'true'}) }}<span class="lp-sidebar__link-label">{{ 'nav.link.project_settings'|trans }}</span></span>
+            <span class="lp-sidebar__link">{{ ux_icon('lucide:mails', {'aria-hidden': 'true'}) }}<span class="lp-sidebar__link-label">{{ 'inbox.account.nav'|trans }}</span></span>
+            <span class="lp-sidebar__link">{{ ux_icon('lucide:user', {'aria-hidden': 'true'}) }}<span class="lp-sidebar__link-label">{{ 'nav.link.account'|trans }}</span></span>
+            <span class="lp-sidebar__link">{{ ux_icon('lucide:info', {'aria-hidden': 'true'}) }}<span class="lp-sidebar__link-label">{{ 'about.page.title'|trans }}</span></span>
+        </div>
+        <div class="lp-sidebar__account">
+            {{ component('Ds:Avatar', {name: 'Maya Lindqvist', size: 'xs', tone: 'chrome'}) }}
+            <span class="lp-sidebar__account-text"><span class="lp-sidebar__account-name">{{ 'Maya Lindqvist' }}</span></span>
+            <span class="lp-sidebar__account-logout">{{ ux_icon('lucide:log-out', {'aria-hidden': 'true'}) }}</span>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# The top bar of the app: crumbs on the left, then the search and New work. #}
+{% macro topbar(crumbs, actions) %}
+<div class="lp-topbar lp-shot__topbar">
+    <div class="lp-topbar__lead">
+        {{ component('Ds:Breadcrumbs', {items: crumbs|map(label => {label: label})}) }}
+    </div>
+    {{ actions|default('')|raw }}
+    <div class="lp-topbar__global-actions">
+        <span class="lp-shot__search">
+            {{ ux_icon('lucide:search', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}
+            <span class="lp-shot__grow">{{ 'search.topbar.placeholder'|trans }}</span>
+            <kbd class="lp-kbd">{{ 'search.shortcut'|trans }}</kbd>
+        </span>
+        <span class="{{ ds_button_class('primary') }}">{{ ux_icon('lucide:plus', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'nav.new_work'|trans }}</span>
+    </div>
+</div>
+{% endmacro %}
+

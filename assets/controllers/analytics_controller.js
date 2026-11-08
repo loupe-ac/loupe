@@ -3,10 +3,15 @@ import { track } from '../lib/analytics.js';
 
 /**
  * Sends one named analytics event for a click. The button gives the event
- * name and its own label as action params.
+ * name and its own label as action params. A feature param joins them when
+ * the button belongs to one feature.
  */
 export default class extends Controller {
     track(event) {
-        track(event.params.name, { button: event.params.button });
+        const data = { button: event.params.button };
+        if (event.params.feature) {
+            data.feature = event.params.feature;
+        }
+        track(event.params.name, data);
     }
 }

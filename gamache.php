@@ -167,7 +167,11 @@ return (new GamacheConfig())->registerChecks([
     new DesignSystemAdoptionCheck(
         components: designSystemComponents((new Catalog())->entries()),
         // The split view draws the workspace frame itself when a page gives it a width.
-        ignoredPaths: ['templates/components/Ds/SplitView.html.twig'],
+        // The feature pictures copy the markup of the app screens inside an aria-hidden picture, where the focusable and interactive components do not belong.
+        ignoredPaths: [
+            'templates/components/Ds/SplitView.html.twig',
+            'templates/Module/Landing/features/mockups',
+        ],
     ),
     new DesignSystemPatternCheck(
         patterns: [

@@ -1,0 +1,74 @@
+{# Pieces of the agent-review pictures: the card page of the app and the agent review summary of a document. #}
+
+{% macro chip(modifier, label) %}<span class="lp-status-chip lp-status-chip--{{ modifier }}"><span class="lp-status-chip__dot"></span>{{ label }}</span>{% endmacro %}
+
+{# The Linked work table of the card page, with its pull request row. review is ok or required. #}
+{% macro linked_work(review) %}
+{% import _self as part %}
+<div class="lp-inbox-linked-table-wrap">
+    <table class="lp-inbox-linked-table">
+        <caption>{{ 'board.card.linked_work.title'|trans }}</caption>
+        <thead><tr><th>{{ 'inbox.linked_items.item'|trans }}</th><th>{{ 'inbox.linked_items.status'|trans }}</th><th><span class="sr-only">{{ 'inbox.linked_items.open'|trans }}</span></th></tr></thead>
+        <tbody>
+            <tr>
+                <td><span class="lp-inbox-linked-table__type">{{ ux_icon('lucide:file-text', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'inbox.linked_items.document'|trans }}</span><strong>{{ 'Tech design: Nightly price on the search card' }}</strong></td>
+                <td><span class="lp-tag">{{ 'document.status.approved'|trans }}</span></td>
+                <td><span class="{{ ds_button_class('ghost open') }}">{{ ux_icon('lucide:arrow-up-right', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}<span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span></span></td>
+            </tr>
+            <tr class="lp-card-pulls__item">
+                <td><span class="lp-inbox-linked-table__type">{{ ux_icon('lucide:git-pull-request', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.link.pull_request'|trans }}</span><strong>{{ 'driftwood/cabins #118' }}</strong></td>
+                <td>
+                    <span class="lp-pull-request-state">
+                        {{ part.chip('neutral', 'board.card.link.state.open'|trans) }}
+                        {{ part.chip('ok', 'board.card.link.checks.passed'|trans) }}
+                        {% if review == 'ok' %}{{ part.chip('ok', 'board.card.link.review.approved'|trans) }}{% else %}{{ part.chip('pending', 'board.card.link.review.required'|trans) }}{% endif %}
+                    </span>
+                </td>
+                <td><span class="{{ ds_button_class('ghost open') }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span>{{ ux_icon('lucide:chevron-right', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+{# The Pull request review field of the Details tab: the human review switch with its help mark. #}
+{% macro human_review(on) %}
+<div class="lp-card-field lp-card-field--prose">
+    <dt>{{ 'board.card.human_review.field'|trans }}</dt>
+    <dd>
+        <div class="lp-card-review">
+            <div class="lp-switch-field">
+                <input type="checkbox" class="lp-switch" role="switch" tabindex="-1" inert{{ on ? ' checked' }}>
+                <div class="lp-switch-field__text"><span class="lp-switch-field__label">{{ 'board.card.human_review.label'|trans }}</span></div>
+            </div>
+            <span class="lp-card-review__help">{{ ux_icon('lucide:circle-help', {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}</span>
+        </div>
+    </dd>
+</div>
+{% endmacro %}
+
+{# The head of the card page: the number, the tags, the title and the tab strip. tab is the selected tab key. #}
+{% macro card_head(tab) %}
+<header class="lp-card-drawer__header">
+    <div class="lp-card-drawer__identity">
+        <span class="lp-card-drawer__icon">{{ ux_icon('lucide:layout-list', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+        <span class="lp-card-number">{{ '#42' }}</span>
+        <span class="lp-tag lp-tag--lime">{{ 'landing.shot.feature'|trans }}</span>
+        <span class="lp-tag lp-tag--amber">{{ 'landing.shot.in_review'|trans }}</span>
+    </div>
+    <div class="lp-card-drawer__header-actions">
+        <span class="{{ ds_button_class('ghost') }}">{{ ux_icon('lucide:pencil', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}{{ 'board.card.edit.action'|trans }}</span>
+        <span class="{{ ds_button_class('ghost icon') }}">{{ ux_icon('lucide:x', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+    </div>
+</header>
+{% endmacro %}
+
+{% macro card_tabs(tab) %}
+<div class="lp-overflow-cue lp-overflow-cue--scroll">
+    <div class="lp-tabs" role="tablist">
+        {% for key in ['overview', 'details', 'conversation', 'feedback', 'history'] %}
+            <span class="lp-tabs__tab" role="tab" aria-selected="{{ key == tab ? 'true' : 'false' }}">{{ ('board.card.tab.' ~ key)|trans }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}

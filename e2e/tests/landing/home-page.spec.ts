@@ -57,19 +57,19 @@ test.describe('home page', () => {
         await page.getByRole('button', { name: 'Previous feature' }).click();
         await expect(analytics).toHaveAttribute('aria-pressed', 'true');
         await expect(
-            page.getByText('Cost per finished card, merge rate'),
+            page.getByText(
+                'See what each finished card costs, and whether a change is real.',
+            ),
         ).toBeVisible();
 
         await documentReview.click();
         await expect(documentReview).toHaveAttribute('aria-pressed', 'true');
         await expect(
-            page.getByText(
-                'Product and tech designs arrive rendered, after a second agent has reviewed them.',
-            ),
+            page.getByText('Comment on each design before any code starts.'),
         ).toBeVisible();
         await expect(
             page.locator('.lp-home-slide[aria-hidden="false"]'),
-        ).toContainText('Product design: nightly price on search cards');
+        ).toContainText('Seasonal rates');
 
         await page.getByRole('button', { name: 'Next feature' }).click();
         await page.getByRole('button', { name: 'Next feature' }).click();

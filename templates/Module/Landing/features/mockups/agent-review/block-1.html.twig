@@ -1,0 +1,34 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__check">
+            <div class="lp-shot__check-head">
+                <span class="lp-shot__check-icon lp-shot__check-icon--failure">{{ shot.icon('lucide:x', 'sm') }}</span>
+                <span class="lp-shot__check-name">{{ 'Loupe / Agent review' }}</span>
+                <span class="lp-shot__check-meta">{{ 'Failure' }}</span>
+            </div>
+            <div class="lp-shot__check-body">
+                <h3 class="lp-shot__check-title">{{ 'agent_review.check.title'|trans({'%findings%': 'agent_review.check.count.important'|trans({'%count%': 1}) ~ ', ' ~ 'agent_review.check.count.nit'|trans({'%count%': 2})}) }}</h3>
+                <p class="lp-shot__check-text">{{ 'The price on the search card shows per stay. The approved design shows it per night.' }}</p>
+                <p class="lp-shot__check-heading">{{ 'agent_review.check.heading.spec'|trans }}</p>
+                <ul class="lp-shot__check-list">
+                    <li>{{ '[important] SearchCard.tsx:42 The price shows per stay: The approved design says to show the price per night next to the cabin name. The change passes the stay total.' }}</li>
+                </ul>
+                <p class="lp-shot__check-heading">{{ 'agent_review.check.heading.code'|trans }}</p>
+                <ul class="lp-shot__check-list">
+                    <li>{{ '[nit] price.test.ts:12 No test for a cabin with no price: Add a test for a cabin that has no nightly price.' }}</li>
+                    <li>{{ '[nit] Price.tsx:8 The currency symbol is hard coded: Read the currency from the cabin.' }}</li>
+                </ul>
+            </div>
+            <div class="lp-shot__check-annotation">
+                <div class="lp-shot__check-file">{{ 'SearchCard.tsx' }}</div>
+                <div class="lp-shot__check-line lp-shot__check-line--removed"><span class="lp-shot__check-number">{{ '42' }}</span>{{ '- <Price total={cabin.stayTotal} />'|e }}</div>
+                <div class="lp-shot__check-line lp-shot__check-line--added"><span class="lp-shot__check-number">{{ '42' }}</span>{{ '+ <Price total={cabin.stayTotal} per="stay" />'|e }}</div>
+                <div class="lp-shot__check-note">
+                    {{ shot.icon('lucide:circle-x', 'sm') }}
+                    <span><strong>{{ 'The price shows per stay' }}</strong><br>{{ 'The approved design says to show the price per night next to the cabin name. The change passes the stay total.' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

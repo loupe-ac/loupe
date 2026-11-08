@@ -20,6 +20,7 @@ final readonly class PublicPages
         'app_terms' => true,
         'app_ai_policy' => true,
         'app_compare_list' => true,
+        'app_features' => true,
         'app_faq' => true,
         'app_site_about' => true,
         'app_waitlist_join' => true,
@@ -35,6 +36,8 @@ final readonly class PublicPages
         'app_ai_policy',
         'app_compare_list',
         'app_compare',
+        'app_features',
+        'app_feature',
         'app_faq',
         'app_site_about',
         'app_public_link',
@@ -51,13 +54,14 @@ final readonly class PublicPages
     ];
 
     /** The routes that have one copy, on the site host, when the instance splits its hosts. */
-    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare', 'app_faq', 'app_public_link'];
+    private const array SITE_ONLY_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy', 'app_compare_list', 'app_compare', 'app_features', 'app_feature', 'app_faq', 'app_public_link'];
 
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
         private SiteHost $siteHost,
         private RegistrationGate $registrationGate,
         private ComparisonPages $comparisonPages,
+        private FeaturePages $featurePages,
 
         #[Autowire(param: 'app.url')]
         private string $appUrl,
@@ -75,7 +79,7 @@ final readonly class PublicPages
 
     public function isPublic(?string $route): bool
     {
-        return null !== $route && (\array_key_exists($route, self::PAGES) || 'app_compare' === $route);
+        return null !== $route && (\array_key_exists($route, self::PAGES) || 'app_compare' === $route || 'app_feature' === $route);
     }
 
     public function isSiteRoute(?string $route): bool
@@ -124,6 +128,7 @@ final readonly class PublicPages
         return [
             ...array_map($this->urlGenerator->generate(...), array_keys(self::PAGES)),
             ...$this->comparisonPaths(),
+            ...$this->featurePaths(),
         ];
     }
 
@@ -139,6 +144,9 @@ final readonly class PublicPages
         if ($this->siteHost->isSet()) {
             foreach ($this->comparisonPages->all() as $page) {
                 $urls[] = $this->comparisonUrl($page);
+            }
+            foreach ($this->featurePages->slugs() as $slug) {
+                $urls[] = $this->absoluteUrl($this->featurePath($slug));
             }
         }
         if ($this->hasBlog()) {
@@ -171,10 +179,21 @@ final readonly class PublicPages
         return $this->urlGenerator->generate('app_compare', ['slug' => $page->slug]);
     }
 
+    /** @return list<string> */
+    private function featurePaths(): array
+    {
+        return array_map($this->featurePath(...), $this->featurePages->slugs());
+    }
+
+    private function featurePath(string $slug): string
+    {
+        return $this->urlGenerator->generate('app_feature', ['slug' => $slug]);
+    }
+
     private function isRendered(string $route): bool
     {
         return match ($route) {
-            'app_home', 'app_compare_list', 'app_faq' => $this->siteHost->isSet(),
+            'app_home', 'app_compare_list', 'app_features', 'app_faq' => $this->siteHost->isSet(),
             'app_site_about' => $this->siteHost->isSplit(),
             'app_waitlist_join' => $this->registrationGate->allowsNewAccounts() && !$this->registrationGate->isOpen(),
             default => true,

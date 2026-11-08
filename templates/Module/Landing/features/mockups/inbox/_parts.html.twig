@@ -1,0 +1,68 @@
+{# Pieces of the inbox pictures, drawn with the classes of the inbox page. #}
+
+{% macro row(kind, title, meta, current, subtitle, flag) %}
+{% set icons = {question: 'lucide:circle-help', review: 'lucide:eye', todo: 'lucide:square-check-big', notice: 'lucide:inbox'} %}
+<span class="lp-list-row"{% if current %} aria-current="true"{% endif %}>
+    <span class="lp-list-row__icon" data-inbox-kind="{{ kind }}">{{ ux_icon(icons[kind], {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}</span>
+    <span class="lp-list-row__title">{{ title }}</span>
+    {% if subtitle %}<span class="lp-list-row__subtitle">{{ subtitle }}</span>{% endif %}
+    <span class="lp-list-row__meta">{{ meta|raw }}{% if flag %}<span aria-hidden="true">·</span><span class="lp-list-row__flag">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}</span>
+</span>
+{% endmacro %}
+
+{# The byline of an ask: who, when, what kind, and the card that waits. #}
+{% macro head(title, context) %}
+<header class="lp-inbox-ask__summary">
+    <h2 class="lp-inbox-ask__title">{{ title }}</h2>
+    <div class="lp-inbox-ask__byline">
+        <span class="lp-inbox-ask__head">
+            <span class="lp-presence lp-presence--live">{{ component('Ds:Avatar', {icon: 'lucide:bot', size: 'sm', tone: 'tint', presence: 'live'}) }}</span>
+            <span class="lp-inbox-ask__source">{{ 'inbox.from.agent'|trans }}</span>
+        </span>
+        <span aria-hidden="true">·</span>
+        <span class="lp-relative-time">{{ 'landing.shot.2m_ago'|trans }}</span>
+        <span aria-hidden="true">·</span>
+        <span class="lp-inbox-ask__kind">{{ ux_icon('lucide:circle-help', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}<span>{{ 'inbox.item.kind.question'|trans }}</span></span>
+        <span aria-hidden="true">·</span>
+        <span class="lp-inbox-ask__kind">{{ ux_icon('lucide:hourglass', {class: 'lp-icon lp-icon--md', 'aria-hidden': 'true'}) }}<span class="lp-inbox-ask__wait"><a>{{ '#40' }}</a></span></span>
+        <div class="lp-inbox-ask__byline-actions">
+            <span class="{{ ds_button_class('ghost', 'sm') }} lp-page-menu__trigger">{{ ux_icon('lucide:ellipsis', {'aria-hidden': 'true'}) }}</span>
+        </div>
+    </div>
+</header>
+{% endmacro %}
+
+{# One message of a thread: the author, when, and the text. #}
+{% macro message(author, when, text) %}
+<li class="lp-inbox-thread__message">
+    <div class="lp-comment-thread__header lp-inbox-thread__head">
+        {{ component('Ds:Avatar', {icon: 'lucide:bot', size: 'xs', tone: 'tint'}) }}
+        <span class="lp-comment-author">{{ author }}</span>
+        <span class="lp-form-hint">{{ when }}</span>
+    </div>
+    <div class="lp-comment-thread">
+        <div class="prose lp-prose lp-review-doc__prose lp-inbox-item__body"><p>{{ text }}</p></div>
+    </div>
+</li>
+{% endmacro %}
+
+{# The split button of the reply card. The menu rows come as one string. #}
+{% macro split(label, rows) %}
+<div class="lp-menu lp-menu--lg lp-split-button inbox-split">
+    <span class="{{ ds_button_class('primary', 'sm') }} inbox-split__main">{{ label }}</span>
+    <span class="{{ ds_button_class('primary', 'sm') }} lp-split-button__toggle">{{ ux_icon('lucide:chevron-down', {'aria-hidden': 'true'}) }}</span>
+    {% if rows %}<div class="lp-menu__panel" role="menu">{{ rows|raw }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{# One row of the menu of the split button. #}
+{% macro menu_row(icon, label, line) %}
+{% set icons = {'bot': 'lucide:bot', 'terminal': 'lucide:terminal', 'x': 'lucide:x', 'circle-pause': 'lucide:circle-pause'} %}
+<span class="lp-menu__item" role="menuitem">
+    {{ ux_icon(icons[icon], {'aria-hidden': 'true'}) }}
+    <span class="lp-menu__text">
+        <span class="lp-menu__label{{ icon == 'x' ? ' inbox-split__danger' }}">{{ label }}</span>
+        <span class="lp-menu__line">{{ line }}</span>
+    </span>
+</span>
+{% endmacro %}

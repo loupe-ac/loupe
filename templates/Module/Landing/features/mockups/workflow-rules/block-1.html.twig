@@ -1,0 +1,21 @@
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <section class="lp-workflow-section lp-shot__section">
+            <twig:Ds:SectionHeading>{{ 'workflow.settings.slots.heading'|trans }}</twig:Ds:SectionHeading>
+            <div class="lp-overflow-cue lp-overflow-cue--scroll lp-table-cue lp-table-cue--data">
+<div class="lp-data-table">
+                <div class="lp-data-table__header">
+                    <span class="lp-data-table__cell">{{ 'workflow.settings.slots.slot'|trans }}</span>
+                    <span class="lp-data-table__cell">{{ 'workflow.settings.slots.column'|trans }}</span>
+                </div>
+                {% for slot in ['product_design', 'tech_design', 'implementation', 'in_review'] %}
+                    <div class="lp-data-table__row">
+                        <span class="lp-data-table__cell lp-data-table__title">{{ ('workflow.slot.' ~ slot)|trans }}</span>
+                        <span class="lp-data-table__cell">{{ ('workflow.slot.' ~ slot)|trans }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+</div>
+        </section>
+    </div>
+</div>

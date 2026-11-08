@@ -107,6 +107,8 @@ export default defineConfig({
             { slug: 'using/live-review' },
             { slug: 'using/board' },
             { slug: 'using/workflows' },
+            { slug: 'using/interactive-sessions' },
+            { slug: 'using/agent-review' },
             { slug: 'using/inbox' },
             { slug: 'using/notifications' },
             { slug: 'using/artifacts' },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Landing\Twig;
 
+use App\Module\Landing\Service\FeaturePages;
 use App\Module\Landing\Service\PublicPages;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -22,6 +23,7 @@ final class LandingExtension extends AbstractExtension
 
     public function __construct(
         private readonly PublicPages $publicPages,
+        private readonly FeaturePages $featurePages,
         private readonly FeatureFlagService $featureFlags,
         private readonly Packages $packages,
         private readonly RequestStack $requestStack,
@@ -39,6 +41,7 @@ final class LandingExtension extends AbstractExtension
             new TwigFunction('has_blog', $this->publicPages->hasBlog(...)),
             new TwigFunction('has_comparisons', $this->publicPages->hasComparisons(...)),
             new TwigFunction('has_faq', $this->publicPages->hasFaq(...)),
+            new TwigFunction('landing_features', $this->featurePages->all(...)),
             new TwigFunction('has_about', $this->publicPages->hasAbout(...)),
         ];
     }

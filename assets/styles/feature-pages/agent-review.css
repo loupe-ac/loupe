@@ -1,0 +1,72 @@
+/* Pictures of the agent-review feature page. */
+@layer components {
+    /* The check run of the pull request page, as the forge draws it. */
+    .lp-shot__check {
+        @apply overflow-hidden rounded-lg border border-line bg-surface-1;
+    }
+    .lp-shot__check-head {
+        @apply flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2.5;
+    }
+    .lp-shot__check-icon {
+        @apply inline-flex size-5 shrink-0 items-center justify-center rounded-full text-surface-1;
+    }
+    .lp-shot__check-icon--failure {
+        @apply bg-status-danger-deep;
+    }
+    .lp-shot__check-name {
+        @apply text-sm font-semibold text-ink;
+    }
+    .lp-shot__check-meta {
+        @apply ml-auto text-xs text-fg-mute;
+    }
+    .lp-shot__check-body {
+        @apply flex flex-col gap-2 px-4 py-3 text-sm text-fg;
+    }
+    .lp-shot__check-title {
+        @apply m-0 text-base font-semibold text-ink;
+    }
+    .lp-shot__check-text,
+    .lp-shot__check-heading {
+        @apply m-0;
+    }
+    .lp-shot__check-heading {
+        @apply mt-1 font-semibold text-ink;
+    }
+    .lp-shot__check-list {
+        @apply m-0 flex list-disc flex-col gap-1 pl-5;
+    }
+    .lp-shot__check-annotation {
+        @apply border-t border-line font-mono;
+    }
+    .lp-shot__check-file {
+        @apply border-b border-line bg-surface-2 px-3 py-1.5 text-fg-mute;
+    }
+    .lp-shot__check-line {
+        @apply flex gap-3 px-3 py-0.5;
+    }
+    .lp-shot__check-line--added {
+        @apply bg-status-ok-bg text-status-ok-deep;
+    }
+    .lp-shot__check-line--removed {
+        @apply bg-status-danger-bg text-status-danger-deep;
+    }
+    .lp-shot__check-number {
+        @apply w-5 shrink-0 text-right text-fg-mute;
+    }
+    .lp-shot__check-note {
+        @apply flex items-start gap-2 border-t border-status-danger-border bg-status-danger-bg px-3 py-2.5 font-sans text-status-danger-deep;
+    }
+
+    /* The card page of the app, sized for a picture. */
+    .lp-card-drawer.lp-shot__drawer {
+        @apply min-h-0 shadow-none;
+    }
+    .lp-card-drawer.lp-shot__drawer--panel {
+        @apply max-w-none rounded-lg border;
+    }
+
+    /* The page of a document, which holds the agent review summary below its text. */
+    .lp-shot__document {
+        @apply rounded-lg border border-line bg-surface-1 p-6;
+    }
+}

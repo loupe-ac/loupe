@@ -1,0 +1,28 @@
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel lp-shot__experiment lp-redesign-secondary lp-redesign-runs">
+        <div class="lp-experiment-heading">
+            <span class="lp-experiment-heading__back">{{ 'bridge.experiments.back'|trans }}</span>
+            <h2 class="lp-experiment-heading__name">{{ 'model-test' }}</h2>
+        </div>
+        <nav class="lp-tabs lp-experiment-tabs">
+            <span class="lp-tabs__tab" aria-current="page">{{ 'bridge.experiments.tabs.comparison'|trans }}</span>
+            <span class="lp-tabs__tab">{{ 'bridge.experiments.tabs.cards'|trans }}</span>
+        </nav>
+        <h3 class="lp-experiment-section">{{ 'bridge.experiments.goal.label'|trans({'%metric%': 'landing.shot.merge_rate'|trans, '%direction%': 'bridge.experiments.goal.higher'|trans}) }}</h3>
+        <p class="lp-experiment-result__header">{{ 'bridge.experiments.goal.result_header'|trans({'%baseline%': 'landing.shot.model_a'|trans, '%value%': '88%'}) }}</p>
+        <ol class="lp-experiment-result">
+            <li class="lp-experiment-result__row">
+                <span class="lp-experiment-result__name">{{ 'landing.shot.model_b'|trans }}</span>
+                <div class="lp-experiment-result__strip">
+                    {{ component('Ds:RangeStrip', {low: 53, point: 64, high: 76, baseline: 46, label: 'bridge.experiments.goal.baseline_label'|trans}) }}
+                </div>
+                <div class="lp-experiment-result__figures">
+                    <span class="lp-experiment-result__value">{{ '94%' }}</span>
+                    <span class="lp-experiment-result__change lp-experiment-result__change--better">{{ '+7%' }}</span>
+                    <span class="lp-experiment-result__chip">{{ component('Ds:StatusChip', {modifier: 'ok', label: 'bridge.experiments.goal.state.clear'|trans}) }}</span>
+                    <span class="lp-experiment-result__range">{{ '2% to 12% higher' }}</span>
+                </div>
+            </li>
+        </ol>
+    </div>
+</div>

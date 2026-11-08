@@ -1,0 +1,38 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+{% import '@Landing/features/mockups/agent-review/_parts.html.twig' as part %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('board') }}
+            <div class="lp-shot__main">
+                {{ shot.topbar(['nav.link.board'|trans, '#42']) }}
+                <div class="lp-card-drawer lp-shot__drawer">
+                    {{ part.card_head('overview') }}
+                    <div class="lp-card-drawer__body">
+                        <h1 class="lp-card-drawer__title">{{ 'landing.shot.show_the_nightly_price_on_the'|trans }}</h1>
+                        {{ part.card_tabs('overview') }}
+                        <div class="lp-card-panel">
+                            <div class="lp-card-overview">
+                                <section class="lp-card-overview__section">
+                                    <div class="lp-section-heading"><div class="lp-section-heading__copy"><h2 class="lp-section-heading__title">{{ 'board.card.overview.description'|trans }}</h2></div></div>
+                                    <div class="prose lp-prose lp-card-detail__body"><p>{{ 'Show the price per night next to the cabin name on every search result.' }}</p></div>
+                                </section>
+                                <section class="lp-card-docs lp-card-pulls lp-card-overview__section">
+                                    {{ part.linked_work('ok') }}
+                                </section>
+                                <section class="lp-card-overview__section">
+                                    <div class="lp-section-heading"><div class="lp-section-heading__copy"><h2 class="lp-section-heading__title">{{ 'workflow.panel.title'|trans }}</h2></div></div>
+                                    <dl class="lp-card-fields">
+                                        <div class="lp-card-field"><dt>{{ 'workflow.panel.slot.label'|trans }}</dt><dd>{{ 'landing.shot.in_review'|trans }}</dd></div>
+                                        <div class="lp-card-field lp-card-field--prose"><dt>{{ 'workflow.panel.next_action'|trans }}</dt><dd>{{ 'Move the card to a terminal column' }}</dd></div>
+                                        <div class="lp-card-field lp-card-field--wide lp-card-field--prose"><dt>{{ 'workflow.panel.waiting'|trans }}</dt><dd>{{ 'Waiting: a pull request is still open, or none is merged.' }}</dd></div>
+                                    </dl>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
