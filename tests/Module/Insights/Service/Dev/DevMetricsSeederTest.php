@@ -206,6 +206,25 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertSame($project->id?->toRfc4122(), $link->project->id?->toRfc4122());
     }
 
+    public function test_the_shared_graph_shows_a_legend_and_a_graph_stored_without_one_gets_it(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-legend');
+        $this->seed($project, self::NOW);
+        $id = DevSeedId::of('insights/graph/cost-per-run-by-account');
+        $graphs = $this->service(InsightsSavedGraphRepository::class);
+        self::assertTrue($graphs->find($id)?->showLegend);
+        $this->em()->getConnection()->executeStatement('UPDATE insights_saved_graphs SET show_legend = false WHERE id = ?', [$id->toRfc4122()]);
+        $this->em()->clear();
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+
+        self::assertTrue($this->seed($project, self::NOW));
+
+        $this->em()->clear();
+        self::assertTrue($graphs->find($id)?->showLegend);
+        $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
+        self::assertFalse($this->seed($project, self::NOW));
+    }
+
     public function test_the_demo_runs_carry_two_accounts_so_the_split_has_series(): void
     {
         $project = $this->projectWithColumns('dev-metrics-accounts');

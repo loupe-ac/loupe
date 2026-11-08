@@ -367,7 +367,22 @@ final readonly class DevMetricsSeeder
         }
         $this->em->flush();
 
-        return $this->seedPublicLink($context, $project) || $seeded;
+        $legend = $this->showSharedLegend();
+
+        return $this->seedPublicLink($context, $project) || $legend || $seeded;
+    }
+
+    /** The preview image of the shared graph draws a legend, so a graph stored without one gets it. */
+    private function showSharedLegend(): bool
+    {
+        $graph = $this->insightsSavedGraphs->find(DevSeedId::of('insights/graph/'.self::SHARED_GRAPH_SLUG));
+        if (!$graph instanceof InsightsSavedGraph || $graph->showLegend) {
+            return false;
+        }
+        $graph->showLegend = true;
+        $this->em->flush();
+
+        return true;
     }
 
     private function seedPublicLink(SeedContext $context, Project $project): bool
