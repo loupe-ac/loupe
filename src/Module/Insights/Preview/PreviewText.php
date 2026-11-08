@@ -30,7 +30,7 @@ final class PreviewText
 
     /**
      * Places every legend label on at most two rows of the image footer, and cuts the names to the widest budget at which all of them fit.
-     * When even one character a name overflows, the whole legend shrinks until every label has a place.
+     * When even a three character name overflows, the names keep the shortest cut that tells them apart, and the whole legend shrinks until every label has a place.
      * The first row stops before the "Made with Loupe" line, and the second row spans the image.
      *
      * @param list<string> $names
@@ -40,20 +40,39 @@ final class PreviewText
     public static function legend(array $names): array
     {
         $placed = [];
-        foreach ([24, 16, 12, 8, 6, 4, 3, 2, 1] as $budget) {
+        foreach ([24, 16, 12, 8, 6, 4, 3] as $budget) {
             $placed = self::place($names, $budget, 1.0);
             if (\count($placed) === \count($names)) {
                 return $placed;
             }
         }
+        $budget = self::distinctBudget($names);
         for ($tenths = 90; $tenths >= 1; $tenths -= 2) {
-            $placed = self::place($names, 1, $tenths / 100);
+            $placed = self::place($names, $budget, $tenths / 100);
             if (\count($placed) === \count($names)) {
                 return $placed;
             }
         }
 
         return $placed;
+    }
+
+    /**
+     * The shortest budget, from three characters up, that keeps the cut names as distinct as the full names.
+     *
+     * @param list<string> $names
+     */
+    private static function distinctBudget(array $names): int
+    {
+        $longest = max(3, ...array_map(static fn (string $name): int => mb_strlen(trim($name)), $names));
+        $wanted = \count(array_unique(array_map(trim(...), $names)));
+        for ($budget = 3; $budget < $longest; ++$budget) {
+            if (\count(array_unique(array_map(static fn (string $name): string => self::fit($name, $budget), $names))) === $wanted) {
+                return $budget;
+            }
+        }
+
+        return $longest;
     }
 
     /**

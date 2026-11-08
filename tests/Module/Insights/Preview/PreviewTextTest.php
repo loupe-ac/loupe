@@ -61,5 +61,9 @@ final class PreviewTextTest extends TestCase
         foreach ($legend as $key) {
             self::assertLessThanOrEqual(1144, $key['x']);
         }
+        self::assertCount(80, array_unique(array_column($legend, 'name')));
+        foreach ($legend as $key) {
+            self::assertNotSame('…', $key['name']);
+        }
     }
 }
