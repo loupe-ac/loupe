@@ -25,6 +25,21 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
 
     private const string PNG = "\x89PNG\r\n\x1a\n";
 
+    private string $previousSiteHost = '';
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->previousSiteHost = (string) ($_SERVER['SITE_HOST'] ?? '');
+    }
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $this->previousSiteHost;
+        parent::tearDown();
+    }
+
     public function test_a_kept_png_of_the_current_version_is_served_with_no_store_so_a_hidden_link_leaves_no_cached_image(): void
     {
         $client = $this->client();

@@ -22,6 +22,21 @@ final class ShowPublicLinkTagsTest extends WebTestCase
 
     private const string PNG = "\x89PNG\r\n\x1a\n";
 
+    private string $previousSiteHost = '';
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->previousSiteHost = (string) ($_SERVER['SITE_HOST'] ?? '');
+    }
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $this->previousSiteHost;
+        parent::tearDown();
+    }
+
     /** @return iterable<string, array{bool}> */
     public static function legends(): iterable
     {
