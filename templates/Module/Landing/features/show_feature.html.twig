@@ -13,7 +13,7 @@
         <h1 class="lp-home-hero__title">{{ page.title }}</h1>
         <p class="lp-home-hero__lead">{{ page.lead }}</p>
         <div class="lp-feature-hero__actions">
-            <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-hero" data-analytics-feature-param="{{ page.key }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-hero" data-analytics-feature-param="{{ page.slug }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
             <twig:Ds:Button variant="outline" size="lg" href="{{ site_url(page.docsPath) }}">{{ 'landing.features.page.docs'|trans }}</twig:Ds:Button>
         </div>
     </div>
@@ -50,7 +50,7 @@
 <section class="lp-home-closing">
     <div class="lp-home-container lp-home-closing__inner">
         <h2 class="lp-home-closing__title">{{ 'landing.closing.title'|trans }}</h2>
-        <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-closing" data-analytics-feature-param="{{ page.key }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-closing" data-analytics-feature-param="{{ page.slug }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
     </div>
 </section>
 {% endblock %}

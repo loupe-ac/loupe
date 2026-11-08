@@ -11,6 +11,7 @@ use App\Site\SiteLinks;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
@@ -105,6 +106,42 @@ final class LandingControllerTest extends WebTestCase
         $text = strtolower($client->getCrawler()->filter('main')->text());
         foreach (['per month', 'free trial', 'pricing', 'per seat'] as $word) {
             self::assertStringNotContainsString($word, $text);
+        }
+    }
+
+    public function test_each_carousel_item_links_its_feature_page_from_the_card_and_from_the_caption(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $page = $client->getCrawler();
+        self::assertCount(0, $page->filter('.lp-home-feature a, .lp-home-feature button'));
+        self::assertCount(0, $page->filter('.lp-home-window'));
+        self::assertCount(8, $page->filter('.lp-home-slide__picture .lp-shot'));
+
+        $cards = $page->filter('li.lp-home-feature-card');
+        self::assertCount(8, $cards);
+        $slides = $page->filter('.lp-home-slide');
+        self::assertCount(8, $slides);
+        foreach ($cards as $index => $element) {
+            $card = new Crawler($element);
+            $cardLink = $card->filter('a.lp-home-feature-card__link');
+            $captionLink = $slides->eq($index)->filter('a.lp-home-caption__link');
+            self::assertCount(1, $cardLink);
+            self::assertCount(1, $captionLink);
+            self::assertSame('Learn more →', trim($cardLink->text()));
+            self::assertSame('See how it works →', trim($captionLink->text()));
+            self::assertSame($cardLink->attr('href'), $captionLink->attr('href'));
+            self::assertMatchesRegularExpression('#^/features/[a-z-]+$#', (string) $cardLink->attr('href'));
+            self::assertSame('carousel-card', $cardLink->attr('data-analytics-button-param'));
+            self::assertSame('carousel-caption', $captionLink->attr('data-analytics-button-param'));
+            self::assertSame('feature-click', $cardLink->attr('data-analytics-name-param'));
+            self::assertSame(
+                basename((string) $cardLink->attr('href')),
+                $cardLink->attr('data-analytics-feature-param'),
+            );
         }
     }
 

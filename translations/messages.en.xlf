@@ -4998,6 +4998,14 @@
                 <source>landing.features.next</source>
                 <target>Next feature</target>
             </trans-unit>
+            <trans-unit id="landing.features.learn_more">
+                <source>landing.features.learn_more</source>
+                <target>Learn more →</target>
+            </trans-unit>
+            <trans-unit id="landing.features.see_how">
+                <source>landing.features.see_how</source>
+                <target>See how it works →</target>
+            </trans-unit>
             <trans-unit id="landing.features.index_title">
                 <source>landing.features.index_title</source>
                 <target>Features</target>
@@ -5650,13 +5658,13 @@
                 <source>landing.shot.product_design_agent</source>
                 <target>Product design agent</target>
             </trans-unit>
-            <trans-unit id="landing.shot.product_design_seasonal_pricing">
-                <source>landing.shot.product_design_seasonal_pricing</source>
-                <target>Product design: seasonal pricing</target>
+            <trans-unit id="landing.shot.product_design_seasonal_rates">
+                <source>landing.shot.product_design_seasonal_rates</source>
+                <target>Product design: seasonal rates</target>
             </trans-unit>
-            <trans-unit id="landing.shot.product_design_seasonal_pricing_2">
-                <source>landing.shot.product_design_seasonal_pricing_2</source>
-                <target>Product design: seasonal pricing.</target>
+            <trans-unit id="landing.shot.product_design_seasonal_rates_2">
+                <source>landing.shot.product_design_seasonal_rates_2</source>
+                <target>Product design: seasonal rates.</target>
             </trans-unit>
             <trans-unit id="landing.shot.product_design_written_review_it_in">
                 <source>landing.shot.product_design_written_review_it_in</source>
@@ -5790,9 +5798,9 @@
                 <source>landing.shot.saved_on_card_42</source>
                 <target>Saved on card #42</target>
             </trans-unit>
-            <trans-unit id="landing.shot.seasonal_pricing">
-                <source>landing.shot.seasonal_pricing</source>
-                <target>Seasonal pricing</target>
+            <trans-unit id="landing.shot.seasonal_rates">
+                <source>landing.shot.seasonal_rates</source>
+                <target>Seasonal rates</target>
             </trans-unit>
             <trans-unit id="landing.shot.send_another_agent">
                 <source>landing.shot.send_another_agent</source>
@@ -5878,9 +5886,9 @@
                 <source>landing.shot.tech_design_booking_calendar</source>
                 <target>Tech design: booking calendar</target>
             </trans-unit>
-            <trans-unit id="landing.shot.tech_design_seasonal_pricing_no_code">
-                <source>landing.shot.tech_design_seasonal_pricing_no_code</source>
-                <target>Tech design: seasonal pricing. No code starts until Maya Chen approves it.</target>
+            <trans-unit id="landing.shot.tech_design_seasonal_rates_no_code">
+                <source>landing.shot.tech_design_seasonal_rates_no_code</source>
+                <target>Tech design: seasonal rates. No code starts until Maya Chen approves it.</target>
             </trans-unit>
             <trans-unit id="landing.shot.the_agent_pushes_to_the_same">
                 <source>landing.shot.the_agent_pushes_to_the_same</source>
@@ -6093,286 +6101,6 @@
             <trans-unit id="landing.features.analytics.caption">
                 <source>landing.features.analytics.caption</source>
                 <target>Compare models on cost, merge rate and fix rounds.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.product_design">
-                <source>landing.slide.board.lane.product_design</source>
-                <target>Product design</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.implementation">
-                <source>landing.slide.board.lane.implementation</source>
-                <target>Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.in_review">
-                <source>landing.slide.board.lane.in_review</source>
-                <target>In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.lane.done">
-                <source>landing.slide.board.lane.done</source>
-                <target>Done</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.nightly_price">
-                <source>landing.slide.board.card.nightly_price</source>
-                <target>Nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.booking_calendar">
-                <source>landing.slide.board.card.booking_calendar</source>
-                <target>Booking calendar</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.safer_checkout">
-                <source>landing.slide.board.card.safer_checkout</source>
-                <target>Safer checkout</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.guest_reviews">
-                <source>landing.slide.board.card.guest_reviews</source>
-                <target>Guest reviews</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.card.faster_search">
-                <source>landing.slide.board.card.faster_search</source>
-                <target>Faster search</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.needs_you">
-                <source>landing.slide.board.state.needs_you</source>
-                <target>Needs you</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.working">
-                <source>landing.slide.board.state.working</source>
-                <target>Working</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.stuck">
-                <source>landing.slide.board.state.stuck</source>
-                <target>Stuck</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.board.state.merged">
-                <source>landing.slide.board.state.merged</source>
-                <target>Merged</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.heading">
-                <source>landing.slide.rules.heading</source>
-                <target>Lifecycle rules</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.rule">
-                <source>landing.slide.rules.rule</source>
-                <target>Rule</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.applies">
-                <source>landing.slide.rules.applies</source>
-                <target>Applies in</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.action">
-                <source>landing.slide.rules.action</source>
-                <target>Action</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_tech_design">
-                <source>landing.slide.rules.column_tech_design</source>
-                <target>Tech design</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_implementation">
-                <source>landing.slide.rules.column_implementation</source>
-                <target>Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.column_in_review">
-                <source>landing.slide.rules.column_in_review</source>
-                <target>In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.any_column">
-                <source>landing.slide.rules.any_column</source>
-                <target>Any column</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_implementation">
-                <source>landing.slide.rules.move_to_implementation</source>
-                <target>Move to Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_in_review">
-                <source>landing.slide.rules.move_to_in_review</source>
-                <target>Move to In review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.request_review">
-                <source>landing.slide.rules.request_review</source>
-                <target>Request work: review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.rules.move_to_done">
-                <source>landing.slide.rules.move_to_done</source>
-                <target>Move to Done</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.card_title">
-                <source>landing.slide.session.card_title</source>
-                <target>Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.run_open">
-                <source>landing.slide.session.run_open</source>
-                <target>Interactive run open</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.session.question">
-                <source>landing.slide.session.question</source>
-                <target>Where the price sits is a look-and-feel choice. Want two mockups to compare?</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.title">
-                <source>landing.slide.document.title</source>
-                <target>Product design: nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.finish">
-                <source>landing.slide.document.finish</source>
-                <target>Finish review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_first">
-                <source>landing.slide.document.paragraph_first</source>
-                <target>Guests compare cabins from the search page. Each card shows a photo, the name and the rating.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_before">
-                <source>landing.slide.document.paragraph_second_before</source>
-                <target>The card adds</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_marked">
-                <source>landing.slide.document.paragraph_second_marked</source>
-                <target>the nightly price and the total for the dates</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.paragraph_second_after">
-                <source>landing.slide.document.paragraph_second_after</source>
-                <target>, so a guest never opens a cabin only to learn its price.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.note_author">
-                <source>landing.slide.document.note_author</source>
-                <target>You</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.note">
-                <source>landing.slide.document.note</source>
-                <target>Put the total first. That is what guests compare.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_comment">
-                <source>landing.slide.document.toolbar_comment</source>
-                <target>Comment</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_suggest">
-                <source>landing.slide.document.toolbar_suggest</source>
-                <target>Suggest</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.document.toolbar_strike">
-                <source>landing.slide.document.toolbar_strike</source>
-                <target>Strike</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.heading">
-                <source>landing.slide.inbox.heading</source>
-                <target>Needs you</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.question">
-                <source>landing.slide.inbox.question</source>
-                <target>Show the total, the nightly price, or both?</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.review">
-                <source>landing.slide.inbox.review</source>
-                <target>Tech design: nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.todo">
-                <source>landing.slide.inbox.todo</source>
-                <target>Check the price against a real booking</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_question">
-                <source>landing.slide.inbox.kind_question</source>
-                <target>Question, blocking</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_review">
-                <source>landing.slide.inbox.kind_review</source>
-                <target>Review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.inbox.kind_todo">
-                <source>landing.slide.inbox.kind_todo</source>
-                <target>To-do</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.status">
-                <source>landing.slide.agent_review.status</source>
-                <target>Changes requested, 1 finding</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.finding_label">
-                <source>landing.slide.agent_review.finding_label</source>
-                <target>spec</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.agent_review.finding">
-                <source>landing.slide.agent_review.finding</source>
-                <target>The approved design puts the total for the dates first. This shows only the nightly price.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.tagline">
-                <source>landing.slide.site_review.tagline</source>
-                <target>Cabins near Lake Tahoe, Friday to Sunday</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_first">
-                <source>landing.slide.site_review.cabin_first</source>
-                <target>Pine Hollow cabin</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_first_meta">
-                <source>landing.slide.site_review.cabin_first_meta</source>
-                <target>4.9 stars, sleeps 4</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.price">
-                <source>landing.slide.site_review.price</source>
-                <target>$180 / night</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_second">
-                <source>landing.slide.site_review.cabin_second</source>
-                <target>Lakeview loft</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_second_meta">
-                <source>landing.slide.site_review.cabin_second_meta</source>
-                <target>4.7 stars, sleeps 2</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_third">
-                <source>landing.slide.site_review.cabin_third</source>
-                <target>Cedar ridge</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.cabin_third_meta">
-                <source>landing.slide.site_review.cabin_third_meta</source>
-                <target>4.8 stars, sleeps 6</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.widget">
-                <source>landing.slide.site_review.widget</source>
-                <target>Review</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.selected">
-                <source>landing.slide.site_review.selected</source>
-                <target>Selected element</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.note">
-                <source>landing.slide.site_review.note</source>
-                <target>Show the total for the dates here too.</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.saves">
-                <source>landing.slide.site_review.saves</source>
-                <target>Saves to card #42</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.site_review.submit">
-                <source>landing.slide.site_review.submit</source>
-                <target>Comment</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.metric">
-                <source>landing.slide.analytics.metric</source>
-                <target>Cost</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.per">
-                <source>landing.slide.analytics.per</source>
-                <target>Per finished card</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.statistic">
-                <source>landing.slide.analytics.statistic</source>
-                <target>Median</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.range">
-                <source>landing.slide.analytics.range</source>
-                <target>Last 30 days</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.compare">
-                <source>landing.slide.analytics.compare</source>
-                <target>Vs previous period</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.change">
-                <source>landing.slide.analytics.change</source>
-                <target>↓ 14% Clear</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.current">
-                <source>landing.slide.analytics.current</source>
-                <target>Current period</target>
-            </trans-unit>
-            <trans-unit id="landing.slide.analytics.previous">
-                <source>landing.slide.analytics.previous</source>
-                <target>Previous period</target>
             </trans-unit>
             <trans-unit id="landing.works_with.title">
                 <source>landing.works_with.title</source>
