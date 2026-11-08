@@ -1,0 +1,42 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__site">
+            <div class="lp-shot__site-head">
+                {{ 'landing.shot.driftwood'|trans }}
+                <span class="lp-shot__site-links"><span>{{ 'landing.shot.cabins'|trans }}</span><span>{{ 'landing.shot.guides'|trans }}</span><span>{{ 'landing.shot.contact'|trans }}</span></span>
+            </div>
+            <div class="lp-shot__cabins">
+                <div class="lp-shot__cabin">
+                    <div class="lp-shot__cabin-photo"></div>
+                    <span class="lp-shot__strong">{{ 'landing.shot.pine_hollow_cabin'|trans }}</span>
+                    <span class="lp-shot__dim">{{ 'landing.shot.sleeps_4_lake_view'|trans }}</span>
+                    <span class="lp-shot__picked"><span class="lp-shot__picked-tag">{{ 'div.price' }}</span><span class="lp-shot__strong">{{ '$180' }}</span></span>
+                </div>
+                <div class="lp-shot__cabin">
+                    <div class="lp-shot__cabin-photo lp-shot__cabin-photo--sky"></div>
+                    <span class="lp-shot__strong">{{ 'landing.shot.lakeview_a_frame'|trans }}</span>
+                    <span class="lp-shot__dim">{{ 'landing.shot.sleeps_2_hot_tub'|trans }}</span>
+                    <span class="lp-shot__strong">{{ '$240' }}</span>
+                </div>
+                <div class="lp-shot__cabin">
+                    <div class="lp-shot__cabin-photo lp-shot__cabin-photo--orange"></div>
+                    <span class="lp-shot__strong">{{ 'landing.shot.cedar_retreat'|trans }}</span>
+                    <span class="lp-shot__dim">{{ 'landing.shot.sleeps_6_fire_pit'|trans }}</span>
+                    <span class="lp-shot__strong">{{ '$210' }}</span>
+                </div>
+            </div>
+            <div class="lp-shot__row lp-shot__row--between lp-shot__row--top">
+                <span class="lp-shot__widget">{{ shot.icon('lucide:message-square-plus', 'sm') }}{{ 'landing.shot.review_3_notes'|trans }}</span>
+                <div class="lp-shot__note">
+                    <span class="lp-shot__label">{{ 'Selected: div.price' }}</span>
+                    <span class="lp-shot__strong">{{ 'landing.shot.the_price_should_say_per_night'|trans }}</span>
+                    <div class="lp-shot__row lp-shot__row--between">
+                        <span class="lp-shot__dim">{{ 'landing.shot.saved_on_card_42'|trans }}</span>
+                        <span class="lp-shot__button lp-shot__button--primary">{{ 'landing.shot.save_note'|trans }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

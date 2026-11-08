@@ -1,0 +1,18 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel">
+            <span class="lp-shot__label">{{ 'landing.shot.the_approved_design_says'|trans }}</span>
+            <p class="lp-shot__text">{{ 'landing.shot.show_the_price'|trans }} <span class="lp-shot__anchor">{{ 'landing.shot.per_night'|trans }}</span>{{ 'landing.shot.next_to_the_cabin_name'|trans }}</p>
+        </div>
+        <div class="lp-shot__diff">
+            <div class="lp-shot__diff-file">{{ 'SearchCard.tsx' }}</div>
+            <div class="lp-shot__diff-line lp-shot__diff-line--del">{{ '- <Price total={cabin.stayTotal} />' }}</div>
+            <div class="lp-shot__diff-line lp-shot__diff-line--add">{{ '+ <Price total={cabin.stayTotal} per="stay" />' }}</div>
+        </div>
+        <div class="lp-shot__finding">
+            <span class="lp-shot__strong">{{ 'landing.shot.drifts_from_the_plan'|trans }}</span>
+            <span>{{ 'landing.shot.the_price_shows_per_stay_the'|trans }}</span>
+        </div>
+    </div>
+</div>

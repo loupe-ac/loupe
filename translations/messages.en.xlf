@@ -5010,6 +5010,994 @@
                 <source>landing.features.index_description</source>
                 <target>The features of Loupe, a software factory for coding agents: board, workflow rules, sessions, document review, inbox, agent review, live review and analytics.</target>
             </trans-unit>
+            <trans-unit id="landing.features.page.docs">
+                <source>landing.features.page.docs</source>
+                <target>Read the docs</target>
+            </trans-unit>
+            <trans-unit id="landing.features.page.more_title">
+                <source>landing.features.page.more_title</source>
+                <target>More of the factory</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1_every_visitor_before_they_pick">
+                <source>landing.shot.1_every_visitor_before_they_pick</source>
+                <target>1. Every visitor, before they pick dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1_hide_the_price_and_show">
+                <source>landing.shot.1_hide_the_price_and_show</source>
+                <target>1. Hide the price and show "Ask us"</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.1h_ago">
+                <source>landing.shot.1h_ago</source>
+                <target>1h ago</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_elements_selected">
+                <source>landing.shot.2_elements_selected</source>
+                <target>2 elements selected</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_only_visitors_who_picked_dates">
+                <source>landing.shot.2_only_visitors_who_picked_dates</source>
+                <target>2. Only visitors who picked dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_rounds">
+                <source>landing.shot.2_rounds</source>
+                <target>2 rounds</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2_show_the_nearest_available_dates">
+                <source>landing.shot.2_show_the_nearest_available_dates</source>
+                <target>2. Show the nearest available dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.2m_ago">
+                <source>landing.shot.2m_ago</source>
+                <target>2m ago</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_changes">
+                <source>landing.shot.3_changes</source>
+                <target>3 changes</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_findings_on_pull_request_118">
+                <source>landing.shot.3_findings_on_pull_request_118</source>
+                <target>3 findings on pull request #118</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_notes_from_priya_nair">
+                <source>landing.shot.3_notes_from_priya_nair</source>
+                <target>3 notes from Priya Nair</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_signed_in_guests_only">
+                <source>landing.shot.3_signed_in_guests_only</source>
+                <target>3. Signed-in guests only</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.3_something_else">
+                <source>landing.shot.3_something_else</source>
+                <target>3. Something else</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.8_weeks">
+                <source>landing.shot.8_weeks</source>
+                <target>8 weeks</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_booking_that_is_already_paid">
+                <source>landing.shot.a_booking_that_is_already_paid</source>
+                <target>A booking that is already paid keeps</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_percent_on_top_of_the">
+                <source>landing.shot.a_percent_on_top_of_the</source>
+                <target>A percent on top of the base rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.a_rate_table_per_season">
+                <source>landing.shot.a_rate_table_per_season</source>
+                <target>A rate table per season</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.action">
+                <source>landing.shot.action</source>
+                <target>Action</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_booking_calendar">
+                <source>landing.shot.add_a_booking_calendar</source>
+                <target>Add a booking calendar</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_note_for_the_agent">
+                <source>landing.shot.add_a_note_for_the_agent</source>
+                <target>Add a note for the agent...</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_peak_season_rate_table">
+                <source>landing.shot.add_a_peak_season_rate_table</source>
+                <target>Add a peak-season rate table</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_a_photo_gallery_to_each">
+                <source>landing.shot.add_a_photo_gallery_to_each</source>
+                <target>Add a photo gallery to each cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_the_payment_key_to_the">
+                <source>landing.shot.add_the_payment_key_to_the</source>
+                <target>Add the payment key to the build server</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.add_to_card_42">
+                <source>landing.shot.add_to_card_42</source>
+                <target>Add to card #42</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.agent_review_passed">
+                <source>landing.shot.agent_review_passed</source>
+                <target>Agent review passed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.agents">
+                <source>landing.shot.agents</source>
+                <target>Agents</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.agents_run_on">
+                <source>landing.shot.agents_run_on</source>
+                <target>Agents run on</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.an_agent_is_blocked">
+                <source>landing.shot.an_agent_is_blocked</source>
+                <target>An agent is blocked</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.analytics">
+                <source>landing.shot.analytics</source>
+                <target>Analytics</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.and_the_booking_page_shows_the">
+                <source>landing.shot.and_the_booking_page_shows_the</source>
+                <target>, and the booking page shows the new total at once.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.any_column">
+                <source>landing.shot.any_column</source>
+                <target>Any column</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.applies_in">
+                <source>landing.shot.applies_in</source>
+                <target>Applies in</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.approve">
+                <source>landing.shot.approve</source>
+                <target>Approve</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.approve_v2">
+                <source>landing.shot.approve_v2</source>
+                <target>Approve v2</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.approved">
+                <source>landing.shot.approved</source>
+                <target>Approved</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.ask_for_changes">
+                <source>landing.shot.ask_for_changes</source>
+                <target>Ask for changes</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.asks_you">
+                <source>landing.shot.asks_you</source>
+                <target>Asks you</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.bars_show_the_confidence_range_model">
+                <source>landing.shot.bars_show_the_confidence_range_model</source>
+                <target>Bars show the confidence range. Model B looks better, and the ranges still overlap.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.based_on_46_cards_this_month">
+                <source>landing.shot.based_on_46_cards_this_month</source>
+                <target>Based on 46 cards this month and 41 cards last month.</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.before">
+                <source>landing.shot.before</source>
+                <target>Before</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.blocked_by_46_it_waits_until">
+                <source>landing.shot.blocked_by_46_it_waits_until</source>
+                <target>Blocked by #46. It waits until the rate table is merged.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.blocking">
+                <source>landing.shot.blocking</source>
+                <target>Blocking</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.board">
+                <source>landing.shot.board</source>
+                <target>Board</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.book_now">
+                <source>landing.shot.book_now</source>
+                <target>Book now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.bug">
+                <source>landing.shot.bug</source>
+                <target>Bug</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.build_card_38_with_me">
+                <source>landing.shot.build_card_38_with_me</source>
+                <target>Build card 38 with me</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.build_server">
+                <source>landing.shot.build_server</source>
+                <target>Build server</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cabins">
+                <source>landing.shot.cabins</source>
+                <target>Cabins</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.can_an_override_apply_to_a">
+                <source>landing.shot.can_an_override_apply_to_a</source>
+                <target>Can an override apply to a range of nights, not only one?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.card_38_moved_to_implementation_no">
+                <source>landing.shot.card_38_moved_to_implementation_no</source>
+                <target>Card #38 moved to Implementation. No background agent runs on it.</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.card_comes_to_you">
+                <source>landing.shot.card_comes_to_you</source>
+                <target>Card comes to you</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cedar_retreat">
+                <source>landing.shot.cedar_retreat</source>
+                <target>Cedar Retreat</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.checked_against_product_design_v2_tech">
+                <source>landing.shot.checked_against_product_design_v2_tech</source>
+                <target>Checked against Product design v2, Tech design v1 and the prototype. Three findings were fixed. Nothing is left open.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.checks_are_green">
+                <source>landing.shot.checks_are_green</source>
+                <target>Checks are green</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.checks_green">
+                <source>landing.shot.checks_green</source>
+                <target>Checks green</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.checks_pass">
+                <source>landing.shot.checks_pass</source>
+                <target>Checks pass</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.clear_difference">
+                <source>landing.shot.clear_difference</source>
+                <target>Clear difference</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.comment">
+                <source>landing.shot.comment</source>
+                <target>Comment</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.compare_other_versions">
+                <source>landing.shot.compare_other_versions</source>
+                <target>Compare other versions</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.compared_with_the_30_days_before">
+                <source>landing.shot.compared_with_the_30_days_before</source>
+                <target>Compared with the 30 days before</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.contact">
+                <source>landing.shot.contact</source>
+                <target>Contact</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cost_per_card">
+                <source>landing.shot.cost_per_card</source>
+                <target>Cost per card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.cost_per_finished_card">
+                <source>landing.shot.cost_per_finished_card</source>
+                <target>Cost per finished card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.decide">
+                <source>landing.shot.decide</source>
+                <target>Decide</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.decision">
+                <source>landing.shot.decision</source>
+                <target>Decision</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.design_agent">
+                <source>landing.shot.design_agent</source>
+                <target>Design agent</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.discount_codes_and_long_stay_rates">
+                <source>landing.shot.discount_codes_and_long_stay_rates</source>
+                <target>Discount codes and long-stay rates stay as they are today.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.documents">
+                <source>landing.shot.documents</source>
+                <target>Documents</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.done">
+                <source>landing.shot.done</source>
+                <target>Done</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.draw">
+                <source>landing.shot.draw</source>
+                <target>Draw</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.drifts_from_the_plan">
+                <source>landing.shot.drifts_from_the_plan</source>
+                <target>Drifts from the plan</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.driftwood">
+                <source>landing.shot.driftwood</source>
+                <target>Driftwood</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.email_guests_a_check_in_guide">
+                <source>landing.shot.email_guests_a_check_in_guide</source>
+                <target>Email guests a check-in guide</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.experiment_two_models">
+                <source>landing.shot.experiment_two_models</source>
+                <target>Experiment: two models</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.failed_again">
+                <source>landing.shot.failed_again</source>
+                <target>Failed again</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.feature">
+                <source>landing.shot.feature</source>
+                <target>Feature</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.finish_review">
+                <source>landing.shot.finish_review</source>
+                <target>Finish review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fix_round_1">
+                <source>landing.shot.fix_round_1</source>
+                <target>Fix round 1</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fix_round_2_of_3">
+                <source>landing.shot.fix_round_2_of_3</source>
+                <target>Fix round 2 of 3</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fix_rounds">
+                <source>landing.shot.fix_rounds</source>
+                <target>Fix rounds</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fix_the_broken_map_pin">
+                <source>landing.shot.fix_the_broken_map_pin</source>
+                <target>Fix the broken map pin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fixed">
+                <source>landing.shot.fixed</source>
+                <target>Fixed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fixes_the_setup_then_the_work">
+                <source>landing.shot.fixes_the_setup_then_the_work</source>
+                <target>Fixes the setup, then the work runs</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.for_a_single_night">
+                <source>landing.shot.for_a_single_night</source>
+                <target>for a single night</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.for_one_night_or_a_range">
+                <source>landing.shot.for_one_night_or_a_range</source>
+                <target>for one night or a range of nights</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.got_it_i_wrote_the_design">
+                <source>landing.shot.got_it_i_wrote_the_design</source>
+                <target>Got it. I wrote the design and sent it for review. The card waits for you in Product design.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.guides">
+                <source>landing.shot.guides</source>
+                <target>Guides</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.hours_to_merge">
+                <source>landing.shot.hours_to_merge</source>
+                <target>Hours to merge</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.how_are_peak_prices_set">
+                <source>landing.shot.how_are_peak_prices_set</source>
+                <target>How are peak prices set?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.human_review_off">
+                <source>landing.shot.human_review_off</source>
+                <target>Human review off</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.human_review_on">
+                <source>landing.shot.human_review_on</source>
+                <target>Human review on</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.i_read_the_card_and_the">
+                <source>landing.shot.i_read_the_card_and_the</source>
+                <target>I read the card and the booking page. One question first: who sees the nightly price?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.implementation">
+                <source>landing.shot.implementation</source>
+                <target>Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.implementation_agent">
+                <source>landing.shot.implementation_agent</source>
+                <target>Implementation agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.implementation_run_failed">
+                <source>landing.shot.implementation_run_failed</source>
+                <target>Implementation run failed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.in_review">
+                <source>landing.shot.in_review</source>
+                <target>In review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.inbox">
+                <source>landing.shot.inbox</source>
+                <target>Inbox</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.ios_simulator">
+                <source>landing.shot.ios_simulator</source>
+                <target>iOS simulator</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.is_blocked">
+                <source>landing.shot.is_blocked</source>
+                <target>is blocked</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.june_to_august">
+                <source>landing.shot.june_to_august</source>
+                <target>June to August</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.keep_both_and_fix_the_retry">
+                <source>landing.shot.keep_both_and_fix_the_retry</source>
+                <target>Keep both and fix the retry</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.keep_the_new_test_drop_the">
+                <source>landing.shot.keep_the_new_test_drop_the</source>
+                <target>Keep the new test, drop the old one</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.lakeview_a_frame">
+                <source>landing.shot.lakeview_a_frame</source>
+                <target>Lakeview A-Frame</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.last_30_days">
+                <source>landing.shot.last_30_days</source>
+                <target>Last 30 days</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.less_to_set_harder_to_predict">
+                <source>landing.shot.less_to_set_harder_to_predict</source>
+                <target>Less to set. Harder to predict.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.let_owners_override_a_rate">
+                <source>landing.shot.let_owners_override_a_rate</source>
+                <target>Let owners override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.lifecycle_template">
+                <source>landing.shot.lifecycle_template</source>
+                <target>Lifecycle template</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.linked">
+                <source>landing.shot.linked</source>
+                <target>Linked</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.loupe">
+                <source>landing.shot.loupe</source>
+                <target>Loupe</target>
+            </trans-unit>
+                                    <trans-unit id="landing.shot.major">
+                <source>landing.shot.major</source>
+                <target>Major</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.make_cabin_search_faster">
+                <source>landing.shot.make_cabin_search_faster</source>
+                <target>Make cabin search faster</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.make_checkout_safer">
+                <source>landing.shot.make_checkout_safer</source>
+                <target>Make checkout safer</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.marked_up_screenshot_and_the_element">
+                <source>landing.shot.marked_up_screenshot_and_the_element</source>
+                <target>Marked-up screenshot and the element are attached.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.may_to_september">
+                <source>landing.shot.may_to_september</source>
+                <target>May to September</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.maya_chen">
+                <source>landing.shot.maya_chen</source>
+                <target>Maya Chen</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.maya_s_session_is_open">
+                <source>landing.shot.maya_s_session_is_open</source>
+                <target>Maya's session is open</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge">
+                <source>landing.shot.merge</source>
+                <target>Merge</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge_agent">
+                <source>landing.shot.merge_agent</source>
+                <target>Merge agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge_rate">
+                <source>landing.shot.merge_rate</source>
+                <target>Merge rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.merge_then_move_to_done">
+                <source>landing.shot.merge_then_move_to_done</source>
+                <target>Merge, then move to Done</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.minor">
+                <source>landing.shot.minor</source>
+                <target>Minor</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.model_a">
+                <source>landing.shot.model_a</source>
+                <target>Model A</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.model_b">
+                <source>landing.shot.model_b</source>
+                <target>Model B</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.move_to_implementation">
+                <source>landing.shot.move_to_implementation</source>
+                <target>Move to Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.move_to_in_review_ask_for">
+                <source>landing.shot.move_to_in_review_ask_for</source>
+                <target>Move to In review, ask for agent review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.move_to_tech_design">
+                <source>landing.shot.move_to_tech_design</source>
+                <target>Move to Tech design</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.need_more_cards">
+                <source>landing.shot.need_more_cards</source>
+                <target>Need more cards</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.needs_an_outside_account">
+                <source>landing.shot.needs_an_outside_account</source>
+                <target>Needs an outside account.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.needs_you_the_product_design_waits">
+                <source>landing.shot.needs_you_the_product_design_waits</source>
+                <target>Needs you: the product design waits for Maya Chen to approve it.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.new_card">
+                <source>landing.shot.new_card</source>
+                <target>New card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.next_step">
+                <source>landing.shot.next_step</source>
+                <target>Next step</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.next_to_the_cabin_name">
+                <source>landing.shot.next_to_the_cabin_name</source>
+                <target>, next to the cabin name.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.no_findings">
+                <source>landing.shot.no_findings</source>
+                <target>No findings</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.no_test_for_a_cabin_with">
+                <source>landing.shot.no_test_for_a_cabin_with</source>
+                <target>No test for a cabin with no rate.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.now">
+                <source>landing.shot.now</source>
+                <target>now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.one_check_is_still_red">
+                <source>landing.shot.one_check_is_still_red</source>
+                <target>One check is still red</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.only_when_the_fix_rounds_run">
+                <source>landing.shot.only_when_the_fix_rounds_run</source>
+                <target>Only when the fix rounds run out</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.open">
+                <source>landing.shot.open</source>
+                <target>Open</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.opened_pull_request_118_linked_to">
+                <source>landing.shot.opened_pull_request_118_linked_to</source>
+                <target>Opened pull request #118, linked to card #38</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.or_write_a_reply">
+                <source>landing.shot.or_write_a_reply</source>
+                <target>Or write a reply...</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.out_of_scope">
+                <source>landing.shot.out_of_scope</source>
+                <target>Out of scope</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_can_override_a_rate">
+                <source>landing.shot.owners_can_override_a_rate</source>
+                <target>. Owners can override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_can_override_a_rate_for">
+                <source>landing.shot.owners_can_override_a_rate_for</source>
+                <target>Owners can override a rate for a single night</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_edit_one_table_easy_to">
+                <source>landing.shot.owners_edit_one_table_easy_to</source>
+                <target>Owners edit one table. Easy to check.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.owners_set_a_nightly_rate_for">
+                <source>landing.shot.owners_set_a_nightly_rate_for</source>
+                <target>Owners set a nightly rate for each season. A guest sees the rate for the nights they picked, and the total before they pay.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.passed">
+                <source>landing.shot.passed</source>
+                <target>Passed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_rates_apply_from">
+                <source>landing.shot.peak_rates_apply_from</source>
+                <target>Peak rates apply from</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_rates_apply_from_june_to">
+                <source>landing.shot.peak_rates_apply_from_june_to</source>
+                <target>Peak rates apply from June to August.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.peak_season">
+                <source>landing.shot.peak_season</source>
+                <target>Peak season</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.per_night">
+                <source>landing.shot.per_night</source>
+                <target>per night</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.pick">
+                <source>landing.shot.pick</source>
+                <target>Pick</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.pine_hollow_cabin">
+                <source>landing.shot.pine_hollow_cabin</source>
+                <target>Pine Hollow Cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.please_keep_paid_bookings_at_their">
+                <source>landing.shot.please_keep_paid_bookings_at_their</source>
+                <target>Please keep paid bookings at their old rate.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.preview_the_price_at_booking">
+                <source>landing.shot.preview_the_price_at_booking</source>
+                <target>Preview the price at booking</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.price_is_cut_off_on_small">
+                <source>landing.shot.price_is_cut_off_on_small</source>
+                <target>Price is cut off on small screens.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.prices_from_a_booking_service">
+                <source>landing.shot.prices_from_a_booking_service</source>
+                <target>Prices from a booking service</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design">
+                <source>landing.shot.product_design</source>
+                <target>Product design</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_agent">
+                <source>landing.shot.product_design_agent</source>
+                <target>Product design agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_seasonal_pricing">
+                <source>landing.shot.product_design_seasonal_pricing</source>
+                <target>Product design: seasonal pricing</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_seasonal_pricing_2">
+                <source>landing.shot.product_design_seasonal_pricing_2</source>
+                <target>Product design: seasonal pricing.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.product_design_written_review_it_in">
+                <source>landing.shot.product_design_written_review_it_in</source>
+                <target>Product design written. Review it in Loupe when you are ready.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.prototype_month_view">
+                <source>landing.shot.prototype_month_view</source>
+                <target>Prototype: month view</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.pull_request_118">
+                <source>landing.shot.pull_request_118</source>
+                <target>Pull request #118</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.pull_request_118_passed_agent_review">
+                <source>landing.shot.pull_request_118_passed_agent_review</source>
+                <target>Pull request #118 passed agent review</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.pushed">
+                <source>landing.shot.pushed</source>
+                <target>Pushed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.question">
+                <source>landing.shot.question</source>
+                <target>Question</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.quote">
+                <source>landing.shot.quote</source>
+                <target>Quote</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.rates_change_at_midnight_in_the">
+                <source>landing.shot.rates_change_at_midnight_in_the</source>
+                <target>Rates change at midnight, in the time zone of the cabin. A booking that is already paid keeps the rate it was sold at.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.ready_for_a_last_look">
+                <source>landing.shot.ready_for_a_last_look</source>
+                <target>Ready for a last look</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.ready_to_merge">
+                <source>landing.shot.ready_to_merge</source>
+                <target>Ready to merge</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.recommended">
+                <source>landing.shot.recommended</source>
+                <target>Recommended</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.repair_agent">
+                <source>landing.shot.repair_agent</source>
+                <target>Repair agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.resolved">
+                <source>landing.shot.resolved</source>
+                <target>Resolved</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.resume_the_run">
+                <source>landing.shot.resume_the_run</source>
+                <target>Resume the run</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review">
+                <source>landing.shot.review</source>
+                <target>Review</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review_3_notes">
+                <source>landing.shot.review_3_notes</source>
+                <target>Review: 3 notes</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review_agent">
+                <source>landing.shot.review_agent</source>
+                <target>Review agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review_needed">
+                <source>landing.shot.review_needed</source>
+                <target>Review needed</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review_passed">
+                <source>landing.shot.review_passed</source>
+                <target>Review passed</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.review_round_1">
+                <source>landing.shot.review_round_1</source>
+                <target>Review round 1</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.review_round_2">
+                <source>landing.shot.review_round_2</source>
+                <target>Review round 2</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.round_1">
+                <source>landing.shot.round_1</source>
+                <target>Round 1</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.round_2">
+                <source>landing.shot.round_2</source>
+                <target>Round 2</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.round_prices_to_whole_dollars">
+                <source>landing.shot.round_prices_to_whole_dollars</source>
+                <target>Round prices to whole dollars</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.rule">
+                <source>landing.shot.rule</source>
+                <target>Rule</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.run_a_command_on_your_machine">
+                <source>landing.shot.run_a_command_on_your_machine</source>
+                <target>Run a command on your machine</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.run_again">
+                <source>landing.shot.run_again</source>
+                <target>Run again</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.run_again_then_send_the_repair">
+                <source>landing.shot.run_again_then_send_the_repair</source>
+                <target>Run again, then send the repair agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.run_opened_card_42_shows_as">
+                <source>landing.shot.run_opened_card_42_shows_as</source>
+                <target>Run opened. Card #42 shows as working.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.running">
+                <source>landing.shot.running</source>
+                <target>Running</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.save_note">
+                <source>landing.shot.save_note</source>
+                <target>Save note</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.save_to_dashboard">
+                <source>landing.shot.save_to_dashboard</source>
+                <target>Save to dashboard</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.saved_on_card_42">
+                <source>landing.shot.saved_on_card_42</source>
+                <target>Saved on card #42</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.seasonal_pricing">
+                <source>landing.shot.seasonal_pricing</source>
+                <target>Seasonal pricing</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.send_another_agent">
+                <source>landing.shot.send_another_agent</source>
+                <target>Send another agent</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.send_answer">
+                <source>landing.shot.send_answer</source>
+                <target>Send answer</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.send_to_one_card_per_note">
+                <source>landing.shot.send_to_one_card_per_note</source>
+                <target>Send to one card per note</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.send_to_one_new_card">
+                <source>landing.shot.send_to_one_new_card</source>
+                <target>Send to one new card</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sent_back_for_fixes">
+                <source>landing.shot.sent_back_for_fixes</source>
+                <target>Sent back for fixes</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.should_a_booking_hold_the_dates">
+                <source>landing.shot.should_a_booking_hold_the_dates</source>
+                <target>Should a booking hold the dates while the guest pays?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.show_guest_reviews_on_each_cabin">
+                <source>landing.shot.show_guest_reviews_on_each_cabin</source>
+                <target>Show guest reviews on each cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.show_the_nightly_price_on_the">
+                <source>landing.shot.show_the_nightly_price_on_the</source>
+                <target>Show the nightly price on the cabin page</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.show_the_price">
+                <source>landing.shot.show_the_price</source>
+                <target>Show the price</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_2_hot_tub">
+                <source>landing.shot.sleeps_2_hot_tub</source>
+                <target>Sleeps 2, hot tub</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_4_lake_view">
+                <source>landing.shot.sleeps_4_lake_view</source>
+                <target>Sleeps 4, lake view</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.sleeps_6_fire_pit">
+                <source>landing.shot.sleeps_6_fire_pit</source>
+                <target>Sleeps 6, fire pit</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.starts_when_the_card_arrives">
+                <source>landing.shot.starts_when_the_card_arrives</source>
+                <target>starts when the card arrives</target>
+            </trans-unit>
+                                    <trans-unit id="landing.shot.strike">
+                <source>landing.shot.strike</source>
+                <target>Strike</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.stuck_the_checkout_tests_failed_twice">
+                <source>landing.shot.stuck_the_checkout_tests_failed_twice</source>
+                <target>Stuck: the checkout tests failed twice. A fix round starts next.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.suggest">
+                <source>landing.shot.suggest</source>
+                <target>Suggest</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.suggestion">
+                <source>landing.shot.suggestion</source>
+                <target>Suggestion</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.take_the_work_yourself">
+                <source>landing.shot.take_the_work_yourself</source>
+                <target>Take the work yourself</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.tech_design">
+                <source>landing.shot.tech_design</source>
+                <target>Tech design</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.tech_design_agent">
+                <source>landing.shot.tech_design_agent</source>
+                <target>Tech design agent</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.tech_design_booking_calendar">
+                <source>landing.shot.tech_design_booking_calendar</source>
+                <target>Tech design: booking calendar</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.tech_design_seasonal_pricing_no_code">
+                <source>landing.shot.tech_design_seasonal_pricing_no_code</source>
+                <target>Tech design: seasonal pricing. No code starts until Maya Chen approves it.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_agent_pushes_to_the_same">
+                <source>landing.shot.the_agent_pushes_to_the_same</source>
+                <target>The agent pushes to the same pull request</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_approved_design_says">
+                <source>landing.shot.the_approved_design_says</source>
+                <target>The approved design says</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_change_is_small_next_to">
+                <source>landing.shot.the_change_is_small_next_to</source>
+                <target>The change is small next to the spread. Wait for more cards.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_currency_symbol_is_hard_coded">
+                <source>landing.shot.the_currency_symbol_is_hard_coded</source>
+                <target>The currency symbol is hard-coded.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_current_rate">
+                <source>landing.shot.the_current_rate</source>
+                <target>the current rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_and_the_button_should">
+                <source>landing.shot.the_price_and_the_button_should</source>
+                <target>The price and the button should sit together.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_should_say_per_night">
+                <source>landing.shot.the_price_should_say_per_night</source>
+                <target>The price should say per night.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_shows_per_stay_the">
+                <source>landing.shot.the_price_shows_per_stay_the</source>
+                <target>The price shows per stay. The approved design says per night.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_price_shows_per_stay_the_2">
+                <source>landing.shot.the_price_shows_per_stay_the_2</source>
+                <target>The price shows per stay. The design says per night.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_rate_it_was_sold_at">
+                <source>landing.shot.the_rate_it_was_sold_at</source>
+                <target>the rate it was sold at</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.the_session_picks_up_where_it">
+                <source>landing.shot.the_session_picks_up_where_it</source>
+                <target>The session picks up where it stopped.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.this_period">
+                <source>landing.shot.this_period</source>
+                <target>This period</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.to_do">
+                <source>landing.shot.to_do</source>
+                <target>To-do</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.tom_alvarez">
+                <source>landing.shot.tom_alvarez</source>
+                <target>Tom Alvarez</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.two_tests_cover_the_same_payment">
+                <source>landing.shot.two_tests_cover_the_same_payment</source>
+                <target>Two tests cover the same payment error. The old one expects a retry. The new one expects a message.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.updated_just_now">
+                <source>landing.shot.updated_just_now</source>
+                <target>Updated just now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.waiting_for_a_person">
+                <source>landing.shot.waiting_for_a_person</source>
+                <target>Waiting for a person</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.waiting_for_maya_chen_to_approve">
+                <source>landing.shot.waiting_for_maya_chen_to_approve</source>
+                <target>Waiting for Maya Chen to approve</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.weekly">
+                <source>landing.shot.weekly</source>
+                <target>Weekly</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.what_should_a_guest_see_when">
+                <source>landing.shot.what_should_a_guest_see_when</source>
+                <target>What should a guest see when a cabin has no price for the dates they picked?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.which_test_should_the_checkout_fix">
+                <source>landing.shot.which_test_should_the_checkout_fix</source>
+                <target>Which test should the checkout fix keep?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.while_the_session_is_open_the">
+                <source>landing.shot.while_the_session_is_open_the</source>
+                <target>While the session is open, the card shows as working. When it closes, the rules take over.</target>
+            </trans-unit>
+                        <trans-unit id="landing.shot.workflow">
+                <source>landing.shot.workflow</source>
+                <target>Workflow</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.working_tom_s_agent_is_building">
+                <source>landing.shot.working_tom_s_agent_is_building</source>
+                <target>Working: Tom's agent is building the calendar. It moves on when the pull request is ready.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.workshop">
+                <source>landing.shot.workshop</source>
+                <target>Workshop</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.yes_for_10_minutes">
+                <source>landing.shot.yes_for_10_minutes</source>
+                <target>Yes, for 10 minutes</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.yes_i_changed_the_passage_so">
+                <source>landing.shot.yes_i_changed_the_passage_so</source>
+                <target>Yes. I changed the passage so an override covers one night or a range. See v3.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.yes_until_the_payment_fails">
+                <source>landing.shot.yes_until_the_payment_fails</source>
+                <target>Yes, until the payment fails</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.yesterday">
+                <source>landing.shot.yesterday</source>
+                <target>Yesterday</target>
+            </trans-unit>
             <trans-unit id="landing.features.board.name">
                 <source>landing.features.board.name</source>
                 <target>Board</target>

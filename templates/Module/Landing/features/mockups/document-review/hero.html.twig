@@ -1,0 +1,43 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('documents') }}
+            <div class="lp-shot__main">
+                <div class="lp-shot__top">
+                    <h3 class="lp-shot__title">{{ 'landing.shot.product_design_seasonal_pricing'|trans }}</h3>
+                    {{ shot.pill('v2') }}
+                    {{ shot.pill('landing.shot.agent_review_passed'|trans, 'ok') }}
+                    <span class="lp-shot__spacer lp-shot__button lp-shot__button--primary">{{ 'landing.shot.finish_review'|trans }}</span>
+                </div>
+                <div class="lp-shot__doc">
+                    <div class="lp-shot__prose">
+                        <h4>{{ 'landing.shot.seasonal_pricing'|trans }}</h4>
+                        <p>{{ 'landing.shot.owners_set_a_nightly_rate_for'|trans }}</p>
+                        <h4>{{ 'landing.shot.peak_season'|trans }}</h4>
+                        <p>{{ 'landing.shot.peak_rates_apply_from_june_to'|trans }} <span class="lp-shot__anchor">{{ 'landing.shot.owners_can_override_a_rate_for'|trans }}</span>{{ 'landing.shot.and_the_booking_page_shows_the'|trans }}</p>
+                        <p>{{ 'landing.shot.rates_change_at_midnight_in_the'|trans }}</p>
+                        <h4>{{ 'landing.shot.out_of_scope'|trans }}</h4>
+                        <p>{{ 'landing.shot.discount_codes_and_long_stay_rates'|trans }}</p>
+                    </div>
+                    <div class="lp-shot__doc-aside">
+                        <div class="lp-shot__comment">
+                            <div class="lp-shot__comment-head">{{ shot.avatar('MC', 'ink') }}{{ 'landing.shot.maya_chen'|trans }}</div>
+                            <span>{{ 'landing.shot.can_an_override_apply_to_a'|trans }}</span>
+                            <span class="lp-shot__dim">{{ 'landing.shot.open'|trans }}</span>
+                        </div>
+                        <div class="lp-shot__comment">
+                            <div class="lp-shot__comment-head">{{ shot.avatar('AI', 'agent') }}{{ 'landing.shot.design_agent'|trans }}</div>
+                            <span>{{ 'landing.shot.yes_i_changed_the_passage_so'|trans }}</span>
+                        </div>
+                        <div class="lp-shot__comment">
+                            <div class="lp-shot__comment-head">{{ shot.avatar('TA') }}{{ 'landing.shot.tom_alvarez'|trans }}</div>
+                            <span>{{ 'landing.shot.please_keep_paid_bookings_at_their'|trans }}</span>
+                            {{ shot.pill('landing.shot.resolved'|trans, 'ok') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

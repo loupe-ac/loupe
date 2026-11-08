@@ -48,6 +48,7 @@
 @import './components/graph-tile.css';
 @import './components/disclosure.css';
 @import './components/value-row.css';
+@import './feature-pages.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's

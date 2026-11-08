@@ -1,0 +1,42 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('inbox') }}
+            <div class="lp-shot__main">
+                <div class="lp-shot__top">
+                    <h3 class="lp-shot__title">{{ 'landing.shot.inbox'|trans }}</h3>
+                    {{ shot.pill('3 open', 'warn') }}
+                </div>
+                <div class="lp-shot__app">
+                    <div class="lp-shot__list">
+                        <div class="lp-shot__list-item lp-shot__list-item--active">
+                            <div class="lp-shot__row">{{ shot.pill('landing.shot.question'|trans, 'warn') }}<span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.2m_ago'|trans }}</span></div>
+                            <span class="lp-shot__strong">{{ 'landing.shot.which_test_should_the_checkout_fix'|trans }}</span>
+                            <span class="lp-shot__dim">{{ '#40 Make checkout safer' }}</span>
+                        </div>
+                        <div class="lp-shot__list-item">
+                            <div class="lp-shot__row">{{ shot.pill('landing.shot.review'|trans, 'active') }}<span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.1h_ago'|trans }}</span></div>
+                            <span class="lp-shot__strong">{{ 'landing.shot.product_design_seasonal_pricing'|trans }}</span>
+                            <span class="lp-shot__dim">{{ '#45 Seasonal pricing' }}</span>
+                        </div>
+                        <div class="lp-shot__list-item">
+                            <div class="lp-shot__row">{{ shot.pill('landing.shot.to_do'|trans) }}<span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.yesterday'|trans }}</span></div>
+                            <span class="lp-shot__strong">{{ 'landing.shot.add_the_payment_key_to_the'|trans }}</span>
+                            <span class="lp-shot__dim">{{ '#38 Add a booking calendar' }}</span>
+                        </div>
+                    </div>
+                    <div class="lp-shot__body lp-shot__grow">
+                        <div class="lp-shot__row">{{ shot.avatar('AI', 'agent') }}<span class="lp-shot__strong">{{ 'landing.shot.implementation_agent'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.is_blocked'|trans }}</span></div>
+                        <h4 class="lp-shot__heading lp-shot__heading--lg">{{ 'landing.shot.which_test_should_the_checkout_fix'|trans }}</h4>
+                        <p class="lp-shot__text">{{ 'landing.shot.two_tests_cover_the_same_payment'|trans }}</p>
+                        <div class="lp-shot__option lp-shot__option--picked"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.keep_the_new_test_drop_the'|trans }}</span></div>
+                        <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.keep_both_and_fix_the_retry'|trans }}</span></div>
+                        <div class="lp-shot__field">{{ 'landing.shot.or_write_a_reply'|trans }}</div>
+                        <div class="lp-shot__row"><span class="lp-shot__button lp-shot__button--primary">{{ 'landing.shot.send_answer'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.the_session_picks_up_where_it'|trans }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,29 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__lane">
+            <div class="lp-shot__lane-head">
+                {{ shot.icon('lucide:layers', 'sm') }}
+                <span class="lp-shot__heading">{{ 'landing.shot.seasonal_pricing'|trans }}</span>
+                <span class="lp-shot__mono lp-shot__dim">{{ '#45' }}</span>
+                <span class="lp-shot__spacer">{{ shot.pill('2 of 4 done', 'accent') }}</span>
+            </div>
+            {{ shot.bar('half') }}
+            <div class="lp-shot__lane-cells">
+                <div class="lp-shot__column">
+                    <div class="lp-shot__column-head">{{ 'landing.shot.implementation'|trans }}</div>
+                    {{ shot.card(47, 'landing.shot.preview_the_price_at_booking'|trans, 'working', null, 1, 0) }}
+                </div>
+                <div class="lp-shot__column">
+                    <div class="lp-shot__column-head">{{ 'landing.shot.in_review'|trans }}</div>
+                    {{ shot.card(48, 'landing.shot.let_owners_override_a_rate'|trans, 'waiting', null, 1, 0) }}
+                </div>
+                <div class="lp-shot__column">
+                    <div class="lp-shot__column-head">{{ 'landing.shot.done'|trans }}</div>
+                    {{ shot.card(46, 'landing.shot.add_a_peak_season_rate_table'|trans, null, null, 1, 0) }}
+                    {{ shot.card(50, 'landing.shot.round_prices_to_whole_dollars'|trans, null, null, 1, 0) }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

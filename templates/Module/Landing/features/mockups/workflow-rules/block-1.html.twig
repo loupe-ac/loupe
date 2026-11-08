@@ -1,0 +1,21 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <ol class="lp-shot__steps">
+            {% set stages = [
+                {name: 'landing.shot.product_design'|trans, agent: 'landing.shot.product_design_agent'|trans, state: 'ok'},
+                {name: 'landing.shot.tech_design'|trans, agent: 'landing.shot.tech_design_agent'|trans, state: 'ok'},
+                {name: 'landing.shot.implementation'|trans, agent: 'landing.shot.implementation_agent'|trans, state: 'active'},
+                {name: 'landing.shot.in_review'|trans, agent: 'landing.shot.review_agent'|trans, state: ''},
+                {name: 'landing.shot.merge'|trans, agent: 'landing.shot.merge_agent'|trans, state: ''},
+            ] %}
+            {% for stage in stages %}
+                <li class="lp-shot__step">
+                    <span class="lp-shot__step-mark{{ stage.state ? ' lp-shot__step-mark--' ~ stage.state }}">{{ loop.index }}</span>
+                    <span class="lp-shot__grow"><span class="lp-shot__strong">{{ stage.name }}</span><br><span class="lp-shot__dim">{{ stage.agent }} {{ 'landing.shot.starts_when_the_card_arrives'|trans }}</span></span>
+                    {% if 'ok' == stage.state %}{{ shot.pill('landing.shot.done'|trans, 'ok') }}{% elseif 'active' == stage.state %}{{ shot.pill('landing.shot.running'|trans, 'active') }}{% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>

@@ -1,0 +1,59 @@
+{# Shared pieces of the feature pictures. Import with
+   {% import '@Landing/features/mockups/_parts.html.twig' as shot %}.
+   Icon names are literals at each call, so ux:icons:lock finds them. #}
+
+{% macro icon(name, size) %}{{ ux_icon(name, {class: 'lp-icon lp-icon--' ~ (size ?? 'xs'), 'aria-hidden': 'true'}) }}{% endmacro %}
+
+{% macro pill(text, tone) %}<span class="lp-shot__pill{{ tone ? ' lp-shot__pill--' ~ tone }}">{{ text }}</span>{% endmacro %}
+
+{% macro avatar(initials, tone) %}<span class="lp-shot__avatar{{ tone ? ' lp-shot__avatar--' ~ tone }}">{{ initials }}</span>{% endmacro %}
+
+{# kind: stuck, needs-you, working or waiting. The glyphs are the app's own. #}
+{% macro mark(kind) %}
+{% set glyphs = {'stuck': 'lucide:circle-alert', 'needs-you': 'lucide:circle-user', 'working': 'lucide:loader-circle', 'waiting': 'lucide:hourglass'} %}
+<span class="lp-state-mark lp-state-mark--{{ kind }}"><span class="lp-state-mark__icon">{{ ux_icon(glyphs[kind], {class: 'lp-state-mark__glyph', 'aria-hidden': 'true'}) }}</span></span>{# @design-system-ignore: the component draws a focusable tooltip, wrong inside an aria-hidden picture #}
+{% endmacro %}
+
+{# One card of the board. kind picks the state mark, and may be empty. #}
+{% macro card(number, title, kind, type, pulls, docs) %}
+{% import _self as shot %}
+<div class="lp-shot__card{{ 'stuck' == kind ? ' lp-shot__card--stuck' }}">
+    <div class="lp-shot__row">
+        <span class="lp-shot__mono lp-shot__dim">{{ '#' }}{{ number }}</span>
+        {% if type %}{{ shot.pill(type, 'outline') }}{% endif %}
+        {% if kind %}<span class="lp-shot__spacer">{{ shot.mark(kind) }}</span>{% endif %}
+    </div>
+    <span class="lp-shot__card-title">{{ title }}</span>
+    {% if pulls or docs %}
+    <div class="lp-shot__card-meta">
+        {% if pulls %}<span>{{ shot.icon('lucide:git-pull-request') }}{{ pulls }}</span>{% endif %}
+        {% if docs %}<span>{{ shot.icon('lucide:file-text') }}{{ docs }}</span>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# The dark sidebar of the app. active names the lit item. #}
+{% macro sidebar(active) %}
+{% import _self as shot %}
+{% set items = [
+    {key: 'workshop', label: 'landing.shot.workshop'|trans, icon: 'lucide:layout-dashboard'},
+    {key: 'inbox', label: 'landing.shot.inbox'|trans, icon: 'lucide:inbox'},
+    {key: 'board', label: 'landing.shot.board'|trans, icon: 'lucide:square-kanban'},
+    {key: 'documents', label: 'landing.shot.documents'|trans, icon: 'lucide:file-text'},
+    {key: 'agents', label: 'landing.shot.agents'|trans, icon: 'lucide:bot'},
+    {key: 'workflow', label: 'landing.shot.workflow'|trans, icon: 'lucide:workflow'},
+    {key: 'analytics', label: 'landing.shot.analytics'|trans, icon: 'lucide:chart-column'},
+] %}
+<div class="lp-shot__sidebar">
+    <span class="lp-shot__sidebar-brand">{{ 'landing.shot.driftwood'|trans }}</span>
+    {% for item in items %}
+        <span class="lp-shot__sidebar-item{{ item.key == active ? ' lp-shot__sidebar-item--active' }}">{{ ux_icon(item.icon, {class: 'lp-icon lp-icon--sm', 'aria-hidden': 'true'}) }}{{ item.label }}</span>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# fraction: quarter, half, three-quarters or full. #}
+{% macro bar(fraction, tone) %}
+<span class="lp-shot__track"><span class="lp-shot__fill lp-shot__fill--{{ fraction }}{{ tone ? ' lp-shot__fill--' ~ tone }}"></span></span>
+{% endmacro %}

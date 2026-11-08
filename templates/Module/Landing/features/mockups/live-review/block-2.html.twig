@@ -1,0 +1,16 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <div class="lp-shot__panel">
+            <span class="lp-shot__label">{{ 'landing.shot.3_notes_from_priya_nair'|trans }}</span>
+            <div class="lp-shot__option lp-shot__option--picked"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.send_to_one_new_card'|trans }}</span></div>
+            <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.send_to_one_card_per_note'|trans }}</span></div>
+            <div class="lp-shot__option"><span class="lp-shot__radio"></span><span class="lp-shot__grow">{{ 'landing.shot.add_to_card_42'|trans }}</span></div>
+            <hr class="lp-shot__rule">
+            <div class="lp-shot__row">
+                <span class="lp-shot__button lp-shot__button--primary">{{ shot.icon('lucide:check') }}{{ 'landing.shot.approve'|trans }}</span>
+                <span class="lp-shot__button">{{ 'landing.shot.ask_for_changes'|trans }}</span>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,28 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--panel">
+        <ol class="lp-shot__steps">
+            <li class="lp-shot__step">
+                <span class="lp-shot__step-mark lp-shot__step-mark--danger">{{ shot.icon('lucide:x') }}</span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.implementation_run_failed'|trans }}</span><br><span class="lp-shot__dim">{{ '#40 Make checkout safer' }}</span></span>
+            </li>
+            <li class="lp-shot__step">
+                <span class="lp-shot__step-mark lp-shot__step-mark--warn">{{ shot.icon('lucide:rotate-cw') }}</span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.run_again'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.failed_again'|trans }}</span></span>
+            </li>
+            <li class="lp-shot__step">
+                <span class="lp-shot__step-mark lp-shot__step-mark--active">{{ shot.icon('lucide:wrench') }}</span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.repair_agent'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.fixes_the_setup_then_the_work'|trans }}</span></span>
+                {{ shot.pill('landing.shot.fixed'|trans, 'ok') }}
+            </li>
+            <li class="lp-shot__step">
+                <span class="lp-shot__step-mark lp-shot__step-mark--warn">{{ shot.icon('lucide:git-pull-request') }}</span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.fix_round_2_of_3'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.one_check_is_still_red'|trans }}</span></span>
+            </li>
+            <li class="lp-shot__step">
+                <span class="lp-shot__step-mark">{{ shot.icon('lucide:circle-user') }}</span>
+                <span class="lp-shot__grow"><span class="lp-shot__strong">{{ 'landing.shot.asks_you'|trans }}</span><br><span class="lp-shot__dim">{{ 'landing.shot.only_when_the_fix_rounds_run'|trans }}</span></span>
+            </li>
+        </ol>
+    </div>
+</div>

@@ -1,0 +1,36 @@
+{% import '@Landing/features/mockups/_parts.html.twig' as shot %}
+<div class="lp-shot" aria-hidden="true">
+    <div class="lp-shot__canvas lp-shot__canvas--wide">
+        <div class="lp-shot__app">
+            {{ shot.sidebar('board') }}
+            <div class="lp-shot__main">
+                <div class="lp-shot__top">
+                    <span class="lp-shot__mono lp-shot__dim">{{ '#42' }}</span>
+                    <h3 class="lp-shot__title">{{ 'landing.shot.show_the_nightly_price_on_the'|trans }}</h3>
+                    <span class="lp-shot__spacer">{{ shot.pill('landing.shot.review_passed'|trans, 'ok') }}</span>
+                </div>
+                <div class="lp-shot__body">
+                    <div class="lp-shot__panel lp-shot__panel--accent">
+                        <div class="lp-shot__row">
+                            {{ shot.icon('lucide:git-pull-request', 'sm') }}
+                            <span class="lp-shot__heading">{{ 'landing.shot.pull_request_118_passed_agent_review'|trans }}</span>
+                            <span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.2_rounds'|trans }}</span>
+                        </div>
+                        <p class="lp-shot__text">{{ 'landing.shot.checked_against_product_design_v2_tech'|trans }}</p>
+                    </div>
+                    <div class="lp-shot__panel">
+                        <div class="lp-shot__row"><span class="lp-shot__heading">{{ 'landing.shot.round_1'|trans }}</span>{{ shot.pill('3 findings', 'warn') }}<span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.sent_back_for_fixes'|trans }}</span></div>
+                        <div class="lp-shot__table">
+                            <div class="lp-shot__table-row"><span>{{ shot.pill('landing.shot.major'|trans, 'danger') }}</span><span class="lp-shot__mono">{{ 'SearchCard.tsx' }}</span><span>{{ 'landing.shot.the_price_shows_per_stay_the_2'|trans }}</span></div>
+                            <div class="lp-shot__table-row"><span>{{ shot.pill('landing.shot.minor'|trans, 'warn') }}</span><span class="lp-shot__mono">{{ 'price.test.ts' }}</span><span>{{ 'landing.shot.no_test_for_a_cabin_with'|trans }}</span></div>
+                            <div class="lp-shot__table-row"><span>{{ shot.pill('landing.shot.minor'|trans, 'warn') }}</span><span class="lp-shot__mono">{{ 'Price.tsx' }}</span><span>{{ 'landing.shot.the_currency_symbol_is_hard_coded'|trans }}</span></div>
+                        </div>
+                    </div>
+                    <div class="lp-shot__panel">
+                        <div class="lp-shot__row"><span class="lp-shot__heading">{{ 'landing.shot.round_2'|trans }}</span>{{ shot.pill('landing.shot.no_findings'|trans, 'ok') }}<span class="lp-shot__spacer lp-shot__dim">{{ 'landing.shot.checks_green'|trans }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
