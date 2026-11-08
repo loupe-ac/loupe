@@ -21,6 +21,10 @@ final readonly class InsightsRefreshSettings
 
     public const int SLOW_NOTICE_DEFAULT = 30;
 
+    public const string DORMANT_DAYS_FLAG = 'insights.dormant_days';
+
+    public const int DORMANT_DAYS_DEFAULT = 7;
+
     public function __construct(
         private FeatureFlagService $featureFlags,
     ) {
@@ -36,6 +40,12 @@ final readonly class InsightsRefreshSettings
     public function sweepIntervalMinutes(): int
     {
         return max(1, $this->featureFlags->getIntValue(self::SWEEP_INTERVAL_FLAG, self::SWEEP_INTERVAL_DEFAULT));
+    }
+
+    /** Days. A project with no new data and no view for this long leaves the sweep. */
+    public function dormantDays(): int
+    {
+        return max(1, $this->featureFlags->getIntValue(self::DORMANT_DAYS_FLAG, self::DORMANT_DAYS_DEFAULT));
     }
 
     /** Seconds a waiting tile shows its spinner before it offers Retry. */

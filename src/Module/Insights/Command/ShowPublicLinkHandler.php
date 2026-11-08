@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Entity\PublicLinkKind;
+use App\Module\Insights\Service\InsightsProjectActivities;
 use App\Module\Insights\Service\PublicExperimentReport;
 use App\Module\Insights\Service\PublicGraphResults;
 use App\Module\Insights\Service\PublicLinkVisibility;
@@ -20,6 +21,7 @@ final readonly class ShowPublicLinkHandler
         private PublicGraphResults $graphResults,
         private PublicExperimentReport $experimentReport,
         private MarkdownRenderer $markdown,
+        private InsightsProjectActivities $activities,
     ) {
     }
 
@@ -27,6 +29,7 @@ final readonly class ShowPublicLinkHandler
     public function __invoke(ShowPublicLinkCommand $command): PublicLinkDetailView
     {
         $link = $this->visibility->resolve($command->code) ?? throw new NotFoundHttpException('No public link shows for this code.');
+        $this->activities->recordView((string) $link->project->requireId());
         if (PublicLinkKind::Experiment === $link->kind && null !== $link->experiment) {
             $result = $this->experimentReport->forExperiment($link->project, $link->experiment) ?? throw new NotFoundHttpException('No public link shows for this code.');
             $note = $link->note;

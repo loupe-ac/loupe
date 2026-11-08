@@ -7,8 +7,10 @@ namespace App\Tests\Module\Insights\Controller;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Messenger\RefreshInsightsItem;
+use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
+use App\Module\Insights\Service\InsightsDataKind;
 use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
@@ -17,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class DashboardControllersTest extends WebTestCase
@@ -94,11 +97,13 @@ final class DashboardControllersTest extends WebTestCase
         self::assertNull($waiting->attr('src'));
         self::assertSame('dashboard-graph-'.$graphId, $waiting->attr('id'));
         self::assertCount(1, $waiting->filter('[role="status"] svg.lp-graph-tile__spinner'));
-        $sent = $this->insightsTransport()->getSent();
-        self::assertCount(1, $sent);
-        $message = $sent[0]->getMessage();
-        self::assertInstanceOf(RefreshInsightsItem::class, $message);
-        self::assertSame($graphId, $message->graphId);
+        $messages = array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $this->insightsTransport()->getSent());
+        $items = array_values(array_filter($messages, static fn (object $message): bool => $message instanceof RefreshInsightsItem));
+        self::assertCount(1, $items);
+        self::assertSame($graphId, $items[0]->graphId);
+        $wakes = array_values(array_filter($messages, static fn (object $message): bool => $message instanceof RefreshProjectInsights));
+        self::assertCount(1, $wakes);
+        self::assertSame(InsightsDataKind::Wake->value, $wakes[0]->kind);
 
         $crawler = $client->request(Request::METHOD_GET, $base.'/graphs/'.$graphId);
         self::assertResponseIsSuccessful();

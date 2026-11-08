@@ -12,4 +12,16 @@ enum InsightsDataKind: string
     case Cards = 'cards';
     case Readings = 'readings';
     case Experiment = 'experiment';
+
+    /** Not a kind of data: the sweep reads the items that are older than the interval. */
+    case Sweep = 'sweep';
+
+    /** Not a kind of data: a view of a dormant project reads every item. */
+    case Wake = 'wake';
+
+    /** Whether a message of this kind comes from a write of new data. */
+    public function isNewData(): bool
+    {
+        return !\in_array($this, [self::Sweep, self::Wake], true);
+    }
 }
