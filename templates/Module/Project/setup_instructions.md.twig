@@ -37,7 +37,7 @@ The MCP server starts as `loupe mcp`, so the directory of `loupe` must be on the
 
 Run this step from the root of the repository.
 
-`loupe init` does the rest of the setup. It signs in, chooses the project and writes `.loupe.yaml`. It declares the `loupe` MCP server to Claude Code or Codex, and installs the Loupe plugin in Claude Code or the Loupe skills for Codex. It writes the rule file `rules.yaml` and the starter profile `.loupe/lifecycle.md`, and it starts the bridge in the background. Each step skips itself when it is done already, so you can run the command again.
+`loupe init` does the rest of the setup. It signs in, chooses the project and writes `.loupe.yaml`. It declares the `loupe` MCP server to Claude Code or Codex, and installs the Loupe plugin in Claude Code or the Loupe skills for Codex. It writes the rule file `rules.yaml`, and it starts the bridge in the background. Each step skips itself when it is done already, so you can run the command again.
 
 `loupe init` waits until the user approves the sign-in in a browser, so start it in the background, with its output in a log file. `nohup` keeps it alive when your shell call ends. `< /dev/null` tells it that no person answers questions. `--mcp` makes it declare the MCP server without asking.
 
@@ -71,9 +71,9 @@ Read the log file until it shows a page URL and a code. Show both to the user, a
 - With no terminal, `loupe init` skips the Playwright browser. If the rule file does not set `autoUpdate` yet, it also answers no to automatic updates. Tell the user, and give them `loupe update auto on` and `loupe init` for later.
 - If the command ends with an error, show the output to the user and stop.
 
-`loupe init` writes the gate commands of `.loupe/lifecycle.md` from the files it finds, such as a `justfile`. It does not read the rules in `CLAUDE.md` or `AGENTS.md`. Read those files, and propose to the user any gate rule that `.loupe/lifecycle.md` does not have yet, such as a command order or a test that must run alone.
+`loupe init` writes no gate commands. The rules of the repository live in `CLAUDE.md`, `AGENTS.md` and the repository skills. The optional `## Routing` table of `.loupe/lifecycle.md` names the skills that each stage loads. A discovery run can draft the routing table. Read the instruction files, and propose to the user a routing line for any skill that a stage needs, such as the skill that holds the gate.
 
-Tell the user to commit `.loupe/lifecycle.md`, because a worker sees only what the user pushes.
+Tell the user to commit `.loupe/lifecycle.md` when it changes, because a worker sees only what the user pushes.
 
 ## 4. Check
 
