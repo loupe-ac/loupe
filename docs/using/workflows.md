@@ -1442,7 +1442,7 @@ Each required name must have a passing check on the head commit. A required chec
 pending, so the merge waits for it. A branch with no required check passes this step.
 
 An epic branch has no rules of its own. A child of an epic is checked against the required checks of the base branch
-that the profile `Merge` section names, and it merges with the `epic-child-merge-method` setting. See
+of the repository, and it merges with the `epic-child-merge-method` setting. See
 [Workflow settings](#workflow-settings).
 
 When Loupe cannot read the rules, for example because the token has no permission to read them, the merge stops. The
