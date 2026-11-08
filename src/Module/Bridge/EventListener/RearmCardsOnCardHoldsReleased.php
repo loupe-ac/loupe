@@ -31,6 +31,11 @@ final readonly class RearmCardsOnCardHoldsReleased
         $now = $this->clock->now();
         $this->workRequests->restartClockOfOpenForCards($event->projectId, $event->cardIds, $now);
         $this->ruleStates->rearmCards($event->cardIds, $now);
-        $this->evaluations->forCards($event->cardIds);
+        if ($event->personWaiting) {
+            $this->evaluations->forPersonWaiting($event->cardIds, self::class);
+
+            return;
+        }
+        $this->evaluations->forCards($event->cardIds, self::class);
     }
 }

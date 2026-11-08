@@ -279,7 +279,7 @@ final class SiteReviewApiTest extends WebTestCase
         return array_column($data['comments'], 'id');
     }
 
-    public function test_the_boot_load_lists_the_types_that_can_have_children(): void
+    public function test_the_boot_load_lists_no_parent_types(): void
     {
         $client = static::createClient();
         [$raw] = $this->projectWithToken($client, 'api-parent-types@example.com');
@@ -288,7 +288,7 @@ final class SiteReviewApiTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);
-        self::assertSame([['key' => 'epic', 'label' => 'Epic']], $data['parentTypes']);
+        self::assertSame([], $data['parentTypes']);
     }
 
     public function test_a_comment_can_point_at_several_elements(): void
@@ -716,11 +716,15 @@ final class SiteReviewApiTest extends WebTestCase
         $em = $this->em();
 
         $this->api($client, Request::METHOD_GET, '/api/v1/live-review-widget/review', $raw);
+        $boot = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($boot);
+        self::assertSame('Backlog', $boot['startColumns'][0]['name']);
+        unset($boot['startColumns']);
         self::assertSame(
             // context is always present and null on a page with no marker, so
             // the widget never has to tell an absent key from a resolved one.
-            ['projectId' => (string) $project->id, 'drawingEnabled' => true, 'parentTypes' => [['key' => 'epic', 'label' => 'Epic']], 'context' => null, 'comments' => []],
-            json_decode((string) $client->getResponse()->getContent(), true),
+            ['projectId' => (string) $project->id, 'drawingEnabled' => true, 'parentTypes' => [], 'context' => null, 'comments' => []],
+            $boot,
         );
 
         $this->addComment($client, $raw, ['body' => 'one', 'url' => 'https://app/x']);

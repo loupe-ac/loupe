@@ -203,7 +203,7 @@ export const siteReviewGrantKey = (projectId: string): string =>
 
 /** Where the widget keeps the mode its notes go by, in local storage. */
 export const siteReviewModeKey = (projectId: string): string =>
-    `loupe-site-review:mode:${appOrigin()}:${projectId}`;
+    `loupe-site-review:destination:v2:${appOrigin()}:${projectId}`;
 
 /**
  * Signs the site-review widget in on `page`, as the popup would. The grant

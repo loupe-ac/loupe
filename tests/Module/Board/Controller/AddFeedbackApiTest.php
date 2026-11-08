@@ -7,6 +7,8 @@ namespace App\Tests\Module\Board\Controller;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\OAuth\Command\MintPreviewTokenCommand;
+use App\Module\OAuth\Command\MintPreviewTokenHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Tests\Module\Board\BoardColumnFixtures;
@@ -17,6 +19,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AddFeedbackApiTest extends WebTestCase
 {
@@ -45,18 +48,81 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertSame($data['commentId'], (string) $links[0]->comment->id);
     }
 
-    public function test_a_note_goes_under_an_epic(): void
+    public function test_a_note_starts_its_card_in_the_chosen_column(): void
     {
         $client = static::createClient();
-        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-epic@example.com');
-        $epic = $this->card($project, 'backlog', 1, 'epic');
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-start@example.com');
+        $column = $this->column($project, 'in-progress');
 
-        $data = $this->post($client, $raw, $this->note(['newCard' => ['parentCardId' => (string) $epic->id]]));
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $column->id]]));
 
         self::assertResponseStatusCodeSame(201);
+        self::assertNull($data['startRefused']);
+        self::assertTrue($data['locked']);
+        self::assertSame($this->translated($column->label), $data['column']);
         $card = $this->service(CardRepository::class)->find($data['cardId']);
         self::assertInstanceOf(Card::class, $card);
-        self::assertSame((string) $epic->id, (string) $card->parent?->id);
+        self::assertSame('in-progress', $card->column->slug);
+    }
+
+    public function test_a_note_on_a_started_card_that_returned_to_backlog_is_locked(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-returned@example.com');
+        $started = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, 'in-progress')->id]]));
+        $card = $this->service(CardRepository::class)->find($started['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        $card->column = $this->column($project, 'backlog');
+        $this->em()->flush();
+
+        $data = $this->post($client, $raw, $this->note(['cardId' => (string) $card->id], ['deliveryId' => '0199c0de-0000-4000-8000-000000000007']));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->translated($card->column->label), $data['column']);
+        self::assertTrue($data['locked']);
+    }
+
+    public function test_a_note_with_no_start_column_lands_in_backlog(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-backlog@example.com');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
+
+        self::assertNull($data['startRefused']);
+        self::assertFalse($data['locked']);
+        self::assertSame($this->translated($this->column($project, 'backlog')->label), $data['column']);
+    }
+
+    public function test_a_column_of_another_project_lands_in_backlog_and_is_named_as_refused(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-foreign-column@example.com');
+        [, $other] = $this->projectWithToken($client, 'feedback-api-foreign-column-other@example.com');
+        $foreign = $this->column($other, 'in-progress');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $foreign->id]]));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('', $data['startRefused']);
+        $card = $this->service(CardRepository::class)->find($data['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
+        self::assertSame($project->id?->toRfc4122(), $card->project->id?->toRfc4122());
+    }
+
+    public function test_a_terminal_column_is_refused_as_a_start(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-terminal-start@example.com');
+        $done = $this->column($project, 'done');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $done->id]]));
+
+        self::assertSame($this->translated($done->label), $data['startRefused']);
+        $card = $this->service(CardRepository::class)->find($data['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
     }
 
     /**
@@ -105,6 +171,92 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame($first, $second);
         self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
+    }
+
+    public function test_a_retry_after_a_lost_answer_repeats_the_start_refusal(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-refused@example.com');
+        $done = $this->column($project, 'done');
+        $note = $this->note(['newCard' => ['startColumnId' => (string) $done->id]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000003']);
+
+        $first = $this->post($client, $raw, $note);
+        $card = $this->service(CardRepository::class)->find($first['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        // A move after the save does not change what the first answer said.
+        $card->column = $this->column($project, 'done');
+        $this->em()->flush();
+        $second = $this->post($client, $raw, $note);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->translated($done->label), $first['startRefused']);
+        self::assertSame($first['startRefused'], $second['startRefused']);
+        self::assertSame($first['cardId'], $second['cardId']);
+    }
+
+    public function test_a_retry_of_an_accepted_start_reports_no_refusal(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-started@example.com');
+        $column = $this->column($project, 'in-progress');
+        $note = $this->note(['newCard' => ['startColumnId' => strtoupper((string) $column->id)]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000004']);
+
+        $first = $this->post($client, $raw, $note);
+        $second = $this->post($client, $raw, $note);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertNull($first['startRefused']);
+        self::assertNull($second['startRefused']);
+    }
+
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function changedStartColumns(): iterable
+    {
+        yield 'Backlog, then an allowed column' => ['backlog', 'in-progress', false];
+        yield 'a refused column, then Backlog' => ['done', 'backlog', true];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('changedStartColumns')]
+    public function test_a_retry_that_names_another_start_column_repeats_the_first_answer(string $firstSlug, string $retrySlug, bool $firstRefused): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-retry-other-start-'.$firstSlug.'@example.com');
+        $extra = ['deliveryId' => '0199c0de-0000-4000-8000-000000000005'];
+
+        $first = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $firstSlug)->id]], $extra));
+        self::assertResponseStatusCodeSame(201);
+        $second = $this->post($client, $raw, $this->note(['newCard' => ['startColumnId' => (string) $this->column($project, $retrySlug)->id]], $extra));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($first, $second);
+        self::assertSame($firstRefused ? $this->translated($this->column($project, $firstSlug)->label) : null, $second['startRefused']);
+        $cards = $this->service(CardRepository::class)->findBy(['project' => $project]);
+        self::assertCount(1, $cards);
+        self::assertSame('backlog', $cards[0]->column->slug);
+    }
+
+    public function test_a_preview_token_offers_no_start_column_and_starts_its_card_in_backlog(): void
+    {
+        $client = static::createClient();
+        [, $project] = $this->projectWithToken($client, 'feedback-api-preview@example.com');
+        $mint = $this->service(MintPreviewTokenHandler::class);
+        $token = $mint(new MintPreviewTokenCommand($project->owner, (string) $project->id, 'pr-start', null))->token;
+        $column = $this->column($project, 'in-progress');
+
+        $boot = $this->get($client, $token, '/api/v1/live-review-widget/review');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $boot['startColumns']);
+
+        $note = $this->note(['newCard' => ['startColumnId' => (string) $column->id]], ['deliveryId' => '0199c0de-0000-4000-8000-000000000006']);
+        $first = $this->post($client, $token, $note);
+        self::assertResponseStatusCodeSame(201);
+        $second = $this->post($client, $token, $note);
+
+        self::assertSame($this->translated($column->label), $first['startRefused']);
+        self::assertSame($first['startRefused'], $second['startRefused']);
+        $card = $this->service(CardRepository::class)->find($first['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        self::assertSame('backlog', $card->column->slug);
     }
 
     public function test_a_closed_card_is_refused_by_name(): void
@@ -411,6 +563,14 @@ final class AddFeedbackApiTest extends WebTestCase
         $this->em()->flush();
 
         return $card;
+    }
+
+    private function translated(string $label): string
+    {
+        $translator = self::getContainer()->get(TranslatorInterface::class);
+        self::assertInstanceOf(TranslatorInterface::class, $translator);
+
+        return $translator->trans($label);
     }
 
     /**

@@ -27,8 +27,8 @@ final readonly class AddFeedbackCommand
         public ?string $deliveryId = null,
         /** An open card of the project. Null creates a card from the note. */
         public ?string $cardId = null,
-        /** The epic a created card goes under. Read only when $cardId is null. */
-        public ?string $parentCardId = null,
+        /** The column a created card starts in. Read only when $cardId is null. Null, or a column the workflow refuses, keeps it in Backlog. */
+        public ?string $startColumnId = null,
         /** What the embed's `data-context` said the page was, stored as given. */
         public ?string $context = null,
         public ReviewSurface $surface = ReviewSurface::Web,

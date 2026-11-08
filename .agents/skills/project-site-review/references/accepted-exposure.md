@@ -6,16 +6,16 @@ That limits the holder to a person the project allows. What the scope reaches di
 
 ## The board half
 
-A holder of the `site-review` scope lists every open card in its project and creates new ones. `GET /api/v1/live-review-widget/cards` returns the number, title and status of the open cards of the project, and `POST /api/v1/live-review-widget/cards` files a new one. Card titles are planning content. `POST /api/v1/live-review-widget/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/v1/live-review-widget/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
+A holder of the `site-review` scope creates new cards. `POST /api/v1/live-review-widget/cards` files a new one, always of the default type. The widget no longer lists the open cards of the project. `POST /api/v1/live-review-widget/feedback` saves a comment on an open card of the project, or on a new card it creates. `DELETE /api/v1/live-review-widget/feedback/{id}` deletes a pending comment. It also deletes the card that the comment created, while that card is still in Backlog, holds no other feedback and is not an epic.
 
 This was decided, not inherited. The Loupe document 'Picking and creating cards from the site-review widget' records the choice, the alternatives and the cost of each. It also notes that the choice reverses the reasoning behind `/sites` refusing the widget's scope. Read it before you reopen this.
 
 ### What bounds the board half
 
-- Creation takes no `status` and no `pullRequestUrls`, so a caller cannot file into a column or attach a URL of their choosing.
+- Creation takes no `pullRequestUrls`, so a caller cannot attach a URL of their choosing. A new card starts in Backlog, or in a `startColumnId` that the move guard allows from Backlog for the actor `reviewer`. The guard never allows a terminal column. The server asks it again under the project lock at each save. A column it refuses leaves the card in Backlog. A preview token starts no card in a column, because the server detects it from the access token.
+- `POST /api/v1/live-review-widget/cards/{cardId}/start` moves only a card with source `widget`, in the project of the grant. The target column must be in the moves the guard allows from the current column of the card for the actor `reviewer` at the write. A move never goes to the Backlog or a terminal column, and a preview token gets `start_not_allowed`. The route runs the normal card update, so the project lock and the move guard apply.
 - A card records `CardReporter::Reviewer`, which says the app could not name who raised it.
 - The write joins the `site_review_write` limiter through `WidgetApiPaths`, so the board is not an unbounded spam target.
-- Nothing bounds the read beyond the twenty-card page.
 
 ## The comment half
 

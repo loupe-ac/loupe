@@ -30,3 +30,10 @@
         {% endfor %}
     </tr>
 {% endmacro %}
+
+{# The result chip of one comparison. Props: comparison (ExperimentComparison), text (ExperimentHeadlineText), baselineArm (ExperimentArm). #}
+{% macro goal_chip(comparison, text, baselineArm) %}
+    {% set state = comparison.state.value %}
+    {% set modifier = state == 'held' ? (comparison.hold.reason.value == 'failed' ? 'failed' : 'neutral') : (state == 'not-enough-cards' ? 'neutral' : (state == 'clear' ? 'ok' : 'pending')) %}
+    <twig:Ds:StatusChip :modifier="modifier" :label="text.resultLabel(comparison, baselineArm)" />
+{% endmacro %}

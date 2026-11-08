@@ -7485,6 +7485,10 @@ workflow:
             <trans-unit id="bridge.experiments.tabs.comparison"><source>bridge.experiments.tabs.comparison</source><target>Comparison</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.cards"><source>bridge.experiments.tabs.cards</source><target>Cards</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.label"><source>bridge.experiments.goal.label</source><target>Goal · %metric% · %direction% is better</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.result_header"><source>bridge.experiments.goal.result_header</source><target>Each variant against %baseline% (%value%)</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.row_label"><source>bridge.experiments.goal.row_label</source><target>%variant%: %value%, change %change%, likely range %range%, %result%</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.baseline_label"><source>bridge.experiments.goal.baseline_label</source><target>baseline</target></trans-unit>
+            <trans-unit id="bridge.experiments.goal.show_table"><source>bridge.experiments.goal.show_table</source><target>Show as a table</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.column.change"><source>bridge.experiments.goal.column.change</source><target>Change against %baseline%</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.column.range"><source>bridge.experiments.goal.column.range</source><target>Likely range of the change</target></trans-unit>
             <trans-unit id="bridge.experiments.goal.column.result"><source>bridge.experiments.goal.column.result</source><target>Result</target></trans-unit>
@@ -9955,6 +9959,9 @@ workflow:
             <trans-unit id="workflow.slot.tech_design"><source>workflow.slot.tech_design</source><target>Tech design</target></trans-unit>
             <trans-unit id="workflow.slot.implementation"><source>workflow.slot.implementation</source><target>Implementation</target></trans-unit>
             <trans-unit id="workflow.slot.in_review"><source>workflow.slot.in_review</source><target>In review</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.next"><source>workflow.slot_hint.next</source><target>Waits until you start it.</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.product_design"><source>workflow.slot_hint.product_design</source><target>You write the product design with an agent, in a session that you join.</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.tech_design"><source>workflow.slot_hint.tech_design</source><target>An agent writes the tech design.</target></trans-unit>
             <trans-unit id="workflow.template.lifecycle.label"><source>workflow.template.lifecycle.label</source><target>Lifecycle</target></trans-unit>
             <trans-unit id="workflow.template.lifecycle.description"><source>workflow.template.lifecycle.description</source><target>Product design, tech design, implementation and review, with an agent at each stage.</target></trans-unit>
             <trans-unit id="workflow.template.simple.label"><source>workflow.template.simple.label</source><target>Simple</target></trans-unit>

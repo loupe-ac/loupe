@@ -59,7 +59,7 @@ final readonly class NeutralizeSiteReviewCheckHandler
             }
         }
         if ([] !== $cardIds) {
-            $this->evaluations->forCards($cardIds);
+            $this->evaluations->forCards($cardIds, self::class);
         }
     }
 }

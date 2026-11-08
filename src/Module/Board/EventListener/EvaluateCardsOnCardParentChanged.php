@@ -21,6 +21,6 @@ final readonly class EvaluateCardsOnCardParentChanged
         $this->trigger->forCards(array_values(array_filter(
             [$event->card->id, $event->oldParent?->id, $event->newParent?->id],
             static fn ($id): bool => null !== $id,
-        )));
+        )), self::class);
     }
 }

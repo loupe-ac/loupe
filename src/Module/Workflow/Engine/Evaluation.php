@@ -39,6 +39,9 @@ final class Evaluation
     /** @var list<array{rule: string, outcome: string, code: ?string}> */
     public array $fired = [];
 
+    /** @var list<string> the id of the rule for each work request this evaluation opened */
+    public array $opened = [];
+
     /** @param array<string, WorkflowRuleState> $states keyed by rule id */
     public function __construct(
         public readonly CardSnapshot $card,

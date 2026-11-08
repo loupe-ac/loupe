@@ -106,6 +106,17 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/implement/export-the-board-as-csv/0')));
     }
 
+    public function test_the_baseline_experiment_is_shared_with_a_fixed_code_and_no_note(): void
+    {
+        $project = $this->seeded();
+
+        $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::BASELINE_EXPERIMENT);
+        self::assertNotNull($link);
+        self::assertSame(DevExperimentSeeder::SHARED_BASELINE_EXPERIMENT_CODE, $link->code);
+        self::assertNull($link->note);
+        self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+    }
+
     public function test_the_implement_experiment_is_shared_with_a_note_and_a_fixed_code(): void
     {
         $project = $this->seeded();
@@ -121,7 +132,7 @@ final class DevExperimentSeederTest extends KernelTestCase
 
         $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
         $this->em()->clear();
-        self::assertSame(1, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
+        self::assertSame(2, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
     }
 
     public function test_one_pinned_experiment_is_archived_once(): void

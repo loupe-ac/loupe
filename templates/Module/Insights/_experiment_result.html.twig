@@ -1,0 +1,26 @@
+{# The result rows of an experiment: one row for each variant, with a range strip around the baseline line.
+   Props: headline (ExperimentHeadline), result (ExperimentResultRows), text (ExperimentHeadlineText). #}
+{% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
+{% set goal = result.goal %}
+<p class="lp-experiment-result__header" data-experiment-result-header>{{ 'bridge.experiments.goal.result_header'|trans({'%baseline%': result.baseline, '%value%': text.point(goal.metric, result.baselineArm.point) ?? '–'}) }}</p>
+<ol class="lp-experiment-result" data-experiment-result>
+    {% for row in result.rows %}
+        {% set comparison = row.comparison %}
+        {% set value = text.point(goal.metric, comparison.arm.point) ?? '–' %}
+        {% set change = text.signedChange(comparison) ?? '–' %}
+        <li class="lp-experiment-result__row" aria-label="{{ 'bridge.experiments.goal.row_label'|trans({'%variant%': comparison.variant, '%value%': value, '%change%': change, '%range%': text.range(comparison) ?? '–', '%result%': text.resultLabel(comparison, result.baselineArm)}) }}" data-experiment-goal-row="{{ comparison.variant }}" data-experiment-goal-state="{{ comparison.state.value }}" data-experiment-result-tone="{{ row.tone.value }}">
+            <span class="lp-experiment-result__name">{{ comparison.variant }}</span>
+            <div class="lp-experiment-result__strip">
+                {% if row.strip is not null %}
+                    <twig:Ds:RangeStrip :low="row.strip.low" :point="row.strip.point" :high="row.strip.high" :baseline="result.baselineAt" :label="loop.first ? 'bridge.experiments.goal.baseline_label'|trans : null" data-experiment-result-strip />
+                {% endif %}
+            </div>
+            <div class="lp-experiment-result__figures">
+                <span class="lp-experiment-result__value">{{ value }}</span>
+                <span class="lp-experiment-result__change lp-experiment-result__change--{{ row.tone.value }}">{{ change }}</span>
+                <span class="lp-experiment-result__chip">{{ experimentRows.goal_chip(comparison, text, result.baselineArm) }}</span>
+                <span class="lp-experiment-result__range">{{ text.range(comparison) }}</span>
+            </div>
+        </li>
+    {% endfor %}
+</ol>

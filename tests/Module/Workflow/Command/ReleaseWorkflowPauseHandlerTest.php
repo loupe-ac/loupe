@@ -55,6 +55,7 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
         $state = $this->spentState($card, 'tech-design-write');
         $pause = $this->pause($card, $kind, 'tech-design-write');
         $this->transport()->reset();
+        $this->transport('card_eval')->reset();
 
         $released = $this->handler()(new ReleaseWorkflowPauseCommand($card->snapshot(), $this->project->owner->id ?? throw new \LogicException('The owner is persisted.'), Actor::Human, $pause->id));
 
@@ -75,8 +76,9 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
         self::assertSame((string) $this->project->owner->id, $rows[0]['actor_user_id']);
         self::assertSame(['kind' => $kind->value, 'reason' => 'move-refused', 'ruleId' => 'tech-design-write', 'releaseReason' => 'released-by-person'], json_decode((string) $rows[0]['detail'], true));
 
-        // One from the release itself, one from the card update it sends.
-        self::assertEquals([new EvaluateCard((string) $card->id), new EvaluateCard((string) $card->id)], $this->queued());
+        // The release waits on the fast queue, and the card update it sends stays on the shared one.
+        self::assertEquals([new EvaluateCard((string) $card->id, true)], $this->queued());
+        self::assertEquals([new EvaluateCard((string) $card->id)], $this->queued('card_eval'));
     }
 
     public function test_an_agent_releases_the_active_pause_with_no_pause_id(): void
@@ -154,6 +156,7 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
     {
         $active = $this->service(CardPauseRepository::class)->findActiveForCard($card);
         $this->transport()->reset();
+        $this->transport('card_eval')->reset();
 
         try {
             $this->handler()(new ReleaseWorkflowPauseCommand($card->snapshot(), $this->project->owner->id ?? throw new \LogicException('The owner is persisted.'), Actor::Human, $pauseId));
@@ -203,10 +206,10 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
     }
 
     /** @return list<EvaluateCard> */
-    private function queued(): array
+    private function queued(string $queue = 'interactive'): array
     {
         $evaluations = [];
-        foreach ($this->transport()->getSent() as $envelope) {
+        foreach ($this->transport($queue)->getSent() as $envelope) {
             if ($envelope->getMessage() instanceof EvaluateCard) {
                 $evaluations[] = $envelope->getMessage();
             }
@@ -215,9 +218,9 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
         return $evaluations;
     }
 
-    private function transport(): InMemoryTransport
+    private function transport(string $queue = 'interactive'): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        $transport = self::getContainer()->get('messenger.transport.'.$queue);
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

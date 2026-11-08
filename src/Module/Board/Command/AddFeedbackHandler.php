@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Module\Board\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Entity\CardSource;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Event\CardChanged;
+use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\FeedbackCardTitle;
+use App\Module\Board\Service\WidgetSignIn;
+use App\Module\Board\Service\WidgetStartOptions;
 use App\Module\SiteReview\Command\AddCommentCommand;
 use App\Module\SiteReview\Command\AddCommentHandler;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
@@ -24,6 +28,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -37,7 +42,6 @@ final readonly class AddFeedbackHandler
 {
     public const string TARGET_NOT_FOUND = 'target_not_found';
     public const string TARGET_CLOSED = 'target_closed';
-    public const string TARGET_NOT_EPIC = 'target_not_epic';
 
     public function __construct(
         private CreateCardHandler $createCard,
@@ -50,10 +54,14 @@ final readonly class AddFeedbackHandler
         private EventDispatcherInterface $events,
         private CardTypeCatalog $catalog,
         private ScreenshotDecoder $screenshotDecoder,
+        private BoardColumnRepository $boardColumns,
+        private WidgetStartOptions $startOptions,
+        private WidgetSignIn $signIn,
+        private TranslatorInterface $translator,
     ) {
     }
 
-    public function __invoke(AddFeedbackCommand $command): CardSiteReviewComment
+    public function __invoke(AddFeedbackCommand $command): AddFeedbackResult
     {
         if (null !== $command->deliveryId && !Uuid::isValid($command->deliveryId)) {
             throw new DomainErrors(['deliveryId' => 'delivery_invalid']);
@@ -63,10 +71,11 @@ final readonly class AddFeedbackHandler
         $screenshot = null === $command->screenshot ? null : $this->screenshotDecoder->decode($command->screenshot);
 
         $created = false;
+        $startRefused = null;
         // The sub-handlers open nested transactions, which run as savepoints of
         // this one. Every refusal leaves this closure as a value, because a throw
         // closes the EntityManager, and none can happen once a card exists.
-        $link = $this->em->wrapInTransaction(function () use ($command, $screenshot, &$created): CardSiteReviewComment|DomainErrors {
+        $link = $this->em->wrapInTransaction(function () use ($command, $screenshot, &$created, &$startRefused): CardSiteReviewComment|DomainErrors {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
 
             $retried = null === $command->deliveryId ? null : $this->siteReviewComments->findOneBy([
@@ -83,8 +92,13 @@ final readonly class AddFeedbackHandler
                 }
 
                 // A comment saved through the old path has no card to return.
-                return $this->cardSiteReviewComments->findOneBy(['comment' => $retried])
-                    ?? new DomainErrors(['deliveryId' => 'delivery_conflict']);
+                $replayed = $this->cardSiteReviewComments->findOneBy(['comment' => $retried]);
+                if (null === $replayed) {
+                    return new DomainErrors(['deliveryId' => 'delivery_conflict']);
+                }
+                $startRefused = $replayed->startRefused;
+
+                return $replayed;
             }
 
             $card = $this->targetCard($command);
@@ -92,18 +106,23 @@ final readonly class AddFeedbackHandler
                 return $card;
             }
             $createdCard = null === $card;
+            $column = null;
+            if ($createdCard && null !== $command->startColumnId) {
+                $column = $this->startColumn($command);
+                $startRefused = null === $column ? $this->refusedColumnName($command) : null;
+            }
             $card ??= ($this->createCard)(new CreateCardCommand(
                 project: $command->project,
                 title: FeedbackCardTitle::of($command->body),
                 body: Card::normalText($command->body),
                 type: $this->catalog->forProject($command->project->requireId())->defaultKey,
+                column: $column,
                 reporter: Actor::Reviewer,
-                parentCardId: $command->parentCardId,
                 source: new CardSource(CardSourceKind::Widget),
             ));
 
             $comment = ($this->addComment)($this->addCommentCommand($command, $screenshot));
-            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null);
+            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null, $startRefused);
             $this->em->persist($link);
             $created = true;
 
@@ -114,7 +133,7 @@ final readonly class AddFeedbackHandler
             throw $link;
         }
         if (!$created) {
-            return $link;
+            return new AddFeedbackResult($link, $startRefused);
         }
 
         $this->auditor->record(
@@ -139,7 +158,7 @@ final readonly class AddFeedbackHandler
             ));
         }
 
-        return $link;
+        return new AddFeedbackResult($link, $startRefused);
     }
 
     /** The open card the note names, null for a card still to create, or the refusal. */
@@ -156,20 +175,39 @@ final readonly class AddFeedbackHandler
             return $card->column->terminal ? new DomainErrors(['target' => self::TARGET_CLOSED]) : $card;
         }
 
-        if (null !== $command->parentCardId) {
-            $parent = $this->cards->findOneByIdAndProjectId($command->parentCardId, $projectId);
-            if (null === $parent) {
-                return new DomainErrors(['target' => self::TARGET_NOT_FOUND]);
-            }
-            if (!$this->catalog->forProject($command->project->requireId())->get($parent->type)->children) {
-                return new DomainErrors(['target' => self::TARGET_NOT_EPIC]);
-            }
-            if ($parent->column->terminal) {
-                return new DomainErrors(['target' => self::TARGET_CLOSED]);
-            }
+        return null;
+    }
+
+    /**
+     * The column the note asked for, when the move guard still allows it from
+     * Backlog. Read under the project lock, so a column deleted or a rule
+     * changed since the boot load decides here. A preview token starts nothing.
+     */
+    private function startColumn(AddFeedbackCommand $command): ?BoardColumn
+    {
+        if ($this->signIn->isPreviewToken() || !Uuid::isValid((string) $command->startColumnId)) {
+            return null;
+        }
+        $columns = $this->boardColumns->findForProjectFresh($command->project);
+        $column = array_find($columns, static fn (BoardColumn $candidate): bool => strtolower((string) $command->startColumnId) === (string) $candidate->id);
+        if (null === $column) {
+            return null;
+        }
+        if ($column->backlog) {
+            return $column;
         }
 
-        return null;
+        return \in_array($column, $this->startOptions->allowedAmong($command->project, $columns), true) ? $column : null;
+    }
+
+    /** The name of the refused column for the answer, or an empty string when the id names no column of the project. */
+    private function refusedColumnName(AddFeedbackCommand $command): string
+    {
+        $column = Uuid::isValid((string) $command->startColumnId)
+            ? $this->boardColumns->findOneByIdAndProjectId((string) $command->startColumnId, (string) $command->project->id)
+            : null;
+
+        return null === $column ? '' : $this->translator->trans($column->label);
     }
 
     private function addCommentCommand(AddFeedbackCommand $command, ?DecodedScreenshot $screenshot): AddCommentCommand
@@ -192,14 +230,15 @@ final readonly class AddFeedbackHandler
     /**
      * The target as the request named it. It joins the delivery hash, so a
      * retry to another target conflicts whatever happened to the card since.
+     * The start column stays out, so a retry with another column lands on the
+     * first card and repeats the start result that its link stored.
      */
     private static function deliveryScope(AddFeedbackCommand $command): string
     {
         if (null !== $command->cardId) {
             return 'card:'.strtolower(trim($command->cardId));
         }
-        $parentCardId = strtolower(trim((string) $command->parentCardId));
 
-        return '' === $parentCardId ? 'new' : 'new:'.$parentCardId;
+        return 'new';
     }
 }

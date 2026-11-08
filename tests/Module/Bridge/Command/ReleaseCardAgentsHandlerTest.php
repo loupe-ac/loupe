@@ -10,9 +10,11 @@ use App\Module\Bridge\Command\ReleaseCardAgentsCommand;
 use App\Module\Bridge\Command\ReleaseCardAgentsHandler;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\AuditOutcome;
 
@@ -61,6 +63,37 @@ final class ReleaseCardAgentsHandlerTest extends KernelTestCase
         $this->release($project, $cardId, $owner, 'agent');
 
         self::assertSame(['agent'], array_column($this->outboxPayloads('board.card_released'), 'actor'));
+    }
+
+    public function test_a_release_by_a_person_sends_the_card_check_to_the_interactive_queue(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('release-agents-fast');
+        $cardId = Uuid::v7();
+        $this->cardHolds()->hold($project, $cardId, $owner);
+        $interactive = $this->transport('interactive');
+        $interactive->reset();
+
+        $this->release($project, $cardId, $owner);
+
+        self::assertEquals([new EvaluateCard($cardId->toRfc4122(), personWaiting: true)], $this->evaluations($interactive));
+    }
+
+    public function test_a_release_by_an_agent_keeps_the_card_check_on_the_card_eval_queue(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('release-agents-slow');
+        $cardId = Uuid::v7();
+        $this->cardHolds()->hold($project, $cardId, $owner);
+        $interactive = $this->transport('interactive');
+        $cardEval = $this->transport('card_eval');
+        $interactive->reset();
+        $cardEval->reset();
+
+        $this->release($project, $cardId, $owner, 'agent');
+
+        self::assertSame([], $this->evaluations($interactive));
+        self::assertContainsEquals(new EvaluateCard($cardId->toRfc4122()), $this->evaluations($cardEval));
     }
 
     public function test_a_release_of_a_card_with_no_hold_is_refused(): void
@@ -117,6 +150,23 @@ final class ReleaseCardAgentsHandlerTest extends KernelTestCase
         $handler = self::getContainer()->get(ReleaseCardAgentsHandler::class);
         self::assertInstanceOf(ReleaseCardAgentsHandler::class, $handler);
         $handler(new ReleaseCardAgentsCommand($project, $cardId, $by, $actor));
+    }
+
+    private function transport(string $name): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.'.$name);
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
+    /** @return list<EvaluateCard> */
+    private function evaluations(InMemoryTransport $transport): array
+    {
+        return array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $m): bool => $m instanceof EvaluateCard,
+        ));
     }
 
     private function cardHolds(): CardHolds

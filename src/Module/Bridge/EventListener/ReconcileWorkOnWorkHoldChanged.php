@@ -72,7 +72,7 @@ final readonly class ReconcileWorkOnWorkHoldChanged
         });
 
         if ([] !== $releasedCards) {
-            $this->evaluations->forCards($releasedCards);
+            $this->evaluations->forCards($releasedCards, self::class);
         }
     }
 }

@@ -35,13 +35,13 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         $card = Uuid::v7();
         $trigger = $this->trigger(true);
 
-        $trigger->forCards([$card]);
-        $trigger->forCards([$card]);
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
+        $trigger->forCards([$card], 'test');
+        $trigger->forCards([$card], 'test');
         self::assertCount(1, $this->transport()->getSent());
 
         $this->handler()(new EvaluateCard($card->toRfc4122()));
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
 
         self::assertCount(2, $this->transport()->getSent());
     }
@@ -50,7 +50,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
     {
         $trigger = $this->trigger(true);
         $card = $this->storedCard();
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
         self::assertCount(1, $this->transport()->getSent());
 
         $this->triggerWhenTheEngineLoads($card, $trigger);
@@ -58,7 +58,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
 
         self::assertCount(2, $this->transport()->getSent());
         self::assertSame(1, $this->rows($card));
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
         self::assertCount(2, $this->transport()->getSent());
     }
 
@@ -69,9 +69,9 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         $connection = $this->service(Connection::class);
 
         $connection->beginTransaction();
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
         $connection->rollBack();
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
 
         self::assertSame(1, $this->rows($card));
         self::assertCount(2, $this->transport()->getSent());
@@ -82,8 +82,8 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         $card = Uuid::v7();
         $trigger = $this->trigger(false);
 
-        $trigger->forCards([$card]);
-        $trigger->forCards([$card]);
+        $trigger->forCards([$card], 'test');
+        $trigger->forCards([$card], 'test');
 
         self::assertCount(2, $this->transport()->getSent());
         self::assertSame(0, $this->rows($card));
@@ -92,7 +92,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
     public function test_the_handler_releases_the_row_with_the_flag_off_too(): void
     {
         $card = Uuid::v7();
-        $this->trigger(true)->forCards([$card]);
+        $this->trigger(true)->forCards([$card], 'test');
         self::assertSame(1, $this->rows($card));
 
         $this->handler()(new EvaluateCard($card->toRfc4122()));
@@ -103,7 +103,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
     public function test_forgetting_a_card_releases_its_row(): void
     {
         $card = Uuid::v7();
-        $this->trigger(true)->forCards([$card]);
+        $this->trigger(true)->forCards([$card], 'test');
 
         $this->service(WorkflowRowCleaner::class)->forgetCard($card);
 
@@ -195,7 +195,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
                     return;
                 }
                 $this->fired = true;
-                $this->trigger->forCards([$this->card]);
+                $this->trigger->forCards([$this->card], 'test');
             }
         };
         $this->em()->getEventManager()->addEventListener([Events::postLoad], $listener);

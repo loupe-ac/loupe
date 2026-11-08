@@ -36,6 +36,6 @@ final readonly class EvaluateCardsOnCardPullRequestsChanged
             }
         }
 
-        $this->trigger->forCards(array_values($cardIds));
+        $this->trigger->forCards(array_values($cardIds), self::class);
     }
 }

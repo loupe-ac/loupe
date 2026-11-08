@@ -20,6 +20,7 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Sentry\Unit;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -128,6 +129,10 @@ final readonly class ClaimWorkRequestHandler
             new AuditSubject('work_request', (string) $claimed->id),
         );
         $this->announcer->announce($claimed);
+        if (1 === $claimed->claims) {
+            $waited = max(0.0, (float) $this->clock->now()->format('U.u') - (float) $claimed->createdAt->format('U.u'));
+            \Sentry\traceMetrics()->distribution('workflow.request.claim_wait', $waited, ['kind' => $claimed->kind], Unit::second());
+        }
 
         return new ClaimWorkRequestResult($claimed);
     }

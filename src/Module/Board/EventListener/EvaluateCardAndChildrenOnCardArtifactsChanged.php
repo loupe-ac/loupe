@@ -24,6 +24,6 @@ final readonly class EvaluateCardAndChildrenOnCardArtifactsChanged
     {
         $card = $this->cards->find($event->cardId);
         $children = null === $card ? [] : array_map(static fn (Card $child) => $child->id, $this->cards->findChildren($card));
-        $this->trigger->forCards(array_values(array_filter([$event->cardId, ...$children])));
+        $this->trigger->forCards(array_values(array_filter([$event->cardId, ...$children])), self::class);
     }
 }

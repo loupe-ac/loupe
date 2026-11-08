@@ -46,7 +46,7 @@ final class AddFeedbackHandlerTest extends KernelTestCase
 
     public function test_a_short_note_is_its_own_title_and_body(): void
     {
-        $link = ($this->handler)($this->command($this->project('feedback-short'), 'Footer overlaps the launcher'));
+        $link = ($this->handler)($this->command($this->project('feedback-short'), 'Footer overlaps the launcher'))->link;
 
         self::assertSame('Footer overlaps the launcher', $link->card->title);
         self::assertSame('Footer overlaps the launcher', $link->card->body);
@@ -55,9 +55,9 @@ final class AddFeedbackHandlerTest extends KernelTestCase
     public function test_a_note_on_an_existing_card_stores_no_body(): void
     {
         $project = $this->project('feedback-existing');
-        $first = ($this->handler)($this->command($project, 'First note'));
+        $first = ($this->handler)($this->command($project, 'First note'))->link;
 
-        $second = ($this->handler)($this->command($project, 'Second note', (string) $first->card->id));
+        $second = ($this->handler)($this->command($project, 'Second note', (string) $first->card->id))->link;
 
         self::assertNull($second->createdBody);
         self::assertSame('First note', $second->card->body);
@@ -68,7 +68,7 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         $project = $this->project('feedback-new');
         $body = "\n   \n  ".str_repeat('Footer overlaps the launcher ', 5)."\nSeen at 1280px.";
 
-        $link = ($this->handler)($this->command($project, $body));
+        $link = ($this->handler)($this->command($project, $body))->link;
 
         self::assertTrue($link->createdCard);
         $card = $link->card;
@@ -95,24 +95,12 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         $project = $this->project('feedback-existing');
         $card = $this->card($project, 'backlog');
 
-        $link = ($this->handler)($this->command($project, 'Too much padding', cardId: (string) $card->id));
+        $link = ($this->handler)($this->command($project, 'Too much padding', cardId: (string) $card->id))->link;
 
         self::assertFalse($link->createdCard);
         self::assertSame((string) $card->id, (string) $link->card->id);
         self::assertSame(1, $this->rows('board_cards', $project));
         self::assertSame(1, $this->rows('board_card_site_review_comments', $project));
-    }
-
-    public function test_a_note_creates_a_child_card_of_an_epic(): void
-    {
-        $project = $this->project('feedback-epic');
-        $epic = $this->card($project, 'backlog', 'epic');
-
-        $link = ($this->handler)($this->command($project, 'Checkout button is grey', parentCardId: (string) $epic->id));
-
-        self::assertTrue($link->createdCard);
-        self::assertSame((string) $epic->id, (string) $link->card->parent?->id);
-        self::assertSame('feature', $link->card->type);
     }
 
     public function test_a_card_of_another_project_reads_as_not_found(): void
@@ -122,7 +110,6 @@ final class AddFeedbackHandlerTest extends KernelTestCase
 
         $this->assertRefused('target', AddFeedbackHandler::TARGET_NOT_FOUND, $project, cardId: (string) $foreign->id);
         $this->assertRefused('target', AddFeedbackHandler::TARGET_NOT_FOUND, $project, cardId: (string) Uuid::v7());
-        $this->assertRefused('target', AddFeedbackHandler::TARGET_NOT_FOUND, $project, parentCardId: (string) $foreign->id);
     }
 
     public function test_a_card_in_a_terminal_column_is_closed(): void
@@ -133,30 +120,14 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         $this->assertRefused('target', AddFeedbackHandler::TARGET_CLOSED, $project, cardId: (string) $done->id);
     }
 
-    public function test_a_parent_that_is_not_an_epic_is_refused(): void
-    {
-        $project = $this->project('feedback-not-epic');
-        $feature = $this->card($project, 'backlog');
-
-        $this->assertRefused('target', AddFeedbackHandler::TARGET_NOT_EPIC, $project, parentCardId: (string) $feature->id);
-    }
-
-    public function test_an_epic_in_a_terminal_column_is_closed(): void
-    {
-        $project = $this->project('feedback-closed-epic');
-        $epic = $this->card($project, 'done', 'epic');
-
-        $this->assertRefused('target', AddFeedbackHandler::TARGET_CLOSED, $project, parentCardId: (string) $epic->id);
-    }
-
     public function test_a_retried_delivery_returns_the_same_card_and_creates_no_second_one(): void
     {
         $project = $this->project('feedback-retry');
         $command = $this->command($project, 'One capture', deliveryId: (string) Uuid::v4());
 
-        $first = ($this->handler)($command);
+        $first = ($this->handler)($command)->link;
         $this->audit->forget();
-        $second = ($this->handler)($command);
+        $second = ($this->handler)($command)->link;
 
         self::assertSame((string) $first->id, (string) $second->id);
         self::assertSame((string) $first->card->id, (string) $second->card->id);
@@ -186,55 +157,13 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         $this->assertRefused('deliveryId', 'delivery_conflict', $project, body: 'One note', deliveryId: $deliveryId);
     }
 
-    public function test_a_retry_under_another_epic_is_a_conflict(): void
-    {
-        $project = $this->project('feedback-retry-other-epic');
-        $epic = $this->card($project, 'backlog', 'epic');
-        $other = $this->card($project, 'backlog', 'epic');
-        $deliveryId = (string) Uuid::v4();
-        ($this->handler)($this->command($project, 'One note', parentCardId: (string) $epic->id, deliveryId: $deliveryId));
-
-        $this->assertRefused('deliveryId', 'delivery_conflict', $project, body: 'One note', parentCardId: (string) $other->id, deliveryId: $deliveryId);
-        $this->assertRefused('deliveryId', 'delivery_conflict', $project, body: 'One note', deliveryId: $deliveryId);
-    }
-
     public function test_a_retry_naming_the_card_its_first_attempt_created_is_a_conflict(): void
     {
         $project = $this->project('feedback-retry-created-card');
         $deliveryId = (string) Uuid::v4();
-        $link = ($this->handler)($this->command($project, 'One note', deliveryId: $deliveryId));
+        $link = ($this->handler)($this->command($project, 'One note', deliveryId: $deliveryId))->link;
 
         $this->assertRefused('deliveryId', 'delivery_conflict', $project, body: 'One note', cardId: (string) $link->card->id, deliveryId: $deliveryId);
-    }
-
-    public function test_a_retry_to_the_same_epic_still_matches_after_the_card_moved_to_another(): void
-    {
-        $project = $this->project('feedback-retry-moved-card');
-        $epic = $this->card($project, 'backlog', 'epic');
-        $other = $this->card($project, 'backlog', 'epic');
-        $command = $this->command($project, 'One note', parentCardId: (string) $epic->id, deliveryId: (string) Uuid::v4());
-        $first = ($this->handler)($command);
-        self::assertSame(1, $this->em->getConnection()->executeStatement(
-            'UPDATE board_cards SET parent_card_id = ? WHERE id = ?',
-            [(string) $other->id, (string) $first->card->id],
-        ));
-        $this->em->detach($first->card);
-
-        $second = ($this->handler)($command);
-
-        self::assertSame((string) $first->id, (string) $second->id);
-    }
-
-    public function test_a_retry_to_the_same_epic_returns_the_saved_note(): void
-    {
-        $project = $this->project('feedback-retry-same-epic');
-        $epic = $this->card($project, 'backlog', 'epic');
-        $command = $this->command($project, 'One note', parentCardId: (string) $epic->id, deliveryId: (string) Uuid::v4());
-
-        $first = ($this->handler)($command);
-        $second = ($this->handler)($command);
-
-        self::assertSame((string) $first->id, (string) $second->id);
     }
 
     public function test_a_delivery_id_reused_for_another_note_is_a_conflict(): void
@@ -275,13 +204,13 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM site_review_comments WHERE project_id = ?', [$projectId]));
     }
 
-    private function assertRefused(string $field, string $code, Project $project, string $body = 'A note', ?string $cardId = null, ?string $parentCardId = null, ?string $deliveryId = null): void
+    private function assertRefused(string $field, string $code, Project $project, string $body = 'A note', ?string $cardId = null, ?string $deliveryId = null): void
     {
         $cards = $this->rows('board_cards', $project);
         $comments = $this->rows('site_review_comments', $project);
 
         try {
-            ($this->handler)($this->command($project, $body, $cardId, $parentCardId, $deliveryId));
+            ($this->handler)($this->command($project, $body, $cardId, $deliveryId));
             self::fail('The write should have been refused.');
         } catch (DomainErrors $e) {
             self::assertSame([$field => $code], $e->errors);
@@ -292,7 +221,7 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         self::assertSame($comments, $this->rows('site_review_comments', $project));
     }
 
-    private function command(Project $project, string $body, ?string $cardId = null, ?string $parentCardId = null, ?string $deliveryId = null): AddFeedbackCommand
+    private function command(Project $project, string $body, ?string $cardId = null, ?string $deliveryId = null): AddFeedbackCommand
     {
         return new AddFeedbackCommand(
             project: $project,
@@ -301,7 +230,6 @@ final class AddFeedbackHandlerTest extends KernelTestCase
             anchors: [new NewAnchor('.footer', 'Footer')],
             deliveryId: $deliveryId,
             cardId: $cardId,
-            parentCardId: $parentCardId,
         );
     }
 

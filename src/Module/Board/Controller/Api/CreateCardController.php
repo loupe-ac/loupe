@@ -36,7 +36,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
     new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 422, description: 'Refused: `unknown_type`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 422, description: 'Refused: `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new RateLimitedResponse(),
 ])]
 #[Route(
@@ -66,18 +66,11 @@ final class CreateCardController extends AppController
             throw new \LogicException('title required after validation');
         }
 
-        $types = $this->catalog->forProject($project->requireId());
-        $allowed = $payload->parent ? $types->withChildren() : $types->keys();
-        $type = $payload->type ?? ($payload->parent ? ($allowed[0] ?? null) : $types->defaultKey);
-        if (null === $type || !\in_array($type, $allowed, true)) {
-            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'unknown_type', 'The card type is not one this project takes.', ['types' => $allowed]);
-        }
-
         $card = ($this->handler)(new CreateCardCommand(
             project: $project,
             title: $title,
             body: $payload->body,
-            type: $type,
+            type: $this->catalog->forProject($project->requireId())->defaultKey,
             // Not Human: nobody authenticated the person who typed this.
             reporter: Actor::Reviewer,
             source: new CardSource(CardSourceKind::Widget),

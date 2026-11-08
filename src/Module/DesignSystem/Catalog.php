@@ -524,6 +524,18 @@ readonly class Catalog
                 viewport: '700x200',
             ),
             new ComponentEntry(
+                name: 'RangeStrip',
+                rootClass: 'lp-range-strip',
+                template: 'components/Ds/RangeStrip.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'core',
+                summary: 'A range and a point around a dashed baseline line on a shared scale, drawn as a hidden inline SVG.',
+                element: 'svg',
+                viewport: '700x120',
+            ),
+            new ComponentEntry(
                 name: 'ActionForm',
                 rootClass: 'lp-action-form',
                 template: 'components/Ds/ActionForm.html.twig',

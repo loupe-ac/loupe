@@ -80,7 +80,9 @@ final class DeleteFeedbackHandlerTest extends KernelTestCase
     {
         $project = $this->project('delete-feedback-child');
         $epic = $this->card($project, 'backlog', 'epic');
-        $link = $this->addNote($project, parentCardId: (string) $epic->id);
+        $link = $this->addNote($project);
+        $link->card->parent = $epic;
+        $this->em->flush();
 
         self::assertTrue(($this->handler)($this->command($project, $link)));
 
@@ -424,7 +426,7 @@ final class DeleteFeedbackHandlerTest extends KernelTestCase
         return new DeleteFeedbackCommand($project, $link->comment->id ?? throw new \LogicException('unsaved comment'));
     }
 
-    private function addNote(Project $project, ?string $cardId = null, ?string $parentCardId = null, string $body = 'Footer overlaps the launcher'): CardSiteReviewComment
+    private function addNote(Project $project, ?string $cardId = null, string $body = 'Footer overlaps the launcher'): CardSiteReviewComment
     {
         return ($this->add)(new AddFeedbackCommand(
             project: $project,
@@ -432,8 +434,7 @@ final class DeleteFeedbackHandlerTest extends KernelTestCase
             url: 'https://preview.example/checkout',
             anchors: [new NewAnchor('.footer', 'Footer')],
             cardId: $cardId,
-            parentCardId: $parentCardId,
-        ));
+        ))->link;
     }
 
     private function rows(string $table, Project $project): int

@@ -12,8 +12,12 @@ interface CardEvaluations
     /** The transport for a message that one action of a person starts and that the person waits on. */
     public const string INTERACTIVE_TRANSPORT = 'interactive';
 
-    /** @param list<string|Uuid> $cardIds */
-    public function forCards(array $cardIds): void;
+    /**
+     * `$cause` names the code that asks. `$occurredAt` is the time of the card event behind the ask, and null means now.
+     *
+     * @param list<string|Uuid> $cardIds
+     */
+    public function forCards(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void;
 
     /**
      * Like forCards(), for the cards a person waits on. Each evaluation rides the interactive transport, and
@@ -21,7 +25,7 @@ interface CardEvaluations
      *
      * @param list<string|Uuid> $cardIds
      */
-    public function forPersonWaiting(array $cardIds): void;
+    public function forPersonWaiting(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void;
 
     /** True while the engine can run on this instance. A listener checks it before its own repository read. */
     public function isOn(): bool;

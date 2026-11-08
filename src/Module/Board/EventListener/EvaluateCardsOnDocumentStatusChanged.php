@@ -25,6 +25,6 @@ final readonly class EvaluateCardsOnDocumentStatusChanged
     {
         $cardIds = $this->cardDocuments->findCardIdsForDocument($event->documentId);
         $childIds = array_merge(...array_map(fn (string $id): array => $this->cards->findChildIds(Uuid::fromString($id)), $cardIds));
-        $this->trigger->forCards(array_values(array_unique([...$cardIds, ...$childIds])));
+        $this->trigger->forCards(array_values(array_unique([...$cardIds, ...$childIds])), self::class);
     }
 }

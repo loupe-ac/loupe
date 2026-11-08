@@ -8,9 +8,11 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\SiteReview\Command\CommentLocked;
 use App\Module\SiteReview\Command\CommentNotFound;
 use App\Module\SiteReview\Command\DeleteCommentCommand;
 use App\Module\SiteReview\Command\DeleteCommentHandler;
+use App\Module\SiteReview\Context\CommentEditLockInterface;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
@@ -40,21 +42,28 @@ final readonly class DeleteFeedbackHandler
         private CardTypeCatalog $catalog,
         private CardEventRepository $cardEvents,
         private WorkerRunRepository $workerRuns,
+        private CommentEditLockInterface $editLock,
     ) {
     }
 
-    /** @throws CommentNotFound when the note is not a pending note of the project */
+    /**
+     * @throws CommentNotFound when the note is not a pending note of the project
+     * @throws CommentLocked   when the card of the note started work
+     */
     public function __invoke(DeleteFeedbackCommand $command): bool
     {
         // A refusal leaves the closure as a value, because a throw closes the
         // EntityManager. The project lock orders this against a note that
         // lands on the same card.
-        $cardDeleted = $this->em->wrapInTransaction(function () use ($command): bool|CommentNotFound {
+        $cardDeleted = $this->em->wrapInTransaction(function () use ($command): bool|CommentNotFound|CommentLocked {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
 
             $comment = $this->siteReviewComments->findOnePending($command->commentId, $command->project);
             if (null === $comment) {
                 return CommentNotFound::forId($command->commentId);
+            }
+            if ($this->editLock->isLocked($comment)) {
+                return CommentLocked::forId($command->commentId);
             }
 
             // Removed through the ORM in the comment's flush. The database
@@ -87,7 +96,7 @@ final readonly class DeleteFeedbackHandler
             return true;
         });
 
-        if ($cardDeleted instanceof CommentNotFound) {
+        if ($cardDeleted instanceof CommentNotFound || $cardDeleted instanceof CommentLocked) {
             throw $cardDeleted;
         }
 

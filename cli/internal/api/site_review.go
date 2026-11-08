@@ -85,29 +85,6 @@ func (c *Client) siteReviewRequest(ctx context.Context, method, path string, pay
 	}
 }
 
-// SiteReviewTargets searches the open cards of the project. With parent set it
-// lists only the cards that can hold children, which the epic mode picks from.
-// It returns the `cards` list of the answer.
-func (c *Client) SiteReviewTargets(ctx context.Context, query string, parent bool) (json.RawMessage, error) {
-	params := url.Values{}
-	if query != "" {
-		params.Set("q", query)
-	}
-	if parent {
-		params.Set("parent", "1")
-	}
-	path := "/api/v1/live-review-widget/cards"
-	if len(params) > 0 {
-		path += "?" + params.Encode()
-	}
-	raw, err := c.siteReviewRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return field(raw, "cards")
-}
-
 // SiteReviewNotes lists the pending iOS Simulator notes of one destination,
 // such as `card:<id>`. The server lists every note of the project when the
 // scope is absent, so the request always sends it, and an empty scope lists
