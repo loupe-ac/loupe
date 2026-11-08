@@ -183,7 +183,7 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
         self::assertNull($this->entries()->entryFor($link->code));
     }
 
-    public function test_an_experiment_link_gets_the_generic_image_until_its_own_image_exists(): void
+    public function test_an_experiment_link_draws_its_own_image_inline_and_keeps_it(): void
     {
         $client = $this->client();
         $project = $this->scenarioProject('image-experiment');
@@ -194,7 +194,13 @@ final class ShowPublicLinkPreviewControllerTest extends WebTestCase
 
         $client->request(Request::METHOD_GET, $this->url($link));
 
-        $this->assertGenericImage($client);
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'image/png');
+        self::assertStringStartsWith(self::PNG, (string) $client->getResponse()->getContent());
+        $entry = $this->entries()->entryFor($link->code);
+        self::assertNotNull($entry);
+        self::assertSame($this->currentVersion($link), $entry->version);
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
     }
 
     public function test_an_experiment_link_with_no_report_gets_404(): void

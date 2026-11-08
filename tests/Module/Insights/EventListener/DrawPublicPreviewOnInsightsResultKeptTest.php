@@ -51,14 +51,41 @@ final class DrawPublicPreviewOnInsightsResultKeptTest extends KernelTestCase
         self::assertSame([], $this->askedCodes());
     }
 
-    public function test_a_graph_with_no_link_and_an_experiment_ask_for_nothing(): void
+    public function test_a_kept_result_of_an_experiment_with_a_visible_link_asks_for_a_draw(): void
+    {
+        $project = $this->scenarioProject('listener-experiment');
+        $link = PublicLink::forExperiment($project, 'trial');
+        $this->em()->persist($link);
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        $this->dispatch(new InsightsResultKept((string) $project->id, null, 'trial'));
+
+        self::assertSame([$link->code], $this->askedCodes());
+    }
+
+    public function test_a_switched_off_experiment_link_and_an_experiment_with_no_link_ask_for_nothing(): void
+    {
+        $project = $this->scenarioProject('listener-experiment-off');
+        $off = PublicLink::forExperiment($project, 'trial');
+        $off->enabled = false;
+        $this->em()->persist($off);
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        $this->dispatch(new InsightsResultKept((string) $project->id, null, 'trial'));
+        $this->dispatch(new InsightsResultKept((string) $project->id, null, 'no-link'));
+
+        self::assertSame([], $this->askedCodes());
+    }
+
+    public function test_a_graph_with_no_link_asks_for_nothing(): void
     {
         $project = $this->scenarioProject('listener-none');
         $graph = $this->seedSavedGraph($project);
         $this->transport()->reset();
 
         $this->dispatch(new InsightsResultKept((string) $project->id, (string) $graph->id, null));
-        $this->dispatch(new InsightsResultKept((string) $project->id, null, 'trial'));
 
         self::assertSame([], $this->askedCodes());
     }

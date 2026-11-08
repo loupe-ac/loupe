@@ -7,6 +7,7 @@ namespace App\Tests\Module\Insights\Messenger;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Messenger\DrawPublicPreview;
 use App\Module\Insights\Messenger\DrawPublicPreviewHandler;
+use App\Module\Insights\Preview\ExperimentPreviewLayouts;
 use App\Module\Insights\Preview\PreviewRenderer;
 use App\Module\Insights\Preview\PublicPreviewDrawer;
 use App\Module\Insights\Preview\PublicPreviewEntries;
@@ -51,11 +52,23 @@ final class DrawPublicPreviewHandlerTest extends KernelTestCase
         self::assertNull($this->entries()->entryFor($off->code));
     }
 
-    public function test_an_experiment_link_draws_nothing(): void
+    public function test_it_draws_and_keeps_the_preview_of_a_shared_experiment(): void
     {
         $project = $this->scenarioProject('message-experiment');
         $this->seedExperiment($project, 'trial');
         $link = PublicLink::forExperiment($project, 'trial');
+        $this->em()->persist($link);
+        $this->em()->flush();
+
+        $this->handler()(new DrawPublicPreview($link->code));
+
+        self::assertNotNull($this->entries()->entryFor($link->code));
+    }
+
+    public function test_an_experiment_with_no_report_draws_nothing(): void
+    {
+        $project = $this->scenarioProject('message-ghost');
+        $link = PublicLink::forExperiment($project, 'ghost');
         $this->em()->persist($link);
         $this->em()->flush();
 
@@ -82,11 +95,13 @@ final class DrawPublicPreviewHandlerTest extends KernelTestCase
         self::assertInstanceOf(Environment::class, $twig);
         self::assertInstanceOf(PublicGraphResults::class, $results);
         self::assertInstanceOf(PublicLinkVisibility::class, $visibility);
+        $layouts = self::getContainer()->get(ExperimentPreviewLayouts::class);
+        self::assertInstanceOf(ExperimentPreviewLayouts::class, $layouts);
         $live = self::getContainer()->get(\App\Module\Insights\Preview\PublicPreviewSubjects::class);
         self::assertInstanceOf(\App\Module\Insights\Preview\PublicPreviewSubjects::class, $live);
-        $drawer = new PublicPreviewDrawer(new LockFactory(new InMemoryStore()), $subjects ?? $live, $this->entries(), $results, new PreviewRenderer(__DIR__.'/../Preview/fake-rsvg-convert'), $twig);
+        $drawer = new PublicPreviewDrawer(new LockFactory(new InMemoryStore()), $subjects ?? $live, $this->entries(), $results, $layouts, new PreviewRenderer(__DIR__.'/../Preview/fake-rsvg-convert'), $twig);
 
-        return new DrawPublicPreviewHandler($visibility, $drawer, new NullLogger());
+        return new DrawPublicPreviewHandler($visibility, $live, $drawer, new NullLogger());
     }
 
     private function entries(): PublicPreviewEntries
