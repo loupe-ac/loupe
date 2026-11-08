@@ -10,6 +10,7 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\AddFeedbackCommand;
 use App\Module\Board\Command\AddFeedbackHandler;
+use App\Module\Board\Service\CardCommentEditLock;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\NewStroke;
 use App\Module\SiteReview\Entity\ReviewSurface;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 /**
@@ -38,7 +40,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 409, description: 'Refused: `delivery_conflict`, `delivery_invalid`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 422, description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 422, description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new RateLimitedResponse(),
 ])]
 #[Route(
@@ -53,6 +55,7 @@ final class AddFeedbackController extends AppController
         private readonly AuthenticatedProjectResolver $projectResolver,
         private readonly FeatureFlagService $featureFlags,
         private readonly UrlGeneratorInterface $urls,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -83,7 +86,7 @@ final class AddFeedbackController extends AppController
         }
 
         try {
-            $link = ($this->handler)(new AddFeedbackCommand(
+            $result = ($this->handler)(new AddFeedbackCommand(
                 project: $project,
                 body: $body,
                 url: ReviewSurface::Web === $payload->surface ? trim($payload->url ?? '') : null,
@@ -91,7 +94,7 @@ final class AddFeedbackController extends AppController
                 strokes: $strokes,
                 deliveryId: $payload->deliveryId,
                 cardId: $target->cardId,
-                parentCardId: $target->newCard?->parentCardId,
+                startColumnId: $target->newCard?->startColumnId,
                 context: $payload->context(),
                 surface: $payload->surface,
                 native: $payload->native?->facts(),
@@ -109,6 +112,7 @@ final class AddFeedbackController extends AppController
             };
         }
 
+        $link = $result->link;
         $card = $link->card;
 
         return $this->json([
@@ -116,6 +120,9 @@ final class AddFeedbackController extends AppController
             'cardId' => (string) $card->id,
             'number' => $card->number,
             'label' => \sprintf('#%d %s', $card->number, $card->title),
+            'column' => $this->translator->trans($card->column->label),
+            'startRefused' => $result->startRefused,
+            'locked' => CardCommentEditLock::locks($link->comment, $card, $card->leftBacklog),
             'url' => $this->urls->generate(
                 'app_board_card',
                 ['projectId' => (string) $project->id, 'cardId' => (string) $card->id],

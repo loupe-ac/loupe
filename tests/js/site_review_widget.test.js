@@ -6,6 +6,7 @@ import {
     bootWidget,
     hostCount,
     modeKeyFor,
+    oldModeKeyFor,
     ok,
     openPanel,
     panelRoot,
@@ -138,7 +139,11 @@ describe('the mode', () => {
         expect(root.getElementById('lp-save').disabled).toBe(true);
         await chooseMode(root, 'per-note');
 
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
         expect(viewOf(root)).not.toBe('destination');
         expect(root.getElementById('lp-textarea').value).toBe(
             'The hero image is blurry',
@@ -286,39 +291,6 @@ describe('the mode', () => {
         expect(savedNotice()).toBe('Note saved to #3 Review: /');
     });
 
-    it('epic mode checks an epic and puts each note under it', async () => {
-        const fetchMock = bootWidget({
-            mode: { mode: 'epic', cardId: CARD },
-            respond: (url, init) =>
-                init.method === 'POST'
-                    ? ok({
-                          commentId: 'c1',
-                          cardId: 'x',
-                          number: 9,
-                          label: '#9 Spacing',
-                          url: null,
-                      })
-                    : ok({
-                          comments: [],
-                          context: { label: '#2 Launch review', url: null },
-                      }),
-        });
-        await settle();
-
-        expect(fetchMock.mock.calls[0][0]).toContain(
-            encodeURIComponent(`epic:${CARD}`),
-        );
-        const root = openNote();
-        expect(targetText(root)).toBe('a new card under #2');
-        await write(root, 'Spacing');
-        root.getElementById('lp-save').click();
-        await settle();
-
-        expect(feedbackSave(fetchMock).target).toEqual({
-            newCard: { parentCardId: CARD },
-        });
-    });
-
     it('is asked for again when the boot load refuses the stored card', async () => {
         bootWidget({
             mode: { mode: 'per-review', cardId: CARD },
@@ -413,6 +385,287 @@ describe('the delivery id', () => {
     });
 });
 
+const BACKLOG = { id: 'col-backlog', name: 'Backlog', hint: null };
+const TECH = {
+    id: 'col-tech',
+    name: 'Tech design',
+    hint: 'An agent writes the tech design.',
+};
+const START_COLUMNS = [
+    BACKLOG,
+    { id: 'col-next', name: 'Next', hint: null },
+    TECH,
+];
+
+/** A boot answer that offers start columns, and a save answer built by `saved`. */
+const bootWithColumns = (columns, saved) => (url, init) => {
+    if (init && init.method === 'POST') {
+        return ok(
+            saved || {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: null,
+                url: 'https://loupe.example/card',
+            },
+        );
+    }
+
+    return ok({ comments: [], context: null, startColumns: columns });
+};
+
+describe('the start column', () => {
+    it('shows the select for a per-note choice with its hint', async () => {
+        bootWidget({
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        const select = root.getElementById('lp-picker-start-select');
+        expect(root.getElementById('lp-picker-start').style.display).toBe('');
+        expect([...select.options].map((option) => option.textContent)).toEqual(
+            ['Backlog', 'Next', 'Tech design'],
+        );
+        select.value = TECH.id;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(root.getElementById('lp-picker-start-hint').textContent).toBe(
+            TECH.hint,
+        );
+        root.getElementById('lp-destination-save').click();
+        await settle();
+
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: TECH.id,
+        });
+    });
+
+    it('hides the select when only the Backlog is offered', async () => {
+        bootWidget({ respond: bootWithColumns([BACKLOG]) });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        expect(root.getElementById('lp-picker-start').style.display).toBe(
+            'none',
+        );
+    });
+
+    it('hides the select for a preview token, which gets no columns', async () => {
+        bootWidget({ respond: bootWithColumns([]) });
+        await settle();
+
+        const root = openNote();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+
+        expect(root.getElementById('lp-picker-start').style.display).toBe(
+            'none',
+        );
+    });
+
+    it('names the kept column in the composer line and sends it with the save', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'The hero image is blurry');
+
+        expect(targetText(root)).toBe('a new card in Tech design');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({
+            newCard: { startColumnId: TECH.id },
+        });
+        expect(savedNotice()).toBe('Note saved to #12 Note');
+    });
+
+    it('sends no column for the Backlog', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: null },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        expect(targetText(root)).toBe('a new card');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
+    });
+
+    it('keeps a column the boot list omits until the save reports its refusal', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: 'Tech design',
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+
+        expect(storedMode().startColumnId).toBe(TECH.id);
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({
+            newCard: { startColumnId: TECH.id },
+        });
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('sends no column when the kept column is the Backlog', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: BACKLOG.id },
+            respond: bootWithColumns(START_COLUMNS),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
+    });
+
+    it('says which column was refused and clears the kept column', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns(START_COLUMNS, {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: 'Tech design',
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('reports the refusal that a retry after a lost answer repeats', async () => {
+        let attempt = 0;
+        const refused = bootWithColumns(START_COLUMNS, {
+            commentId: 'c1',
+            cardId: 'k1',
+            number: 12,
+            label: '#12 Note',
+            column: 'Backlog',
+            startRefused: 'Tech design',
+            url: 'https://loupe.example/card',
+        });
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: (url, init) => {
+                if (init && init.method === 'POST') {
+                    attempt += 1;
+                    if (attempt === 1) return rejected(500, {});
+                }
+
+                return refused(url, init);
+            },
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+        root.getElementById('lp-save').click();
+        await settle();
+
+        const saves = fetchMock.mock.calls
+            .filter(
+                ([url, init]) =>
+                    init && init.method === 'POST' && url.endsWith('/feedback'),
+            )
+            .map(([, init]) => JSON.parse(init.body));
+        expect(saves).toHaveLength(2);
+        expect(saves[1].deliveryId).toBe(saves[0].deliveryId);
+        expect(savedNotice()).toBe(
+            'Saved to #12 in Backlog. Tech design is no longer a start column.',
+        );
+        expect(storedMode().startColumnId).toBeNull();
+    });
+
+    it('keeps the same delivery id when only the column changes', async () => {
+        let attempt = 0;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: (url, init) => {
+                if (init && init.method === 'POST') {
+                    attempt += 1;
+                    if (attempt === 1) return rejected(500, {});
+                }
+
+                return bootWithColumns(START_COLUMNS)(url, init);
+            },
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+        const select = () => root.getElementById('lp-picker-start-select');
+        root.getElementById('lp-context').querySelector('button').click();
+        await settle();
+        select().value = BACKLOG.id;
+        select().dispatchEvent(new Event('change', { bubbles: true }));
+        root.getElementById('lp-destination-save').click();
+        await settle();
+        root.getElementById('lp-save').click();
+        await settle();
+
+        const saves = fetchMock.mock.calls
+            .filter(
+                ([url, init]) =>
+                    init && init.method === 'POST' && url.endsWith('/feedback'),
+            )
+            .map(([, init]) => JSON.parse(init.body));
+        expect(saves).toHaveLength(2);
+        expect(saves[1].deliveryId).toBe(saves[0].deliveryId);
+        expect(saves[1].target).toEqual({ newCard: {} });
+    });
+});
+
 describe('the mode picker', () => {
     it('keeps focus in the visible view after Back and after a choice', async () => {
         bootWidget({ respond: () => ok({ comments: [], context: null }) });
@@ -442,10 +695,9 @@ describe('the mode picker', () => {
         root.getElementById('lp-context').querySelector('button').click();
         await settle();
         root.querySelector('[data-mode="per-review"]').click();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
         await settle();
 
-        root.getElementById('lp-picker-search').dispatchEvent(
+        root.getElementById('lp-picker-title').dispatchEvent(
             new KeyboardEvent('keydown', {
                 key: 'Escape',
                 bubbles: true,
@@ -459,7 +711,7 @@ describe('the mode picker', () => {
         expect(root.getElementById('lp-textarea').value).toBe(
             'Do not lose this',
         );
-        // Reopening starts from the stored choice, not from the card search.
+        // Reopening starts from the stored choice.
         root.getElementById('lp-context').querySelector('button').click();
         await settle();
         expect(root.getElementById('lp-dest-per-note').checked).toBe(true);
@@ -490,46 +742,13 @@ describe('the mode picker', () => {
         answerBoot(ok({ comments: [], context: null }));
         await settle();
 
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
         expect(targetText(root)).toBe('a new card');
         expect(viewOf(root)).not.toBe('destination');
-    });
-
-    it('picks an existing card on a row and confirms it with Save', async () => {
-        bootWidget({
-            respond: (url) =>
-                url.includes('/api/v1/live-review-widget/cards')
-                    ? ok({
-                          cards: [
-                              { cardId: CARD, number: 9, title: 'Pricing' },
-                          ],
-                      })
-                    : ok({
-                          comments: [],
-                          context: { label: '#9 Pricing', url: null },
-                      }),
-        });
-        await settle();
-
-        const root = openNote();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
-        await settle();
-        const save = root.getElementById('lp-destination-save');
-        expect(save.textContent).toBe('Start reviewing');
-        expect(save.disabled).toBe(true);
-
-        root.querySelector('.lp-picker-row').click();
-        await settle();
-        expect(save.disabled).toBe(false);
-        expect(storedMode()).toBeNull();
-
-        save.click();
-        await settle();
-        expect(storedMode()).toMatchObject({
-            mode: 'per-review',
-            cardId: CARD,
-        });
-        expect(viewOf(root)).toBe('compose');
     });
 
     it('keeps Save note off until the note has text', async () => {
@@ -545,107 +764,6 @@ describe('the mode picker', () => {
         expect(save.disabled).toBe(true);
         await write(root, 'Now it has text');
         expect(save.disabled).toBe(false);
-    });
-
-    describe('the mode under a card that can have children', () => {
-        const EPIC_ROW = '[data-mode="epic"]';
-
-        /** Boots with the given grouping types and opens the picker in that mode. */
-        async function openEpicPicker(parentTypes, calls = []) {
-            const fetchMock = bootWidget({
-                respond: (url, init) => {
-                    calls.push([url, init]);
-
-                    return init.method === 'POST'
-                        ? ok({
-                              cardId: 'c1',
-                              number: 9,
-                              label: '#9 Q4',
-                              url: null,
-                          })
-                        : url.includes('/api/v1/live-review-widget/cards')
-                          ? ok({ cards: [] })
-                          : ok({ comments: [], context: null, parentTypes });
-                },
-            });
-            await settle();
-            const root = openNote();
-            root.querySelector(EPIC_ROW).click();
-            await settle();
-            // The epic is the next step of the view.
-            root.getElementById('lp-destination-save').click();
-            await settle();
-
-            return { root, fetchMock };
-        }
-
-        const created = (fetchMock) =>
-            JSON.parse(
-                fetchMock.mock.calls.find(
-                    ([url, init]) =>
-                        url.endsWith('/api/v1/live-review-widget/cards') &&
-                        init.method === 'POST',
-                )[1].body,
-            );
-
-        it('hides the mode when no type can have children', async () => {
-            bootWidget({
-                respond: () =>
-                    ok({ comments: [], context: null, parentTypes: [] }),
-            });
-            await settle();
-
-            expect(openNote().querySelector(EPIC_ROW).style.display).toBe(
-                'none',
-            );
-        });
-
-        it('asks for the capability and shows no selector for one type', async () => {
-            const { root, fetchMock } = await openEpicPicker([
-                { key: 'epic', label: 'Epic' },
-            ]);
-            root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
-            await settle();
-
-            expect(
-                fetchMock.mock.calls.some(([url]) =>
-                    url.includes('/api/v1/live-review-widget/cards?parent=1'),
-                ),
-            ).toBe(true);
-            expect(root.getElementById('lp-picker-type').style.display).toBe(
-                'none',
-            );
-            root.querySelector('#lp-picker-seg [data-sub="new"]').click();
-            root.getElementById('lp-destination-save').click();
-            await settle();
-            expect(created(fetchMock)).toEqual({
-                title: expect.any(String),
-                parent: true,
-            });
-        });
-
-        it('sends the type the reviewer chose from the selector', async () => {
-            const { root, fetchMock } = await openEpicPicker([
-                { key: 'initiative', label: 'Initiative' },
-                { key: 'epic', label: 'Epic' },
-            ]);
-
-            const select = root.getElementById('lp-picker-type');
-            expect(select.style.display).toBe('');
-            expect([...select.options].map((o) => o.textContent)).toEqual([
-                'Initiative',
-                'Epic',
-            ]);
-            expect(select.value).toBe('initiative');
-            select.value = 'epic';
-            root.getElementById('lp-destination-save').click();
-            await settle();
-
-            expect(created(fetchMock)).toMatchObject({
-                parent: true,
-                type: 'epic',
-            });
-        });
     });
 });
 
@@ -683,7 +801,11 @@ describe('a preview page that names its card', () => {
         expect(feedbackSave(fetchMock).target).toEqual({ cardId: CARD });
         expect(feedbackSave(fetchMock).context).toBe(`card:${CARD}`);
         // The lock belongs to this page. The reviewer's own choice stays.
-        expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
     });
 
     it('says so, and refuses notes, when that card is closed or gone', async () => {
@@ -900,6 +1022,57 @@ describe('the note and header menus', () => {
     });
 });
 
+describe('the stored destination', () => {
+    it('keeps a per-note choice from the old key and removes the old key', async () => {
+        window.localStorage.setItem(
+            oldModeKeyFor(),
+            JSON.stringify({ mode: 'per-note', cardId: null }),
+        );
+        bootWidget({ respond: () => ok({ comments: [], context: null }) });
+        await settle();
+
+        expect(storedMode()).toEqual({
+            mode: 'per-note',
+            cardId: null,
+            startColumnId: null,
+        });
+        expect(window.localStorage.getItem(oldModeKeyFor())).toBeNull();
+        expect(targetText(openNote())).toBe('a new card');
+    });
+
+    it.each(['per-review', 'epic'])(
+        'drops a %s choice from the old key and asks again',
+        async (mode) => {
+            window.localStorage.setItem(
+                oldModeKeyFor(),
+                JSON.stringify({ mode, cardId: CARD }),
+            );
+            bootWidget({ respond: () => ok({ comments: [], context: null }) });
+            await settle();
+
+            expect(storedMode()).toBeNull();
+            expect(window.localStorage.getItem(oldModeKeyFor())).toBeNull();
+            openNote();
+            expect(viewOf(panelRoot())).toBe('destination');
+        },
+    );
+
+    it('offers two modes and no epic, search or type select', async () => {
+        bootWidget({ respond: () => ok({ comments: [], context: null }) });
+        await settle();
+
+        const root = openNote();
+        expect(
+            [...root.querySelectorAll('#lp-picker-modes [data-mode]')].map(
+                (option) => option.dataset.mode,
+            ),
+        ).toEqual(['per-review', 'per-note']);
+        expect(root.getElementById('lp-picker-search')).toBeNull();
+        expect(root.getElementById('lp-picker-type')).toBeNull();
+        expect(root.querySelector('#lp-picker-seg')).toBeNull();
+    });
+});
+
 describe('a token revoked while the picker is open', () => {
     it('shows the critical panel rather than a stuck Loading', async () => {
         const fetchMock = bootWidget({
@@ -914,7 +1087,8 @@ describe('a token revoked while the picker is open', () => {
             rejected(403, { error: 'token_not_bound_to_site' }),
         );
         root.querySelector('[data-mode="per-review"]').click();
-        root.querySelector('#lp-picker-seg [data-sub="existing"]').click();
+        await settle();
+        root.getElementById('lp-destination-save').click();
         await settle();
 
         expect(root.getElementById('lp-fatal').style.display).not.toBe('none');
@@ -1600,16 +1774,6 @@ describe('the scope of the list request', () => {
         expect(listRequest(fetchMock).scope).toBe(`card:${CARD}`);
     });
 
-    it('names the epic of an epic review', async () => {
-        const fetchMock = bootWidget({
-            mode: { mode: 'epic', cardId: CARD },
-            respond: () => ok({ comments: [], context: null }),
-        });
-        await settle();
-
-        expect(listRequest(fetchMock).scope).toBe(`epic:${CARD}`);
-    });
-
     it('lists the newest 50 cards of a tab in a per-note review', async () => {
         const ids = Array.from({ length: 60 }, (_, at) => `card-${at}`);
         window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
@@ -1654,6 +1818,66 @@ describe('the scope of the list request', () => {
 
     const madeCard = (cardId) =>
         ok({ commentId: 'c1', cardId, number: 3, label: '#3', url: null });
+
+    it('locks a note at once when its card is saved outside Backlog', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG, TECH], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Tech design',
+                startRefused: null,
+                locked: true,
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        openPanel();
+        const row = panelRoot().querySelector('#lp-list .lp-item');
+        row.querySelector('.lp-row-menu-btn').click();
+        const items = [
+            ...panelRoot().querySelectorAll('[role="menuitem"]'),
+        ].map((item) => item.textContent);
+        expect(items).not.toContain('Edit text');
+        expect(items).not.toContain('Delete note…');
+    });
+
+    it('locks a note at once when its card is saved back in Backlog after it started work', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null, startColumnId: TECH.id },
+            respond: bootWithColumns([BACKLOG, TECH], {
+                commentId: 'c1',
+                cardId: 'k1',
+                number: 12,
+                label: '#12 Note',
+                column: 'Backlog',
+                startRefused: null,
+                locked: true,
+                url: 'https://loupe.example/card',
+            }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        openPanel();
+        const row = panelRoot().querySelector('#lp-list .lp-item');
+        row.querySelector('.lp-row-menu-btn').click();
+        const items = [
+            ...panelRoot().querySelectorAll('[role="menuitem"]'),
+        ].map((item) => item.textContent);
+        expect(items).not.toContain('Edit text');
+        expect(items).not.toContain('Delete note…');
+    });
 
     it('keeps a save to a locked card out of the per-note list', async () => {
         bootWidget({
@@ -2086,7 +2310,7 @@ describe('the panel views', () => {
         expect(root.getElementById('lp-finish')).toBeNull();
     });
 
-    it('offers to open the card of a one-card review', async () => {
+    it('offers Finish review, and no open link, in a one-card review', async () => {
         bootWidget({
             mode: { mode: 'per-review', cardId: CARD },
             respond: () =>
@@ -2100,10 +2324,11 @@ describe('the panel views', () => {
         });
         await settle();
         openPanel();
-        const link = panelRoot().getElementById('lp-open-card');
+        const button = panelRoot().getElementById('lp-finish-review');
 
-        expect(link.textContent).toContain('Open #420 in Loupe');
-        expect(link.getAttribute('href')).toBe('https://loupe.example/c420');
+        expect(button.textContent).toContain('Finish review');
+        expect(button.getAttribute('aria-haspopup')).toBe('menu');
+        expect(panelRoot().getElementById('lp-open-card')).toBeNull();
     });
 
     it('offers no card to open in a review that sends notes to many cards', async () => {
@@ -2261,5 +2486,271 @@ describe('the panel views', () => {
         expect(root.getElementById('lp-launch-label').textContent).toBe(
             'Sign in to review',
         );
+    });
+});
+
+describe('finishing a one-card review', () => {
+    const START = `/api/v1/live-review-widget/cards/${CARD}/start`;
+    const MOVES = [
+        { id: 'col-next', name: 'Next', hint: 'Waits until you start it.' },
+        { id: 'col-tech', name: 'Tech design', hint: null },
+    ];
+
+    /** Boots a one-card review whose start route answers with `start`. */
+    async function boot(start) {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: (url, init = {}) => {
+                if (url.endsWith('/start')) return start(init);
+
+                return ok({
+                    comments: [],
+                    context: {
+                        label: '#42 Review: /',
+                        url: 'https://loupe.example/c42',
+                    },
+                });
+            },
+        });
+        await settle();
+        openPanel();
+
+        return fetchMock;
+    }
+
+    const finish = async () => {
+        panelRoot().getElementById('lp-finish-review').click();
+        await settle();
+    };
+    const notice = () => panelRoot().getElementById('lp-review-end');
+    const menuItems = () => [
+        ...panelRoot().querySelectorAll('#lp-menu [data-menu-action="start"]'),
+    ];
+    const stored = () =>
+        JSON.parse(window.localStorage.getItem(modeKeyFor()) || 'null');
+    const startCalls = (fetchMock) =>
+        fetchMock.mock.calls.filter(([url]) => url.endsWith(START));
+
+    it('ends at once when the card starts work', async () => {
+        const fetchMock = await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Tech design',
+                startsWork: true,
+                moves: [],
+            }),
+        );
+        await finish();
+
+        expect(notice().textContent).toContain('#42 is in Tech design.');
+        expect(startCalls(fetchMock)).toHaveLength(1);
+        expect(panelRoot().getElementById('lp-menu').style.display).toBe(
+            'none',
+        );
+        expect(stored()).toBeNull();
+        const link = panelRoot().getElementById('lp-review-end-open');
+        expect(link.textContent).toBe('Open #42 in Loupe');
+        expect(link.getAttribute('href')).toBe('https://loupe.example/c42');
+        expect(
+            panelRoot().getElementById('lp-choose-destination').textContent,
+        ).toBe('Choose where notes go');
+        expect(panelRoot().getElementById('lp-finish-review')).toBeNull();
+    });
+
+    it('ends with a stay notice when no move is open', async () => {
+        await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Backlog',
+                startsWork: false,
+                moves: [],
+            }),
+        );
+        await finish();
+
+        expect(notice().textContent).toContain('#42 stays in Backlog.');
+        expect(stored()).toBeNull();
+    });
+
+    it('lists the moves with their hints and starts the picked one', async () => {
+        const fetchMock = await boot((init) =>
+            init.method === 'POST'
+                ? ok({ column: 'Tech design' })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.querySelector('.lp-menu-title').textContent).toBe(
+            'Start #42 in',
+        );
+        expect(menuItems().map((item) => item.textContent)).toEqual([
+            'NextWaits until you start it.',
+            'Tech design',
+        ]);
+        expect(
+            panelRoot()
+                .getElementById('lp-finish-review')
+                .getAttribute('aria-expanded'),
+        ).toBe('true');
+
+        menuItems()[1].click();
+        await settle();
+
+        const post = startCalls(fetchMock).find(
+            ([, init]) => init.method === 'POST',
+        );
+        expect(JSON.parse(post[1].body)).toEqual({ columnId: 'col-tech' });
+        expect(notice().textContent).toContain('#42 started in Tech design.');
+        expect(menu.style.display).toBe('none');
+        expect(stored()).toBeNull();
+    });
+
+    it('reloads the menu with the fresh moves when the server refuses the pick', async () => {
+        await boot((init) =>
+            init.method === 'POST'
+                ? rejected(409, {
+                      code: 'start_refused',
+                      column: 'Backlog',
+                      moves: [MOVES[0]],
+                  })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+        menuItems()[1].click();
+        await settle();
+
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.style.display).toBe('flex');
+        expect(menuItems().map((item) => item.dataset.columnId)).toEqual([
+            'col-next',
+        ]);
+        expect(menu.querySelector('.lp-menu-reason').textContent).toBe(
+            'Tech design is no longer open for this card.',
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+    });
+
+    it('keeps the review open with a reason when a refusal leaves no move', async () => {
+        await boot((init) =>
+            init.method === 'POST'
+                ? rejected(409, {
+                      code: 'start_refused',
+                      column: 'Backlog',
+                      moves: [],
+                  })
+                : ok({
+                      number: 42,
+                      url: 'https://loupe.example/c42',
+                      column: 'Backlog',
+                      startsWork: false,
+                      moves: MOVES,
+                  }),
+        );
+        await finish();
+        menuItems()[0].click();
+        await settle();
+
+        const menu = panelRoot().getElementById('lp-menu');
+        expect(menu.style.display).toBe('flex');
+        expect(menuItems()).toHaveLength(0);
+        expect(menu.querySelector('.lp-menu-reason').textContent).toBe(
+            'Next is no longer open for this card. No start column is open now.',
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
+    });
+
+    it.each([
+        [404, 'That card is closed or gone.'],
+        [403, 'This sign-in cannot finish the review.'],
+    ])('shows an error and keeps the footer on a %s', async (status, text) => {
+        await boot(() => rejected(status, { code: 'nope' }));
+        await finish();
+
+        expect(
+            panelRoot().getElementById('lp-list-error').textContent,
+        ).toContain(text);
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review').disabled).toBe(
+            false,
+        );
+        expect(notice().style.display).toBe('none');
+        expect(stored()).not.toBeNull();
+    });
+
+    it('shows an error and keeps the footer on a network failure', async () => {
+        await boot(() => Promise.reject(new TypeError('offline')));
+        await finish();
+
+        expect(
+            panelRoot().getElementById('lp-list-error').textContent,
+        ).toContain('Couldn’t finish the review.');
+        expect(panelRoot().getElementById('lp-finish-review')).not.toBeNull();
+    });
+
+    it('keeps the notice until the reviewer dismisses it', async () => {
+        await boot(() =>
+            ok({
+                number: 42,
+                url: 'https://loupe.example/c42',
+                column: 'Tech design',
+                startsWork: true,
+                moves: [],
+            }),
+        );
+        await finish();
+        await settle();
+
+        expect(notice().textContent).toContain('#42 is in Tech design.');
+        panelRoot().getElementById('lp-review-end-dismiss').click();
+
+        expect(notice().style.display).toBe('none');
+        expect(panelRoot().getElementById('lp-review-end-open')).toBeNull();
+    });
+
+    it('keeps the verdict footer of a locked preview page', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'none' },
+                          pullRequests: [
+                              { id: 'pr1', url: 'https://x/pull/1' },
+                          ],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: null,
+                      })
+                    : ok({
+                          comments: [],
+                          context: {
+                              label: '#42 Review: /',
+                              url: 'https://loupe.example/c42',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+
+        expect(panelRoot().getElementById('lp-finish')).not.toBeNull();
+        expect(panelRoot().getElementById('lp-finish-review')).toBeNull();
     });
 });

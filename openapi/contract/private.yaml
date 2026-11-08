@@ -888,35 +888,6 @@ paths:
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards:
-    get:
-      operationId: listWidgetCards
-      summary: List the open cards for the widget picker
-      tags:
-      - Widget
-      parameters:
-      - $ref: '#/components/parameters/XLoupeProject'
-      - $ref: '#/components/parameters/Q'
-      - $ref: '#/components/parameters/Type'
-      - $ref: '#/components/parameters/Parent'
-      responses:
-        '200':
-          description: At most 20 cards.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PickerCards'
-        '401':
-          $ref: '#/components/responses/E401Unauthorized'
-        '402':
-          $ref: '#/components/responses/E402SubscriptionRequired'
-        '403':
-          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScope'
-        '404':
-          $ref: '#/components/responses/E404RouteNotFound'
-        '405':
-          $ref: '#/components/responses/E405MethodNotAllowed'
-        '429':
-          $ref: '#/components/responses/E429RateLimited'
     post:
       operationId: createWidgetCard
       summary: Create a card from the widget
@@ -952,7 +923,82 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422UnknownTypeValidationFailed'
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/live-review-widget/cards/{cardId}/start:
+    get:
+      operationId: showWidgetCardStart
+      summary: Show where a widget card may start
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: The card and its moves.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetCardStart'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    post:
+      operationId: startWidgetCard
+      summary: Move a widget card to a column
+      tags:
+      - Widget
+      parameters:
+      - $ref: '#/components/parameters/XLoupeProject'
+      - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - columnId
+              properties:
+                columnId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: The card moved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetCardStarted'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404NotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409StartRefused'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/cards/{cardId}/verdict:
@@ -1059,6 +1105,8 @@ paths:
           $ref: '#/components/responses/E404NotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409NoteLocked'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -1156,6 +1204,8 @@ paths:
           $ref: '#/components/responses/E404NotFoundRouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '409':
+          $ref: '#/components/responses/E409NoteLocked'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/live-review-widget/review:
@@ -1331,24 +1381,6 @@ components:
       description: The marker of the preview card, or the target the widget stored.
       schema:
         type: string
-    Q:
-      name: q
-      in: query
-      description: Words to search for.
-      schema:
-        type: string
-    Type:
-      name: type
-      in: query
-      description: A type key. An unknown key means every type.
-      schema:
-        type: string
-    Parent:
-      name: parent
-      in: query
-      description: True lists cards of types that can have children.
-      schema:
-        type: boolean
   headers:
     Retry-After:
       description: The number of seconds to wait before the next request.
@@ -1422,18 +1454,6 @@ components:
             additionalProperties:
               type: string
             description: A translated message for each refused field, keyed by the field.
-    UnknownTypeProblem:
-      allOf:
-      - $ref: '#/components/schemas/Problem'
-      - type: object
-        required:
-        - types
-        properties:
-          types:
-            type: array
-            items:
-              type: string
-            description: The types this request could use.
     GitTokenRefusedProblem:
       allOf:
       - $ref: '#/components/schemas/Problem'
@@ -3367,6 +3387,7 @@ components:
       - projectId
       - drawingEnabled
       - parentTypes
+      - startColumns
       - context
       - comments
       properties:
@@ -3377,6 +3398,7 @@ components:
           type: boolean
         parentTypes:
           type: array
+          description: Always empty. An older copy of the widget hides its epic mode when the list is empty.
           items:
             type: object
             required:
@@ -3387,6 +3409,24 @@ components:
                 type: string
               label:
                 type: string
+        startColumns:
+          type: array
+          description: The columns a new card may start in, with Backlog first. It is empty for a preview token.
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - hint
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              hint:
+                type: string
+                nullable: true
         context:
           type: object
           required:
@@ -3444,38 +3484,23 @@ components:
                 required:
                 - label
                 - url
+                - cardId
+                - column
+                - locked
                 properties:
                   label:
                     type: string
                   url:
                     type: string
                     nullable: true
+                  cardId:
+                    type: string
+                    format: uuid
+                  column:
+                    type: string
+                  locked:
+                    type: boolean
                 nullable: true
-    PickerCards:
-      type: object
-      required:
-      - cards
-      properties:
-        cards:
-          type: array
-          items:
-            type: object
-            required:
-            - cardId
-            - number
-            - title
-            - status
-            properties:
-              cardId:
-                type: string
-                format: uuid
-              number:
-                type: integer
-              title:
-                type: string
-              status:
-                type: string
-          maxItems: 20
     WidgetCardCreate:
       type: object
       required:
@@ -3489,15 +3514,6 @@ components:
           type: string
           maxLength: 10000
           default: ''
-        type:
-          type: string
-          description: A type key. Null means the default type.
-          nullable: true
-          maxLength: 20
-        parent:
-          type: boolean
-          description: Asks for a type that can have children.
-          default: false
     WidgetCardCreated:
       type: object
       required:
@@ -3864,9 +3880,9 @@ components:
             newCard:
               type: object
               properties:
-                parentCardId:
+                startColumnId:
                   type: string
-                  description: An epic of the project, which the new card goes under.
+                  description: The column the new card starts in. Null starts it in Backlog.
                   format: uuid
                   nullable: true
               nullable: true
@@ -3877,6 +3893,9 @@ components:
       - cardId
       - number
       - label
+      - column
+      - startRefused
+      - locked
       - url
       properties:
         commentId:
@@ -3889,6 +3908,16 @@ components:
           type: integer
         label:
           type: string
+        column:
+          type: string
+          description: The name of the column the card is in.
+        startRefused:
+          type: string
+          nullable: true
+          description: The name of the start column the note asked for and the workflow refused, or null. The card is then in Backlog.
+        locked:
+          type: boolean
+          description: Whether the note is locked, because its card left Backlog at some point.
         url:
           type: string
           format: uri
@@ -3900,6 +3929,82 @@ components:
         cardDeleted:
           type: boolean
           description: Whether the card the note created went too.
+    WidgetCardStart:
+      type: object
+      required:
+      - number
+      - url
+      - column
+      - startsWork
+      - moves
+      properties:
+        number:
+          type: integer
+        url:
+          type: string
+          format: uri
+        column:
+          type: string
+          description: The name of the column the card is in.
+        startsWork:
+          type: boolean
+          description: Whether the workflow asks a bridge for work while the card sits in that column.
+        moves:
+          type: array
+          description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - hint
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              hint:
+                type: string
+                nullable: true
+    WidgetCardStarted:
+      type: object
+      required:
+      - column
+      properties:
+        column:
+          type: string
+          description: The name of the column the card is in.
+    WidgetCardStartRefused:
+      description: The card did not move. The body holds the column the card is in and the moves it has now.
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        required:
+        - column
+        - moves
+        properties:
+          column:
+            type: string
+            description: The name of the column the card is in.
+          moves:
+            type: array
+            description: The columns the card may move to now. It never lists the Backlog or a terminal column.
+            items:
+              type: object
+              required:
+              - id
+              - name
+              - hint
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                hint:
+                  type: string
+                  nullable: true
     CommentBody:
       type: object
       required:
@@ -4230,6 +4335,27 @@ components:
         code: artifact_refused
         errors:
           files: The artifact has no files.
+    StartNotAllowed:
+      summary: start_not_allowed
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#start_not_allowed
+        title: Start not allowed
+        status: 403
+        code: start_not_allowed
+    StartRefused:
+      summary: start_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#start_refused
+        title: Start refused
+        status: 409
+        code: start_refused
+    NoteLocked:
+      summary: note_locked
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#note_locked
+        title: Note locked
+        status: 409
+        code: note_locked
     CardFinished:
       summary: card_finished
       value:
@@ -4315,16 +4441,6 @@ components:
         title: Surface invalid
         status: 422
         code: surface_invalid
-    UnknownType:
-      summary: unknown_type
-      value:
-        type: https://loupe.ac/docs/reference/api/errors#unknown_type
-        title: Unknown type
-        status: 422
-        code: unknown_type
-        types:
-        - feature
-        - bug
     CardClosed:
       summary: card_closed
       value:
@@ -4402,13 +4518,6 @@ components:
         title: Target closed
         status: 422
         code: target_closed
-    TargetNotEpic:
-      summary: target_not_epic
-      value:
-        type: https://loupe.ac/docs/reference/api/errors#target_not_epic
-        title: Target not epic
-        status: 422
-        code: target_not_epic
     ScreenshotInvalid:
       summary: screenshot_invalid
       value:
@@ -4779,6 +4888,37 @@ components:
               $ref: '#/components/examples/ArtifactRefused'
             validation_failed:
               $ref: '#/components/examples/ValidationFailed'
+    E403TokenNotBoundToSiteInsufficientScopeStartNotAllowed:
+      description: 'Refused: `token_not_bound_to_site`, `credential_not_allowed`, `start_not_allowed`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            token_not_bound_to_site:
+              $ref: '#/components/examples/TokenNotBoundToSite'
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+            start_not_allowed:
+              $ref: '#/components/examples/StartNotAllowed'
+    E409StartRefused:
+      description: 'Refused: `start_refused`. The problem carries the `column` the card is in and the `moves` it has now.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/WidgetCardStartRefused'
+          examples:
+            start_refused:
+              $ref: '#/components/examples/StartRefused'
+    E409NoteLocked:
+      description: 'Refused: `note_locked`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            note_locked:
+              $ref: '#/components/examples/NoteLocked'
     E409CardFinished:
       description: 'Refused: `card_finished`.'
       content:
@@ -4858,19 +4998,6 @@ components:
           examples:
             surface_invalid:
               $ref: '#/components/examples/SurfaceInvalid'
-    E422UnknownTypeValidationFailed:
-      description: 'Refused: `unknown_type`, `validation_failed`.'
-      content:
-        application/problem+json:
-          schema:
-            anyOf:
-            - $ref: '#/components/schemas/UnknownTypeProblem'
-            - $ref: '#/components/schemas/ValidationProblem'
-          examples:
-            unknown_type:
-              $ref: '#/components/examples/UnknownType'
-            validation_failed:
-              $ref: '#/components/examples/ValidationFailed'
     E404CardNotFoundRouteNotFound:
       description: 'Refused: `card_not_found`, `route_not_found`.'
       content:
@@ -4922,7 +5049,7 @@ components:
             delivery_invalid:
               $ref: '#/components/examples/DeliveryInvalid'
     E422DrawingDisabledAnchorStrokeWithoutAnchorTargetNotFoundAnd6More:
-      description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`, `target_not_epic`,
+      description: 'Refused: `drawing_disabled`, `anchor_stroke_without_anchor`, `target_not_found`, `target_closed`,
         `screenshot_invalid`, `screenshot_too_large`, `feedback_refused`, `validation_failed`.'
       content:
         application/problem+json:
@@ -4939,8 +5066,6 @@ components:
               $ref: '#/components/examples/TargetNotFound'
             target_closed:
               $ref: '#/components/examples/TargetClosed'
-            target_not_epic:
-              $ref: '#/components/examples/TargetNotEpic'
             screenshot_invalid:
               $ref: '#/components/examples/ScreenshotInvalid'
             screenshot_too_large:

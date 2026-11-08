@@ -16,9 +16,9 @@ use App\Module\SiteReview\Context\ContextLabelResolver;
 use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
-use App\Module\SiteReview\ParentType\ParentType;
-use App\Module\SiteReview\ParentType\ParentTypeProviderInterface;
 use App\Module\SiteReview\SiteReviewDrawing;
+use App\Module\SiteReview\StartColumn\StartColumn;
+use App\Module\SiteReview\StartColumn\StartColumnProviderInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -64,8 +64,8 @@ final class ShowPendingCommentsController extends AppController
         private readonly FeatureFlagService $featureFlags,
         private readonly ContextLabelResolver $contextLabels,
         private readonly CommentScopeResolver $commentScopes,
-        private readonly ParentTypeProviderInterface $parentTypes,
         private readonly CommentLinkResolverInterface $commentLinks,
+        private readonly StartColumnProviderInterface $startColumns,
     ) {
     }
 
@@ -106,11 +106,12 @@ final class ShowPendingCommentsController extends AppController
         return $this->json([
             'projectId' => (string) $project->id,
             'drawingEnabled' => $this->featureFlags->isEnabled(SiteReviewDrawing::FLAG, SiteReviewDrawing::DEFAULT),
-            // The types the mode "a card for each note, under an epic" can use.
-            // Empty hides the mode.
-            'parentTypes' => array_map(
-                static fn (ParentType $type): array => ['key' => $type->key, 'label' => $type->label],
-                $this->parentTypes->forProject($project),
+            // Always empty. A copy of the widget that still has the epic mode
+            // hides it when this list is empty.
+            'parentTypes' => [],
+            'startColumns' => array_map(
+                static fn (StartColumn $column): array => ['id' => $column->id, 'name' => $column->name, 'hint' => $column->hint],
+                $this->startColumns->forCurrentRequest($project),
             ),
             'context' => null === $label ? null : ['label' => $label->label, 'url' => $label->url],
             'comments' => array_values(array_map(
@@ -135,7 +136,13 @@ final class ShowPendingCommentsController extends AppController
                             $anchors,
                         )),
                         'strokes' => $c->strokes ?? [],
-                        'link' => null === $link ? null : ['label' => $link->label, 'url' => $link->url],
+                        'link' => null === $link ? null : [
+                            'label' => $link->label,
+                            'url' => $link->url,
+                            'cardId' => $link->cardId,
+                            'column' => $link->column,
+                            'locked' => $link->locked,
+                        ],
                     ];
                 },
                 $view->comments,

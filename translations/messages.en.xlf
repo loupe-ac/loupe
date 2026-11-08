@@ -9952,6 +9952,9 @@ workflow:
             <trans-unit id="workflow.slot.tech_design"><source>workflow.slot.tech_design</source><target>Tech design</target></trans-unit>
             <trans-unit id="workflow.slot.implementation"><source>workflow.slot.implementation</source><target>Implementation</target></trans-unit>
             <trans-unit id="workflow.slot.in_review"><source>workflow.slot.in_review</source><target>In review</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.next"><source>workflow.slot_hint.next</source><target>Waits until you start it.</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.product_design"><source>workflow.slot_hint.product_design</source><target>You write the product design with an agent, in a session that you join.</target></trans-unit>
+            <trans-unit id="workflow.slot_hint.tech_design"><source>workflow.slot_hint.tech_design</source><target>An agent writes the tech design.</target></trans-unit>
             <trans-unit id="workflow.template.lifecycle.label"><source>workflow.template.lifecycle.label</source><target>Lifecycle</target></trans-unit>
             <trans-unit id="workflow.template.lifecycle.description"><source>workflow.template.lifecycle.description</source><target>Product design, tech design, implementation and review, with an agent at each stage.</target></trans-unit>
             <trans-unit id="workflow.template.simple.label"><source>workflow.template.simple.label</source><target>Simple</target></trans-unit>

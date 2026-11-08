@@ -76,9 +76,9 @@ values:
       help: workflow.value.session_start_approved.help
       history: workflow.value.session_start_approved.history
 slots:
-    - { key: next, label: workflow.slot.next, tone: lime }
-    - { key: product-design, label: workflow.slot.product_design, tone: sky }
-    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design, tone: indigo }
+    - { key: next, label: workflow.slot.next, tone: lime, hint: workflow.slot_hint.next }
+    - { key: product-design, label: workflow.slot.product_design, tone: sky, hint: workflow.slot_hint.product_design }
+    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design, tone: indigo, hint: workflow.slot_hint.tech_design }
     - { key: implementation, label: workflow.slot.implementation, stageWork: implement, tone: purple }
     - { key: in-review, label: workflow.slot.in_review, tone: amber }
 manualMoves:
