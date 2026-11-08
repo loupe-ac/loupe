@@ -9089,6 +9089,7 @@ workflow:
             <trans-unit id="analytics.public.series.bridge"><source>analytics.public.series.bridge</source><target>Bridge %number%</target></trans-unit>
             <trans-unit id="analytics.public.series.bridge_account"><source>analytics.public.series.bridge_account</source><target>Bridge %bridge% / Account %account% %window%</target></trans-unit>
             <trans-unit id="analytics.public.broken"><source>analytics.public.broken</source><target>This graph cannot be drawn right now.</target></trans-unit>
+            <trans-unit id="analytics.public.legend_more"><source>analytics.public.legend_more</source><target>+%count% more</target></trans-unit>
             <trans-unit id="analytics.public.made_with"><source>analytics.public.made_with</source><target>Made with Loupe</target></trans-unit>
             <trans-unit id="analytics.public.title"><source>analytics.public.title</source><target>%graph% · %project%</target></trans-unit>
             <trans-unit id="insights.public_link.block.flag_off"><source>insights.public_link.block.flag_off</source><target>Public links are switched off on this instance.</target></trans-unit>

@@ -46,6 +46,23 @@ final class GraphSvgTemplateTest extends KernelTestCase
         self::assertSame(12, substr_count($svg, 'width="14" height="14"'));
     }
 
+    public function test_a_bar_legend_of_eighty_series_draws_readable_labels_and_a_more_key(): void
+    {
+        $series = [];
+        $labels = [];
+        foreach (range(0, 79) as $i) {
+            $series[] = ['position' => $i, 'slot' => $i + 1];
+            $labels[$i] = 'Series '.$i;
+        }
+
+        $svg = $this->draw(['buckets' => [], 'series' => $series, 'hasLegend' => true, 'yTicks' => [], 'xTicks' => [], 'axisMetric' => null, 'axisStatistic' => null, 'longSpan' => false, 'bucket' => ['value' => 'day'], 'moneyDecimals' => 2], $labels);
+
+        self::assertNotFalse(simplexml_load_string($svg));
+        self::assertSame(0, preg_match('/font-size="(?:\d[."]|1[0-5])/', $svg));
+        self::assertSame(1, preg_match('/>\+(\d+) more</', $svg, $more));
+        self::assertSame(80, substr_count($svg, 'width="14" height="14"') + (int) ($more[1] ?? 0));
+    }
+
     /**
      * @param array<string, mixed> $layout
      * @param array<int, string>   $labels

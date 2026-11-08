@@ -49,21 +49,31 @@ final class PreviewTextTest extends TestCase
         }
     }
 
-    public function test_a_legend_of_more_series_than_fit_at_full_size_shrinks_and_keeps_every_label(): void
+    public function test_a_legend_of_more_series_than_fit_keeps_full_size_text_and_counts_the_rest(): void
     {
         $names = array_map(static fn (int $i): string => 'Series '.$i, range(1, 80));
 
         $legend = PreviewText::legend($names);
 
-        self::assertCount(80, $legend);
-        self::assertSame([0, 1], array_values(array_unique(array_column($legend, 'row'))));
-        self::assertLessThan(1.0, $legend[0]['scale']);
+        $more = array_pop($legend);
+        self::assertNotNull($more);
+        self::assertNotEmpty($legend);
+        self::assertLessThan(80, \count($legend));
+        self::assertSame(80 - \count($legend), $more['more']);
         foreach ($legend as $key) {
+            self::assertSame(1.0, $key['scale']);
+            self::assertSame(0, $key['more']);
             self::assertLessThanOrEqual(1144, $key['x']);
         }
-        self::assertCount(80, array_unique(array_column($legend, 'name')));
-        foreach ($legend as $key) {
-            self::assertNotSame('…', $key['name']);
-        }
+        self::assertSame([0, 1], array_values(array_unique(array_column($legend, 'row'))));
+        self::assertLessThanOrEqual(1, $more['row']);
+        self::assertSame('Series 1', $legend[0]['name']);
+    }
+
+    public function test_a_legend_that_fits_has_no_more_key(): void
+    {
+        $legend = PreviewText::legend(['a', 'b', 'c']);
+
+        self::assertSame([0, 0, 0], array_column($legend, 'more'));
     }
 }

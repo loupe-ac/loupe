@@ -96,10 +96,14 @@
     {% endif %}
     {% if state == 'chart' and legend and not isNumber and layout.hasLegend %}
         {% for key in layout.series|map(series => labels[series.position] ?? '')|preview_legend %}
-            {% set series = layout.series[loop.index0] %}
             {% set keyY = footerY + key.row * 30 %}
-            {{ _self.swatch(key.x|round(2), keyY - 7 * key.scale, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other), 14 * key.scale) }}
-            <text x="{{ (key.x + 24 * key.scale)|round(2) }}" y="{{ keyY }}" dominant-baseline="middle" font-size="{{ 18 * key.scale }}" fill="{{ palette.text }}">{{ key.name }}</text>
+            {% if key.more > 0 %}
+                <text x="{{ key.x|round(2) }}" y="{{ keyY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.muted }}">{{ 'analytics.public.legend_more'|trans({'%count%': key.more}) }}</text>
+            {% else %}
+                {% set series = layout.series[loop.index0] %}
+                {{ _self.swatch(key.x|round(2), keyY - 7, series.slot == 0 ? palette.other : (slotColours[series.slot - 1] ?? palette.other), 14) }}
+                <text x="{{ (key.x + 24)|round(2) }}" y="{{ keyY }}" dominant-baseline="middle" font-size="18" fill="{{ palette.text }}">{{ key.name }}</text>
+            {% endif %}
         {% endfor %}
     {% endif %}
     <g transform="translate(956 {{ footerY - 14 }})" fill="{{ palette.muted }}">

@@ -11,6 +11,11 @@ final class PreviewText
 
     private const int LEGEND_LEFT = 56;
 
+    /** The narrowest name budget that still reads well, and the width reserved for the "more" key. */
+    private const int READABLE_BUDGET = 9;
+
+    private const int MORE_WIDTH = 9;
+
     /** The right edge of each legend row. */
     private const array LEGEND_RIGHT = [900, 1144];
 
@@ -29,65 +34,50 @@ final class PreviewText
     }
 
     /**
-     * Places every legend label on at most two rows of the image footer, and cuts the names to the widest budget at which all of them fit.
-     * When even a three character name overflows, the names keep the shortest cut that tells them apart, and the whole legend shrinks until every label has a place.
+     * Places the legend labels on at most two rows of the image footer, and cuts the names to the widest budget at which all of them fit.
+     * When even the narrowest readable budget cannot hold every name, the legend keeps the names that fit and ends with one "more" key that counts the rest.
+     * The text never shrinks, so every label stays readable.
      * The first row stops before the "Made with Loupe" line, and the second row spans the image.
      *
      * @param list<string> $names
      *
-     * @return list<array{x: float, row: int, name: string, scale: float}>
+     * @return list<array{x: float, row: int, name: string, scale: float, more: int}>
      */
     public static function legend(array $names): array
     {
-        $placed = [];
-        foreach ([24, 16, 12, 8, 6, 4, 3] as $budget) {
-            $placed = self::place($names, $budget, 1.0);
-            if (\count($placed) === \count($names)) {
-                return $placed;
-            }
-        }
-        $budget = self::distinctBudget($names);
-        for ($tenths = 90; $tenths >= 1; $tenths -= 2) {
-            $placed = self::place($names, $budget, $tenths / 100);
+        foreach ([24, 16, 12, self::READABLE_BUDGET] as $budget) {
+            $placed = self::place($names, $budget);
             if (\count($placed) === \count($names)) {
                 return $placed;
             }
         }
 
-        return $placed;
-    }
+        for ($keep = \count($placed); $keep >= 0; --$keep) {
+            $hidden = \count($names) - $keep;
+            $withMore = self::place([...\array_slice($names, 0, $keep), str_repeat('0', self::MORE_WIDTH)], self::READABLE_BUDGET);
+            if (\count($withMore) === $keep + 1) {
+                $withMore[$keep] = ['x' => $withMore[$keep]['x'], 'row' => $withMore[$keep]['row'], 'name' => '', 'scale' => 1.0, 'more' => $hidden];
 
-    /**
-     * The shortest budget, from three characters up, that keeps the cut names as distinct as the full names.
-     *
-     * @param list<string> $names
-     */
-    private static function distinctBudget(array $names): int
-    {
-        $longest = max(3, ...array_map(static fn (string $name): int => mb_strlen(trim($name)), $names));
-        $wanted = \count(array_unique(array_map(trim(...), $names)));
-        for ($budget = 3; $budget < $longest; ++$budget) {
-            if (\count(array_unique(array_map(static fn (string $name): string => self::fit($name, $budget), $names))) === $wanted) {
-                return $budget;
+                return $withMore;
             }
         }
 
-        return $longest;
+        return [];
     }
 
     /**
      * @param list<string> $names
      *
-     * @return list<array{x: float, row: int, name: string, scale: float}>
+     * @return list<array{x: float, row: int, name: string, scale: float, more: int}>
      */
-    private static function place(array $names, int $budget, float $scale): array
+    private static function place(array $names, int $budget): array
     {
         $placed = [];
         $row = 0;
         $x = (float) self::LEGEND_LEFT;
         foreach ($names as $name) {
             $fit = self::fit($name, $budget);
-            $width = (14 + 10 + mb_strlen($fit) * 10 + 28) * $scale;
+            $width = (float) (14 + 10 + mb_strlen($fit) * 10 + 28);
             if ($x + $width > self::LEGEND_RIGHT[$row]) {
                 ++$row;
                 $x = (float) self::LEGEND_LEFT;
@@ -95,7 +85,7 @@ final class PreviewText
                     break;
                 }
             }
-            $placed[] = ['x' => $x, 'row' => $row, 'name' => $fit, 'scale' => $scale];
+            $placed[] = ['x' => $x, 'row' => $row, 'name' => $fit, 'scale' => 1.0, 'more' => 0];
             $x += $width;
         }
 
