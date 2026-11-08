@@ -9105,6 +9105,10 @@ workflow:
             <trans-unit id="insights.public_link.admin_bar.text"><source>insights.public_link.admin_bar.text</source><target>You see this bar because you are an admin.</target></trans-unit>
             <trans-unit id="insights.public_link.admin_bar.action"><source>insights.public_link.admin_bar.action</source><target>Take down the public links of this project</target></trans-unit>
             <trans-unit id="insights.public_link.experiment.totals_only"><source>insights.public_link.experiment.totals_only</source><target>Totals only. The cards of each variant stay private.</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.goal_line"><source>insights.public_link.preview.goal_line</source><target>{0}%metric%, no variants against %baseline%|{1}%metric%, %count% variant against %baseline%|]1,Inf[%metric%, %count% variants against %baseline%</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.goal_line_no_baseline"><source>insights.public_link.preview.goal_line_no_baseline</source><target>{0}%metric%, no variants|{1}%metric%, %count% variant|]1,Inf[%metric%, %count% variants</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.experiment_line"><source>insights.public_link.preview.experiment_line</source><target>A shared experiment of the project %project%.</target></trans-unit>
+            <trans-unit id="insights.public_link.preview.image_alt"><source>insights.public_link.preview.image_alt</source><target>Preview image of %name% from the project %project%</target></trans-unit>
             <trans-unit id="insights.admin.public_links.page.title"><source>insights.admin.public_links.page.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.title"><source>insights.admin.public_links.title</source><target>Public links</target></trans-unit>
             <trans-unit id="insights.admin.public_links.unit"><source>insights.admin.public_links.unit</source><target>project</target></trans-unit>
