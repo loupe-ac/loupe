@@ -4,15 +4,55 @@
 
 {% block description %}{{ page.description }}{% endblock %}
 
-{% block body %}
-<article class="lp-legal">
-    <h1 class="lp-legal__title">{{ page.title }}</h1>
-    <p>{{ page.lead }}</p>
-    {% for block in page.blocks %}
-        <section>
-            <h2>{{ block.title }}</h2>
-            <p>{{ block.text }}</p>
-        </section>
-    {% endfor %}
-</article>
+{% set marketingAttributes = {'data-controller': 'modal analytics'} %}
+
+{% block marketing_main %}
+<section id="top" class="lp-home-hero lp-feature-hero">
+    <div class="lp-home-container lp-home-hero__copy lp-feature-hero__copy">
+        <span class="lp-feature-hero__label">{{ page.label }}</span>
+        <h1 class="lp-home-hero__title">{{ page.title }}</h1>
+        <p class="lp-home-hero__lead">{{ page.lead }}</p>
+        <div class="lp-feature-hero__actions">
+            <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-hero" data-analytics-feature-param="{{ page.key }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="outline" size="lg" href="{{ site_url(page.docsPath) }}">{{ 'landing.features.page.docs'|trans }}</twig:Ds:Button>
+        </div>
+    </div>
+    <div class="lp-home-container lp-feature-hero__stage">
+        <div class="lp-feature-hero__shot" data-feature-picture="hero">{% include page.mockups[0] only %}</div>
+    </div>
+</section>
+
+<section class="lp-feature-blocks">
+    <div class="lp-home-container lp-feature-blocks__list">
+        {% for block in page.blocks %}
+            <div class="lp-feature-block{{ loop.index is even ? ' lp-feature-block--flip' }}" data-feature-block="{{ loop.index }}">
+                <div>
+                    <h2 class="lp-feature-block__title">{{ block.title }}</h2>
+                    <p class="lp-feature-block__text">{{ block.text }}</p>
+                </div>
+                <div class="lp-feature-block__shot">{% include page.mockups[loop.index] only %}</div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="lp-feature-more">
+    <div class="lp-home-container">
+        <h2 class="lp-home-title">{{ 'landing.features.page.more_title'|trans }}</h2>
+        <ul class="lp-home-tiles lp-feature-more__tiles">
+            {% for other in others %}
+                {% include '@Landing/features/_tile.html.twig' with {feature: other} only %}
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+
+<section class="lp-home-closing">
+    <div class="lp-home-container lp-home-closing__inner">
+        <h2 class="lp-home-closing__title">{{ 'landing.closing.title'|trans }}</h2>
+        <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="feature-closing" data-analytics-feature-param="{{ page.key }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+    </div>
+</section>
 {% endblock %}
+
+{% block marketing_after %}{% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm, modalJoined: false} only %}{% endblock %}

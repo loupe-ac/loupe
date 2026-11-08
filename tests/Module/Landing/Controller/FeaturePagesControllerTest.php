@@ -63,6 +63,25 @@ final class FeaturePagesControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', $title);
     }
 
+    #[DataProvider('features')]
+    public function test_a_feature_page_draws_four_pictures_three_blocks_and_the_other_tiles(string $slug, string $title): void
+    {
+        $client = $this->clientWithSiteHost('localhost');
+
+        $crawler = $client->request(Request::METHOD_GET, '/features/'.$slug);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', $title);
+        self::assertCount(4, $crawler->filter('.lp-shot'));
+        self::assertCount(3, $crawler->filter('[data-feature-block]'));
+        self::assertCount(7, $crawler->filter('a.lp-feature-tile'));
+        self::assertCount(0, $crawler->filter('a.lp-feature-tile[href="/features/'.$slug.'"]'));
+        self::assertSelectorTextContains('.lp-home-closing__title', 'Put the first card on the board.');
+        self::assertSelectorExists('main a[data-analytics-button-param="feature-hero"]');
+        self::assertSelectorExists('main a[data-analytics-button-param="feature-closing"]');
+        self::assertSelectorExists('dialog.lp-home-waitlist-dialog');
+    }
+
     /** @return iterable<string, array{string}> */
     public static function paths(): iterable
     {

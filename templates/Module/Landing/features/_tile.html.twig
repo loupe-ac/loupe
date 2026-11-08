@@ -1,0 +1,8 @@
+{# One feature as a tile that is a single link. Props: feature (FeaturePage). #}
+<li>
+    <a href="{{ path('app_feature', {slug: feature.slug}) }}" class="lp-home-tile lp-feature-tile" data-action="click->analytics#track" data-analytics-name-param="feature-click" data-analytics-button-param="tile" data-analytics-feature-param="{{ feature.key }}">
+        <span class="lp-home-tile__logo"><twig:UX:Icon :name="feature.icon" class="lp-icon lp-icon--lg" aria-hidden="true" /></span>
+        <span class="lp-home-tile__name">{{ ('landing.features.' ~ feature.key ~ '.name')|trans }}</span>
+        <span class="lp-home-tile__text">{{ ('landing.features.' ~ feature.key ~ '.text')|trans }}</span>
+    </a>
+</li>

@@ -4,14 +4,18 @@
 
 {% block description %}{{ 'landing.features.index_description'|trans }}{% endblock %}
 
-{% block body %}
-<article class="lp-legal">
-    <h1 class="lp-legal__title">{{ 'landing.features.index_title'|trans }}</h1>
-    <p>{{ 'landing.features.index_lead'|trans }}</p>
-    <ul>
-        {% for page in pages %}
-            <li><a href="{{ path('app_feature', {slug: page.slug}) }}">{{ ('landing.features.' ~ page.key ~ '.name')|trans }}</a>: {{ ('landing.features.' ~ page.key ~ '.text')|trans }}</li>
-        {% endfor %}
-    </ul>
-</article>
+{% set marketingAttributes = {'data-controller': 'analytics'} %}
+
+{% block marketing_main %}
+<section class="lp-feature-index">
+    <div class="lp-home-container">
+        <h1 class="lp-home-title">{{ 'landing.features.index_title'|trans }}</h1>
+        <p class="lp-feature-index__lead">{{ 'landing.features.index_lead'|trans }}</p>
+        <ul class="lp-home-tiles">
+            {% for feature in pages %}
+                {% include '@Landing/features/_tile.html.twig' with {feature: feature} only %}
+            {% endfor %}
+        </ul>
+    </div>
+</section>
 {% endblock %}
