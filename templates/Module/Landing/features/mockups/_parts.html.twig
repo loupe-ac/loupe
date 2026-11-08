@@ -11,7 +11,7 @@
 {# kind: stuck, needs-you, working or waiting. The glyphs are the app's own. #}
 {% macro mark(kind) %}
 {% set glyphs = {'stuck': 'lucide:circle-alert', 'needs-you': 'lucide:circle-user', 'working': 'lucide:loader-circle', 'waiting': 'lucide:hourglass'} %}
-<span class="lp-state-mark lp-state-mark--{{ kind }}"><span class="lp-state-mark__icon">{{ ux_icon(glyphs[kind], {class: 'lp-state-mark__glyph', 'aria-hidden': 'true'}) }}</span></span>{# @design-system-ignore: the component draws a focusable tooltip, wrong inside an aria-hidden picture #}
+<span class="lp-state-mark lp-state-mark--{{ kind }}"><span class="lp-state-mark__icon">{{ ux_icon(glyphs[kind], {class: 'lp-state-mark__glyph', 'aria-hidden': 'true'}) }}</span></span>
 {% endmacro %}
 
 {# One card of the board. kind picks the state mark, and may be empty. #}

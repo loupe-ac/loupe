@@ -30,49 +30,21 @@
         </twig:Ds:Menu>
         <nav class="lp-sidebar__nav">
             <span class="lp-sidebar__nav-label">Workspace</span>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:layout-dashboard" />
-                <span class="lp-sidebar__link-label">Workshop</span>
-            </a>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:inbox" />
-                <span class="lp-sidebar__link-label">Needs you</span>
+            <twig:Ds:NavItem url="#" icon="lucide:layout-dashboard" label="Workshop" />
+            <twig:Ds:NavItem url="#" icon="lucide:inbox" label="Needs you">
                 <span class="lp-sidebar__pill lp-sidebar__pill--amber">2</span>
-            </a>
-            <a href="#" class="lp-sidebar__link lp-sidebar__link--active" aria-current="page">
-                <twig:ux:icon name="lucide:square-kanban" />
-                <span class="lp-sidebar__link-label">Board</span>
-            </a>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:file-text" />
-                <span class="lp-sidebar__link-label">Documents</span>
-            </a>
+            </twig:Ds:NavItem>
+            <twig:Ds:NavItem url="#" icon="lucide:square-kanban" label="Board" :active="true" />
+            <twig:Ds:NavItem url="#" icon="lucide:file-text" label="Documents" />
             <span class="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">Your crew</span>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:bot" />
-                <span class="lp-sidebar__link-label">Agents</span>
-                <span class="lp-sidebar__pill">1/3</span>
-            </a>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:workflow" />
-                <span class="lp-sidebar__link-label">Workflow</span>
-            </a>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:activity" />
-                <span class="lp-sidebar__link-label">Activity</span>
-                <span class="lp-sidebar__pill">3</span>
-            </a>
+            <twig:Ds:NavItem url="#" icon="lucide:bot" label="Agents" count="1/3" />
+            <twig:Ds:NavItem url="#" icon="lucide:workflow" label="Workflow" />
+            <twig:Ds:NavItem url="#" icon="lucide:activity" label="Activity" :count="3" />
         </nav>
         <div class="lp-sidebar__spacer"></div>
         <nav class="lp-sidebar__nav lp-sidebar__nav--secondary">
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:settings" />
-                <span class="lp-sidebar__link-label">Project settings</span>
-            </a>
-            <a href="#" class="lp-sidebar__link">
-                <twig:ux:icon name="lucide:user" />
-                <span class="lp-sidebar__link-label">Account</span>
-            </a>
+            <twig:Ds:NavItem url="#" icon="lucide:settings" label="Project settings" />
+            <twig:Ds:NavItem url="#" icon="lucide:user" label="Account" />
         </nav>
         <div class="lp-sidebar__account">
             <twig:Ds:Avatar name="riley@example.com" size="xs" tone="chrome" />

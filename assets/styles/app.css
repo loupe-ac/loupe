@@ -5914,7 +5914,6 @@
         @apply hidden lg:inline;
     }
 
-    /* The light band behind the lower part of the explainer frame. */
     /* ── Site bar menus ─────────────────────────────────────────────────
        The Features panel and the phone menu are popovers. The browser gives
        Escape, a click outside and the return of focus. The docs pages stamp
@@ -6085,6 +6084,7 @@
         @apply mt-auto grid grid-cols-2 gap-2.5;
     }
 
+    /* The light band behind the lower part of the explainer frame. */
     .lp-home-hero {
         @apply relative bg-chrome pt-14;
     }

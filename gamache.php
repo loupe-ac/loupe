@@ -167,7 +167,11 @@ return (new GamacheConfig())->registerChecks([
     new DesignSystemAdoptionCheck(
         components: designSystemComponents((new Catalog())->entries()),
         // The split view draws the workspace frame itself when a page gives it a width.
-        ignoredPaths: ['templates/components/Ds/SplitView.html.twig'],
+        // The feature mockups draw the state mark inside an aria-hidden picture, where the component's focusable tooltip does not belong.
+        ignoredPaths: [
+            'templates/components/Ds/SplitView.html.twig',
+            'templates/Module/Landing/features/mockups/_parts.html.twig',
+        ],
     ),
     new DesignSystemPatternCheck(
         patterns: [
