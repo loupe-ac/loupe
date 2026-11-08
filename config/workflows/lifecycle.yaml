@@ -535,7 +535,7 @@ rules:
           request:
               kind: breakdown
               checks:
-                  - The Epics section of .loupe/lifecycle.md, when the project uses epic branches
+                  - The epic branch setting of the project and the repository instructions, when the project uses epic branches
                   - Permission to push an epic branch
 
     - id: reviewable

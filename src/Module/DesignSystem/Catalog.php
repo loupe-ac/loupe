@@ -531,7 +531,7 @@ readonly class Catalog
                 states: [],
                 enforced: true,
                 group: 'core',
-                summary: 'A range and a point around a dashed baseline line on a shared scale, drawn as a hidden inline SVG.',
+                summary: 'A range and a point on a full-width track line, around a dashed baseline line on a shared scale, drawn as a hidden inline SVG.',
                 element: 'svg',
                 viewport: '700x120',
             ),

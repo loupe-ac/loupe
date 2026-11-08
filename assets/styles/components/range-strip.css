@@ -1,4 +1,4 @@
-/* The range strip: a range and a point around a dashed baseline line, on a shared scale.
+/* The range strip: a range and a point on a track line, around a dashed baseline line, on a shared scale.
    `templates/components/Ds/RangeStrip.html.twig` renders it. */
 @layer components {
     .lp-range-strip {
@@ -6,6 +6,9 @@
     }
     .lp-range-strip--labelled {
         @apply h-12;
+    }
+    .lp-range-strip__track {
+        @apply stroke-line stroke-2;
     }
     .lp-range-strip__band {
         @apply fill-accent-soft;

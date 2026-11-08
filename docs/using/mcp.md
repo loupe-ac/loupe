@@ -76,7 +76,8 @@ loupe project link           # writes .loupe.yaml, choosing from your projects
 
 `loupe project link` also writes `.loupe/lifecycle.md` when the repository has none, also
 when `.loupe.yaml` exists already.
-[Getting started](../getting-started/index.md) says what the file holds.
+[Getting started](../getting-started/index.md) and the
+[repository profile](../extending/repository-profile.md) say what the file holds.
 
 `loupe project link` then checks how Claude Code starts the `loupe` server. When nothing
 does, it offers to declare it for every project:
