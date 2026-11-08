@@ -73,6 +73,7 @@ framework:
             App\Module\Inbox\Messenger\NotifyInboxOwner: jobs
             App\Module\Inbox\Messenger\OpenMergeApprovalPullRequest: jobs
             App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
+            App\Module\Insights\Messenger\DrawPublicPreview: insights
             App\Module\Insights\Messenger\RefreshInsightsItem: insights
             App\Module\Insights\Messenger\RefreshProjectInsights: insights
             App\Module\Notification\Messenger\DeliverWebPush: jobs
