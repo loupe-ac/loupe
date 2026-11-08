@@ -48,7 +48,11 @@ WORKDIR /var/www/html
 # replaces itself with the command rather than forking, so the consumer keeps
 # PID 1 and still receives SIGTERM for a graceful shutdown — busybox `su` does
 # not. See docker/compose/prod.yaml.
-RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bash nginx supervisor su-exec \
+# rsvg-convert draws the share preview images from SVG. It finds fonts through
+# fontconfig. font-dejavu is the fallback for a glyph the brand fonts lack, so only
+# its regular and bold faces stay.
+RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bash nginx supervisor su-exec rsvg-convert fontconfig font-dejavu \
+ && find /usr/share/fonts/dejavu -type f ! -name 'DejaVuSans.ttf' ! -name 'DejaVuSans-Bold.ttf' -delete \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev libxslt-dev icu-dev \
  && docker-php-ext-install bcmath pdo_pgsql zip intl xsl \
  && curl -fsSL -o /tmp/excimer.tgz https://github.com/wikimedia/php-excimer/archive/refs/tags/1.2.6.tar.gz \
@@ -93,6 +97,19 @@ COPY assets/fonts /repo/assets/fonts
 COPY openapi/public.json /repo/openapi/public.json
 COPY --from=docs-changelog /repo/docs /repo/docs
 RUN npm run build && npm run check -- --built-only
+
+# rsvg-convert reads TTF and OTF, and the repo holds WOFF2. The conversion tool
+# lives in this stage alone, so the image that serves traffic gets the fonts and
+# not the tool.
+FROM base AS fonts
+RUN apk add --no-cache woff2
+COPY assets/fonts /tmp/fonts
+RUN set -eux; \
+	mkdir -p /usr/share/fonts/loupe; \
+	for font in /tmp/fonts/DMSans-*.woff2 /tmp/fonts/Manrope-*.woff2; do \
+		woff2_decompress "$font"; \
+		mv "${font%.woff2}.ttf" /usr/share/fonts/loupe/; \
+	done
 
 # Everything below this line runs at build time only. Nothing here reaches the
 # final image except the files the runtime stage copies, so a tool installed
@@ -192,6 +209,9 @@ COPY docker/prod/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/prod/nginx-common.conf /etc/nginx/snippets/common.conf
 COPY docker/prod/supervisord.conf /etc/supervisord.conf
 COPY docker/prod/worker-supervisord.conf /etc/worker-supervisord.conf
+
+COPY --from=fonts /usr/share/fonts/loupe /usr/share/fonts/loupe
+RUN fc-cache -f
 
 # The whole tree in one copy, rather than a list of the directories that matter.
 # A list is the failure this boundary invites: miss `var/cache` or the compiled

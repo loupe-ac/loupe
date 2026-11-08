@@ -60,12 +60,12 @@ final readonly class BarLayout
      * @param list<MetricSeries> $series
      * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
      */
-    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds): ?self
+    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, ChartBox $box = new ChartBox()): ?self
     {
         if (!\in_array($type, [MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked], true)) {
             throw new \InvalidArgumentException(\sprintf('%s is not a bar chart.', $type->value));
         }
-        $axis = MetricChartTimeAxis::forSeries($bucket, $series);
+        $axis = MetricChartTimeAxis::forSeries($bucket, $series, box: $box);
         if (null === $axis) {
             return null;
         }
@@ -108,7 +108,7 @@ final readonly class BarLayout
             bucket: $bucket,
             buckets: $buckets,
             series: $chartSeries,
-            yTicks: MetricChartScale::yTicks($top, $step, $bottom),
+            yTicks: MetricChartScale::yTicks($top, $step, $bottom, $box),
             moneyDecimals: MetricChartScale::moneyDecimals($step),
             xTicks: $axis->ticks,
             longSpan: $axis->longSpan,
@@ -134,9 +134,9 @@ final readonly class BarLayout
      */
     private static function beside(array $column, array $chartSeries, MetricChartTimeAxis $axis, int $index, float $top, float $bottom, int $seriesCount): array
     {
-        $plotHeight = MetricChartScale::plotHeight();
+        $plotHeight = $axis->box->plotHeight();
         $span = $top - $bottom;
-        $zero = MetricChartScale::BASELINE + $bottom / $span * $plotHeight;
+        $zero = $axis->box->baseline + $bottom / $span * $plotHeight;
         $slotWidth = $axis->bucketWidth * self::BAR_SHARE / $seriesCount;
         $gap = min(self::GAP, $slotWidth / 4);
         $barWidth = min(self::MAX_BAR_WIDTH, $slotWidth - $gap);
@@ -181,12 +181,12 @@ final readonly class BarLayout
 
         $heights = [];
         foreach ($values as $position => $value) {
-            $heights[$position] = ($percent ? ($total > 0 ? $value / $total : 0.0) : $value / $top) * MetricChartScale::plotHeight();
+            $heights[$position] = ($percent ? ($total > 0 ? $value / $total : 0.0) : $value / $top) * $axis->box->plotHeight();
         }
         $highest = array_key_last(array_filter($heights, static fn (float $height): bool => $height > 0));
 
         $bars = [];
-        $edge = (float) MetricChartScale::BASELINE;
+        $edge = (float) $axis->box->baseline;
         foreach ($column as $position => $point) {
             $height = $heights[$position];
             $bottom = $edge;

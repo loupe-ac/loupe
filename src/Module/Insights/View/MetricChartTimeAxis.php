@@ -25,6 +25,7 @@ final readonly class MetricChartTimeAxis
         /** True when the axis spans more than a year, so a label needs its year. */
         public bool $longSpan,
         private array $position,
+        public ChartBox $box,
     ) {
     }
 
@@ -33,7 +34,7 @@ final readonly class MetricChartTimeAxis
      *
      * @param list<MetricSeries> $series
      */
-    public static function forSeries(MetricBucket $bucket, array $series, bool $withPrevious = false): ?self
+    public static function forSeries(MetricBucket $bucket, array $series, bool $withPrevious = false, ChartBox $box = new ChartBox()): ?self
     {
         $starts = [];
         foreach ($series as $item) {
@@ -49,12 +50,12 @@ final readonly class MetricChartTimeAxis
         ksort($starts);
         $starts = self::withEmptyBuckets($bucket, array_values($starts));
 
-        $bucketWidth = (MetricChartScale::PLOT_RIGHT - MetricChartScale::PLOT_LEFT) / \count($starts);
+        $bucketWidth = $box->plotWidth() / \count($starts);
         $tickStep = self::tickStep($bucket, \count($starts));
         $ticks = [];
         foreach ($starts as $index => $start) {
             if (0 === $index % $tickStep) {
-                $ticks[] = new MetricChartTick(self::middle($index, $bucketWidth), start: $start);
+                $ticks[] = new MetricChartTick(self::middle($index, $bucketWidth, $box), start: $start);
             }
         }
 
@@ -65,6 +66,7 @@ final readonly class MetricChartTimeAxis
             $ticks,
             (int) $starts[0]->diff($starts[\count($starts) - 1])->format('%a') > 366,
             array_flip(array_map(static fn (\DateTimeImmutable $start): int => $start->getTimestamp(), $starts)),
+            $box,
         );
     }
 
@@ -81,12 +83,12 @@ final readonly class MetricChartTimeAxis
 
     public function left(int $index): float
     {
-        return MetricChartScale::PLOT_LEFT + $index * $this->bucketWidth;
+        return $this->box->plotLeft + $index * $this->bucketWidth;
     }
 
     public function centre(int $index): float
     {
-        return self::middle($index, $this->bucketWidth);
+        return self::middle($index, $this->bucketWidth, $this->box);
     }
 
     /** The last day that the bucket at $index covers. */
@@ -128,9 +130,9 @@ final readonly class MetricChartTimeAxis
         return array_values($all);
     }
 
-    private static function middle(int $index, float $bucketWidth): float
+    private static function middle(int $index, float $bucketWidth, ChartBox $box): float
     {
-        return round(MetricChartScale::PLOT_LEFT + ($index + 0.5) * $bucketWidth, 2);
+        return round($box->plotLeft + ($index + 0.5) * $bucketWidth, 2);
     }
 
     /** How many buckets one label of the time axis covers. */

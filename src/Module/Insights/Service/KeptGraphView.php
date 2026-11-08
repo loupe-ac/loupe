@@ -6,6 +6,7 @@ namespace App\Module\Insights\Service;
 
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Insights\View\ChartBox;
 use App\Module\Insights\View\DashboardGraphResult;
 use App\Module\Insights\View\KeptGraphResult;
 use App\Module\Insights\View\MetricChartLayouts;
@@ -23,7 +24,7 @@ final readonly class KeptGraphView
     ) {
     }
 
-    public function build(KeptGraphResult $kept, string $locale): DashboardGraphResult
+    public function build(KeptGraphResult $kept, string $locale, ChartBox $box = new ChartBox()): DashboardGraphResult
     {
         $query = $kept->query;
         $lines = \count($kept->series);
@@ -40,7 +41,7 @@ final readonly class KeptGraphView
             $kept->computedAt,
             $this->metricTitle->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare),
             $resolution,
-            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $kept->series, new MetricValueFormatter($locale)),
+            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $kept->series, new MetricValueFormatter($locale), $box),
             $labels,
             array_map(static fn (MetricSeries $series) => $series->groupKey, $kept->series),
             $kept->current,

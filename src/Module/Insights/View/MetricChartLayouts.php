@@ -17,7 +17,7 @@ final class MetricChartLayouts
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter): LineLayout|BarLayout|DonutLayout|NumberLayout|null
+    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, ChartBox $box = new ChartBox()): LineLayout|BarLayout|DonutLayout|NumberLayout|null
     {
         if ([] === array_filter($series, static fn (MetricSeries $line): bool => [] !== $line->rows)) {
             return null;
@@ -26,8 +26,8 @@ final class MetricChartLayouts
         $adds = MetricChartRules::valuesAdd($metric, $statistic, \count($series));
 
         return match ($type) {
-            MetricChartType::Line => LineLayout::build($metric, $statistic, $bucket, $series, $formatter, $adds),
-            MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked => BarLayout::build($type, $metric, $statistic, $bucket, $series, $formatter, $adds),
+            MetricChartType::Line => LineLayout::build($metric, $statistic, $bucket, $series, $formatter, $adds, $box),
+            MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked => BarLayout::build($type, $metric, $statistic, $bucket, $series, $formatter, $adds, $box),
             MetricChartType::Donut => DonutLayout::build($metric, $statistic, $series, $formatter),
             MetricChartType::Number => NumberLayout::build($metric, $statistic, $series, $formatter),
         };
