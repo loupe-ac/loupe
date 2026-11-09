@@ -226,6 +226,19 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $empty->code);
     }
 
+    public function test_the_formula_graph_is_shared_with_a_fixed_code(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics-formula-share');
+
+        $this->seed($project, self::NOW);
+
+        $this->em()->clear();
+        $link = $this->service(PublicLinkRepository::class)->find(DevSeedId::of('insights/public-link/cache-reads-per-cache-write'));
+        self::assertSame(DevMetricsSeeder::SHARED_FORMULA_GRAPH_CODE, $link?->code);
+        self::assertSame('A / B', $link->savedGraph?->formula);
+        self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
+    }
+
     public function test_the_shared_graph_shows_a_legend_and_a_graph_stored_without_one_gets_it(): void
     {
         $project = $this->projectWithColumns('dev-metrics-legend');
@@ -277,10 +290,10 @@ final class DevMetricsSeederTest extends KernelTestCase
         $this->em()->clear();
         self::assertNotNull($this->service(WorkerRunRepository::class)->find($id)?->account);
         self::assertNotNull($this->service(WorkerRunFactRepository::class)->find($id)?->account);
-        self::assertSame(3, (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_public_links'));
+        self::assertSame(4, (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_public_links'));
         $project = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project is missing.');
         self::assertFalse($this->seed($project, self::NOW), 'A later run has nothing left to do.');
-        self::assertSame(3, (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_public_links'));
+        self::assertSame(4, (int) $connection->fetchOne('SELECT COUNT(*) FROM insights_public_links'));
     }
 
     public function test_a_stored_run_with_no_peak_gets_one_and_its_fact_row_follows(): void

@@ -51,12 +51,13 @@ final class MetricChartScale
 
         $inHours = $shape?->isInHours() ?? false;
         $positive = max([0.0, ...$values]);
+        $hasNegative = min([0.0, ...$values]) < 0.0;
         $floor = match (true) {
             MetricValueType::Percent === $type && Metric::AccountUsage === $shape?->key->metric => 100.0,
             MetricValueType::Money === $type => 0.04,
             MetricValueType::Duration === $type => $inHours ? 1.0 : 1000.0,
-            // A formula result can be far below 1, so the axis follows the data and the floor only serves a graph of zeros.
-            MetricValueType::Number === $type || MetricValueType::Fraction === $type => $positive > 0.0 ? $positive : 1.0,
+            // A formula result can be far below 1, so the axis follows the data. Only a graph of zeros gets the floor of 1, and a graph of negatives tops at 0.
+            MetricValueType::Number === $type || MetricValueType::Fraction === $type => $positive > 0.0 ? $positive : ($hasNegative ? 0.0 : 1.0),
             default => (float) self::TARGET_TICKS,
         };
         $max = max([$floor, ...$values]);

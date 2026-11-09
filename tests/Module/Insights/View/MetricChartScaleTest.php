@@ -85,6 +85,12 @@ final class MetricChartScaleTest extends TestCase
         self::assertSame([40.0, 10.0, 0.0], MetricChartScale::axis(MetricValueType::Number, null, [31.6, 12.0]));
     }
 
+    public function test_a_negative_formula_result_scales_to_its_magnitude(): void
+    {
+        self::assertSame([0.0, 0.002, -0.008], MetricChartScale::axis(MetricValueType::Fraction, null, [-0.0077, -0.003]));
+        self::assertSame([0.0, 10.0, -40.0], MetricChartScale::axis(MetricValueType::Number, null, [-31.6, -12.0]));
+    }
+
     public function test_a_formula_graph_of_zeros_still_gets_an_axis(): void
     {
         [$top, $step] = MetricChartScale::axis(MetricValueType::Number, null, [0.0, 0.0]);

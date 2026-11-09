@@ -84,6 +84,9 @@ final readonly class DevMetricsSeeder
 
     private const string EMPTY_GRAPH_SLUG = 'account-usage-without-readings';
 
+    /** The code of the public link of the formula graph. */
+    public const string SHARED_FORMULA_GRAPH_CODE = 'devgraphform';
+
     private const string FORMULA_GRAPH_SLUG = 'cache-reads-per-cache-write';
 
     /** The graph that keeps no result, so the Dashboard draws it as a tile that waits for the worker. */
@@ -387,6 +390,7 @@ final readonly class DevMetricsSeeder
         $linked = $this->seedPublicLink($context, $project, self::SHARED_GRAPH_SLUG, self::SHARED_GRAPH_CODE);
         $linked = $this->seedPublicLink($context, $project, self::BROKEN_GRAPH_SLUG, self::SHARED_BROKEN_GRAPH_CODE) || $linked;
         $linked = $this->seedPublicLink($context, $project, self::EMPTY_GRAPH_SLUG, self::SHARED_EMPTY_GRAPH_CODE) || $linked;
+        $linked = $this->seedPublicLink($context, $project, self::FORMULA_GRAPH_SLUG, self::SHARED_FORMULA_GRAPH_CODE) || $linked;
 
         return $linked || $legend || $seeded;
     }
