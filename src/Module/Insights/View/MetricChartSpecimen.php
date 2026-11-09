@@ -36,7 +36,7 @@ final class MetricChartSpecimen
         $labels = array_keys(self::LINES);
 
         $layout = match ($type) {
-            MetricChartType::Line => LineLayout::build($shape, MetricStatistic::Median, MetricBucket::Week, self::series(true), $formatter, false),
+            MetricChartType::Line => LineLayout::build($shape, MetricStatistic::Median, MetricBucket::Week, self::series(true), $formatter, false, new \DateTimeImmutable('2026-11-09 00:00 UTC')),
             MetricChartType::Bars => BarLayout::build($type, $shape, MetricStatistic::Median, MetricBucket::Week, self::series(false), $formatter, false),
             MetricChartType::StackedBars, MetricChartType::PercentStacked => BarLayout::build($type, $shape, MetricStatistic::Sum, MetricBucket::Week, self::series(false), $formatter, true),
             MetricChartType::Donut => DonutLayout::build($shape, MetricStatistic::Sum, self::series(false), $formatter),

@@ -8,6 +8,7 @@ use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Entity\PublicLinkKind;
 use App\Module\Insights\Service\PublicExperimentReport;
 use App\Module\Insights\Service\PublicGraphResults;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 
 /** Reads the same result as the share page does, so the image never computes data of its own. */
@@ -17,6 +18,7 @@ final readonly class KeptPublicPreviewSubjects implements PublicPreviewSubjects
     public function __construct(
         private PublicGraphResults $graphResults,
         private PublicExperimentReport $experimentReport,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -26,7 +28,7 @@ final readonly class KeptPublicPreviewSubjects implements PublicPreviewSubjects
         if (PublicLinkKind::Experiment === $link->kind) {
             $result = null === $link->experiment ? null : $this->experimentReport->forExperiment($link->project, $link->experiment);
 
-            return null === $result ? null : new PublicPreviewSubject(PublicPreviewVersion::of($result), experiment: $result);
+            return null === $result ? null : new PublicPreviewSubject(PublicPreviewVersion::of($result, $this->clock->now()), experiment: $result);
         }
         $graph = $link->savedGraph;
         if (null === $graph) {
@@ -34,6 +36,6 @@ final readonly class KeptPublicPreviewSubjects implements PublicPreviewSubjects
         }
         $kept = $this->graphResults->kept($graph);
 
-        return new PublicPreviewSubject(PublicPreviewVersion::of($kept, $graph->showLegend), $kept, $graph->showLegend);
+        return new PublicPreviewSubject(PublicPreviewVersion::of($kept, $this->clock->now(), $graph->showLegend), $kept, $graph->showLegend);
     }
 }

@@ -81,6 +81,7 @@
                     {% set colour = line.series.slot == 0 ? palette.other : (slotColours[line.series.slot - 1] ?? palette.other) %}
                     {% if line.previousPath %}<path d="{{ line.previousPath }}" fill="none" stroke="{{ colour }}" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="8 7" stroke-linejoin="round" stroke-linecap="round"/>{% endif %}
                     {% if line.path %}<path d="{{ line.path }}" fill="none" stroke="{{ colour }}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>{% endif %}
+                    {% if line.openPath %}<path d="{{ line.openPath }}" fill="none" stroke="{{ colour }}" stroke-width="3.5" stroke-dasharray="1 9" stroke-linejoin="round" stroke-linecap="round"/>{% endif %}
                     {% for dot in line.dots %}
                         <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="5" fill="{{ palette.surface }}" stroke="{{ colour }}" stroke-width="3"/>
                     {% endfor %}

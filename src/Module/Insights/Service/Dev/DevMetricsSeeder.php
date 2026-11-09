@@ -203,9 +203,11 @@ final readonly class DevMetricsSeeder
         $peakFilled = false;
         $accountFilled = false;
         $wakeFilled = false;
-        for ($daysAgo = 1; $daysAgo <= self::DAYS; ++$daysAgo) {
+        for ($daysAgo = 0; $daysAgo <= self::DAYS; ++$daysAgo) {
             $day = $today->modify(\sprintf('-%d days', $daysAgo));
-            foreach (self::runsOf($day) as $index => [$model, $cost, $minutes]) {
+            // Today holds one short run from the first minute, so the open last bucket of a day graph has a value and no run starts in the future.
+            $dayRuns = 0 === $daysAgo ? \array_slice(self::runsOf($day), 0, 1) : self::runsOf($day);
+            foreach ($dayRuns as $index => [$model, $cost, $minutes]) {
                 $run = $stored[self::runId($day, $index)->toRfc4122()] ?? null;
                 if (null === $run) {
                     /** @var array{Uuid, int} $card */
@@ -318,8 +320,8 @@ final readonly class DevMetricsSeeder
     private function run(SeedContext $context, Project $project, array $card, \DateTimeImmutable $day, int $daysAgo, int $index, string $model, int $baseMinutes): WorkerRun
     {
         $wave = self::wave($daysAgo, $index);
-        $minutes = (int) round($baseMinutes * $wave * self::trend($daysAgo));
-        $startedAt = $day->setTime(8 + 2 * $index, 15);
+        $minutes = 0 === $daysAgo ? 1 : (int) round($baseMinutes * $wave * self::trend($daysAgo));
+        $startedAt = 0 === $daysAgo ? $day->setTime(0, 1) : $day->setTime(8 + 2 * $index, 15);
         $endedAt = $startedAt->modify(\sprintf('+%d minutes', $minutes));
         $workKind = self::WORK_KINDS[($daysAgo + $index) % \count(self::WORK_KINDS)];
 
