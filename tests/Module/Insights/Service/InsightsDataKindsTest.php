@@ -68,6 +68,37 @@ final class InsightsDataKindsTest extends KernelTestCase
         self::assertTrue($kinds->sweeps($graph));
     }
 
+    public function test_a_formula_graph_reads_the_union_of_its_rows(): void
+    {
+        $kinds = self::getContainer()->get(InsightsDataKinds::class);
+        self::assertInstanceOf(InsightsDataKinds::class, $kinds);
+        $project = $this->scenarioProject('kinds-formula-'.uniqid());
+
+        $plain = $this->seedFormulaGraph($project);
+        self::assertSame([InsightsDataKind::Runs, InsightsDataKind::Cards], $kinds->reads($plain));
+
+        $buckets = $this->seedFormulaGraph($project, 'A:cost:sum,B:bucket-time:tests:sum', 'A / B', position: 1);
+        self::assertSame([InsightsDataKind::Runs, InsightsDataKind::Cards, InsightsDataKind::BucketTimes], $kinds->reads($buckets));
+
+        $buckets->unit = MetricUnit::Run;
+        self::assertSame([InsightsDataKind::Runs, InsightsDataKind::BucketTimes], $kinds->reads($buckets));
+    }
+
+    public function test_a_formula_graph_sweeps_when_any_row_is_not_built_in_or_the_range_rolls(): void
+    {
+        $kinds = self::getContainer()->get(InsightsDataKinds::class);
+        self::assertInstanceOf(InsightsDataKinds::class, $kinds);
+        $graph = $this->seedFormulaGraph($this->scenarioProject('kinds-formula-sweep-'.uniqid()));
+
+        self::assertTrue($kinds->sweeps($graph));
+
+        $graph->range = MetricRange::All;
+        self::assertFalse($kinds->sweeps($graph));
+
+        $graph->formulaRows = 'A:cache-read-tokens:sum,B:review-rounds:sum';
+        self::assertTrue($kinds->sweeps($graph));
+    }
+
     /** @return list<InsightsDataKind> */
     private function readsOf(string $metric, MetricUnit $unit): array
     {

@@ -15,13 +15,27 @@ use App\Module\Bridge\Experiment\GoalDirection;
 use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Insights\Service\PublicLinkDescription;
 use App\Module\Insights\View\PublicExperimentResult;
+use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class PublicLinkDescriptionTest extends KernelTestCase
 {
+    use InsightsScenario;
+
     protected function setUp(): void
     {
         self::bootKernel();
+    }
+
+    public function test_a_graph_prints_its_statistic_and_a_formula_graph_prints_its_formula_in_words(): void
+    {
+        $project = $this->scenarioProject('description-graph');
+        $plain = $this->seedSavedGraph($project);
+        $plain->metric = 'cost';
+        $formula = $this->seedFormulaGraph($project, 'A:cache-read-tokens:mean,B:cache-write-tokens:sum', 'A / B');
+
+        self::assertSame('Per run · Median · 30 days · Per day · Line', $this->description()->forGraph($plain));
+        self::assertSame('Per finished card · Cache read tokens (mean) / Cache write tokens · 30 days · Per week · Line', $this->description()->forGraph($formula));
     }
 
     public function test_a_note_is_stripped_of_tags_and_its_spaces_are_folded(): void

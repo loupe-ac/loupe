@@ -73,7 +73,7 @@ final readonly class MetricValueFormatter
      * The size of a change with no sign or arrow: a percentage for a relative change, points for a change of
      * rates, and the unit of the metric for an absolute change. The caller adds the direction.
      */
-    public function change(float $change, MetricChangeKind $kind, MetricShape $metric, ?MetricStatistic $statistic): string
+    public function change(float $change, MetricChangeKind $kind, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic): string
     {
         $size = abs($change);
 

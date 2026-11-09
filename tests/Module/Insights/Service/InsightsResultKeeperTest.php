@@ -8,12 +8,15 @@ use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Event\InsightsResultKept;
 use App\Module\Insights\Messenger\RefreshInsightsItem;
 use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Service\InsightsComputeLocks;
 use App\Module\Insights\Service\InsightsResultKeeper;
+use App\Module\Insights\Service\KeptGraphView;
+use App\Module\Insights\View\KeptGraphResult;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -193,6 +196,40 @@ final class InsightsResultKeeperTest extends KernelTestCase
         $message = $sent[0]->getMessage();
         self::assertInstanceOf(RefreshInsightsItem::class, $message);
         self::assertSame((string) $graph->id, $message->graphId);
+    }
+
+    public function test_a_formula_graph_keeps_a_result_that_remembers_its_formula(): void
+    {
+        $project = $this->scenarioProject('keeper-formula');
+        $graph = $this->seedFormulaGraph($project, 'A:cost:sum,B:cost:count');
+        $graph->unit = MetricUnit::Run;
+        $this->em()->flush();
+
+        $result = $this->keeper()->graph($graph);
+
+        self::assertSame('A / B', $result->query->formula?->formula);
+        $stored = $this->kept()->findForGraph($graph);
+        self::assertNotNull($stored);
+        $decoded = InsightsKeptResult::decode($stored->payload);
+        self::assertInstanceOf(KeptGraphResult::class, $decoded);
+        self::assertSame('A:cost:sum,B:cost:count', $decoded->query->formula?->rowsText());
+
+        $built = $this->service(KeptGraphView::class)->build($decoded, 'en');
+        self::assertSame('Cost / Cost (count) per run, last 30 days, per week', $built->title);
+    }
+
+    public function test_a_formula_graph_with_a_problem_computes_an_empty_result_and_does_not_throw(): void
+    {
+        $project = $this->scenarioProject('keeper-formula-problem');
+        $graph = $this->seedFormulaGraph($project, 'A:cost:sum,B:cost:count', 'A / (B');
+        $graph->unit = MetricUnit::Run;
+        $this->em()->flush();
+
+        $result = $this->keeper()->graph($graph);
+
+        self::assertSame([], $result->series);
+        self::assertNotNull($result->query->formula?->problem);
+        self::assertNull($this->service(KeptGraphView::class)->build($result, 'en')->layout);
     }
 
     private function costGraph(Project $project): InsightsSavedGraph

@@ -62,6 +62,9 @@ final readonly class SaveSavedGraphHandler
                 SavedGraphWidth::Half,
                 true,
                 $this->insightsSavedGraphs->nextPosition($project),
+                formulaRows: $query->formula?->rowsText(),
+                formula: $query->formula?->formula,
+                format: $query->formula?->format->value,
             );
             $this->em->persist($graph);
 

@@ -16,6 +16,7 @@ use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
 use App\Module\Insights\Command\UpdateSavedGraphCommand;
 use App\Module\Insights\Command\UpdateSavedGraphHandler;
+use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
@@ -270,6 +271,85 @@ final class SavedGraphHandlersTest extends KernelTestCase
     {
         $this->expectException(NotFoundHttpException::class);
         $this->update($this->scenarioProject('graph-update-malformed'), 'not-an-id', null, self::SETTINGS);
+    }
+
+    private const array FORMULA_SETTINGS = [
+        'unit' => 'card',
+        'range' => 'thirty-days',
+        'bucket' => 'week',
+        'rows' => 'A:cache-read-tokens:sum,B:cache-write-tokens:sum',
+        'formula' => 'A / B',
+        'format' => 'auto',
+    ];
+
+    public function test_a_formula_graph_stores_the_formula_and_its_earliest_row(): void
+    {
+        $project = $this->scenarioProject('graph-save-formula');
+
+        $result = $this->save($project, null, self::FORMULA_SETTINGS);
+
+        $graph = $result->graph;
+        self::assertSame('cache-read-tokens', $graph->metric);
+        self::assertSame(MetricStatistic::Sum, $graph->statistic);
+        self::assertSame('A:cache-read-tokens:sum,B:cache-write-tokens:sum', $graph->formulaRows);
+        self::assertSame('A / B', $graph->formula);
+        self::assertSame('auto', $graph->format);
+        self::assertSame('Cache read tokens / Cache write tokens per finished card, last 30 days, per week', $graph->name);
+        self::assertSame(['rows', 'formula', 'format'], \array_slice(array_keys($graph->settings()), -3));
+    }
+
+    public function test_a_formula_with_a_problem_is_refused_and_nothing_is_saved(): void
+    {
+        $project = $this->scenarioProject('graph-save-bad-formula');
+
+        try {
+            $this->save($project, null, ['formula' => 'A / (B'] + self::FORMULA_SETTINGS);
+            self::fail('Expected the formula to be refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['formula' => 'bridge.metric.formula.problem.unclosed_parenthesis'], $e->errors);
+        }
+        self::assertSame([], $this->names($project));
+    }
+
+    public function test_a_formula_graph_refuses_a_stacked_chart(): void
+    {
+        $project = $this->scenarioProject('graph-save-formula-chart');
+
+        try {
+            $this->save($project, null, ['chart' => 'stacked-bars', 'group' => 'model'] + self::FORMULA_SETTINGS);
+            self::fail('Expected the chart type to be refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['chart' => 'insights.saved_graph.error.chart_rate_does_not_add'], $e->errors);
+        }
+    }
+
+    public function test_an_update_turns_a_formula_graph_into_a_one_metric_graph_and_back(): void
+    {
+        $project = $this->scenarioProject('graph-update-formula');
+        $graph = $this->save($project, 'Ratio', self::FORMULA_SETTINGS)->graph;
+
+        $one = $this->update($project, (string) $graph->id, null, self::SETTINGS)->graph;
+        self::assertNull($one->formulaRows);
+        self::assertNull($one->formula);
+        self::assertNull($one->format);
+        self::assertSame('cost', $one->metric);
+        self::assertArrayNotHasKey('rows', $one->settings());
+
+        $formula = $this->update($project, (string) $graph->id, null, ['format' => 'number'] + self::FORMULA_SETTINGS)->graph;
+        self::assertSame('A:cache-read-tokens:sum,B:cache-write-tokens:sum', $formula->formulaRows);
+        self::assertSame('number', $formula->format);
+        self::assertSame('cache-read-tokens', $formula->metric);
+    }
+
+    public function test_a_settings_change_of_the_format_alone_changes_the_hash(): void
+    {
+        $project = $this->scenarioProject('graph-hash-formula');
+        $graph = $this->save($project, 'Ratio', self::FORMULA_SETTINGS)->graph;
+        $before = InsightsKeptResult::hashOf($graph);
+
+        $graph->format = 'number';
+
+        self::assertNotSame($before, InsightsKeptResult::hashOf($graph));
     }
 
     /** @param array<string, string> $settings */

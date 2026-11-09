@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Mcp;
 
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
 use App\Module\Insights\Command\ListSavedGraphsView;
@@ -14,16 +15,17 @@ use Mcp\Exception\ToolCallException;
 /**
  * Reads the saved graphs of the Dashboard of the project.
  *
- * @phpstan-type GraphPayload array{id: string, name: string, position: int, width: string, showLegend: bool, settings: array<string, string>, broken: ?array{reason: string, name: string}}
+ * @phpstan-type FormulaPayload array{rows: list<array{letter: string, metric: string, statistic: string}>, formula: string, format: string}
+ * @phpstan-type GraphPayload array{id: string, name: string, position: int, width: string, showLegend: bool, settings: array<string, string>, formula: ?FormulaPayload, broken: ?array{reason: string, name: string}}
  * @phpstan-type RemovedGraphPayload array{id: string, name: string, undoUntil: string}
  * @phpstan-type GraphListPayload array{graphs: list<GraphPayload>, limit: int, removed: list<RemovedGraphPayload>, removedOmitted: int}
  * @phpstan-type GraphPreviewPayload array{preview: true, graph: GraphPayload, confirmation: string, message: string}
  * @phpstan-type GraphRemovedPayload array{removedGraphId: string, undoUntil: string, graphs: list<GraphPayload>, limit: int, removed: list<RemovedGraphPayload>, removedOmitted: int}
- * @phpstan-type GraphPreviousPayload array{name: string, settings: array<string, string>, width: string, showLegend: bool}
+ * @phpstan-type GraphPreviousPayload array{name: string, settings: array<string, string>, formula: ?FormulaPayload, width: string, showLegend: bool}
  * @phpstan-type GraphUpdatedPayload array{graph: GraphPayload, previous: GraphPreviousPayload, graphs: list<GraphPayload>, limit: int, removed: list<RemovedGraphPayload>, removedOmitted: int}
  * @phpstan-type GraphAnswerPayload array{graph: GraphPayload, graphs: list<GraphPayload>, limit: int, removed: list<RemovedGraphPayload>, removedOmitted: int}
  */
-#[McpTool(name: self::NAME, description: 'List the saved graphs on the Dashboard of this project, in the order the Dashboard draws them. A saved graph is a tile on the Dashboard of the owner. Each graph gives its id, its name, its position (from 0), its width (half or full), showLegend, and its settings: metric, unit, statistic, group, range, bucket, compare and chart. broken is null, or it names what the graph still reads that the project no longer has, such as a bucket that no rule names, and a broken graph draws no data. limit is the most graphs the Dashboard holds. removed lists the newest 20 graphs that were removed less than a day ago and that graph_restore can bring back, with the time until which they can come back. removedOmitted counts the other restorable graphs, which graph_restore still accepts by id. This tool draws no chart. Read the data of a graph with metric_query, and its settings. Change the Dashboard with graph_save, graph_update, graph_move, graph_remove and graph_restore.')]
+#[McpTool(name: self::NAME, description: 'List the saved graphs on the Dashboard of this project, in the order the Dashboard draws them. A saved graph is a tile on the Dashboard of the owner. Each graph gives its id, its name, its position (from 0), its width (half or full), showLegend, and its settings: metric, unit, statistic, group, range, bucket, compare and chart. formula is null for a graph that reads one metric. A formula graph gives formula with its rows (letter, metric and statistic), its formula text and its format, and its metric and statistic settings then hold the first row. broken is null, or it names what the graph still reads that the project no longer has, such as a bucket that no rule names, and a broken graph draws no data. limit is the most graphs the Dashboard holds. removed lists the newest 20 graphs that were removed less than a day ago and that graph_restore can bring back, with the time until which they can come back. removedOmitted counts the other restorable graphs, which graph_restore still accepts by id. This tool draws no chart. Read the data of a graph with metric_query, and its settings. Change the Dashboard with graph_save, graph_update, graph_move, graph_remove and graph_restore.')]
 final readonly class GraphListTool
 {
     public const string NAME = 'graph_list';
@@ -91,6 +93,26 @@ final readonly class GraphListTool
         return array_find_key($view->graphs, static fn (InsightsSavedGraph $other): bool => $other->id?->equals($graph->id) ?? false);
     }
 
+    /**
+     * The one-metric controls of a graph. The rows, the formula and the format of a formula graph come as formula.
+     *
+     * @return array<string, string>
+     */
+    public static function settingsOf(InsightsSavedGraph $graph): array
+    {
+        return array_diff_key($graph->settings(), ['rows' => true, 'formula' => true, 'format' => true]);
+    }
+
+    /** @return ?FormulaPayload null for a graph that reads one metric */
+    public static function formulaOf(InsightsSavedGraph $graph): ?array
+    {
+        if (null === $graph->formulaRows) {
+            return null;
+        }
+
+        return ['rows' => MetricFormula::rowParts($graph->formulaRows), 'formula' => $graph->formula ?? '', 'format' => $graph->format ?? ''];
+    }
+
     /** @return GraphPayload */
     private static function graph(ListSavedGraphsView $view, InsightsSavedGraph $graph, int $position): array
     {
@@ -102,7 +124,8 @@ final readonly class GraphListTool
             'position' => $position,
             'width' => $graph->width->value,
             'showLegend' => $graph->showLegend,
-            'settings' => $graph->settings(),
+            'settings' => self::settingsOf($graph),
+            'formula' => self::formulaOf($graph),
             'broken' => null === $broken ? null : ['reason' => $broken->reason->value, 'name' => $broken->name],
         ];
     }

@@ -34,8 +34,8 @@ final readonly class BarLayout
      */
     public function __construct(
         public MetricChartType $type,
-        public MetricShape $metric,
-        public MetricStatistic $statistic,
+        public MetricShape|MetricValueType $metric,
+        public ?MetricStatistic $statistic,
         public MetricBucket $bucket,
         public array $buckets,
         public array $series,
@@ -60,7 +60,7 @@ final readonly class BarLayout
      * @param list<MetricSeries> $series
      * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
      */
-    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, ChartBox $box = new ChartBox()): ?self
+    public static function build(MetricChartType $type, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, ChartBox $box = new ChartBox()): ?self
     {
         if (!\in_array($type, [MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked], true)) {
             throw new \InvalidArgumentException(\sprintf('%s is not a bar chart.', $type->value));

@@ -95,11 +95,11 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
     /**
      * The fields that a write can change, as the database holds them now, or null when the row is gone.
      *
-     * @return array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable}|null
+     * @return array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable, formulaRows: ?string, formula: ?string, format: ?string}|null
      */
     public function findStateOf(InsightsSavedGraph $graph): ?array
     {
-        /** @var array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable}|null $state */
+        /** @var array{name: string, metric: string, unit: MetricUnit, statistic: MetricStatistic, metricGroup: MetricGroup, range: MetricRange, bucket: MetricBucket, compare: MetricCompare, chartType: MetricChartType, width: SavedGraphWidth, showLegend: bool, position: int, removedAt: ?\DateTimeImmutable, formulaRows: ?string, formula: ?string, format: ?string}|null $state */
         $state = $this->createQueryBuilder('g')
             ->select(
                 'g.name AS name',
@@ -115,6 +115,9 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
                 'g.showLegend AS showLegend',
                 'g.position AS position',
                 'g.removedAt AS removedAt',
+                'g.formulaRows AS formulaRows',
+                'g.formula AS formula',
+                'g.format AS format',
             )
             ->andWhere('g.id = :id')
             ->setParameter('id', $graph->id, UuidType::NAME)

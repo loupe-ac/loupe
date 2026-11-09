@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\View;
 
+use App\Module\Bridge\Metric\Formula\FormulaRow;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
@@ -38,6 +40,60 @@ final readonly class MetricTitle
         }
 
         return $this->translator->trans('analytics.metrics.title.grouped', $parameters + ['%group%' => $this->translator->trans('analytics.metrics.title.group.'.$group->value)]);
+    }
+
+    /** The title of a query: the formula in words for a formula graph, or else the metric and its statistic. */
+    public function forQuery(MetricsQuery $query): string
+    {
+        $formula = $query->formula;
+        if (null === $formula || [] === $formula->rows) {
+            return $this->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare);
+        }
+
+        $parameters = [
+            '%subject%' => $this->translator->trans('analytics.metrics.title.subject', [
+                '%metric%' => $this->formulaText($formula),
+                '%unit%' => $this->translator->trans('analytics.metrics.title.unit.'.$query->unit->value),
+            ]),
+            '%range%' => $this->range($query->range, $query->compare),
+            '%bucket%' => $this->translator->trans('analytics.metrics.title.bucket.'.$query->bucket->value),
+        ];
+        if (MetricGroup::None === $query->group) {
+            return $this->translator->trans('analytics.metrics.title.formula_plain', $parameters);
+        }
+
+        return $this->translator->trans('analytics.metrics.title.formula_grouped', $parameters + ['%group%' => $this->translator->trans('analytics.metrics.title.group.'.$query->group->value)]);
+    }
+
+    /**
+     * The formula with each letter replaced by the name of its metric, and the statistic in parentheses when the row
+     * is not on Sum, such as "Cache read tokens / Cache write tokens (mean)".
+     */
+    public function formulaText(MetricFormula $formula): string
+    {
+        $rows = [];
+        foreach ($formula->rows as $row) {
+            $rows[$row->letter] = $row;
+        }
+
+        return (string) preg_replace_callback(
+            '/['.MetricFormula::LETTERS.']/',
+            fn (array $match): string => isset($rows[$match[0]]) ? $this->rowName($rows[$match[0]]) : $match[0],
+            $formula->formula,
+        );
+    }
+
+    private function rowName(FormulaRow $row): string
+    {
+        $name = $this->metricName($row->shape);
+        if (MetricStatistic::Sum === $row->statistic) {
+            return $name;
+        }
+
+        return $this->translator->trans('analytics.metrics.title.formula_row', [
+            '%metric%' => $name,
+            '%statistic%' => $this->translator->trans('analytics.metrics.title.statistic.'.$row->statistic->value),
+        ]);
     }
 
     /** A template label and a bucket name are text that a person wrote, so the caller prints them escaped. */

@@ -39,6 +39,9 @@ final class InsightsSavedGraphsExporterTest extends KernelTestCase
             'bucket' => 'day',
             'compare' => 'off',
             'chartType' => 'line',
+            'formulaRows' => null,
+            'formula' => null,
+            'format' => null,
             'width' => 'half',
             'showLegend' => true,
             'removedAt' => $removedAt,
@@ -48,5 +51,22 @@ final class InsightsSavedGraphsExporterTest extends KernelTestCase
             $row(3, 'Removed', new \DateTimeImmutable('2026-10-01 10:00:00')->format(\DateTimeInterface::ATOM)),
             $row(5, 'Second'),
         ], $rows);
+    }
+
+    public function test_it_exports_the_formula_of_a_formula_graph(): void
+    {
+        self::bootKernel();
+        $project = $this->scenarioProject('graphs-export-formula');
+        $this->seedFormulaGraph($project, 'A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B', 'number');
+
+        $exporter = self::getContainer()->get(InsightsSavedGraphsExporter::class);
+        self::assertInstanceOf(InsightsSavedGraphsExporter::class, $exporter);
+        $rows = iterator_to_array($exporter->export($project->owner), false);
+
+        self::assertCount(1, $rows);
+        self::assertSame('cache-read-tokens', $rows[0]['metric']);
+        self::assertSame('A:cache-read-tokens:sum,B:cache-write-tokens:sum', $rows[0]['formulaRows']);
+        self::assertSame('A / B', $rows[0]['formula']);
+        self::assertSame('number', $rows[0]['format']);
     }
 }

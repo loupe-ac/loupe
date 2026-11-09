@@ -18,15 +18,16 @@ final readonly class PublicLinkDescription
 
     public function __construct(
         private TranslatorInterface $translator,
+        private SavedGraphStatisticText $statistics,
     ) {
     }
 
-    /** The settings of the graph, such as "Cost · Mean · Last 30 days · Day · Line". */
+    /** The settings of the graph, such as "Cost · Mean · Last 30 days · Day · Line". A formula graph prints its formula in words in place of the statistic. */
     public function forGraph(InsightsSavedGraph $graph): string
     {
         return implode(' · ', [
             $this->translator->trans('analytics.metrics.unit.'.$graph->unit->value),
-            $this->translator->trans('analytics.metrics.statistic.'.$graph->statistic->value),
+            $this->statistics->of($graph),
             $this->translator->trans('analytics.metrics.range.'.$graph->range->value),
             $this->translator->trans('analytics.metrics.bucket.'.$graph->bucket->value),
             $this->translator->trans('analytics.metrics.chart_type.'.str_replace('-', '_', $graph->chartType->value)),

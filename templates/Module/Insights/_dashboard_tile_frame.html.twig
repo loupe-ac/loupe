@@ -45,7 +45,7 @@
             {% if tile.result.layout is null %}
                 <p class="lp-graph-tile__note">{{ 'analytics.metrics.empty.title'|trans }}</p>
             {% else %}
-                <twig:Ds:Chart :layout="tile.result.layout" :labels="tile.result.labels" :label="tile.result.title" :valueLabel="('analytics.metrics.statistic.' ~ graph.statistic.value)|trans" :changeLabel="'analytics.metrics.table.vs_previous'|trans" :id="'tile-' ~ graph.id" />
+                <twig:Ds:Chart :layout="tile.result.layout" :labels="tile.result.labels" :label="tile.result.title" :valueLabel="graph.formulaRows is null ? ('analytics.metrics.statistic.' ~ graph.statistic.value)|trans : null" :changeLabel="'analytics.metrics.table.vs_previous'|trans" :id="'tile-' ~ graph.id" />
             {% endif %}
         {% endif %}
     </twig:Ds:GraphTile>

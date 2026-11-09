@@ -159,6 +159,15 @@ final class MetricValueFormatterTest extends TestCase
         self::assertSame('3', $formatter->change(3, MetricChangeKind::Absolute, self::built(Metric::Runs), MetricStatistic::Count));
     }
 
+    public function test_a_change_of_a_formula_result_takes_a_bare_value_type(): void
+    {
+        $formatter = new MetricValueFormatter('en');
+
+        self::assertSame('12%', $formatter->change(0.12, MetricChangeKind::Relative, MetricValueType::Number, null));
+        self::assertSame('$1.20', $formatter->change(-1.2, MetricChangeKind::Absolute, MetricValueType::Money, null));
+        self::assertSame('2.5', $formatter->change(2.5, MetricChangeKind::Absolute, MetricValueType::Number, null));
+    }
+
     private static function built(Metric $metric): MetricShape
     {
         return new MetricShape(new MetricKey($metric));

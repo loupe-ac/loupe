@@ -93,7 +93,7 @@ final class GraphToolsTest extends KernelTestCase
         $project = $this->scenarioProject('graphs-save');
         $this->actAsMcpTokenBoundTo($project);
 
-        $result = $this->tool(GraphSaveTool::class)('cost', 'card', 'sum');
+        $result = $this->tool(GraphSaveTool::class)('card', 'cost', 'sum');
 
         self::assertSame($result['graph'], $result['graphs'][0]);
         self::assertSame(['metric' => 'cost', 'unit' => 'card', 'statistic' => 'sum', 'group' => 'none', 'range' => 'ninety-days', 'bucket' => 'week', 'compare' => 'off', 'chart' => 'line'], $result['graph']['settings']);
@@ -106,7 +106,7 @@ final class GraphToolsTest extends KernelTestCase
     {
         $this->actAsMcpTokenBoundTo($this->scenarioProject('graphs-save-all'));
 
-        $result = $this->tool(GraphSaveTool::class)('cost', 'card', 'mean', 'Cost per stage', 'stage', 'thirty-days', 'day', 'previous', 'bars');
+        $result = $this->tool(GraphSaveTool::class)('card', 'cost', 'mean', 'Cost per stage', 'stage', 'thirty-days', 'day', 'previous', 'bars');
 
         self::assertSame('Cost per stage', $result['graph']['name']);
         self::assertSame(['metric' => 'cost', 'unit' => 'card', 'statistic' => 'mean', 'group' => 'stage', 'range' => 'thirty-days', 'bucket' => 'day', 'compare' => 'previous', 'chart' => 'bars'], $result['graph']['settings']);
@@ -115,15 +115,15 @@ final class GraphToolsTest extends KernelTestCase
     /** @return iterable<string, array{array<int, mixed>, string}> */
     public static function refusedSaves(): iterable
     {
-        yield 'unknown statistic' => [['cost', 'card', 'average'], 'statistic: Unknown statistic "average". Use one of: median, mean, sum, p90, count, max.'];
-        yield 'unknown metric' => [['nope', 'card', 'sum'], 'metric: Unknown metric "nope"'];
-        yield 'bucket the range does not take' => [['cost', 'card', 'sum', null, null, 'seven-days', 'week'], 'bucket: The range seven-days does not take the bucket "week". Use one of: day.'];
-        yield 'compare with all time' => [['cost', 'card', 'sum', null, null, 'all', null, 'previous'], 'compare: The range all has no previous period to compare with. Use off, or another range.'];
-        yield 'unknown chart' => [['cost', 'card', 'sum', null, null, null, null, null, 'pie'], 'chart: Unknown chart "pie". Use one of:'];
-        yield 'chart that needs several lines' => [['cost', 'card', 'sum', null, null, null, null, null, 'stacked-bars'], 'chart: This chart type needs several lines to add up. Group the graph first, or pick another chart type.'];
-        yield 'chart whose statistic does not add' => [['cost', 'card', 'median', null, 'stage', null, null, null, 'donut'], 'chart: This chart type needs a sum, a count or a mean of a metric that adds up.'];
-        yield 'chart whose metric is a rate' => [['stop-rate', 'run', 'mean', null, 'stage', null, null, null, 'donut'], 'chart: The rates of several lines never add up to a whole. Pick another chart type.'];
-        yield 'name past the column' => [['cost', 'card', 'sum', str_repeat('a', 121)], 'name: A name is at most 120 characters.'];
+        yield 'unknown statistic' => [['card', 'cost', 'average'], 'statistic: Unknown statistic "average". Use one of: median, mean, sum, p90, count, max.'];
+        yield 'unknown metric' => [['card', 'nope', 'sum'], 'metric: Unknown metric "nope"'];
+        yield 'bucket the range does not take' => [['card', 'cost', 'sum', null, null, 'seven-days', 'week'], 'bucket: The range seven-days does not take the bucket "week". Use one of: day.'];
+        yield 'compare with all time' => [['card', 'cost', 'sum', null, null, 'all', null, 'previous'], 'compare: The range all has no previous period to compare with. Use off, or another range.'];
+        yield 'unknown chart' => [['card', 'cost', 'sum', null, null, null, null, null, 'pie'], 'chart: Unknown chart "pie". Use one of:'];
+        yield 'chart that needs several lines' => [['card', 'cost', 'sum', null, null, null, null, null, 'stacked-bars'], 'chart: This chart type needs several lines to add up. Group the graph first, or pick another chart type.'];
+        yield 'chart whose statistic does not add' => [['card', 'cost', 'median', null, 'stage', null, null, null, 'donut'], 'chart: This chart type needs a sum, a count or a mean of a metric that adds up.'];
+        yield 'chart whose metric is a rate' => [['run', 'stop-rate', 'mean', null, 'stage', null, null, null, 'donut'], 'chart: The rates of several lines never add up to a whole. Pick another chart type.'];
+        yield 'name past the column' => [['card', 'cost', 'sum', str_repeat('a', 121)], 'name: A name is at most 120 characters.'];
     }
 
     /** @param array<int, mixed> $arguments */
@@ -160,7 +160,7 @@ final class GraphToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         try {
-            $this->tool(GraphSaveTool::class)('cost', 'card', 'sum');
+            $this->tool(GraphSaveTool::class)('card', 'cost', 'sum');
             self::fail('Expected a refusal.');
         } catch (ToolCallException $e) {
             self::assertSame('The Dashboard holds the most graphs it can, 12. Remove a graph with graph_remove first.', $e->getMessage());
@@ -179,7 +179,186 @@ final class GraphToolsTest extends KernelTestCase
         self::assertSame('full', $result['graph']['width']);
         self::assertFalse($result['graph']['showLegend']);
         self::assertSame('bucket-time:tests', $result['graph']['settings']['metric']);
-        self::assertSame(['name' => 'Tests', 'settings' => $graph->settings(), 'width' => 'half', 'showLegend' => true], $result['previous']);
+        self::assertSame(['name' => 'Tests', 'settings' => $graph->settings(), 'formula' => null, 'width' => 'half', 'showLegend' => true], $result['previous']);
+    }
+
+    private const array CACHE_ROWS = [
+        ['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'sum'],
+        ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum'],
+    ];
+
+    public function test_list_gives_a_one_metric_graph_no_formula_and_a_formula_graph_its_three_fields(): void
+    {
+        $project = $this->scenarioProject('graphs-list-formula');
+        $this->seedSavedGraph($project, 'One', 0);
+        $formula = $this->seedFormulaGraph($project, 'A:cache-read-tokens:mean,B:cache-write-tokens:sum', 'A / B', 'percent', 'Ratio', 1);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $graphs = $this->tool(GraphListTool::class)()['graphs'];
+
+        self::assertNull($graphs[0]['formula']);
+        self::assertSame((string) $formula->id, $graphs[1]['id']);
+        self::assertSame([
+            'rows' => [
+                ['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'mean'],
+                ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum'],
+            ],
+            'formula' => 'A / B',
+            'format' => 'percent',
+        ], $graphs[1]['formula']);
+        self::assertSame('cache-read-tokens', $graphs[1]['settings']['metric']);
+        self::assertSame('mean', $graphs[1]['settings']['statistic']);
+        self::assertSame(['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart'], array_keys($graphs[1]['settings']));
+    }
+
+    public function test_save_stores_a_formula_and_answers_it(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->scenarioProject('graphs-save-formula'));
+
+        $result = $this->tool(GraphSaveTool::class)(unit: 'card', rows: self::CACHE_ROWS, formula: 'A / B', format: 'number');
+
+        self::assertNull($result['graph']['broken']);
+        self::assertSame(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'number'], $result['graph']['formula']);
+        self::assertSame('cache-read-tokens', $result['graph']['settings']['metric']);
+        self::assertSame('sum', $result['graph']['settings']['statistic']);
+        self::assertSame('Cache read tokens / Cache write tokens per finished card, last 90 days, per week', $result['graph']['name']);
+        self::assertSame($result['graph'], $this->tool(GraphListTool::class)()['graphs'][0]);
+    }
+
+    public function test_save_takes_auto_as_the_default_format(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->scenarioProject('graphs-save-formula-auto'));
+
+        $result = $this->tool(GraphSaveTool::class)(unit: 'card', rows: self::CACHE_ROWS, formula: 'A / B');
+
+        self::assertSame('auto', $result['graph']['formula']['format'] ?? null);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function refusedFormulaSaves(): iterable
+    {
+        yield 'a formula that does not close' => [['unit' => 'card', 'rows' => self::CACHE_ROWS, 'formula' => 'A / (B'], 'formula: A parenthesis is not closed.'];
+        yield 'a letter with no row' => [['unit' => 'card', 'rows' => self::CACHE_ROWS, 'formula' => 'A / C'], 'formula: The formula uses C, which has no row.'];
+        yield 'a metric that cannot join' => [['unit' => 'run', 'rows' => [['letter' => 'A', 'metric' => 'stop-rate', 'statistic' => 'mean']], 'formula' => 'A'], 'formula: Row A cannot use "stop-rate" in a formula.'];
+        yield 'rows with no formula' => [['unit' => 'card', 'rows' => self::CACHE_ROWS], 'formula: Type a formula'];
+        yield 'a format with no rows' => [['unit' => 'card', 'format' => 'number'], 'format: A format needs rows and a formula.'];
+        yield 'an unknown format' => [['unit' => 'card', 'rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'pie'], 'formula: "pie" is not a format.'];
+        yield 'a unit that a row does not take' => [['unit' => 'reading', 'rows' => self::CACHE_ROWS, 'formula' => 'A / B'], 'unit: The rows of this formula do not all take the unit "reading". Use one of: run, card.'];
+        yield 'a group that a row does not take' => [['unit' => 'run', 'rows' => [['letter' => 'A', 'metric' => 'wakes', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'cost', 'statistic' => 'sum']], 'formula' => 'A / B', 'group' => 'wake-cache'], 'group: The rows of this formula do not all take the group "wake-cache". Use one of:'];
+        yield 'a chart that adds the lines together' => [['unit' => 'card', 'rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'group' => 'model', 'chart' => 'stacked-bars'], 'chart: The rates of several lines never add up to a whole.'];
+        yield 'a metric with the rows' => [['unit' => 'card', 'metric' => 'cost', 'statistic' => 'sum', 'rows' => self::CACHE_ROWS, 'formula' => 'A / B'], 'Pass metric and statistic, or rows and formula, and not both.'];
+        yield 'no metric and no rows' => [['unit' => 'card'], 'Pass metric and statistic to save one metric, or rows and formula to save a formula.'];
+        yield 'a row that is no object' => [['unit' => 'card', 'rows' => ['A'], 'formula' => 'A'], 'Each row needs a letter, a metric and a statistic'];
+    }
+
+    /** @param array<string, mixed> $arguments */
+    #[\PHPUnit\Framework\Attributes\DataProvider('refusedFormulaSaves')]
+    public function test_save_refuses_a_formula_that_cannot_be_drawn_and_saves_nothing(array $arguments, string $message): void
+    {
+        $this->actAsMcpTokenBoundTo($this->scenarioProject('graphs-formula-refused-'.md5($message)));
+
+        try {
+            $this->tool(GraphSaveTool::class)(...$arguments);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString($message, $e->getMessage());
+        }
+        self::assertSame([], $this->tool(GraphListTool::class)()['graphs']);
+    }
+
+    public function test_update_changes_the_formula_text_and_keeps_the_rows(): void
+    {
+        $project = $this->scenarioProject('graphs-update-formula');
+        $graph = $this->seedFormulaGraph($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool(GraphUpdateTool::class)((string) $graph->id, formula: 'B / A', format: 'percent');
+
+        self::assertSame(['rows' => self::CACHE_ROWS, 'formula' => 'B / A', 'format' => 'percent'], $result['graph']['formula']);
+        self::assertSame(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'auto'], $result['previous']['formula']);
+    }
+
+    public function test_update_replaces_the_rows_and_a_call_with_the_earlier_values_puts_them_back(): void
+    {
+        $project = $this->scenarioProject('graphs-update-rows');
+        $graph = $this->seedFormulaGraph($project);
+        $this->actAsMcpTokenBoundTo($project);
+        $tool = $this->tool(GraphUpdateTool::class);
+
+        $changed = $tool((string) $graph->id, rows: [['letter' => 'A', 'metric' => 'cost', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'runs', 'statistic' => 'sum']], formula: 'A / B');
+        self::assertSame('cost', $changed['graph']['settings']['metric']);
+
+        $back = $tool((string) $graph->id, ...$changed['previous']['settings'], rows: $changed['previous']['formula']['rows'] ?? [], formula: $changed['previous']['formula']['formula'] ?? null, format: $changed['previous']['formula']['format'] ?? null);
+
+        self::assertSame($changed['previous']['formula'], $back['graph']['formula']);
+        self::assertSame($changed['previous']['settings'], $back['graph']['settings']);
+    }
+
+    public function test_update_turns_a_one_metric_graph_into_a_formula_graph_with_rows_and_a_formula(): void
+    {
+        $project = $this->scenarioProject('graphs-update-to-formula');
+        $this->actAsMcpTokenBoundTo($project);
+        $graph = $this->tool(GraphSaveTool::class)('card', 'cost', 'sum')['graph'];
+
+        $result = $this->tool(GraphUpdateTool::class)($graph['id'], rows: self::CACHE_ROWS, formula: 'A / B');
+
+        self::assertSame('cache-read-tokens', $result['graph']['settings']['metric']);
+        self::assertSame('A / B', $result['graph']['formula']['formula'] ?? null);
+        self::assertNull($result['previous']['formula']);
+    }
+
+    public function test_clear_formula_goes_back_to_the_first_row_as_one_metric(): void
+    {
+        $project = $this->scenarioProject('graphs-clear-formula');
+        $graph = $this->seedFormulaGraph($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->tool(GraphUpdateTool::class)((string) $graph->id, clearFormula: true);
+
+        self::assertNull($result['graph']['formula']);
+        self::assertSame('cache-read-tokens', $result['graph']['settings']['metric']);
+        self::assertSame('sum', $result['graph']['settings']['statistic']);
+        self::assertNotNull($result['previous']['formula']);
+
+        $other = $this->tool(GraphUpdateTool::class)((string) $graph->id, rows: self::CACHE_ROWS, formula: 'A / B');
+        $cleared = $this->tool(GraphUpdateTool::class)((string) $graph->id, clearFormula: true, metric: 'cost', statistic: 'mean');
+        self::assertNotNull($other['graph']['formula']);
+        self::assertNull($cleared['graph']['formula']);
+        self::assertSame('cost', $cleared['graph']['settings']['metric']);
+        self::assertSame('mean', $cleared['graph']['settings']['statistic']);
+    }
+
+    /** @return iterable<string, array{string, array<string, mixed>, string}> */
+    public static function refusedFormulaUpdates(): iterable
+    {
+        yield 'a bare metric on a formula graph' => ['formula', ['metric' => 'cost'], 'This graph reads a formula'];
+        yield 'a bare statistic on a formula graph' => ['formula', ['statistic' => 'mean'], 'This graph reads a formula'];
+        yield 'clearFormula with rows' => ['formula', ['clearFormula' => true, 'formula' => 'A + B'], 'clearFormula cannot go with rows, formula or format.'];
+        yield 'clearFormula on a one-metric graph' => ['one', ['clearFormula' => true], 'This graph reads one metric, so it has no formula to clear.'];
+        yield 'a formula alone on a one-metric graph' => ['one', ['formula' => 'A / B'], 'To turn this graph into a formula graph, pass both rows and formula.'];
+        yield 'a metric that is not the first row' => ['formula', ['metric' => 'cost', 'rows' => self::CACHE_ROWS, 'formula' => 'A / B'], 'With rows, leave metric and statistic out'];
+        yield 'a formula with a problem' => ['formula', ['formula' => 'A /'], 'formula: The formula ends too soon.'];
+        yield 'a group that a row does not take' => ['formula', ['group' => 'wake-gap'], 'group: The rows of this formula do not all take the group "wake-gap".'];
+    }
+
+    /** @param array<string, mixed> $arguments */
+    #[\PHPUnit\Framework\Attributes\DataProvider('refusedFormulaUpdates')]
+    public function test_update_refuses_a_mix_of_one_metric_and_a_formula_and_changes_nothing(string $kind, array $arguments, string $message): void
+    {
+        $project = $this->scenarioProject('graphs-update-refused-'.md5($message.$kind.json_encode($arguments)));
+        $graph = 'formula' === $kind ? $this->seedFormulaGraph($project) : $this->seedSavedGraph($project);
+        $before = $graph->settings();
+        $this->actAsMcpTokenBoundTo($project);
+
+        try {
+            $this->tool(GraphUpdateTool::class)((string) $graph->id, ...$arguments);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString($message, $e->getMessage());
+        }
+        $this->em()->clear();
+        $stored = $this->em()->find(InsightsSavedGraph::class, $graph->id);
+        self::assertSame($before, $stored?->settings());
     }
 
     public function test_update_overlays_the_settings_on_the_kept_ones(): void
@@ -187,7 +366,7 @@ final class GraphToolsTest extends KernelTestCase
         $project = $this->scenarioProject('graphs-update-settings');
         $saved = $this->tool(GraphSaveTool::class);
         $this->actAsMcpTokenBoundTo($project);
-        $graph = $saved('cost', 'card', 'median', 'Cost')['graph'];
+        $graph = $saved('card', 'cost', 'median', 'Cost')['graph'];
 
         $result = $this->tool(GraphUpdateTool::class)($graph['id'], statistic: 'sum', chart: 'bars');
 
@@ -202,7 +381,7 @@ final class GraphToolsTest extends KernelTestCase
     {
         $project = $this->scenarioProject('graphs-update-clash');
         $this->actAsMcpTokenBoundTo($project);
-        $graph = $this->tool(GraphSaveTool::class)('cost', 'card', 'sum', null, null, 'thirty-days', 'week', 'previous')['graph'];
+        $graph = $this->tool(GraphSaveTool::class)('card', 'cost', 'sum', null, null, 'thirty-days', 'week', 'previous')['graph'];
 
         try {
             $this->tool(GraphUpdateTool::class)($graph['id'], range: 'all');
@@ -481,6 +660,21 @@ final class GraphToolsTest extends KernelTestCase
         self::assertFalse($graph->showLegend);
     }
 
+    public function test_the_lock_reads_the_formula_again(): void
+    {
+        $graph = $this->seedFormulaGraph($this->scenarioProject('graphs-lock-formula'));
+        $this->em()->createQuery(\sprintf("UPDATE %s g SET g.formulaRows = 'A:cost:sum,B:runs:sum', g.formula = 'A / B', g.format = 'number' WHERE g.id = :id", InsightsSavedGraph::class))
+            ->setParameter('id', $graph->id, UuidType::NAME)
+            ->execute();
+        $locker = self::getContainer()->get(SavedGraphLocker::class);
+        self::assertInstanceOf(SavedGraphLocker::class, $locker);
+
+        $this->em()->wrapInTransaction(static fn (): bool => $locker->lockActive($graph));
+
+        self::assertSame('A:cost:sum,B:runs:sum', $graph->formulaRows);
+        self::assertSame('number', $graph->format);
+    }
+
     public function test_a_wrong_code_removes_nothing(): void
     {
         $project = $this->scenarioProject('graphs-remove-wrong');
@@ -559,9 +753,9 @@ final class GraphToolsTest extends KernelTestCase
         $a = $this->seedSavedGraph($project, 'A', 0);
         $this->seedSavedGraph($project, 'B', 1);
         $this->actAsMcpTokenBoundTo($project);
-        $saved = $this->tool(GraphSaveTool::class)('cost', 'card', 'sum')['graph']['id'];
+        $saved = $this->tool(GraphSaveTool::class)('card', 'cost', 'sum')['graph']['id'];
 
-        $this->assertSignal('saved', fn () => $this->tool(GraphSaveTool::class)('cost', 'card', 'mean'));
+        $this->assertSignal('saved', fn () => $this->tool(GraphSaveTool::class)('card', 'cost', 'mean'));
         $this->assertSignal('updated', fn () => $this->tool(GraphUpdateTool::class)($saved, statistic: 'mean'));
         $this->assertSignal('renamed', fn () => $this->tool(GraphUpdateTool::class)($saved, name: 'Signal'));
         $this->assertSignal('resized', fn () => $this->tool(GraphUpdateTool::class)($saved, width: 'full'));

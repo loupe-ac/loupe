@@ -41,23 +41,29 @@ final class MetricChartScale
      *
      * @return array{float, float, float}
      */
-    public static function axis(MetricShape $metric, MetricStatistic $statistic, array $values): array
+    public static function axis(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, array $values): array
     {
-        $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : $metric->valueType();
+        $shape = $metric instanceof MetricShape ? $metric : null;
+        $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : ($shape?->valueType() ?? $metric);
         if (MetricValueType::Ratio === $type) {
             return [1.0, 0.25, 0.0];
         }
 
+        $inHours = $shape?->isInHours() ?? false;
+        $positive = max([0.0, ...$values]);
+        $hasNegative = min([0.0, ...$values]) < 0.0;
         $floor = match (true) {
-            MetricValueType::Percent === $type && Metric::AccountUsage === $metric->key->metric => 100.0,
+            MetricValueType::Percent === $type && Metric::AccountUsage === $shape?->key->metric => 100.0,
             MetricValueType::Money === $type => 0.04,
-            MetricValueType::Duration === $type => $metric->isInHours() ? 1.0 : 1000.0,
+            MetricValueType::Duration === $type => $inHours ? 1.0 : 1000.0,
+            // A formula result can be far below 1, so the axis follows the data. Only a graph of zeros gets the floor of 1, and a graph of negatives tops at 0.
+            MetricValueType::Number === $type || MetricValueType::Fraction === $type => $positive > 0.0 ? $positive : ($hasNegative ? 0.0 : 1.0),
             default => (float) self::TARGET_TICKS,
         };
         $max = max([$floor, ...$values]);
         $min = min([0.0, ...$values]);
         $raw = ($max - $min) / self::TARGET_TICKS;
-        $step = MetricValueType::Duration === $type && !$metric->isInHours() ? self::durationStep($raw) : self::niceStep($raw);
+        $step = MetricValueType::Duration === $type && !$inHours ? self::durationStep($raw) : self::niceStep($raw);
 
         return [ceil($max / $step - 1e-9) * $step, $step, $min < 0 ? floor($min / $step + 1e-9) * $step : 0.0];
     }
@@ -78,7 +84,7 @@ final class MetricChartScale
         $ticks = [];
         $tickCount = (int) round(($top - $bottom) / $step);
         for ($tick = 0; $tick <= $tickCount; ++$tick) {
-            $value = round($bottom + $tick * $step, 10);
+            $value = round($bottom + $tick * $step, max(10, 1 - (int) floor(log10($step))));
             $ticks[] = new MetricChartTick(self::y($value, $top, $bottom, $box), $value);
         }
 
@@ -178,7 +184,8 @@ final class MetricChartScale
     /** A step of 1, 2 or 5 times a power of ten. */
     private static function niceStep(float $raw): float
     {
-        $magnitude = 10 ** floor(log10($raw));
+        $exponent = (int) floor(log10($raw));
+        $magnitude = 10 ** $exponent;
         $fraction = $raw / $magnitude;
         $nice = match (true) {
             $fraction <= 1 + 1e-9 => 1,
@@ -187,6 +194,6 @@ final class MetricChartScale
             default => 10,
         };
 
-        return round($nice * $magnitude, 10);
+        return round($nice * $magnitude, max(10, 1 - $exponent));
     }
 }

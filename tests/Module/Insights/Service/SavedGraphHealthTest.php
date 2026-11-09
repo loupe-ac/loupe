@@ -96,6 +96,40 @@ final class SavedGraphHealthTest extends KernelTestCase
         self::assertSame([(string) $broken->id], array_keys($this->health()->check($project, [$fine, $broken])));
     }
 
+    public function test_a_formula_graph_is_broken_when_one_row_names_a_bucket_that_no_rule_names(): void
+    {
+        $project = $this->scenarioProject('health-formula-bucket');
+        $graph = $this->seedFormulaGraph($project, 'A:cost:sum,B:bucket-time:tests:sum', 'A / B');
+
+        $broken = $this->health()->check($project, [$graph]);
+
+        self::assertSame(BrokenGraphReason::Bucket, $broken[(string) $graph->id]->reason ?? null);
+        self::assertSame('tests', $broken[(string) $graph->id]->name ?? null);
+
+        $this->em()->persist(new InsightsBucketRule($project, 'Bash:*', 'tests', 0));
+        $this->em()->flush();
+
+        self::assertSame([], $this->health()->check($project, [$graph]));
+    }
+
+    public function test_a_formula_graph_with_a_row_the_project_does_not_know_is_broken_in_the_existing_way(): void
+    {
+        $project = $this->scenarioProject('health-formula-unknown');
+        $graph = $this->seedFormulaGraph($project, 'A:cost:sum,B:lead_time:sum', 'A / B');
+
+        $broken = $this->health()->check($project, [$graph]);
+
+        self::assertSame(BrokenGraphReason::TemplateMetric, $broken[(string) $graph->id]->reason ?? null);
+        self::assertSame('lead_time', $broken[(string) $graph->id]->name ?? null);
+    }
+
+    public function test_a_formula_graph_of_built_in_rows_is_never_broken(): void
+    {
+        $project = $this->scenarioProject('health-formula-fine');
+
+        self::assertSame([], $this->health()->check($project, [$this->seedFormulaGraph($project)]));
+    }
+
     private function health(): SavedGraphHealth
     {
         $health = self::getContainer()->get(SavedGraphHealth::class);

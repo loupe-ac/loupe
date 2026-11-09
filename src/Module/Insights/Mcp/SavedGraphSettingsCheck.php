@@ -16,6 +16,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetrics;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpFoundation\InputBag;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Refuses a setting that the Metrics page would swap for another value. The page and the saved graph handlers
@@ -26,6 +27,7 @@ final readonly class SavedGraphSettingsCheck
 {
     public function __construct(
         private TemplateMetrics $templateMetrics,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -42,7 +44,12 @@ final readonly class SavedGraphSettingsCheck
         $query = MetricsQuery::fromQuery($posted, $templates);
         $lines = [];
 
-        if (isset($settings['metric']) && $query->metric->key->key() !== $settings['metric']) {
+        $formula = $query->formula;
+        if (null !== $formula?->problem) {
+            $lines[] = 'formula: '.$formula->problem->english($this->translator);
+        } elseif (null === $formula && '' !== ($settings['format'] ?? '')) {
+            $lines[] = 'format: A format needs rows and a formula.';
+        } elseif (null === $formula && isset($settings['metric']) && $query->metric->key->key() !== $settings['metric']) {
             $lines[] = \sprintf('metric: Unknown metric "%s", or a template metric that the project no longer declares. metric_list lists the metrics.', $settings['metric']);
         }
         if ([] === $lines) {
@@ -65,17 +72,19 @@ final readonly class SavedGraphSettingsCheck
     private function enumLines(array $settings, MetricsQuery $query): array
     {
         $metric = $query->metric;
+        $formula = $query->formula;
         $lines = [];
         $rangeOk = !isset($settings['range']) || $query->range->value === $settings['range'];
         $fields = [
-            'unit' => [$query->unit, MetricUnit::cases(), $metric->units()],
+            'unit' => [$query->unit, MetricUnit::cases(), $formula?->units() ?? $metric->units()],
             'statistic' => [$query->statistic, MetricStatistic::cases(), $metric->statistics()],
-            'group' => [$query->group, MetricGroup::cases(), $metric->groups()],
+            'group' => [$query->group, MetricGroup::cases(), $formula?->groups() ?? $metric->groups()],
             'range' => [$query->range, MetricRange::cases(), MetricRange::cases()],
             'bucket' => [$query->bucket, MetricBucket::cases(), $query->range->allowedBuckets()],
         ];
         foreach ($fields as $field => [$kept, $all, $allowed]) {
-            if (!isset($settings[$field]) || $kept->value === $settings[$field]) {
+            // The statistic of a formula graph belongs to each row, and the rows were checked with the formula.
+            if (!isset($settings[$field]) || $kept->value === $settings[$field] || (null !== $formula && 'statistic' === $field)) {
                 continue;
             }
             if (null === $this->tryCase($all, $settings[$field])) {
@@ -83,7 +92,9 @@ final readonly class SavedGraphSettingsCheck
             } elseif ('bucket' === $field) {
                 $lines[] = \sprintf('bucket: The range %s does not take the bucket "%s". Use one of: %s.', $query->range->value, $settings['bucket'], self::values($allowed));
             } elseif ($rangeOk || 'range' === $field) {
-                $lines[] = \sprintf('%s: The metric %s does not take the %s "%s". Use one of: %s.', $field, $metric->key->key(), $field, $settings[$field], self::values($allowed));
+                $lines[] = null === $formula
+                    ? \sprintf('%s: The metric %s does not take the %s "%s". Use one of: %s.', $field, $metric->key->key(), $field, $settings[$field], self::values($allowed))
+                    : \sprintf('%s: The rows of this formula do not all take the %s "%s". Use one of: %s.', $field, $field, $settings[$field], self::values($allowed));
             }
         }
         if (isset($settings['compare']) && $query->compare->value !== $settings['compare']) {

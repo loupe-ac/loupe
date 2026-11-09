@@ -8,6 +8,7 @@ use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Insights\View\MetricChartScale;
 use App\Module\Insights\View\MetricChartTick;
 use App\Module\Insights\View\MetricValueFormatter;
@@ -76,6 +77,37 @@ final class MetricChartScaleTest extends TestCase
             new MetricChartTick(93.33, 2.0),
             new MetricChartTick(16.0, 4.0),
         ], MetricChartScale::yTicks($top, $step, $bottom));
+    }
+
+    public function test_a_formula_result_scales_to_its_data_and_not_to_a_floor(): void
+    {
+        self::assertSame([0.008, 0.002, 0.0], MetricChartScale::axis(MetricValueType::Fraction, null, [0.0077, 0.003]));
+        self::assertSame([40.0, 10.0, 0.0], MetricChartScale::axis(MetricValueType::Number, null, [31.6, 12.0]));
+    }
+
+    public function test_a_tiny_formula_result_keeps_a_positive_step_and_distinct_ticks(): void
+    {
+        [$top, $step, $bottom] = MetricChartScale::axis(MetricValueType::Number, null, [1.0e-12, 4.0e-13]);
+
+        self::assertGreaterThan(0.0, $step);
+        self::assertGreaterThanOrEqual(1.0e-12, $top);
+        self::assertSame(0.0, $bottom);
+        $values = array_map(static fn (MetricChartTick $tick): float => $tick->value, MetricChartScale::yTicks($top, $step, $bottom));
+        self::assertSame($values, array_values(array_unique($values)));
+    }
+
+    public function test_a_negative_formula_result_scales_to_its_magnitude(): void
+    {
+        self::assertSame([0.0, 0.002, -0.008], MetricChartScale::axis(MetricValueType::Fraction, null, [-0.0077, -0.003]));
+        self::assertSame([0.0, 10.0, -40.0], MetricChartScale::axis(MetricValueType::Number, null, [-31.6, -12.0]));
+    }
+
+    public function test_a_formula_graph_of_zeros_still_gets_an_axis(): void
+    {
+        [$top, $step] = MetricChartScale::axis(MetricValueType::Number, null, [0.0, 0.0]);
+
+        self::assertGreaterThan(0.0, $top);
+        self::assertGreaterThan(0.0, $step);
     }
 
     public function test_the_largest_series_take_the_first_slots(): void

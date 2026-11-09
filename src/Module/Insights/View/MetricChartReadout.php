@@ -8,6 +8,7 @@ use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 
 /** The numbers a reader sees beside a plot: the table rows and the hover cards. Each text is formatted here. */
 final class MetricChartReadout
@@ -25,7 +26,7 @@ final class MetricChartReadout
      *
      * @return list<MetricChartTableRow>
      */
-    public static function tableRows(MetricShape $metric, MetricStatistic $statistic, array $series, array $chartSeries, MetricValueFormatter $formatter, bool $adds): array
+    public static function tableRows(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, array $series, array $chartSeries, MetricValueFormatter $formatter, bool $adds): array
     {
         $whole = 0.0;
         foreach ($series as $item) {
@@ -63,7 +64,7 @@ final class MetricChartReadout
         return $rows;
     }
 
-    private static function range(?Interval $range, MetricShape $metric, MetricStatistic $statistic, MetricValueFormatter $formatter): ?MetricChartRange
+    private static function range(?Interval $range, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricValueFormatter $formatter): ?MetricChartRange
     {
         if (null === $range) {
             return null;
@@ -83,7 +84,7 @@ final class MetricChartReadout
      *
      * @return list<MetricChartHoverTarget>
      */
-    public static function bucketTargets(MetricShape $metric, MetricStatistic $statistic, MetricChartTimeAxis $axis, array $series, array $chartSeries, MetricValueFormatter $formatter, bool $adds): array
+    public static function bucketTargets(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricChartTimeAxis $axis, array $series, array $chartSeries, MetricValueFormatter $formatter, bool $adds): array
     {
         $current = [];
         $previous = [];

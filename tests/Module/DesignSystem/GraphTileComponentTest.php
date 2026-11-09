@@ -26,6 +26,13 @@ final class GraphTileComponentTest extends KernelTestCase
         self::assertSame('Public', trim($tag->text()));
     }
 
+    public function test_a_tile_title_carries_its_full_name_as_hover_text(): void
+    {
+        $crawler = new Crawler($this->render('<twig:Ds:GraphTile name="A very long formula name, in full" settings="Cost" />'));
+
+        self::assertSame('A very long formula name, in full', $crawler->filter('h3[data-graph-title]')->attr('title'));
+    }
+
     public function test_a_tile_that_is_not_public_keeps_an_empty_hook_for_a_stream(): void
     {
         $crawler = new Crawler($this->render('<twig:Ds:GraphTile name="Cost" settings="Cost · Sum" />'));

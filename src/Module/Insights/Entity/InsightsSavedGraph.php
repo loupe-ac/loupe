@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Entity;
 
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
@@ -13,6 +14,7 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -26,6 +28,8 @@ class InsightsSavedGraph
     public const int MAX_NAME_LENGTH = 120;
 
     public const int MAX_METRIC_LENGTH = 140;
+
+    public const int MAX_FORMULA_LENGTH = 200;
 
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
@@ -80,6 +84,16 @@ class InsightsSavedGraph
 
         #[ORM\Column(name: 'removed_at', nullable: true)]
         public ?\DateTimeImmutable $removedAt = null,
+
+        /** The rows of a formula graph, such as `A:cache-read-tokens:sum,B:cache-write-tokens:sum`. Null on a one-metric graph. */
+        #[ORM\Column(name: 'formula_rows', type: Types::TEXT, nullable: true)]
+        public ?string $formulaRows = null,
+
+        #[ORM\Column(name: 'formula', length: self::MAX_FORMULA_LENGTH, nullable: true)]
+        public ?string $formula = null,
+
+        #[ORM\Column(name: 'format', length: 16, nullable: true)]
+        public ?string $format = null,
     ) {
     }
 
@@ -97,10 +111,23 @@ class InsightsSavedGraph
         return $this->removedAt?->sub(\DateInterval::createFromDateString(self::UNDO_WINDOW));
     }
 
-    /** @return array<string, string> the Metrics controls of the graph, by name */
+    /** @return non-empty-list<string> the metric of a one-metric graph, or the metric of each row of a formula graph */
+    public function metricKeys(): array
+    {
+        $keys = null === $this->formulaRows ? [] : array_column(MetricFormula::rowParts($this->formulaRows), 'metric');
+
+        return [] === $keys ? [$this->metric] : $keys;
+    }
+
+    /**
+     * The `metric` and `statistic` of a formula graph hold its earliest row. The keys rows, formula and format
+     * appear only on a formula graph, so the settings of a one-metric graph do not change.
+     *
+     * @return array<string, string> the Metrics controls of the graph, by name
+     */
     public function settings(): array
     {
-        return [
+        $settings = [
             'metric' => $this->metric,
             'unit' => $this->unit->value,
             'statistic' => $this->statistic->value,
@@ -110,5 +137,12 @@ class InsightsSavedGraph
             'compare' => $this->compare->value,
             'chart' => $this->chartType->value,
         ];
+        if (null !== $this->formulaRows) {
+            $settings['rows'] = $this->formulaRows;
+            $settings['formula'] = $this->formula ?? '';
+            $settings['format'] = $this->format ?? '';
+        }
+
+        return $settings;
     }
 }
