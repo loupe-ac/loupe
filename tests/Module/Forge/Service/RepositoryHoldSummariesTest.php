@@ -317,7 +317,7 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
      */
     private function item(array $gaps): array
     {
-        return ['key' => 'approval-gate', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []];
+        return ['key' => 'merge-method', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []];
     }
 
     /** @param list<string> $gaps */

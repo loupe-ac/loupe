@@ -250,7 +250,7 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
     {
         $checks = $this->service(ForgeRepositoryCheckRepository::class);
         $check = $checks->findOneOfRepository($repository) ?? throw new \LogicException('The repository has a check.');
-        $check->items = [['key' => 'approval-gate', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
+        $check->items = [['key' => 'merge-method', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
         $this->em->flush();
     }
 

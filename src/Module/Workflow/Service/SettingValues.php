@@ -15,20 +15,30 @@ final class SettingValues
     {
     }
 
-    public static function encode(string|bool $value): string
+    /** @param string|bool|list<string> $value */
+    public static function encode(string|bool|array $value): string
     {
         return json_encode($value, \JSON_THROW_ON_ERROR);
     }
 
-    /** The value of a column, or null when the column holds nothing the setting accepts. */
-    public static function decode(TemplateSetting $setting, ?string $stored): string|bool|null
+    /**
+     * The value of a column, or null when the column holds nothing the setting accepts.
+     *
+     * @return string|bool|list<string>|null
+     */
+    public static function decode(TemplateSetting $setting, ?string $stored): string|bool|array|null
     {
         if (null === $stored) {
             return null;
         }
         $value = json_decode($stored, true);
 
-        return (\is_string($value) || \is_bool($value)) && TemplateSettings::accepts($setting, $value) ? $value : null;
+        if (!(\is_string($value) || \is_bool($value) || \is_array($value)) || !TemplateSettings::accepts($setting, $value)) {
+            return null;
+        }
+
+        /* @var bool|list<string>|string $value accepts() proved the shape */
+        return $value;
     }
 
     public static function unknownKey(string $key): string
@@ -46,6 +56,7 @@ final class SettingValues
         return match ($setting->type) {
             SettingType::Boolean => 'Allowed values: true, false.',
             SettingType::Choice => 'Allowed values: '.implode(', ', $setting->values).'.',
+            SettingType::StringList => 'Allowed value: a list of names that are not empty.',
             SettingType::Text => TemplateSetting::FORMAT_EPIC_BRANCH === $setting->format
                 ? 'Allowed value: a branch name that holds {number} once.'
                 : 'Allowed value: a text that is not empty.',

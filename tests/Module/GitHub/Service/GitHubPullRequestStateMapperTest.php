@@ -169,6 +169,120 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame(PullRequestChecks::Passed === $expected ? self::HEAD : null, $snapshot->checksSha);
     }
 
+    /** @return iterable<string, array{list<array<string, mixed>>, PullRequestChecks, list<string>}> */
+    public static function fallbackHeads(): iterable
+    {
+        yield 'a red check fails' => [[self::checkRun('lint', 'COMPLETED', 'SUCCESS', false), self::checkRun('tests', 'COMPLETED', 'FAILURE', false)], PullRequestChecks::Failed, ['tests']];
+        yield 'a running check waits' => [[self::checkRun('lint', 'IN_PROGRESS', null, false)], PullRequestChecks::Pending, []];
+        yield 'green checks pass' => [[self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)], PullRequestChecks::Passed, []];
+        yield 'a red Loupe check never counts' => [[self::checkRun('Loupe / Agent review', 'COMPLETED', 'FAILURE', false), self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)], PullRequestChecks::Passed, []];
+        yield 'a running Loupe check never waits' => [[self::checkRun('Loupe / Agent review', 'IN_PROGRESS', null, false)], PullRequestChecks::Passed, []];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $contexts
+     * @param list<string>               $failed
+     */
+    #[DataProvider('fallbackHeads')]
+    public function test_a_refused_repository_with_no_list_waits_for_every_check_that_loupe_does_not_post(array $contexts, PullRequestChecks $expected, array $failed): void
+    {
+        $node = self::withContexts(self::pullRequest604(), $contexts);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        $snapshot = self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0);
+
+        self::assertSame($expected, $snapshot->checks);
+        self::assertSame($failed, $snapshot->failedChecks);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $contexts
+     * @param list<string>               $failed
+     */
+    #[DataProvider('fallbackHeads')]
+    public function test_a_repository_whose_rules_require_only_the_approval_check_waits_for_every_other_check(array $contexts, PullRequestChecks $expected, array $failed): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [...$contexts, self::checkRun(ForgePullRequest::APPROVAL_CHECK_NAME, 'IN_PROGRESS', null)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        $snapshot = self::mapper()->map($node, new GitHubBranchRules([ForgePullRequest::APPROVAL_CHECK_NAME], false), 0);
+
+        self::assertSame($expected, $snapshot->checks);
+        self::assertSame($failed, $snapshot->failedChecks);
+    }
+
+    public function test_a_blocked_merge_with_only_green_checks_still_waits_on_the_fallback(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)]);
+        $node['mergeStateStatus'] = 'BLOCKED';
+
+        self::assertSame(PullRequestChecks::Pending, self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0)->checks);
+    }
+
+    public function test_a_blocked_merge_with_a_red_check_fails_on_the_fallback_so_a_fix_round_starts(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('tests', 'COMPLETED', 'FAILURE', false)]);
+        $node['mergeStateStatus'] = 'BLOCKED';
+
+        $snapshot = self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0);
+
+        self::assertSame(PullRequestChecks::Failed, $snapshot->checks);
+        self::assertSame(['tests'], $snapshot->failedChecks);
+    }
+
+    public function test_a_refused_repository_with_a_list_waits_for_that_list_only(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', false), self::checkRun('optional', 'COMPLETED', 'FAILURE', false)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        self::assertSame(PullRequestChecks::Passed, self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0, ['lint'])->checks);
+    }
+
+    public function test_a_listed_check_that_never_reported_keeps_the_pull_request_pending_and_is_named(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        $snapshot = self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0, ['lint', 'tests', 'build']);
+
+        self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
+        self::assertSame(['build', 'tests'], $snapshot->missingChecks);
+    }
+
+    public function test_a_required_check_of_github_that_never_reported_is_named_too(): void
+    {
+        $snapshot = self::mapper()->map(self::withContexts(self::pullRequest604(), []), new GitHubBranchRules(['lint'], false), 0);
+
+        self::assertSame(['lint'], $snapshot->missingChecks);
+    }
+
+    public function test_an_empty_list_on_a_refused_repository_means_no_ci_gate(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('tests', 'COMPLETED', 'FAILURE', false)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        $snapshot = self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0, []);
+
+        self::assertSame(PullRequestChecks::Passed, $snapshot->checks);
+        self::assertSame([], $snapshot->failedChecks);
+    }
+
+    public function test_a_repository_that_can_have_rulesets_ignores_the_list(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        self::assertSame(PullRequestChecks::Passed, self::mapper()->map($node, new GitHubBranchRules(['lint'], false), 0, ['nope'])->checks);
+    }
+
+    public function test_a_repository_with_no_readable_rules_waits_for_every_check_and_ignores_the_list(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('tests', 'COMPLETED', 'FAILURE', false)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        self::assertSame(PullRequestChecks::Failed, self::mapper()->map($node, null, 0, [])->checks);
+    }
+
     /** @return iterable<string, array{GitHubBranchRules, list<array<string, mixed>>}> */
     public static function approvalOnlyRequiredSets(): iterable
     {

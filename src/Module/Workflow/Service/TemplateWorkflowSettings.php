@@ -100,7 +100,11 @@ final readonly class TemplateWorkflowSettings implements WorkflowSettings
         if (\count($distinct) > 1) {
             $lines = [];
             foreach ($byPath as $path => $value) {
-                $lines[] = \sprintf('%s sets %s', $path, \is_bool($value) ? ($value ? 'true' : 'false') : $value);
+                $lines[] = \sprintf('%s sets %s', $path, match (true) {
+                    \is_bool($value) => $value ? 'true' : 'false',
+                    \is_array($value) => implode(', ', $value),
+                    default => $value,
+                });
             }
             $warnings[] = \sprintf('The setting "%s" has different values in the repositories of the project (%s). Loupe uses the value of the project.', $key, implode('; ', $lines));
         }

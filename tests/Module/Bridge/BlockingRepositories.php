@@ -15,13 +15,13 @@ trait BlockingRepositories
     private int $repositorySequence = 0;
 
     /** @param list<string> $gaps */
-    private function repositoryWithGaps(Project $project, array $gaps = ['no_pull_request_rule']): ForgeRepository
+    private function repositoryWithGaps(Project $project, array $gaps = ['no_merge_method']): ForgeRepository
     {
         $em = $this->em();
         $repository = new ForgeRepository($project, 'github', 'ext-'.++$this->repositorySequence.uniqid(), 'acme/repo-'.$this->repositorySequence, ForgeRepositorySource::Hook);
         $em->persist($repository);
         $check = new ForgeRepositoryCheck($repository, $project);
-        $check->items = [['key' => 'approval-gate', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
+        $check->items = [['key' => 'merge-method', 'mark' => 'blocking', 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
         $em->persist($check);
         $em->flush();
 

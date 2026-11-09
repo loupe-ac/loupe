@@ -8,6 +8,7 @@ settings:
     - { key: epic-branches, type: bool, scope: project, default: true }
     - { key: epic-branch-pattern, type: string, scope: project, default: 'epic/{number}', format: epic-branch }
     - { key: epic-child-merge-method, type: enum, scope: repository, values: [squash, merge, rebase], default: squash }
+    - { key: required-checks, type: list, scope: repository }
 requirements:
     - A pull request opens as a draft
     - An agent never merges its own pull request
@@ -49,7 +50,7 @@ metrics:
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
 repositorySettings:
-    - { key: approval-gate, mark: blocking }
+    - { key: approval-gate, mark: warning }
     - { key: ci-checks, mark: warning }
     - { key: branch-protection, mark: warning }
     - { key: merge-method, mark: blocking }
@@ -835,7 +836,7 @@ rules:
               methods: [squash, merge, rebase]
               fallback: merge
               checks:
-                  - "Conflict check: branch rules. When GitHub can enforce rules on the base branch, through rulesets or classic branch protection, they require the check Loupe / Approval from the Loupe App, and they forbid force pushes and deletion. A required approving review is allowed: the report then says that a person approves each pull request on GitHub before Loupe merges it. When the repository has CI, the rules require one of its checks. When GitHub can enforce no rules, the check passes, and the report says that only Loupe enforces the agent review, and what makes rulesets available. The finding says who approves a merge on the repository and what enforces it. Each setting that fails is an action for the owner, and the action names the change"
+                  - "Conflict check: branch rules. A ruleset is a suggestion: a missing ruleset never pauses work, and Loupe holds its own merges for the approval and for CI. When GitHub can enforce rules on the base branch, through rulesets or classic branch protection, the report suggests a ruleset that requires the check Loupe / Approval from the Loupe App, and forbids force pushes and deletion, and it says that without such a ruleset Loupe cannot stop a person who merges on GitHub or pushes to the base branch. A required approving review is allowed: the report then says that a person approves each pull request on GitHub before Loupe merges it. When GitHub can enforce no rules, the check passes, and the report says that only Loupe enforces the agent review, and what makes rulesets available. When the repository has CI and GitHub can enforce no rules, the report proposes a required-checks list in the workflow map of .loupe.yaml, built from the checks of the CI configuration, for the owner to approve. Each setting that fails is an action for the owner, and the action names the change"
                   - "Conflict check: merge method. The repository and the rules of the base branch allow squash, merge or rebase"
                   - "Conflict check: merge queue. No merge queue holds a merge that this rule or the merge stage expects to finish at once"
 

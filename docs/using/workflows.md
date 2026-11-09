@@ -748,7 +748,12 @@ project: 01a007cc-5419-7085-a0a2-23a0875be12c
 workflow:
   merge-approval: agent
   epic-child-merge-method: squash
+  required-checks:
+    - lint
+    - tests
 ```
+
+`required-checks` is a list of check names, and it applies only to a repository where GitHub refuses rulesets. An empty list, `[]`, means no CI gate, and an absent key means Loupe waits for every check on the head. An invalid value counts as an absent key, and the repository check shows a warning.
 
 Loupe reads the file on each push to the default branch, and when a repository is claimed. It reads the file only when `project` is the id of the project that owns the repository. A file larger than 64 KiB counts as no file. A key that Loupe does not know shows a warning on the repository check.
 
@@ -1408,9 +1413,9 @@ of a new commit opens no item. When `Loupe / Approval` passed and GitHub still b
 The Repositories tab of the project settings lists the settings of each repository that do not fit.
 GitHub rules decide who approves a merge. They can come from rulesets or from classic branch protection. When they
 require approving reviews, the `merge-ready` rule waits until a person gives them on GitHub (`pr.review_required`).
-When GitHub enforces no rules, Loupe merges when the agent review passes. Then only Loupe enforces the agent review,
-and anybody with write access can still merge on GitHub. Rulesets on a private repository need a paid GitHub plan.
-The steps below set up the ruleset.
+When GitHub enforces no rules, Loupe merges when the agent review passes and the checks of [What Loupe waits for](#what-loupe-waits-for) pass.
+Then only Loupe enforces the gate, and anybody with write access can still merge on GitHub. Rulesets on a private repository need a paid GitHub plan.
+A ruleset is a suggestion. A missing ruleset never pauses work. The steps below set up the ruleset.
 
 #### Set up the ruleset
 
@@ -1431,6 +1436,23 @@ after a change. The same steps by hand:
 A project that updates to this version gets the new rules in its template copy. A ruleset that requires an approving
 review no longer makes Loupe try a merge that GitHub refuses. The card waits for the approval instead.
 
+#### What Loupe waits for
+
+Loupe waits for these checks before it merges:
+
+| Repository | Loupe waits for |
+|---|---|
+| Can have rulesets, and they require checks | The required checks of GitHub only |
+| Can have rulesets, and none require checks | Every check on the head that Loupe did not post, and the Repositories tab suggests a ruleset |
+| GitHub refuses rulesets, `required-checks` set | That list. An empty list means no CI gate |
+| GitHub refuses rulesets, no `required-checks` | Every check on the head that Loupe did not post |
+
+A repository that can have rulesets and sets `required-checks` gets a warning that says to move the list to a ruleset. Loupe ignores the value there.
+A check whose name starts with `Loupe / ` never counts in this table. A required check that never reported keeps the pull request pending, and the `waiting-on-checks` marker names it.
+A missing ruleset never pauses work. A ruleset still adds what Loupe cannot do: Loupe cannot stop a person who merges on GitHub or pushes to the default branch.
+
+The Repositories tab warns when a required check did not run on recent pull requests, and names the source of the list. It also warns when recent pull requests run a check that the list omits. These lines never pause work. Loupe compares the list with the 10 most recently updated pull requests of the default branch, and skips this comparison while it has seen no recent checks.
+
 #### Required checks in the merge stage
 
 The merge stage of the Lifecycle plugin reads the required checks of the base branch from GitHub at merge time. It
@@ -1439,7 +1461,7 @@ which the approval step reads. No count is stored in the profile, so a change to
 merge with no edit in the repository.
 
 Each required name must have a passing check on the head commit. A required check that has not started yet counts as
-pending, so the merge waits for it. A branch with no required check passes this step.
+pending, so the merge waits for it. The table above says what the merge stage does when no check is required.
 
 An epic branch has no rules of its own. A child of an epic is checked against the required checks of the base branch
 of the repository, and it merges with the `epic-child-merge-method` setting. See

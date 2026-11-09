@@ -33,6 +33,16 @@ final class CardMarkerTextTest extends TestCase
         self::assertSame('marker.work_requested(-)', $this->text()->label($this->marker('marker.work_requested', [])));
     }
 
+    public function test_a_waiting_on_checks_marker_names_the_checks_that_never_reported(): void
+    {
+        self::assertSame('marker.waiting_on_checks.named(12,lint)', $this->text()->label($this->marker('marker.waiting_on_checks', ['%number%' => 12, '%checks%' => 'lint'])));
+    }
+
+    public function test_a_waiting_on_checks_marker_with_no_named_check_keeps_its_label(): void
+    {
+        self::assertSame('marker.waiting_on_checks(12)', $this->text()->label($this->marker('marker.waiting_on_checks', ['%number%' => 12])));
+    }
+
     public function test_a_usage_limit_marker_as_text_names_the_hard_limit_with_its_use_and_reads_the_reset_in_utc_whatever_the_server_zone(): void
     {
         $label = $this->inTimeZone('Europe/Paris', fn (): string => $this->text()->label($this->marker('marker.usage_limit', $this->usageParams('limit', 100))));

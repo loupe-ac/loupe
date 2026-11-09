@@ -17,18 +17,21 @@ final readonly class GitHubPullRequestStateMapper
 {
     private const array MERGEABLE_STATES = ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'];
 
+    private const string LOUPE_CHECK_PREFIX = 'Loupe / ';
+
     public function __construct(
         private GitHubAppConfiguration $app,
     ) {
     }
 
     /**
-     * @param array<mixed> $pullRequest
-     * @param ?int         $behindBy    the commits the head lacks from the base, or null when not compared
+     * @param array<mixed>  $pullRequest
+     * @param ?int          $behindBy       the commits the head lacks from the base, or null when not compared
+     * @param ?list<string> $requiredChecks the list of a repository whose plan refuses rulesets, null when it sets none, and an empty list when it wants no CI gate
      *
      * @throws PullRequestUnreadable
      */
-    public function map(array $pullRequest, ?GitHubBranchRules $rules, ?int $behindBy): PullRequestSnapshot
+    public function map(array $pullRequest, ?GitHubBranchRules $rules, ?int $behindBy, ?array $requiredChecks = null): PullRequestSnapshot
     {
         $state = match ($pullRequest['state'] ?? null) {
             'OPEN' => PullRequestState::Open,
@@ -47,7 +50,7 @@ final readonly class GitHubPullRequestStateMapper
         $mergeStateStatus = $pullRequest['mergeStateStatus'] ?? null;
         [$approvedAt, $approvalSha, $approvalId] = $this->approval($pullRequest);
         [$latestApprovedAt, $latestApprovalId, $latestApproverLogin] = $this->latestApproval($pullRequest);
-        [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
+        [$checks, $failedChecks, $missingChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus, $requiredChecks);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
             // GitHub answers UNKNOWN for a few seconds after the base moves, and only the retry of an unknown read learns of a conflict.
@@ -87,6 +90,7 @@ final readonly class GitHubPullRequestStateMapper
             closedAt: $this->time($pullRequest['closedAt'] ?? null),
             reviewFromRules: $this->reviewFromRules($pullRequest, $rules),
             behindBy: $behindBy,
+            missingChecks: $missingChecks,
         );
     }
 
@@ -306,15 +310,15 @@ final readonly class GitHubPullRequestStateMapper
     /**
      * The approval check of Loupe never counts, because the gate waits on it and it would wait on itself.
      * When it is required, it alone can explain a blocked merge, so a blocked merge proves no other check pending.
-     * A check is required when the ruleset names it or the head flags it. The
-     * ruleset finds a check that never ran, and the flag finds one that classic
-     * branch protection requires.
+     * A check is required when the ruleset names it or the head flags it. The ruleset finds a check that never ran, and the flag finds one that classic branch protection requires.
+     * With no CI check required, Loupe waits for every check of the head that it does not post, or for the list of a repository whose plan refuses rulesets.
      *
-     * @param array<mixed> $pullRequest
+     * @param array<mixed>  $pullRequest
+     * @param ?list<string> $requiredChecks
      *
-     * @return array{PullRequestChecks, list<string>}
+     * @return array{PullRequestChecks, list<string>, list<string>} the verdict, the failed names, and the names no head reported yet
      */
-    private function checks(array $pullRequest, ?GitHubBranchRules $rules, bool $blocked): array
+    private function checks(array $pullRequest, ?GitHubBranchRules $rules, bool $blocked, ?array $requiredChecks): array
     {
         $verdicts = [];
         $flags = [];
@@ -340,24 +344,48 @@ final readonly class GitHubPullRequestStateMapper
         }
 
         $flaggedRequired = array_keys(array_filter($flags, static fn (array $byType): bool => \in_array(true, $byType, true)));
-        $required = array_values(array_diff(array_unique([...$rules->requiredChecks ?? [], ...array_map(strval(...), $flaggedRequired)]), [ForgePullRequest::APPROVAL_CHECK_NAME]));
-        if ([] === $required) {
-            return [$blocked && !$approvalRequired ? PullRequestChecks::Pending : PullRequestChecks::Passed, []];
+        $forgeRequired = array_values(array_diff(array_unique([...$rules->requiredChecks ?? [], ...array_map(strval(...), $flaggedRequired)]), [ForgePullRequest::APPROVAL_CHECK_NAME]));
+        $names = $forgeRequired;
+        $listApplies = true === $rules?->refused && null !== $requiredChecks && [] !== $requiredChecks;
+        if (!array_any($forgeRequired, self::isForgeCi(...))) {
+            if ($listApplies) {
+                $names = [...$forgeRequired, ...$requiredChecks];
+            } elseif (true !== $rules?->refused || null === $requiredChecks) {
+                $names = [...$forgeRequired, ...array_filter(array_map(strval(...), array_keys($verdicts)), self::isForgeCi(...))];
+            }
         }
+        $names = array_values(array_diff(array_unique($names), [ForgePullRequest::APPROVAL_CHECK_NAME]));
+        $blockProvesPending = [] === $forgeRequired && !$listApplies;
 
         $failed = [];
-        foreach ($required as $name) {
-            $named = $verdicts[$name] ?? [PullRequestChecks::Pending];
-            if (\in_array(PullRequestChecks::Pending, $named, true)) {
-                return [PullRequestChecks::Pending, []];
-            }
-            if (\in_array(PullRequestChecks::Failed, $named, true)) {
+        $missing = [];
+        $pending = false;
+        foreach ($names as $name) {
+            $named = $verdicts[$name] ?? null;
+            if (null === $named) {
+                $missing[] = $name;
+                $pending = true;
+            } elseif (\in_array(PullRequestChecks::Pending, $named, true)) {
+                $pending = true;
+            } elseif (\in_array(PullRequestChecks::Failed, $named, true)) {
                 $failed[] = $name;
             }
         }
         sort($failed);
+        sort($missing);
+        if ($pending) {
+            return [PullRequestChecks::Pending, [], $missing];
+        }
+        if ([] !== $failed) {
+            return [PullRequestChecks::Failed, $failed, []];
+        }
 
-        return [[] === $failed ? PullRequestChecks::Passed : PullRequestChecks::Failed, $failed];
+        return [$blockProvesPending && $blocked && !$approvalRequired ? PullRequestChecks::Pending : PullRequestChecks::Passed, [], []];
+    }
+
+    private static function isForgeCi(string $name): bool
+    {
+        return !str_starts_with($name, self::LOUPE_CHECK_PREFIX);
     }
 
     /**

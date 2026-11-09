@@ -41,6 +41,11 @@ final class FakeRepositorySettingsReader implements RepositorySettingsReader
         return self::settings(true, true);
     }
 
+    public static function planRefused(): RepositorySettings
+    {
+        return new RepositorySettings('main', ['squash'], null, new RepositoryRules(false, false, null, [], [], false, false), [], [], false, 'Upgrade to GitHub Pro or make this repository public to enable this feature.');
+    }
+
     #[\Override]
     public function supports(string $forge): bool
     {

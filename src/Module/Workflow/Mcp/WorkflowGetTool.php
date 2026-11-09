@@ -36,7 +36,7 @@ final readonly class WorkflowGetTool
      *     approvalCoversConflictResolution: bool,
      *     epicBranch: string|null,
      *     requirements: list<string>,
-     *     settings: list<array{key: string, scope: string, repository: array{path: string, forge: string}|null, value: string|bool|null, source: string, warnings: list<string>}>,
+     *     settings: list<array{key: string, scope: string, repository: array{path: string, forge: string}|null, value: string|bool|list<string>|null, source: string, warnings: list<string>}>,
      *     githubAppId: string|null,
      *     columns: list<array{slug: string, label: string, slot: string|null, backlog: bool, terminal: bool}>,
      *     kinds: list<array{kind: string, origin: string, rules: list<string>, checks: list<string>}>,

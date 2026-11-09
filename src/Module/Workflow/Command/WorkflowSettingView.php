@@ -12,14 +12,15 @@ use App\Module\Workflow\Contract\SettingSource;
 final readonly class WorkflowSettingView
 {
     /**
-     * @param ?RepositoryRef $repository the repository of a repository setting, or null for a project setting
-     * @param list<string>   $warnings
+     * @param ?RepositoryRef                $repository the repository of a repository setting, or null for a project setting
+     * @param string|bool|list<string>|null $value
+     * @param list<string>                  $warnings
      */
     public function __construct(
         public string $key,
         public SettingScope $scope,
         public ?RepositoryRef $repository,
-        public string|bool|null $value,
+        public string|bool|array|null $value,
         public SettingSource $source,
         public array $warnings = [],
     ) {

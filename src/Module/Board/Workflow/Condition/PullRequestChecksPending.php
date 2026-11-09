@@ -60,7 +60,11 @@ final readonly class PullRequestChecksPending implements Condition, MarkerEviden
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest);
+        if (null === $pullRequest) {
+            return null;
+        }
+
+        return PullRequestEvidence::of($pullRequest, [] === $pullRequest->missingChecks ? [] : ['%checks%' => implode(', ', $pullRequest->missingChecks)]);
     }
 
     #[\Override]

@@ -80,7 +80,7 @@ final class ForgeRepositoryWorkHoldsTest extends KernelTestCase
         $repository = new ForgeRepository($project, 'github', 'ext-'.++$this->sequence, 'acme/repo-'.$this->sequence, ForgeRepositorySource::Hook);
         $this->em->persist($repository);
         $check = new ForgeRepositoryCheck($repository, $project);
-        $check->items = [['key' => 'approval-gate', 'mark' => $mark, 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
+        $check->items = [['key' => 'merge-method', 'mark' => $mark, 'state' => [] === $gaps ? 'fits' : 'gap', 'gaps' => $gaps, 'parameters' => []]];
         $this->em->persist($check);
         $this->em->flush();
 

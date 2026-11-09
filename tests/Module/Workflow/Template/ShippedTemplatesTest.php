@@ -138,11 +138,12 @@ final class ShippedTemplatesTest extends KernelTestCase
             new TemplateSetting('epic-child-merge-method', SettingType::Choice, SettingScope::Repository, ['squash', 'merge', 'rebase'], 'squash'),
         ];
         $lifecycle = $this->template('lifecycle');
-        self::assertEquals([new TemplateSetting('merge-approval', SettingType::Choice, SettingScope::Repository, ['agent', 'person']), ...$epic], $lifecycle->settings);
+        $requiredChecks = new TemplateSetting('required-checks', SettingType::StringList, SettingScope::Repository);
+        self::assertEquals([new TemplateSetting('merge-approval', SettingType::Choice, SettingScope::Repository, ['agent', 'person']), ...$epic, $requiredChecks], $lifecycle->settings);
         self::assertSame('epic/12', $lifecycle->epicBranchOf(12));
 
         $simple = $this->template('simple');
-        self::assertEquals($epic, $simple->settings);
+        self::assertEquals([...$epic, $requiredChecks], $simple->settings);
         self::assertSame('epic/12', $simple->epicBranchOf(12));
     }
 
@@ -161,7 +162,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     public function test_each_template_suggests_its_repository_settings(): void
     {
         self::assertEquals([
-            new RepositorySuggestion(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Warning),
             new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning),
             new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Warning),
             new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking),
