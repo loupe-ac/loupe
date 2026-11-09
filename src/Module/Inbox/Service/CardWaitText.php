@@ -293,7 +293,7 @@ final readonly class CardWaitText
         }
         $params['%reason%'] = rtrim($reason, '.');
 
-        $run = null === $pause ? null : $this->failedRun($wait, $pause);
+        $run = null === $pause ? null : $this->stoppedRun($wait, $pause);
         if (null === $run) {
             return [self::PAUSE_LABEL.'.reason', $params, null];
         }
@@ -303,10 +303,19 @@ final readonly class CardWaitText
         $params['%failure%'] = rtrim($failure, '.');
         $params['%state%'] = mb_strtolower($this->translator->trans($run->state->translationKey(), [], null, $this->locale));
         $href = $this->urls->generate('app_project_worker_runs', ['id' => $wait->watch->project->id, 'search' => $run->id?->toRfc4122()], UrlGeneratorInterface::ABSOLUTE_URL);
-        $link = \sprintf('[%s](%s)', $this->translator->trans('inbox.wait.pause_run_link', [], null, $this->locale), $href);
+        $unfinished = WorkerRunState::Unfinished === $run->state;
+        $link = \sprintf('[%s](%s)', $this->translator->trans($unfinished ? 'inbox.wait.pause_unfinished_run_link' : 'inbox.wait.pause_run_link', [], null, $this->locale), $href);
         $setup = SetupFailure::fromOutput($run->output) ?? $this->recoveredSetupFailure($wait, $run, $pause);
         if (null !== $setup) {
             $link = $this->setupText($setup)."\n\n".$link;
+        } else {
+            $said = self::runSaid($run);
+            if ('' !== $said && $said !== $failure) {
+                $link .= "\n\n".self::quote($said);
+            }
+        }
+        if ($unfinished) {
+            return [self::PAUSE_LABEL.'.reason', $params, $link];
         }
 
         return ['' === $failure ? self::PAUSE_LABEL.'.run_state' : self::PAUSE_LABEL.'.run', $params, $link];
@@ -410,8 +419,8 @@ final readonly class CardWaitText
         return implode("\n", array_map(static fn (string $line): string => rtrim('> '.$line), preg_split('/\R/u', $text) ?: [$text]));
     }
 
-    /** The run that ended last before the pause, when it failed, for a pause that a failure of work caused. */
-    private function failedRun(InboxCardWait $wait, CardPause $pause): ?WorkerRun
+    /** The run that ended last before the pause, when it failed or left its work unfinished, for a pause that a failure of work caused. */
+    private function stoppedRun(InboxCardWait $wait, CardPause $pause): ?WorkerRun
     {
         // A refused action, such as a move, also pauses with the kind retries, and no run caused it.
         if (!\in_array($pause->kind, [PauseKind::Retries, PauseKind::WorkStopped], true) || $this->pauseReasonText->forRefusal($pause->reason) !== $pause->reason) {
@@ -420,7 +429,7 @@ final readonly class CardWaitText
 
         $run = $this->workerRuns->findLatestEndedOfCard($wait->watch->project, $wait->watch->cardId, $pause->createdAt, $pause->ruleId);
 
-        return true === $run?->state->isFailure() ? $run : null;
+        return true === $run?->state->isFailure() || WorkerRunState::Unfinished === $run?->state ? $run : null;
     }
 
     /** The failed `before` command of the run before a failed recovery. The recovery carries the rule id of the run it recovers, with its own kind. */
