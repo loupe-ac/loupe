@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights;
 
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
@@ -88,6 +89,34 @@ trait InsightsScenario
         );
         $em->persist($graph);
         $em->flush();
+
+        return $graph;
+    }
+
+    /** A formula graph on the first row of its rows, as the handlers store it. */
+    private function seedFormulaGraph(Project $project, string $rows = 'A:cache-read-tokens:sum,B:cache-write-tokens:sum', string $formula = 'A / B', string $format = 'auto', string $name = 'Ratio', int $position = 0): InsightsSavedGraph
+    {
+        $first = MetricFormula::rowParts($rows)[0] ?? throw new \LogicException('A formula graph has a row.');
+        $graph = new InsightsSavedGraph(
+            $project,
+            $name,
+            $first['metric'],
+            MetricUnit::Card,
+            MetricStatistic::from($first['statistic']),
+            MetricGroup::None,
+            MetricRange::ThirtyDays,
+            MetricBucket::Week,
+            MetricCompare::Off,
+            MetricChartType::Line,
+            SavedGraphWidth::Half,
+            true,
+            $position,
+            formulaRows: $rows,
+            formula: $formula,
+            format: $format,
+        );
+        $this->em()->persist($graph);
+        $this->em()->flush();
 
         return $graph;
     }

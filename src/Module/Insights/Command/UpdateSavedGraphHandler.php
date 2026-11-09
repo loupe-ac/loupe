@@ -55,6 +55,9 @@ final readonly class UpdateSavedGraphHandler
             $graph->bucket = $query->bucket;
             $graph->compare = $query->compare;
             $graph->chartType = $query->chart;
+            $graph->formulaRows = $query->formula?->rowsText();
+            $graph->formula = $query->formula?->formula;
+            $graph->format = $query->formula?->format->value;
             $settingsChanged = $before !== InsightsKeptResult::hashOf($graph);
             if ('' !== trim($command->name ?? '')) {
                 $graph->name = $this->settings->name($command->name, $query);

@@ -7,6 +7,7 @@ namespace App\Module\Insights\Twig;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\ShareGraphRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
+use App\Module\Insights\Service\SavedGraphStatisticText;
 use App\Module\Insights\View\DashboardGraphFormViews;
 use App\Module\Insights\View\PublicLinkShareView;
 use Symfony\Component\Form\FormView;
@@ -18,6 +19,7 @@ final class DashboardGraphFormsExtension extends AbstractExtension
 {
     public function __construct(
         private readonly DashboardGraphForms $forms,
+        private readonly SavedGraphStatisticText $statistics,
     ) {
     }
 
@@ -27,6 +29,7 @@ final class DashboardGraphFormsExtension extends AbstractExtension
         return [
             new TwigFunction('dashboard_graph_forms', $this->graphForms(...)),
             new TwigFunction('dashboard_graph_share_form', $this->shareForm(...)),
+            new TwigFunction('saved_graph_statistic', $this->statistics->of(...)),
         ];
     }
 

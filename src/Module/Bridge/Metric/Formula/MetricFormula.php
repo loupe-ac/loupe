@@ -88,6 +88,32 @@ final readonly class MetricFormula
         return self::shared(array_map(static fn (FormulaRow $row): array => $row->shape->groups(), $this->rows));
     }
 
+    /**
+     * The items of a rows text split at the first and the last colon, with no check of the values. A reader that
+     * must tell a missing metric from a bad text uses this, because parse() gives no rows when one row fails.
+     * An item with fewer than two colons is left out.
+     *
+     * @return list<array{letter: string, metric: string, statistic: string}>
+     */
+    public static function rowParts(string $rows): array
+    {
+        $parts = [];
+        foreach (explode(',', $rows) as $item) {
+            $item = trim($item);
+            $first = strpos($item, ':');
+            $last = strrpos($item, ':');
+            if (false !== $first && $first !== $last) {
+                $parts[] = [
+                    'letter' => substr($item, 0, $first),
+                    'metric' => substr($item, $first + 1, $last - $first - 1),
+                    'statistic' => substr($item, $last + 1),
+                ];
+            }
+        }
+
+        return $parts;
+    }
+
     public function rowsText(): string
     {
         return implode(',', array_map(static fn (FormulaRow $row): string => $row->text(), $this->rows));

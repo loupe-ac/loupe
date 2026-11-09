@@ -223,6 +223,18 @@ final readonly class MetricQueryTool
             throw new ToolCallException('Pass metric and statistic, or rows and formula, and not both.');
         }
 
+        return MetricFormula::parse(self::rowsText($rows), $formula, $format, $templates);
+    }
+
+    /**
+     * The rows text of the rows argument, such as `A:cache-read-tokens:sum,B:cache-write-tokens:sum`.
+     *
+     * @param array<mixed> $rows
+     *
+     * @throws ToolCallException when a row is no object of three strings with no comma
+     */
+    public static function rowsText(array $rows): string
+    {
         $items = [];
         foreach ($rows as $row) {
             $letter = \is_array($row) ? $row['letter'] ?? null : null;
@@ -234,15 +246,14 @@ final readonly class MetricQueryTool
             $items[] = $letter.':'.$key.':'.$rowStatistic;
         }
 
-        return MetricFormula::parse(implode(',', $items), $formula, $format, $templates);
+        return implode(',', $items);
     }
 
     private function problemText(MetricFormula $formula): string
     {
         $problem = $formula->problem ?? throw new \LogicException('A formula with no row has a problem.');
-        $text = $this->translator->trans($problem->key, $problem->parameters, 'messages', 'en');
 
-        return $problem->position > 0 ? \sprintf('%s At character %d.', $text, $problem->position) : $text;
+        return $problem->english($this->translator);
     }
 
     private static function parseMetric(string $value, TemplateMetricSet $templates): MetricShape

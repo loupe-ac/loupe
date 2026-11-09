@@ -8,6 +8,7 @@ use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 
 /** Builds the layout that the Ds:Chart component draws for a chart type. */
 final class MetricChartLayouts
@@ -17,7 +18,7 @@ final class MetricChartLayouts
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricChartType $type, MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): LineLayout|BarLayout|DonutLayout|NumberLayout|null
+    public static function build(MetricChartType $type, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): LineLayout|BarLayout|DonutLayout|NumberLayout|null
     {
         if ([] === array_filter($series, static fn (MetricSeries $line): bool => [] !== $line->rows)) {
             return null;

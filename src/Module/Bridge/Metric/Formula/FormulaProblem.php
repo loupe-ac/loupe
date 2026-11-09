@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Metric\Formula;
 
+use Symfony\Contracts\Translation\TranslatorInterface;
+
 /**
  * Why a formula or its rows cannot be read: a translation key, the 1-based character where the mistake
  * starts (0 when it has no place in the formula text), and the values the message names.
@@ -34,5 +36,13 @@ final readonly class FormulaProblem
         public int $position = 0,
         public array $parameters = [],
     ) {
+    }
+
+    /** The message in English for an agent, with the character where the mistake starts when it has a place. */
+    public function english(TranslatorInterface $translator): string
+    {
+        $text = $translator->trans($this->key, $this->parameters, 'messages', 'en');
+
+        return $this->position > 0 ? \sprintf('%s At character %d.', $text, $this->position) : $text;
     }
 }

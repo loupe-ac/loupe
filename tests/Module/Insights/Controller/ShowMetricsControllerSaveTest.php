@@ -41,7 +41,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('post', $form->attr('method'));
         self::assertSame('/projects/'.$projectId.'/analytics/metrics/graphs', $form->attr('action'));
         self::assertSame(
-            ['metric' => 'cost', 'unit' => 'run', 'statistic' => 'sum', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line'],
+            ['metric' => 'cost', 'unit' => 'run', 'statistic' => 'sum', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line', 'rows' => '', 'formula' => '', 'format' => ''],
             self::hidden($form),
         );
         self::assertNotSame('', (string) $form->filter('input[name="saved_graph_form[_token]"]')->attr('value'));
@@ -54,6 +54,65 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertCount(0, $form->filter('[data-save-cap]'));
         self::assertCount(0, $crawler->filter('[data-edit-banner]'));
         self::assertCount(0, $crawler->filter('[data-leave-guard-dirty-value]'));
+    }
+
+    private const string FORMULA_QUERY = '?unit=run&range=all&bucket=month&rows=A:cost:sum,B:cost:count&formula=A / B';
+
+    public function test_a_formula_page_draws_the_formula_and_offers_to_save_it(): void
+    {
+        $client = static::createClient();
+        $project = $this->projectWithRun('formula-page');
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->path($projectId).self::FORMULA_QUERY);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Cost / Cost (count) per run, all time, per month', trim($crawler->filter('[data-metrics-title]')->text()));
+        self::assertCount(0, $crawler->filter('[data-metrics-note="formula-problem"]'));
+        $hidden = self::hidden($crawler->filter('form[data-save-graph]'));
+        self::assertSame(['rows' => 'A:cost:sum,B:cost:count', 'formula' => 'A / B', 'format' => 'auto'], array_intersect_key($hidden, array_flip(['rows', 'formula', 'format'])));
+        $controls = $crawler->filter('form[data-metrics-form] input[type="hidden"]');
+        self::assertSame(['rows', 'formula'], $controls->each(static fn (Crawler $input): string => (string) $input->attr('name')));
+    }
+
+    public function test_a_formula_with_a_problem_draws_nothing_and_shows_the_problem(): void
+    {
+        $client = static::createClient();
+        $project = $this->projectWithRun('formula-problem');
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->path($projectId).'?unit=run&rows=A:cost:sum,B:cost:count&formula='.rawurlencode('A / (B'));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('A parenthesis is not closed.', trim($crawler->filter('[data-metrics-note="formula-problem"]')->text()));
+        self::assertCount(0, $crawler->filter('[data-metrics-graph], #metrics-graph'));
+        self::assertCount(0, $crawler->filter('[data-metrics-empty]'));
+    }
+
+    public function test_a_saved_formula_graph_opens_with_its_formula(): void
+    {
+        $client = static::createClient();
+        $project = $this->projectWithRun('formula-saved');
+        $graph = $this->seedFormulaGraph($project, 'A:cost:sum,B:cost:count', 'A / B', 'number', 'Cost per run');
+        $graph->unit = MetricUnit::Run;
+        $graph->range = MetricRange::All;
+        $this->em()->flush();
+        $projectId = (string) $project->id;
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(Request::METHOD_GET, $this->path($projectId).'?graph='.$graphId);
+
+        self::assertResponseIsSuccessful();
+        $hidden = self::hidden($crawler->filter('form[data-save-graph]'));
+        self::assertSame('A:cost:sum,B:cost:count', $hidden['rows']);
+        self::assertSame('number', $hidden['format']);
+        self::assertSame('false', $crawler->filter('[data-leave-guard-dirty-value]')->attr('data-leave-guard-dirty-value'));
     }
 
     public function test_a_page_with_nothing_to_draw_offers_no_save(): void

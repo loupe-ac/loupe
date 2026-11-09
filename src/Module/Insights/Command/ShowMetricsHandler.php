@@ -26,7 +26,7 @@ final readonly class ShowMetricsHandler
         $lines = \count($kept->series);
         $locks = [];
         foreach (MetricChartType::cases() as $type) {
-            $locks[$type->value] = MetricChartRules::lock($type, $query->metric, $query->statistic, $lines);
+            $locks[$type->value] = MetricChartRules::lock($type, $query->chartMetric(), $query->chartStatistic(), $lines);
         }
 
         return new ShowMetricsView($command->project, $metrics, $built->title, $built->chart, $locks, $built->layout, $built->labels, $kept->series);

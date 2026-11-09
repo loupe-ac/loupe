@@ -19,7 +19,7 @@
         @apply m-0 truncate text-sm font-semibold text-ink;
     }
     .lp-graph-tile__settings {
-        @apply m-0 mt-0.5 text-xs text-fg-dim;
+        @apply m-0 mt-0.5 truncate text-xs text-fg-dim;
     }
     .lp-graph-tile__public:not(:empty) {
         @apply ms-2;

@@ -40,25 +40,29 @@ final readonly class SavedGraphHealth
         $eventKinds = null;
         $broken = [];
         foreach ($graphs as $graph) {
-            $key = MetricKey::tryParse($graph->metric, $templates);
-            if (null === $key) {
-                $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::TemplateMetric, $graph->metric);
-                continue;
-            }
-            $name = $key->name;
-            if (null === $name) {
-                continue;
-            }
-            if (Metric::HarnessEvents === $key->metric) {
-                $eventKinds ??= $this->workerRuns->findHarnessEventKindsOfProject($project);
-                if (!\in_array($name, $eventKinds, true)) {
-                    $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::HarnessEvent, $name);
+            foreach ($graph->metricKeys() as $metricKey) {
+                $key = MetricKey::tryParse($metricKey, $templates);
+                if (null === $key) {
+                    $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::TemplateMetric, $metricKey);
+                    break;
                 }
-                continue;
-            }
-            $buckets ??= array_map(static fn (InsightsBucketRule $rule): string => $rule->bucket, $this->insightsBucketRules->findOrdered($project));
-            if (!\in_array($name, $buckets, true)) {
-                $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::Bucket, $name);
+                $name = $key->name;
+                if (null === $name) {
+                    continue;
+                }
+                if (Metric::HarnessEvents === $key->metric) {
+                    $eventKinds ??= $this->workerRuns->findHarnessEventKindsOfProject($project);
+                    if (!\in_array($name, $eventKinds, true)) {
+                        $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::HarnessEvent, $name);
+                        break;
+                    }
+                    continue;
+                }
+                $buckets ??= array_map(static fn (InsightsBucketRule $rule): string => $rule->bucket, $this->insightsBucketRules->findOrdered($project));
+                if (!\in_array($name, $buckets, true)) {
+                    $broken[(string) $graph->id] = new BrokenGraph(BrokenGraphReason::Bucket, $name);
+                    break;
+                }
             }
         }
 

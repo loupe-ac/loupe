@@ -7,6 +7,7 @@ namespace App\Module\Insights\View;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 
 /** The statistic over the whole range as a figure for each series, with its change when the graph compares. It has no plot. */
 final readonly class NumberLayout
@@ -16,8 +17,8 @@ final readonly class NumberLayout
      * @param list<MetricChartTableRow> $figures in series order
      */
     public function __construct(
-        public MetricShape $metric,
-        public MetricStatistic $statistic,
+        public MetricShape|MetricValueType $metric,
+        public ?MetricStatistic $statistic,
         public array $series,
         public array $figures,
         public ChartBox $box = new ChartBox(),
@@ -29,7 +30,7 @@ final readonly class NumberLayout
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ChartBox $box = new ChartBox()): ?self
+    public static function build(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ChartBox $box = new ChartBox()): ?self
     {
         if ([] === $series) {
             return null;

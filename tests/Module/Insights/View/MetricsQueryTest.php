@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\View;
 
+use App\Module\Bridge\Metric\Formula\FormulaFormat;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
@@ -13,6 +14,7 @@ use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Workflow\Contract\TemplateMetricSet;
@@ -229,6 +231,106 @@ final class MetricsQueryTest extends TestCase
                 }
             }
         }
+    }
+
+    private const string CACHE_ROWS = 'A:cache-read-tokens:sum,B:cache-write-tokens:sum';
+
+    public function test_a_formula_round_trips_through_the_route_params_and_keeps_the_earliest_row_in_metric_and_statistic(): void
+    {
+        $params = ['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'number'];
+        $query = self::from($params + ['unit' => 'run']);
+
+        self::assertNotNull($query->formula);
+        self::assertNull($query->formula->problem);
+        self::assertSame('cache-read-tokens', $query->metric->key->key());
+        self::assertSame(MetricStatistic::Sum, $query->statistic);
+        self::assertSame(['unit' => 'run'] + $params, $query->routeParams());
+        self::assertSame(MetricValueType::Number, $query->chartMetric());
+        self::assertNull($query->chartStatistic());
+    }
+
+    public function test_the_default_format_stays_out_of_the_route_params(): void
+    {
+        $query = self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / B']);
+
+        self::assertSame(['rows' => self::CACHE_ROWS, 'formula' => 'A / B'], $query->routeParams());
+        self::assertSame(FormulaFormat::Auto, $query->formula?->format);
+    }
+
+    public function test_a_one_metric_query_has_no_formula_and_draws_its_metric_and_statistic(): void
+    {
+        $query = self::from(['metric' => 'duration', 'statistic' => 'p90']);
+
+        self::assertNull($query->formula);
+        self::assertSame($query->metric, $query->chartMetric());
+        self::assertSame(MetricStatistic::P90, $query->chartStatistic());
+    }
+
+    public function test_a_formula_ignores_the_metric_and_statistic_of_the_url(): void
+    {
+        $query = self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'metric' => 'duration', 'statistic' => 'p90']);
+
+        self::assertSame('cache-read-tokens', $query->metric->key->key());
+        self::assertSame(MetricStatistic::Sum, $query->statistic);
+        self::assertArrayNotHasKey('metric', $query->routeParams());
+        self::assertArrayNotHasKey('statistic', $query->routeParams());
+    }
+
+    public function test_a_unit_or_group_that_a_row_does_not_allow_falls_back(): void
+    {
+        $wakes = self::from(['rows' => 'A:wakes:sum,B:cost:sum', 'formula' => 'A / B', 'group' => 'wake-cache']);
+        self::assertSame(MetricGroup::None, $wakes->group);
+
+        $query = self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'unit' => 'reading', 'group' => 'model']);
+        self::assertSame($query->formula?->units()[0], $query->unit);
+        self::assertNotSame(MetricUnit::Reading, $query->unit);
+        self::assertSame(MetricGroup::Model, $query->group);
+    }
+
+    public function test_a_formula_with_a_problem_is_kept_with_its_problem_and_draws_the_metric_of_its_first_row(): void
+    {
+        $query = self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / (B']);
+
+        self::assertNotNull($query->formula?->problem);
+        self::assertSame('cache-read-tokens', $query->metric->key->key());
+        self::assertSame($query->metric, $query->chartMetric());
+
+        $noRows = self::from(['formula' => 'A / B']);
+        self::assertNotNull($noRows->formula?->problem);
+        self::assertSame('cost', $noRows->metric->key->key());
+        self::assertSame(MetricUnit::Card, $noRows->unit);
+    }
+
+    public function test_an_unknown_format_is_a_problem(): void
+    {
+        self::assertNotNull(self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'pie'])->formula?->problem);
+    }
+
+    public function test_a_payload_serialized_before_the_formula_existed_unserializes_with_no_formula(): void
+    {
+        $query = self::from(['metric' => 'duration', 'unit' => 'run', 'statistic' => 'p90', 'group' => 'model', 'compare' => 'previous', 'chart' => 'bars']);
+        // The old class had no formula property, so its payload holds one property less.
+        $old = preg_replace('/s:7:"formula";N;/', '', serialize($query), -1, $removed);
+        self::assertSame(1, $removed);
+        $old = preg_replace('/^(O:\d+:"[^"]+":)9:/', '${1}8:', (string) $old, -1, $counted);
+        self::assertSame(1, $counted);
+
+        $restored = unserialize((string) $old);
+
+        self::assertInstanceOf(MetricsQuery::class, $restored);
+        self::assertNull($restored->formula);
+        self::assertEquals($query, $restored);
+    }
+
+    public function test_a_query_with_a_formula_survives_a_round_trip_through_serialize(): void
+    {
+        $query = self::from(['rows' => self::CACHE_ROWS, 'formula' => 'A / B', 'format' => 'percent']);
+
+        $restored = unserialize(serialize($query));
+
+        self::assertEquals($query, $restored);
+        self::assertInstanceOf(MetricsQuery::class, $restored);
+        self::assertSame($query->routeParams(), $restored->routeParams());
     }
 
     /** @param array<string, string> $values */

@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
 use App\Module\Bridge\Entity\WorkerRunToolCall;
 use App\Module\Bridge\Entity\WorkerRunUsage;
+use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
@@ -82,6 +83,8 @@ final readonly class DevMetricsSeeder
     private const string BROKEN_GRAPH_SLUG = 'time-in-a-removed-bucket';
 
     private const string EMPTY_GRAPH_SLUG = 'account-usage-without-readings';
+
+    private const string FORMULA_GRAPH_SLUG = 'cache-reads-per-cache-write';
 
     /** The graph that keeps no result, so the Dashboard draws it as a tile that waits for the worker. */
     public const string WAITING_GRAPH_SLUG = 'waiting-for-the-worker';
@@ -366,7 +369,7 @@ final readonly class DevMetricsSeeder
             [self::BROKEN_GRAPH_SLUG, 'Time in a removed bucket', 'bucket-time:removed-bucket', MetricUnit::Run, MetricStatistic::Sum, MetricGroup::None, MetricBucket::Week, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
             [self::EMPTY_GRAPH_SLUG, 'Account usage without readings', 'account-usage', MetricUnit::Reading, MetricStatistic::Mean, MetricGroup::AccountWindow, MetricBucket::Day, MetricCompare::Off, MetricChartType::Line, SavedGraphWidth::Half],
         ];
-        $seeded = false;
+        $seeded = $this->seedFormulaGraph($context, $project, \count($graphs));
         foreach ($graphs as $position => [$slug, $name, $metric, $unit, $statistic, $group, $bucket, $compare, $chart, $width]) {
             $id = DevSeedId::of('insights/graph/'.$slug);
             if ($this->insightsSavedGraphs->find($id) instanceof InsightsSavedGraph) {
@@ -386,6 +389,37 @@ final readonly class DevMetricsSeeder
         $linked = $this->seedPublicLink($context, $project, self::EMPTY_GRAPH_SLUG, self::SHARED_EMPTY_GRAPH_CODE) || $linked;
 
         return $linked || $legend || $seeded;
+    }
+
+    private function seedFormulaGraph(SeedContext $context, Project $project, int $position): bool
+    {
+        $id = DevSeedId::of('insights/graph/'.self::FORMULA_GRAPH_SLUG);
+        if ($this->insightsSavedGraphs->find($id) instanceof InsightsSavedGraph) {
+            return false;
+        }
+        $graph = new InsightsSavedGraph(
+            $project,
+            'Cache reads per cache write',
+            Metric::CacheReadTokens->value,
+            MetricUnit::Card,
+            MetricStatistic::Sum,
+            MetricGroup::None,
+            MetricRange::ThirtyDays,
+            MetricBucket::Week,
+            MetricCompare::Off,
+            MetricChartType::Line,
+            SavedGraphWidth::Half,
+            true,
+            $position,
+            createdAt: $context->at(0),
+            formulaRows: 'A:'.Metric::CacheReadTokens->value.':sum,B:'.Metric::CacheWriteTokens->value.':sum',
+            formula: 'A / B',
+            format: 'auto',
+        );
+        $context->ids->assign($graph, $id);
+        $this->em->persist($graph);
+
+        return true;
     }
 
     /** The preview image of the shared graph draws a legend, so a graph stored without one gets it. */

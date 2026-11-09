@@ -36,7 +36,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 class ShowMetricsController extends AppController
 {
-    private const array CONTROLS = ['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart'];
+    private const array CONTROLS = ['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart', 'rows', 'formula', 'format'];
 
     public function __construct(
         private readonly ShowMetricsHandler $showMetrics,

@@ -41,23 +41,28 @@ final class MetricChartScale
      *
      * @return array{float, float, float}
      */
-    public static function axis(MetricShape $metric, MetricStatistic $statistic, array $values): array
+    public static function axis(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, array $values): array
     {
-        $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : $metric->valueType();
+        $shape = $metric instanceof MetricShape ? $metric : null;
+        $type = MetricStatistic::Count === $statistic ? MetricValueType::Count : ($shape?->valueType() ?? $metric);
         if (MetricValueType::Ratio === $type) {
             return [1.0, 0.25, 0.0];
         }
 
+        $inHours = $shape?->isInHours() ?? false;
+        $positive = max([0.0, ...$values]);
         $floor = match (true) {
-            MetricValueType::Percent === $type && Metric::AccountUsage === $metric->key->metric => 100.0,
+            MetricValueType::Percent === $type && Metric::AccountUsage === $shape?->key->metric => 100.0,
             MetricValueType::Money === $type => 0.04,
-            MetricValueType::Duration === $type => $metric->isInHours() ? 1.0 : 1000.0,
+            MetricValueType::Duration === $type => $inHours ? 1.0 : 1000.0,
+            // A formula result can be far below 1, so the axis follows the data and the floor only serves a graph of zeros.
+            MetricValueType::Number === $type || MetricValueType::Fraction === $type => $positive > 0.0 ? $positive : 1.0,
             default => (float) self::TARGET_TICKS,
         };
         $max = max([$floor, ...$values]);
         $min = min([0.0, ...$values]);
         $raw = ($max - $min) / self::TARGET_TICKS;
-        $step = MetricValueType::Duration === $type && !$metric->isInHours() ? self::durationStep($raw) : self::niceStep($raw);
+        $step = MetricValueType::Duration === $type && !$inHours ? self::durationStep($raw) : self::niceStep($raw);
 
         return [ceil($max / $step - 1e-9) * $step, $step, $min < 0 ? floor($min / $step + 1e-9) * $step : 0.0];
     }

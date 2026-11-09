@@ -9054,6 +9054,9 @@ workflow:
             <trans-unit id="analytics.metrics.title.subject"><source>analytics.metrics.title.subject</source><target>%metric% %unit%</target></trans-unit>
             <trans-unit id="analytics.metrics.title.plain"><source>analytics.metrics.title.plain</source><target>%subject%, %statistic%, %range%, %bucket%</target></trans-unit>
             <trans-unit id="analytics.metrics.title.grouped"><source>analytics.metrics.title.grouped</source><target>%subject%, %statistic%, %group%, %range%, %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.formula_plain"><source>analytics.metrics.title.formula_plain</source><target>%subject%, %range%, %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.formula_grouped"><source>analytics.metrics.title.formula_grouped</source><target>%subject%, %group%, %range%, %bucket%</target></trans-unit>
+            <trans-unit id="analytics.metrics.title.formula_row"><source>analytics.metrics.title.formula_row</source><target>%metric% (%statistic%)</target></trans-unit>
             <trans-unit id="analytics.metrics.title.unit.run"><source>analytics.metrics.title.unit.run</source><target>per run</target></trans-unit>
             <trans-unit id="analytics.metrics.title.unit.card"><source>analytics.metrics.title.unit.card</source><target>per finished card</target></trans-unit>
             <trans-unit id="analytics.metrics.title.unit.reading"><source>analytics.metrics.title.unit.reading</source><target>per reading</target></trans-unit>

@@ -52,7 +52,7 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::bootKernel();
     }
 
-    public function test_it_seeds_runs_of_three_models_over_both_periods_and_seven_saved_graphs(): void
+    public function test_it_seeds_runs_of_three_models_over_both_periods_and_eleven_saved_graphs(): void
     {
         $project = $this->projectWithColumns('dev-metrics');
 
@@ -76,7 +76,7 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         self::assertNotSame([], $this->service(WorkerRunBucketTimeRepository::class)->findBucketNamesOfProject($project));
         self::assertSame(
-            ['Cost per run by model', 'Cost per run', 'Runs by model', 'Time in each bucket', 'Share of runs by model', 'Cost per run by account', 'Waiting for the worker', 'Wakes by wake gap and cache', 'Time in a removed bucket', 'Account usage without readings'],
+            ['Cost per run by model', 'Cost per run', 'Runs by model', 'Time in each bucket', 'Share of runs by model', 'Cost per run by account', 'Waiting for the worker', 'Wakes by wake gap and cache', 'Time in a removed bucket', 'Account usage without readings', 'Cache reads per cache write'],
             array_map(static fn ($graph): string => $graph->name, $this->service(InsightsSavedGraphRepository::class)->findActive($project)),
         );
     }
@@ -114,7 +114,7 @@ final class DevMetricsSeederTest extends KernelTestCase
         $this->seed($project, self::NOW);
 
         $graphs = $this->service(InsightsSavedGraphRepository::class)->findActive($project);
-        self::assertCount(10, $graphs);
+        self::assertCount(11, $graphs);
         foreach ($graphs as $graph) {
             $metric = Metric::tryFrom($graph->metric);
             if (null === $metric) {
@@ -189,7 +189,7 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         $this->em()->clear();
         self::assertCount(self::RUNS, $this->demoRuns($project));
-        self::assertCount(10, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
+        self::assertCount(11, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
     public function test_one_graph_split_by_account_is_shared_with_a_fixed_code(): void
@@ -321,7 +321,7 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertSame(4, $days['2026-10-31'], 'The first day of a span also gains a fourth run.');
         self::assertSame(4, $days['2026-10-28'], 'A day that held runs gains none.');
         self::assertSame(3, $days['2026-10-27'], 'A day that held runs gains none when its distance from today changes.');
-        self::assertCount(10, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
+        self::assertCount(11, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
     public function test_the_runs_the_cards_and_the_graphs_have_fixed_ids(): void

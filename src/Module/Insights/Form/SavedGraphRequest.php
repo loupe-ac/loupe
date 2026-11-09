@@ -22,6 +22,11 @@ class SavedGraphRequest
         public ?string $bucket = null,
         public ?string $compare = null,
         public ?string $chart = null,
+        public ?string $rows = null,
+
+        #[Assert\Length(max: InsightsSavedGraph::MAX_FORMULA_LENGTH)]
+        public ?string $formula = null,
+        public ?string $format = null,
     ) {
     }
 
@@ -38,6 +43,9 @@ class SavedGraphRequest
             $query->bucket->value,
             $query->compare->value,
             $drawn->value,
+            $query->formula?->rowsText(),
+            $query->formula?->formula,
+            $query->formula?->format->value,
         );
     }
 
@@ -57,6 +65,9 @@ class SavedGraphRequest
             'bucket' => $this->bucket,
             'compare' => $this->compare,
             'chart' => $this->chart,
+            'rows' => $this->rows,
+            'formula' => $this->formula,
+            'format' => $this->format,
         ], static fn (?string $value): bool => null !== $value && '' !== $value);
     }
 }

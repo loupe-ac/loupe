@@ -22,7 +22,7 @@ final class SavedGraphFormType extends AbstractType
             'attr' => ['maxlength' => InsightsSavedGraph::MAX_NAME_LENGTH],
             'label' => 'insights.form.saved_graph_form.name.label',
         ]);
-        foreach (['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart'] as $setting) {
+        foreach (['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart', 'rows', 'formula', 'format'] as $setting) {
             $builder->add($setting, HiddenType::class, ['required' => false]);
         }
     }

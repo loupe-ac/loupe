@@ -27,7 +27,7 @@
         <div class="lp-graph-tile__text">
             <h3 class="lp-graph-tile__title" data-graph-title>{{ name }}</h3>
             {% if rename|trim is not empty %}{{ rename }}{% endif %}
-            {% if settings %}<p class="lp-graph-tile__settings">{{ settings }}<span class="lp-graph-tile__public" data-graph-public>{% if public %}<twig:Ds:Tag tone="lime">{{ publicLabel }}</twig:Ds:Tag>{% endif %}</span></p>{% endif %}
+            {% if settings %}<p class="lp-graph-tile__settings" title="{{ settings }}">{{ settings }}<span class="lp-graph-tile__public" data-graph-public>{% if public %}<twig:Ds:Tag tone="lime">{{ publicLabel }}</twig:Ds:Tag>{% endif %}</span></p>{% endif %}
         </div>
         {% if actions|trim is not empty %}<div class="lp-graph-tile__actions">{{ actions }}</div>{% endif %}
     </header>
