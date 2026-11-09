@@ -42,6 +42,19 @@ final class FormulaSeriesBuilderTest extends TestCase
         self::assertEquals(new MetricPoint(null, 10 / 2, 2), $series[0]->total);
     }
 
+    public function test_a_formula_with_no_letter_still_has_the_buckets_of_its_rows(): void
+    {
+        $series = self::builder('A:cost:sum', '2')->build(MetricGroup::None, MetricBucket::Day, [
+            'A' => [self::row('2026-10-01 09:00:00', 4), self::row('2026-10-02 09:00:00', 6)],
+        ], null);
+
+        self::assertCount(1, $series);
+        self::assertEquals([
+            new MetricPoint(new \DateTimeImmutable('2026-10-01 00:00:00 UTC'), 2, 1),
+            new MetricPoint(new \DateTimeImmutable('2026-10-02 00:00:00 UTC'), 2, 1),
+        ], $series[0]->points);
+    }
+
     public function test_a_count_row_reads_zero_in_a_bucket_with_no_row(): void
     {
         $builder = self::builder('A:cost:sum,B:cost:count', 'A * B');

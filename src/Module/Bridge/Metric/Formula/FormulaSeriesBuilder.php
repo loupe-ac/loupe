@@ -40,7 +40,8 @@ final readonly class FormulaSeriesBuilder
             $statistics[$row->letter] = $row->statistic;
         }
         $this->statistics = $statistics;
-        $this->used = FormulaEvaluator::lettersOf($this->tree);
+        // A formula with no letter still reads every configured row, so they give it its buckets and groups.
+        $this->used = FormulaEvaluator::lettersOf($this->tree) ?: array_map(strval(...), array_keys($statistics));
     }
 
     /**
