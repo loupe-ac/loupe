@@ -13,6 +13,10 @@ enum MetricValueType: string
     case Ratio = 'ratio';
     case Boolean = 'boolean';
     case Percent = 'percent';
+    /** The result of a formula that has no unit of its own. */
+    case Number = 'number';
+    /** The result of a formula shown as a percentage, where 0.0077 prints as 0.77%. */
+    case Fraction = 'fraction';
 
     /**
      * A ratio is a mean of ones and zeros, so a sum or a percentile of it means nothing. A percent is a share of a
