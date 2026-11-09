@@ -36,18 +36,19 @@ type appCheck struct {
 func checkApp(baseURL, dir string, site api.Site) appCheck {
 	c := appCheck{link: strings.TrimRight(baseURL, "/") + "/projects/" + site.ID + "/github/install"}
 	remote, err := initGit(dir, "remote", "get-url", "origin")
-	onGitHub := false
-	if err == nil && remote != "" {
+	hasRemote := err == nil && remote != ""
+	notGitHub := false
+	if hasRemote {
 		var perr error
 		c.repository, perr = parseGitHubRemote(withoutUserinfo(remote))
-		onGitHub = !errors.Is(perr, errNotGitHub)
+		notGitHub = errors.Is(perr, errNotGitHub)
 		if perr != nil {
 			c.repository = ""
 		}
 	}
 	g := site.GitHub
 	switch {
-	case !onGitHub && (g == nil || len(g.Repositories) == 0):
+	case notGitHub || (!hasRemote && (g == nil || len(g.Repositories) == 0)):
 		c.need = appOffGitHub
 	case g == nil || !g.AppInstalled:
 		c.need = appInstall

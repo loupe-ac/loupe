@@ -40,6 +40,7 @@ func TestCheckAppComparesTheOriginWithTheProjectRepositories(t *testing.T) {
 		"repository not delivered":     {"https://github.com/o/r.git", nil, installed(api.GitHubRepository{Path: "o/r", AppInstalled: &no}), appAddRepository},
 		"older app":                    {"https://github.com/o/r.git", nil, installed(api.GitHubRepository{Path: "o/r"}), appAddRepository},
 		"off GitHub":                   {"https://gitlab.com/o/r.git", nil, nil, appOffGitHub},
+		"off GitHub, project on GitHub": {"https://gitlab.com/o/r.git", nil, installed(api.GitHubRepository{Path: "o/r", AppInstalled: &yes}), appOffGitHub},
 		"no origin":                    {"", errors.New("exit 2"), nil, appOffGitHub},
 		"no origin, project on GitHub": {"", errors.New("exit 2"), installed(api.GitHubRepository{Path: "o/r", AppInstalled: &yes}), appAddRepository},
 	} {
