@@ -91,7 +91,7 @@ func runProfileStepOn(t *testing.T, in io.Reader, dir string, site api.Site, o i
 	cmd.SetContext(context.Background())
 	cmd.SetOut(&out)
 	cmd.SetIn(in)
-	initProfile(cmd, "https://app.test", dir, site, o)
+	initProfile(cmd, dir, site, o, appCheck{})
 
 	return out.String()
 }
@@ -380,7 +380,7 @@ func TestInitProfileGivesTheAgentTheOutputUnderTheView(t *testing.T) {
 	cmd.SetContext(context.Background())
 	cmd.SetOut(initview.NewWriter(&under, false))
 	cmd.SetIn(strings.NewReader(""))
-	initProfile(cmd, "https://app.test", dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	initProfile(cmd, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude}, appCheck{})
 
 	if w.out != io.Writer(&under) {
 		t.Errorf("the agent wrote to %T, not to the output under the view", w.out)
@@ -409,7 +409,7 @@ func TestInitProfilePrintsThePromptWhenTheOutputIsAPipe(t *testing.T) {
 	cmd.SetContext(context.Background())
 	cmd.SetOut(initview.NewWriter(write, false))
 	cmd.SetIn(strings.NewReader(""))
-	initProfile(cmd, "https://app.test", dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	initProfile(cmd, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude}, appCheck{})
 	write.Close()
 
 	out := <-captured
@@ -526,34 +526,36 @@ func TestProfilePromptCarriesTheGitHubFacts(t *testing.T) {
 		{Path: "o/hook", AppInstalled: &no},
 		{Path: "o/old"},
 	}}}
-	prompt := profilePrompt("https://app.test/", site, "", false)
+	prompt := profilePrompt(site, "", false, appCheck{})
 	for _, want := range []string{"the Loupe GitHub App is installed", "Repository o/r: App installed,", "Repository o/hook: App not installed,", "Repository o/old: App unknown,", "default branch main", "rulesRead ok", "reviewRequired no", "mergeApproval unknown"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt lacks %q: %s", want, prompt)
 		}
 	}
-	if unknown := profilePrompt("https://app.test", api.Site{ID: "p"}, "", false); !strings.Contains(unknown, "GitHub facts: unknown") {
+	if unknown := profilePrompt(api.Site{ID: "p"}, "", false, appCheck{}); !strings.Contains(unknown, "GitHub facts: unknown") {
 		t.Errorf("prompt = %s", unknown)
 	}
 }
 
-func TestProfilePromptLinksTheAppInstallOnlyWhenTheAppIsMissing(t *testing.T) {
-	const link = "Install link of the Loupe GitHub App for this project: https://app.test/projects/p/github/install"
-	no, yes := false, true
+func TestProfilePromptSaysWhatThisRepositoryNeedsFromTheApp(t *testing.T) {
+	const link = "https://app.test/projects/p/github/install"
 	for name, tc := range map[string]struct {
-		github *api.GitHubFacts
-		want   bool
+		app      appCheck
+		want     string
+		wantLink bool
 	}{
-		"no facts":              {nil, false},
-		"not installed":         {&api.GitHubFacts{}, true},
-		"installed":             {&api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{{Path: "o/r", AppInstalled: &yes}}}, false},
-		"one repository absent": {&api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{{Path: "o/r", AppInstalled: &no}}}, true},
-		"older app":             {&api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{{Path: "o/r"}}}, false},
+		"covered":        {appCheck{need: appCovered, repository: "o/r", link: link}, "This repository: o/r. The Loupe GitHub App covers it.", false},
+		"install":        {appCheck{need: appInstall, repository: "o/r", link: link}, "The Loupe GitHub App is not installed for the project.", true},
+		"add repository": {appCheck{need: appAddRepository, link: link}, "This repository: unknown. The Loupe GitHub App does not cover it, or Loupe cannot tell.", true},
+		"off GitHub":     {appCheck{need: appOffGitHub, link: link}, "This repository is not on GitHub", false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			prompt := profilePrompt("https://app.test/", api.Site{ID: "p", GitHub: tc.github}, "", false)
-			if got := strings.Contains(prompt, link); got != tc.want {
-				t.Errorf("link present = %v, want %v: %s", got, tc.want, prompt)
+			prompt := profilePrompt(api.Site{ID: "p"}, "", false, tc.app)
+			if !strings.Contains(prompt, tc.want) {
+				t.Errorf("prompt lacks %q: %s", tc.want, prompt)
+			}
+			if got := strings.Contains(prompt, link); got != tc.wantLink {
+				t.Errorf("link present = %v, want %v: %s", got, tc.wantLink, prompt)
 			}
 		})
 	}

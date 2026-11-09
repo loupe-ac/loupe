@@ -51,7 +51,8 @@ makes a worker fail on its first run, or does damage. The agent reads the
 repository and the facts that Loupe knows of its GitHub rules. It shows one
 summary with a table of what it found, and asks one question at a time, only
 about a blocker, with the question tool of the agent when it has one. When the
-Loupe GitHub App is missing, the summary says so and gives the install link. It
+Loupe GitHub App does not cover the repository, or Loupe cannot tell, the summary
+opens with the install link. It
 writes nothing to `.loupe/lifecycle.md`. It gets `.loupe.yaml`
 to the remote in the way your repository usually works. A project whose workflow
 needs no profile skips this step. With no terminal or no agent, `loupe init`
@@ -59,7 +60,10 @@ prints a prompt for you to paste into an agent. The agent runs when
 `.loupe/lifecycle.md` is missing. Pass `--review-profile` to run it again.
 
 The last lines name only what remains. They end with the link to the project
-page. Start discovery from there.
+page. Start discovery from there. When the Loupe GitHub App does not cover the
+repository of the folder, or Loupe cannot tell, a `Loupe GitHub App` block comes
+first, with the install link. Installing the App is then the first item of what
+remains.
 
 When Claude Code does not start the `loupe` MCP server yet, `loupe project link`
 offers to declare it for every repository. `--mcp` accepts the offer with no

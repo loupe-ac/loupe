@@ -49,6 +49,8 @@ type initLeft struct {
 	profileRan bool
 	// discoveryStarted is true when init started discovery.
 	discoveryStarted bool
+	// app says what the repository needs from the Loupe GitHub App.
+	app appCheck
 }
 
 // reportAccounts prints the state of each account of the rule file, in every
@@ -243,7 +245,17 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 		}
 	}
 
+	if left.app.missing() {
+		todo = append([]string{"Install the Loupe GitHub App with the link above."}, todo...)
+	}
+
 	fmt.Fprintln(out)
+	if left.app.missing() {
+		fmt.Fprintln(out, "Loupe GitHub App")
+		fmt.Fprintln(out, "  "+left.app.headline())
+		fmt.Fprintln(out, "  "+left.app.link)
+		fmt.Fprintln(out)
+	}
 	if len(todo) > 0 {
 		fmt.Fprintln(out, "What remains:")
 	}

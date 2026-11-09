@@ -143,7 +143,7 @@ The steps, in order:
 9. Install the Playwright browser, when the repository uses Playwright.
 10. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
 11. Offer to start discovery, when onboarding is ready.
-12. Report what remains, and print the project link.
+12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first.
 
 Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step in one fixed-width column, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`, after the last step. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
 
