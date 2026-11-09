@@ -37,7 +37,7 @@
     {% set statisticLabels = {} %}
     {% for statistic in statisticCases %}{% set statisticLabels = statisticLabels|merge({(statistic.value): ('analytics.metrics.statistic.' ~ statistic.value)|trans}) %}{% endfor %}
     {# A GET form, so the controls land in the URL. A control lists only the values its metric allows. #}
-    <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch metric-formula" class="lp-metric-controls" data-metrics-form
+    <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch metric-formula" class="lp-metric-controls" data-metrics-form{{ formulaOpen and query.formula.problem is not null ? ' data-formula-invalid' : '' }}
         data-action="submit->metric-formula#guard"
         data-metric-formula-joinable-value="{{ joinable is empty ? '{}' : joinable|json_encode }}"
         data-metric-formula-labels-value="{{ statisticLabels|json_encode }}"
@@ -85,7 +85,8 @@
             </div>
             <input type="hidden" name="rows" value="{{ formulaOpen ? query.formula.rowsText : '' }}" data-metric-formula-target="rowsField"{{ formulaOpen ? '' : ' disabled' }}>
             <input type="hidden" name="formula" value="{{ formulaOpen ? query.formula.formula : '' }}" data-metric-formula-target="formulaField"{{ formulaOpen ? '' : ' disabled' }}>
-            <p class="lp-metric-formula__error" role="alert" data-metric-formula-target="error" hidden></p>
+            {% set formulaProblem = formulaOpen ? query.formula.problem : null %}
+            <p class="lp-metric-formula__error" role="alert" data-metric-formula-target="error"{{ formulaProblem is null ? ' hidden' : ' data-metrics-note="formula-problem"' }}>{{ formulaProblem is null ? '' : formulaProblem.key|trans(formulaProblem.parameters) }}</p>
         </div>
         <div class="lp-metric-controls__field" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
             <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
@@ -158,8 +159,7 @@
     </form>
 
     {% if query.formula is not null and query.formula.problem is not null %}
-    {% set problem = query.formula.problem %}
-    <twig:Ds:Flash severity="error" class="lp-metric-note" data-metrics-note="formula-problem">{{ problem.key|trans(problem.parameters) }}</twig:Ds:Flash>
+    {# The problem shows under the Formula field. #}
     {% elseif view.layout is null %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.metrics.empty.title'|trans" class="lp-metric-empty" data-metrics-empty>
         <p>{{ 'analytics.metrics.empty.description'|trans }}</p>

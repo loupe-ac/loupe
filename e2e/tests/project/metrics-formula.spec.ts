@@ -28,7 +28,10 @@ async function chooseMetric(
     const field = page.locator(`[data-letter="${row}"] .ts-control`);
     await field.click();
     await field.locator('input').fill(search);
-    await page.getByRole('option', { name: label, exact: true }).click();
+    await page
+        .locator(`[data-letter="${row}"] div[role="option"]`)
+        .getByText(label, { exact: true })
+        .click();
 }
 
 test('a formula builds in the page and closes onto the earliest row', async ({
@@ -72,13 +75,25 @@ test('a broken formula shows its error, keeps the page and blocks the submit', a
     await chooseMetric(page, 'B', 'cache write', 'Cache write tokens');
     await expect(page).toHaveURL(/rows=/);
 
+    // The seeded project has no runs, so no graph or Save button exists. Stand-ins let the page
+    // show how an invalid formula dims the last graph and disables Save.
+    await page.evaluate(() => {
+        const form = document.querySelector('[data-metrics-form]')!;
+        form.insertAdjacentHTML(
+            'afterend',
+            '<section class="lp-metric-graph">Last graph</section><button type="submit" data-save-new>Save</button>',
+        );
+    });
     const formula = page.getByLabel('Formula', { exact: true });
     await formula.fill('A / (B');
+    await expect(page.locator('[data-save-new]')).toBeDisabled();
     await expect(page.getByRole('alert')).toContainText('parenthesis');
     await expect(page.locator('[data-metrics-form]')).toHaveAttribute(
         'data-formula-invalid',
         '',
     );
+    await expect(page.locator('.lp-metric-graph')).toHaveCSS('opacity', '0.5');
+    await expect(page.locator('[data-save-new]')).toBeDisabled();
     await expect(page).toHaveURL(/formula=A\+%2F\+B/);
 });
 

@@ -91,6 +91,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('A parenthesis is not closed.', trim($crawler->filter('[data-metrics-note="formula-problem"]')->text()));
         self::assertCount(0, $crawler->filter('[data-metrics-graph], #metrics-graph'));
         self::assertCount(0, $crawler->filter('[data-metrics-empty]'));
+        self::assertCount(1, $crawler->filter('[data-metrics-form][data-formula-invalid] .lp-metric-formula [data-metric-formula-target="error"]:not([hidden])'));
     }
 
     public function test_a_saved_formula_graph_opens_with_its_formula(): void

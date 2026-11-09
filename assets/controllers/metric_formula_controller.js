@@ -48,6 +48,9 @@ export default class extends Controller {
             this.narrow();
             this.#updateAddRow();
         }
+        if (!this.errorTarget.hidden && '' !== this.errorTarget.textContent) {
+            this.#setInvalid(this.errorTarget.textContent);
+        }
     }
 
     disconnect() {
@@ -97,6 +100,7 @@ export default class extends Controller {
     change() {
         this.sequence += 1;
         this.checking = true;
+        this.#setSaveDisabled(true);
         this.#compose();
         this.narrow();
         this.#updateAddRow();
@@ -290,6 +294,7 @@ export default class extends Controller {
         } catch {
             if (sequence === this.sequence) {
                 this.checking = false;
+                this.#setSaveDisabled(this.invalid);
             }
             return;
         }
@@ -310,10 +315,17 @@ export default class extends Controller {
         this.errorTarget.hidden = null === message;
         this.errorTarget.textContent = message ?? '';
         this.element.toggleAttribute('data-formula-invalid', this.invalid);
+        this.#setSaveDisabled(this.invalid);
+    }
+
+    /** A button the server rendered disabled, such as Save as new at the cap, stays disabled. */
+    #setSaveDisabled(disabled) {
         document
             .querySelectorAll('[data-save-new], [data-save-update]')
             .forEach((button) => {
-                button.disabled = this.invalid;
+                button.dataset.serverDisabled ??= button.disabled ? '1' : '0';
+                button.disabled =
+                    disabled || '1' === button.dataset.serverDisabled;
             });
     }
 
