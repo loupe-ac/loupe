@@ -260,7 +260,7 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 		initPlaywright(cmd, dir)
 	}
 	left.accounts, left.accountCheck = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
-	left.profile, left.profileRan = initProfile(cmd, dir, site, o)
+	left.profile, left.profileRan = initProfile(cmd, cfg.BaseURL, dir, site, o)
 	initDiscovery(cmd, cfg, dir, site, &left)
 	view.Finish()
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
