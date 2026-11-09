@@ -252,6 +252,19 @@ it('submits when the check says the formula runs', async () => {
     );
 });
 
+it('keeps Save off and blocks the submit when a check fails to answer', async () => {
+    fetch.mockRejectedValue(new Error('offline'));
+    const form = await mount();
+    document.querySelector('#open').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    const submit = new Event('submit', { cancelable: true });
+    form.dispatchEvent(submit);
+    expect(submit.defaultPrevented).toBe(true);
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+});
+
 it('starts the empty row on Sum', async () => {
     await mount();
     document.querySelector('#open').click();

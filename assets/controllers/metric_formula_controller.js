@@ -43,6 +43,7 @@ export default class extends Controller {
         this.invalid = false;
         this.sequence = 0;
         this.checking = false;
+        this.unverified = false;
         this.timer = null;
         if (this.openValue) {
             this.narrow();
@@ -100,6 +101,7 @@ export default class extends Controller {
     change() {
         this.sequence += 1;
         this.checking = true;
+        this.unverified = false;
         this.#setSaveDisabled(true);
         this.#compose();
         this.narrow();
@@ -119,6 +121,7 @@ export default class extends Controller {
         clearTimeout(this.timer);
         this.sequence += 1;
         this.checking = false;
+        this.unverified = false;
         this.#setInvalid(null);
         [
             this.rowsFieldTarget,
@@ -137,7 +140,10 @@ export default class extends Controller {
         if (this.openValue) {
             this.#compose();
         }
-        if (this.invalid || (this.openValue && this.checking)) {
+        if (
+            this.invalid ||
+            (this.openValue && (this.checking || this.unverified))
+        ) {
             event.preventDefault();
         }
     }
@@ -293,8 +299,10 @@ export default class extends Controller {
             result = await response.json();
         } catch {
             if (sequence === this.sequence) {
+                // A check that never answered proves nothing, so Save stays off.
                 this.checking = false;
-                this.#setSaveDisabled(this.invalid);
+                this.unverified = true;
+                this.#setSaveDisabled(true);
             }
             return;
         }
