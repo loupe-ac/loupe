@@ -159,7 +159,7 @@ func newInitCmd() *cobra.Command {
 			"--review-profile starts the agent also when the file exists. --agent picks claude or codex; with both on the PATH " +
 			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
 			"11. Offer to start discovery, only when the profile is complete and pushed and the accounts pass. It asks once, and starts nothing without a terminal.\n" +
-			"12. Print what remains and the project page. The accounts are reported before step 10, so a failing account never stops the agent.\n\n" +
+			"12. Print what remains and the project page. When the Loupe GitHub App does not cover the repository of the origin remote, or its state is unknown, the install link comes first. The accounts are reported before step 10, so a failing account never stops the agent.\n\n" +
 			"Steps 1, 2, 3, 4 and 6 stop the command when they fail. The other steps report a failure and go on. " +
 			"A bridge that fails to start, or a used account that fails for this project, makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
@@ -260,7 +260,8 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 		initPlaywright(cmd, dir)
 	}
 	left.accounts, left.accountCheck = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
-	left.profile, left.profileRan = initProfile(cmd, cfg.BaseURL, dir, site, o)
+	left.app = checkApp(cfg.BaseURL, dir, site)
+	left.profile, left.profileRan = initProfile(cmd, dir, site, o, left.app)
 	initDiscovery(cmd, cfg, dir, site, &left)
 	view.Finish()
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)

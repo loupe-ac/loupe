@@ -73,7 +73,7 @@ var initExecutable = os.Executable
 // start the agent, it prints the prompt to paste. It returns why the run is not
 // finished, and an empty string when it is. It also says whether the agent ran,
 // so a new discovery can replace an old report.
-func initProfile(cmd *cobra.Command, baseURL, dir string, site api.Site, o initOptions) (left string, agentRan bool) {
+func initProfile(cmd *cobra.Command, dir string, site api.Site, o initOptions, app appCheck) (left string, agentRan bool) {
 	out := cmd.OutOrStdout()
 
 	if !site.ProfileNeeded() {
@@ -98,7 +98,7 @@ func initProfile(cmd *cobra.Command, baseURL, dir string, site api.Site, o initO
 	if dir := paths[profilePackage]; dir != "" {
 		skillPath = filepath.Join(dir, "skills", profileSkill, "SKILL.md")
 	}
-	prompt := profilePrompt(baseURL, site, skillPath, !status.Missing)
+	prompt := profilePrompt(site, skillPath, !status.Missing, app)
 
 	agent, why := pickProfileAgent(cmd, o.agent, skillPath != "")
 	if agent == "" {
@@ -251,8 +251,8 @@ func askAgent(out io.Writer, in io.Reader, found []string) string {
 // profilePrompt is the first message to the agent. It names the skill by a
 // path too, because Codex has no way to load a package folder. It also carries
 // the GitHub facts that the app knows, so the agent asks no question that a fact
-// answers.
-func profilePrompt(baseURL string, site api.Site, skillPath string, fileExists bool) string {
+// answers, and what the repository of this folder needs from the App.
+func profilePrompt(site api.Site, skillPath string, fileExists bool, app appCheck) string {
 	var b strings.Builder
 	b.WriteString("Look for blockers in this repository with me. A blocker makes a worker fail on its first run, or does damage. ")
 	b.WriteString("Use the " + profilePackage + ":" + profileSkill + " skill")
@@ -264,23 +264,9 @@ func profilePrompt(baseURL string, site api.Site, skillPath string, fileExists b
 		b.WriteString(" " + profile.Path + " exists. Leave it as it is.")
 	}
 	b.WriteString(" " + githubFacts(site))
-	if appMissing(site.GitHub) {
-		b.WriteString(" Install link of the Loupe GitHub App for this project: " + strings.TrimRight(baseURL, "/") + "/projects/" + site.ID + "/github/install")
-	}
+	b.WriteString(" " + app.promptFact())
 
 	return b.String()
-}
-
-// appMissing says whether the App is absent from the project or from one of its
-// repositories. A repository of an older app, with no value, does not count.
-func appMissing(g *api.GitHubFacts) bool {
-	if g == nil {
-		return false
-	}
-
-	return !g.AppInstalled || slices.ContainsFunc(g.Repositories, func(r api.GitHubRepository) bool {
-		return r.AppInstalled != nil && !*r.AppInstalled
-	})
 }
 
 // githubFacts says in one paragraph what the app knows of the GitHub
