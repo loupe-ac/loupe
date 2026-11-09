@@ -76,6 +76,7 @@ final class LineLayoutTest extends TestCase
             [ChartSeries::of(null, ['2026-09-28' => -1.0, '2026-10-05' => 3.0])],
             new MetricValueFormatter('en'),
             false,
+            new \DateTimeImmutable('2100-01-01 UTC'),
         );
 
         self::assertNotNull($layout);
@@ -206,7 +207,7 @@ final class LineLayoutTest extends TestCase
 
     public function test_an_empty_month_between_two_months_keeps_its_place(): void
     {
-        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Month, [ChartSeries::of(null, ['2026-01-01' => 1.0, '2026-03-01' => 3.0])], new MetricValueFormatter('en'), false);
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Month, [ChartSeries::of(null, ['2026-01-01' => 1.0, '2026-03-01' => 3.0])], new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'));
 
         self::assertNotNull($layout);
         self::assertSame('M209.33 170.67 M790.67 16', $layout->lines[0]->path);
@@ -235,6 +236,7 @@ final class LineLayoutTest extends TestCase
             ],
             new MetricValueFormatter('en'),
             true,
+            new \DateTimeImmutable('2100-01-01 UTC'),
         );
 
         self::assertNotNull($layout);
@@ -243,9 +245,73 @@ final class LineLayoutTest extends TestCase
         self::assertSame(['37.5%', '12.5%', '50%'], array_map(static fn ($row): ?string => $row->share, $layout->hoverTargets[0]->rows));
     }
 
-    /** @param list<\App\Module\Bridge\Metric\MetricSeries> $series */
-    private static function build(array $series): ?LineLayout
+    public function test_a_last_week_that_is_open_draws_its_segment_apart(): void
     {
-        return LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        $series = [ChartSeries::of(null, ['2026-10-26' => 1.0, '2026-11-02' => 2.0, '2026-11-09' => 3.0])];
+
+        $open = self::build($series, new \DateTimeImmutable('2026-11-09 01:54 UTC'));
+        $closed = self::build($series, new \DateTimeImmutable('2026-11-16 00:00 UTC'));
+
+        self::assertNotNull($open);
+        self::assertNotNull($closed);
+        self::assertSame('M209.33 170.67 L500 93.33', $open->lines[0]->path);
+        self::assertSame('M500 93.33 L790.67 16', $open->lines[0]->openPath);
+        self::assertSame('M209.33 170.67 L500 93.33 L790.67 16', $closed->lines[0]->path);
+        self::assertSame('', $closed->lines[0]->openPath);
+        self::assertCount(3, $open->lines[0]->dots);
+        self::assertCount(3, $open->hoverTargets);
+    }
+
+    public function test_the_boundary_in_utc_closes_the_week(): void
+    {
+        $series = [ChartSeries::of(null, ['2026-10-26' => 1.0, '2026-11-02' => 2.0])];
+
+        self::assertNotSame('', self::build($series, new \DateTimeImmutable('2026-11-08 23:59:59 UTC'))?->lines[0]->openPath);
+        self::assertSame('', self::build($series, new \DateTimeImmutable('2026-11-09 00:00:00 UTC'))?->lines[0]->openPath);
+        self::assertNotSame('', self::build($series, new \DateTimeImmutable('2026-11-09 01:00 +02:00'))?->lines[0]->openPath, 'a read at 23:00 UTC on Sunday is still in the week');
+    }
+
+    public function test_the_other_bucket_sizes_follow_their_own_period(): void
+    {
+        $day = [ChartSeries::of(null, ['2026-11-07' => 1.0, '2026-11-08' => 2.0])];
+        $month = [ChartSeries::of(null, ['2026-09-01' => 1.0, '2026-10-01' => 2.0])];
+
+        self::assertNotSame('', self::buildAt(MetricBucket::Day, $day, '2026-11-08 23:59 UTC')?->lines[0]->openPath);
+        self::assertSame('', self::buildAt(MetricBucket::Day, $day, '2026-11-09 00:00 UTC')?->lines[0]->openPath);
+        self::assertNotSame('', self::buildAt(MetricBucket::Month, $month, '2026-10-31 23:59 UTC')?->lines[0]->openPath);
+        self::assertSame('', self::buildAt(MetricBucket::Month, $month, '2026-11-01 00:00 UTC')?->lines[0]->openPath);
+    }
+
+    public function test_an_open_point_with_no_neighbour_draws_no_segment(): void
+    {
+        $at = new \DateTimeImmutable('2026-11-09 01:00 UTC');
+
+        self::assertSame('', self::build([ChartSeries::of(null, ['2026-11-09' => 3.0])], $at)?->lines[0]->openPath);
+        self::assertSame('', self::build([ChartSeries::of(null, ['2026-10-26' => 1.0, '2026-11-02' => null, '2026-11-09' => 3.0])], $at)?->lines[0]->openPath);
+        self::assertSame('', self::build([ChartSeries::of(null, ['2026-10-19' => 1.0, '2026-11-09' => 3.0])], $at)?->lines[0]->openPath);
+    }
+
+    public function test_each_series_of_a_grouped_graph_is_judged_on_its_own(): void
+    {
+        $layout = self::build([
+            ChartSeries::of('a', ['2026-11-02' => 1.0, '2026-11-09' => 2.0]),
+            ChartSeries::of('b', ['2026-11-02' => 1.0]),
+        ], new \DateTimeImmutable('2026-11-09 01:00 UTC'));
+
+        self::assertNotNull($layout);
+        self::assertNotSame('', $layout->lines[0]->openPath);
+        self::assertSame('', $layout->lines[1]->openPath);
+    }
+
+    /** @param list<\App\Module\Bridge\Metric\MetricSeries> $series */
+    private static function buildAt(MetricBucket $bucket, array $series, string $at): ?LineLayout
+    {
+        return LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, $bucket, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable($at));
+    }
+
+    /** @param list<\App\Module\Bridge\Metric\MetricSeries> $series */
+    private static function build(array $series, ?\DateTimeImmutable $at = null): ?LineLayout
+    {
+        return LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, $at ?? new \DateTimeImmutable('2100-01-01 UTC'));
     }
 }

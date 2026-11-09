@@ -324,6 +324,11 @@ over the same dates, with a **Previous period** entry in the legend. **Number**
 shows the change under the figure. The other chart types show the current
 period only, and a note says that the table holds the previous period.
 
+A **Line** chart draws the segment into the last point as a row of dots when the
+bucket of that point has not ended yet, such as the current week. The point still
+holds the value so far, and it can read low until the bucket ends. The dots go
+away when the bucket closes.
+
 Each series gets a change figure, such as "↓ 14%". A rate shows its change in
 percentage points, such as "↑ 3 pts". A usage metric shows the difference of
 its percentages, such as "↑ 5 %". When the previous value is 0, the figure is

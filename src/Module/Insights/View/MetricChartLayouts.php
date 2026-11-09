@@ -17,8 +17,9 @@ final class MetricChartLayouts
      * Null when the current window holds no rows, even when the previous period holds some.
      *
      * @param list<MetricSeries> $series
+     * @param \DateTimeImmutable $at     the time of the read, which only a line chart uses
      */
-    public static function build(MetricChartType $type, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): LineLayout|BarLayout|DonutLayout|NumberLayout|null
+    public static function build(MetricChartType $type, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, \DateTimeImmutable $at, ?ChartBox $box = null): LineLayout|BarLayout|DonutLayout|NumberLayout|null
     {
         if ([] === array_filter($series, static fn (MetricSeries $line): bool => [] !== $line->rows)) {
             return null;
@@ -27,7 +28,7 @@ final class MetricChartLayouts
         $adds = MetricChartRules::valuesAdd($metric, $statistic, \count($series));
 
         return match ($type) {
-            MetricChartType::Line => LineLayout::build($metric, $statistic, $bucket, $series, $formatter, $adds, $box ?? new ChartBox()),
+            MetricChartType::Line => LineLayout::build($metric, $statistic, $bucket, $series, $formatter, $adds, $at, $box ?? new ChartBox()),
             MetricChartType::Bars, MetricChartType::StackedBars, MetricChartType::PercentStacked => BarLayout::build($type, $metric, $statistic, $bucket, $series, $formatter, $adds, $box ?? new ChartBox()),
             MetricChartType::Donut => DonutLayout::build($metric, $statistic, $series, $formatter, $box),
             MetricChartType::Number => NumberLayout::build($metric, $statistic, $series, $formatter, $box ?? new ChartBox()),

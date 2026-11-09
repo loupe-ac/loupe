@@ -13,6 +13,7 @@ use App\Module\Insights\Service\PublicLinkDescription;
 use App\Module\Insights\Service\PublicLinkVisibility;
 use App\Module\Insights\View\PublicLinkDetailView;
 use App\Module\Review\Service\MarkdownRenderer;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /** Reads the shared item behind a code for a visitor. Every reason to hide it throws the same not found. */
@@ -25,6 +26,7 @@ final readonly class ShowPublicLinkHandler
         private MarkdownRenderer $markdown,
         private InsightsProjectActivities $activities,
         private PublicLinkDescription $descriptions,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -38,7 +40,7 @@ final readonly class ShowPublicLinkHandler
             $note = $link->note;
             $noteHtml = null === $note || '' === trim($note) ? null : $this->markdown->renderWithoutHeadingIds($note);
 
-            return PublicLinkDetailView::forExperiment($link->project, $result, $noteHtml, $link->code, PublicPreviewVersion::of($result), $this->descriptions->forExperiment($result, $noteHtml, $link->project->name));
+            return PublicLinkDetailView::forExperiment($link->project, $result, $noteHtml, $link->code, PublicPreviewVersion::of($result, $this->clock->now()), $this->descriptions->forExperiment($result, $noteHtml, $link->project->name));
         }
 
         $graph = $link->savedGraph;
@@ -49,6 +51,6 @@ final readonly class ShowPublicLinkHandler
         $kept = $this->graphResults->kept($graph);
         $result = null === $kept ? null : $this->graphResults->view($link->project, $kept);
 
-        return PublicLinkDetailView::forGraph($link->project, $graph, $result, $link->code, PublicPreviewVersion::of($kept, $graph->showLegend), $this->descriptions->forGraph($graph));
+        return PublicLinkDetailView::forGraph($link->project, $graph, $result, $link->code, PublicPreviewVersion::of($kept, $this->clock->now(), $graph->showLegend), $this->descriptions->forGraph($graph));
     }
 }

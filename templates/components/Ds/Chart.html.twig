@@ -93,6 +93,7 @@
                             <g class="lp-chart-slot--{{ line.series.slot }}" data-series="{{ line.series.position }}">
                                 {% if line.previousPath %}<path class="lp-chart__line lp-chart__line--previous" d="{{ line.previousPath }}" />{% endif %}
                                 {% if line.path %}<path class="lp-chart__line" d="{{ line.path }}" />{% endif %}
+                                {% if line.openPath %}<path class="lp-chart__line lp-chart__line--open" d="{{ line.openPath }}" />{% endif %}
                                 {% for dot in line.dots %}
                                     <circle class="lp-chart__dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="3.5" />
                                 {% endfor %}

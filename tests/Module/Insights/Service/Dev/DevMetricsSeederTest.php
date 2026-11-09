@@ -45,7 +45,7 @@ final class DevMetricsSeederTest extends KernelTestCase
     private const string NOW = '2026-10-31 15:00:00';
 
     /** Three models a day, and a fourth run every third day. */
-    private const int RUNS = DevMetricsSeeder::DAYS * 3 + DevMetricsSeeder::DAYS / 3;
+    private const int RUNS = DevMetricsSeeder::DAYS * 3 + DevMetricsSeeder::DAYS / 3 + 1;
 
     protected function setUp(): void
     {
@@ -71,7 +71,11 @@ final class DevMetricsSeederTest extends KernelTestCase
 
         $days = $this->days($runs);
         sort($days);
-        self::assertSame('2026-10-30', end($days), 'The newest runs are from yesterday, so none starts in the future.');
+        self::assertSame('2026-10-31', end($days), 'The newest run is from the open current day.');
+        self::assertSame(1, array_count_values($days)['2026-10-31'], 'The current day holds one run.');
+        foreach ($runs as $run) {
+            self::assertLessThanOrEqual(new \DateTimeImmutable(self::NOW), $run->endedAt, 'No run ends in the future.');
+        }
         self::assertSame('2026-09-01', $days[0] ?? null, 'The previous period of a 30 day range holds runs too.');
 
         self::assertNotSame([], $this->service(WorkerRunBucketTimeRepository::class)->findBucketNamesOfProject($project));
@@ -329,7 +333,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         $this->em()->clear();
         $days = array_count_values($this->days($this->demoRuns($project)));
         ksort($days);
-        self::assertSame('2026-11-01', array_key_last($days));
+        self::assertSame('2026-11-02', array_key_last($days));
+        self::assertSame(1, $days['2026-11-02'], 'The current day holds one run.');
         self::assertSame(3, $days['2026-11-01'], 'A day that lacked runs gains one run per model.');
         self::assertSame(4, $days['2026-10-31'], 'The first day of a span also gains a fourth run.');
         self::assertSame(4, $days['2026-10-28'], 'A day that held runs gains none.');

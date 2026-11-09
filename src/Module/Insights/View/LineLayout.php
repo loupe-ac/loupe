@@ -47,8 +47,9 @@ final readonly class LineLayout
      *
      * @param list<MetricSeries> $series
      * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
+     * @param \DateTimeImmutable $at     the time of the read, which decides whether the last bucket is open
      */
-    public static function build(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, ChartBox $box = new ChartBox()): ?self
+    public static function build(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, \DateTimeImmutable $at, ChartBox $box = new ChartBox()): ?self
     {
         $axis = MetricChartTimeAxis::forSeries($bucket, $series, withPrevious: true, box: $box);
         if (null === $axis) {
@@ -74,7 +75,8 @@ final readonly class LineLayout
                     $dots[] = new MetricChartDot($point, $axis->centre($axis->index($point->start)), MetricChartScale::y($point->value, $top, $bottom, $box));
                 }
             }
-            $lines[] = new MetricChartLine($chartSeries[$position], self::path($item->points, $axis, $top, $bottom), $dots, self::path($item->previousPoints, $axis, $top, $bottom));
+            [$path, $openPath] = self::splitOpen($item->points, $bucket, $at, $axis, $top, $bottom);
+            $lines[] = new MetricChartLine($chartSeries[$position], $path, $dots, self::path($item->previousPoints, $axis, $top, $bottom), $openPath);
         }
 
         return new self(
@@ -97,6 +99,38 @@ final readonly class LineLayout
     public function hasLegend(): bool
     {
         return \count($this->series) > 1;
+    }
+
+    /**
+     * The solid path and the open segment. The last point leaves the solid path when its bucket is open and the point
+     * before it sits on the position just before.
+     *
+     * @param list<MetricPoint> $points
+     *
+     * @return array{string, string}
+     */
+    private static function splitOpen(array $points, MetricBucket $bucket, \DateTimeImmutable $at, MetricChartTimeAxis $axis, float $top, float $bottom): array
+    {
+        $path = self::path($points, $axis, $top, $bottom);
+        $last = $points[\count($points) - 1] ?? null;
+        $before = $points[\count($points) - 2] ?? null;
+        if (null === $last?->start || null === $last->value || null === $before?->start || null === $before->value || !$bucket->isOpen($last->start, $at)) {
+            return [$path, ''];
+        }
+        if (1 !== $axis->index($last->start) - $axis->index($before->start)) {
+            return [$path, ''];
+        }
+        $cut = strrpos($path, 'L');
+        if (false === $cut) {
+            return [$path, ''];
+        }
+
+        return [rtrim(substr($path, 0, $cut)), 'M'.self::point($before->start, $before->value, $axis, $top, $bottom).' L'.self::point($last->start, $last->value, $axis, $top, $bottom)];
+    }
+
+    private static function point(\DateTimeImmutable $start, int|float $value, MetricChartTimeAxis $axis, float $top, float $bottom): string
+    {
+        return MetricChartScale::number($axis->centre($axis->index($start))).' '.MetricChartScale::number(MetricChartScale::y($value, $top, $bottom, $axis->box));
     }
 
     /** @param list<MetricPoint> $points */

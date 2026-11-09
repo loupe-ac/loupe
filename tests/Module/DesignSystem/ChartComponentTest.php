@@ -140,7 +140,7 @@ final class ChartComponentTest extends KernelTestCase
         $formatter = new MetricValueFormatter('en');
         $labels = ['<script>alert(1)</script>', 'plain'];
         $layouts = [
-            LineLayout::build($shape, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, true),
+            LineLayout::build($shape, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, true, new \DateTimeImmutable('2100-01-01 UTC')),
             BarLayout::build(MetricChartType::StackedBars, $shape, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, true),
             DonutLayout::build($shape, MetricStatistic::Sum, $series, $formatter),
             NumberLayout::build($shape, MetricStatistic::Sum, $series, $formatter),
@@ -162,7 +162,7 @@ final class ChartComponentTest extends KernelTestCase
 
         $shape = new MetricShape(new MetricKey(Metric::Cost));
         $series = [ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => 2.0]), ChartSeries::of('b', ['2026-09-14' => 2.0, '2026-09-21' => 1.0])];
-        $plain = LineLayout::build($shape, MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        $plain = LineLayout::build($shape, MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'));
         self::assertNotNull($plain);
         $crawler = $this->chart($plain, ['a', 'b']);
         self::assertStringNotContainsString('Previous period', $crawler->filter('.lp-chart__legend')->text());
@@ -170,10 +170,24 @@ final class ChartComponentTest extends KernelTestCase
         self::assertCount(0, $crawler->filter('.lp-chart__dash'));
     }
 
+    public function test_a_line_with_an_open_last_bucket_draws_a_dotted_segment_beside_the_solid_path(): void
+    {
+        $series = [ChartSeries::of('a', ['2026-11-02' => 1.0, '2026-11-09' => 2.0])];
+        $build = static fn (string $at): ?LineLayout => LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable($at));
+        $open = $build('2026-11-09 01:00 UTC');
+        $closed = $build('2026-11-16 00:00 UTC');
+        self::assertNotNull($open);
+        self::assertNotNull($closed);
+
+        self::assertSame([$open->lines[0]->openPath], $this->chart($open, ['a'])->filter('.lp-chart__line--open')->each(static fn (Crawler $path): string => (string) $path->attr('d')));
+        self::assertCount(2, $this->chart($open, ['a'])->filter('.lp-chart__dot'));
+        self::assertCount(0, $this->chart($closed, ['a'])->filter('.lp-chart__line--open'));
+    }
+
     public function test_a_chart_with_one_line_and_no_compare_has_no_legend(): void
     {
         $series = [ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => 2.0])];
-        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'));
         self::assertNotNull($layout);
 
         self::assertCount(0, $this->chart($layout, ['a'])->filter('.lp-chart__legend'));
@@ -244,7 +258,7 @@ final class ChartComponentTest extends KernelTestCase
             ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => 2.0], comparison: ChartSeries::comparison()),
             ChartSeries::of('b', ['2026-09-14' => 2.0, '2026-09-21' => 1.0], comparison: ChartSeries::comparison()),
         ];
-        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'));
         self::assertNotNull($layout);
         self::assertTrue($layout->comparing);
 
@@ -309,7 +323,7 @@ final class ChartComponentTest extends KernelTestCase
     public function test_a_bucket_with_no_rows_has_no_hover_target_and_no_template(): void
     {
         $series = [ChartSeries::of('a', ['2026-09-14' => 1.0, '2026-09-21' => null, '2026-09-28' => 3.0])];
-        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false);
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'));
         self::assertNotNull($layout);
         self::assertCount(3, $layout->hoverTargets);
 

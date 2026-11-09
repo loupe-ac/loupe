@@ -4,8 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Preview;
 
+use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricBucket;
+use App\Module\Bridge\Metric\MetricKey;
+use App\Module\Bridge\Metric\MetricShape;
+use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Insights\Preview\PreviewPalette;
 use App\Module\Insights\View\ChartBox;
+use App\Module\Insights\View\LineLayout;
+use App\Module\Insights\View\MetricValueFormatter;
+use App\Tests\Support\ChartSeries;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Twig\Environment;
 
@@ -63,11 +71,24 @@ final class GraphSvgTemplateTest extends KernelTestCase
         self::assertSame(80, substr_count($svg, 'width="14" height="14"') + (int) ($more[1] ?? 0));
     }
 
+    public function test_a_line_graph_draws_the_open_segment_as_round_dots_in_the_colour_of_the_series(): void
+    {
+        $series = [ChartSeries::of(null, ['2026-10-26' => 1.0, '2026-11-02' => 2.0, '2026-11-09' => 3.0])];
+        $build = static fn (string $at): ?LineLayout => LineLayout::build(new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Median, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable($at), ChartBox::preview());
+
+        $open = $this->draw($build('2026-11-09 01:54 UTC'), [0 => 'Cost']);
+        $closed = $this->draw($build('2026-11-16 00:00 UTC'), [0 => 'Cost']);
+
+        self::assertNotFalse(simplexml_load_string($open));
+        self::assertSame(1, substr_count($open, 'stroke-dasharray="1 9"'));
+        self::assertSame(0, substr_count($closed, 'stroke-dasharray'));
+    }
+
     /**
-     * @param array<string, mixed> $layout
-     * @param array<int, string>   $labels
+     * @param array<string, mixed>|LineLayout $layout
+     * @param array<int, string>              $labels
      */
-    private function draw(array $layout, array $labels): string
+    private function draw(array|LineLayout|null $layout, array $labels): string
     {
         $twig = self::getContainer()->get(Environment::class);
         self::assertInstanceOf(Environment::class, $twig);
