@@ -32,7 +32,8 @@ const retryBudget = 2 * time.Minute
 // Those are the answers that arrive before a tool ran: the rate limiter and
 // the load balancer both refuse a request before the application sees it. A
 // 500 or 504 can come after the tool ran, so a retry could repeat a write, and
-// those go back to the caller at once.
+// those go back to the caller at once. A 504 to a request that changes nothing
+// is sent again, because a restart of the web service answers 504 for a minute.
 type Retrying struct {
 	// Base sends the request. A nil value uses http.DefaultTransport.
 	Base http.RoundTripper
@@ -52,6 +53,8 @@ func (r *Retrying) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	read := isRead(rewind)
 
 	base := r.Base
 	if base == nil {
@@ -82,7 +85,7 @@ func (r *Retrying) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		resp, err := base.RoundTrip(sent)
-		if !retryable(resp, err) || remaining <= 0 {
+		if !retryable(resp, err, read) || remaining <= 0 {
 			return resp, err
 		}
 
@@ -104,8 +107,9 @@ func (r *Retrying) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 }
 
-// retryable reports whether an answer or an error means Loupe did no work.
-func retryable(resp *http.Response, err error) bool {
+// retryable reports whether an answer or an error means Loupe did no work, or
+// that the request is a read, which a repeat cannot harm.
+func retryable(resp *http.Response, err error, read bool) bool {
 	if err != nil {
 		var op *net.OpError
 
@@ -115,6 +119,8 @@ func retryable(resp *http.Response, err error) bool {
 	switch resp.StatusCode {
 	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable:
 		return true
+	case http.StatusGatewayTimeout:
+		return read
 	}
 
 	return false
