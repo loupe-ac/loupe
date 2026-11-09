@@ -252,19 +252,25 @@ final class CardWaitTextTest extends KernelTestCase
         self::assertNull($this->text->line($wait, false)->detail);
     }
 
-    public function test_a_pause_after_an_unfinished_run_names_no_failed_run(): void
+    public function test_a_pause_after_an_unfinished_run_quotes_what_the_run_said(): void
     {
         $em = $this->em();
         $card = $this->card($em, $this->wait->watch->project, 41);
         $em->flush();
-        $this->workerRun($card->id, 'fix', WorkerRunState::Unfinished, new \DateTimeImmutable('2026-10-26 10:00:00'), 'work remains');
-        $wait = $this->pauseWait($card, 'blocked', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-26 10:01:00'));
+        $run = $this->workerRun($card->id, 'fix', WorkerRunState::Unfinished, new \DateTimeImmutable('2026-10-26 10:00:00'), null, "STAGE RESULT: loupe MCP unreachable [reason: mcp-unreachable].\nI changed nothing.");
+        $wait = $this->pauseWait($card, 'unfinished', PauseKind::WorkStopped, new \DateTimeImmutable('2026-10-26 10:01:00'));
 
-        self::assertStringNotContainsString('work remains', $this->text->body([$wait]));
-        self::assertNull($this->text->line($wait, false)->detail);
+        $detail = $this->text->line($wait, false)->detail;
+        self::assertNotNull($detail);
+        self::assertStringContainsString("> loupe MCP unreachable.\n> I changed nothing.", $detail);
+        self::assertStringContainsString('[Open the run](', $detail);
+        self::assertStringContainsString('search='.$run->id?->toRfc4122(), $detail);
+        self::assertStringStartsWith('Card 41 is paused. The worker ended before it finished its work. Open the card and resume it. [Open the run](', $this->text->body([$wait]));
+        self::assertStringContainsString('> loupe MCP unreachable.', $this->text->body([$wait]));
+        self::assertSame([$wait], $this->text->pageWaits([$wait]));
     }
 
-    public function test_a_pause_after_a_failed_run_with_no_reason_names_its_state_and_not_its_output(): void
+    public function test_a_pause_after_a_failed_run_with_no_reason_names_its_state_and_quotes_its_output(): void
     {
         $em = $this->em();
         $card = $this->card($em, $this->wait->watch->project, 39);
@@ -274,7 +280,7 @@ final class CardWaitTextTest extends KernelTestCase
 
         $body = $this->text->body([$wait]);
         self::assertStringStartsWith('Card 39 is paused. The worker stopped as blocked. The last review worker run ended as timed out. Open the card and resume it. [Open the failed run](', $body);
-        self::assertStringNotContainsString('push', $body);
+        self::assertStringContainsString("> Working.\n> 2. Then push.", $body);
     }
 
     public function test_the_body_leads_with_the_wait_the_title_names(): void

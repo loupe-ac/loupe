@@ -391,7 +391,8 @@ its kind and its failure reason, or the state of the run when it has no
 reason. A run that stopped for a person did not fail, so the pause names no
 run, and the run wait says what the run needs. Below the
 sentence, the "Open the failed run" link opens that run on the worker runs
-page. The title of the item reads "Paused:" and the reason. The first message
+page, and a quote shows what the run said. A run that ended before it finished
+its work gets the same quote, with an "Open the run" link. The title of the item reads "Paused:" and the reason. The first message
 of the panel is the wait that the title names.
 
 A pause after a rule reached its work limit says what looped. The title
