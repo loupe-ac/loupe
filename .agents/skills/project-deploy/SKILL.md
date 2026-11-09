@@ -248,7 +248,7 @@ sentry-cli deploys new --release "$VERSION" -e prod
 
 Create the release first, because Sentry makes a release only at its first event. A new deploy can have no event yet.
 
-`sentry-cli` reads an organization token with the `org:ci` scope from `~/.sentryclirc`. Install it with `brew install --cask sentry-cli`. Never print that file.
+`sentry-cli` reads an organization token with the `org:ci` and `org:read` scopes from `~/.sentryclirc`. Install it with `brew install --cask sentry-cli`. Never print that file.
 
 Read `lastDeploy` of the release with `find_releases` through the Sentry MCP to confirm the record. A failure here does not fail the deploy. Report it under **Not checked**, with the error line. When the token is missing, add the setup to **For you**.
 
