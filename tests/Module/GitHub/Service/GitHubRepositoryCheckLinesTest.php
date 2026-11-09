@@ -275,13 +275,16 @@ final class GitHubRepositoryCheckLinesTest extends TestCase
         self::assertSame([], $this->lines()->forCheck($check));
     }
 
-    public function test_no_drift_warning_for_an_empty_list_or_an_unset_list(): void
+    public function test_an_explicit_empty_list_warns_about_recent_checks_and_an_unset_list_does_not(): void
     {
-        $empty = $this->check([], $this->settings(recentChecks: ['lint'], rulesUnavailable: self::REFUSED));
-        $unset = $this->check([], $this->settings(recentChecks: ['lint'], rulesUnavailable: self::REFUSED));
+        $check = $this->check([], $this->settings(recentChecks: ['lint'], rulesUnavailable: self::REFUSED));
 
-        self::assertCount(1, $this->lines(requiredChecks: new ResolvedSetting(RepositorySettings::REQUIRED_CHECKS_SETTING, [], SettingSource::File))->forCheck($empty));
-        self::assertCount(1, $this->lines()->forCheck($unset));
+        $empty = $this->lines(requiredChecks: new ResolvedSetting(RepositorySettings::REQUIRED_CHECKS_SETTING, [], SettingSource::File))->forCheck($check);
+
+        self::assertCount(2, $empty);
+        self::assertSame(self::P.'required_checks.unlisted.title', $empty[1]->titleKey);
+        self::assertSame('lint', $empty[1]->detailParameters['%checks%']);
+        self::assertCount(1, $this->lines()->forCheck($check));
     }
 
     public function test_the_unlisted_row_stays_quiet_when_classic_protection_can_hold_more_checks(): void

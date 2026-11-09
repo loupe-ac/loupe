@@ -103,7 +103,8 @@ final readonly class GitHubRepositoryCheckLines
 
         $required = $refused ? ($list ?? []) : $settings->rules->requiredChecks;
         $required = array_values(array_filter($required, static fn (string $check): bool => !str_starts_with($check, self::LOUPE_CHECK_PREFIX)));
-        if ([] === $required || [] === $settings->recentChecks) {
+        $explicitlyEmpty = $refused && null !== $list && [] === $required;
+        if ([] === $settings->recentChecks || ([] === $required && !$explicitlyEmpty)) {
             return $lines;
         }
 
