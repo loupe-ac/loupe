@@ -89,6 +89,12 @@ expect plan-refusal-unset 0 'EVERY_NON_LOUPE_CHECK' "$url"
 fixture plan-refusal-list "$plan" "$unprotected"
 expect plan-refusal-list 0 $'ci\nlint' --required-checks '["lint","ci"]' "$url"
 
+fixture plan-refusal-list-beside-classic "$plan" "$classic"
+expect plan-refusal-list-beside-classic 0 $'build\ne2e\nlint\nother' --required-checks '["other"]' "$url"
+
+fixture capable-no-ci-ignores-list "$approval_only" "$unprotected"
+expect capable-no-ci-ignores-list 0 'EVERY_NON_LOUPE_CHECK' --required-checks '["other"]' "$url"
+
 fixture plan-refusal-empty "$plan" "$unprotected"
 expect plan-refusal-empty 0 '' --required-checks '[]' "$url"
 

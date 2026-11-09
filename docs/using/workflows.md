@@ -736,6 +736,7 @@ A workflow template declares settings. A setting has a key, a type, a scope and 
 | `epic-branches` | project | `true` or `false` | `true` |
 | `epic-branch-pattern` | project | a branch name with `{number}` once | `epic/{number}` |
 | `epic-child-merge-method` | repository | `squash`, `merge` or `rebase` | `squash` |
+| `required-checks` | repository | a list of check names | none |
 
 The Simple template declares the three keys other than `merge-approval`.
 

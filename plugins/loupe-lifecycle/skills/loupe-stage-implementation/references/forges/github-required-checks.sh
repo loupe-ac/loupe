@@ -50,7 +50,7 @@ jq -rn --argjson rules "$rules" --argjson branch "$branch" --argjson list "$list
   ([$rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[]?|.context]
    + [$branch.protection.required_status_checks // {} | ((.contexts // []) + [.checks[]?|.context])[]])
   | unique | map(select(. != "Loupe / Approval")) as $github
-  | if ($github | map(select(startswith("Loupe / ") | not)) | length) > 0 then $github
-    elif $refused == 1 and $list != null then $github + $list
+  | if $refused == 1 and $list != null then $github + $list
+    elif ($github | map(select(startswith("Loupe / ") | not)) | length) > 0 then $github
     else $github + ["EVERY_NON_LOUPE_CHECK"] end
   | map(select(. != "Loupe / Approval")) | unique | .[]'

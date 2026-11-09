@@ -37,8 +37,10 @@ final class SettingValues
             return null;
         }
 
-        /* @var bool|list<string>|string $value accepts() proved the shape */
-        return $value;
+        /** @var bool|list<string>|string $accepted accepts() proved the shape */
+        $accepted = $value;
+
+        return $accepted;
     }
 
     public static function unknownKey(string $key): string

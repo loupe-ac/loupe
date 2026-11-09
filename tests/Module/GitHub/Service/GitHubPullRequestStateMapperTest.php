@@ -238,6 +238,14 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame(PullRequestChecks::Passed, self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0, ['lint'])->checks);
     }
 
+    public function test_a_refused_repository_waits_for_its_list_beside_a_check_the_head_flags(): void
+    {
+        $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', true)]);
+        $node['mergeStateStatus'] = 'CLEAN';
+
+        self::assertSame(PullRequestChecks::Pending, self::mapper()->map($node, GitHubBranchRules::refusedByPlan(), 0, ['lint', 'tests'])->checks);
+    }
+
     public function test_a_listed_check_that_never_reported_keeps_the_pull_request_pending_and_is_named(): void
     {
         $node = self::withContexts(self::pullRequest604(), [self::checkRun('lint', 'COMPLETED', 'SUCCESS', false)]);

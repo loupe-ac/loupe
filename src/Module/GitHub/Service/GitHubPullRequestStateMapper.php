@@ -347,12 +347,10 @@ final readonly class GitHubPullRequestStateMapper
         $forgeRequired = array_values(array_diff(array_unique([...$rules->requiredChecks ?? [], ...array_map(strval(...), $flaggedRequired)]), [ForgePullRequest::APPROVAL_CHECK_NAME]));
         $names = $forgeRequired;
         $listApplies = true === $rules?->refused && null !== $requiredChecks && [] !== $requiredChecks;
-        if (!array_any($forgeRequired, self::isForgeCi(...))) {
-            if ($listApplies) {
-                $names = [...$forgeRequired, ...$requiredChecks];
-            } elseif (true !== $rules?->refused || null === $requiredChecks) {
-                $names = [...$forgeRequired, ...array_filter(array_map(strval(...), array_keys($verdicts)), self::isForgeCi(...))];
-            }
+        if ($listApplies) {
+            $names = [...$forgeRequired, ...$requiredChecks];
+        } elseif (!array_any($forgeRequired, self::isForgeCi(...)) && (true !== $rules?->refused || null === $requiredChecks)) {
+            $names = [...$forgeRequired, ...array_filter(array_map(strval(...), array_keys($verdicts)), self::isForgeCi(...))];
         }
         $names = array_values(array_diff(array_unique($names), [ForgePullRequest::APPROVAL_CHECK_NAME]));
         $blockProvesPending = [] === $forgeRequired && !$listApplies;
