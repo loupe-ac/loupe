@@ -236,6 +236,22 @@ Then do these checks:
 - Call `search_issues` through the Sentry MCP with `is:unresolved firstSeen:-1h environment:prod` on the `loupe` project. Read each new issue.
 - Run each check that the deploy notes ask for and that an agent can run.
 
+### Record the deploy in Sentry
+
+Do this step after `just healthz` reports the target version, and only for a production deploy. Set `VERSION` to the `version` value that `just healthz` printed. Sentry names each release with that value.
+
+```bash
+export SENTRY_ORG=geoffrey-bachelet-w0 SENTRY_PROJECT=loupe
+sentry-cli releases new "$VERSION"
+sentry-cli deploys new --release "$VERSION" -e prod
+```
+
+Create the release first, because Sentry makes a release only at its first event. A new deploy can have no event yet.
+
+`sentry-cli` reads an organization token with the `org:ci` and `org:read` scopes from `~/.sentryclirc`. Install it with `brew install --cask sentry-cli`. Never print that file.
+
+Read `lastDeploy` of the release with `find_releases` through the Sentry MCP to confirm the record. A failure here does not fail the deploy. Report it under **Not checked**, with the error line. When the token is missing, add the setup to **For you**.
+
 ### Do every deploy-note step yourself
 
 Do each step of the deploy notes that an agent can do, and do not ask the owner again. The go of the owner on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
