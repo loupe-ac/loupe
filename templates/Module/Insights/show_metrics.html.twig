@@ -46,6 +46,12 @@
         data-metric-formula-open-value="{{ formulaOpen ? 'true' : 'false' }}">
         {% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}
         <div class="lp-metric-formula" data-metric-formula-target="panel"{{ formulaOpen ? '' : ' hidden' }}>
+            <div class="lp-metric-formula__row lp-metric-formula__heads" aria-hidden="true">
+                <span></span>
+                <span>{{ 'analytics.metrics.form.metric'|trans }}</span>
+                <span>{{ 'analytics.metrics.form.statistic'|trans }}</span>
+                <span class="lp-metric-formula__spacer"></span>
+            </div>
             <div class="lp-metric-formula__rows" data-metric-formula-target="rows">
                 {% if formulaOpen %}
                 {% for part in rowParts %}

@@ -252,6 +252,44 @@ it('submits when the check says the formula runs', async () => {
     );
 });
 
+it('starts the empty row on Sum', async () => {
+    await mount();
+    document.querySelector('#open').click();
+    await settle();
+
+    const statistic = rows()[1].querySelector(
+        '[data-metric-formula-role="statistic"]',
+    );
+    expect(statistic.value).toBe('sum');
+});
+
+it('does not submit the changed input when an older check returns', async () => {
+    let release;
+    fetch.mockImplementation(
+        () =>
+            new Promise((resolve) => {
+                release = () =>
+                    resolve({ json: async () => ({ ok: true, error: null }) });
+            }),
+    );
+    const form = await mount();
+    document.querySelector('#open').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const text = document.querySelector(
+        '[data-metric-formula-target="formulaText"]',
+    );
+    text.value = 'A / 2';
+    text.dispatchEvent(new Event('input', { bubbles: true }));
+    release();
+    await settle();
+
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+    const submit = new Event('submit', { cancelable: true });
+    form.dispatchEvent(submit);
+    expect(submit.defaultPrevented).toBe(true);
+});
+
 it('closes onto the earliest row that holds a metric, or onto Cost when none does', async () => {
     const form = await mount();
     document.querySelector('#open').click();

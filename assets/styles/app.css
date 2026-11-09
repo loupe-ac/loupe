@@ -7597,6 +7597,12 @@
     .lp-metric-formula__row {
         @apply grid grid-cols-[auto_minmax(0,1fr)_minmax(0,12rem)_auto] items-center gap-2;
     }
+    .lp-metric-formula__heads {
+        @apply w-full text-xs font-medium text-fg-mute;
+    }
+    .lp-metric-formula__spacer {
+        @apply size-8;
+    }
     .lp-metric-formula__letter {
         @apply w-6 text-center font-mono text-sm font-semibold text-fg-mute;
     }

@@ -80,7 +80,11 @@ class ShowMetricsController extends AppController
         if (null !== $selected && Metric::HarnessEvents === $query->metric->key->metric && !\in_array($selected, $eventKinds, true)) {
             $eventKinds[] = $selected;
         }
-        $rowParts = $query->formula instanceof MetricFormula ? MetricFormula::rowParts($request->query->getString('rows')) : [];
+        $rowsText = $request->query->getString('rows');
+        if ('' === trim($rowsText) && $query->formula instanceof MetricFormula) {
+            $rowsText = $query->formula->rowsText();
+        }
+        $rowParts = $query->formula instanceof MetricFormula ? MetricFormula::rowParts($rowsText) : [];
         foreach ($rowParts as $part) {
             $rowKey = MetricKey::tryParse($part['metric'], $templates);
             if (null !== $rowKey && null !== $rowKey->name && \in_array($rowKey->metric, [Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls], true) && !\in_array($rowKey->name, $bucketNames, true)) {

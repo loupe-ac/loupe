@@ -42,6 +42,7 @@ export default class extends Controller {
     connect() {
         this.invalid = false;
         this.sequence = 0;
+        this.checking = false;
         this.timer = null;
         if (this.openValue) {
             this.narrow();
@@ -94,6 +95,8 @@ export default class extends Controller {
     }
 
     change() {
+        this.sequence += 1;
+        this.checking = true;
         this.#compose();
         this.narrow();
         this.#updateAddRow();
@@ -111,6 +114,7 @@ export default class extends Controller {
         const statistic = undefined === first ? null : this.#statisticOf(first);
         clearTimeout(this.timer);
         this.sequence += 1;
+        this.checking = false;
         this.#setInvalid(null);
         [
             this.rowsFieldTarget,
@@ -129,7 +133,7 @@ export default class extends Controller {
         if (this.openValue) {
             this.#compose();
         }
-        if (this.invalid) {
+        if (this.invalid || (this.openValue && this.checking)) {
             event.preventDefault();
         }
     }
@@ -245,7 +249,8 @@ export default class extends Controller {
 
     #fillStatistics(row, metric, preferred) {
         const select = this.#roleOf(row, 'statistic');
-        const allowed = this.joinableValue[metric]?.statistics ?? [];
+        // An empty row offers Sum alone, so a new row starts on Sum.
+        const allowed = this.joinableValue[metric]?.statistics ?? ['sum'];
         select.replaceChildren(
             ...allowed.map(
                 (value) => new Option(this.labelsValue[value] ?? value, value),
@@ -269,7 +274,6 @@ export default class extends Controller {
     }
 
     async #check() {
-        this.sequence += 1;
         const sequence = this.sequence;
         const url = new URL(this.checkUrlValue, window.location.origin);
         url.searchParams.set('rows', this.rowsFieldTarget.value);
@@ -284,11 +288,15 @@ export default class extends Controller {
             });
             result = await response.json();
         } catch {
+            if (sequence === this.sequence) {
+                this.checking = false;
+            }
             return;
         }
         if (sequence !== this.sequence) {
             return;
         }
+        this.checking = false;
         if (result.ok) {
             this.#setInvalid(null);
             this.element.requestSubmit();
