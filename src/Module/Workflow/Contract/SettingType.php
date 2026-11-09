@@ -10,4 +10,5 @@ enum SettingType: string
     case Boolean = 'bool';
     case Text = 'string';
     case Choice = 'enum';
+    case StringList = 'list';
 }

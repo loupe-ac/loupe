@@ -27,8 +27,6 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
 
     private const int MAX_RULE_PAGES = 10;
 
-    private const int MAX_RECENT_CHECKS = 30;
-
     private const string LOUPE_CHECK_PREFIX = 'Loupe / ';
 
     public function __construct(
@@ -201,6 +199,6 @@ final readonly class GitHubRepositorySettingsReader implements RepositorySetting
         }
 
         // A required check matches by its exact name, so the names stay as GitHub reports them.
-        return \array_slice(array_map(strval(...), array_keys($names)), 0, self::MAX_RECENT_CHECKS);
+        return \array_slice(array_map(strval(...), array_keys($names)), 0, RepositorySettings::MAX_RECENT_CHECKS);
     }
 }

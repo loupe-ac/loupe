@@ -368,7 +368,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $lines->eq(0)->filter('.lp-status-chip--failed'));
         self::assertSame('Blocking', trim($lines->eq(0)->filter('.lp-status-chip')->text()));
         self::assertStringContainsString('Loupe / Approval is not required', $lines->eq(0)->text());
-        self::assertStringContainsString('nothing on GitHub gates a merge', $lines->eq(0)->text());
+        self::assertStringContainsString('Loupe cannot stop a person who merges on GitHub', $lines->eq(0)->text());
         self::assertCount(1, $lines->eq(1)->filter('.lp-status-chip--pending'));
         self::assertCount(1, $lines->eq(2)->filter('.lp-status-chip--ok'));
         self::assertStringContainsString('Loupe merges with squash', $lines->eq(2)->text());

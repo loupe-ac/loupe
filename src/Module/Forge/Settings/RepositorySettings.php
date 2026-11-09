@@ -13,6 +13,12 @@ final readonly class RepositorySettings implements \JsonSerializable
     /** The order in which the merge methods are listed. */
     public const array MERGE_METHODS = ['squash', 'merge', 'rebase'];
 
+    /** The workflow setting that lists the checks Loupe waits for on a repository whose forge refuses rulesets. */
+    public const string REQUIRED_CHECKS_SETTING = 'required-checks';
+
+    /** A read keeps this many names of recent checks, so the list can be cut off at this length. */
+    public const int MAX_RECENT_CHECKS = 30;
+
     /**
      * @param list<string>            $mergeMethods      the methods that the repository switches turn on
      * @param int|null                $loupeAppId        the id of the Loupe App on the forge, null when the forge has none

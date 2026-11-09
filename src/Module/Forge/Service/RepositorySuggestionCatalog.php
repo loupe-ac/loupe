@@ -23,6 +23,12 @@ final readonly class RepositorySuggestionCatalog
 
     private const string LOUPE_CHECK_PREFIX = 'Loupe / ';
 
+    /** A forge that refuses rules can enforce none, so a suggestion about rules reports a false gap there. */
+    public function needsRules(RepositorySuggestionKey $key): bool
+    {
+        return RepositorySuggestionKey::MergeMethod !== $key;
+    }
+
     public function evaluate(RepositorySuggestionKey $key, RepositorySettings $settings): RepositorySuggestionEvaluation
     {
         return new RepositorySuggestionEvaluation($key, match ($key) {

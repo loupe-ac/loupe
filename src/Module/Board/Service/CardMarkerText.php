@@ -14,6 +14,7 @@ final readonly class CardMarkerText
     private const string PAUSED = 'marker.paused';
     private const string USAGE_LIMIT = 'marker.usage_limit';
     private const string DISCONNECTED = 'marker.bridge_disconnected';
+    private const string WAITING_ON_CHECKS = 'marker.waiting_on_checks';
 
     public function __construct(
         private TranslatorInterface $translator,
@@ -45,6 +46,9 @@ final readonly class CardMarkerText
     {
         if (self::DISCONNECTED === $marker->label && '' === ($marker->params['%machine%'] ?? '')) {
             return $this->translator->trans(self::DISCONNECTED.'.unnamed');
+        }
+        if (self::WAITING_ON_CHECKS === $marker->label && '' !== ($marker->params['%checks%'] ?? '')) {
+            return $this->translator->trans(self::WAITING_ON_CHECKS.'.named', $marker->params);
         }
         if (self::PAUSED !== $marker->label) {
             return $this->translator->trans($marker->label, $marker->params);

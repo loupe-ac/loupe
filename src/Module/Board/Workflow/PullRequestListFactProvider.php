@@ -190,6 +190,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             updateRefusedOnHead: null !== $headSha && $pullRequest->updateRefusedSha === $headSha,
             mergeApprovalUnanswered: true === $mergeApproval?->unanswered($installed),
             mergeApprovalNeedsPerson: true === $mergeApproval?->needsPerson($installed),
+            missingChecks: $pullRequest->missingChecks,
         );
     }
 

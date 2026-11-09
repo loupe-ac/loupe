@@ -55,10 +55,11 @@ final readonly class WorkflowSettingsWriter implements RepositoryWorkflowSetting
 
                     continue;
                 }
-                $valid = (\is_string($raw) || \is_bool($raw)) && TemplateSettings::accepts($setting, $raw);
+                $valid = (\is_string($raw) || \is_bool($raw) || \is_array($raw)) && TemplateSettings::accepts($setting, $raw);
                 if (!$valid) {
                     $warnings[] = SettingValues::invalidValue($setting);
                 }
+                /** @var bool|list<string>|string $raw accepts() proved the shape */
                 $value = $valid ? SettingValues::encode($raw) : null;
 
                 $row = $rows[$key] ?? null;

@@ -23,6 +23,7 @@ final class TemplateSettings
             SettingType::Boolean => \is_bool($value),
             SettingType::Choice => \is_string($value) && \in_array($value, $setting->values, true),
             SettingType::Text => \is_string($value) && self::followsFormat($setting->format, $value),
+            SettingType::StringList => \is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => \is_string($item) && '' !== trim($item)),
         };
     }
 
@@ -89,11 +90,14 @@ final class TemplateSettings
         }
         $type = \is_string($entry['type'] ?? null) ? SettingType::tryFrom($entry['type']) : null;
         if (null === $type) {
-            return \sprintf('%s: type must be bool, string or enum', $where);
+            return \sprintf('%s: type must be bool, string, enum or list', $where);
         }
         $scope = \is_string($entry['scope'] ?? null) ? SettingScope::tryFrom($entry['scope']) : null;
         if (null === $scope) {
             return \sprintf('%s: scope must be repository or project', $where);
+        }
+        if (SettingType::StringList === $type && SettingScope::Repository !== $scope) {
+            return $where.': a list is a setting of the repository scope';
         }
         $values = $entry['values'] ?? [];
         if (SettingType::Choice === $type) {

@@ -33,7 +33,7 @@ final class ClaimWorkRequestProjectHoldLockTest extends KernelTestCase
     use BlockingRepositories;
     use BridgeScenario;
 
-    private const string GAP = '[{"key":"approval-gate","mark":"blocking","state":"gap","gaps":["no_pull_request_rule"],"parameters":[]}]';
+    private const string GAP = '[{"key":"merge-method","mark":"blocking","state":"gap","gaps":["no_merge_method"],"parameters":[]}]';
 
     private ?Connection $other = null;
     private User $owner;

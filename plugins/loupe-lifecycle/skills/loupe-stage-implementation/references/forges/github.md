@@ -147,13 +147,17 @@ Report mergeability, as the next section says.
 
 ```bash
 gh pr view <url> --json state,isDraft,headRefOid,baseRefName,mergeable,mergeStateStatus
-<forge dir>/github-required-checks.sh <url>
+<forge dir>/github-required-checks.sh [--base <branch>] --required-checks '<json>' <url>
 gh pr checks <url> --json name,bucket,link
 ```
 
 `<forge dir>` is the directory of this file. The second command prints the names of the required checks of the base branch, one for each line. It reads the rulesets and the classic branch protection live, so no profile count can go stale. It leaves out `Loupe / Approval`, which "Check the approval covers the head" reads. It exits 2 and prints `UNREAD` with a reason when a read fails. An epic child passes `--base <default branch>` with the default branch of the repository, because an epic branch has no rules of its own.
 
-The third command lists every check of the head. Read its JSON whatever the exit code. Each required name must have a check with the `bucket` `pass`. A name with no check counts as pending, also when the check has not started yet. An empty list of names is green.
+The third command lists every check of the head. Read its JSON whatever the exit code. Each required name must have a check with the `bucket` `pass`. A name with no check counts as pending, also when the check has not started yet.
+
+The second command takes the value of the `required-checks` setting that `workflow_get` returns for the repository of the pull request, as JSON, in `--required-checks`. Pass `null` when the value is `null`. The value applies only when GitHub refuses rulesets for the plan.
+
+When the second command prints the line `EVERY_NON_LOUPE_CHECK`, every check of the head whose name does not start with `Loupe / ` must have the `bucket` `pass`, `skipping` being equal to pass. A check that waits counts as pending. When the second command prints no name, there is no CI gate and the checks are green.
 
 The approval is not part of this read. "Check the approval covers the head" reads it. `mergeStateStatus` is `CLEAN`, `HAS_HOOKS`, `UNSTABLE`, `BEHIND`, `BLOCKED`, `DIRTY` or `UNKNOWN`. Green means that every required name passes, and that none fails, waits or has no check.
 

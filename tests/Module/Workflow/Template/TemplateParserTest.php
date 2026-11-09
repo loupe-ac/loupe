@@ -403,8 +403,10 @@ final class TemplateParserTest extends TestCase
         yield 'a key with capitals' => [[['key' => 'Bad'] + $bool], 'settings[0]: key "Bad" must be lowercase letters, digits and hyphens'];
         yield 'a missing key' => [[['type' => 'bool', 'scope' => 'project']], 'settings[0]: key "null" must be lowercase letters, digits and hyphens'];
         yield 'a duplicate key' => [[$bool, $bool], 'settings[1]: duplicate key "on"', 1];
-        yield 'an unknown type' => [[['type' => 'int'] + $bool], 'settings[0]: type must be bool, string or enum'];
+        yield 'an unknown type' => [[['type' => 'int'] + $bool], 'settings[0]: type must be bool, string, enum or list'];
         yield 'an unknown scope' => [[['scope' => 'user'] + $bool], 'settings[0]: scope must be repository or project'];
+        yield 'a list in the project scope' => [[['key' => 'l', 'type' => 'list', 'scope' => 'project']], 'settings[0]: a list is a setting of the repository scope'];
+        yield 'a list with a default' => [[['key' => 'l', 'type' => 'list', 'scope' => 'repository', 'default' => ['a']]], 'settings[0]: default is not an allowed value'];
         yield 'an enum with no values' => [[['key' => 'm', 'type' => 'enum', 'scope' => 'project']], 'settings[0]: values must be a list of one or more different non-empty strings'];
         yield 'an enum with a repeated value' => [[['key' => 'm', 'type' => 'enum', 'scope' => 'project', 'values' => ['a', 'a']]], 'settings[0]: values must be a list of one or more different non-empty strings'];
         yield 'values on a bool' => [[$bool + ['values' => ['a']]], 'settings[0]: values are for an enum only'];

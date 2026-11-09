@@ -6,9 +6,12 @@ namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\PullRequestSnapshot;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\PullRequestStateReader;
 use App\Module\Forge\Service\PullRequestUnreadable;
+use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\GitHubDelivery;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -39,6 +42,8 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
         private readonly GitHubAppApi $api,
         private readonly GitHubPullRequestInstallations $installations,
         private readonly GitHubPullRequestStateMapper $mapper,
+        private readonly ForgeRepositoryRepository $forgeRepositories,
+        private readonly WorkflowSettings $workflowSettings,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger,
     ) {
@@ -73,14 +78,31 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
         if ($child && [] === $rules->requiredChecks) {
             // A base with no ruleset, such as an epic branch, still waits for the checks of the default branch.
             $defaultRules = $this->rules($installationId, $path, $default) ?? throw new PullRequestUnreadable('default_branch_rules_unreadable', transient: true);
-            $rules = new GitHubBranchRules($defaultRules->requiredChecks, false, false, $defaultRules->approvalSources);
+            $rules = new GitHubBranchRules($defaultRules->requiredChecks, false, false, $defaultRules->approvalSources, refused: $defaultRules->refused);
         }
         $behindBy = null;
         if (null !== $rules && 'OPEN' === ($node['state'] ?? null) && !\in_array($node['mergeable'] ?? null, ['CONFLICTING', 'UNKNOWN'], true) && \is_string($node['headRefOid'] ?? null)) {
             $behindBy = $this->behindBy($installationId, $path, (string) $base, $node['headRefOid']);
         }
 
-        return $this->mapper->map($node, $rules, $behindBy);
+        return $this->mapper->map($node, $rules, $behindBy, true === $rules?->refused ? $this->requiredChecks($pullRequest) : null);
+    }
+
+    /**
+     * The checks that the repository lists for a plan with no rulesets.
+     *
+     * @return list<string>|null null when the repository lists none, or its list is invalid
+     */
+    private function requiredChecks(ForgePullRequest $pullRequest): ?array
+    {
+        $projectId = $pullRequest->project->requireId();
+        $repositoryId = $this->forgeRepositories->findInstallationRowByPath($pullRequest->project, $pullRequest->forge, $pullRequest->repository)?->id;
+        if (null === $repositoryId) {
+            return null;
+        }
+        $value = $this->workflowSettings->forRepository($projectId, $repositoryId, RepositorySettings::REQUIRED_CHECKS_SETTING)->value;
+
+        return \is_array($value) ? $value : null;
     }
 
     /**
@@ -157,7 +179,7 @@ final class GitHubPullRequestStateReader implements PullRequestStateReader
         } catch (GitHubAppApiFailed|\UnexpectedValueException $e) {
             if ($e instanceof GitHubAppApiFailed && GitHubAppApiFailed::PLAN_LIMITED === $e->reason) {
                 // A plan with no rulesets enforces none, on any base branch.
-                $rules = GitHubBranchRules::fromRules([]);
+                $rules = GitHubBranchRules::refusedByPlan();
                 $this->rules[$key] = ['rules' => $rules, 'until' => $now->modify(self::RULES_TTL)];
 
                 return $rules;

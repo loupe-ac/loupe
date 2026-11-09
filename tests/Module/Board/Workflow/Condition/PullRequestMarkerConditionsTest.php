@@ -111,6 +111,7 @@ final class PullRequestMarkerConditionsTest extends TestCase
 
         yield 'checks failed' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
         yield 'checks pending' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
+        yield 'checks pending, a check never reported' => [new PullRequestChecksPending(), [], FactsMother::pullRequest(number: 7, missingChecks: ['lint', 'tests']), new Evidence([...$number, '%checks%' => 'lint, tests'])];
         yield 'conflicting' => [new PullRequestConflicting(), [], FactsMother::pullRequest(number: 7), new Evidence($number)];
         yield 'no number' => [new PullRequestChecksFailed(), [], FactsMother::pullRequest(), new Evidence()];
         yield 'forge request pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(number: 7, forgeRequests: [self::request('11:55', '12:05')]), new Evidence($number)];

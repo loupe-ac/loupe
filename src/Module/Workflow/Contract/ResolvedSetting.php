@@ -8,11 +8,12 @@ namespace App\Module\Workflow\Contract;
 final readonly class ResolvedSetting
 {
     /**
-     * @param list<string> $warnings
+     * @param string|bool|list<string>|null $value    an empty list is a stated value, and null means that no source states one
+     * @param list<string>                  $warnings
      */
     public function __construct(
         public string $key,
-        public string|bool|null $value,
+        public string|bool|array|null $value,
         public SettingSource $source,
         public array $warnings = [],
     ) {
