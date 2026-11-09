@@ -13,6 +13,7 @@ use App\Module\Insights\View\MetricChartLayouts;
 use App\Module\Insights\View\MetricChartRules;
 use App\Module\Insights\View\MetricTitle;
 use App\Module\Insights\View\MetricValueFormatter;
+use Psr\Clock\ClockInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Builds the drawn graph from a kept result, in the language of the viewer. */
@@ -21,6 +22,7 @@ final readonly class KeptGraphView
     public function __construct(
         private MetricTitle $metricTitle,
         private TranslatorInterface $translator,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -41,7 +43,7 @@ final readonly class KeptGraphView
             $kept->computedAt,
             $this->metricTitle->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare),
             $resolution,
-            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $kept->series, new MetricValueFormatter($locale), $box),
+            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $kept->series, new MetricValueFormatter($locale), $this->clock->now(), $box),
             $labels,
             array_map(static fn (MetricSeries $series) => $series->groupKey, $kept->series),
             $kept->current,

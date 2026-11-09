@@ -77,6 +77,10 @@
         stroke-linecap: round;
     }
     /* The previous period is a faded dashed copy of the line. */
+    /* The segment into a bucket that is still open is dotted in the full colour of the series. */
+    .lp-chart__line--open {
+        stroke-dasharray: 1 5;
+    }
     .lp-chart__line--previous {
         @apply opacity-50;
         stroke-dasharray: 6 5;

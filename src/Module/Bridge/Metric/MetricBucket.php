@@ -21,4 +21,10 @@ enum MetricBucket: string
             self::Month => $day->setDate((int) $day->format('Y'), (int) $day->format('n'), 1),
         };
     }
+
+    /** A bucket is open while the time of the read falls inside its period. The end of a period is exclusive. */
+    public function isOpen(\DateTimeImmutable $start, \DateTimeImmutable $at): bool
+    {
+        return $this->startOf($at) == $this->startOf($start);
+    }
 }

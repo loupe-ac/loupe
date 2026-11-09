@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Preview;
 
 use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricWindow;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Preview\ExperimentPreviewLayouts;
 use App\Module\Insights\Preview\PreviewRenderer;
@@ -18,7 +19,9 @@ use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\PublicGraphResults;
 use App\Module\Insights\View\KeptGraphResult;
 use App\Module\Insights\View\MetricChartType;
+use App\Module\Insights\View\MetricsQuery;
 use App\Tests\Module\Insights\PublicPreviewScenario;
+use App\Tests\Support\ChartSeries;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -75,23 +78,40 @@ final class PublicPreviewDrawerTest extends KernelTestCase
         $keeper = self::getContainer()->get(InsightsResultKeeper::class);
         self::assertInstanceOf(InsightsResultKeeper::class, $keeper);
 
+        $at = new \DateTimeImmutable('2100-01-01 UTC');
         $first = $keeper->graph($graph);
         usleep(1_100_000);
         $second = $keeper->graph($graph);
 
         self::assertNotEquals($first->computedAt, $second->computedAt);
-        self::assertSame(PublicPreviewVersion::of($first), PublicPreviewVersion::of($second));
+        self::assertSame(PublicPreviewVersion::of($first, $at), PublicPreviewVersion::of($second, $at));
     }
 
     public function test_other_numbers_or_a_legend_change_give_another_version(): void
     {
         $link = $this->sharedCostGraph('drawer-other-numbers');
         $kept = $this->kept($link);
+        $at = new \DateTimeImmutable('2100-01-01 UTC');
         $moved = new KeptGraphResult($kept->computedAt, $kept->query, array_slice($kept->series, 0, 0), $kept->groupLabels, $kept->current, $kept->previous);
 
-        self::assertNotSame(PublicPreviewVersion::of($kept), PublicPreviewVersion::of($moved));
-        self::assertNotSame(PublicPreviewVersion::of($kept, false), PublicPreviewVersion::of($kept, true));
-        self::assertSame('broken', PublicPreviewVersion::of(null));
+        self::assertNotSame(PublicPreviewVersion::of($kept, $at), PublicPreviewVersion::of($moved, $at));
+        self::assertNotSame(PublicPreviewVersion::of($kept, $at, false), PublicPreviewVersion::of($kept, $at, true));
+        self::assertSame('broken', PublicPreviewVersion::of(null, $at));
+    }
+
+    public function test_a_line_graph_gets_another_version_once_its_last_bucket_closes(): void
+    {
+        $window = new MetricWindow(null, new \DateTimeImmutable('2026-11-08 23:58 UTC'));
+        $series = ChartSeries::of(null, ['2026-11-02' => 1.0, '2026-11-09' => 2.0]);
+        $line = new KeptGraphResult(new \DateTimeImmutable('2026-11-08 23:58 UTC'), new MetricsQuery(), [$series], [], $window, null);
+
+        $before = PublicPreviewVersion::of($line, new \DateTimeImmutable('2026-11-09 00:05 UTC'));
+        $after = PublicPreviewVersion::of($line, new \DateTimeImmutable('2026-11-16 00:05 UTC'));
+
+        self::assertTrue($line->drawsOpenLine(new \DateTimeImmutable('2026-11-09 00:05 UTC')));
+        self::assertFalse($line->drawsOpenLine(new \DateTimeImmutable('2026-11-16 00:00 UTC')));
+        self::assertNotSame($before, $after);
+        self::assertSame($after, PublicPreviewVersion::of($line, new \DateTimeImmutable('2026-12-30 00:00 UTC')));
     }
 
     public function test_a_request_that_waits_on_the_lock_draws_the_newer_result(): void

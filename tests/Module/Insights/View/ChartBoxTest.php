@@ -63,7 +63,7 @@ final class ChartBoxTest extends TestCase
         $box = ChartBox::preview();
         $series = [ChartSeries::of(null, ['2026-09-14' => 1.0, '2026-09-21' => 2.0, '2026-09-28' => 3.0])];
 
-        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Sum, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, $box);
+        $layout = LineLayout::build(new MetricShape(new MetricKey(Metric::Runs)), MetricStatistic::Sum, MetricBucket::Week, $series, new MetricValueFormatter('en'), false, new \DateTimeImmutable('2100-01-01 UTC'), $box);
 
         self::assertNotNull($layout);
         $dots = $layout->lines[0]->dots;
@@ -100,8 +100,8 @@ final class ChartBoxTest extends TestCase
         $formatter = new MetricValueFormatter('en');
 
         self::assertEquals(
-            MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter),
-            MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, new ChartBox()),
+            MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, new \DateTimeImmutable('2100-01-01 UTC')),
+            MetricChartLayouts::build(MetricChartType::Line, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, new \DateTimeImmutable('2100-01-01 UTC'), new ChartBox()),
         );
     }
 
@@ -124,7 +124,7 @@ final class ChartBoxTest extends TestCase
         $series = [new MetricSeries('a', [], new MetricPoint(null, 3, 1), [$row]), new MetricSeries('b', [], new MetricPoint(null, 1, 1), [$row])];
         $metric = new MetricShape(new MetricKey(Metric::Runs));
         $formatter = new MetricValueFormatter('en');
-        $build = static fn (MetricChartType $type): mixed => MetricChartLayouts::build($type, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, ChartBox::preview());
+        $build = static fn (MetricChartType $type): mixed => MetricChartLayouts::build($type, $metric, MetricStatistic::Sum, MetricBucket::Week, $series, $formatter, new \DateTimeImmutable('2100-01-01 UTC'), ChartBox::preview());
 
         $donut = $build(MetricChartType::Donut);
         $number = $build(MetricChartType::Number);

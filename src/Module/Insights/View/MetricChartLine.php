@@ -14,6 +14,8 @@ final readonly class MetricChartLine
         public array $dots,
         /** The previous period on the dates of the current one. Empty when the graph does not compare. */
         public string $previousPath,
+        /** The segment into the last point when its bucket is still open. Empty when the line ends in a closed bucket. */
+        public string $openPath = '',
     ) {
     }
 }

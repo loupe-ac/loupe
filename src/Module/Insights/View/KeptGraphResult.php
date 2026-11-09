@@ -28,4 +28,21 @@ final readonly class KeptGraphResult
         public ?MetricWindow $previous,
     ) {
     }
+
+    /** Whether the graph draws as a line and the last point of a series sits in a bucket that is still open at the time of the read. */
+    public function drawsOpenLine(\DateTimeImmutable $at): bool
+    {
+        $query = $this->query;
+        if (MetricChartType::Line !== MetricChartRules::resolve($query->chart, $query->metric, $query->statistic, \count($this->series))->type) {
+            return false;
+        }
+        foreach ($this->series as $series) {
+            $last = $series->points[\count($series->points) - 1] ?? null;
+            if (null !== $last?->start && null !== $last->value && $query->bucket->isOpen($last->start, $at)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
