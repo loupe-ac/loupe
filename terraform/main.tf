@@ -66,6 +66,13 @@ module "app" {
   # the variable for why the order matters.
   health_check_path = var.health_check_path
 
+  # The shared 0.5 GB size runs one instance only, so a restart of that instance
+  # is an outage. The worker and the hub stay on it.
+  instance_size_slug         = var.web_instance_size_slug
+  instance_count             = var.web_instance_count
+  worker_instance_size_slug  = "apps-s-1vcpu-0.5gb"
+  mercure_instance_size_slug = "apps-s-1vcpu-0.5gb"
+
   # Optional custom domain, supplied per-account like the placement above rather
   # than hardcoded: domain_zone must name a DNS zone the deploying account's own
   # DigitalOcean DNS serves, so a literal here would fail at apply for everyone
