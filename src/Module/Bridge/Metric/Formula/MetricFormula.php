@@ -114,6 +114,41 @@ final readonly class MetricFormula
         return $parts;
     }
 
+    /** A metric joins a formula when it adds up across runs and does not draw one line per bucket. */
+    public static function canJoin(MetricShape $shape): bool
+    {
+        return $shape->isAdditive() && !($shape->key->metric?->isBucketEach() ?? false);
+    }
+
+    /**
+     * The letters of rows that the formula text does not use, in row order. Empty for a formula with a problem.
+     *
+     * @return list<string>
+     */
+    public function unusedLetters(): array
+    {
+        if (null === $this->tree) {
+            return [];
+        }
+        $used = self::lettersOf($this->tree);
+
+        return array_values(array_filter(
+            array_map(static fn (FormulaRow $row): string => $row->letter, $this->rows),
+            static fn (string $letter): bool => !\in_array($letter, $used, true),
+        ));
+    }
+
+    /** @return list<string> */
+    private static function lettersOf(FormulaNode $node): array
+    {
+        return match (true) {
+            $node instanceof LetterNode => [$node->letter],
+            $node instanceof BinaryNode => [...self::lettersOf($node->left), ...self::lettersOf($node->right)],
+            $node instanceof SignNode => self::lettersOf($node->operand),
+            default => [],
+        };
+    }
+
     public function rowsText(): string
     {
         return implode(',', array_map(static fn (FormulaRow $row): string => $row->text(), $this->rows));
@@ -198,7 +233,7 @@ final readonly class MetricFormula
             if (null === $shape) {
                 throw new FormulaException(new FormulaProblem(FormulaProblem::UNKNOWN_METRIC, 0, ['%letter%' => $letter, '%metric%' => $key]));
             }
-            if (!$shape->isAdditive() || ($shape->key->metric?->isBucketEach() ?? false)) {
+            if (!self::canJoin($shape)) {
                 throw new FormulaException(new FormulaProblem(FormulaProblem::METRIC_CANNOT_JOIN, 0, ['%letter%' => $letter, '%metric%' => $key]));
             }
 

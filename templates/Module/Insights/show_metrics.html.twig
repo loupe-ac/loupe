@@ -31,44 +31,65 @@
     </div>
     {% endif %}
 
+    {% set formulaOpen = query.formula is not null %}
+    {% set unitOptions = formulaOpen and query.formula.rows is not empty ? query.formula.units : metric.units %}
+    {% set groupOptions = formulaOpen and query.formula.rows is not empty ? query.formula.groups : metric.groups %}
+    {% set statisticLabels = {} %}
+    {% for statistic in statisticCases %}{% set statisticLabels = statisticLabels|merge({(statistic.value): ('analytics.metrics.statistic.' ~ statistic.value)|trans}) %}{% endfor %}
     {# A GET form, so the controls land in the URL. A control lists only the values its metric allows. #}
-    <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch" class="lp-metric-controls" data-metrics-form>
+    <form method="get" action="{{ path('app_project_analytics_metrics', {id: project.id}) }}" data-controller="autosearch metric-formula" class="lp-metric-controls" data-metrics-form
+        data-action="submit->metric-formula#guard"
+        data-metric-formula-joinable-value="{{ joinable is empty ? '{}' : joinable|json_encode }}"
+        data-metric-formula-labels-value="{{ statisticLabels|json_encode }}"
+        data-metric-formula-check-url-value="{{ path('app_project_analytics_formula_check', {id: project.id}) }}"
+        data-metric-formula-default-metric-value="cost"
+        data-metric-formula-open-value="{{ formulaOpen ? 'true' : 'false' }}">
         {% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}
-        {# A formula graph keeps its rows, its formula and its format when a control changes. #}
-        {% if query.formula is not null %}
-        {% for name, value in query.routeParams|filter((value, name) => name in ['rows', 'formula', 'format']) %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-        {% endif %}
-        <div class="lp-metric-controls__field">
+        <div class="lp-metric-formula" data-metric-formula-target="panel"{{ formulaOpen ? '' : ' hidden' }}>
+            <div class="lp-metric-formula__rows" data-metric-formula-target="rows">
+                {% if formulaOpen %}
+                {% for part in rowParts %}
+                {% include '@Insights/_formula_row.html.twig' with {letter: part.letter, selected: part.metric, statistic: part.statistic, metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, joinable: joinable, statisticLabels: statisticLabels} only %}
+                {% endfor %}
+                {% endif %}
+            </div>
+            <template data-metric-formula-target="rowTemplate">
+                {% include '@Insights/_formula_row.html.twig' with {letter: '@', selected: '', statistic: '', metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, joinable: joinable, statisticLabels: statisticLabels} only %}
+            </template>
+            <template data-metric-formula-target="unitTemplate">{% for option in unitCases %}<option value="{{ option.value }}">{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>{% endfor %}</template>
+            <template data-metric-formula-target="groupTemplate">{% for option in groupCases %}<option value="{{ option.value }}">{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>{% endfor %}</template>
+            <twig:Ds:Button type="button" variant="outline" size="sm" data-metric-formula-target="addRow" data-action="click->metric-formula#addRow">
+                <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.formula.add_metric'|trans }}
+            </twig:Ds:Button>
+            <div class="lp-metric-formula__formula">
+                <twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--md" />
+                <div class="lp-metric-controls__field lp-metric-formula__text">
+                    <twig:Ds:Label for="metrics-formula">{{ 'analytics.metrics.formula.label'|trans }}</twig:Ds:Label>
+                    <twig:Ds:Input id="metrics-formula" mono maxlength="200" autocomplete="off" spellcheck="false" :value="formulaOpen ? query.formula.formula : ''" data-metric-formula-target="formulaText" data-action="input->metric-formula#change" />
+                </div>
+                <div class="lp-metric-controls__field lp-metric-formula__format">
+                    <twig:Ds:Label for="metrics-format">{{ 'analytics.metrics.formula.format.label'|trans }}</twig:Ds:Label>
+                    <twig:Ds:Select id="metrics-format" name="format" data-metric-formula-target="format" data-action="change->metric-formula#change" :disabled="formulaOpen ? null : 'disabled'">
+                        {% for option in formatCases %}
+                        <option value="{{ option.value }}"{{ (formulaOpen ? option == query.formula.format : option.value == 'auto') ? ' selected' : '' }}>{{ ('analytics.metrics.formula.format.' ~ option.value)|trans }}</option>
+                        {% endfor %}
+                    </twig:Ds:Select>
+                </div>
+                <twig:Ds:Button type="button" variant="ghost" size="sm" data-action="click->metric-formula#close">{{ 'analytics.metrics.formula.remove'|trans }}</twig:Ds:Button>
+            </div>
+            <input type="hidden" name="rows" value="{{ formulaOpen ? query.formula.rowsText : '' }}" data-metric-formula-target="rowsField"{{ formulaOpen ? '' : ' disabled' }}>
+            <input type="hidden" name="formula" value="{{ formulaOpen ? query.formula.formula : '' }}" data-metric-formula-target="formulaField"{{ formulaOpen ? '' : ' disabled' }}>
+            <p class="lp-metric-formula__error" role="alert" data-metric-formula-target="error" hidden></p>
+        </div>
+        <div class="lp-metric-controls__field" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
             <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-metric" name="metric" data-action="change->autosearch#search">
-                {% for option in metrics %}
-                    {# A template label and description are text that a person wrote, so they are rendered escaped. Never add |raw here. #}
-                    <option value="{{ option.key.key }}"{{ option.key.key == metric.key.key ? ' selected' : '' }}{% if option.template is not null %} title="{{ option.template.description }}"{% endif %}>{{ option.template is null ? ('analytics.metrics.metric.' ~ option.key.key)|trans : option.template.label }}</option>
-                {% endfor %}
-                {% if bucketNames is not empty %}
-                {# A bucket name comes from the project rules, so it is rendered as text. Never add |raw here. #}
-                {% for family in ['bucket-time', 'bucket-time-all', 'bucket-calls'] %}
-                {% set familyKey = family|replace({'-': '_'}) %}
-                <optgroup label="{{ ('analytics.metrics.metric_group.' ~ familyKey)|trans }}">
-                    {% for name in bucketNames %}
-                    <option value="{{ family }}:{{ name }}"{{ metric.key.name is same as(name) and metric.key.metric.value == family ? ' selected' : '' }}>{{ ('analytics.metrics.metric.' ~ familyKey ~ '_named')|trans({'%bucket%': name}) }}</option>
-                    {% endfor %}
-                </optgroup>
-                {% endfor %}
-                {% endif %}
-                {% if harnessEventKinds is not empty %}
-                {# A kind name comes from the bridge, so it is rendered as text. Never add |raw here. #}
-                <optgroup label="{{ 'analytics.metrics.metric_group.harness_events'|trans }}">
-                    {% for kind in harnessEventKinds %}
-                    <option value="harness-events:{{ kind }}"{{ metric.key.name is same as(kind) and metric.key.metric.value == 'harness-events' ? ' selected' : '' }}>{{ 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': kind}) }}</option>
-                    {% endfor %}
-                </optgroup>
-                {% endif %}
+            <twig:Ds:Select id="metrics-metric" name="metric" data-metric-formula-target="metric" data-controller="symfony--ux-autocomplete--autocomplete" data-symfony--ux-autocomplete--autocomplete-tom-select-options-value="{{ {maxOptions: 500}|json_encode }}" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
+                {% include '@Insights/_metric_options.html.twig' with {metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, selected: metric.key.key, only: null, blank: false} only %}
             </twig:Ds:Select>
         </div>
-        <div class="lp-metric-controls__field">
+        <div class="lp-metric-controls__field" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
             <twig:Ds:Label for="metrics-statistic">{{ 'analytics.metrics.form.statistic'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-statistic" name="statistic" data-action="change->autosearch#search">
+            <twig:Ds:Select id="metrics-statistic" name="statistic" data-metric-formula-target="statistic" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
                 {% for option in metric.statistics() %}
                     <option value="{{ option.value }}"{{ option == query.statistic ? ' selected' : '' }}>{{ ('analytics.metrics.statistic.' ~ option.value)|trans }}</option>
                 {% endfor %}
@@ -76,16 +97,16 @@
         </div>
         <div class="lp-metric-controls__field">
             <twig:Ds:Label for="metrics-unit">{{ 'analytics.metrics.form.unit'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-unit" name="unit" data-action="change->autosearch#search">
-                {% for option in metric.units() %}
+            <twig:Ds:Select id="metrics-unit" name="unit" data-metric-formula-target="unit" data-action="change->autosearch#search">
+                {% for option in unitOptions %}
                     <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
         </div>
         <div class="lp-metric-controls__field">
             <twig:Ds:Label for="metrics-group">{{ 'analytics.metrics.form.group'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-group" name="group" data-action="change->autosearch#search">
-                {% for option in metric.groups() %}
+            <twig:Ds:Select id="metrics-group" name="group" data-metric-formula-target="group" data-action="change->autosearch#search">
+                {% for option in groupOptions %}
                     <option value="{{ option.value }}"{{ option == query.group ? ' selected' : '' }}>{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>
                 {% endfor %}
             </twig:Ds:Select>
@@ -122,6 +143,11 @@
                 {% endfor %}
             </twig:Ds:Select>
         </div>
+        <div class="lp-metric-controls__field lp-metric-controls__action" data-metric-formula-target="addFormula"{{ formulaOpen ? ' hidden' : '' }}>
+            <twig:Ds:Button type="button" variant="outline" data-action="click->metric-formula#open">
+                <twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.formula.add'|trans }}
+            </twig:Ds:Button>
+        </div>
         <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
     </form>
 
@@ -139,6 +165,9 @@
     {% elseif barsLock is not null %}
     <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
     {% endif %}
+    {% for note in view.notes %}
+    <twig:Ds:Flash severity="warning" class="lp-metric-note" data-metrics-note="{{ note.key }}">{{ note.key|trans(note.parameters) }}</twig:Ds:Flash>
+    {% endfor %}
     {% if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] %}
     <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
     {% endif %}

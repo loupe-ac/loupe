@@ -6,6 +6,7 @@ namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Service\KeptGraphComputer;
 use App\Module\Insights\Service\KeptGraphView;
+use App\Module\Insights\View\FormulaNotes;
 use App\Module\Insights\View\MetricChartRules;
 use App\Module\Insights\View\MetricChartType;
 
@@ -29,6 +30,6 @@ final readonly class ShowMetricsHandler
             $locks[$type->value] = MetricChartRules::lock($type, $query->chartMetric(), $query->chartStatistic(), $lines);
         }
 
-        return new ShowMetricsView($command->project, $metrics, $built->title, $built->chart, $locks, $built->layout, $built->labels, $kept->series);
+        return new ShowMetricsView($command->project, $metrics, $built->title, $built->chart, $locks, $built->layout, $built->labels, $kept->series, FormulaNotes::of($query->formula, $kept->series));
     }
 }

@@ -1,0 +1,31 @@
+{# The options of a Metric field. `only` is null for every metric, or a map whose keys are the metrics that may be listed. #}
+{% if blank %}<option value="">{{ 'analytics.metrics.formula.row.choose_metric'|trans }}</option>{% endif %}
+{% for option in metrics %}
+    {% if only is null or option.key.key in only|keys %}
+    {# A template label and description are text that a person wrote, so they are rendered escaped. Never add |raw here. #}
+    <option value="{{ option.key.key }}"{{ option.key.key == selected ? ' selected' : '' }}{% if option.template is not null %} title="{{ option.template.description }}"{% endif %}>{{ option.template is null ? ('analytics.metrics.metric.' ~ option.key.key)|trans : option.template.label }}</option>
+    {% endif %}
+{% endfor %}
+{% if bucketNames is not empty %}
+{# A bucket name comes from the project rules, so it is rendered as text. Never add |raw here. #}
+{% for family in ['bucket-time', 'bucket-time-all', 'bucket-calls'] %}
+{% set familyKey = family|replace({'-': '_'}) %}
+<optgroup label="{{ ('analytics.metrics.metric_group.' ~ familyKey)|trans }}">
+    {% for name in bucketNames %}
+    {% if only is null or (family ~ ':' ~ name) in only|keys %}
+    <option value="{{ family }}:{{ name }}"{{ selected == family ~ ':' ~ name ? ' selected' : '' }}>{{ ('analytics.metrics.metric.' ~ familyKey ~ '_named')|trans({'%bucket%': name}) }}</option>
+    {% endif %}
+    {% endfor %}
+</optgroup>
+{% endfor %}
+{% endif %}
+{% if harnessEventKinds is not empty %}
+{# A kind name comes from the bridge, so it is rendered as text. Never add |raw here. #}
+<optgroup label="{{ 'analytics.metrics.metric_group.harness_events'|trans }}">
+    {% for kind in harnessEventKinds %}
+    {% if only is null or ('harness-events:' ~ kind) in only|keys %}
+    <option value="harness-events:{{ kind }}"{{ selected == 'harness-events:' ~ kind ? ' selected' : '' }}>{{ 'analytics.metrics.metric.harness_events_named'|trans({'%kind%': kind}) }}</option>
+    {% endif %}
+    {% endfor %}
+</optgroup>
+{% endif %}

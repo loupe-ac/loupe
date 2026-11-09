@@ -188,7 +188,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $controls = $crawler->filter('form[data-metrics-form]');
         self::assertSame(
-            ['metric' => 'cost', 'statistic' => 'sum', 'unit' => 'run', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line'],
+            ['format' => 'auto', 'metric' => 'cost', 'statistic' => 'sum', 'unit' => 'run', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line'],
             self::selected($controls),
         );
         self::assertSame($graphId, $controls->filter('input[name="graph"]')->attr('value'));
@@ -312,7 +312,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
     private static function selected(Crawler $form): array
     {
         $selected = [];
-        $form->filter('select')->each(static function (Crawler $select) use (&$selected): void {
+        $form->filter('select[name]')->each(static function (Crawler $select) use (&$selected): void {
             $selected[(string) $select->attr('name')] = (string) $select->filter('option[selected]')->attr('value');
         });
 

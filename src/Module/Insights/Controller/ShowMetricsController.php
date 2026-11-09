@@ -7,16 +7,23 @@ namespace App\Module\Insights\Controller;
 use App\Controller\AppController;
 use App\Module\Bridge\Command\ListMetricsCommand;
 use App\Module\Bridge\Command\ListMetricsHandler;
+use App\Module\Bridge\Metric\Formula\FormulaFormat;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRange;
+use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Command\ShowMetricsHandler;
 use App\Module\Insights\Command\ShowSavedGraphCommand;
 use App\Module\Insights\Command\ShowSavedGraphHandler;
 use App\Module\Insights\Form\SavedGraphFormType;
 use App\Module\Insights\Form\SavedGraphRequest;
+use App\Module\Insights\Service\FormulaPickerMap;
 use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Insights\View\MetricChartType;
 use App\Module\Insights\View\MetricsQuery;
@@ -49,7 +56,8 @@ class ShowMetricsController extends AppController
 
     public function __invoke(Project $project, Request $request): Response
     {
-        $query = MetricsQuery::fromQuery($request->query, $this->templateMetrics->forProject($project->requireId()));
+        $templates = $this->templateMetrics->forProject($project->requireId());
+        $query = MetricsQuery::fromQuery($request->query, $templates);
         $saved = ($this->showSavedGraph)(new ShowSavedGraphCommand($project, $request->query->getString('graph')));
         $graph = $saved?->graph;
         $dirty = false;
@@ -72,6 +80,16 @@ class ShowMetricsController extends AppController
         if (null !== $selected && Metric::HarnessEvents === $query->metric->key->metric && !\in_array($selected, $eventKinds, true)) {
             $eventKinds[] = $selected;
         }
+        $rowParts = $query->formula instanceof MetricFormula ? MetricFormula::rowParts($request->query->getString('rows')) : [];
+        foreach ($rowParts as $part) {
+            $rowKey = MetricKey::tryParse($part['metric'], $templates);
+            if (null !== $rowKey && null !== $rowKey->name && \in_array($rowKey->metric, [Metric::BucketTime, Metric::BucketTimeAll, Metric::BucketCalls], true) && !\in_array($rowKey->name, $bucketNames, true)) {
+                $bucketNames[] = $rowKey->name;
+            }
+            if (null !== $rowKey && null !== $rowKey->name && Metric::HarnessEvents === $rowKey->metric && !\in_array($rowKey->name, $eventKinds, true)) {
+                $eventKinds[] = $rowKey->name;
+            }
+        }
         sort($bucketNames, \SORT_STRING);
 
         $saveForm = $this->createForm(
@@ -92,6 +110,12 @@ class ShowMetricsController extends AppController
             'metrics' => $list->metrics,
             'bucketNames' => $bucketNames,
             'harnessEventKinds' => $eventKinds,
+            'rowParts' => $rowParts,
+            'joinable' => FormulaPickerMap::of($list->metrics, $bucketNames, $eventKinds, array_column($rowParts, 'metric'), $templates),
+            'statisticCases' => MetricStatistic::cases(),
+            'unitCases' => MetricUnit::cases(),
+            'groupCases' => MetricGroup::cases(),
+            'formatCases' => FormulaFormat::cases(),
             'ranges' => MetricRange::cases(),
             'buckets' => MetricBucket::cases(),
             'compares' => MetricCompare::cases(),

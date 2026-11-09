@@ -7580,6 +7580,45 @@
     .lp-metric-controls__field {
         @apply flex min-w-0 flex-col gap-1;
     }
+    /* The button that opens a formula sits at the foot of its grid cell, level with the controls. */
+    .lp-metric-controls__action {
+        @apply justify-end;
+    }
+    /* The formula rows span the whole control grid: lettered rows, the formula, its format and its error. */
+    .lp-metric-formula {
+        @apply col-span-full flex flex-col items-start gap-3 rounded-lg border border-line bg-surface-2 p-3;
+    }
+    .lp-metric-formula[hidden] {
+        @apply hidden;
+    }
+    .lp-metric-formula__rows {
+        @apply flex w-full flex-col gap-2;
+    }
+    .lp-metric-formula__row {
+        @apply grid grid-cols-[auto_minmax(0,1fr)_minmax(0,12rem)_auto] items-center gap-2;
+    }
+    .lp-metric-formula__letter {
+        @apply w-6 text-center font-mono text-sm font-semibold text-fg-mute;
+    }
+    .lp-metric-formula__formula {
+        @apply flex w-full flex-wrap items-end gap-3;
+    }
+    .lp-metric-formula__text {
+        @apply min-w-48 flex-1;
+    }
+    .lp-metric-formula__format {
+        @apply w-40;
+    }
+    .lp-metric-formula__error {
+        @apply m-0 text-sm text-danger;
+    }
+    .lp-metric-formula__error[hidden] {
+        @apply hidden;
+    }
+    /* A formula that cannot run keeps the last graph on the page, dimmed and out of reach. */
+    .lp-metric-controls[data-formula-invalid] ~ .lp-metric-graph {
+        @apply pointer-events-none opacity-50;
+    }
     .lp-metric-graph,
     .lp-metric-empty {
         @apply mt-4;
