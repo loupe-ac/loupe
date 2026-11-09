@@ -290,7 +290,8 @@ class WorkerRunRepository extends ServiceEntityRepository
     /**
      * The open runs whose bridge went quiet: its owner's row for the bridge has
      * no heartbeat since the moment given. A bridge with no row at all sent no
-     * heartbeat yet, so its run counts as quiet once it arrived that long ago.
+     * heartbeat yet. Either way a run counts as quiet only once it arrived that
+     * long ago, because a bridge that just woke reports a run before its next heartbeat.
      *
      * @return list<Uuid>
      */
@@ -304,7 +305,8 @@ class WorkerRunRepository extends ServiceEntityRepository
             // No bridge holds an interactive run, so it would always read as quiet.
             ->andWhere('r.kind <> :interactive')
             ->andWhere('r.state IN (:openStates)')
-            ->andWhere('b.lastSeenAt < :quietBefore OR (b.lastSeenAt IS NULL AND r.receivedAt < :quietBefore)')
+            ->andWhere('r.receivedAt < :quietBefore')
+            ->andWhere('b.lastSeenAt < :quietBefore OR b.lastSeenAt IS NULL')
             ->setParameter('openStates', array_map(
                 static fn (WorkerRunState $state): string => $state->value,
                 WorkerRunState::openStates(),
@@ -401,11 +403,12 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->andWhere('r.id IN (:ids)')
             ->andWhere('r.kind <> :interactive')
             ->andWhere('r.state IN (:openStates)')
+            ->andWhere('r.receivedAt < :quietBefore')
             ->andWhere(\sprintf(
                 'EXISTS (SELECT qb.id FROM %1$s qb WHERE qb.id = r.bridgeId AND qb.lastSeenAt < :quietBefore'
                 .' AND IDENTITY(qb.owner) = (SELECT IDENTITY(qp.owner) FROM %2$s qp WHERE qp = r.project))'
-                .' OR (r.receivedAt < :quietBefore AND NOT EXISTS (SELECT nb.id FROM %1$s nb WHERE nb.id = r.bridgeId'
-                .' AND IDENTITY(nb.owner) = (SELECT IDENTITY(np.owner) FROM %2$s np WHERE np = r.project)))',
+                .' OR NOT EXISTS (SELECT nb.id FROM %1$s nb WHERE nb.id = r.bridgeId'
+                .' AND IDENTITY(nb.owner) = (SELECT IDENTITY(np.owner) FROM %2$s np WHERE np = r.project))',
                 Bridge::class,
                 Project::class,
             ))

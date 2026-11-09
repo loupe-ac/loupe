@@ -6124,6 +6124,10 @@
                 <source>inbox.wait.pause_run_link</source>
                 <target>Open the failed run</target>
             </trans-unit>
+            <trans-unit id="inbox.wait.pause_unfinished_run_link">
+                <source>inbox.wait.pause_unfinished_run_link</source>
+                <target>Open the run</target>
+            </trans-unit>
             <trans-unit id="inbox.wait.pause_setup">
                 <source>inbox.wait.pause_setup</source>
                 <target>The before command %command% failed with: %error%</target>
