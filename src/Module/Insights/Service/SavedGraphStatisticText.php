@@ -26,7 +26,7 @@ final readonly class SavedGraphStatisticText
             return $this->translator->trans('analytics.metrics.statistic.'.$graph->statistic->value);
         }
 
-        $formula = MetricFormula::parse($graph->formulaRows, $graph->formula ?? '', $graph->format ?? '', $this->templateMetrics->forProject($graph->project->requireId()));
+        $formula = MetricFormula::parse($graph->formulaRows, $graph->formula ?? '', $graph->format ?: 'auto', $this->templateMetrics->forProject($graph->project->requireId()));
 
         return $this->metricTitle->formulaText($formula);
     }

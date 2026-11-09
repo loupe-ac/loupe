@@ -81,7 +81,9 @@ metric.
 7. A note appears above the graph, and the graph still draws, when **Percent**
    shows a point above 100%, when the Format you chose differs from what
    **Auto** would pick, and when a row is not used by the formula. **Percent**
-   always gets the second note, because **Auto** never picks it.
+   always gets the second note, because **Auto** never picks it. The notes
+   appear on the Metrics tab only. A Dashboard tile and a shared address show
+   none.
 8. A formula graph offers **Line**, **Bars** and **Number**. The other charts
    add the lines together, so they stay locked.
 9. **Compare to** draws the previous period as a dashed line and shows the

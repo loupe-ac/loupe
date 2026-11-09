@@ -33,7 +33,7 @@ final readonly class KeptGraphResult
     public function drawsOpenLine(\DateTimeImmutable $at): bool
     {
         $query = $this->query;
-        if (MetricChartType::Line !== MetricChartRules::resolve($query->chart, $query->metric, $query->statistic, \count($this->series))->type) {
+        if (MetricChartType::Line !== MetricChartRules::resolve($query->chart, $query->chartMetric(), $query->chartStatistic(), \count($this->series))->type) {
             return false;
         }
         foreach ($this->series as $series) {

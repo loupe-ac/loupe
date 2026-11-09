@@ -112,7 +112,9 @@ export default class extends Controller {
 
     /** Closing keeps the earliest row that holds a metric, or the metric the tab opens with. */
     close() {
-        const first = this.rowTargets.find((row) => '' !== this.#metricOf(row));
+        const first = this.#byLetter().find(
+            (row) => '' !== this.#metricOf(row),
+        );
         const metric =
             undefined === first
                 ? this.defaultMetricValue
@@ -273,8 +275,14 @@ export default class extends Controller {
         }
     }
 
+    #byLetter() {
+        return [...this.rowTargets].sort((a, b) =>
+            a.dataset.letter.localeCompare(b.dataset.letter),
+        );
+    }
+
     #compose() {
-        this.rowsFieldTarget.value = this.rowTargets
+        this.rowsFieldTarget.value = this.#byLetter()
             .filter((row) => '' !== this.#metricOf(row))
             .map(
                 (row) =>

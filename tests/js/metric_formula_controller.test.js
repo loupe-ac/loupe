@@ -321,6 +321,26 @@ it('closes onto the earliest row that holds a metric, or onto Cost when none doe
     expect(form.requestSubmit).toHaveBeenCalled();
 });
 
+it('closes onto the lowest letter when a removed letter was added again', async () => {
+    const form = await mount();
+    document.querySelector('#open').click();
+    await settle();
+    rows()[0].querySelector('button').click();
+    document.querySelector('[data-metric-formula-target="addRow"]').click();
+    await settle();
+    const added = rows().find((row) => 'A' === row.dataset.letter);
+    await pick(added, 'wakes');
+    await pick(
+        rows().find((row) => 'B' === row.dataset.letter),
+        'cost',
+    );
+    document.querySelector('#close').click();
+
+    expect(
+        form.querySelector('input[name="metric"][type="hidden"]').value,
+    ).toBe('wakes');
+});
+
 it('closes onto Cost when no row holds a metric', async () => {
     const form = await mount();
     document.querySelector('[name="metric"]').value = 'stop-rate';
