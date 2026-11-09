@@ -60,6 +60,26 @@ final class MetricValueFormatterTest extends TestCase
         yield 'a template rate' => [self::template(TemplateMetricSets::rate())];
     }
 
+    /** @return iterable<string, array{MetricValueType, int|float, string}> */
+    public static function formulaValues(): iterable
+    {
+        yield 'a large number is compact' => [MetricValueType::Number, 1_300_000, '1.3M'];
+        yield 'a mid number keeps one decimal' => [MetricValueType::Number, 31.62, '31.6'];
+        yield 'a small number keeps two significant digits' => [MetricValueType::Number, 0.0077, '0.0077'];
+        yield 'zero number' => [MetricValueType::Number, 0, '0'];
+        yield 'a fraction below one percent keeps two significant digits' => [MetricValueType::Fraction, 0.0077, '0.77%'];
+        yield 'a tiny fraction' => [MetricValueType::Fraction, 0.000123, '0.012%'];
+        yield 'a fraction above one percent keeps one decimal' => [MetricValueType::Fraction, 0.3162, '31.6%'];
+        yield 'a whole fraction' => [MetricValueType::Fraction, 1, '100%'];
+        yield 'zero fraction' => [MetricValueType::Fraction, 0, '0%'];
+    }
+
+    #[DataProvider('formulaValues')]
+    public function test_it_formats_the_value_types_of_a_formula(MetricValueType $type, int|float $value, string $expected): void
+    {
+        self::assertSame($expected, new MetricValueFormatter('en')->format($value, $type));
+    }
+
     #[DataProvider('metricsOfOtherTypes')]
     public function test_a_count_reads_as_a_count_whatever_the_metric(MetricShape $metric): void
     {
