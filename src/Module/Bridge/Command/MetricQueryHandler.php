@@ -6,15 +6,20 @@ namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Experiment\Confidence;
+use App\Module\Bridge\Metric\Formula\FormulaRow;
+use App\Module\Bridge\Metric\Formula\FormulaSeriesBuilder;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricComparer;
 use App\Module\Bridge\Metric\MetricComparison;
 use App\Module\Bridge\Metric\MetricGroupKey;
+use App\Module\Bridge\Metric\MetricGroupSplit;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRow;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricWindow;
 use Psr\Clock\ClockInterface;
@@ -31,6 +36,9 @@ final readonly class MetricQueryHandler
 
     public const string COMPARE_NOT_ALLOWED = 'bridge.metric.error.compare_not_allowed';
 
+    /** The error of the formula field is the key of the problem itself, such as `bridge.metric.formula.problem.bad_row`. */
+    public const string FORMULA_FIELD = 'formula';
+
     public function __construct(
         private MetricRowSource $rows,
         private ClockInterface $clock,
@@ -40,16 +48,21 @@ final readonly class MetricQueryHandler
 
     public function __invoke(MetricQueryCommand $command): MetricQueryView
     {
+        $formula = $command->formula;
         $metric = $command->metric;
         $errors = [];
-        if (!\in_array($command->unit, $metric->units(), true)) {
-            $errors['unit'] = self::UNIT_NOT_ALLOWED;
-        }
-        if (!\in_array($command->statistic, $metric->statistics(), true)) {
-            $errors['statistic'] = self::STATISTIC_NOT_ALLOWED;
-        }
-        if (!\in_array($command->group, $metric->groups(), true)) {
-            $errors['group'] = self::GROUP_NOT_ALLOWED;
+        if (null !== $formula) {
+            $errors = self::formulaErrors($formula, $command);
+        } else {
+            if (!\in_array($command->unit, $metric->units(), true)) {
+                $errors['unit'] = self::UNIT_NOT_ALLOWED;
+            }
+            if (!\in_array($command->statistic, $metric->statistics(), true)) {
+                $errors['statistic'] = self::STATISTIC_NOT_ALLOWED;
+            }
+            if (!\in_array($command->group, $metric->groups(), true)) {
+                $errors['group'] = self::GROUP_NOT_ALLOWED;
+            }
         }
         if (!\in_array($command->bucket, $command->range->allowedBuckets(), true)) {
             $errors['bucket'] = self::BUCKET_NOT_ALLOWED;
@@ -58,12 +71,15 @@ final readonly class MetricQueryHandler
             $errors['compare'] = self::COMPARE_NOT_ALLOWED;
         }
         if ([] !== $errors) {
-            throw new DomainErrors($errors);
+            throw new DomainErrors($errors, null === $formula?->problem ? [] : [self::FORMULA_FIELD => $formula->problem->parameters]);
         }
 
         // Both periods count back from one clock reading.
         $now = $command->now ?? $this->clock->now();
         $from = $command->range->startFrom($now);
+        if (null !== $formula) {
+            return $this->formulaView($command, $formula, $now, $from);
+        }
         $rows = $this->rows->rows($command->project, $command->unit, $metric, $command->group, $from, $now);
 
         $previousWindow = null;
@@ -84,16 +100,13 @@ final readonly class MetricQueryHandler
             }
         }
 
-        $byGroup = self::byGroup($rows);
-        $previousByGroup = self::byGroup($previousRows);
+        $byGroup = MetricGroupSplit::split($rows);
+        $previousByGroup = MetricGroupSplit::split($previousRows);
         // A line that only the previous period holds is still a line of the graph.
         foreach ($previousByGroup as $key => $part) {
             $byGroup[$key] ??= ['label' => $part['label'], 'group' => $part['group'], 'groupKey' => $part['groupKey'], 'rows' => []];
         }
-        // Series sort by label, with the key to break a tie. A grouping that buckets a number has a fixed order. The series with no group goes last.
-        $order = $command->group->seriesOrder() ?? [];
-        $rank = static fn (?string $group): int => null === $group ? 0 : (false === ($at = array_search($group, $order, true)) ? \count($order) : $at);
-        uasort($byGroup, static fn (array $a, array $b): int => [null === $a['group'], $rank($a['group']), $a['label'], $a['groupKey']?->id()] <=> [null === $b['group'], $rank($b['group']), $b['label'], $b['groupKey']?->id()]);
+        $byGroup = MetricGroupSplit::sort($byGroup, $command->group);
 
         $compare = null !== $previousWindow;
         // Every line that has a sign widens every range, so a graph with many lines draws a sign by chance more rarely.
@@ -117,22 +130,46 @@ final readonly class MetricQueryHandler
         return new MetricQueryView($command, $series, new MetricWindow($from, $now), $previousWindow);
     }
 
-    /**
-     * @param list<MetricRow> $rows
-     *
-     * @return array<string, array{label: string, group: ?string, groupKey: ?MetricGroupKey, rows: list<MetricRow>}> label is the group text with a prefix, or the empty string for no group
-     */
-    private static function byGroup(array $rows): array
+    /** @return array<string, string> */
+    private static function formulaErrors(MetricFormula $formula, MetricQueryCommand $command): array
     {
-        $byGroup = [];
-        foreach ($rows as $row) {
-            $label = null === $row->group ? '' : 'key:'.$row->group;
-            $key = null === $row->groupKey ? $label : $label.'|'.$row->groupKey->id();
-            $byGroup[$key] ??= ['label' => $label, 'group' => $row->group, 'groupKey' => $row->groupKey, 'rows' => []];
-            $byGroup[$key]['rows'][] = $row;
+        $errors = [];
+        if (null !== $formula->problem) {
+            $errors[self::FORMULA_FIELD] = $formula->problem->key;
+        } else {
+            if (!\in_array($command->unit, $formula->units(), true)) {
+                $errors['unit'] = self::UNIT_NOT_ALLOWED;
+            }
+            if (!\in_array($command->group, $formula->groups(), true)) {
+                $errors['group'] = self::GROUP_NOT_ALLOWED;
+            }
         }
 
-        return $byGroup;
+        return $errors;
+    }
+
+    private function formulaView(MetricQueryCommand $command, MetricFormula $formula, \DateTimeImmutable $now, ?\DateTimeImmutable $from): MetricQueryView
+    {
+        $shapes = array_map(static fn (FormulaRow $row): MetricShape => $row->shape, $formula->rows);
+        $letters = array_map(static fn (FormulaRow $row): string => $row->letter, $formula->rows);
+        $rows = array_combine($letters, $this->rows->rowsForMany($command->project, $command->unit, $shapes, $command->group, $from, $now));
+
+        $previousWindow = null;
+        $previousRows = null;
+        if (MetricCompare::Previous === $command->compare) {
+            $length = $command->range->length() ?? throw new \LogicException('A range with a length starts at a time.');
+            $previousFrom = ($from ?? throw new \LogicException('A range with a length starts at a time.'))->sub($length);
+            $previousWindow = new MetricWindow($previousFrom, $from);
+            // The previous rows move forward by the length, so they fall into the same buckets as the current rows.
+            $previousRows = array_map(
+                static fn (array $letterRows): array => array_map(static fn (MetricRow $row): MetricRow => $row->movedBy($length), $letterRows),
+                array_combine($letters, $this->rows->rowsForMany($command->project, $command->unit, $shapes, $command->group, $previousFrom, $from)),
+            );
+        }
+
+        $series = new FormulaSeriesBuilder($formula)->build($command->group, $command->bucket, $rows, $previousRows);
+
+        return new MetricQueryView($command, $series, new MetricWindow($from, $now), $previousWindow);
     }
 
     /**

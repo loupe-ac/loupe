@@ -7,6 +7,8 @@ namespace App\Tests\Module\Bridge\Metric\Formula;
 use App\Module\Bridge\Metric\Formula\FormulaFormat;
 use App\Module\Bridge\Metric\Formula\FormulaProblem;
 use App\Module\Bridge\Metric\Formula\MetricFormula;
+use App\Module\Bridge\Metric\MetricGroup;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -141,5 +143,32 @@ final class MetricFormulaTest extends TestCase
         $parsed = MetricFormula::parse('A:fix-rounds:sum', 'A', 'auto', $templates);
 
         self::assertSame(FormulaProblem::METRIC_CANNOT_JOIN, $parsed->problem?->key);
+    }
+
+    public function test_the_units_and_the_groups_are_the_ones_every_row_allows(): void
+    {
+        $tokens = self::formula(self::TOKENS, 'A / B');
+        self::assertSame([MetricUnit::Run, MetricUnit::Card], $tokens->units());
+        self::assertContains(MetricGroup::Model, $tokens->groups());
+        self::assertNotContains(MetricGroup::WakeGap, $tokens->groups());
+
+        $runs = self::formula('A:cost:sum,B:runs:sum', 'A / B');
+        self::assertSame([MetricUnit::Card], $runs->units());
+
+        $wakes = self::formula('A:wakes:sum,B:cold-wakes:sum', 'B / A');
+        self::assertContains(MetricGroup::WakeGap, $wakes->groups());
+        self::assertContains(MetricGroup::WakeCache, $wakes->groups());
+
+        $mixed = self::formula('A:wakes:sum,B:cost:sum', 'B / A');
+        self::assertNotContains(MetricGroup::WakeGap, $mixed->groups());
+        self::assertContains(MetricGroup::None, $mixed->groups());
+    }
+
+    public function test_a_formula_with_no_rows_allows_nothing(): void
+    {
+        $formula = self::formula('', 'A');
+
+        self::assertSame([], $formula->units());
+        self::assertSame([], $formula->groups());
     }
 }

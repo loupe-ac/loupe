@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Metric\Formula;
 
+use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Workflow\Contract\TemplateMetricSet;
 
@@ -66,9 +68,48 @@ final readonly class MetricFormula
         return $this->rows[0] ?? null;
     }
 
+    /**
+     * The units that every row allows, in the order of the first row.
+     *
+     * @return list<MetricUnit>
+     */
+    public function units(): array
+    {
+        return self::shared(array_map(static fn (FormulaRow $row): array => $row->shape->units(), $this->rows));
+    }
+
+    /**
+     * The groups that every row allows, in the order of the first row.
+     *
+     * @return list<MetricGroup>
+     */
+    public function groups(): array
+    {
+        return self::shared(array_map(static fn (FormulaRow $row): array => $row->shape->groups(), $this->rows));
+    }
+
     public function rowsText(): string
     {
         return implode(',', array_map(static fn (FormulaRow $row): string => $row->text(), $this->rows));
+    }
+
+    /**
+     * @template T of \UnitEnum
+     *
+     * @param list<list<T>> $lists
+     *
+     * @return list<T>
+     */
+    private static function shared(array $lists): array
+    {
+        if ([] === $lists) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $lists[0],
+            static fn (\UnitEnum $value): bool => array_all($lists, fn ($list) => \in_array($value, $list, true)),
+        ));
     }
 
     /**
