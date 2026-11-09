@@ -84,7 +84,7 @@ final class MetricChartScale
         $ticks = [];
         $tickCount = (int) round(($top - $bottom) / $step);
         for ($tick = 0; $tick <= $tickCount; ++$tick) {
-            $value = round($bottom + $tick * $step, 10);
+            $value = round($bottom + $tick * $step, max(10, 1 - (int) floor(log10($step))));
             $ticks[] = new MetricChartTick(self::y($value, $top, $bottom, $box), $value);
         }
 
@@ -184,7 +184,8 @@ final class MetricChartScale
     /** A step of 1, 2 or 5 times a power of ten. */
     private static function niceStep(float $raw): float
     {
-        $magnitude = 10 ** floor(log10($raw));
+        $exponent = (int) floor(log10($raw));
+        $magnitude = 10 ** $exponent;
         $fraction = $raw / $magnitude;
         $nice = match (true) {
             $fraction <= 1 + 1e-9 => 1,
@@ -193,6 +194,6 @@ final class MetricChartScale
             default => 10,
         };
 
-        return round($nice * $magnitude, 10);
+        return round($nice * $magnitude, max(10, 1 - $exponent));
     }
 }

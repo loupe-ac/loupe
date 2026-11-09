@@ -85,6 +85,17 @@ final class MetricChartScaleTest extends TestCase
         self::assertSame([40.0, 10.0, 0.0], MetricChartScale::axis(MetricValueType::Number, null, [31.6, 12.0]));
     }
 
+    public function test_a_tiny_formula_result_keeps_a_positive_step_and_distinct_ticks(): void
+    {
+        [$top, $step, $bottom] = MetricChartScale::axis(MetricValueType::Number, null, [1.0e-12, 4.0e-13]);
+
+        self::assertGreaterThan(0.0, $step);
+        self::assertGreaterThanOrEqual(1.0e-12, $top);
+        self::assertSame(0.0, $bottom);
+        $values = array_map(static fn (MetricChartTick $tick): float => $tick->value, MetricChartScale::yTicks($top, $step, $bottom));
+        self::assertSame($values, array_values(array_unique($values)));
+    }
+
     public function test_a_negative_formula_result_scales_to_its_magnitude(): void
     {
         self::assertSame([0.0, 0.002, -0.008], MetricChartScale::axis(MetricValueType::Fraction, null, [-0.0077, -0.003]));
