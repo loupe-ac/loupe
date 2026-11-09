@@ -13,6 +13,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/initview"
 	"github.com/loupe-ac/loupe/cli/internal/profile"
 	"github.com/loupe-ac/loupe/cli/internal/skills"
 	"github.com/spf13/cobra"
@@ -24,6 +25,7 @@ type profileWorld struct {
 	calls  [][]string
 	fail   error
 	onRun  func(dir string)
+	out    io.Writer
 	agents map[string]bool
 	// codexServer is what `codex mcp get loupe --json` prints. Empty means Codex
 	// declares no such server.
@@ -36,8 +38,17 @@ func newProfileWorld(t *testing.T) (*profileWorld, string) {
 	t.Helper()
 	t.Setenv(config.EnvVar, t.TempDir())
 	w := &profileWorld{agents: map[string]bool{agentClaude: true, "loupe": true}, codexServer: loupeMcpDeclaration}
-	oldAgent, oldLook, oldExe, oldExec := initAgent, initLookPath, initExecutable, initExec
-	t.Cleanup(func() { initAgent, initLookPath, initExecutable, initExec = oldAgent, oldLook, oldExe, oldExec })
+	oldAgent, oldLook, oldExe, oldExec, oldTerm := initAgent, initLookPath, initExecutable, initExec, isTerminalOutput
+	t.Cleanup(func() {
+		initAgent, initLookPath, initExecutable, initExec, isTerminalOutput = oldAgent, oldLook, oldExe, oldExec, oldTerm
+	})
+	isTerminalOutput = func(out io.Writer) bool {
+		if _, isFile := out.(*os.File); isFile {
+			return fileIsTerminal(out)
+		}
+
+		return true
+	}
 	initExec = func(_ context.Context, _ string, _ []string, name string, args ...string) ([]byte, error) {
 		if name == agentCodex && slices.Equal(args, []string{"mcp", "get", "loupe", "--json"}) && w.codexServer != "" {
 			return []byte(w.codexServer), nil
@@ -53,7 +64,8 @@ func newProfileWorld(t *testing.T) (*profileWorld, string) {
 
 		return "", os.ErrNotExist
 	}
-	initAgent = func(dir string, _ io.Reader, _ io.Writer, name string, args ...string) error {
+	initAgent = func(dir string, _ io.Reader, out io.Writer, name string, args ...string) error {
+		w.out = out
 		w.calls = append(w.calls, append([]string{name}, args...))
 		if w.onRun != nil {
 			w.onRun(dir)
@@ -354,6 +366,72 @@ func TestInitProfileAgentFlagPrintsThePromptWithNoTerminal(t *testing.T) {
 		if !strings.Contains(out, "no terminal") || !strings.Contains(out, "Paste this prompt") {
 			t.Errorf("agent %q: out = %s", agent, out)
 		}
+	}
+}
+
+func TestInitProfileGivesTheAgentTheOutputUnderTheView(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+
+	var under strings.Builder
+	var seen string
+	w.onRun = func(string) { seen = under.String() }
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(initview.NewWriter(&under, false))
+	cmd.SetIn(strings.NewReader(""))
+	initProfile(cmd, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+
+	if w.out != io.Writer(&under) {
+		t.Errorf("the agent wrote to %T, not to the output under the view", w.out)
+	}
+	if !strings.Contains(seen, "Profile") {
+		t.Errorf("the step lines were not drawn before the agent ran: %q", seen)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenTheOutputIsAPipe(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer read.Close()
+	captured := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(read)
+		captured <- string(b)
+	}()
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(initview.NewWriter(write, false))
+	cmd.SetIn(strings.NewReader(""))
+	initProfile(cmd, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	write.Close()
+
+	out := <-captured
+	if len(w.calls) != 0 {
+		t.Errorf("an agent ran on a pipe: %v", w.calls)
+	}
+	if !strings.Contains(out, "Paste this prompt") {
+		t.Errorf("out = %s", out)
+	}
+}
+
+func TestInitProfilePrintsThePromptWhenTheOutputIsNotAFile(t *testing.T) {
+	w, dir := newProfileWorld(t)
+	putProfilePackage(t, "loupe-lifecycle", "1.0.0", `{}`)
+	isTerminalOutput = fileIsTerminal
+
+	out := runProfileStep(t, dir, api.Site{ID: "p"}, initOptions{agent: agentClaude})
+	if len(w.calls) != 0 {
+		t.Errorf("an agent ran on a non-file output: %v", w.calls)
+	}
+	if !strings.Contains(out, "Paste this prompt") {
+		t.Errorf("out = %s", out)
 	}
 }
 

@@ -71,6 +71,14 @@ func (w *Writer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// Unwrap draws the pending steps and returns the output under the writer. A
+// child process that must see the terminal itself takes this output.
+func (w *Writer) Unwrap() io.Writer {
+	w.Flush()
+
+	return w.out
+}
+
 // Record adds a step to the pending lines.
 func (w *Writer) Record(s Step) {
 	w.pending = append(w.pending, s)
