@@ -237,6 +237,7 @@ export default class extends Controller {
         select.replaceChildren(...children);
         select.value = current;
         select.tomselect?.sync();
+        select.tomselect?.close();
     }
 
     #buildRow(letter, metric) {
