@@ -91,6 +91,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('A parenthesis is not closed.', trim($crawler->filter('[data-metrics-note="formula-problem"]')->text()));
         self::assertCount(0, $crawler->filter('[data-metrics-graph], #metrics-graph'));
         self::assertCount(0, $crawler->filter('[data-metrics-empty]'));
+        self::assertCount(1, $crawler->filter('[data-metrics-form][data-formula-invalid] .lp-metric-formula [data-metric-formula-target="error"]:not([hidden])'));
     }
 
     public function test_a_saved_formula_graph_opens_with_its_formula(): void
@@ -113,6 +114,8 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('A:cost:sum,B:cost:count', $hidden['rows']);
         self::assertSame('number', $hidden['format']);
         self::assertSame('false', $crawler->filter('[data-leave-guard-dirty-value]')->attr('data-leave-guard-dirty-value'));
+        self::assertSame(['A', 'B'], $crawler->filter('.lp-metric-formula__rows [data-metric-formula-role="letter"]')->each(static fn ($letter): string => trim($letter->text())));
+        self::assertCount(2, $crawler->filter('.lp-metric-formula__heads span:not(.lp-metric-formula__spacer)')->reduce(static fn ($node): bool => '' !== trim($node->text())));
     }
 
     public function test_a_page_with_nothing_to_draw_offers_no_save(): void
@@ -188,7 +191,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $controls = $crawler->filter('form[data-metrics-form]');
         self::assertSame(
-            ['metric' => 'cost', 'statistic' => 'sum', 'unit' => 'run', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line'],
+            ['format' => 'auto', 'metric' => 'cost', 'statistic' => 'sum', 'unit' => 'run', 'group' => 'none', 'range' => 'all', 'bucket' => 'day', 'compare' => 'off', 'chart' => 'line'],
             self::selected($controls),
         );
         self::assertSame($graphId, $controls->filter('input[name="graph"]')->attr('value'));
@@ -312,7 +315,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
     private static function selected(Crawler $form): array
     {
         $selected = [];
-        $form->filter('select')->each(static function (Crawler $select) use (&$selected): void {
+        $form->filter('select[name]')->each(static function (Crawler $select) use (&$selected): void {
             $selected[(string) $select->attr('name')] = (string) $select->filter('option[selected]')->attr('value');
         });
 
