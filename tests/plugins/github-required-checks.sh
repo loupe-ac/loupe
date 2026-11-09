@@ -71,10 +71,38 @@ fixture union "$rules" "$classic"
 expect union 0 $'build\ne2e\nlint\nphpunit' "$url"
 
 fixture no-rules '[]' "$unprotected"
-expect no-rules 0 '' "$url"
+expect no-rules 0 'EVERY_NON_LOUPE_CHECK' "$url"
+
+approval_only='[{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"Loupe / Approval","integration_id":42}]}}]'
+fixture approval-only "$approval_only" "$unprotected"
+expect approval-only 0 'EVERY_NON_LOUPE_CHECK' "$url"
+
+fixture capable-ignores-list "$rules" "$none"
+expect capable-ignores-list 0 $'lint\nphpunit' --required-checks '["other"]' "$url"
 
 fixture plan-refusal "$plan" "$classic"
 expect plan-refusal 0 $'build\ne2e\nlint' "$url"
+
+fixture plan-refusal-unset "$plan" "$unprotected"
+expect plan-refusal-unset 0 'EVERY_NON_LOUPE_CHECK' "$url"
+
+fixture plan-refusal-list "$plan" "$unprotected"
+expect plan-refusal-list 0 $'ci\nlint' --required-checks '["lint","ci"]' "$url"
+
+fixture plan-refusal-list-beside-classic "$plan" "$classic"
+expect plan-refusal-list-beside-classic 0 $'build\ne2e\nlint\nother' --required-checks '["other"]' "$url"
+
+fixture capable-no-ci-ignores-list "$approval_only" "$unprotected"
+expect capable-no-ci-ignores-list 0 'EVERY_NON_LOUPE_CHECK' --required-checks '["other"]' "$url"
+
+fixture plan-refusal-empty "$plan" "$unprotected"
+expect plan-refusal-empty 0 '' --required-checks '[]' "$url"
+
+fixture plan-refusal-null "$plan" "$unprotected"
+expect plan-refusal-null 0 'EVERY_NON_LOUPE_CHECK' --required-checks null "$url"
+
+fixture bad-list "$plan" "$unprotected"
+expect bad-list 2 'UNREAD: --required-checks is not a list of names' --required-checks 'lint' "$url"
 
 fixture rules-denied 'ERR:gh: Resource not accessible (HTTP 403)' "$none"
 expect rules-denied 2 'UNREAD: rules read failed' "$url"

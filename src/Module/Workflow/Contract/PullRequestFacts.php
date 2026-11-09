@@ -33,6 +33,7 @@ final readonly class PullRequestFacts
      * @param bool               $updateRefusedOnHead      the forge refused a branch update of this head for good, so a new head tries again
      * @param bool               $mergeApprovalUnanswered  no valid `merge-approval` answers for the repository, Loupe can post its check, and the rules of the base branch require no approving review, read through EngineFact::PullRequestApprovalCheck
      * @param bool               $mergeApprovalNeedsPerson `merge-approval` resolves to person for the repository, or the unanswered case holds, read through EngineFact::PullRequestApprovalCheck
+     * @param list<string>       $missingChecks            the names of the required checks that the head has not reported
      * @param bool               $reviewRequired           the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
      */
     public function __construct(
@@ -70,6 +71,7 @@ final readonly class PullRequestFacts
         public bool $updateRefusedOnHead = false,
         public bool $mergeApprovalUnanswered = false,
         public bool $mergeApprovalNeedsPerson = false,
+        public array $missingChecks = [],
     ) {
     }
 

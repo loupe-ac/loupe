@@ -78,6 +78,10 @@ class ForgePullRequest
     #[ORM\Column(type: Types::JSON)]
     public array $failedChecks = [];
 
+    /** @var list<string> the required checks that the head has not reported */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $missingChecks = [];
+
     #[ORM\Column(length: 20, enumType: PullRequestMergeability::class)]
     public PullRequestMergeability $mergeability = PullRequestMergeability::Unknown;
 
@@ -302,6 +306,7 @@ class ForgePullRequest
         $this->checks = $snapshot->checks;
         $this->checksSha = $snapshot->checksSha;
         $this->failedChecks = $snapshot->failedChecks;
+        $this->missingChecks = $snapshot->missingChecks;
         $this->mergeability = $snapshot->mergeability;
         $this->behindBy = $snapshot->behindBy;
         $this->review = $snapshot->review;
@@ -427,6 +432,7 @@ class ForgePullRequest
             $this->closedAt,
             $this->reviewFromRules,
             $this->behindBy,
+            $this->missingChecks,
         );
     }
 }

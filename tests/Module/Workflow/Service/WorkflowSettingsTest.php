@@ -41,6 +41,61 @@ final class WorkflowSettingsTest extends WorkflowSettingsTestCase
         self::assertCount(1, $setting->warnings);
     }
 
+    public function test_a_list_value_resolves_from_the_file(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('list-value');
+        $this->bindLifecycle($project);
+        $repository = $this->repository($project, 'acme/app');
+
+        $this->read($project, $repository, ['required-checks' => ['lint', 'tests']]);
+
+        $resolved = $this->settings()->forRepository($project->requireId(), $repository, 'required-checks');
+        self::assertSame(['lint', 'tests'], $resolved->value);
+        self::assertSame(SettingSource::File, $resolved->source);
+    }
+
+    public function test_an_empty_list_is_a_stated_value_and_unset_is_not(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('list-empty');
+        $this->bindLifecycle($project);
+        $repository = $this->repository($project, 'acme/app');
+
+        self::assertNull($this->settings()->forRepository($project->requireId(), $repository, 'required-checks')->value);
+
+        $this->read($project, $repository, ['required-checks' => []]);
+
+        $resolved = $this->settings()->forRepository($project->requireId(), $repository, 'required-checks');
+        self::assertSame([], $resolved->value);
+        self::assertSame(SettingSource::File, $resolved->source);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidLists(): iterable
+    {
+        yield 'a bare string' => ['lint'];
+        yield 'a list with an empty name' => [['lint', '']];
+        yield 'a list with a number' => [['lint', 7]];
+        yield 'a map' => [['name' => 'lint']];
+    }
+
+    #[DataProvider('invalidLists')]
+    public function test_an_invalid_list_reads_as_unset_and_warns(mixed $value): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('list-invalid');
+        $this->bindLifecycle($project);
+        $repository = $this->repository($project, 'acme/app');
+
+        $this->read($project, $repository, ['required-checks' => $value]);
+
+        $resolved = $this->settings()->forRepository($project->requireId(), $repository, 'required-checks');
+        self::assertNull($resolved->value);
+        self::assertSame(SettingSource::Invalid, $resolved->source);
+        self::assertStringContainsString('a list of names', $resolved->warnings[0]);
+    }
+
     public function test_a_stored_value_applies_while_the_file_states_no_key(): void
     {
         self::bootKernel();

@@ -154,6 +154,36 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame([], $this->queuedReconciliations());
     }
 
+    public function test_a_plan_refusal_drops_the_rule_suggestions_and_keeps_the_merge_method(): void
+    {
+        $repository = $this->repository();
+        $this->suggestions->suggestions = [
+            new RepositorySuggestion(RepositorySuggestionKey::ApprovalGate, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::CiChecks, SuggestionMark::Warning),
+            new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking),
+            new RepositorySuggestion(RepositorySuggestionKey::MergeMethod, SuggestionMark::Blocking),
+        ];
+        $this->reader->answers = [FakeRepositorySettingsReader::planRefused()];
+
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertSame(['merge-method'], array_map(static fn (array $item): string => $item['key'], $this->checkOf($repository)->items));
+    }
+
+    public function test_a_blocking_pause_ends_when_the_recheck_finds_the_plan_refusal(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::planRefused()];
+
+        $this->check($repository, CheckTrigger::CheckAgain);
+        self::assertSame([(string) $repository->id => 2], $this->summaries->current($repository->project)->blocking);
+
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertSame([], $this->summaries->current($repository->project)->blocking);
+        self::assertSame([], $this->checkOf($repository)->items);
+    }
+
     public function test_a_failed_read_keeps_the_last_certain_items_and_sets_the_failure(): void
     {
         $repository = $this->repository();

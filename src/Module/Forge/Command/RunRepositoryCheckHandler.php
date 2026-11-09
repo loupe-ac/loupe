@@ -167,6 +167,9 @@ final readonly class RunRepositoryCheckHandler
     {
         $items = [];
         foreach ($suggestions as $suggestion) {
+            if (null !== $settings->rulesUnavailable && $this->catalog->needsRules($suggestion->key)) {
+                continue;
+            }
             $evaluation = $this->catalog->evaluate($suggestion->key, $settings);
             $items[] = [
                 'key' => $suggestion->key->value,

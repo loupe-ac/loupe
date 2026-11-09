@@ -23,6 +23,7 @@ final readonly class GitHubBranchRules
      * @param list<positive-int|null>                                                    $approvalSources     the App id of each entry that requires the approval check, null for an entry with no App
      * @param list<string>|null                                                          $allowedMergeMethods the methods that every pull request rule listing methods allows, null when no rule lists any
      * @param array<int, array{sourceType: string, source: string, rules: list<string>}> $rulesets            the ruleset behind each rule, by ruleset id
+     * @param bool                                                                       $refused             true when GitHub refuses rulesets for the plan, so no rule can exist
      */
     public function __construct(
         public array $requiredChecks,
@@ -34,7 +35,13 @@ final readonly class GitHubBranchRules
         public bool $forbidsForcePush = false,
         public bool $forbidsDeletion = false,
         public array $rulesets = [],
+        public bool $refused = false,
     ) {
+    }
+
+    public static function refusedByPlan(): self
+    {
+        return new self([], false, refused: true);
     }
 
     public function requiresApprovalCheck(): bool

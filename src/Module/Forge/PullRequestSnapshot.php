@@ -13,8 +13,9 @@ use App\Module\Forge\Entity\PullRequestState;
 final readonly class PullRequestSnapshot
 {
     /**
-     * @param list<string> $failedChecks the names of the failed checks on $checksSha
+     * @param list<string> $failedChecks  the names of the failed checks on $checksSha
      * @param list<string> $headParents
+     * @param list<string> $missingChecks the names of required checks that the head has not reported
      */
     public function __construct(
         public PullRequestState $state = PullRequestState::Open,
@@ -53,6 +54,7 @@ final readonly class PullRequestSnapshot
         public bool $reviewFromRules = false,
         /** The commits the head lacks from the base, or null when the read did not compare them. equals() counts only whether it is above zero. */
         public ?int $behindBy = null,
+        public array $missingChecks = [],
     ) {
     }
 
@@ -77,6 +79,7 @@ final readonly class PullRequestSnapshot
             && $this->checks === $other->checks
             && $this->checksSha === $other->checksSha
             && $this->failedChecks === $other->failedChecks
+            && $this->missingChecks === $other->missingChecks
             && $this->mergeability === $other->mergeability
             && $this->review === $other->review
             && $this->reviewFromRules === $other->reviewFromRules

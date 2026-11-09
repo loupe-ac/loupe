@@ -219,7 +219,10 @@ final class FactsMother
         return new CardInputs($slot, $type, $hasOpenBlocker, $isChild, $childCount, $openChildCount, $documents, $childMergedIntoEpicBranch, $parentDocuments, $parentSlot, $hasClosedBlocker);
     }
 
-    /** @param list<ForgeRequest> $forgeRequests */
+    /**
+     * @param list<ForgeRequest> $forgeRequests
+     * @param list<string>       $missingChecks
+     */
     public static function pullRequest(
         PullRequestState $state = PullRequestState::Open,
         bool $draft = false,
@@ -255,6 +258,7 @@ final class FactsMother
         bool $updateRefusedOnHead = false,
         bool $mergeApprovalUnanswered = false,
         bool $mergeApprovalNeedsPerson = false,
+        array $missingChecks = [],
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -291,6 +295,7 @@ final class FactsMother
             updateRefusedOnHead: $updateRefusedOnHead,
             mergeApprovalUnanswered: $mergeApprovalUnanswered,
             mergeApprovalNeedsPerson: $mergeApprovalNeedsPerson,
+            missingChecks: $missingChecks,
         );
     }
 

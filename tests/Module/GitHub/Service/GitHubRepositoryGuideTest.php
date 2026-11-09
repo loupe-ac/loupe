@@ -337,6 +337,14 @@ final class GitHubRepositoryGuideTest extends TestCase
         self::assertFalse($guide->hasSteps());
     }
 
+    public function test_a_plan_refused_repository_gets_no_import_step(): void
+    {
+        $guide = $this->guide([$this->item('merge-method', [])]);
+
+        self::assertSame([], $this->steps($guide, GuideStep::IMPORT));
+        self::assertSame([], $this->steps($guide, GuideStep::VERIFY_SOURCE));
+    }
+
     /**
      * @param list<array{key: string, mark: string, state: string, gaps: list<string>, parameters: array<string, mixed>}> $items
      * @param list<string>                                                                                                $recent

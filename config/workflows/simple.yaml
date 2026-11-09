@@ -7,6 +7,7 @@ settings:
     - { key: epic-branches, type: bool, scope: project, default: true }
     - { key: epic-branch-pattern, type: string, scope: project, default: 'epic/{number}', format: epic-branch }
     - { key: epic-child-merge-method, type: enum, scope: repository, values: [squash, merge, rebase], default: squash }
+    - { key: required-checks, type: list, scope: repository }
 requirements: []
 outcomes:
     - { key: merged, delivered: true }

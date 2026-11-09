@@ -8,6 +8,8 @@ use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\View\RepositoryCheckLine;
+use App\Module\Workflow\Contract\ResolvedSetting;
+use App\Module\Workflow\Contract\SettingSource;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\WorkflowSettings;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -77,7 +79,52 @@ final readonly class GitHubRepositoryCheckLines
             $lines[] = new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.'workflow_file.title', [], self::KEY_PREFIX.'workflow_file.detail', ['%message%' => $warning]);
         }
 
+        if (null !== $settings && null !== $projectId && null !== $repositoryId) {
+            array_push($lines, ...$this->requiredChecksLines($settings, $this->workflowSettings->forRepository($projectId, $repositoryId, RepositorySettings::REQUIRED_CHECKS_SETTING)));
+        }
+
         return $lines;
+    }
+
+    /**
+     * Warning lines about the list of checks that Loupe waits for. Each line is a warning, so none ever pauses work.
+     *
+     * @return list<RepositoryCheckLine>
+     */
+    private function requiredChecksLines(RepositorySettings $settings, ResolvedSetting $setting): array
+    {
+        $refused = null !== $settings->rulesUnavailable;
+        $list = \is_array($setting->value) ? $setting->value : null;
+
+        $lines = [];
+        if (!$refused && SettingSource::File === $setting->source && null !== $list) {
+            $lines[] = $this->warning('required_checks.ignored', []);
+        }
+
+        $required = $refused ? ($list ?? []) : $settings->rules->requiredChecks;
+        $required = array_values(array_filter($required, static fn (string $check): bool => !str_starts_with($check, self::LOUPE_CHECK_PREFIX)));
+        $explicitlyEmpty = $refused && null !== $list && [] === $required;
+        if ([] === $settings->recentChecks || ([] === $required && !$explicitlyEmpty)) {
+            return $lines;
+        }
+
+        // A cut-off list can miss a check that ran, and classic protection can require checks that no ruleset names.
+        $neverRan = \count($settings->recentChecks) < RepositorySettings::MAX_RECENT_CHECKS ? array_values(array_diff($required, $settings->recentChecks)) : [];
+        if ([] !== $neverRan) {
+            $lines[] = $this->warning('required_checks.never_ran', ['%checks%' => implode(', ', \array_slice($neverRan, 0, self::MAX_LISTED)), '%source%' => $this->translator->trans(self::KEY_PREFIX.'required_checks.source.'.($refused ? 'file' : 'ruleset'))]);
+        }
+        $unlisted = $settings->classicProtection && !$refused ? [] : array_values(array_diff($settings->recentChecks, $required));
+        if ([] !== $unlisted) {
+            $lines[] = $this->warning('required_checks.unlisted', ['%checks%' => implode(', ', \array_slice($unlisted, 0, self::MAX_LISTED))]);
+        }
+
+        return $lines;
+    }
+
+    /** @param array<string, string> $detailParameters */
+    private function warning(string $prefix, array $detailParameters): RepositoryCheckLine
+    {
+        return new RepositoryCheckLine('pending', self::KEY_PREFIX.'state.warning', self::KEY_PREFIX.$prefix.'.title', [], self::KEY_PREFIX.$prefix.'.detail', $detailParameters);
     }
 
     private function fitsLine(string $key, ?RepositorySettings $settings, string $branch): RepositoryCheckLine

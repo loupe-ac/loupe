@@ -10,6 +10,7 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\PullRequestStateReaders;
 use App\Module\Forge\Service\PullRequestUnreadable;
 use App\Module\GitHub\Entity\GitHubInstallation;
@@ -21,6 +22,8 @@ use App\Module\GitHub\Service\GitHubPullRequestInstallations;
 use App\Module\GitHub\Service\GitHubPullRequestStateMapper;
 use App\Module\GitHub\Service\GitHubPullRequestStateReader;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsWriter;
+use App\Module\Workflow\Contract\WorkflowSettings;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -370,6 +373,42 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertSame([], $this->logger->records);
     }
 
+    public function test_a_plan_refusal_reads_the_list_of_the_repository_and_waits_for_its_checks(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_019);
+        $repository = $this->service(ForgeRepositoryRepository::class)->findInstallationRowByPath($pullRequest->project, 'github', 'loupe-ac/loupe');
+        $this->service(RepositoryWorkflowSettingsWriter::class)->apply($pullRequest->project->requireId(), $repository->id ?? throw new \LogicException('No id.'), 'blob', 'head', ['required-checks' => ['deploy']], true);
+        $plan = 'Upgrade to GitHub Pro or make this repository public to enable this feature.';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($this->ruleLessGraphql('main')),
+            $this->answer(['message' => $plan], 403),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
+        ];
+
+        $snapshot = $this->reader()->read($pullRequest);
+
+        self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
+        self::assertSame(['deploy'], $snapshot->missingChecks);
+    }
+
+    public function test_a_plan_refusal_on_an_epic_child_keeps_the_refusal_when_it_borrows_the_default_branch(): void
+    {
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_020);
+        $repository = $this->service(ForgeRepositoryRepository::class)->findInstallationRowByPath($pullRequest->project, 'github', 'loupe-ac/loupe');
+        $this->service(RepositoryWorkflowSettingsWriter::class)->apply($pullRequest->project->requireId(), $repository->id ?? throw new \LogicException('No id.'), 'blob', 'head', ['required-checks' => ['deploy']], true);
+        $plan = 'Upgrade to GitHub Pro or make this repository public to enable this feature.';
+        $this->responses = [
+            $this->answer(['token' => 'ghs_token'], 201),
+            $this->answer($this->ruleLessGraphql('epic/436')),
+            $this->answer(['message' => $plan], 403),
+            $this->answer(['message' => $plan], 403),
+            $this->answer(['ahead_by' => 1, 'behind_by' => 0, 'status' => 'ahead']),
+        ];
+
+        self::assertSame(['deploy'], $this->reader()->read($pullRequest)->missingChecks);
+    }
+
     public function test_a_403_that_is_not_a_plan_refusal_stays_transient(): void
     {
         $pullRequest = $this->tracked('loupe-ac/loupe', 70_019);
@@ -510,6 +549,21 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         return $project;
     }
 
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $id
+     *
+     * @return T
+     */
+    private function service(string $id): object
+    {
+        $service = self::getContainer()->get($id);
+        self::assertInstanceOf($id, $service);
+
+        return $service;
+    }
+
     private function reader(): GitHubPullRequestStateReader
     {
         $client = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
@@ -522,13 +576,14 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertTrue(openssl_pkey_export($key, $pem));
         self::assertIsString($pem);
 
-        $installations = self::getContainer()->get(GitHubPullRequestInstallations::class);
-        self::assertInstanceOf(GitHubPullRequestInstallations::class, $installations);
+        $installations = $this->service(GitHubPullRequestInstallations::class);
 
         return new GitHubPullRequestStateReader(
             new GitHubAppApi($client, new GitHubAppConfiguration(null, null, null, null, '123456', $pem), $this->clock),
             $installations,
             new GitHubPullRequestStateMapper(new GitHubAppConfiguration('loupe-ac', null, null, null, null, null)),
+            $this->service(ForgeRepositoryRepository::class),
+            $this->service(WorkflowSettings::class),
             $this->clock,
             $this->logger,
         );

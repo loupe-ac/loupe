@@ -38,7 +38,7 @@ final class TemplateRepositorySuggestionsTest extends KernelTestCase
             [RepositorySuggestionKey::ApprovalGate, RepositorySuggestionKey::CiChecks, RepositorySuggestionKey::BranchProtection, RepositorySuggestionKey::MergeMethod],
             array_map(static fn ($suggestion): RepositorySuggestionKey => $suggestion->key, $suggestions),
         );
-        self::assertSame(SuggestionMark::Blocking, $suggestions[0]->mark);
+        self::assertSame(SuggestionMark::Warning, $suggestions[0]->mark);
         self::assertSame(SuggestionMark::Warning, $suggestions[1]->mark);
     }
 

@@ -74,6 +74,16 @@ final class RepositorySuggestionCatalogTest extends TestCase
         return new RepositoryRules($pullRequest, $review, $methods, $checks, $sources, $force, $deletion);
     }
 
+    public function test_the_rule_suggestions_need_rules_and_the_merge_method_does_not(): void
+    {
+        $catalog = new RepositorySuggestionCatalog();
+
+        self::assertTrue($catalog->needsRules(RepositorySuggestionKey::ApprovalGate));
+        self::assertTrue($catalog->needsRules(RepositorySuggestionKey::CiChecks));
+        self::assertTrue($catalog->needsRules(RepositorySuggestionKey::BranchProtection));
+        self::assertFalse($catalog->needsRules(RepositorySuggestionKey::MergeMethod));
+    }
+
     /** @param list<string> $mergeMethods */
     private static function settings(RepositoryRules $rules, array $mergeMethods = ['squash', 'merge', 'rebase'], ?int $appId = self::APP): RepositorySettings
     {
