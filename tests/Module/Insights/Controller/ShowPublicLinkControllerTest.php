@@ -291,7 +291,8 @@ final class ShowPublicLinkControllerTest extends WebTestCase
             $source = (string) $client->getResponse()->getContent();
             self::assertStringContainsString('Bridge 1', $source, $graph->name);
             self::assertStringNotContainsString('Dev box', $source);
-            self::assertStringNotContainsString('zq', $source);
+            self::assertStringNotContainsString(self::SECRET_BRIDGE, $source);
+            self::assertStringNotContainsString(self::SECRET_ACCOUNT, $source);
         }
     }
 

@@ -34,18 +34,6 @@ variable "enable_predeploy_migrations" {
   description = "Run migrations as a PRE_DEPLOY job on every deploy. Must stay false for the very first apply: PostgreSQL 15+ denies CREATE on the public schema to a non-owner, so until the one-time GRANT has been issued as the cluster admin the job fails — and a failing PRE_DEPLOY job fails the whole deployment, on every subsequent attempt too. Turn it on once migrations have been run by hand."
 }
 
-variable "web_instance_size_slug" {
-  type        = string
-  default     = "apps-s-1vcpu-1gb"
-  description = "App Platform size of the web service and the migration job. A size that runs one instance only cannot serve a web_instance_count above 1."
-}
-
-variable "web_instance_count" {
-  type        = number
-  default     = 2
-  description = "Number of web service instances. Two keep the app up while one restarts."
-}
-
 variable "health_check_path" {
   type        = string
   default     = "/livez"
