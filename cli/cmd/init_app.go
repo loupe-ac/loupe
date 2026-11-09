@@ -35,17 +35,8 @@ type appCheck struct {
 // checkApp compares the origin remote of dir with the GitHub facts of site.
 func checkApp(baseURL, dir string, site api.Site) appCheck {
 	c := appCheck{link: strings.TrimRight(baseURL, "/") + "/projects/" + site.ID + "/github/install"}
-	remote, err := initGit(dir, "remote", "get-url", "origin")
-	hasRemote := err == nil && remote != ""
-	notGitHub := false
-	if hasRemote {
-		var perr error
-		c.repository, perr = parseGitHubRemote(withoutUserinfo(remote))
-		notGitHub = errors.Is(perr, errNotGitHub)
-		if perr != nil {
-			c.repository = ""
-		}
-	}
+	repository, hasRemote, notGitHub := originRepository(dir)
+	c.repository = repository
 	g := site.GitHub
 	switch {
 	case notGitHub || (!hasRemote && (g == nil || len(g.Repositories) == 0)):
@@ -64,6 +55,46 @@ func checkApp(baseURL, dir string, site api.Site) appCheck {
 	}
 
 	return c
+}
+
+// originRepository reads owner/name from the fetch and push addresses of
+// origin. It returns "" when an address is not on GitHub or the addresses name
+// different repositories, because git pushes to every push address. notGitHub is
+// true only when every address is off GitHub.
+func originRepository(dir string) (repository string, hasRemote, notGitHub bool) {
+	var remotes []string
+	for _, flags := range [][]string{{"--all"}, {"--push", "--all"}} {
+		out, err := initGit(dir, append(append([]string{"remote", "get-url"}, flags...), "origin")...)
+		if err != nil {
+			return "", false, false
+		}
+		remotes = append(remotes, strings.Fields(out)...)
+	}
+	if len(remotes) == 0 {
+		return "", false, false
+	}
+	offGitHub := 0
+	for _, remote := range remotes {
+		repo, err := parseGitHubRemote(withoutUserinfo(remote))
+		switch {
+		case errors.Is(err, errNotGitHub):
+			offGitHub++
+		case err != nil:
+			return "", true, false
+		case repository == "":
+			repository = repo
+		case !strings.EqualFold(repository, repo):
+			return "", true, false
+		}
+	}
+	if offGitHub == len(remotes) {
+		return "", true, true
+	}
+	if offGitHub > 0 {
+		return "", true, false
+	}
+
+	return repository, true, false
 }
 
 // missing says whether the owner has an App step left.
