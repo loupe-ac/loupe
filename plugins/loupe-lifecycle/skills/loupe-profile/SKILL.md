@@ -43,19 +43,19 @@ Show one summary. Use this layout, filled from what you found:
 
 ```text
 Blocker check for <repository>
-3 found · 1 question · 1 problem
+3 found · 0 questions · 1 problem
 
-Section        Value                         Used by        Source             Status
-Merge          approval: unanswered          merge stage    .loupe.yaml        ? question
-Rules read     This machine cannot read them merge stage    gh api rules       ⚠ problem
-Requirements   5 of 5 met                    workflow       instruction files  ✓
+Section       Value                                  Used by      Source             Status
+Merge         Not asked: needs the Loupe GitHub App  merge stage  .loupe.yaml        not checked
+Rules read    This machine cannot read the rules     merge stage  gh api rules       ⚠ problem
+Requirements  5 of 5 met                             workflow     instruction files  ✓
 
 Problems
 1. The token of this machine cannot read the branch rules. Add the permission "Administration: read" to it.
 
 Loupe GitHub App: not installed. Loupe needs it to post its checks and to let agents push as the App. Install it: <install link>
 
-Next: answer question 1 of 1.
+Next: fix problem 1.
 ```
 
 1. The first line names the repository. The second line is the count line `N found · N questions · N problems`.
