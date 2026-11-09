@@ -102,6 +102,8 @@ final class MetricFormulaTest extends TestCase
         yield 'a grouped bucket metric' => ['A:bucket-time-each:sum', 'A', 'auto', FormulaProblem::METRIC_CANNOT_JOIN];
         yield 'a statistic the metric lacks' => ['A:runs:max', 'A', 'auto', FormulaProblem::STATISTIC_NOT_ALLOWED];
         yield 'an unknown statistic' => ['A:runs:total', 'A', 'auto', FormulaProblem::STATISTIC_NOT_ALLOWED];
+        yield 'a syntax error with a chosen format' => [self::TOKENS, 'A / (B', 'percent', FormulaProblem::UNCLOSED_PARENTHESIS];
+        yield 'an unknown metric with a chosen format' => ['A:nothing:sum', 'A', 'money', FormulaProblem::UNKNOWN_METRIC];
         yield 'an unknown format' => [self::TOKENS, 'A / B', 'percentage', FormulaProblem::UNKNOWN_FORMAT];
     }
 

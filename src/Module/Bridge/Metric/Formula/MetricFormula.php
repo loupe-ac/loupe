@@ -53,6 +53,10 @@ final readonly class MetricFormula
     /** The type that the result is shown in: the chosen Format, or what Auto picks. Null when the formula has a problem. */
     public function valueType(): ?MetricValueType
     {
+        if (null !== $this->problem) {
+            return null;
+        }
+
         return $this->format->valueType() ?? $this->autoType;
     }
 
