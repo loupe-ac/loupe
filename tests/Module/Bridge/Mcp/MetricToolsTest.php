@@ -22,6 +22,7 @@ use App\Tests\Support\TemplateMetricSets;
 use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class MetricToolsTest extends KernelTestCase
 {
@@ -431,6 +432,136 @@ final class MetricToolsTest extends KernelTestCase
         );
     }
 
+    public function test_a_formula_query_divides_two_rows_and_lists_no_rows(): void
+    {
+        [$project] = $this->projects('metric-formula');
+        $ended = new \DateTimeImmutable('-2 days')->setTime(9, 0);
+        $this->fact($project, $ended, 1_000, cacheRead: 300, cacheWrite: 100);
+        $this->fact($project, $ended->modify('-1 hour'), 1_000, cacheRead: 100, cacheWrite: 100);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(
+            unit: 'run',
+            rows: [
+                ['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'sum'],
+                ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum'],
+            ],
+            formula: 'A / B',
+        );
+
+        self::assertNull($result['metric']);
+        self::assertNull($result['statistic']);
+        self::assertSame([
+            'rows' => [
+                ['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'sum'],
+                ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum'],
+            ],
+            'formula' => 'A / B',
+            'format' => 'auto',
+            'valueType' => 'number',
+        ], $result['formula'] ?? null);
+        $series = $result['series'][0];
+        self::assertEquals(['value' => 2.0, 'rows' => 2], $series['total']);
+        self::assertEquals([['start' => MetricBucket::Week->startOf($ended)->format(\DATE_ATOM), 'value' => 2.0, 'rows' => 2]], $series['points']);
+        self::assertSame([], $series['rows']);
+        self::assertSame(2, $series['rowsTotal']);
+    }
+
+    public function test_a_one_metric_query_has_no_formula_in_its_output(): void
+    {
+        [$project] = $this->projects('metric-no-formula');
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertArrayNotHasKey('formula', $this->queryTool()(unit: 'run', metric: 'cost', statistic: 'sum'));
+    }
+
+    public function test_a_formula_query_with_a_compare_gives_the_change_and_no_sign(): void
+    {
+        [$project] = $this->projects('metric-formula-compare');
+        $this->fact($project, new \DateTimeImmutable('-2 days'), 1_000, cacheRead: 300, cacheWrite: 100);
+        $this->fact($project, new \DateTimeImmutable('-40 days'), 1_000, cacheRead: 100, cacheWrite: 100);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->queryTool()(
+            unit: 'run',
+            rows: [['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum']],
+            formula: 'A / B',
+            compare: 'previous',
+        );
+
+        $comparison = $result['series'][0]['comparison'] ?? null;
+        self::assertNotNull($comparison);
+        self::assertEquals(['value' => 1.0, 'rows' => 1], $comparison['previous']);
+        self::assertEquals(['value' => 2.0, 'kind' => 'relative'], $comparison['change']);
+        self::assertNull($comparison['sign']);
+        self::assertNull($comparison['likelyRange']);
+    }
+
+    public function test_a_call_with_a_metric_and_rows_or_with_neither_is_refused(): void
+    {
+        [$project] = $this->projects('metric-formula-both');
+        $this->actAsMcpTokenBoundTo($project);
+        $rows = [['letter' => 'A', 'metric' => 'cost', 'statistic' => 'sum']];
+
+        self::assertSame('Pass metric and statistic, or rows and formula, and not both.', $this->formulaRefusal(metric: 'cost', statistic: 'sum', rows: $rows, formula: 'A'));
+        self::assertSame('Pass metric and statistic to read one metric, or rows and formula to combine metrics.', $this->formulaRefusal());
+        self::assertSame('Pass metric and statistic to read one metric, or rows and formula to combine metrics.', $this->formulaRefusal(metric: 'cost'));
+    }
+
+    public function test_a_formula_with_a_problem_is_refused_in_plain_english(): void
+    {
+        [$project] = $this->projects('metric-formula-problem');
+        $this->actAsMcpTokenBoundTo($project);
+        $rows = [['letter' => 'A', 'metric' => 'cost', 'statistic' => 'sum']];
+
+        self::assertSame('The formula uses B, which has no row. At character 5.', $this->formulaRefusal(rows: $rows, formula: 'A / B'));
+        self::assertSame('A formula needs at least one row.', $this->formulaRefusal(formula: 'A'));
+        self::assertSame('Type a formula, such as A / B.', $this->formulaRefusal(rows: $rows));
+        self::assertSame('"nope" is not a format.', $this->formulaRefusal(rows: $rows, formula: 'A', format: 'nope'));
+        self::assertSame('Row A cannot use "stop-rate" in a formula.', $this->formulaRefusal(rows: [['letter' => 'A', 'metric' => 'stop-rate', 'statistic' => 'mean']], formula: 'A'));
+    }
+
+    public function test_a_row_with_a_comma_or_a_missing_field_is_refused(): void
+    {
+        [$project] = $this->projects('metric-formula-shape');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $message = 'Each row needs a letter, a metric and a statistic, as strings with no comma.';
+        self::assertSame($message, $this->formulaRefusal(rows: [['letter' => 'A', 'metric' => 'cost,B:runs', 'statistic' => 'sum']], formula: 'A'));
+        self::assertSame($message, $this->formulaRefusal(rows: [['letter' => 'A', 'metric' => 'cost']], formula: 'A'));
+        self::assertSame($message, $this->formulaRefusal(rows: ['A'], formula: 'A'));
+    }
+
+    public function test_a_formula_refuses_a_unit_and_a_group_that_a_row_does_not_allow(): void
+    {
+        [$project] = $this->projects('metric-formula-combination');
+        $this->actAsMcpTokenBoundTo($project);
+        $rows = [['letter' => 'A', 'metric' => 'cost', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'runs', 'statistic' => 'sum']];
+
+        self::assertSame(
+            'The rows of this formula do not all take the unit "run". Use one of: card. metric_list lists the valid combinations.',
+            $this->formulaRefusal(rows: $rows, formula: 'A / B'),
+        );
+        $wakes = [['letter' => 'A', 'metric' => 'cold-wakes', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'cost', 'statistic' => 'sum']];
+        $message = $this->formulaRefusal(rows: $wakes, formula: 'A / B', group: 'wake-gap');
+        self::assertStringStartsWith('The rows of this formula do not all take the group "wake-gap". Use one of: stage, model,', $message);
+        self::assertStringNotContainsString('wake-cache', $message);
+    }
+
+    /**
+     * @param array<mixed> $rows
+     */
+    private function formulaRefusal(string $metric = '', string $statistic = '', array $rows = [], string $formula = '', string $format = 'auto', string $group = 'none'): string
+    {
+        try {
+            $this->queryTool()(unit: 'run', metric: $metric, statistic: $statistic, group: $group, rows: $rows, formula: $formula, format: $format);
+        } catch (ToolCallException $e) {
+            return $e->getMessage();
+        }
+
+        self::fail('Expected a refusal.');
+    }
+
     public function test_a_bucket_time_run_has_the_time_of_the_bucket_zero_or_unknown(): void
     {
         [$project] = $this->projects('metric-bucket-run');
@@ -523,7 +654,7 @@ final class MetricToolsTest extends KernelTestCase
         return $run->id ?? throw new \LogicException('A stored run has an id.');
     }
 
-    private function fact(Project $project, \DateTimeImmutable $endedAt, int $cost, ?int $cardNumber = null, ?Uuid $runId = null): Uuid
+    private function fact(Project $project, \DateTimeImmutable $endedAt, int $cost, ?int $cardNumber = null, ?Uuid $runId = null, ?int $cacheRead = null, ?int $cacheWrite = null): Uuid
     {
         $runId ??= Uuid::v7();
         $this->em()->getConnection()->insert('bridge_worker_run_facts', [
@@ -541,6 +672,8 @@ final class MetricToolsTest extends KernelTestCase
             'duration_ms' => 300_000,
             'cost_micro_usd' => $cost,
             'usage_source' => 'reported',
+            'tokens_cache_read' => $cacheRead,
+            'tokens_cache_write' => $cacheWrite,
         ]);
 
         return $runId;
@@ -601,7 +734,7 @@ final class MetricToolsTest extends KernelTestCase
         $handler = self::getContainer()->get(MetricQueryHandler::class);
         self::assertInstanceOf(MetricQueryHandler::class, $handler);
 
-        return new MetricQueryTool($subjects, $handler, self::templateMetrics($templates));
+        return new MetricQueryTool($subjects, $handler, self::templateMetrics($templates), self::getContainer()->get(TranslatorInterface::class));
     }
 
     private static function templateMetrics(TemplateMetricSet $set): TemplateMetrics
