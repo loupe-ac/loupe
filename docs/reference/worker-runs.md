@@ -738,8 +738,9 @@ bridge is quiet. A bridge is quiet when its last
 [heartbeat](bridge-heartbeat.md) is older than three heartbeat intervals. The
 interval is the `bridge.heartbeat_interval_seconds` flag or the default of 60
 seconds, whichever is longer. A lowered flag therefore never shortens the wait. A bridge
-that sent no heartbeat counts as quiet once the first report of the run is that
-old. One pass times out at most 500 runs, and the next pass takes the rest.
+that sent no heartbeat counts as quiet. In both cases, a run times out only when
+its first report is older than that window, so a run that starts just after a
+machine wakes stays open. One pass times out at most 500 runs, and the next pass takes the rest.
 The task skips an interactive run, because no bridge holds it.
 
 `timed-out` is a guess. A report from the bridge replaces it, and so does a

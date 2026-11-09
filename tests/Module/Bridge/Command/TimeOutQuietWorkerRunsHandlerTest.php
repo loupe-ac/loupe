@@ -95,6 +95,35 @@ final class TimeOutQuietWorkerRunsHandlerTest extends KernelTestCase
         self::assertSame(WorkerRunState::Queued, $this->reload($fresh)->state);
     }
 
+    public function test_a_run_that_arrives_inside_the_quiet_window_of_its_bridge_stays_open(): void
+    {
+        [$owner, $project] = $this->scenario('sweep-just-woke');
+        $bridgeId = $this->seedBridge($this->em(), $owner, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:00:00'))->id;
+        $old = $this->openRun($project, $bridgeId, WorkerRunState::Running, new \DateTimeImmutable('2026-09-23 11:56:59'));
+        $fresh = $this->openRun($project, $bridgeId, WorkerRunState::Running, new \DateTimeImmutable('2026-09-23 11:57:00'));
+
+        $this->sweep();
+
+        self::assertSame(WorkerRunState::TimedOut, $this->reload($old)->state);
+        self::assertSame(WorkerRunState::Running, $this->reload($fresh)->state);
+    }
+
+    public function test_each_read_of_the_sweep_skips_a_run_inside_the_quiet_window(): void
+    {
+        [$owner, $project] = $this->scenario('sweep-just-woke-reads');
+        $bridgeId = $this->seedBridge($this->em(), $owner, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:00:00'))->id;
+        $old = $this->openRun($project, $bridgeId, WorkerRunState::Running, new \DateTimeImmutable('2026-09-23 11:56:59'));
+        $fresh = $this->openRun($project, $bridgeId, WorkerRunState::Running, new \DateTimeImmutable('2026-09-23 11:57:00'));
+        $quietBefore = new \DateTimeImmutable('2026-09-23 11:57:00');
+        $repository = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $repository);
+        $ids = [$old->id ?? throw new \LogicException('A stored run has an id.'), $fresh->id ?? throw new \LogicException('A stored run has an id.')];
+
+        self::assertEquals([$old->id], $repository->findIdsOfQuietOpenRuns($quietBefore, 10));
+        $locked = $this->em()->wrapInTransaction(static fn (): array => $repository->findOpenByIdsForUpdate($ids, $quietBefore));
+        self::assertSame([$old], $locked);
+    }
+
     /** No bridge holds an interactive run, so no heartbeat can say it went quiet. */
     public function test_an_old_open_interactive_run_stays_open(): void
     {
