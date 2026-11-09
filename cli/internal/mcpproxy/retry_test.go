@@ -162,3 +162,34 @@ func TestRetryingStopsWhenTheRequestIsCancelled(t *testing.T) {
 		t.Fatalf("got %v, want the context error", err)
 	}
 }
+
+func TestRetryingSendsA504AgainOnlyForARead(t *testing.T) {
+	for body, wantCalls := range map[string]int{
+		`{"method":"initialize","params":{}}`:                     2,
+		`{"method":"tools/list"}`:                                 2,
+		`{"method":"tools/call","params":{"name":"card_get"}}`:    2,
+		`{"method":"tools/call","params":{"name":"card_update"}}`: 1,
+		`{"method":"tools/call","params":{"name":"a_new_tool"}}`:  1,
+		`{"method":"tools/call"}`:                                 1,
+		`[{"method":"tools/list"}]`:                               1,
+		`not json`:                                                1,
+	} {
+		base := &script{statuses: []int{504, 200}}
+		r := &Retrying{Base: base, After: (&clock{}).after}
+		req, err := http.NewRequest(http.MethodPost, "http://loupe.test/mcp", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := r.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(base.bodies) != wantCalls {
+			t.Fatalf("%s: got %d calls, want %d", body, len(base.bodies), wantCalls)
+		}
+		if wantCalls == 2 && (resp.StatusCode != 200 || base.bodies[1] != body) {
+			t.Fatalf("%s: status %d, second body %q", body, resp.StatusCode, base.bodies[1])
+		}
+	}
+}
