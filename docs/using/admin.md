@@ -181,6 +181,31 @@ Above the table, the page shows how many entries picked each choice. The
 counts run from the most picked choice to the least. They cover the ten named
 choices. The "Something else" text is not counted.
 
+### Block patterns
+
+The **Block patterns** section of `/admin/waitlist` hides spam entries. Type a
+pattern and press **Add pattern**. A pattern matches the full email address
+and ignores case. A `*` stands for any text, so `*@mailinator.com` matches every
+address at that domain, `*.ru` matches every address that ends in `.ru`, and
+`spam*@gmail.com` matches `spam1@gmail.com`. Other characters, `_` and `%`
+included, match only themselves. A pattern of only `*` is refused, because it
+would hide every entry.
+
+An entry whose address matches a pattern stays in the database, and the page
+hides it. It is not in the table, the total, the pick counts or the waiting
+count. **Invite the oldest** and **Invite selected** skip it. The section
+shows how many entries are hidden.
+
+A person whose address matches a pattern can still join. The person sees the
+usual confirmation, the entry is saved hidden, and no waitlist email goes out.
+The audit log records `account.waitlist_joined_hidden`, or
+`account.waitlist_rejoined_hidden` for a disabled account that joins again.
+This also applies to a social login that the full sign-up sends to the
+waitlist.
+
+Press **Remove** next to a pattern and confirm to delete it. The entries that
+it hid show again, unless another pattern still matches them.
+
 ### Waitlist emails
 
 The **Waitlist notification emails** flag, `waitlist.notification_emails`, holds the
@@ -199,7 +224,8 @@ email names the person and says how they joined. The join email also lists their
 picks and their "Something else?" text. Both emails give the number of people
 who still wait, and a button to the waitlist or to the new account.
 
-A picks update, a repeated join and a registration with no invite send nothing.
+A picks update, a repeated join, a join whose address matches a
+[block pattern](#block-patterns) and a registration with no invite send nothing.
 An email that fails to send never changes what the person sees. The app logs
 `account.waitlist_notification_failed` and goes on.
 

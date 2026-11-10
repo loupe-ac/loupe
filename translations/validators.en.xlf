@@ -8,6 +8,18 @@
                 <source>account.registration.validator.agree_terms</source>
                 <target>You must agree to the terms.</target>
             </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.blank">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.blank</source>
+                <target>Type a pattern.</target>
+            </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.only_stars">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.only_stars</source>
+                <target>A pattern needs at least one character other than *, or it hides every entry.</target>
+            </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.too_long">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.too_long</source>
+                <target>A pattern holds at most {{ limit }} characters.</target>
+            </trans-unit>
 
             <!-- Change password form -->
             <trans-unit id="account.form.change_password_form.invalid_message">
