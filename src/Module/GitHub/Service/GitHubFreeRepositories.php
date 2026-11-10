@@ -44,7 +44,7 @@ final readonly class GitHubFreeRepositories
 
             try {
                 /** @var list<array{int, non-empty-string}> $list */
-                $list = $this->cache->get(self::key($installation->installationId), function (ItemInterface $item) use ($installation): array {
+                $list = $this->cache->get(self::cacheKey($installation->installationId), function (ItemInterface $item) use ($installation): array {
                     $item->expiresAfter(self::TTL);
 
                     return array_map(
@@ -72,10 +72,10 @@ final readonly class GitHubFreeRepositories
 
     public function forget(int $installationId): void
     {
-        $this->cache->delete(self::key($installationId));
+        $this->cache->delete(self::cacheKey($installationId));
     }
 
-    private static function key(int $installationId): string
+    public static function cacheKey(int $installationId): string
     {
         return 'github_free_repositories.'.$installationId;
     }

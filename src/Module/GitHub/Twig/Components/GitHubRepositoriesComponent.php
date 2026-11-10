@@ -68,7 +68,7 @@ final class GitHubRepositoriesComponent
         foreach ($this->forgeRepositories->findByProject($project) as $repository) {
             $this->rows[] = $this->repositoryRows->forRepository($repository, requestCheck: true);
         }
-        if ($this->appConfigured && [] !== $this->rows) {
+        if ([] !== $this->rows) {
             $this->freeCount = \count($this->freeRepositories->forProject($project));
         }
     }
