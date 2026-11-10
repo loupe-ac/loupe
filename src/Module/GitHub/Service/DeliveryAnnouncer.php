@@ -62,6 +62,12 @@ final readonly class DeliveryAnnouncer
         return $claim;
     }
 
+    /** Tells the project that a repository it holds changed path, so its stored links follow. */
+    public function moved(Project $project, string $from, string $to): void
+    {
+        $this->dispatch($project, [new ForgeDelivery(ForgeEventType::REPOSITORY_MOVED, GitHubDelivery::FORGE, $from, movedTo: $to)], ForgeRepositorySource::Installation);
+    }
+
     public function announce(Project $project, GitHubRepositoryRef $repository, GitHubDelivery $delivery, ForgeRepositorySource $source, ?int $installationId = null): void
     {
         $claim = $this->claim($project, $repository, $source, $installationId);

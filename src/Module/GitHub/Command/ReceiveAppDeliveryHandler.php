@@ -164,7 +164,10 @@ final readonly class ReceiveAppDeliveryHandler
                 continue;
             }
 
-            $this->forgeRepositories->reconnect($row, (string) $installation->installationId, $repository->fullName);
+            $movedFrom = $this->forgeRepositories->reconnect($row, (string) $installation->installationId, $repository->fullName);
+            if (null !== $movedFrom) {
+                $this->announcer->moved($row->project, $movedFrom, $repository->fullName);
+            }
         }
     }
 

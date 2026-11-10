@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Controller;
 
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Event\ForgeBranchPushed;
@@ -482,6 +483,28 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $row = $this->installationOwnerOf(617) ?? self::fail('The row is gone.');
         self::assertNull($row->accessLostAt);
         self::assertSame('9000618', $row->sourceRef);
+    }
+
+    public function test_a_reconnect_under_a_new_path_repoints_the_stored_pull_requests(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('reconnect-renamed');
+        $this->installation(9_000_626, accountId: 4_007);
+        $this->installation(9_000_627, accountId: 4_007);
+        $this->owned($project, 626, 'acme/old-name', ForgeRepositorySource::Installation, 9_000_626);
+        $trackedId = $this->trackedPullRequest($project, 'acme/old-name', 4, 'aaa111');
+        $this->loseAccessOf(626);
+
+        $this->deliver($client, self::PATH, 'installation_repositories', [
+            'action' => 'added',
+            'installation' => ['id' => 9_000_627],
+            'repositories_added' => [['id' => 626, 'full_name' => 'acme/new-name']],
+        ], self::SECRET);
+
+        $this->em()->clear();
+        $pullRequest = $this->em()->find(ForgePullRequest::class, $trackedId) ?? self::fail('The pull request is gone.');
+        self::assertSame('acme/new-name', $pullRequest->repository);
     }
 
     public function test_a_no_access_row_stays_when_the_new_installation_belongs_to_another_or_an_unknown_account(): void

@@ -65,6 +65,11 @@ final readonly class ForgeRepositories
                 return ForgeClaim::owned($repository);
             }
 
+            // Only reconnect() revives a "No access" row, because it compares the accounts first.
+            if (null !== $existing->accessLostAt) {
+                return ForgeClaim::alreadyOwned($existing, null);
+            }
+
             $tookOver = false;
             if (ForgeRepositorySource::Installation === $source) {
                 $tookOver = ForgeRepositorySource::Installation !== $existing->source;
@@ -140,15 +145,21 @@ final readonly class ForgeRepositories
         return null !== $row && null !== $row->accessLostAt ? $row : null;
     }
 
-    /** Points a "No access" row at the installation that reaches the repository again. */
-    public function reconnect(ForgeRepository $repository, string $sourceRef, string $path): void
+    /**
+     * Points a "No access" row at the installation that reaches the repository
+     * again. Answers the previous path when the repository was renamed.
+     */
+    public function reconnect(ForgeRepository $repository, string $sourceRef, string $path): ?string
     {
+        $movedFrom = 0 !== strcasecmp($repository->path, $path) ? $repository->path : null;
         $this->summaries->change($repository->project, function (RepositoryChange $change) use ($repository, $sourceRef, $path): void {
             $repository->sourceRef = $sourceRef;
             $repository->accessLostAt = null;
             $repository->path = $path;
             $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
         });
+
+        return $movedFrom;
     }
 
     /** Stamps at most once a minute, because every accepted delivery calls it. */
