@@ -65,9 +65,9 @@ trait GitHubDeliveryScenario
         return $hook;
     }
 
-    private function installation(Project $project, int $installationId, GitHubRepositorySelection $selection = GitHubRepositorySelection::Selected): GitHubInstallation
+    private function installation(int $installationId, GitHubRepositorySelection $selection = GitHubRepositorySelection::Selected, ?int $accountId = null): GitHubInstallation
     {
-        $installation = new GitHubInstallation($project, $installationId, 'acme', $selection);
+        $installation = new GitHubInstallation($installationId, 'acme', $selection, $accountId);
         $this->em()->persist($installation);
         $this->em()->flush();
 

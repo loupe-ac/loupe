@@ -26,8 +26,8 @@ final readonly class GitHubInstallationExporter implements UserDataExporterInter
     {
         foreach ($this->gitHubInstallations->findByOwner($user) as $installation) {
             yield [
-                'project' => $installation->project->name,
                 'installationId' => $installation->installationId,
+                'accountId' => $installation->accountId,
                 'accountLogin' => $installation->accountLogin,
                 'repositorySelection' => $installation->repositorySelection->value,
                 'suspendedAt' => $installation->suspendedAt?->format(\DateTimeInterface::ATOM),

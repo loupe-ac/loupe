@@ -277,7 +277,6 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
         $installation = $this->installationRow();
         self::assertNotNull($installation);
-        self::assertTrue($installation->project->id?->equals($project->id));
         self::assertSame('acme', $installation->accountLogin);
         self::assertSame(GitHubRepositorySelection::Selected, $installation->repositorySelection);
         self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
@@ -305,7 +304,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     {
         $owner = $this->signedUpUser('refresh');
         $project = $this->projectOf($owner);
-        $known = new GitHubInstallation($project, self::INSTALLATION_ID, 'old-login', GitHubRepositorySelection::All);
+        $known = new GitHubInstallation(self::INSTALLATION_ID, 'old-login', GitHubRepositorySelection::All);
         $known->removedAt = new \DateTimeImmutable('-1 day');
         $this->em()->persist($known);
         $this->em()->flush();
@@ -359,15 +358,15 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
         self::assertStringContainsString('the repository list may be incomplete', $this->followedText());
         self::assertContains('github.repository_list_truncated', array_column($logger->records, 'message'));
-        self::assertTrue($this->installationRow()?->listIncomplete);
     }
 
-    public function test_an_installation_of_another_project_is_refused_without_naming_it(): void
+    public function test_a_second_project_connects_an_installation_that_is_already_known(): void
     {
         $other = $this->projectOf($this->signedUpUser('otherowner'));
-        $this->em()->persist(new GitHubInstallation($other, self::INSTALLATION_ID, 'acme', GitHubRepositorySelection::All));
+        $this->em()->persist(new GitHubInstallation(self::INSTALLATION_ID, 'acme', GitHubRepositorySelection::All));
+        $this->em()->persist(new ForgeRepository($other, 'github', '102', 'acme/two', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
         $this->em()->flush();
-        $this->repositories = [['id' => 101, 'full_name' => 'acme/one']];
+        $this->repositories = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 102, 'full_name' => 'acme/two']];
         $owner = $this->signedUpUser('second');
         $project = $this->projectOf($owner);
         $this->em()->clear();
@@ -377,10 +376,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $text = $this->followedText();
-        self::assertStringContainsString('This installation belongs to another project', $text);
         self::assertStringNotContainsString($other->name, $text);
-        self::assertTrue($this->installationRow()?->project->id?->equals($other->id));
-        self::assertSame([], $this->pathsOf($project));
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+        self::assertSame(['acme/two'], $this->pathsOf($other));
     }
 
     public function test_a_project_the_user_no_longer_manages_is_refused(): void

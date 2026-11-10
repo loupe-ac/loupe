@@ -131,7 +131,7 @@ final class GitHubBranchReaderTest extends KernelTestCase
     private function connected(string $path, int $installationId): Project
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $this->em->flush();
 

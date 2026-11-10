@@ -13,6 +13,7 @@ final readonly class GitHubUserInstallation
         public int $id,
         public string $accountLogin,
         public GitHubRepositorySelection $repositorySelection,
+        public ?int $accountId = null,
     ) {
     }
 }

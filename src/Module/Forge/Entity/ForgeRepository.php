@@ -35,6 +35,10 @@ class ForgeRepository
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $lastAcceptedAt = null;
 
+    /** Set when the installation behind an installation row stopped reaching the repository. The row stays, as "No access". */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $accessLostAt = null;
+
     /**
      * What the last read of the workflow file found wrong, worded for the repository check.
      *

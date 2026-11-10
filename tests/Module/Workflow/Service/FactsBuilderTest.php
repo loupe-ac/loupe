@@ -472,7 +472,7 @@ final class FactsBuilderTest extends KernelTestCase
         $card = $this->card($project, 'in-review');
         $this->pullRequest($card);
         $installationId = random_int(1, \PHP_INT_MAX);
-        $this->em()->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::All));
+        $this->em()->persist(new GitHubInstallation($installationId, 'acme', GitHubRepositorySelection::All));
         $repository = new ForgeRepository($project, 'github', 'ext-'.uniqid(), self::REPOSITORY, ForgeRepositorySource::Installation, (string) $installationId);
         $this->em()->persist($repository);
         $this->em()->flush();

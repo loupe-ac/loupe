@@ -251,7 +251,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
         $project = new Project($user, 'fingerprint-'.uniqid());
         $this->em->persist($user);
         $this->em->persist($project);
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $pullRequest->baseBranch = 'release/1.x';

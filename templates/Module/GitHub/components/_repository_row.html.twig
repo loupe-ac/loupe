@@ -7,7 +7,9 @@
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
             <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
-                {%- if row.health == 'working' -%}
+                {%- if repository.accessLostAt -%}
+                    {{ 'github.repositories.no_access.since'|trans({'%time%': repository.accessLostAt|date('j M Y, H:i')}) }}
+                {%- elseif row.health == 'working' -%}
                     {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
                 {%- elseif row.health == 'quiet' -%}
                     {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
@@ -16,7 +18,12 @@
                 {%- endif -%}
             </span>
         </span>
-        {% if row.workflowLabelKey %}
+        {% if repository.accessLostAt %}
+        <twig:Ds:Tag tone="amber" data-testid="forge-repository-no-access">{{ 'github.repositories.no_access.label'|trans }}</twig:Ds:Tag>
+        {% if row.fixAccessUrl is not null %}
+        <twig:Ds:Button variant="on-card" size="sm" href="{{ row.fixAccessUrl }}" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-fix-access">{{ 'github.repositories.no_access.fix'|trans }}</twig:Ds:Button>
+        {% endif %}
+        {% elseif row.workflowLabelKey %}
         <twig:Ds:Tag tone="neutral" data-testid="forge-repository-workflow">{{ 'github.repositories.row.workflow'|trans({'%workflow%': row.workflowLabelKey|trans}) }}</twig:Ds:Tag>
         {% endif %}
         <div data-controller="modal">
@@ -35,7 +42,7 @@
         </div>
     </div>
 
-    {% if row.suggests %}
+    {% if row.suggests and not repository.accessLostAt %}
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
     <div class="lp-repository-check" data-testid="forge-repository-check">
         {% if row.blocks %}

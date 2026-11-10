@@ -70,22 +70,15 @@ final readonly class ConnectGitHubInstallationHandler
         }
 
         $installation = $this->gitHubInstallations->findOneByInstallationId($command->installationId);
-        if (null !== $installation && !$this->belongsTo($installation, $project)) {
-            $this->refused($project, $command->installationId, 'other_project');
-
-            throw new DomainErrors(['installation' => 'github.app.flash.installation_elsewhere']);
-        }
-
         if (null === $installation) {
-            $installation = new GitHubInstallation($project, $command->installationId, $listed->accountLogin, $listed->repositorySelection);
+            $installation = new GitHubInstallation($command->installationId, $listed->accountLogin, $listed->repositorySelection, $listed->accountId);
             $this->em->persist($installation);
         } else {
             $installation->accountLogin = $listed->accountLogin;
+            $installation->accountId = $listed->accountId ?? $installation->accountId;
             $installation->repositorySelection = $listed->repositorySelection;
             $installation->removedAt = null;
         }
-
-        $installation->listIncomplete = !$listing->complete;
 
         try {
             $this->em->flush();
@@ -123,11 +116,6 @@ final readonly class ConnectGitHubInstallationHandler
         );
 
         return new ConnectedGitHubInstallation($installation, $refused, $listing->complete);
-    }
-
-    private function belongsTo(GitHubInstallation $installation, Project $project): bool
-    {
-        return null !== $project->id && true === $installation->project->id?->equals($project->id);
     }
 
     private function refused(Project $project, int $installationId, string $reason): void

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\GitHub\Service;
 
 use App\Module\Account\Entity\User;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubHook;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
@@ -66,9 +68,14 @@ final class GitHubExportersTest extends KernelTestCase
     {
         self::bootKernel();
         [$mine, $theirs] = [$this->project('mine'), $this->project('theirs')];
-        $installation = new GitHubInstallation($mine, 7_000_001, 'acme', GitHubRepositorySelection::Selected, new \DateTimeImmutable('2026-09-23T10:00:00+00:00'));
+        $installation = new GitHubInstallation(7_000_001, 'acme', GitHubRepositorySelection::Selected, 4_001, new \DateTimeImmutable('2026-09-23T10:00:00+00:00'));
         $installation->removedAt = new \DateTimeImmutable('2026-09-23T12:00:00+00:00');
-        $this->persist($installation, new GitHubInstallation($theirs, 7_000_002, 'other', GitHubRepositorySelection::All));
+        $this->persist(
+            $installation,
+            new GitHubInstallation(7_000_002, 'other', GitHubRepositorySelection::All),
+            new ForgeRepository($mine, 'github', '7001', 'acme/one', ForgeRepositorySource::Installation, '7000001'),
+            new ForgeRepository($theirs, 'github', '7002', 'other/two', ForgeRepositorySource::Installation, '7000002'),
+        );
         $exporter = self::getContainer()->get(GitHubInstallationExporter::class);
         self::assertInstanceOf(GitHubInstallationExporter::class, $exporter);
 
@@ -76,8 +83,8 @@ final class GitHubExportersTest extends KernelTestCase
 
         self::assertSame('github_installations.json', $exporter->filename());
         self::assertSame([[
-            'project' => $mine->name,
             'installationId' => 7_000_001,
+            'accountId' => 4_001,
             'accountLogin' => 'acme',
             'repositorySelection' => 'selected',
             'suspendedAt' => null,

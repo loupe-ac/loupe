@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Repository;
 
 use App\Module\Account\Entity\User;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\GitHubDelivery;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /** @extends ServiceEntityRepository<GitHubInstallation> */
@@ -23,20 +27,78 @@ final class GitHubInstallationRepository extends ServiceEntityRepository
         return $this->findOneBy(['installationId' => $installationId]);
     }
 
-    /** @return list<GitHubInstallation> */
+    /**
+     * The installations that the installation rows of the project name, "No access" rows included.
+     *
+     * @return list<GitHubInstallation>
+     */
     public function findByProject(Project $project): array
     {
-        return array_values($this->findBy(['project' => $project], ['createdAt' => 'ASC', 'id' => 'ASC']));
+        $ids = $this->installationIds(
+            $this->getEntityManager()->createQueryBuilder()
+                ->select('DISTINCT r.sourceRef')
+                ->from(ForgeRepository::class, 'r')
+                ->andWhere('r.project = :project')
+                ->setParameter('project', $project),
+        );
+
+        return $this->byIds($ids);
     }
 
-    /** @return list<GitHubInstallation> */
+    /**
+     * The installations that the installation rows of the owner's projects name.
+     *
+     * @return list<GitHubInstallation>
+     */
     public function findByOwner(User $user): array
     {
+        $ids = $this->installationIds(
+            $this->getEntityManager()->createQueryBuilder()
+                ->select('DISTINCT r.sourceRef')
+                ->from(ForgeRepository::class, 'r')
+                ->join('r.project', 'p')
+                ->andWhere('p.owner = :user')
+                ->setParameter('user', $user),
+        );
+
+        return $this->byIds($ids);
+    }
+
+    /** @return list<GitHubInstallation> every installation record that has no account id yet */
+    public function findWithoutAccountId(): array
+    {
+        return array_values($this->findBy(['accountId' => null], ['createdAt' => 'ASC', 'id' => 'ASC']));
+    }
+
+    /** @return list<int> */
+    private function installationIds(QueryBuilder $builder): array
+    {
+        $refs = $builder
+            ->andWhere('r.forge = :forge')
+            ->andWhere('r.source = :source')
+            ->andWhere('r.sourceRef IS NOT NULL')
+            ->setParameter('forge', GitHubDelivery::FORGE)
+            ->setParameter('source', ForgeRepositorySource::Installation->value)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(intval(...), array_filter($refs, static fn (mixed $ref): bool => \is_string($ref) && ctype_digit($ref))));
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<GitHubInstallation>
+     */
+    private function byIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
         return array_values($this->createQueryBuilder('i')
-            ->join('i.project', 'p')
-            ->addSelect('p')
-            ->andWhere('p.owner = :user')
-            ->setParameter('user', $user)
+            ->andWhere('i.installationId IN (:ids)')
+            ->setParameter('ids', $ids)
             ->orderBy('i.createdAt', 'ASC')
             ->addOrderBy('i.id', 'ASC')
             ->getQuery()

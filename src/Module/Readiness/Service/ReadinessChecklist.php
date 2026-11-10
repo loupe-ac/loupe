@@ -357,6 +357,6 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             }
         }
 
-        return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']));
+        return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && null === $repository->accessLostAt && isset($live[$repository->sourceRef ?? '']));
     }
 }
