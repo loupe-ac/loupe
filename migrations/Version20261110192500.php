@@ -9,6 +9,7 @@ use Doctrine\Migrations\AbstractMigration;
 
 final class Version20261110192500 extends AbstractMigration
 {
+    #[\Override]
     public function getDescription(): string
     {
         return 'Create the waitlist block patterns table';
@@ -20,6 +21,7 @@ final class Version20261110192500 extends AbstractMigration
         $this->addSql('CREATE UNIQUE INDEX UNIQ_E71FE7B2A3BCFC8E ON waitlist_block_patterns (pattern)');
     }
 
+    #[\Override]
     public function down(Schema $schema): void
     {
         $this->addSql('DROP TABLE waitlist_block_patterns');

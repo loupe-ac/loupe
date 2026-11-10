@@ -51,6 +51,8 @@ final class WaitlistBlockPatternTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new WaitlistBlockPattern($glob);
+        $pattern = new WaitlistBlockPattern($glob);
+
+        self::fail(\sprintf('The pattern "%s" was accepted.', $pattern->pattern));
     }
 }

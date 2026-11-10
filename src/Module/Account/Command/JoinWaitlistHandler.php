@@ -23,7 +23,7 @@ final readonly class JoinWaitlistHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private WaitlistOwnerNotifier $ownerNotifier,
-        private WaitlistBlockPatternRepository $blockPatterns,
+        private WaitlistBlockPatternRepository $waitlistBlockPatterns,
     ) {
     }
 
@@ -45,7 +45,7 @@ final readonly class JoinWaitlistHandler
                     $existingEntry->mergePicks($command->picks, $other);
                     $this->em->flush();
 
-                    if ($this->blockPatterns->matches($command->email)) {
+                    if ($this->waitlistBlockPatterns->matches($command->email)) {
                         $this->record('account.waitlist_rejoined_hidden', $existingEntry);
 
                         return;
@@ -106,7 +106,7 @@ final readonly class JoinWaitlistHandler
 
         // A blocked address still gets its row, so the visitor sees the usual
         // confirmation and removing the pattern later shows the entry again.
-        if ($this->blockPatterns->matches($command->email)) {
+        if ($this->waitlistBlockPatterns->matches($command->email)) {
             $this->record('account.waitlist_joined_hidden', $entry);
 
             return;
