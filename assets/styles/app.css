@@ -3221,6 +3221,29 @@
     .ts-wrapper.focus .ts-control {
         @apply ring-2 ring-accent-ink;
     }
+    /* Tom Select copies the classes of its <select> to its wrapper. Over an .lp-input the wrapper
+       is the field, so the inner control drops its frame. Over an .lp-select it drops its caret too. */
+    .ts-wrapper.lp-input {
+        @apply flex p-0;
+    }
+    .ts-wrapper.lp-input.focus {
+        @apply ring-2 ring-accent-ink;
+    }
+    .ts-wrapper.lp-input .ts-control {
+        @apply min-h-0 flex-1 items-center rounded-none border-0 bg-transparent px-3 py-2.5 ring-0;
+    }
+    .ts-wrapper.lp-select .ts-control {
+        --ts-pr-caret: calc(var(--spacing) * 9);
+    }
+    .ts-wrapper.lp-select .ts-control::after {
+        @apply hidden;
+    }
+    /* While a person types, the field shows the query alone. */
+    .ts-wrapper.lp-input.single
+        .ts-control:has(> input:not(:placeholder-shown))
+        > .item {
+        @apply hidden;
+    }
     .ts-dropdown {
         @apply mt-1 overflow-hidden rounded-lg border border-line bg-surface-1 font-sans text-sm leading-5 text-ink shadow-card;
     }
@@ -7573,20 +7596,29 @@
     .lp-reports-proposal__dismiss {
         @apply flex flex-wrap items-center gap-2;
     }
-    /* The controls of the Metrics page: a labelled field each, in one grid. */
+    /* The controls of the Metrics page: the metric or the formula, then the settings below. */
     .lp-metric-controls {
-        @apply mt-6 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4;
+        @apply mt-6 flex flex-col gap-3;
     }
     .lp-metric-controls__field {
         @apply flex min-w-0 flex-col gap-1;
     }
-    /* The button that opens a formula sits at the foot of its grid cell, level with the controls. */
-    .lp-metric-controls__action {
-        @apply justify-end;
+    /* The single metric: a wide Metric field and its Statistic. */
+    .lp-metric-controls__primary {
+        @apply grid grid-cols-1 gap-2 sm:grid-cols-4;
     }
-    /* The formula rows span the whole control grid: lettered rows, the formula, its format and its error. */
+    .lp-metric-controls__primary[hidden] {
+        @apply hidden;
+    }
+    .lp-metric-controls__metric {
+        @apply sm:col-span-3;
+    }
+    .lp-metric-controls__settings {
+        @apply grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6;
+    }
+    /* The formula: lettered rows, the formula with its format, and its error. */
     .lp-metric-formula {
-        @apply col-span-full flex flex-col items-start gap-3 rounded-lg border border-line bg-surface-2 p-3;
+        @apply flex flex-col items-start gap-2;
     }
     .lp-metric-formula[hidden] {
         @apply hidden;
@@ -7594,26 +7626,36 @@
     .lp-metric-formula__rows {
         @apply flex w-full flex-col gap-2;
     }
+    /* One grid for the heads, the lettered rows and the formula, so their columns line up. */
     .lp-metric-formula__row {
-        @apply grid grid-cols-[auto_minmax(0,1fr)_minmax(0,12rem)_auto] items-center gap-2;
+        @apply grid w-full items-center gap-2;
+        grid-template-columns:
+            calc(var(--spacing) * 7) minmax(0, 1fr) calc(var(--spacing) * 28)
+            calc(var(--spacing) * 9);
+    }
+    @media (width >= 40rem) {
+        .lp-metric-formula__row {
+            grid-template-columns:
+                calc(var(--spacing) * 7) minmax(0, 3fr)
+                minmax(0, 1fr) calc(var(--spacing) * 9);
+        }
     }
     .lp-metric-formula__heads {
-        @apply w-full text-xs font-medium text-fg-mute;
-    }
-    .lp-metric-formula__spacer {
-        @apply size-8;
+        @apply text-xs font-medium text-label;
     }
     .lp-metric-formula__letter {
-        @apply w-6 text-center font-mono text-sm font-semibold text-fg-mute;
+        @apply text-center font-mono text-sm font-semibold text-ink;
     }
     .lp-metric-formula__formula {
-        @apply flex w-full flex-wrap items-end gap-3;
+        @apply items-end;
     }
-    .lp-metric-formula__text {
-        @apply min-w-48 flex-1;
+    /* The formula mark sits level with the Formula input, under the letters. */
+    .lp-metric-formula__mark {
+        @apply flex h-10.5 items-center justify-center text-fg-mute;
     }
-    .lp-metric-formula__format {
-        @apply w-40;
+    /* Centres the 36px button on the 42px input. */
+    .lp-metric-formula__remove {
+        @apply mb-0.75;
     }
     .lp-metric-formula__error {
         @apply m-0 text-sm text-danger;

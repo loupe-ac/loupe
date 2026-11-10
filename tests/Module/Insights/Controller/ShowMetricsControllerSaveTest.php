@@ -115,7 +115,7 @@ final class ShowMetricsControllerSaveTest extends WebTestCase
         self::assertSame('number', $hidden['format']);
         self::assertSame('false', $crawler->filter('[data-leave-guard-dirty-value]')->attr('data-leave-guard-dirty-value'));
         self::assertSame(['A', 'B'], $crawler->filter('.lp-metric-formula__rows [data-metric-formula-role="letter"]')->each(static fn ($letter): string => trim($letter->text())));
-        self::assertCount(2, $crawler->filter('.lp-metric-formula__heads span:not(.lp-metric-formula__spacer)')->reduce(static fn ($node): bool => '' !== trim($node->text())));
+        self::assertCount(2, $crawler->filter('.lp-metric-formula__heads span')->reduce(static fn ($node): bool => '' !== trim($node->text())));
     }
 
     public function test_a_page_with_nothing_to_draw_offers_no_save(): void

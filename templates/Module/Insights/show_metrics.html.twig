@@ -50,7 +50,7 @@
                 <span></span>
                 <span>{{ 'analytics.metrics.form.metric'|trans }}</span>
                 <span>{{ 'analytics.metrics.form.statistic'|trans }}</span>
-                <span class="lp-metric-formula__spacer"></span>
+                <span></span>
             </div>
             <div class="lp-metric-formula__rows" data-metric-formula-target="rows">
                 {% if formulaOpen %}
@@ -64,16 +64,16 @@
             </template>
             <template data-metric-formula-target="unitTemplate">{% for option in unitCases %}<option value="{{ option.value }}">{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>{% endfor %}</template>
             <template data-metric-formula-target="groupTemplate">{% for option in groupCases %}<option value="{{ option.value }}">{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>{% endfor %}</template>
-            <twig:Ds:Button type="button" variant="outline" size="sm" data-metric-formula-target="addRow" data-action="click->metric-formula#addRow">
+            <twig:Ds:Button type="button" variant="ghost" size="sm" data-metric-formula-target="addRow" data-action="click->metric-formula#addRow">
                 <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.formula.add_metric'|trans }}
             </twig:Ds:Button>
-            <div class="lp-metric-formula__formula">
-                <twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--md" />
-                <div class="lp-metric-controls__field lp-metric-formula__text">
+            <div class="lp-metric-formula__row lp-metric-formula__formula">
+                <span class="lp-metric-formula__mark"><twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--md" /></span>
+                <div class="lp-metric-controls__field">
                     <twig:Ds:Label for="metrics-formula">{{ 'analytics.metrics.formula.label'|trans }}</twig:Ds:Label>
                     <twig:Ds:Input id="metrics-formula" mono maxlength="200" autocomplete="off" spellcheck="false" :value="formulaOpen ? query.formula.formula : ''" data-metric-formula-target="formulaText" data-action="input->metric-formula#change" />
                 </div>
-                <div class="lp-metric-controls__field lp-metric-formula__format">
+                <div class="lp-metric-controls__field">
                     <twig:Ds:Label for="metrics-format">{{ 'analytics.metrics.formula.format.label'|trans }}</twig:Ds:Label>
                     <twig:Ds:Select id="metrics-format" name="format" data-metric-formula-target="format" data-action="change->metric-formula#change" :disabled="formulaOpen ? null : 'disabled'">
                         {% for option in formatCases %}
@@ -81,79 +81,85 @@
                         {% endfor %}
                     </twig:Ds:Select>
                 </div>
-                <twig:Ds:Button type="button" variant="ghost" size="sm" data-action="click->metric-formula#close">{{ 'analytics.metrics.formula.remove'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button type="button" variant="ghost icon" size="sm" class="lp-metric-formula__remove" aria-label="{{ 'analytics.metrics.formula.remove'|trans }}" data-action="click->metric-formula#close">
+                    <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />
+                </twig:Ds:Button>
             </div>
             <input type="hidden" name="rows" value="{{ formulaOpen ? query.formula.rowsText : '' }}" data-metric-formula-target="rowsField"{{ formulaOpen ? '' : ' disabled' }}>
             <input type="hidden" name="formula" value="{{ formulaOpen ? query.formula.formula : '' }}" data-metric-formula-target="formulaField"{{ formulaOpen ? '' : ' disabled' }}>
             {% set formulaProblem = formulaOpen ? query.formula.problem : null %}
             <p class="lp-metric-formula__error" role="alert" data-metric-formula-target="error"{{ formulaProblem is null ? ' hidden' : ' data-metrics-note="formula-problem"' }}>{{ formulaProblem is null ? '' : formulaProblem.key|trans(formulaProblem.parameters) }}</p>
         </div>
-        <div class="lp-metric-controls__field" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
-            <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-metric" name="metric" data-metric-formula-target="metric" data-controller="symfony--ux-autocomplete--autocomplete" data-symfony--ux-autocomplete--autocomplete-tom-select-options-value="{{ {maxOptions: 500}|json_encode }}" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
-                {% include '@Insights/_metric_options.html.twig' with {metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, selected: metric.key.key, only: null, blank: false} only %}
-            </twig:Ds:Select>
+        <div class="lp-metric-controls__primary" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
+            <div class="lp-metric-controls__field lp-metric-controls__metric">
+                <twig:Ds:Label for="metrics-metric">{{ 'analytics.metrics.form.metric'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-metric" name="metric" data-metric-formula-target="metric" data-controller="symfony--ux-autocomplete--autocomplete" data-symfony--ux-autocomplete--autocomplete-tom-select-options-value="{{ {maxOptions: 500}|json_encode }}" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
+                    {% include '@Insights/_metric_options.html.twig' with {metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, selected: metric.key.key, only: null, blank: false} only %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-statistic">{{ 'analytics.metrics.form.statistic'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-statistic" name="statistic" data-metric-formula-target="statistic" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
+                    {% for option in metric.statistics() %}
+                        <option value="{{ option.value }}"{{ option == query.statistic ? ' selected' : '' }}>{{ ('analytics.metrics.statistic.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
         </div>
-        <div class="lp-metric-controls__field" data-metric-formula-target="single"{{ formulaOpen ? ' hidden' : '' }}>
-            <twig:Ds:Label for="metrics-statistic">{{ 'analytics.metrics.form.statistic'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-statistic" name="statistic" data-metric-formula-target="statistic" data-action="change->autosearch#search" :disabled="formulaOpen ? 'disabled' : null">
-                {% for option in metric.statistics() %}
-                    <option value="{{ option.value }}"{{ option == query.statistic ? ' selected' : '' }}>{{ ('analytics.metrics.statistic.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-unit">{{ 'analytics.metrics.form.unit'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-unit" name="unit" data-metric-formula-target="unit" data-action="change->autosearch#search">
-                {% for option in unitOptions %}
-                    <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-group">{{ 'analytics.metrics.form.group'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-group" name="group" data-metric-formula-target="group" data-action="change->autosearch#search">
-                {% for option in groupOptions %}
-                    <option value="{{ option.value }}"{{ option == query.group ? ' selected' : '' }}>{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-range">{{ 'analytics.metrics.form.range'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-range" name="range" data-action="change->autosearch#search">
-                {% for option in ranges %}
-                    <option value="{{ option.value }}"{{ option == query.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-bucket">{{ 'analytics.metrics.form.bucket'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-bucket" name="bucket" data-action="change->autosearch#search">
-                {% for option in buckets %}
-                    <option value="{{ option.value }}"{{ option == query.bucket ? ' selected' : '' }}{{ option in query.range.allowedBuckets() ? '' : ' disabled' }}>{{ ('analytics.metrics.bucket.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-compare">{{ 'analytics.metrics.form.compare'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-compare" name="compare" data-action="change->autosearch#search">
-                {% for option in compares %}
-                    <option value="{{ option.value }}"{{ option == query.compare ? ' selected' : '' }}{{ option.value == 'previous' and query.range.length() is null ? ' disabled' : '' }}>{{ ('analytics.metrics.compare.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field">
-            <twig:Ds:Label for="metrics-chart">{{ 'analytics.metrics.form.chart'|trans }}</twig:Ds:Label>
-            <twig:Ds:Select id="metrics-chart" name="chart" data-action="change->autosearch#search">
-                {% for option in chartTypes %}
-                    <option value="{{ option.value }}"{{ option == view.chart.type ? ' selected' : '' }}{{ view.locks[option.value] is null ? '' : ' disabled' }}>{{ ('analytics.metrics.chart_type.' ~ option.value|replace({'-': '_'}))|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        </div>
-        <div class="lp-metric-controls__field lp-metric-controls__action" data-metric-formula-target="addFormula"{{ formulaOpen ? ' hidden' : '' }}>
-            <twig:Ds:Button type="button" variant="outline" data-action="click->metric-formula#open">
-                <twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.formula.add'|trans }}
+        <div data-metric-formula-target="addFormula"{{ formulaOpen ? ' hidden' : '' }}>
+            <twig:Ds:Button type="button" variant="ghost" size="sm" data-action="click->metric-formula#open">
+                <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.formula.add'|trans }}
             </twig:Ds:Button>
+        </div>
+        <div class="lp-metric-controls__settings">
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-unit">{{ 'analytics.metrics.form.unit'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-unit" name="unit" data-metric-formula-target="unit" data-action="change->autosearch#search">
+                    {% for option in unitOptions %}
+                        <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-group">{{ 'analytics.metrics.form.group'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-group" name="group" data-metric-formula-target="group" data-action="change->autosearch#search">
+                    {% for option in groupOptions %}
+                        <option value="{{ option.value }}"{{ option == query.group ? ' selected' : '' }}>{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-range">{{ 'analytics.metrics.form.range'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-range" name="range" data-action="change->autosearch#search">
+                    {% for option in ranges %}
+                        <option value="{{ option.value }}"{{ option == query.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-bucket">{{ 'analytics.metrics.form.bucket'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-bucket" name="bucket" data-action="change->autosearch#search">
+                    {% for option in buckets %}
+                        <option value="{{ option.value }}"{{ option == query.bucket ? ' selected' : '' }}{{ option in query.range.allowedBuckets() ? '' : ' disabled' }}>{{ ('analytics.metrics.bucket.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-compare">{{ 'analytics.metrics.form.compare'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-compare" name="compare" data-action="change->autosearch#search">
+                    {% for option in compares %}
+                        <option value="{{ option.value }}"{{ option == query.compare ? ' selected' : '' }}{{ option.value == 'previous' and query.range.length() is null ? ' disabled' : '' }}>{{ ('analytics.metrics.compare.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
+            <div class="lp-metric-controls__field">
+                <twig:Ds:Label for="metrics-chart">{{ 'analytics.metrics.form.chart'|trans }}</twig:Ds:Label>
+                <twig:Ds:Select id="metrics-chart" name="chart" data-action="change->autosearch#search">
+                    {% for option in chartTypes %}
+                        <option value="{{ option.value }}"{{ option == view.chart.type ? ' selected' : '' }}{{ view.locks[option.value] is null ? '' : ' disabled' }}>{{ ('analytics.metrics.chart_type.' ~ option.value|replace({'-': '_'}))|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+            </div>
         </div>
         <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
     </form>
