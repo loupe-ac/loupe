@@ -7,7 +7,6 @@ namespace App\Module\Account\Command\Admin;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\WaitlistBlockPattern;
 use App\Module\Account\Repository\WaitlistBlockPatternRepository;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -32,12 +31,8 @@ final readonly class AddWaitlistBlockPatternHandler
 
         $pattern = new WaitlistBlockPattern($command->pattern);
 
-        try {
-            $this->em->persist($pattern);
-            $this->em->flush();
-        } catch (UniqueConstraintViolationException) {
-            throw new DomainErrors(['pattern' => self::DUPLICATE]);
-        }
+        $this->em->persist($pattern);
+        $this->em->flush();
 
         // The pattern text stays out of the record, because a pattern can be a whole address.
         $patternId = (string) ($pattern->id ?? throw new \LogicException('A persisted block pattern always has an id.'));
