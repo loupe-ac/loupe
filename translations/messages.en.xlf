@@ -8971,6 +8971,7 @@ workflow:
             <trans-unit id="analytics.metrics.formula.note.percent_above_one_hundred"><source>analytics.metrics.formula.note.percent_above_one_hundred</source><target>A point is above 100%. The graph still draws, so check that the formula divides what you mean.</target></trans-unit>
             <trans-unit id="analytics.metrics.formula.note.format_disagrees"><source>analytics.metrics.formula.note.format_disagrees</source><target>The Format you chose differs from what Auto works out for this formula. The graph uses your Format.</target></trans-unit>
             <trans-unit id="analytics.metrics.formula.note.unused_row"><source>analytics.metrics.formula.note.unused_row</source><target>The formula does not use row %letters%.</target></trans-unit>
+            <trans-unit id="analytics.metrics.note.label"><source>analytics.metrics.note.label</source><target>Note about this setting</target></trans-unit>
             <trans-unit id="analytics.metrics.note.previous_in_table"><source>analytics.metrics.note.previous_in_table</source><target>This chart shows the current period only. The table holds the previous period.</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.cost"><source>analytics.metrics.metric.cost</source><target>Cost</target></trans-unit>
             <trans-unit id="analytics.metrics.metric.input-tokens"><source>analytics.metrics.metric.input-tokens</source><target>Input tokens</target></trans-unit>

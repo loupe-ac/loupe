@@ -70,11 +70,11 @@
             <div class="lp-metric-formula__row lp-metric-formula__formula">
                 <span class="lp-metric-formula__mark"><twig:ux:icon name="lucide:square-function" class="lp-icon lp-icon--md" /></span>
                 <div class="lp-metric-controls__field">
-                    <twig:Ds:Label for="metrics-formula">{{ 'analytics.metrics.formula.label'|trans }}</twig:Ds:Label>
+                    <div class="lp-metric-controls__label"><twig:Ds:Label for="metrics-formula">{{ 'analytics.metrics.formula.label'|trans }}</twig:Ds:Label><span id="metrics-note-formula">{% include '@Insights/_metrics_field_note.html.twig' with {field: 'formula', view: view, query: query} only %}</span></div>
                     <twig:Ds:Input id="metrics-formula" mono maxlength="200" autocomplete="off" spellcheck="false" :value="formulaOpen ? query.formula.formula : ''" data-metric-formula-target="formulaText" data-action="input->metric-formula#change" />
                 </div>
                 <div class="lp-metric-controls__field">
-                    <twig:Ds:Label for="metrics-format">{{ 'analytics.metrics.formula.format.label'|trans }}</twig:Ds:Label>
+                    <div class="lp-metric-controls__label"><twig:Ds:Label for="metrics-format">{{ 'analytics.metrics.formula.format.label'|trans }}</twig:Ds:Label><span id="metrics-note-format">{% include '@Insights/_metrics_field_note.html.twig' with {field: 'format', view: view, query: query} only %}</span></div>
                     <twig:Ds:Select id="metrics-format" name="format" data-metric-formula-target="format" data-action="change->metric-formula#change" :disabled="formulaOpen ? null : 'disabled'">
                         {% for option in formatCases %}
                         <option value="{{ option.value }}"{{ (formulaOpen ? option == query.formula.format : option.value == 'auto') ? ' selected' : '' }}>{{ ('analytics.metrics.formula.format.' ~ option.value)|trans }}</option>
@@ -137,13 +137,13 @@
                 </twig:Ds:Select>
             </div>
             <div class="lp-metric-controls__field">
-                <twig:Ds:Label for="metrics-compare">{{ 'analytics.metrics.form.compare'|trans }}</twig:Ds:Label>
+                <div class="lp-metric-controls__label"><twig:Ds:Label for="metrics-compare">{{ 'analytics.metrics.form.compare'|trans }}</twig:Ds:Label><span id="metrics-note-compare">{% include '@Insights/_metrics_field_note.html.twig' with {field: 'compare', view: view, query: query} only %}</span></div>
                 <twig:Ds:Select id="metrics-compare" name="compare" data-action="change->metric-formula#apply">
                     {% include '@Insights/_metrics_field_options.html.twig' with {field: 'compare', options: compares, query: query} only %}
                 </twig:Ds:Select>
             </div>
             <div class="lp-metric-controls__field">
-                <twig:Ds:Label for="metrics-chart">{{ 'analytics.metrics.form.chart'|trans }}</twig:Ds:Label>
+                <div class="lp-metric-controls__label"><twig:Ds:Label for="metrics-chart">{{ 'analytics.metrics.form.chart'|trans }}</twig:Ds:Label><span id="metrics-note-chart">{% include '@Insights/_metrics_field_note.html.twig' with {field: 'chart', view: view, query: query} only %}</span></div>
                 <twig:Ds:Select id="metrics-chart" name="chart" data-action="change->metric-formula#apply">
                     {% include '@Insights/_metrics_field_options.html.twig' with {field: 'chart', options: chartTypes, query: query, view: view} only %}
                 </twig:Ds:Select>

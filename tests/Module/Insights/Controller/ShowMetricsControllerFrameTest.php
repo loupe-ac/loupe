@@ -54,7 +54,7 @@ final class ShowMetricsControllerFrameTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $frame = $crawler->filter('turbo-frame#metrics-result');
         self::assertSame(
-            ['metrics-statistic', 'metrics-unit', 'metrics-group', 'metrics-bucket', 'metrics-compare', 'metrics-chart'],
+            ['metrics-statistic', 'metrics-unit', 'metrics-group', 'metrics-bucket', 'metrics-compare', 'metrics-chart', 'metrics-note-chart', 'metrics-note-compare', 'metrics-note-formula', 'metrics-note-format'],
             $frame->filter('turbo-stream')->each(static fn (Crawler $stream): string => (string) $stream->attr('target')),
         );
         self::assertSame(['update'], array_values(array_unique($frame->filter('turbo-stream')->each(static fn (Crawler $stream): string => (string) $stream->attr('action')))));
@@ -79,7 +79,7 @@ final class ShowMetricsControllerFrameTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(
-            ['metrics-bucket', 'metrics-compare', 'metrics-chart'],
+            ['metrics-bucket', 'metrics-compare', 'metrics-chart', 'metrics-note-chart', 'metrics-note-compare', 'metrics-note-formula', 'metrics-note-format'],
             $crawler->filter('turbo-frame#metrics-result turbo-stream')->each(static fn (Crawler $stream): string => (string) $stream->attr('target')),
         );
     }

@@ -7712,9 +7712,19 @@
     .lp-metric-graph {
         @apply flex flex-col gap-4;
     }
-    /* A note about the chart spans the page and stays quieter than a flash. */
+    /* A label and the alert icon of its note. The tooltip opens on hover and on keyboard focus. */
+    .lp-metric-controls__label {
+        @apply flex items-center gap-1;
+    }
     .lp-metric-note {
-        @apply mx-0 mt-4 py-2 text-xs font-normal text-fg-mute;
+        @apply relative inline-flex rounded-full text-fg-mute outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-metric-note .lp-tooltip {
+        @apply right-0 left-auto;
+    }
+    .lp-metric-note:hover .lp-tooltip,
+    .lp-metric-note:focus-visible .lp-tooltip {
+        @apply visible opacity-100;
     }
     /* The title row of a graph: the title on the left, the save form on the right. */
     .lp-metric-graph__head {

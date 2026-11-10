@@ -1,0 +1,30 @@
+{# The notes of one Metrics control, shown as an alert icon beside its label with the text in a tooltip. The page and the result frame both render it. Props: field (chart, compare, formula or format), view (MetricsView), query (MetricsQuery). #}
+{%- set notes = [] -%}
+{%- if view.layout is not null -%}
+    {%- if field == 'chart' -%}
+        {%- set barsLock = view.locks['stacked-bars'] -%}
+        {%- if view.chart.fellBack -%}
+            {%- set notes = [{name: 'switched', text: ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans}] -%}
+        {%- elseif barsLock is not null -%}
+            {%- set notes = [{name: 'locked', text: ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans}] -%}
+        {%- endif -%}
+    {%- elseif field == 'compare' -%}
+        {%- if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] -%}
+            {%- set notes = [{name: 'previous-in-table', text: 'analytics.metrics.note.previous_in_table'|trans}] -%}
+        {%- endif -%}
+    {%- else -%}
+        {%- for note in view.notes -%}
+            {%- if (field == 'formula') == (note.key ends with '.unused_row') -%}
+                {%- set notes = notes|merge([{name: note.key, text: note.key|trans(note.parameters)}]) -%}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endif -%}
+{%- if notes is not empty -%}
+    <span class="lp-metric-note" tabindex="0" role="note" aria-label="{{ 'analytics.metrics.note.label'|trans }}" aria-describedby="metrics-note-{{ field }}-tooltip" data-metrics-note="{{ notes|first.name }}">
+        <twig:ux:icon name="lucide:circle-alert" class="lp-icon lp-icon--sm" />
+        <twig:Ds:Tooltip id="metrics-note-{{ field }}-tooltip">
+            {%- for note in notes -%}<span class="lp-tooltip__line">{{ note.text }}</span>{%- endfor -%}
+        </twig:Ds:Tooltip>
+    </span>
+{%- endif -%}

@@ -10,6 +10,9 @@
     <turbo-stream action="update" target="metrics-bucket"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'bucket', options: buckets, query: query} only %}</template></turbo-stream>
     <turbo-stream action="update" target="metrics-compare"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'compare', options: compares, query: query} only %}</template></turbo-stream>
     <turbo-stream action="update" target="metrics-chart"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'chart', options: chartTypes, query: query, view: view} only %}</template></turbo-stream>
+    {% for field in ['chart', 'compare', 'formula', 'format'] %}
+    <turbo-stream action="update" target="metrics-note-{{ field }}"><template>{% include '@Insights/_metrics_field_note.html.twig' with {field: field, view: view, query: query} only %}</template></turbo-stream>
+    {% endfor %}
     {% endif %}
 
     {% if query.formula is not null and query.formula.problem is not null %}
@@ -19,18 +22,6 @@
         <p>{{ 'analytics.metrics.empty.description'|trans }}</p>
     </twig:Ds:EmptyState>
     {% else %}
-    {% set barsLock = view.locks['stacked-bars'] %}
-    {% if view.chart.fellBack %}
-    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="switched">{{ ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
-    {% elseif barsLock is not null %}
-    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
-    {% endif %}
-    {% for note in view.notes %}
-    <twig:Ds:Flash severity="warning" class="lp-metric-note" data-metrics-note="{{ note.key }}">{{ note.key|trans(note.parameters) }}</twig:Ds:Flash>
-    {% endfor %}
-    {% if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] %}
-    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
-    {% endif %}
 
     <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>
         {# The title holds a template label or a bucket name that a person wrote, so it is rendered escaped. Never add |raw here. #}

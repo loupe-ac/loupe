@@ -102,6 +102,7 @@ final class ShowMetricsControllerChartsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('figure.lp-chart--line'));
         self::assertCount(1, $crawler->filter('[data-metrics-note="locked"]'));
+        self::assertCount(1, $crawler->filter('.lp-metric-controls__label:has(label[for="metrics-chart"]) [data-metrics-note="locked"] [role="tooltip"]'));
         self::assertCount(0, $crawler->filter('[data-metrics-note="switched"]'));
         self::assertSame(['stacked-bars', 'percent-stacked', 'donut'], $crawler->filter('select[name="chart"] option[disabled]')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
     }
