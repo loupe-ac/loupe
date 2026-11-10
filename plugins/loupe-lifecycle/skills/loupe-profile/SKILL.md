@@ -79,7 +79,7 @@ Next: install the Loupe GitHub App, then fix problem 1.
 2. For each question give the section, the used-by, an `If wrong` line, and the likely answers with one marked recommended.
 3. Ask with AskUserQuestion when the tool exists, and in plain chat when it does not. The question box hides the chat text above it. Put the number, the section, the used-by, the file and line, the new text, the reason and the `If wrong` line in the question or in the `preview` of each option. Put the recommended answer first, and end its label with "(Recommended)".
 4. After an answer, show only the changed row, never the whole table again. Then ask the next question. Apply nothing yet.
-5. Write each question so that a person who knows nothing of the repository history can answer it. Say what Loupe needs and ask if the owner agrees. Do not explain the history of a line.
+5. Write each question so that a person who knows nothing of the repository history can answer it. Say what Loupe needs. For an instruction conflict, ask what the owner wants to do, and offer `Replace with Loupe`, `Update the existing instructions` and `Keep the existing instructions`. Never ask a yes or no question about a conflict. The preview of each answer gives the file, the line, and the resulting text. For `Keep the existing instructions`, the preview says the text stays unchanged and the requirement stays open. Do not explain the history of a line.
 
 ## The confirmation
 
