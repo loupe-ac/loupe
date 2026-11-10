@@ -42,7 +42,7 @@ class CompleteGitHubPickerSignInController extends AppController
             return $this->redirectToRoute('app_projects');
         }
 
-        $tab = $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
+        $tab = $this->redirectToRoute('connect' === $pending->startedFrom ? 'app_project_connect' : 'app_project_repositories_settings', ['id' => $pending->projectId]);
         $state = $request->query->get('state');
         if (!\is_string($state) || !hash_equals($pending->authorizeState, $state)) {
             $this->installSession->clear();

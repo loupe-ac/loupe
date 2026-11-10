@@ -14,7 +14,7 @@
             <twig:block name="actions">
                 {{ form_widget(form.turnOff, {attr: {class: ds_button_class('on-card', 'sm'), 'data-testid': 'git-identity-turn-off'}}) }}
                 {% if pushRefusal.cause == 'no_installation' %}
-                <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="git-identity-install">
+                <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_repositories_start', {id: project.id, from: 'connect'}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="git-identity-install">
                     <twig:ux:icon name="lucide:external-link" />{{ 'github.identity.add_repositories'|trans }}
                 </twig:Ds:Button>
                 {% endif %}

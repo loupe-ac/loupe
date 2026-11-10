@@ -22,6 +22,8 @@ final readonly class PendingGitHubInstall
         public ?string $repository = null,
         public ?string $encryptedToken = null,
         public ?int $signedInAt = null,
+        /** The tab that started the trip, `connect` for Connections. Anything else means Repositories. */
+        public ?string $startedFrom = null,
     ) {
     }
 

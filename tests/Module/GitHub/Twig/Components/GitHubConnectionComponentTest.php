@@ -154,7 +154,7 @@ final class GitHubConnectionComponentTest extends WebTestCase
 
         $section = $crawler->filter('#github-connection');
         $add = $section->filter('[data-testid="github-app-add-repositories"]');
-        self::assertSame('/projects/'.$project->id.'/github/install', $add->attr('href'));
+        self::assertSame('/projects/'.$project->id.'/github/install?from=connect', $add->attr('href'));
         self::assertSame('Add repositories', trim($add->text()));
         self::assertSame('false', $add->attr('data-turbo-prefetch'), 'A hover must not start a sign-in.');
         self::assertStringContainsString('A repository joins this project only when you pick it', $section->text());

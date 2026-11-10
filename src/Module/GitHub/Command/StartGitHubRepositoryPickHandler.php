@@ -30,7 +30,7 @@ final readonly class StartGitHubRepositoryPickHandler
         }
 
         $repository = null !== $command->repository && 1 === preg_match('#^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$#', $command->repository) ? $command->repository : null;
-        $pending = $this->installSession->beginSignIn($command->project, $repository);
+        $pending = $this->installSession->beginSignIn($command->project, $repository, 'connect' === $command->startedFrom ? 'connect' : null);
 
         return $this->appConfiguration->authorizeUrl(
             $command->redirectUri,

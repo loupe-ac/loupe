@@ -40,13 +40,14 @@ final readonly class GitHubInstallSession
     }
 
     /** Mints the state and the PKCE verifier of a sign-in. */
-    public function beginSignIn(Project $project, ?string $repository): PendingGitHubInstall
+    public function beginSignIn(Project $project, ?string $repository, ?string $startedFrom = null): PendingGitHubInstall
     {
         $pending = new PendingGitHubInstall(
             (string) $project->id,
             authorizeState: bin2hex(random_bytes(16)),
             codeVerifier: self::newVerifier(),
             repository: $repository,
+            startedFrom: $startedFrom,
         );
         $this->store($pending);
 
@@ -69,6 +70,7 @@ final readonly class GitHubInstallSession
             \is_string($data['repository'] ?? null) ? $data['repository'] : null,
             \is_string($data['encryptedToken'] ?? null) ? $data['encryptedToken'] : null,
             \is_int($data['signedInAt'] ?? null) ? $data['signedInAt'] : null,
+            \is_string($data['startedFrom'] ?? null) ? $data['startedFrom'] : null,
         );
     }
 
@@ -82,6 +84,7 @@ final readonly class GitHubInstallSession
             bin2hex(random_bytes(16)),
             self::newVerifier(),
             $pending->repository,
+            startedFrom: $pending->startedFrom,
         );
         $this->store($authorizing);
 
@@ -96,6 +99,7 @@ final readonly class GitHubInstallSession
             repository: $pending->repository,
             encryptedToken: $this->encryptor->encrypt($token),
             signedInAt: $this->clock->now()->getTimestamp(),
+            startedFrom: $pending->startedFrom,
         ));
     }
 
@@ -144,6 +148,7 @@ final readonly class GitHubInstallSession
             'repository' => $pending->repository,
             'encryptedToken' => $pending->encryptedToken,
             'signedInAt' => $pending->signedInAt,
+            'startedFrom' => $pending->startedFrom,
         ]);
     }
 

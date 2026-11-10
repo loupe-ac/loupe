@@ -13,6 +13,8 @@ final readonly class StartGitHubRepositoryPickCommand
         /** The path to tick in the picker, as the caller sent it. */
         public ?string $repository,
         public string $redirectUri,
+        /** `connect` when the owner started on the Connections tab. */
+        public ?string $startedFrom = null,
     ) {
     }
 }

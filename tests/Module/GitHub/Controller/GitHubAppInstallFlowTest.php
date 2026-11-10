@@ -267,6 +267,45 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
     }
 
+    public function test_a_refused_sign_in_started_on_connections_returns_to_connections(): void
+    {
+        $owner = $this->signedUpUser('connectstate');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, null, 'connect');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect');
+    }
+
+    public function test_a_cancelled_sign_in_started_on_connections_returns_to_connections(): void
+    {
+        $owner = $this->signedUpUser('connectcancel');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $authorize = $this->startSignIn($project, null, 'connect');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['error' => 'access_denied', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect');
+    }
+
+    public function test_an_unknown_starting_tab_returns_to_repositories(): void
+    {
+        $owner = $this->signedUpUser('connectother');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, null, 'elsewhere');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
     public function test_the_callback_refuses_a_state_that_does_not_match(): void
     {
         $owner = $this->signedUpUser('callbackstate');
@@ -994,9 +1033,10 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     }
 
     /** @return array<int|string, string> */
-    private function startSignIn(Project $project, ?string $repository = null): array
+    private function startSignIn(Project $project, ?string $repository = null, ?string $from = null): array
     {
-        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install'.(null === $repository ? '' : '?'.http_build_query(['repository' => $repository])));
+        $query = array_filter(['repository' => $repository, 'from' => $from], static fn (?string $value): bool => null !== $value);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install'.([] === $query ? '' : '?'.http_build_query($query)));
         self::assertResponseRedirects();
         $location = (string) $this->client->getResponse()->headers->get('Location');
         self::assertStringStartsWith('https://github.com/login/oauth/authorize?', $location);

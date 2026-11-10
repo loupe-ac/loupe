@@ -43,13 +43,14 @@ class StartGitHubRepositoryPickController extends AppController
                 $project,
                 $request->query->has('repository') ? $request->query->getString('repository') : null,
                 $this->generateUrl('app_github_app_callback', [], UrlGeneratorInterface::ABSOLUTE_URL),
+                $request->query->getString('from'),
             )));
         } catch (DomainErrors $e) {
             foreach ($e->errors as $translationKey) {
                 $this->addFlash('error', $this->translator->trans($translationKey));
             }
 
-            return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
+            return $this->redirectToRoute('connect' === $request->query->getString('from') ? 'app_project_connect' : 'app_project_repositories_settings', ['id' => (string) $project->id]);
         }
     }
 }
