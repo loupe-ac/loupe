@@ -6,6 +6,7 @@ namespace App\Module\Account\Command;
 
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Repository\WaitlistBlockPatternRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Module\Account\Service\WaitlistOwnerNotifier;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -22,6 +23,7 @@ final readonly class JoinWaitlistHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private WaitlistOwnerNotifier $ownerNotifier,
+        private WaitlistBlockPatternRepository $blockPatterns,
     ) {
     }
 
@@ -42,6 +44,12 @@ final readonly class JoinWaitlistHandler
                     $existingEntry->reopen();
                     $existingEntry->mergePicks($command->picks, $other);
                     $this->em->flush();
+
+                    if ($this->blockPatterns->matches($command->email)) {
+                        $this->record('account.waitlist_rejoined_hidden', $existingEntry);
+
+                        return;
+                    }
 
                     $this->record('account.waitlist_rejoined', $existingEntry);
                     $this->ownerNotifier->joined($existingEntry, $command->source, rejoined: true);
@@ -93,6 +101,14 @@ final readonly class JoinWaitlistHandler
         } catch (UniqueConstraintViolationException) {
             // Two concurrent joins with the same email — the row exists, which
             // is the desired end state; silent like the duplicate branch above.
+            return;
+        }
+
+        // A blocked address still gets its row, so the visitor sees the usual
+        // confirmation and removing the pattern later shows the entry again.
+        if ($this->blockPatterns->matches($command->email)) {
+            $this->record('account.waitlist_joined_hidden', $entry);
+
             return;
         }
 

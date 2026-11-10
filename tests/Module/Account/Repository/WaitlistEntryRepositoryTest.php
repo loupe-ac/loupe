@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Account\Repository;
 
+use App\Module\Account\Entity\WaitlistBlockPattern;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Entity\WaitlistPick;
+use App\Module\Account\Repository\WaitlistBlockPatternRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -89,5 +91,97 @@ final class WaitlistEntryRepositoryTest extends KernelTestCase
         self::assertSame($claimed, $repo->findOneClaimedByEmail('Claimed@Example.com'));
         self::assertNull($repo->findOneClaimedByEmail('plain@example.com'));
         self::assertNull($repo->findOneClaimedByEmail('nobody@example.com'));
+    }
+
+    public function test_an_entry_that_matches_a_block_pattern_is_hidden_from_every_list_and_count(): void
+    {
+        [$em, $repo] = $this->services();
+        $before = [
+            'total' => \count($repo->findPaginated(1, 1000, 'createdAt', 'asc')),
+            'waiting' => $repo->countWaiting(),
+            'hidden' => $repo->countHidden(),
+            'picks' => $repo->pickCounts(),
+        ];
+
+        $visible = new WaitlistEntry('visible@shown.example', new \DateTimeImmutable('-20 years'));
+        $visible->mergePicks([WaitlistPick::Pi], null);
+        $hidden = new WaitlistEntry('someone@Hidden.example', new \DateTimeImmutable('-21 years'));
+        $hidden->mergePicks([WaitlistPick::Pi, WaitlistPick::GitLab], null);
+        $hiddenConverted = new WaitlistEntry('converted@hidden.example');
+        $hiddenConverted->markConverted();
+        foreach ([$visible, $hidden, $hiddenConverted] as $entry) {
+            $em->persist($entry);
+        }
+        $em->persist(new WaitlistBlockPattern('*@hidden.example'));
+        $em->flush();
+
+        $listed = iterator_to_array($repo->findPaginated(1, 1000, 'createdAt', 'asc'));
+        self::assertContains($visible, $listed);
+        self::assertNotContains($hidden, $listed);
+        self::assertNotContains($hiddenConverted, $listed);
+        self::assertSame($before['total'] + 1, \count($repo->findPaginated(1, 1000, 'createdAt', 'asc')));
+        self::assertSame($before['waiting'] + 1, $repo->countWaiting());
+        self::assertSame($before['hidden'] + 2, $repo->countHidden());
+
+        $picks = $repo->pickCounts();
+        self::assertSame($before['picks']['pi'] + 1, $picks['pi']);
+        self::assertSame($before['picks']['gitlab'], $picks['gitlab']);
+
+        $oldest = $repo->findOldestUninvited(1);
+        self::assertSame([$visible], $oldest);
+
+        self::assertSame($visible, $repo->findOneVisible((string) $visible->id));
+        self::assertNull($repo->findOneVisible((string) $hidden->id));
+        self::assertNull($repo->findOneVisible('0193a9c2-0000-7000-8000-000000000000'));
+    }
+
+    public function test_removing_the_pattern_shows_the_entry_again(): void
+    {
+        [$em, $repo] = $this->services();
+        $entry = new WaitlistEntry('back@again.example', new \DateTimeImmutable('-20 years'));
+        $pattern = new WaitlistBlockPattern('*@again.example');
+        $em->persist($entry);
+        $em->persist($pattern);
+        $em->flush();
+        $hiddenBefore = $repo->countHidden();
+        self::assertNull($repo->findOneVisible((string) $entry->id));
+
+        $em->remove($pattern);
+        $em->flush();
+
+        self::assertSame($hiddenBefore - 1, $repo->countHidden());
+        self::assertSame($entry, $repo->findOneVisible((string) $entry->id));
+        self::assertSame([$entry], $repo->findOldestUninvited(1));
+    }
+
+    public function test_identity_lookups_still_find_a_hidden_entry(): void
+    {
+        [$em, $repo] = $this->services();
+        $entry = new WaitlistEntry('identity@hidden-identity.example');
+        $token = $entry->issueInviteToken();
+        $em->persist($entry);
+        $em->persist(new WaitlistBlockPattern('*@hidden-identity.example'));
+        $em->flush();
+
+        self::assertSame($entry, $repo->findOneByEmail('identity@hidden-identity.example'));
+        self::assertSame($entry, $repo->findOneByValidInviteToken($token));
+    }
+
+    /** @return array{EntityManagerInterface, WaitlistEntryRepository} */
+    private function services(): array
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repo = self::getContainer()->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+        $patterns = self::getContainer()->get(WaitlistBlockPatternRepository::class);
+        self::assertInstanceOf(WaitlistBlockPatternRepository::class, $patterns);
+        foreach ($patterns->findAll() as $existing) {
+            $em->remove($existing);
+        }
+        $em->flush();
+
+        return [$em, $repo];
     }
 }
