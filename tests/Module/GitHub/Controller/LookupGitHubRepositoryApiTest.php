@@ -7,6 +7,7 @@ namespace App\Tests\Module\GitHub\Controller;
 use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppApi;
@@ -74,6 +75,21 @@ final class LookupGitHubRepositoryApiTest extends WebTestCase
 
         self::assertSame('in-project', $this->json()['status']);
         self::assertSame([], $this->requests);
+    }
+
+    public function test_a_no_access_repository_of_the_project_that_github_reaches_again_is_in_the_project(): void
+    {
+        [$owner, $project] = $this->projectOf('lost');
+        $this->hold($project, 7_004, 'acme/lookup-lost');
+        $row = static::getContainer()->get(ForgeRepositoryRepository::class)->findOneBy(['externalId' => '7004']);
+        self::assertInstanceOf(ForgeRepository::class, $row);
+        $row->accessLostAt = new \DateTimeImmutable('2026-10-17');
+        $this->em()->flush();
+        $this->responses = [$this->answer(['id' => 81_004]), $this->answer(['token' => 'ghs_t'], 201), $this->answer(['id' => 7_004, 'full_name' => 'acme/lookup-lost'])];
+
+        $this->call($owner, $project, 'acme/lookup-lost');
+
+        self::assertSame('in-project', $this->json()['status']);
     }
 
     public function test_a_repository_another_project_holds_is_other_project_and_names_no_project(): void

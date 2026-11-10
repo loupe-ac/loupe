@@ -70,14 +70,18 @@ func checkApp(baseURL, dir string, site api.Site) appCheck {
 type repositoryLookup func(ctx context.Context, handle, repository string) (string, error)
 
 // refineApp asks the server whether the App already reaches the repository.
-// A repository it reaches and no project holds becomes appPickRepository. An
+// A repository it reaches and no project holds becomes appPickRepository, also
+// for a project with no installation of its own. An
 // old server, a failed call or any other answer leaves the check as it was.
 func refineApp(ctx context.Context, lookup repositoryLookup, site api.Site, c appCheck) appCheck {
-	if c.need != appAddRepository || c.repository == "" {
+	if (c.need != appAddRepository && c.need != appInstall) || c.repository == "" {
 		return c
 	}
 	if status, err := lookup(ctx, site.ID, c.repository); err == nil && status == "free" {
 		c.need = appPickRepository
+		if !strings.Contains(c.link, "?repository=") {
+			c.link += "?repository=" + url.QueryEscape(c.repository)
+		}
 	}
 
 	return c

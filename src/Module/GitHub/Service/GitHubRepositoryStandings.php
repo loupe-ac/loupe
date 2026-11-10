@@ -58,6 +58,11 @@ final readonly class GitHubRepositoryStandings
 
         $row = $this->forgeRepositories->findInstallationRow(GitHubDelivery::FORGE, (string) $repositoryId);
 
-        return null === $row || $row->project->id?->equals($project->id) ? GitHubRepositoryStanding::Free : GitHubRepositoryStanding::OtherProject;
+        if (null === $row) {
+            return GitHubRepositoryStanding::Free;
+        }
+
+        // A No access row stays with its project until the reconnect delivery runs.
+        return $row->project->id?->equals($project->id) ? GitHubRepositoryStanding::InProject : GitHubRepositoryStanding::OtherProject;
     }
 }

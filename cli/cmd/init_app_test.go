@@ -143,7 +143,9 @@ func TestRefineAppTurnsAFreeRepositoryIntoAPick(t *testing.T) {
 		"older server":  {"", errors.New("HTTP 404"), missing, appAddRepository},
 		"no repository": {"free", nil, appCheck{need: appAddRepository}, appAddRepository},
 		"covered":       {"free", nil, appCheck{need: appCovered, repository: "o/r"}, appCovered},
-		"not installed": {"free", nil, appCheck{need: appInstall, repository: "o/r"}, appInstall},
+		"not installed": {"free", nil, appCheck{need: appInstall, repository: "o/r"}, appPickRepository},
+		"not installed, other project": {"other-project", nil, appCheck{need: appInstall, repository: "o/r"}, appInstall},
+		"not installed, no repository": {"free", nil, appCheck{need: appInstall}, appInstall},
 	} {
 		t.Run(name, func(t *testing.T) {
 			asked := false
@@ -159,7 +161,10 @@ func TestRefineAppTurnsAFreeRepositoryIntoAPick(t *testing.T) {
 			if got.need != tc.want {
 				t.Errorf("need = %v, want %v", got.need, tc.want)
 			}
-			if wantAsked := tc.check.need == appAddRepository && tc.check.repository != ""; asked != wantAsked {
+			if tc.want == appPickRepository && !strings.Contains(got.link, "?repository=o%2Fr") {
+				t.Errorf("link = %q, want the repository query", got.link)
+			}
+			if wantAsked := (tc.check.need == appAddRepository || tc.check.need == appInstall) && tc.check.repository != ""; asked != wantAsked {
 				t.Errorf("asked = %v, want %v", asked, wantAsked)
 			}
 		})
