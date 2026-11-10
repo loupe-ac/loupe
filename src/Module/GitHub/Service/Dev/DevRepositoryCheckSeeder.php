@@ -13,6 +13,9 @@ use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositorySettings;
+use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\Entity\GitHubRepositorySelection;
+use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -30,10 +33,13 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
     public const string PATH_REFUSED = 'acme/free-plan-app';
     public const string PATH_CAPABLE = 'acme/ruleset-app';
     public const string PATH_NO_ACCESS = 'acme/no-access-app';
+    public const int INSTALLATION_ID = 4242;
+    public const int ACCOUNT_ID = 424242;
 
     public function __construct(
         private ProjectRepository $projects,
         private ForgeRepositoryRepository $forgeRepositories,
+        private GitHubInstallationRepository $gitHubInstallations,
         private EntityManagerInterface $em,
     ) {
     }
@@ -58,6 +64,10 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
             return;
         }
 
+        if (!$this->gitHubInstallations->findOneByInstallationId(self::INSTALLATION_ID) instanceof GitHubInstallation) {
+            $this->em->persist(new GitHubInstallation(self::INSTALLATION_ID, 'acme', GitHubRepositorySelection::All, self::ACCOUNT_ID));
+        }
+
         $this->repository($context, $project, self::PATH_REFUSED, 'github-repo/refused', new RepositorySettings('main', ['squash'], null, new RepositoryRules(false, false, null, [], [], false, false), [], [], false, 'Upgrade to GitHub Pro or make this repository public to enable this feature.'));
         $this->repository($context, $project, self::PATH_CAPABLE, 'github-repo/capable', new RepositorySettings('main', ['squash'], 4242, new RepositoryRules(true, false, null, ['lint', 'tests', 'Loupe / Approval'], [4242], true, true), [], ['lint', 'extra-check'], false));
         $this->repository($context, $project, self::PATH_NO_ACCESS, 'github-repo/no-access', new RepositorySettings('main', ['squash'], null, new RepositoryRules(true, false, null, [], [], false, false), [], [], false), $context->now->modify('-3 days'));
@@ -71,7 +81,7 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
             return;
         }
 
-        $repository = new ForgeRepository($project, 'github', $seedKey, $path, ForgeRepositorySource::Installation, '4242');
+        $repository = new ForgeRepository($project, 'github', $seedKey, $path, ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID);
         $repository->accessLostAt = $accessLostAt;
         $context->ids->assign($repository, $id);
         $this->em->persist($repository);
