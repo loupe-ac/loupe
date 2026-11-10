@@ -59,6 +59,25 @@ final class GitHubRepositoriesHintTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/github/install', $hint->filter('a')->attr('href'));
     }
 
+    public function test_the_tab_shows_a_lower_bound_when_the_installation_listing_is_cut(): void
+    {
+        [$owner, $project] = $this->projectWithInstallation('cut', 91_005);
+        $pages = [];
+        for ($page = 0; $page < 10; ++$page) {
+            $pages[] = $this->repositories(array_map(
+                static fn (int $n): array => [100_000 + $page * 100 + $n, 'acme/r-'.($page * 100 + $n)],
+                range(0, 99),
+            ));
+        }
+        $this->useApi($pages);
+
+        $crawler = $this->tab($owner, $project);
+
+        $hint = $crawler->filter('#repositories [data-testid="forge-repositories-unpicked"]');
+        self::assertCount(1, $hint);
+        self::assertStringContainsString('At least 1000 more repositories are shared with Loupe', $hint->text());
+    }
+
     public function test_the_tab_shows_no_hint_when_every_repository_is_held(): void
     {
         [$owner, $project] = $this->projectWithInstallation('none', 91_002);

@@ -87,7 +87,7 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
         $this->cache->get($key, static function (ItemInterface $item): array {
             $item->expiresAfter(86_400);
 
-            return [[9_900_001, self::PATH_UNPICKED_API], [9_900_002, self::PATH_UNPICKED_WEB]];
+            return [[[9_900_001, self::PATH_UNPICKED_API], [9_900_002, self::PATH_UNPICKED_WEB]], true];
         });
     }
 

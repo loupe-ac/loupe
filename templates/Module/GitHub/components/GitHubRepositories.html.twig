@@ -20,9 +20,9 @@
     {% else %}
     <div data-repository-checks-live-target="populated">
         <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
-        {% if freeCount > 0 %}
+        {% if freeCount > 0 or not freeComplete %}
         <p class="lp-connect-hint" data-testid="forge-repositories-unpicked">
-            {{ 'github.repositories.unpicked'|trans({'%count%': freeCount}) }}
+            {{ (freeComplete ? 'github.repositories.unpicked' : 'github.repositories.unpicked_partial')|trans({'%count%': freeCount}) }}
             <a href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false">{{ 'github.picker.add'|trans }}</a>
         </p>
         {% endif %}

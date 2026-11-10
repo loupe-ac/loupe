@@ -43,6 +43,9 @@ final class GitHubRepositoriesComponent
     /** The repositories the App reaches through this project's installations that no project holds. */
     public int $freeCount = 0;
 
+    /** False when an installation holds more repositories than one read lists, so the count is a lower bound. */
+    public bool $freeComplete = true;
+
     public function __construct(
         private readonly Security $security,
         private readonly ForgeRepositoryRepository $forgeRepositories,
@@ -69,7 +72,9 @@ final class GitHubRepositoriesComponent
             $this->rows[] = $this->repositoryRows->forRepository($repository, requestCheck: true);
         }
         if ([] !== $this->rows) {
-            $this->freeCount = \count($this->freeRepositories->forProject($project));
+            $free = $this->freeRepositories->forProject($project);
+            $this->freeCount = \count($free->repositories);
+            $this->freeComplete = $free->complete;
         }
     }
 }

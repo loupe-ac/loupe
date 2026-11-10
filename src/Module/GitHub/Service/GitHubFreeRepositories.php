@@ -32,32 +32,38 @@ final readonly class GitHubFreeRepositories
     }
 
     /**
-     * @return list<GitHubRepositoryRef> sorted by name; empty when GitHub fails, so the page shows no hint
+     * The repositories are sorted by name. The list is empty and complete when GitHub fails, so the page
+     * shows no hint. It is incomplete when an installation holds more repositories than one read lists.
      */
-    public function forProject(Project $project): array
+    public function forProject(Project $project): GitHubRepositoryList
     {
         $reached = [];
+        $complete = true;
         foreach ($this->gitHubInstallations->findByProject($project) as $installation) {
             if (null !== $installation->removedAt || null !== $installation->suspendedAt) {
                 continue;
             }
 
             try {
-                /** @var list<array{int, non-empty-string}> $list */
-                $list = $this->cache->get(self::cacheKey($installation->installationId), function (ItemInterface $item) use ($installation): array {
+                /** @var array{list<array{int, non-empty-string}>, bool} $cached */
+                $cached = $this->cache->get(self::cacheKey($installation->installationId), function (ItemInterface $item) use ($installation): array {
                     $item->expiresAfter(self::TTL);
 
-                    return array_map(
-                        static fn (GitHubRepositoryRef $repository): array => [$repository->id, $repository->fullName],
-                        $this->appApi->installationRepositories($installation->installationId)->repositories,
-                    );
+                    $read = $this->appApi->installationRepositories($installation->installationId);
+
+                    return [
+                        array_map(static fn (GitHubRepositoryRef $repository): array => [$repository->id, $repository->fullName], $read->repositories),
+                        $read->complete,
+                    ];
                 });
             } catch (GitHubAppApiFailed $failed) {
                 $this->logger->info('github.free_repositories_unavailable', ['installationId' => $installation->installationId, 'reason' => $failed->reason]);
 
-                return [];
+                return new GitHubRepositoryList([], true);
             }
 
+            [$list, $listComplete] = $cached;
+            $complete = $complete && $listComplete;
             foreach ($list as [$id, $fullName]) {
                 $reached[$id] = new GitHubRepositoryRef($id, $fullName);
             }
@@ -67,7 +73,7 @@ final readonly class GitHubFreeRepositories
         $free = array_values(array_filter($reached, static fn (GitHubRepositoryRef $repository): bool => !isset($held[$repository->externalId()])));
         usort($free, static fn (GitHubRepositoryRef $a, GitHubRepositoryRef $b): int => strcasecmp($a->fullName, $b->fullName));
 
-        return $free;
+        return new GitHubRepositoryList($free, $complete);
     }
 
     public function forget(int $installationId): void
@@ -77,6 +83,6 @@ final readonly class GitHubFreeRepositories
 
     public static function cacheKey(int $installationId): string
     {
-        return 'github_free_repositories.'.$installationId;
+        return 'github_free_repositories.v2.'.$installationId;
     }
 }
