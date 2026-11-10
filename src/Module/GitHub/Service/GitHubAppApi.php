@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\GitHub\Service;
 
+use App\Module\GitHub\GitHubRepositoryRef;
 use Lcobucci\JWT\Encoding\ChainedFormatter;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Exception as JwtException;
@@ -141,6 +142,85 @@ final class GitHubAppApi
         }
 
         return $installations;
+    }
+
+    /**
+     * Every repository the installation reaches, read with the installation token.
+     *
+     * @throws GitHubAppApiFailed
+     */
+    public function installationRepositories(int $installationId): GitHubRepositoryList
+    {
+        $repositories = [];
+        $complete = true;
+        for ($page = 1; $page <= self::MAX_PAGES; ++$page) {
+            $body = $this->get($installationId, '/installation/repositories', ['per_page' => self::PAGE_SIZE, 'page' => $page]);
+            $items = $body['repositories'] ?? null;
+            if (!\is_array($items)) {
+                throw new GitHubAppApiFailed('malformed_body');
+            }
+
+            foreach ($items as $item) {
+                $id = \is_array($item) ? ($item['id'] ?? null) : null;
+                $fullName = \is_array($item) ? ($item['full_name'] ?? null) : null;
+                if (\is_int($id) && \is_string($fullName) && '' !== $fullName) {
+                    $repositories[] = new GitHubRepositoryRef($id, $fullName);
+                }
+            }
+
+            if (\count($items) < self::PAGE_SIZE) {
+                return new GitHubRepositoryList($repositories, true);
+            }
+            $complete = false;
+        }
+
+        return new GitHubRepositoryList($repositories, $complete);
+    }
+
+    /**
+     * The installation that reaches the repository, with the repository itself, or null when the App reaches none.
+     * The call needs the App's JWT, and GitHub answers 404 for a repository the App does not reach.
+     *
+     * @param non-empty-string $owner
+     * @param non-empty-string $name
+     *
+     * @return ?array{int, GitHubRepositoryRef}
+     *
+     * @throws GitHubAppApiFailed
+     */
+    public function repositoryInstallation(string $owner, string $name): ?array
+    {
+        $path = '/repos/'.rawurlencode($owner).'/'.rawurlencode($name);
+        try {
+            $installation = $this->send('GET', $path.'/installation', []);
+        } catch (GitHubAppApiFailed $failed) {
+            if (404 === $failed->status) {
+                return null;
+            }
+            throw $failed;
+        }
+
+        $installationId = $installation['id'] ?? null;
+        if (!\is_int($installationId)) {
+            throw new GitHubAppApiFailed('malformed_body');
+        }
+
+        try {
+            $repository = $this->get($installationId, $path);
+        } catch (GitHubAppApiFailed $failed) {
+            if (404 === $failed->status) {
+                return null;
+            }
+            throw $failed;
+        }
+
+        $id = $repository['id'] ?? null;
+        $fullName = $repository['full_name'] ?? null;
+        if (!\is_int($id) || !\is_string($fullName) || '' === $fullName) {
+            throw new GitHubAppApiFailed('malformed_body');
+        }
+
+        return [$installationId, new GitHubRepositoryRef($id, $fullName)];
     }
 
     /**

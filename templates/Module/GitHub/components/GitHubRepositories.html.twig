@@ -20,6 +20,12 @@
     {% else %}
     <div data-repository-checks-live-target="populated">
         <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
+        {% if freeCount > 0 or not freeComplete %}
+        <p class="lp-connect-hint" data-testid="forge-repositories-unpicked">
+            {{ (freeComplete ? 'github.repositories.unpicked' : 'github.repositories.unpicked_partial')|trans({'%count%': freeCount}) }}
+            <a href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false">{{ 'github.picker.add'|trans }}</a>
+        </p>
+        {% endif %}
         <div class="lp-repository-list">
             {% for row in rows %}
             {% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}

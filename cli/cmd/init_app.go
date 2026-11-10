@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
@@ -22,6 +24,9 @@ const (
 	// appAddRepository: the project has an installation that does not deliver
 	// this repository, or the app does not know whether it does.
 	appAddRepository
+	// appPickRepository: the App reaches this repository and no project holds
+	// it, so the owner only has to pick it.
+	appPickRepository
 )
 
 // appCheck is the App state of the repository of this folder.
@@ -51,6 +56,31 @@ func checkApp(baseURL, dir string, site api.Site) appCheck {
 			if strings.EqualFold(r.Path, c.repository) && r.AppInstalled != nil && *r.AppInstalled {
 				c.need = appCovered
 			}
+		}
+	}
+	if c.need == appAddRepository && c.repository != "" {
+		c.link += "?repository=" + url.QueryEscape(c.repository)
+	}
+
+	return c
+}
+
+// repositoryLookup answers how a repository stands for a project, as
+// Client.GitHubRepositoryStatus does.
+type repositoryLookup func(ctx context.Context, handle, repository string) (string, error)
+
+// refineApp asks the server whether the App already reaches the repository.
+// A repository it reaches and no project holds becomes appPickRepository, also
+// for a project with no installation of its own. An
+// old server, a failed call or any other answer leaves the check as it was.
+func refineApp(ctx context.Context, lookup repositoryLookup, site api.Site, c appCheck) appCheck {
+	if (c.need != appAddRepository && c.need != appInstall) || c.repository == "" {
+		return c
+	}
+	if status, err := lookup(ctx, site.ID, c.repository); err == nil && status == "free" {
+		c.need = appPickRepository
+		if !strings.Contains(c.link, "?repository=") {
+			c.link += "?repository=" + url.QueryEscape(c.repository)
 		}
 	}
 
@@ -99,7 +129,7 @@ func originRepository(dir string) (repository string, hasRemote, notGitHub bool)
 
 // missing says whether the owner has an App step left.
 func (c appCheck) missing() bool {
-	return c.need == appInstall || c.need == appAddRepository
+	return c.need == appInstall || c.need == appAddRepository || c.need == appPickRepository
 }
 
 // headline is the sentence that tells the owner what to do, or "" when the App
@@ -108,6 +138,8 @@ func (c appCheck) headline() string {
 	switch c.need {
 	case appInstall:
 		return "Install the Loupe GitHub App for this project. Without it, Loupe cannot see pull requests and checks, merge, or let agents push."
+	case appPickRepository:
+		return "Shared with Loupe, not in this project. Add " + c.repository + " to the project."
 	case appAddRepository:
 		if c.repository == "" {
 			return "Make sure the Loupe GitHub App covers the repository of this folder. Loupe cannot tell whether it does."
@@ -126,6 +158,8 @@ func (c appCheck) promptFact() string {
 		return "This repository: " + c.repository + ". The Loupe GitHub App covers it."
 	case appInstall:
 		return "This repository: " + repoOrUnknown(c.repository) + ". The Loupe GitHub App is not installed for the project. Install link: " + c.link
+	case appPickRepository:
+		return "This repository: " + c.repository + ". The Loupe GitHub App reaches it, and no project holds it yet. Pick link: " + c.link
 	case appAddRepository:
 		return "This repository: " + repoOrUnknown(c.repository) + ". The Loupe GitHub App does not cover it, or Loupe cannot tell. Install link, which also adds a repository: " + c.link
 	}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -59,8 +60,12 @@ func TestCheckAppComparesTheOriginWithTheProjectRepositories(t *testing.T) {
 			if got.need != tc.want {
 				t.Errorf("need = %v, want %v", got.need, tc.want)
 			}
-			if got.link != "https://app.test/projects/p/github/install" {
-				t.Errorf("link = %q", got.link)
+			want := "https://app.test/projects/p/github/install"
+			if got.need == appAddRepository && got.repository != "" {
+				want += "?repository=o%2Fr"
+			}
+			if got.link != want {
+				t.Errorf("link = %q, want %q", got.link, want)
 			}
 			if got.missing() != (got.headline() != "") {
 				t.Errorf("missing() = %v but headline = %q", got.missing(), got.headline())
@@ -120,5 +125,61 @@ func TestInitNextSaysWhichRepositoryTheAppMisses(t *testing.T) {
 
 	if !strings.Contains(out.String(), "The Loupe GitHub App does not cover o/r yet. Add this repository to the App.") {
 		t.Errorf("output = %s", out.String())
+	}
+}
+
+func TestRefineAppTurnsAFreeRepositoryIntoAPick(t *testing.T) {
+	site := api.Site{ID: "p"}
+	missing := appCheck{need: appAddRepository, repository: "o/r", link: "https://app.test/projects/p/github/install?repository=o%2Fr"}
+	for name, tc := range map[string]struct {
+		status string
+		err    error
+		check  appCheck
+		want   appNeed
+	}{
+		"free":          {"free", nil, missing, appPickRepository},
+		"other project": {"other-project", nil, missing, appAddRepository},
+		"not shared":    {"not-shared", nil, missing, appAddRepository},
+		"older server":  {"", errors.New("HTTP 404"), missing, appAddRepository},
+		"no repository": {"free", nil, appCheck{need: appAddRepository}, appAddRepository},
+		"covered":       {"free", nil, appCheck{need: appCovered, repository: "o/r"}, appCovered},
+		"not installed": {"free", nil, appCheck{need: appInstall, repository: "o/r"}, appPickRepository},
+		"not installed, other project": {"other-project", nil, appCheck{need: appInstall, repository: "o/r"}, appInstall},
+		"not installed, no repository": {"free", nil, appCheck{need: appInstall}, appInstall},
+	} {
+		t.Run(name, func(t *testing.T) {
+			asked := false
+			lookup := func(_ context.Context, handle, repository string) (string, error) {
+				asked = true
+				if handle != "p" || repository != "o/r" {
+					t.Errorf("lookup(%q, %q)", handle, repository)
+				}
+
+				return tc.status, tc.err
+			}
+			got := refineApp(context.Background(), lookup, site, tc.check)
+			if got.need != tc.want {
+				t.Errorf("need = %v, want %v", got.need, tc.want)
+			}
+			if tc.want == appPickRepository && !strings.Contains(got.link, "?repository=o%2Fr") {
+				t.Errorf("link = %q, want the repository query", got.link)
+			}
+			if wantAsked := (tc.check.need == appAddRepository || tc.check.need == appInstall) && tc.check.repository != ""; asked != wantAsked {
+				t.Errorf("asked = %v, want %v", asked, wantAsked)
+			}
+		})
+	}
+}
+
+func TestAPickableRepositoryNamesTheLinkAndTheState(t *testing.T) {
+	c := appCheck{need: appPickRepository, repository: "o/r", link: "https://app.test/projects/p/github/install?repository=o%2Fr"}
+	if !c.missing() {
+		t.Error("a repository to pick is still a step to do")
+	}
+	if got, want := c.headline(), "Shared with Loupe, not in this project. Add o/r to the project."; got != want {
+		t.Errorf("headline = %q, want %q", got, want)
+	}
+	if !strings.Contains(c.promptFact(), c.link) {
+		t.Errorf("promptFact = %q", c.promptFact())
 	}
 }

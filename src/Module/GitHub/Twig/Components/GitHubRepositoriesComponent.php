@@ -8,6 +8,7 @@ use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\RepositoryCheckTopics;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubFreeRepositories;
 use App\Module\GitHub\Service\GitHubRepositoryRows;
 use App\Module\GitHub\Service\HookSecretKey;
 use App\Module\GitHub\View\RepositoryRow;
@@ -39,6 +40,12 @@ final class GitHubRepositoriesComponent
 
     public string $topic = '';
 
+    /** The repositories the App reaches through this project's installations that no project holds. */
+    public int $freeCount = 0;
+
+    /** False when an installation holds more repositories than one read lists, so the count is a lower bound. */
+    public bool $freeComplete = true;
+
     public function __construct(
         private readonly Security $security,
         private readonly ForgeRepositoryRepository $forgeRepositories,
@@ -46,6 +53,7 @@ final class GitHubRepositoriesComponent
         private readonly GitHubAppConfiguration $appConfiguration,
         private readonly HookSecretKey $hookSecretKey,
         private readonly RepositoryCheckTopics $topics,
+        private readonly GitHubFreeRepositories $freeRepositories,
     ) {
     }
 
@@ -62,6 +70,11 @@ final class GitHubRepositoriesComponent
         $this->topic = $this->topics->forProject($project->id ?? throw new \LogicException('A persisted project has an id.'));
         foreach ($this->forgeRepositories->findByProject($project) as $repository) {
             $this->rows[] = $this->repositoryRows->forRepository($repository, requestCheck: true);
+        }
+        if ([] !== $this->rows) {
+            $free = $this->freeRepositories->forProject($project);
+            $this->freeCount = \count($free->repositories);
+            $this->freeComplete = $free->complete;
         }
     }
 }
