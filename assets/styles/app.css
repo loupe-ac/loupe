@@ -3235,11 +3235,18 @@
     .ts-wrapper.lp-select .ts-control {
         --ts-pr-caret: calc(var(--spacing) * 9);
     }
+    /* A long choice stays on one line, as in a native select. */
+    .ts-wrapper.lp-input.single .ts-control {
+        @apply flex-nowrap;
+    }
+    .ts-wrapper.lp-input.single .ts-control > .item {
+        @apply min-w-0 truncate;
+    }
     .ts-wrapper.lp-select .ts-control::after {
         @apply hidden;
     }
-    /* While a person types, the field shows the query alone. */
-    .ts-wrapper.lp-input.single
+    /* While a person types, the field shows the query alone. At rest the input has no placeholder. */
+    .ts-wrapper.lp-input.single.input-active
         .ts-control:has(> input:not(:placeholder-shown))
         > .item {
         @apply hidden;
