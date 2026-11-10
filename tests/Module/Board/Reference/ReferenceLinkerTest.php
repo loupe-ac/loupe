@@ -242,7 +242,9 @@ final class ReferenceLinkerTest extends KernelTestCase
     public function test_many_unwatched_pull_request_tokens_ask_the_forge_connection_once(): void
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All));
+        $installationId = random_int(1, \PHP_INT_MAX);
+        $this->em->persist(new GitHubInstallation($installationId, 'acme', GitHubRepositorySelection::All));
+        $this->em->persist(new ForgeRepository($project, 'github', 'ext-linker', 'acme/linker', ForgeRepositorySource::Installation, (string) $installationId));
         $this->em->flush();
         $text = '';
         for ($i = 1; $i <= 12; ++$i) {
@@ -257,7 +259,7 @@ final class ReferenceLinkerTest extends KernelTestCase
 
         self::assertSame(12, substr_count($html, 'href="https://github.com/other/repo'));
         $statements = array_merge(...array_map(array_values(...), array_values($queries->getData())));
-        self::assertCount(2, $statements);
+        self::assertCount(1, $statements);
     }
 
     public function test_a_watched_github_repository_links_unwatched_tokens_with_no_connection_query(): void

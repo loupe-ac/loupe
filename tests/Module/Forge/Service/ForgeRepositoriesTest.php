@@ -210,7 +210,7 @@ final class ForgeRepositoriesTest extends KernelTestCase
         self::assertNotNull($this->rowOf($keeper, '1006'));
     }
 
-    public function test_release_installation_removes_the_rows_of_that_installation_only(): void
+    public function test_lose_access_marks_the_rows_of_that_installation_and_keeps_them(): void
     {
         $project = $this->project('uninstalled');
         $this->installation($project, '1007', 'acme/one', '13');
@@ -218,14 +218,33 @@ final class ForgeRepositoriesTest extends KernelTestCase
         $this->installation($project, '1020', 'acme/three', '14');
         $this->hook($project, '1021', 'acme/four');
 
-        $this->repositories->releaseInstallation('github', '13', '1019');
-        self::assertNotNull($this->rowOf($project, '1007'));
-        self::assertNull($this->rowOf($project, '1019'));
+        $this->repositories->loseAccess('github', '13', '1019');
+        self::assertNull($this->rowOf($project, '1007')?->accessLostAt);
+        self::assertNotNull($this->rowOf($project, '1019')?->accessLostAt);
 
-        $this->repositories->releaseInstallation('github', '13');
-        self::assertNull($this->rowOf($project, '1007'));
-        self::assertNotNull($this->rowOf($project, '1020'));
-        self::assertNotNull($this->rowOf($project, '1021'));
+        $this->repositories->loseAccess('github', '13');
+        self::assertNotNull($this->rowOf($project, '1007')?->accessLostAt);
+        self::assertNull($this->rowOf($project, '1020')?->accessLostAt);
+        self::assertNull($this->rowOf($project, '1021')?->accessLostAt);
+    }
+
+    public function test_a_row_with_no_access_stays_exclusive_and_reconnects_to_a_new_installation(): void
+    {
+        $project = $this->project('lost');
+        $other = $this->project('rival');
+        $this->installation($project, '1022', 'acme/lost', '13');
+        $this->repositories->loseAccess('github', '13');
+
+        self::assertSame(ForgeClaimOutcome::Refused, $this->repositories->claim($other, 'github', '1022', 'acme/lost', ForgeRepositorySource::Installation, '99')->outcome);
+
+        $row = $this->repositories->lostAccessRowOf('github', '1022') ?? self::fail('The row says no access.');
+        $this->repositories->reconnect($row, '99', 'acme/renamed');
+
+        $reconnected = $this->rowOf($project, '1022');
+        self::assertNull($reconnected?->accessLostAt);
+        self::assertSame('99', $reconnected?->sourceRef);
+        self::assertSame('acme/renamed', $reconnected->path);
+        self::assertNull($this->repositories->lostAccessRowOf('github', '1022'));
     }
 
     public function test_accepted_stamps_a_repository_that_has_no_stamp(): void

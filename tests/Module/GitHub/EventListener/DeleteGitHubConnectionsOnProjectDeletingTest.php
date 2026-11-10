@@ -20,7 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class DeleteGitHubConnectionsOnProjectDeletingTest extends KernelTestCase
 {
-    public function test_it_deletes_the_hook_and_installations_of_its_project_only(): void
+    public function test_it_deletes_the_hook_of_its_project_only_and_keeps_every_installation(): void
     {
         self::bootKernel();
 
@@ -36,24 +36,24 @@ final class DeleteGitHubConnectionsOnProjectDeletingTest extends KernelTestCase
             $owner, $doomed, $spared,
             new GitHubHook($doomed, GitHubHook::newKey(), GitHubHook::newSecret()),
             new GitHubHook($spared, GitHubHook::newKey(), GitHubHook::newSecret()),
-            new GitHubInstallation($doomed, 8_000_001, 'acme', GitHubRepositorySelection::All),
-            new GitHubInstallation($doomed, 8_000_002, 'acme', GitHubRepositorySelection::Selected),
-            new GitHubInstallation($spared, 8_000_003, 'acme', GitHubRepositorySelection::All),
+            new GitHubInstallation(8_000_001, 'acme', GitHubRepositorySelection::All),
+            new GitHubInstallation(8_000_002, 'acme', GitHubRepositorySelection::Selected),
+            new GitHubInstallation(8_000_003, 'acme', GitHubRepositorySelection::All),
         ] as $entity) {
             $em->persist($entity);
         }
         $em->flush();
 
         $conn = $em->getConnection();
-        $count = static fn (string $table, Project $project): int => (int) $conn->fetchOne('SELECT COUNT(*) FROM '.$table.' WHERE project_id = :id', ['id' => (string) $project->id]);
-        self::assertSame(1, $count('github_hooks', $doomed));
-        self::assertSame(2, $count('github_installations', $doomed));
+        $hooks = static fn (Project $project): int => (int) $conn->fetchOne('SELECT COUNT(*) FROM github_hooks WHERE project_id = :id', ['id' => (string) $project->id]);
+        $installations = static fn (): int => (int) $conn->fetchOne('SELECT COUNT(*) FROM github_installations WHERE installation_id BETWEEN 8000001 AND 8000003');
+        self::assertSame(1, $hooks($doomed));
+        self::assertSame(3, $installations());
 
         $listener(new ProjectDeleting($doomed));
 
-        self::assertSame(0, $count('github_hooks', $doomed));
-        self::assertSame(0, $count('github_installations', $doomed));
-        self::assertSame(1, $count('github_hooks', $spared));
-        self::assertSame(1, $count('github_installations', $spared));
+        self::assertSame(0, $hooks($doomed));
+        self::assertSame(1, $hooks($spared));
+        self::assertSame(3, $installations(), 'An installation is shared, so a project deletion keeps it.');
     }
 }

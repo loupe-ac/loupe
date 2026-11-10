@@ -157,7 +157,7 @@ final class GitHubAppApiTest extends TestCase
         $api = $this->api([
             $this->ok($firstPage),
             $this->ok([
-                ['id' => 101, 'account' => ['login' => 'ubermuda'], 'permissions' => ['checks' => 'write', 'contents' => 'read', 'members' => 'read']],
+                ['id' => 101, 'account' => ['login' => 'ubermuda', 'id' => 5_101], 'permissions' => ['checks' => 'write', 'contents' => 'read', 'members' => 'read']],
                 ['id' => 102, 'account' => null, 'permissions' => []],
                 ['account' => ['login' => 'no-id']],
             ]),
@@ -167,7 +167,7 @@ final class GitHubAppApiTest extends TestCase
 
         self::assertCount(102, $installations);
         self::assertEquals(
-            new GitHubAppInstallationAccess(101, 'ubermuda', ['checks' => 'write', 'contents' => 'read', 'members' => 'read']),
+            new GitHubAppInstallationAccess(101, 'ubermuda', ['checks' => 'write', 'contents' => 'read', 'members' => 'read'], 5_101),
             $installations[100],
         );
         self::assertSame('#102', $installations[101]->account);

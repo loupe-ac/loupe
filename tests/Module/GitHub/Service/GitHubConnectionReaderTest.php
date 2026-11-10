@@ -11,7 +11,6 @@ use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\ForgeConnectionReaders;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
-use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubConnectionReader;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,11 +27,9 @@ final class GitHubConnectionReaderTest extends KernelTestCase
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
-        $installations = self::getContainer()->get(GitHubInstallationRepository::class);
-        self::assertInstanceOf(GitHubInstallationRepository::class, $installations);
         $forgeRepositories = self::getContainer()->get(ForgeRepositoryRepository::class);
         self::assertInstanceOf(ForgeRepositoryRepository::class, $forgeRepositories);
-        $this->reader = new GitHubConnectionReader($installations, $forgeRepositories);
+        $this->reader = new GitHubConnectionReader($forgeRepositories);
     }
 
     public function test_it_supports_github_only(): void
@@ -70,21 +67,20 @@ final class GitHubConnectionReaderTest extends KernelTestCase
         self::assertFalse($this->reader->isConnected($this->project()));
     }
 
-    public function test_a_project_with_an_installation_is_connected(): void
+    public function test_a_project_with_an_installation_repository_is_connected(): void
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, random_int(1_000_000, 9_000_000), 'acme', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation(8_100_001, 'acme', GitHubRepositorySelection::Selected));
+        $this->em->persist(new ForgeRepository($project, 'github', 'ext-'.uniqid(), 'acme/loupe', ForgeRepositorySource::Installation, '8100001'));
         $this->em->flush();
 
         self::assertTrue($this->reader->isConnected($project));
     }
 
-    public function test_a_removed_installation_does_not_connect_a_project(): void
+    public function test_an_installation_that_no_repository_row_names_connects_no_project(): void
     {
         $project = $this->project();
-        $installation = new GitHubInstallation($project, random_int(1_000_000, 9_000_000), 'acme', GitHubRepositorySelection::Selected);
-        $installation->removedAt = new \DateTimeImmutable();
-        $this->em->persist($installation);
+        $this->em->persist(new GitHubInstallation(random_int(1_000_000, 9_000_000), 'acme', GitHubRepositorySelection::Selected));
         $this->em->flush();
 
         self::assertFalse($this->reader->isConnected($project));

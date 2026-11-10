@@ -292,7 +292,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project->agentFirstSeenAt = new \DateTimeImmutable();
         $em->persist(new WorkflowBinding($project, 'simple', '1', []));
         $this->seedCapableBridge($project);
-        $em->persist(new GitHubInstallation($project, ++self::$installationId, 'acme', GitHubRepositorySelection::Selected));
+        $em->persist(new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::Selected));
         $em->persist(new ForgeRepository($project, 'github', 'ext-ready', 'acme/app', ForgeRepositorySource::Installation, (string) self::$installationId));
         $em->flush();
 
@@ -450,15 +450,15 @@ final class ReadinessChecklistTest extends KernelTestCase
     {
         $em = $this->em();
         $hookOnly = $this->newProject('readiness-hook@example.com');
-        $em->persist(new GitHubInstallation($hookOnly, ++self::$installationId, 'acme', GitHubRepositorySelection::All));
+        $em->persist(new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::All));
         $em->persist(new ForgeRepository($hookOnly, 'github', 'ext-hook', 'acme/hook', ForgeRepositorySource::Hook));
         $suspended = $this->newProject('readiness-suspended@example.com');
-        $installation = new GitHubInstallation($suspended, ++self::$installationId, 'acme', GitHubRepositorySelection::All);
+        $installation = new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::All);
         $installation->suspendedAt = new \DateTimeImmutable();
         $em->persist($installation);
         $em->persist(new ForgeRepository($suspended, 'github', 'ext-suspended', 'acme/suspended', ForgeRepositorySource::Installation, (string) $installation->installationId));
         $removed = $this->newProject('readiness-removed@example.com');
-        $installation = new GitHubInstallation($removed, ++self::$installationId, 'acme', GitHubRepositorySelection::All);
+        $installation = new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::All);
         $installation->removedAt = new \DateTimeImmutable();
         $em->persist($installation);
         $em->persist(new ForgeRepository($removed, 'github', 'ext-removed', 'acme/removed', ForgeRepositorySource::Installation, (string) $installation->installationId));
@@ -470,14 +470,27 @@ final class ReadinessChecklistTest extends KernelTestCase
         }
     }
 
+    public function test_a_repository_with_no_access_does_not_make_the_github_check_done(): void
+    {
+        $em = $this->em();
+        $project = $this->newProject('readiness-no-access@example.com');
+        $em->persist(new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::Selected));
+        $repository = new ForgeRepository($project, 'github', 'ext-no-access', 'acme/app', ForgeRepositorySource::Installation, (string) self::$installationId);
+        $repository->accessLostAt = new \DateTimeImmutable();
+        $em->persist($repository);
+        $em->flush();
+
+        self::assertFalse($this->row($this->readiness($this->checklist(), $project), 'github')->done);
+    }
+
     public function test_a_repository_of_a_suspended_installation_does_not_count_for_a_live_one(): void
     {
         $em = $this->em();
         $project = $this->newProject('readiness-split@example.com');
-        $suspended = new GitHubInstallation($project, ++self::$installationId, 'acme', GitHubRepositorySelection::Selected);
+        $suspended = new GitHubInstallation(++self::$installationId, 'acme', GitHubRepositorySelection::Selected);
         $suspended->suspendedAt = new \DateTimeImmutable();
         $em->persist($suspended);
-        $em->persist(new GitHubInstallation($project, ++self::$installationId, 'other', GitHubRepositorySelection::Selected));
+        $em->persist(new GitHubInstallation(++self::$installationId, 'other', GitHubRepositorySelection::Selected));
         $em->persist(new ForgeRepository($project, 'github', 'ext-split', 'acme/app', ForgeRepositorySource::Installation, (string) $suspended->installationId));
         $em->flush();
 

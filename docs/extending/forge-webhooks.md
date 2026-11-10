@@ -27,7 +27,9 @@ A forge module writes ownership through `ForgeRepositories` only.
 |---|---|
 | `claim($project, $forge, $externalId, $path, $source, $sourceRef)` | Creates or confirms the row of the project. It returns `Owned`, `AlreadyOwned` or `Refused`. A `Hook` claim never refuses. An `Installation` claim refuses when another project holds an installation row, and `Refused` names no owner. When the project claims under a new path, the row takes the new path and the claim reports the old one. |
 | `release($project, $forge, $externalId)` | Removes the row of the project. |
-| `releaseInstallation($forge, $sourceRef, $externalId)` | Removes the rows of one installation, or its row for one repository. |
+| `loseAccess($forge, $sourceRef, $externalId)` | Marks the rows of one installation, or its row for one repository, as No access. The rows stay, with their checks. |
+| `lostAccessRowOf($forge, $externalId)` | Reads the No access installation row of a repository. |
+| `reconnect($repository, $sourceRef, $path)` | Points a No access row at the installation that reaches the repository again, and clears the mark. |
 | `accepted($repository, $now)` | Records the time of the last accepted delivery, at most once a minute. The repository state on the Connections tab reads it. |
 | `installationOwnerOf($forge, $externalId)` | Reads the installation row of a repository. |
 
@@ -115,9 +117,10 @@ Only an App installation makes a repository exclusive. The owner of a project
 knows the secret of its webhook, so that owner can sign any body and name any
 repository. A webhook claim therefore feeds its own project and blocks nobody.
 An App claim is exclusive, because GitHub proves the installation through the
-user token and the App secret. An App delivery for a repository that the App of
-another project holds is dropped. The endpoint still answers 200, and the log
-names the claiming project only.
+user token and the App secret. An App delivery for a repository that no
+project holds through that installation is dropped. A No access row is exclusive
+too, so no other project can claim the repository. The endpoint still answers
+200, and the log names no project.
 
 `CardPullRequest` stores the repository path and the number of each pull
 request that a card links. A delivery names both, so it finds its cards with no
@@ -145,9 +148,23 @@ customer from one shared pool of addresses, so a per-project webhook uses its
 hook key as the key.
 
 The per-project webhook claims each repository it reports for its project. The
-App route reads the installation id in the body, and the installation names the
-project. A delivery with no installation, or for an installation Loupe does not
-know, is dropped.
+App route reads the installation id in the body. An installation belongs to no
+project, so the route finds the repository row that names the installation and
+delivers to the project of that row. A delivery with no installation, or for an
+installation Loupe does not know, is dropped. So is a delivery for a repository
+with no row, or with a No access row. The route never claims a repository.
+
+Only an `installation` event with the action `created` makes Loupe record an
+unknown installation. It stores the account login, the account id and the
+selection from the signed payload. Every installation event updates the login,
+the account id and the selection. Removing the installation, or removing a
+repository from it, marks the matching rows as No access. A row reconnects when
+a new installation lists its repository and both installations belong to the
+same GitHub account id.
+
+`app:github:backfill-installation-accounts` fills the account id of the records
+that predate it. Run it once after the deploy. It lists the installations of
+the App, so it needs the App id and the private key.
 
 | Status | When |
 |---|---|
@@ -303,8 +320,8 @@ whatever each answer is.
 - Does GitHub send `state` back to the setup URL after an install? Loupe checks
   it when it arrives, and relies on the session when it does not.
 - Does a new repository under an "All repositories" installation send
-  `installation_repositories`? If not, Loupe claims the repository on its first
-  delivery.
+  `installation_repositories`? Loupe does not depend on it, because a delivery
+  never claims a repository.
 - Does the `ping` of a repository webhook carry `repository`? Loupe claims
   nothing from a `ping` in either case.
 

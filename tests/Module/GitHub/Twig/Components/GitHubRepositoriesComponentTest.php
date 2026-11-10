@@ -6,6 +6,7 @@ namespace App\Tests\Module\GitHub\Twig\Components;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Service\RepositorySuggestionCatalog;
@@ -328,6 +329,29 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame('Waiting for the first delivery', $rows['acme/waiting']);
         self::assertStringStartsWith('Working', $rows['acme/working']);
         self::assertStringStartsWith('Quiet', $rows['acme/quiet']);
+    }
+
+    public function test_a_repository_with_no_access_shows_the_state_the_fix_link_and_remove(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('no-access');
+        $project = $this->projectOf($owner);
+        $repository = new ForgeRepository($project, 'github', '9301', 'acme/lost', ForgeRepositorySource::Installation, '9301');
+        $repository->accessLostAt = new \DateTimeImmutable('2026-11-01 10:00:00');
+        $this->em()->persist($repository);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $row = $crawler->filter('#repositories [data-forge-repository]');
+        self::assertCount(1, $row);
+        self::assertStringContainsString('No access since 1 Nov 2026', $row->filter('[data-testid="forge-repository-health"]')->text());
+        self::assertSame('No access', trim($row->filter('[data-testid="forge-repository-no-access"]')->text()));
+        self::assertSame('https://github.com/settings/installations/9301', $row->filter('[data-testid="forge-repository-fix-access"]')->attr('href'));
+        self::assertCount(0, $row->filter('[data-testid="forge-repository-check"]'));
+        self::assertStringContainsString('Remove', $row->text());
     }
 
     public function test_the_connections_page_has_no_repository_rows(): void

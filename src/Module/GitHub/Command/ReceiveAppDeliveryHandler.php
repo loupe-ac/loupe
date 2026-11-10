@@ -20,8 +20,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Every installation of the App signs with one secret, so the installation id
- * in the body decides which project a delivery belongs to. A delivery with no
- * installation, or for one Loupe does not know, is dropped.
+ * in the body names the installation. A delivery reaches a project only through
+ * a repository row that names that installation. A delivery with no
+ * installation, or for one Loupe does not know, is dropped. Only an
+ * `installation` created event makes an unknown installation known.
  */
 final readonly class ReceiveAppDeliveryHandler
 {
@@ -49,6 +51,10 @@ final readonly class ReceiveAppDeliveryHandler
 
         $installationId = $delivery->installationId();
         $installation = null === $installationId ? null : $this->gitHubInstallations->findOneByInstallationId($installationId);
+        if (null === $installation && null !== $installationId && 'installation' === $delivery->event && 'created' === $delivery->action()) {
+            $installation = $this->record($installationId, $delivery);
+        }
+
         if (null === $installation || null !== $installation->removedAt) {
             $this->dropped($delivery, null === $installationId ? 'no_installation' : 'unknown_installation');
 
@@ -64,8 +70,24 @@ final readonly class ReceiveAppDeliveryHandler
         return GitHubDeliveryOutcome::Received;
     }
 
+    /** Creates the record from the signed payload. It claims no repository, because a person picks those. */
+    private function record(int $installationId, GitHubDelivery $delivery): ?GitHubInstallation
+    {
+        $login = $delivery->accountLogin();
+        if (null === $login) {
+            return null;
+        }
+
+        $installation = new GitHubInstallation($installationId, $login, $delivery->repositorySelection() ?? GitHubRepositorySelection::Selected, $delivery->accountId());
+        $this->em->persist($installation);
+
+        return $installation;
+    }
+
     private function installationChanged(GitHubInstallation $installation, GitHubDelivery $delivery): void
     {
+        $this->refresh($installation, $delivery);
+
         switch ($delivery->action()) {
             case 'suspend':
                 $installation->suspendedAt = new \DateTimeImmutable();
@@ -75,10 +97,11 @@ final readonly class ReceiveAppDeliveryHandler
                 break;
             case 'deleted':
                 $installation->removedAt = new \DateTimeImmutable();
-                $this->forgeRepositories->releaseInstallation(GitHubDelivery::FORGE, (string) $installation->installationId);
+                $this->forgeRepositories->loseAccess(GitHubDelivery::FORGE, (string) $installation->installationId);
                 break;
             case 'created':
-                $this->claimAll($installation, $delivery->repositories('repositories'));
+                $this->em->flush();
+                $this->reconnectAll($installation, $delivery->repositories('repositories'));
                 break;
         }
 
@@ -87,36 +110,68 @@ final readonly class ReceiveAppDeliveryHandler
 
     private function repositoriesChanged(GitHubInstallation $installation, GitHubDelivery $delivery): void
     {
+        $this->refresh($installation, $delivery);
+        $this->em->flush();
+
         if (null === $installation->suspendedAt) {
-            $this->claimAll($installation, $delivery->repositories('repositories_added'));
+            $this->reconnectAll($installation, $delivery->repositories('repositories_added'));
         }
 
         foreach ($delivery->repositories('repositories_removed') as $repository) {
-            $this->forgeRepositories->releaseInstallation(GitHubDelivery::FORGE, (string) $installation->installationId, $repository->externalId());
+            $this->forgeRepositories->loseAccess(GitHubDelivery::FORGE, (string) $installation->installationId, $repository->externalId());
+        }
+    }
+
+    private function refresh(GitHubInstallation $installation, GitHubDelivery $delivery): void
+    {
+        $login = $delivery->accountLogin();
+        if (null !== $login) {
+            $installation->accountLogin = $login;
+        }
+
+        $accountId = $delivery->accountId();
+        if (null !== $accountId) {
+            $installation->accountId = $accountId;
         }
 
         $selection = $delivery->repositorySelection();
         if (null !== $selection) {
             $installation->repositorySelection = $selection;
         }
-
-        $this->em->flush();
     }
 
-    /** @param list<GitHubRepositoryRef> $repositories */
-    private function claimAll(GitHubInstallation $installation, array $repositories): void
+    /**
+     * A repository whose row says "No access" reconnects to this installation
+     * only when both installations belong to one known GitHub account. A
+     * transferred repository, or a reused login, keeps its row as it is.
+     *
+     * @param list<GitHubRepositoryRef> $repositories
+     */
+    private function reconnectAll(GitHubInstallation $installation, array $repositories): void
     {
         foreach ($repositories as $repository) {
-            $this->announcer->claim($installation->project, $repository, ForgeRepositorySource::Installation, $installation->installationId);
+            $row = $this->forgeRepositories->lostAccessRowOf(GitHubDelivery::FORGE, $repository->externalId());
+            if (null === $row) {
+                continue;
+            }
+
+            $previous = ctype_digit($row->sourceRef ?? '') ? $this->gitHubInstallations->findOneByInstallationId((int) $row->sourceRef) : null;
+            if (null === $previous || ($previous->installationId !== $installation->installationId && (null === $previous->accountId || $previous->accountId !== $installation->accountId))) {
+                $this->logger->info('github.reconnect_refused', [
+                    'installationId' => $installation->installationId,
+                    'repositoryId' => $repository->id,
+                ]);
+                continue;
+            }
+
+            $this->forgeRepositories->reconnect($row, (string) $installation->installationId, $repository->fullName);
         }
     }
 
     /**
-     * An installation that reaches every repository claims one on its first
-     * delivery. One with a selection claims only through the events that name
-     * the selection, so a repository outside it is dropped here, unless the
-     * connect-time listing was cut short. A hook row of any project is no
-     * ownership here.
+     * A repository row of a project that names this installation decides who
+     * receives the delivery. Without one, or with a "No access" row, the
+     * delivery is dropped, and nothing is claimed.
      */
     private function owned(GitHubInstallation $installation, GitHubDelivery $delivery): void
     {
@@ -127,14 +182,14 @@ final readonly class ReceiveAppDeliveryHandler
             return;
         }
 
-        $unclaimed = null === $this->forgeRepositories->installationOwnerOf(GitHubDelivery::FORGE, $repository->externalId());
-        if ($unclaimed && GitHubRepositorySelection::Selected === $installation->repositorySelection && !$installation->listIncomplete) {
-            $this->dropped($delivery, 'not_selected');
+        $row = $this->forgeRepositories->installationOwnerOf(GitHubDelivery::FORGE, $repository->externalId());
+        if (null === $row || null !== $row->accessLostAt || $row->sourceRef !== (string) $installation->installationId) {
+            $this->dropped($delivery, 'not_picked');
 
             return;
         }
 
-        $this->announcer->announce($installation->project, $repository, $delivery, ForgeRepositorySource::Installation, $installation->installationId);
+        $this->announcer->announce($row->project, $repository, $delivery, ForgeRepositorySource::Installation, $installation->installationId);
     }
 
     private function dropped(GitHubDelivery $delivery, string $reason): void

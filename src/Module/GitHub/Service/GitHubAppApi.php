@@ -125,11 +125,13 @@ final class GitHubAppApi
                 }
 
                 $login = \is_array($item['account'] ?? null) ? ($item['account']['login'] ?? null) : null;
+                $accountId = \is_array($item['account'] ?? null) ? ($item['account']['id'] ?? null) : null;
                 $permissions = \is_array($item['permissions'] ?? null) ? $item['permissions'] : [];
                 $installations[] = new GitHubAppInstallationAccess(
                     $id,
                     \is_string($login) && '' !== $login ? $login : '#'.$id,
                     array_filter($permissions, fn (mixed $grant, mixed $name): bool => \is_string($name) && \is_string($grant), \ARRAY_FILTER_USE_BOTH),
+                    \is_int($accountId) ? $accountId : null,
                 );
             }
 

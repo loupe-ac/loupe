@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Twig\Components;
 
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
@@ -132,14 +134,17 @@ final class GitHubConnectionComponentTest extends WebTestCase
         $client = static::createClient();
         $owner = $this->signedUpUser('applink');
         $project = $this->projectOf($owner);
-        $this->em()->persist(new GitHubInstallation($project, 11, 'acme', GitHubRepositorySelection::All));
-        $suspended = new GitHubInstallation($project, 12, 'paused-org', GitHubRepositorySelection::Selected);
+        $this->em()->persist(new GitHubInstallation(11, 'acme', GitHubRepositorySelection::All));
+        $suspended = new GitHubInstallation(12, 'paused-org', GitHubRepositorySelection::Selected);
         $suspended->suspendedAt = new \DateTimeImmutable('-1 day');
         $this->em()->persist($suspended);
-        $removed = new GitHubInstallation($project, 13, 'gone-org', GitHubRepositorySelection::Selected);
+        $removed = new GitHubInstallation(13, 'gone-org', GitHubRepositorySelection::Selected);
         $removed->removedAt = new \DateTimeImmutable('-1 day');
         $this->em()->persist($removed);
-        $this->em()->persist(new GitHubInstallation($this->projectOf($this->signedUpUser('otherapp')), 14, 'not-mine', GitHubRepositorySelection::All));
+        $this->em()->persist(new GitHubInstallation(14, 'not-mine', GitHubRepositorySelection::All));
+        foreach ([11, 12, 13] as $id) {
+            $this->em()->persist(new ForgeRepository($project, 'github', (string) $id, 'acme/repo-'.$id, ForgeRepositorySource::Installation, (string) $id));
+        }
         $this->em()->flush();
         $this->em()->clear();
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
@@ -157,7 +162,7 @@ final class GitHubConnectionComponentTest extends WebTestCase
         self::assertSame(['acme', 'paused-org', 'gone-org'], array_keys($rows));
         self::assertSame('All repositories', $rows['acme']);
         self::assertStringStartsWith('Selected repositories · Suspended on GitHub', $rows['paused-org']);
-        self::assertStringContainsString('The App was uninstalled, so its repositories left this list', $rows['gone-org']);
+        self::assertStringContainsString('The App was uninstalled, so its repositories show No access', $rows['gone-org']);
     }
 
     public function test_with_the_app_configured_an_unreadable_key_turns_off_the_hook_alone(): void

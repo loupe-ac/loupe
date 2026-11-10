@@ -340,7 +340,7 @@ final class GitHubPullRequestMergerTest extends KernelTestCase
     private function tracked(string $path, int $installationId, ?string $base = null): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $pullRequest->baseBranch = $base;

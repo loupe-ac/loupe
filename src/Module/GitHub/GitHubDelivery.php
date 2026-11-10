@@ -69,6 +69,20 @@ final readonly class GitHubDelivery
         return \is_int($id) ? $id : null;
     }
 
+    public function accountId(): ?int
+    {
+        $id = $this->payload['installation']['account']['id'] ?? null;
+
+        return \is_int($id) ? $id : null;
+    }
+
+    public function accountLogin(): ?string
+    {
+        $login = $this->payload['installation']['account']['login'] ?? null;
+
+        return \is_string($login) && '' !== $login ? $login : null;
+    }
+
     /** The top-level selection of `installation_repositories`, or the installation's own on `installation`. */
     public function repositorySelection(): ?GitHubRepositorySelection
     {

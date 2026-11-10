@@ -70,6 +70,7 @@ final readonly class ForgeRepositories
                 $tookOver = ForgeRepositorySource::Installation !== $existing->source;
                 $existing->source = ForgeRepositorySource::Installation;
                 $existing->sourceRef = $sourceRef;
+                $existing->accessLostAt = null;
             }
 
             $movedFrom = null;
@@ -103,26 +104,51 @@ final readonly class ForgeRepositories
     }
 
     /**
-     * Removes the rows one installation holds, or its row for one repository.
-     * A later hook delivery creates a hook row again. Each project that loses a
-     * row changes its hold summary in its own transaction.
+     * Marks the rows one installation holds, or its row for one repository, as
+     * "No access". The row and its check stay, so the repository keeps its
+     * place in the project and reconnects when access returns. Each project
+     * that changes a row signals it in its own transaction.
      */
-    public function releaseInstallation(string $forge, string $sourceRef, ?string $externalId = null): void
+    public function loseAccess(string $forge, string $sourceRef, ?string $externalId = null, ?\DateTimeImmutable $at = null): void
     {
+        $at ??= new \DateTimeImmutable();
         $byProject = [];
         foreach ($this->forgeRepositories->findByInstallation($forge, $sourceRef) as $repository) {
-            if (null === $externalId || $repository->externalId === $externalId) {
+            if (null === $repository->accessLostAt && (null === $externalId || $repository->externalId === $externalId)) {
                 $byProject[(string) $repository->project->id][] = $repository;
             }
         }
 
         foreach ($byProject as $repositories) {
-            $this->summaries->change($repositories[0]->project, function (RepositoryChange $change) use ($repositories): void {
+            $this->summaries->change($repositories[0]->project, function (RepositoryChange $change) use ($repositories, $at): void {
                 foreach ($repositories as $repository) {
-                    $this->remove($repository, $change);
+                    $repository->accessLostAt = $at;
+                    $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
                 }
             });
         }
+    }
+
+    /**
+     * The "No access" installation row of a repository, when one exists. It
+     * stays exclusive, so no other project can claim the repository.
+     */
+    public function lostAccessRowOf(string $forge, string $externalId): ?ForgeRepository
+    {
+        $row = $this->forgeRepositories->findInstallationRow($forge, $externalId);
+
+        return null !== $row && null !== $row->accessLostAt ? $row : null;
+    }
+
+    /** Points a "No access" row at the installation that reaches the repository again. */
+    public function reconnect(ForgeRepository $repository, string $sourceRef, string $path): void
+    {
+        $this->summaries->change($repository->project, function (RepositoryChange $change) use ($repository, $sourceRef, $path): void {
+            $repository->sourceRef = $sourceRef;
+            $repository->accessLostAt = null;
+            $repository->path = $path;
+            $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
+        });
     }
 
     /** Stamps at most once a minute, because every accepted delivery calls it. */

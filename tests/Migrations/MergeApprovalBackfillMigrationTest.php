@@ -76,8 +76,11 @@ final class MergeApprovalBackfillMigrationTest extends KernelTestCase
 
     private function installation(Project $project, int $installationId): GitHubInstallation
     {
-        $installation = new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::All);
+        $installation = new GitHubInstallation($installationId, 'acme', GitHubRepositorySelection::All);
         $this->em()->persist($installation);
+        $this->em()->flush();
+        // The migration under test predates the shared installation, so the old project link is written by hand.
+        $this->em()->getConnection()->executeStatement('UPDATE github_installations SET project_id = ? WHERE installation_id = ?', [(string) $project->id, $installationId]);
 
         return $installation;
     }

@@ -38,11 +38,9 @@ final readonly class ProjectGitHubFacts
     /** @return array<string, GitHubSiteFacts> the facts by project id; a project with no GitHub link reads as no app and no repository */
     public function forOwner(User $owner): array
     {
-        $installed = [];
         $live = [];
         foreach ($this->gitHubInstallations->findByOwner($owner) as $installation) {
             if (null === $installation->removedAt && null === $installation->suspendedAt) {
-                $installed[(string) $installation->project->id] = true;
                 $live[(string) $installation->installationId] = true;
             }
         }
@@ -51,6 +49,12 @@ final readonly class ProjectGitHubFacts
             $this->forgeRepositories->findByOwner($owner),
             static fn (ForgeRepository $repository): bool => GitHubDelivery::FORGE === $repository->forge,
         ));
+        $installed = [];
+        foreach ($repositories as $repository) {
+            if (ForgeRepositorySource::Installation === $repository->source && null === $repository->accessLostAt && isset($live[$repository->sourceRef ?? ''])) {
+                $installed[(string) $repository->project->id] = true;
+            }
+        }
         $checks = $this->forgeRepositoryChecks->findByRepositories($repositories);
 
         $byProject = [];
@@ -89,7 +93,7 @@ final readonly class ProjectGitHubFacts
 
         return new GitHubRepositoryFacts(
             $repository->path,
-            ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']),
+            ForgeRepositorySource::Installation === $repository->source && null === $repository->accessLostAt && isset($live[$repository->sourceRef ?? '']),
             $settings?->defaultBranch,
             $rulesRead,
             match ($rulesRead) {

@@ -21,7 +21,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
-/** One repository whose plan refuses rulesets and one that can have them, so the Repositories tab shows both states. */
+/** One repository whose plan refuses rulesets, one that can have them and one the App no longer reaches, so the Repositories tab shows each state. */
 #[When('dev')]
 #[When('test')]
 final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
@@ -29,6 +29,7 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
     public const string KEY = 'github-repository-checks';
     public const string PATH_REFUSED = 'acme/free-plan-app';
     public const string PATH_CAPABLE = 'acme/ruleset-app';
+    public const string PATH_NO_ACCESS = 'acme/no-access-app';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -59,10 +60,11 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
 
         $this->repository($context, $project, self::PATH_REFUSED, 'github-repo/refused', new RepositorySettings('main', ['squash'], null, new RepositoryRules(false, false, null, [], [], false, false), [], [], false, 'Upgrade to GitHub Pro or make this repository public to enable this feature.'));
         $this->repository($context, $project, self::PATH_CAPABLE, 'github-repo/capable', new RepositorySettings('main', ['squash'], 4242, new RepositoryRules(true, false, null, ['lint', 'tests', 'Loupe / Approval'], [4242], true, true), [], ['lint', 'extra-check'], false));
+        $this->repository($context, $project, self::PATH_NO_ACCESS, 'github-repo/no-access', new RepositorySettings('main', ['squash'], null, new RepositoryRules(true, false, null, [], [], false, false), [], [], false), $context->now->modify('-3 days'));
         $this->em->flush();
     }
 
-    private function repository(SeedContext $context, Project $project, string $path, string $seedKey, RepositorySettings $settings): void
+    private function repository(SeedContext $context, Project $project, string $path, string $seedKey, RepositorySettings $settings, ?\DateTimeImmutable $accessLostAt = null): void
     {
         $id = DevSeedId::of($seedKey);
         if ($this->forgeRepositories->find($id) instanceof ForgeRepository) {
@@ -70,6 +72,7 @@ final readonly class DevRepositoryCheckSeeder implements DevSeederInterface
         }
 
         $repository = new ForgeRepository($project, 'github', $seedKey, $path, ForgeRepositorySource::Installation, '4242');
+        $repository->accessLostAt = $accessLostAt;
         $context->ids->assign($repository, $id);
         $this->em->persist($repository);
 

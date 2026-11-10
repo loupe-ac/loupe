@@ -89,14 +89,14 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
         self::assertSame([$repositoryId], $this->signalledRepositories());
     }
 
-    public function test_an_installation_removal_empties_the_summary_of_each_project_and_fires_one_event_for_each(): void
+    public function test_an_installation_losing_access_empties_the_summary_of_each_project_and_fires_one_event_for_each(): void
     {
         $first = $this->project();
         $second = $this->project();
         $this->blockingRepository($first, ['no_pull_request_rule'], ForgeRepositorySource::Installation, '77');
         $this->blockingRepository($second, ['deletion_allowed'], ForgeRepositorySource::Installation, '77');
 
-        $this->repositories->releaseInstallation('github', '77');
+        $this->repositories->loseAccess('github', '77');
 
         self::assertEqualsCanonicalizing(
             [(string) $first->id, (string) $second->id],

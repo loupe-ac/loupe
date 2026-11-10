@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Entity;
 
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
-use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * One installation of the GitHub App, bound to the project it was installed
- * for. A removed installation keeps its row, so a late delivery for it is
+ * One installation of the GitHub App, a fact about a GitHub account. It
+ * belongs to no project: a project uses it when one of its repository rows
+ * names it. A removed installation keeps its row, so a late delivery for it is
  * recognised and dropped.
  */
 #[ORM\Entity(repositoryClass: GitHubInstallationRepository::class)]
@@ -32,15 +32,7 @@ class GitHubInstallation
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $removedAt = null;
 
-    /** True when the connect-time listing stopped at its page cap, so a selection is not fully known. */
-    #[ORM\Column(options: ['default' => false])]
-    public bool $listIncomplete = false;
-
     public function __construct(
-        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        #[ORM\ManyToOne(targetEntity: Project::class)]
-        public readonly Project $project,
-
         #[ORM\Column(type: Types::BIGINT, unique: true)]
         public readonly int $installationId,
 
@@ -49,6 +41,10 @@ class GitHubInstallation
 
         #[ORM\Column(length: 20, enumType: GitHubRepositorySelection::class)]
         public GitHubRepositorySelection $repositorySelection,
+
+        /** GitHub's numeric id of the account, which survives a rename. Null until a delivery or the backfill fills it. */
+        #[ORM\Column(type: Types::BIGINT, nullable: true)]
+        public ?int $accountId = null,
 
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),

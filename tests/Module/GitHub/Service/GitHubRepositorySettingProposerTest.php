@@ -375,7 +375,7 @@ final class GitHubRepositorySettingProposerTest extends KernelTestCase
     private function repository(int $installationId): ForgeRepository
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'acme', GitHubRepositorySelection::Selected));
         $repository = new ForgeRepository($project, 'github', (string) $installationId, 'acme/app', ForgeRepositorySource::Installation, (string) $installationId);
         $this->em->persist($repository);
         $this->em->flush();

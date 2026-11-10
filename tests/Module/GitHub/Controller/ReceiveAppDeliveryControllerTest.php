@@ -62,22 +62,21 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertNull($this->installationOwnerOf(603));
     }
 
-    public function test_an_installation_that_reaches_all_repositories_claims_on_first_delivery(): void
+    public function test_an_installation_that_reaches_all_repositories_claims_nothing_on_a_delivery(): void
     {
         $client = static::createClient();
         $client->disableReboot();
-        $this->configureAppKey();
         $project = $this->project('all');
-        $this->installation($project, 9_000_604, GitHubRepositorySelection::All);
+        $this->installation(9_000_604, GitHubRepositorySelection::All);
         $this->linkedCard($project, 'acme/d', 3);
-        $tracked = $this->trackedPullRequest($project, 'acme/d', 3, 'aaa111');
+        $this->trackedPullRequest($project, 'acme/d', 3, 'aaa111');
 
         $this->deliver($client, self::PATH, 'pull_request', $this->merged(604, 'acme/d', 3, ['installation' => ['id' => 9_000_604]]), self::SECRET);
 
         self::assertResponseIsSuccessful();
-        self::assertEquals($project->id, $this->installationOwnerOf(604)?->project->id);
-        self::assertSame([[$tracked, false]], $this->queuedRefreshes());
-        self::assertSame([], $this->outboxSubjects($project), 'A state read announces an installation repository, not the bare fact.');
+        self::assertNull($this->installationOwnerOf(604));
+        self::assertSame([], $this->queuedRefreshes());
+        self::assertSame([], $this->outboxSubjects($project));
     }
 
     public function test_an_installation_with_selected_repositories_never_claims_on_a_delivery(): void
@@ -85,7 +84,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('selected');
-        $this->installation($project, 9_000_605);
+        $this->installation(9_000_605);
         $this->linkedCard($project, 'acme/e', 3);
         $this->trackedPullRequest($project, 'acme/e', 3, 'aaa111');
 
@@ -97,29 +96,12 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame([], $this->outboxSubjects($project));
     }
 
-    public function test_a_selected_installation_with_an_incomplete_list_claims_on_first_delivery(): void
-    {
-        $client = static::createClient();
-        $client->disableReboot();
-        $project = $this->project('incomplete');
-        $installation = $this->installation($project, 9_000_615);
-        $installation->listIncomplete = true;
-        $this->em()->flush();
-        $tracked = $this->trackedPullRequest($project, 'acme/f', 3, 'aaa111');
-
-        $this->deliver($client, self::PATH, 'pull_request', $this->merged(615, 'acme/f', 3, ['installation' => ['id' => 9_000_615]]), self::SECRET);
-
-        self::assertResponseIsSuccessful();
-        self::assertEquals($project->id, $this->installationOwnerOf(615)?->project->id);
-        self::assertSame([[$tracked, false]], $this->queuedRefreshes());
-    }
-
     public function test_a_repository_the_installation_project_owns_is_announced(): void
     {
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('owned');
-        $this->installation($project, 9_000_606);
+        $this->installation(9_000_606);
         $this->owned($project, 606, 'acme/f', ForgeRepositorySource::Installation, 9_000_606);
         $tracked = $this->trackedPullRequest($project, 'acme/f', 3, 'aaa111');
 
@@ -135,7 +117,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client->disableReboot();
         $this->configureAppKey();
         $project = $this->project('app-review');
-        $this->installation($project, 9_000_607);
+        $this->installation(9_000_607);
         $this->owned($project, 607, 'acme/v', ForgeRepositorySource::Installation, 9_000_607);
         $tracked = $this->trackedPullRequest($project, 'acme/v', 12, 'aaa111');
 
@@ -157,7 +139,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('no-key');
-        $this->installation($project, 9_000_608);
+        $this->installation(9_000_608);
         $this->owned($project, 608, 'acme/k', ForgeRepositorySource::Installation, 9_000_608);
         $card = $this->linkedCard($project, 'acme/k', 12);
         $this->trackedPullRequest($project, 'acme/k', 12, 'aaa111');
@@ -180,7 +162,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('refresh');
-        $this->installation($project, 9_000_620);
+        $this->installation(9_000_620);
         $this->owned($project, 620, 'Acme/R', ForgeRepositorySource::Installation, 9_000_620);
         $byNumber = $this->trackedPullRequest($project, 'acme/r', 3, 'aaa111');
         $byHead = $this->trackedPullRequest($project, 'acme/r', 4, 'bbb222');
@@ -202,7 +184,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('push');
-        $this->installation($project, 9_000_621);
+        $this->installation(9_000_621);
         $this->owned($project, 621, 'acme/s', ForgeRepositorySource::Installation, 9_000_621);
         $onMain = $this->trackedPullRequest($project, 'acme/s', 1, 'aaa111');
         $this->trackedPullRequest($project, 'acme/s', 2, 'bbb222', 'release');
@@ -222,7 +204,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('pushed');
-        $this->installation($project, 9_000_622);
+        $this->installation(9_000_622);
         $this->owned($project, 622, 'acme/t', ForgeRepositorySource::Installation, 9_000_622);
         $announced = new RecordedEvents();
         $dispatcher = static::getContainer()->get('event_dispatcher');
@@ -246,7 +228,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client->disableReboot();
         $project = $this->project('default-push');
         $other = $this->project('default-push-other');
-        $this->installation($project, 9_000_631);
+        $this->installation(9_000_631);
         $this->owned($project, 631, 'acme/u', ForgeRepositorySource::Installation, 9_000_631);
         $this->owned($other, 631, 'acme/u', ForgeRepositorySource::Hook);
         $repositoryId = (string) $this->forgeRepositoryRepository()->findInstallationRow('github', '631')?->id;
@@ -263,7 +245,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('other-push');
-        $this->installation($project, 9_000_632);
+        $this->installation(9_000_632);
         $this->owned($project, 632, 'acme/v', ForgeRepositorySource::Installation, 9_000_632);
         $payload = ['installation' => ['id' => 9_000_632], 'repository' => ['id' => 632, 'full_name' => 'acme/v', 'default_branch' => 'main']];
 
@@ -280,7 +262,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('no-default');
-        $this->installation($project, 9_000_633);
+        $this->installation(9_000_633);
         $this->owned($project, 633, 'acme/w', ForgeRepositorySource::Installation, 9_000_633);
 
         $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/main', 'installation' => ['id' => 9_000_633], 'repository' => ['id' => 633, 'full_name' => 'acme/w']], self::SECRET);
@@ -289,25 +271,24 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame([], $this->queuedWorkflowReads());
     }
 
-    public function test_the_claim_of_a_repository_queues_a_read_and_a_refused_or_known_one_does_not(): void
+    public function test_an_added_repository_is_claimed_by_nobody_and_queues_no_read(): void
     {
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('claim-read');
-        $holder = $this->project('claim-read-holder');
-        $this->installation($project, 9_000_634);
+        $this->installation(9_000_634);
         $this->owned($project, 6343, 'acme/known', ForgeRepositorySource::Installation, 9_000_634);
-        $this->owned($holder, 6342, 'acme/theirs', ForgeRepositorySource::Installation, 1);
 
         $this->deliver($client, self::PATH, 'installation_repositories', [
             'action' => 'added',
             'installation' => ['id' => 9_000_634],
             'repository_selection' => 'all',
-            'repositories_added' => [['id' => 6341, 'full_name' => 'acme/arriving'], ['id' => 6342, 'full_name' => 'acme/theirs'], ['id' => 6343, 'full_name' => 'acme/known']],
+            'repositories_added' => [['id' => 6341, 'full_name' => 'acme/arriving'], ['id' => 6343, 'full_name' => 'acme/known']],
         ], self::SECRET);
 
         self::assertResponseIsSuccessful();
-        self::assertSame([(string) $this->installationOwnerOf(6341)?->id], $this->queuedWorkflowReads());
+        self::assertNull($this->installationOwnerOf(6341));
+        self::assertSame([], $this->queuedWorkflowReads());
     }
 
     public function test_a_repository_another_installation_owns_is_dropped(): void
@@ -316,7 +297,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client->disableReboot();
         $project = $this->project('installed');
         $holder = $this->project('holder');
-        $this->installation($project, 9_000_607, GitHubRepositorySelection::All);
+        $this->installation(9_000_607, GitHubRepositorySelection::All);
         $this->owned($holder, 607, 'acme/g', ForgeRepositorySource::Installation, 1);
         $this->linkedCard($project, 'acme/g', 3);
 
@@ -327,13 +308,13 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertEquals($holder->id, $this->installationOwnerOf(607)?->project->id);
     }
 
-    public function test_repositories_added_are_claimed_and_repositories_removed_are_released(): void
+    public function test_repositories_removed_keep_their_row_as_no_access_and_added_ones_are_not_claimed(): void
     {
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('changed');
         $holder = $this->project('holder');
-        $this->installation($project, 9_000_608);
+        $this->installation(9_000_608);
         $this->owned($project, 6082, 'acme/leaving', ForgeRepositorySource::Installation, 9_000_608);
         $this->owned($holder, 6083, 'acme/theirs', ForgeRepositorySource::Installation, 1);
 
@@ -346,9 +327,10 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         ], self::SECRET);
 
         self::assertResponseIsSuccessful();
-        self::assertEquals($project->id, $this->installationOwnerOf(6081)?->project->id);
-        self::assertNull($this->installationOwnerOf(6082));
+        self::assertNull($this->installationOwnerOf(6081));
+        self::assertNotNull($this->installationOwnerOf(6082)?->accessLostAt);
         self::assertEquals($holder->id, $this->installationOwnerOf(6083)?->project->id);
+        self::assertNull($this->installationOwnerOf(6083)?->accessLostAt);
         self::assertSame(GitHubRepositorySelection::All, $this->storedInstallation(9_000_608)->repositorySelection);
     }
 
@@ -357,7 +339,8 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('suspended');
-        $this->installation($project, 9_000_609, GitHubRepositorySelection::All);
+        $this->installation(9_000_609, GitHubRepositorySelection::All);
+        $this->owned($project, 609, 'acme/h', ForgeRepositorySource::Installation, 9_000_609);
         $tracked = $this->trackedPullRequest($project, 'acme/h', 3, 'aaa111');
         $installation = ['installation' => ['id' => 9_000_609]];
 
@@ -372,13 +355,12 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame([[$tracked, false]], $this->queuedRefreshes());
     }
 
-    /** The payload may omit the list, so the release reads the stored installation reference. */
-    public function test_a_deleted_installation_keeps_its_row_and_releases_its_repositories(): void
+    public function test_a_deleted_installation_keeps_its_rows_as_no_access(): void
     {
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('deleted');
-        $this->installation($project, 9_000_610);
+        $this->installation(9_000_610);
         $this->owned($project, 610, 'acme/i', ForgeRepositorySource::Installation, 9_000_610);
         $this->owned($project, 6101, 'acme/unlisted', ForgeRepositorySource::Installation, 9_000_610);
         $this->owned($project, 6102, 'acme/hooked');
@@ -391,9 +373,9 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertNotNull($this->storedInstallation(9_000_610)->removedAt);
-        self::assertNull($this->rowOf($project, 610));
-        self::assertNull($this->rowOf($project, 6101));
-        self::assertNotNull($this->rowOf($project, 6102), 'A hook row outlives the installation.');
+        self::assertNotNull($this->rowOf($project, 610)?->accessLostAt);
+        self::assertNotNull($this->rowOf($project, 6101)?->accessLostAt, 'The payload may omit the list, so the stored installation reference decides.');
+        self::assertNull($this->rowOf($project, 6102)?->accessLostAt, 'A hook row has no installation to lose.');
     }
 
     public function test_a_suspended_installation_claims_no_added_repository(): void
@@ -401,7 +383,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('suspended-add');
-        $installation = $this->installation($project, 9_000_612);
+        $installation = $this->installation(9_000_612);
         $installation->suspendedAt = new \DateTimeImmutable();
         $this->em()->flush();
 
@@ -415,41 +397,130 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertNull($this->rowOf($project, 612));
     }
 
-    /** A rename that arrives with a selection change repoints the links like a delivery does. */
-    public function test_an_added_repository_under_a_new_path_repoints_the_project_links(): void
+    public function test_a_delivery_under_a_new_path_repoints_the_project_links(): void
     {
         $client = static::createClient();
         $client->disableReboot();
         $project = $this->project('renamed');
-        $this->installation($project, 9_000_613);
+        $this->installation(9_000_613);
         $this->owned($project, 613, 'acme/old', ForgeRepositorySource::Installation, 9_000_613);
         $card = $this->linkedCard($project, 'acme/old', 1);
 
-        $this->deliver($client, self::PATH, 'installation_repositories', [
-            'action' => 'added',
-            'installation' => ['id' => 9_000_613],
-            'repositories_added' => [['id' => 613, 'full_name' => 'acme/new']],
-        ], self::SECRET);
+        $this->deliver($client, self::PATH, 'pull_request', $this->merged(613, 'acme/new', 1, ['installation' => ['id' => 9_000_613]]), self::SECRET);
 
         self::assertResponseIsSuccessful();
         self::assertSame(['acme/new'], $this->linkPaths($card));
     }
 
-    public function test_a_created_event_for_a_known_installation_claims_its_repositories(): void
+    public function test_a_created_event_for_an_unknown_installation_records_it_and_claims_nothing(): void
     {
         $client = static::createClient();
         $client->disableReboot();
-        $project = $this->project('created');
-        $this->installation($project, 9_000_611);
 
         $this->deliver($client, self::PATH, 'installation', [
             'action' => 'created',
-            'installation' => ['id' => 9_000_611, 'repository_selection' => 'selected'],
+            'installation' => ['id' => 9_000_611, 'repository_selection' => 'selected', 'account' => ['id' => 4_001, 'login' => 'acme']],
             'repositories' => [['id' => 611, 'full_name' => 'acme/j']],
         ], self::SECRET);
 
         self::assertResponseIsSuccessful();
-        self::assertEquals($project->id, $this->installationOwnerOf(611)?->project->id);
+        $stored = $this->storedInstallation(9_000_611);
+        self::assertSame('acme', $stored->accountLogin);
+        self::assertSame(4_001, $stored->accountId);
+        self::assertSame(GitHubRepositorySelection::Selected, $stored->repositorySelection);
+        self::assertNull($this->installationOwnerOf(611));
+    }
+
+    public function test_an_event_other_than_created_does_not_record_an_unknown_installation(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+
+        $this->deliver($client, self::PATH, 'installation', [
+            'action' => 'unsuspend',
+            'installation' => ['id' => 9_000_614, 'account' => ['id' => 4_002, 'login' => 'acme']],
+        ], self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertNull(self::getContainer()->get(GitHubInstallationRepository::class)?->findOneByInstallationId(9_000_614));
+    }
+
+    public function test_every_installation_event_updates_the_login_the_account_id_and_the_selection(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->installation(9_000_616);
+
+        $this->deliver($client, self::PATH, 'installation', [
+            'action' => 'unsuspend',
+            'installation' => ['id' => 9_000_616, 'repository_selection' => 'all', 'account' => ['id' => 4_003, 'login' => 'acme-renamed']],
+        ], self::SECRET);
+
+        $stored = $this->storedInstallation(9_000_616);
+        self::assertSame('acme-renamed', $stored->accountLogin);
+        self::assertSame(4_003, $stored->accountId);
+        self::assertSame(GitHubRepositorySelection::All, $stored->repositorySelection);
+    }
+
+    public function test_a_no_access_row_reconnects_when_a_new_installation_of_the_same_account_shares_it(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('reconnect');
+        $this->installation(9_000_617, accountId: 4_004)->removedAt = new \DateTimeImmutable();
+        $this->owned($project, 617, 'acme/back', ForgeRepositorySource::Installation, 9_000_617);
+        $this->em()->flush();
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'created', 'installation' => ['id' => 9_000_618, 'account' => ['id' => 4_004, 'login' => 'acme']], 'repositories' => []], self::SECRET);
+        $this->loseAccessOf(617);
+
+        $this->deliver($client, self::PATH, 'installation_repositories', [
+            'action' => 'added',
+            'installation' => ['id' => 9_000_618, 'account' => ['id' => 4_004, 'login' => 'acme']],
+            'repositories_added' => [['id' => 617, 'full_name' => 'acme/back']],
+        ], self::SECRET);
+
+        $row = $this->installationOwnerOf(617) ?? self::fail('The row is gone.');
+        self::assertNull($row->accessLostAt);
+        self::assertSame('9000618', $row->sourceRef);
+    }
+
+    public function test_a_no_access_row_stays_when_the_new_installation_belongs_to_another_or_an_unknown_account(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('no-reconnect');
+        $this->installation(9_000_619, accountId: 4_005);
+        $this->installation(9_000_623, accountId: 4_006);
+        $this->installation(9_000_624);
+        $this->owned($project, 619, 'acme/stay', ForgeRepositorySource::Installation, 9_000_619);
+        $this->loseAccessOf(619);
+
+        foreach ([9_000_623, 9_000_624] as $newInstallation) {
+            $this->deliver($client, self::PATH, 'installation_repositories', [
+                'action' => 'added',
+                'installation' => ['id' => $newInstallation],
+                'repositories_added' => [['id' => 619, 'full_name' => 'acme/stay']],
+            ], self::SECRET);
+        }
+
+        $row = $this->installationOwnerOf(619);
+        self::assertNotNull($row?->accessLostAt);
+        self::assertSame('9000619', $row->sourceRef);
+    }
+
+    public function test_a_delivery_for_a_no_access_row_is_dropped(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('lost-delivery');
+        $this->installation(9_000_625);
+        $this->owned($project, 625, 'acme/lost', ForgeRepositorySource::Installation, 9_000_625);
+        $this->trackedPullRequest($project, 'acme/lost', 3, 'aaa111');
+        $this->loseAccessOf(625);
+
+        $this->deliver($client, self::PATH, 'pull_request', $this->merged(625, 'acme/lost', 3, ['installation' => ['id' => 9_000_625]]), self::SECRET);
+
+        self::assertSame([], $this->queuedRefreshes());
     }
 
     public function test_the_route_is_rate_limited_by_client_address(): void
@@ -464,6 +535,13 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame([Request::METHOD_POST], $route->getMethods());
         self::assertTrue($route->getDefault(RateLimitForgeDeliveries::MARKER));
         self::assertSame(RateLimitForgeDeliveries::KEY_BY_ADDRESS, $route->getDefault(RateLimitForgeDeliveries::KEYING));
+    }
+
+    private function loseAccessOf(int $repositoryId): void
+    {
+        $row = $this->installationOwnerOf($repositoryId) ?? throw new \LogicException('The repository has no installation row.');
+        $row->accessLostAt = new \DateTimeImmutable();
+        $this->em()->flush();
     }
 
     private function storedInstallation(int $installationId): GitHubInstallation

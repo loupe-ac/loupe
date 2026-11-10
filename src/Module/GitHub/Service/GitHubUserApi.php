@@ -155,7 +155,8 @@ final readonly class GitHubUserApi
             }
 
             $selection = GitHubRepositorySelection::tryFrom(\is_string($entry['repository_selection'] ?? null) ? $entry['repository_selection'] : '');
-            $installations[] = new GitHubUserInstallation($id, $login, $selection ?? GitHubRepositorySelection::Selected);
+            $accountId = \is_array($entry['account'] ?? null) ? ($entry['account']['id'] ?? null) : null;
+            $installations[] = new GitHubUserInstallation($id, $login, $selection ?? GitHubRepositorySelection::Selected, \is_int($accountId) ? $accountId : null);
         }
 
         return $installations;

@@ -7,16 +7,19 @@ namespace App\Module\GitHub\Service;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\ForgeConnectionReader;
 use App\Module\GitHub\GitHubDelivery;
-use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\Project\Entity\Project;
 
-/** GitHub has no nested path: a repository is an owner and a name. */
+/**
+ * A project is connected when it holds a GitHub repository row. An installation
+ * belongs to no project until a repository row names it.
+ *
+ * GitHub has no nested path: a repository is an owner and a name.
+ */
 final readonly class GitHubConnectionReader implements ForgeConnectionReader
 {
     private const string PATH = '~^(?!\.{1,2}/)[A-Za-z0-9_.-]+/(?!\.{1,2}$)[A-Za-z0-9_.-]+$~D';
 
     public function __construct(
-        private GitHubInstallationRepository $gitHubInstallations,
         private ForgeRepositoryRepository $forgeRepositories,
     ) {
     }
@@ -36,12 +39,6 @@ final readonly class GitHubConnectionReader implements ForgeConnectionReader
     #[\Override]
     public function isConnected(Project $project): bool
     {
-        foreach ($this->gitHubInstallations->findByProject($project) as $installation) {
-            if (null === $installation->removedAt) {
-                return true;
-            }
-        }
-
         return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => GitHubDelivery::FORGE === $repository->forge);
     }
 

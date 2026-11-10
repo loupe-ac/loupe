@@ -47,13 +47,14 @@ final class ForgeRepositoryCheckRepository extends ServiceEntityRepository
     /**
      * Reads the rows from the database and skips the identity map, because a
      * row can change in another session while this one holds the project lock.
+     * A repository with no access holds nothing, because Loupe cannot read it.
      *
      * @return array<string, list<array{key: string, mark: string, state: string, gaps: list<string>, parameters: array<string, mixed>}>> the items of each repository, by repository id
      */
     public function itemsByRepositoryOfProject(Project $project): array
     {
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT repository_id, items FROM forge_repository_checks WHERE project_id = :project',
+            'SELECT c.repository_id, c.items FROM forge_repository_checks c JOIN forge_repositories r ON r.id = c.repository_id WHERE c.project_id = :project AND r.access_lost_at IS NULL',
             ['project' => $project->id],
             ['project' => UuidType::NAME],
         );

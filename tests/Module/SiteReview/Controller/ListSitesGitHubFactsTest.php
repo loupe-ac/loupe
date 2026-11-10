@@ -52,7 +52,7 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         $owner = $this->user($em, 'github-facts-read@example.com');
         $project = new Project($owner, 'github-facts-read');
         $em->persist($project);
-        $installation = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $installation = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
         $em->persist($installation);
         $em->flush();
         $this->installationId = (string) $installation->installationId;
@@ -102,7 +102,7 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         $owner = $this->user($em, 'github-facts-removed@example.com');
         $project = new Project($owner, 'github-facts-removed');
         $em->persist($project);
-        $installation = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $installation = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
         $installation->removedAt = new \DateTimeImmutable();
         $em->persist($installation);
         $em->persist(new ForgeRepository($project, 'gitlab', 'gl-1', 'acme/gitlab', ForgeRepositorySource::Hook));
@@ -121,8 +121,8 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         $owner = $this->user($em, 'github-facts-coverage@example.com');
         $project = new Project($owner, 'github-facts-coverage');
         $em->persist($project);
-        $live = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
-        $removed = new GitHubInstallation($project, random_int(1, \PHP_INT_MAX), 'other', GitHubRepositorySelection::All);
+        $live = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $removed = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'other', GitHubRepositorySelection::All);
         $removed->removedAt = new \DateTimeImmutable();
         $em->persist($live);
         $em->persist($removed);
@@ -138,6 +138,27 @@ final class ListSitesGitHubFactsTest extends WebTestCase
             ['acme/covered' => true, 'acme/hook' => false, 'other/removed' => false],
             array_column($site['github']['repositories'], 'appInstalled', 'path'),
         );
+    }
+
+    public function test_a_repository_with_no_access_is_not_covered_and_does_not_install_the_app_for_the_project(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+        $owner = $this->user($em, 'github-facts-no-access@example.com');
+        $project = new Project($owner, 'github-facts-no-access');
+        $em->persist($project);
+        $live = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $em->persist($live);
+        $lost = new ForgeRepository($project, 'github', 'ext-lost', 'acme/lost', ForgeRepositorySource::Installation, (string) $live->installationId);
+        $lost->accessLostAt = new \DateTimeImmutable();
+        $em->persist($lost);
+        $em->flush();
+
+        $site = $this->onlySite($client, $owner);
+
+        self::assertFalse($site['github']['appInstalled']);
+        self::assertSame(['acme/lost' => false], array_column($site['github']['repositories'], 'appInstalled', 'path'));
     }
 
     /** @return array<string, mixed> */

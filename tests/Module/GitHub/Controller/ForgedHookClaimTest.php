@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Controller;
 
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -42,7 +43,8 @@ final class ForgedHookClaimTest extends WebTestCase
         $client->disableReboot();
         $victim = $this->project('victim');
         $forger = $this->project('forger');
-        $this->installation($victim, 9_000_702, GitHubRepositorySelection::All);
+        $this->installation(9_000_702, GitHubRepositorySelection::All);
+        $this->owned($victim, 702, 'acme/target', ForgeRepositorySource::Installation, 9_000_702);
         $forgerHook = $this->hook($forger);
         $victimTracked = $this->trackedPullRequest($victim, 'acme/target', 7, 'aaa111');
         $forgerCard = $this->linkedCard($forger, 'acme/target', 7);
