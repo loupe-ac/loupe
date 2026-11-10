@@ -60,6 +60,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
     private ?MockResponse $apiFailure = null;
 
+    /** @var list<\Closure(): void> run before the next repository listing is served */
+    private array $beforeListing = [];
+
     /** @var list<int> */
     private array $failingRepositoryListings = [];
 
@@ -98,6 +101,11 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             if (1 === preg_match('#^/user/installations/(\d+)/repositories$#', $path, $match)) {
                 if (\in_array((int) $match[1], $this->failingRepositoryListings, true)) {
                     return new MockResponse('{}', ['http_code' => 503]);
+                }
+
+                $hook = array_shift($this->beforeListing);
+                if (null !== $hook) {
+                    $hook();
                 }
 
                 $repositories = $this->repositories[(int) $match[1]] ?? [];
@@ -852,6 +860,29 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertNotNull($this->installationRow());
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
         self::assertResponseRedirects('/projects/'.$project->id.'/github/install', null, 'The token is gone after the add.');
+    }
+
+    public function test_a_fresh_install_whose_only_repository_is_taken_first_names_it_and_returns_to_the_tab(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('freshrace');
+        $project = $this->projectOf($owner);
+        $rival = $this->projectOf($this->signedUpUser('freshracer'));
+        $this->em()->clear();
+        $listings = 0;
+        $this->beforeListing = [static function (): void {}, function () use ($rival, &$listings): void {
+            ++$listings;
+            $this->em()->persist(new ForgeRepository($this->em()->find(Project::class, $rival->id) ?? throw new \LogicException('The rival project exists.'), 'github', '101', 'acme/api', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+            $this->em()->flush();
+        }];
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertSame(1, $listings);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        self::assertStringContainsString('Loupe could not add acme/api', $this->followedText());
     }
 
     public function test_a_fresh_install_counts_only_the_free_repositories_of_the_new_installation(): void

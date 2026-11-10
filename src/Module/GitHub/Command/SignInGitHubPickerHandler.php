@@ -83,6 +83,6 @@ final readonly class SignInGitHubPickerHandler
         $repository = $free[0]->repository;
         $added = ($this->addRepositories)(new AddGitHubRepositoriesCommand($project, [new GitHubRepositoryPick($pending->installationId, $repository->id, $repository->fullName)]));
 
-        return new GitHubPickerSignIn($added->added[0] ?? null);
+        return new GitHubPickerSignIn($added->added[0] ?? null, $added->refused);
     }
 }

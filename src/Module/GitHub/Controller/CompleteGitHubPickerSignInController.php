@@ -80,6 +80,15 @@ class CompleteGitHubPickerSignInController extends AppController
             return $tab;
         }
 
+        if ([] !== $signedIn->refused) {
+            $this->addFlash('warning', $this->translator->trans('github.picker.flash.refused', [
+                '%count%' => \count($signedIn->refused),
+                '%repositories%' => implode(', ', $signedIn->refused),
+            ]));
+
+            return $tab;
+        }
+
         return $this->redirectToRoute('app_github_repositories_picker', ['id' => $pending->projectId]);
     }
 }
