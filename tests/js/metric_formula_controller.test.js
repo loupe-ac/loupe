@@ -24,16 +24,30 @@ function optionsOf(select) {
     return [...select.options].map((option) => option.value);
 }
 
-async function mount() {
+function renderedRow(letter, metric) {
+    return `<div data-metric-formula-target="row" data-letter="${letter}">
+        <span data-metric-formula-role="letter">${letter}</span>
+        <select data-metric-formula-role="metric" data-action="change->metric-formula#rowMetricChanged">
+            <option value="">Choose</option>
+            <option value="cost"${'cost' === metric ? ' selected' : ''}>Cost</option>
+            <option value="wakes"${'wakes' === metric ? ' selected' : ''}>Wakes</option>
+        </select>
+        <select data-metric-formula-role="statistic" data-action="change->metric-formula#change"><option value="sum" selected>Sum</option></select>
+        <button type="button" aria-label="Remove row ${letter}" data-action="click->metric-formula#removeRow"></button>
+    </div>`;
+}
+
+async function mount({ open = false } = {}) {
     application = Application.start();
     application.register('metric-formula', MetricFormulaController);
     document.body.innerHTML = `<form data-controller="metric-formula" data-action="submit->metric-formula#guard"
         data-metric-formula-joinable-value='${JSON.stringify(JOINABLE)}'
         data-metric-formula-labels-value='{"sum":"Sum","mean":"Mean","count":"Count"}'
         data-metric-formula-check-url-value="/check"
-        data-metric-formula-default-metric-value="cost">
-        <div data-metric-formula-target="panel" hidden>
-            <div data-metric-formula-target="rows"></div>
+        data-metric-formula-default-metric-value="cost"
+        data-metric-formula-open-value="${open}">
+        <div data-metric-formula-target="panel"${open ? '' : ' hidden'}>
+            <div data-metric-formula-target="rows">${open ? renderedRow('A', 'cost') + renderedRow('B', 'wakes') : ''}</div>
             <template data-metric-formula-target="rowTemplate"><div data-metric-formula-target="row" data-letter="@">
                 <span data-metric-formula-role="letter">@</span>
                 <select data-metric-formula-role="metric" data-action="change->metric-formula#rowMetricChanged">
@@ -48,7 +62,7 @@ async function mount() {
             <template data-metric-formula-target="unitTemplate"><option value="run">Run</option><option value="card">Card</option></template>
             <template data-metric-formula-target="groupTemplate"><option value="none">None</option><option value="model">Model</option><option value="wake-kind">Wake kind</option></template>
             <button type="button" data-metric-formula-target="addRow" data-action="click->metric-formula#addRow"></button>
-            <input data-metric-formula-target="formulaText" data-action="input->metric-formula#change">
+            <input data-metric-formula-target="formulaText" data-action="input->metric-formula#change" value="${open ? 'A / B' : ''}">
             <select data-metric-formula-target="format"><option value="auto">Auto</option></select>
             <input type="hidden" name="rows" data-metric-formula-target="rowsField" disabled>
             <input type="hidden" name="formula" data-metric-formula-target="formulaField" disabled>
@@ -250,6 +264,21 @@ it('submits when the check says the formula runs', async () => {
     expect(String(fetch.mock.calls.at(-1)[0])).toContain(
         'rows=A%3Acost%3Asum%2CB%3Awakes%3Asum',
     );
+});
+
+it('adds an empty row without a visit, because the query does not change', async () => {
+    fetch.mockResolvedValue({ json: async () => ({ ok: true, error: null }) });
+    const form = await mount({ open: true });
+    document.querySelector('[data-metric-formula-target="addRow"]').click();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(rows().map((row) => row.dataset.letter)).toEqual(['A', 'B', 'C']);
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+
+    await pick(rows()[2], 'cost');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(form.requestSubmit).toHaveBeenCalled();
 });
 
 it('keeps Save off and blocks the submit when a check fails to answer', async () => {

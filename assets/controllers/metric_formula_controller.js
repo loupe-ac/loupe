@@ -45,9 +45,12 @@ export default class extends Controller {
         this.checking = false;
         this.unverified = false;
         this.timer = null;
+        this.shown = null;
         if (this.openValue) {
             this.narrow();
             this.#updateAddRow();
+            this.#compose();
+            this.shown = this.#signature();
         }
         if (!this.errorTarget.hidden && '' !== this.errorTarget.textContent) {
             this.#setInvalid(this.errorTarget.textContent);
@@ -321,10 +324,21 @@ export default class extends Controller {
         this.checking = false;
         if (result.ok) {
             this.#setInvalid(null);
-            this.element.requestSubmit();
+            // An empty row adds nothing to the query, so the graph on the page is still right.
+            if (this.#signature() !== this.shown) {
+                this.element.requestSubmit();
+            }
         } else {
             this.#setInvalid(result.error);
         }
+    }
+
+    #signature() {
+        return [
+            this.rowsFieldTarget.value,
+            this.formulaFieldTarget.value,
+            this.formatTarget.value,
+        ].join('\n');
     }
 
     #setInvalid(message) {
