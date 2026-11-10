@@ -190,7 +190,7 @@ Register it on GitHub under Settings, Developer settings, GitHub Apps.
 | Expire user authorization tokens | on |
 | Request user authorization (OAuth) during installation | off |
 | Setup URL | `https://<host>/github/app/setup` |
-| Redirect on update | off |
+| Redirect on update | on |
 | Webhook | active |
 | Webhook URL | `https://<host>/webhooks/forge/github` |
 | Webhook secret | the value of `GITHUB_APP_WEBHOOK_SECRET` |
@@ -307,10 +307,26 @@ A repository connected through a per-project webhook gets no pull request
 automation, because Loupe has no installation token for it. An App without this
 pair gets none either, and its repositories get the bare events.
 
-The install runs in this order. The owner selects Install on GitHub, and GitHub
-shows its install page. GitHub then sends the owner to the setup URL. Loupe asks
-GitHub to authorize the user, with a state and PKCE. The callback accepts the
+A repository joins a project only when its owner picks it. The owner selects
+Add repositories, and Loupe sends the owner through a GitHub sign-in with a
+state and PKCE. The callback keeps the user token, encrypted, in the session for
+30 minutes at most. Loupe lists the repositories that the token reaches with
+`GET /user/installations` and `GET /user/installations/{id}/repositories`. On
+submit, Loupe lists them again and claims only the repositories that the token
+still reaches.
+
+The owner selects Install on another account to install the App on a new
+account. GitHub shows its install page and then sends the owner to the setup
+URL. Loupe asks GitHub to authorize the user, and the callback accepts the
 installation only when `GET /user/installations` lists it for that user.
+
+"Redirect on update" must be on. After the owner adds or removes a repository
+on the installation page, GitHub then sends the owner to the setup URL. Loupe
+reopens the picker with a fresh list when the owner has a live sign-in. It
+ignores the `installation_id` of that request, because anyone can forge it. A
+visit to the setup URL with no sign-in in progress shows a message and changes
+nothing. An operator who leaves the setting off loses only the automatic return:
+the picker has a Refresh list link.
 
 ## Open questions to verify against a real App
 

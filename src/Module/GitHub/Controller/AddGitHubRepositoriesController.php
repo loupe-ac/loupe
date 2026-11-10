@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\GitHub\Controller;
+
+use App\Controller\AppController;
+use App\Exception\DomainErrors;
+use App\Module\GitHub\Command\AddGitHubRepositoriesCommand;
+use App\Module\GitHub\Command\AddGitHubRepositoriesHandler;
+use App\Module\GitHub\Form\PickRepositoriesFormType;
+use App\Module\GitHub\Form\PickRepositoriesRequest;
+use App\Module\GitHub\Security\GitHubConnectionVoter;
+use App\Module\Project\Entity\Project;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+#[IsGranted(GitHubConnectionVoter::MANAGE, subject: 'project')]
+#[Route(
+    '/projects/{id:project}/github/repositories',
+    name: 'app_github_repositories_add',
+    methods: ['POST'],
+)]
+class AddGitHubRepositoriesController extends AppController
+{
+    public function __construct(
+        private readonly AddGitHubRepositoriesHandler $addRepositories,
+        private readonly TranslatorInterface $translator,
+    ) {
+    }
+
+    public function __invoke(Project $project, Request $request): Response
+    {
+        $picker = $this->redirectToRoute('app_github_repositories_picker', ['id' => (string) $project->id]);
+        $data = new PickRepositoriesRequest();
+        $form = $this->createForm(PickRepositoriesFormType::class, $data)->handleRequest($request);
+        $picks = $data->picks();
+        if (!$form->isSubmitted() || !$form->isValid() || [] === $picks) {
+            $this->addFlash('error', $this->translator->trans('github.picker.flash.nothing_ticked'));
+
+            return $picker;
+        }
+
+        try {
+            $added = ($this->addRepositories)(new AddGitHubRepositoriesCommand($project, $picks));
+        } catch (DomainErrors $e) {
+            if (\array_key_exists('token', $e->errors)) {
+                return $this->redirectToRoute('app_github_repositories_start', ['id' => (string) $project->id]);
+            }
+
+            foreach ($e->errors as $translationKey) {
+                $this->addFlash('error', $this->translator->trans($translationKey));
+            }
+
+            return $picker;
+        }
+
+        if ([] !== $added->added) {
+            $this->addFlash('success', $this->translator->trans('github.picker.flash.added', ['%count%' => \count($added->added)]));
+        }
+
+        if ([] !== $added->refused) {
+            $this->addFlash('warning', $this->translator->trans('github.picker.flash.refused', [
+                '%count%' => \count($added->refused),
+                '%repositories%' => implode(', ', $added->refused),
+            ]));
+        }
+
+        return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
+    }
+}

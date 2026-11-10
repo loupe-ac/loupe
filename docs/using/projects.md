@@ -86,7 +86,7 @@ Connect a GitHub repository, and a merge, a review or a check result in it reach
 [The board](board.md#what-github-tells-a-card) says what a card receives.
 
 Loupe knows a repository by the ID GitHub gives it, so a rename or a transfer keeps it in the same project.
-Through the GitHub App, a repository belongs to one project only. When another project already holds a repository, Loupe does not connect it here. Two projects can still use one installation of the App for different repositories.
+Through the GitHub App, a repository belongs to one project only. When another project already holds a repository, you cannot add it here. Two projects can still use one installation of the App for different repositories.
 A webhook feeds only the project it belongs to, and it blocks no other project.
 
 Connections offers two methods. The operator of the instance decides which ones are available.
@@ -108,12 +108,29 @@ Select Generate a new secret to replace the secret. The old secret stops working
 
 ### The GitHub App
 
-Select Install on GitHub. On GitHub, choose the account and the repositories the App can reach.
-GitHub then asks you to authorize Loupe. Loupe connects the installation only when GitHub lists it for your account.
 An installation belongs to a GitHub account, not to a project. Several projects of your account can use the same installation, each with its own repositories.
-The repositories of the installation that your GitHub account can reach, and that no other project holds, join the list when you connect it.
-A repository that you add later in the App settings on GitHub does not join on its own. A delivery for a repository that no project holds is dropped.
+A repository joins a project only when you pick it. A repository that you share with the App later does not join on its own, and a delivery for a repository that no project holds is dropped.
 The section says when GitHub suspends the installation or when someone uninstalls it.
+
+#### Add repositories
+
+Select Add repositories on the Repositories tab or on the Connections tab. GitHub asks you to sign in, which is one click when you already authorized Loupe.
+The picker then lists the repositories of every installation of the Loupe App that your own GitHub account can reach. It groups them by GitHub account and has a search box.
+Tick the repositories to add, then select Add N repositories. Nothing is ticked at first, and the picker only adds. Remove a repository on the Repositories tab.
+
+A repository in the list has one of three states:
+
+- A free repository has a tickbox.
+- A repository of this project shows In this project, ticked and greyed.
+- A repository that another project holds is greyed and has no tickbox. Its label names that project when you can open it. Otherwise it reads Used by another project.
+
+When Loupe adds the repositories, it asks GitHub again whether you still reach each one. When another project took a repository first, or someone removed it from the App on GitHub, Loupe adds the others and names the repository it could not add.
+The picker lists at most 1,000 repositories of one installation. A longer list shows "Showing the first 1,000 repositories of acme". Choose selected repositories on GitHub to narrow the access, and the other repositories show up.
+
+Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at most. It removes the sign-in when you add repositories, when you cancel, and on the first request after 30 minutes. After that, the picker asks you to sign in again.
+
+If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the picker after the change. Otherwise return to the picker and select Refresh list.
+Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens.
 
 #### No access
 

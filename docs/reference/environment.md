@@ -98,7 +98,7 @@ A new key pair makes every issued access token invalid. The apps then refresh, s
 
 | Variable | Purpose | Add by hand? |
 |---|---|---|
-| `APP_ENCRYPTION_KEY` | Encrypts `encrypted_string` columns. The secret of a per-project GitHub webhook is one, and so are the GitHub tokens of a user who connects a GitHub account. While the key is unset no project can create a webhook. **Losing it makes existing encrypted columns unreadable.** To replace it, follow [Rotating the encryption key](../operating/rotating-encryption-key.md). | No |
+| `APP_ENCRYPTION_KEY` | Encrypts `encrypted_string` columns. The secret of a per-project GitHub webhook is one, and so are the GitHub tokens of a user who connects a GitHub account. While the key is unset no project can create a webhook, and no owner can use the repository picker, which keeps a GitHub sign-in encrypted in the session for up to 30 minutes. **Losing it makes existing encrypted columns unreadable.** To replace it, follow [Rotating the encryption key](../operating/rotating-encryption-key.md). | No |
 | `APP_ENCRYPTION_KEY_PREVIOUS` | The key the instance used before a rotation. The app still reads values made with it, and writes new values with `APP_ENCRYPTION_KEY`. Leave it empty outside a rotation. **Secret.** | No |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Billing. Nothing instantiates the Stripe client until the `billing.enabled` feature flag is on. | No |
 | `SENTRY_DSN` | Sends errors, traces and profiles to Sentry, from web requests, worker messages and console commands. **Secret.** Optional and off by default: while it is empty, nothing goes to Sentry. [Sentry](../operating/sentry.md) says what it receives. | No |

@@ -49,6 +49,14 @@
                 <source>inbox.api.error.blocking_refused</source>
                 <target>An item from the API never blocks. Leave blocking out, or pass false.</target>
             </trans-unit>
+            <trans-unit id="github.form.pick_repositories_form.repositories.min">
+                <source>github.form.pick_repositories_form.repositories.min</source>
+                <target>Tick at least one repository.</target>
+            </trans-unit>
+            <trans-unit id="github.form.pick_repositories_form.repositories.invalid">
+                <source>github.form.pick_repositories_form.repositories.invalid</source>
+                <target>This repository choice is not valid.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

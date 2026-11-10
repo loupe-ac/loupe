@@ -14,6 +14,8 @@ final readonly class GitHubUserInstallation
         public string $accountLogin,
         public GitHubRepositorySelection $repositorySelection,
         public ?int $accountId = null,
+        /** The settings page of the installation on GitHub. */
+        public ?string $htmlUrl = null,
     ) {
     }
 }

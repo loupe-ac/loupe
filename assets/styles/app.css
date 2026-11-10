@@ -5228,6 +5228,44 @@
         @apply shrink-0 mt-0.5;
     }
 
+    /* The repository picker: one list for each GitHub account, a tickbox for each repository. */
+    .lp-picker-account {
+        @apply flex flex-col gap-2;
+    }
+    .lp-picker-account__head {
+        @apply flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1;
+    }
+    .lp-picker-account__name {
+        @apply m-0 text-base font-semibold text-ink;
+    }
+    .lp-picker-account__meta {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-picker-list {
+        @apply m-0 flex list-none flex-col rounded-xl border border-line p-0;
+    }
+    .lp-picker-repo {
+        @apply flex items-center gap-3 border-t border-line-faint px-4 py-2.5 text-sm text-ink first:border-t-0;
+    }
+    .lp-picker-repo[hidden] {
+        @apply hidden;
+    }
+    .lp-picker-repo--held {
+        @apply text-fg-dim;
+    }
+    .lp-picker-repo__check {
+        @apply size-4 m-0 shrink-0 cursor-pointer accent-accent-ink disabled:cursor-default;
+    }
+    .lp-picker-repo__gap {
+        @apply size-4 shrink-0;
+    }
+    .lp-picker-repo__name {
+        @apply min-w-0 grow truncate;
+    }
+    .lp-picker-repo__state {
+        @apply shrink-0 text-xs text-fg-dim;
+    }
+
     /* The Repositories section: a row for each repository, then its check list. */
     .lp-repository-list {
         @apply flex flex-col gap-6;
