@@ -111,7 +111,11 @@ The list is closed: the merge question, whether Loupe can read the branch rules,
 a conflict with a workflow requirement, and a worktree hook to carry over. The
 agent asks one question per turn about a blocker. It changes nothing in your
 tooling or workflow without your approval, and it proposes each edit to an
-instruction file or a project skill on its own.
+instruction file or a project skill on its own. When an instruction file
+contradicts a workflow requirement, you choose one of three answers. You can
+replace the existing instructions with the Loupe rule, update them so they
+agree with it, or keep them as they are. A kept requirement stays a problem in
+the summary.
 
 To write one by hand, create `.loupe/lifecycle.md`, and name the skills of
 your repository. The example is for a Node project on GitHub with the

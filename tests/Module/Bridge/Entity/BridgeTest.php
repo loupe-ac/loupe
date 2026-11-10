@@ -92,6 +92,62 @@ final class BridgeTest extends TestCase
         self::assertSame('0123456789ab', Bridge::labelFor('0199A3C4-0000-7000-8000-0123456789AB', null));
     }
 
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function accountsForAKind(): iterable
+    {
+        yield 'the account that lists the kind' => ['work', 'implement', true];
+        yield 'the app prompts account for a kind it lists' => ['prompts', 'review', true];
+        yield 'the app prompts account for a kind another account lists' => ['prompts', 'implement', false];
+        yield 'the app prompts account for an unmapped kind' => ['prompts', 'discovery', true];
+        yield 'another account for an unmapped kind' => ['work', 'discovery', false];
+        yield 'an unlisted account for an unmapped kind' => ['other', 'discovery', false];
+        yield 'the app prompts account for a mapped kind that no account runs' => ['prompts', 'teardown', false];
+    }
+
+    #[DataProvider('accountsForAKind')]
+    public function test_an_account_runs_the_kinds_it_lists_and_the_app_prompts_account_runs_the_unmapped_kinds(string $account, string $workKind, bool $runs): void
+    {
+        self::assertSame($runs, $this->bridgeWithAppPrompts()->accountRuns($account, $workKind));
+    }
+
+    public function test_a_bridge_with_an_app_prompts_account_runs_no_unmapped_kind_on_no_account(): void
+    {
+        $bridge = $this->bridgeWithAppPrompts();
+
+        self::assertFalse($bridge->runsOnNoAccount('discovery'));
+        self::assertTrue($bridge->runsOnNoAccount('teardown'));
+    }
+
+    public function test_a_bridge_with_no_app_prompts_account_runs_an_unmapped_kind_on_no_account(): void
+    {
+        $bridge = $this->bridgeWithAppPrompts(appPrompts: false);
+
+        self::assertTrue($bridge->runsOnNoAccount('discovery'));
+        self::assertFalse($bridge->accountRuns('prompts', 'discovery'));
+    }
+
+    public function test_a_failed_app_prompts_account_fails_the_project_for_an_unmapped_kind_alone(): void
+    {
+        $bridge = $this->bridgeWithAppPrompts(failedProjects: [['projectId' => 'p1', 'reason' => 'The login expired.']]);
+
+        self::assertTrue($bridge->failsProjectFor('p1', 'discovery'));
+        self::assertFalse($bridge->failsProjectFor('p1', 'implement'));
+        self::assertFalse($bridge->failsProjectFor('p2', 'discovery'));
+    }
+
+    /** @param list<array{projectId: string, reason: string}> $failedProjects */
+    private function bridgeWithAppPrompts(bool $appPrompts = true, array $failedProjects = []): Bridge
+    {
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+        $bridge->workKinds = ['implement', 'review', 'teardown'];
+        $bridge->accounts = [
+            ['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']],
+            ['name' => 'prompts', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['review'], 'failedProjects' => $failedProjects, 'appPrompts' => $appPrompts],
+        ];
+
+        return $bridge;
+    }
+
     private function request(?string $capability, ?string $prompt = null): WorkRequest
     {
         $request = new WorkRequest(

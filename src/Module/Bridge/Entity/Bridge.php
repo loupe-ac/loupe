@@ -337,16 +337,10 @@ class Bridge
         return WorkSubject::CARD === $subjectType ? $kind : $subjectType.':'.$kind;
     }
 
-    /** Whether the last heartbeat lists the account with the work kind, so a worker of the bridge can run the kind on it. */
+    /** Whether a worker of the bridge can run the work kind on the account, by the last heartbeat. */
     public function accountRuns(string $account, string $workKind): bool
     {
-        foreach ($this->accounts ?? [] as $row) {
-            if ($row['name'] === $account) {
-                return \in_array($workKind, $row['kinds'] ?? [], true);
-            }
-        }
-
-        return false;
+        return array_any($this->accountsRunning($workKind), static fn (array $row): bool => $row['name'] === $account);
     }
 
     /**
@@ -359,22 +353,32 @@ class Bridge
             return false;
         }
 
-        return array_all($this->accounts, fn ($row) => !(!isset($row['kinds']) || \in_array($workKind, $row['kinds'], true)));
+        return array_all($this->accounts, static fn (array $row): bool => isset($row['kinds'])) && [] === $this->accountsRunning($workKind);
     }
 
     /**
      * Whether an account that runs the work kind failed its check for the project, so the bridge skips that work of
-     * the project. One failed variant of an experiment holds back the whole kind, as the bridge matches its entry. A
-     * kind that the bridge does not map runs on the account of its app prompts.
+     * the project. One failed variant of an experiment holds back the whole kind, as the bridge matches its entry.
      */
     public function failsProjectFor(string $projectId, string $workKind): bool
     {
-        $runs = array_filter($this->accounts ?? [], static fn (array $row): bool => \in_array($workKind, $row['kinds'] ?? [], true));
-        if ([] === $runs && !\in_array($workKind, $this->workKinds, true)) {
-            $runs = array_filter($this->accounts ?? [], static fn (array $row): bool => $row['appPrompts'] ?? false);
+        return array_any($this->accountsRunning($workKind), static fn (array $row): bool => array_any($row['failedProjects'] ?? [], static fn (array $failed): bool => $failed['projectId'] === $projectId));
+    }
+
+    /**
+     * The accounts that list the work kind. A kind that no account lists and that the bridge does not map runs on the
+     * account of its app prompts. A mapped kind that no account lists runs no agent, so it runs on no account.
+     *
+     * @return list<AccountRow>
+     */
+    private function accountsRunning(string $workKind): array
+    {
+        $runs = array_values(array_filter($this->accounts ?? [], static fn (array $row): bool => \in_array($workKind, $row['kinds'] ?? [], true)));
+        if ([] !== $runs || \in_array($workKind, $this->workKinds, true)) {
+            return $runs;
         }
 
-        return array_any($runs, static fn (array $row): bool => array_any($row['failedProjects'] ?? [], static fn (array $failed): bool => $failed['projectId'] === $projectId));
+        return array_values(array_filter($this->accounts ?? [], static fn (array $row): bool => $row['appPrompts'] ?? false));
     }
 
     public function nameClashes(): bool
