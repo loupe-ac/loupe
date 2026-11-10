@@ -72,3 +72,16 @@ it('hides what does not match the search, and an account with no match', async (
             .hidden,
     ).toBe(false);
 });
+
+it('connects without error when the page has no submit button', async () => {
+    const errors = [];
+    application = Application.start();
+    application.handleError = (error) => errors.push(error);
+    application.register('repository-picker', RepositoryPickerController);
+    document.body.innerHTML = `<div data-controller="repository-picker"
+            data-repository-picker-none-value="Add repositories">
+        <p data-repository-picker-target="empty">None</p>
+    </div>`;
+    await settle();
+    expect(errors).toEqual([]);
+});

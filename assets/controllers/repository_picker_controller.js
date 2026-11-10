@@ -34,6 +34,10 @@ export default class extends Controller {
     }
 
     update() {
+        if (!this.hasSubmitTarget) {
+            return;
+        }
+
         const count = this.#ticked().length;
         this.submitTarget.disabled = count === 0;
         this.submitTarget.textContent =
