@@ -43,6 +43,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 class ShowMetricsController extends AppController
 {
+    private const string RESULT_FRAME = 'metrics-result';
+
     private const array CONTROLS = ['metric', 'unit', 'statistic', 'group', 'range', 'bucket', 'compare', 'chart', 'rows', 'formula', 'format'];
 
     public function __construct(
@@ -102,7 +104,8 @@ class ShowMetricsController extends AppController
             ['action' => $this->generateUrl('app_project_analytics_save_graph', ['id' => (string) $project->id])],
         );
 
-        return $this->render('@Insights/show_metrics.html.twig', [
+        $response = $this->render('@Insights/show_metrics.html.twig', [
+            'streams' => self::RESULT_FRAME === $request->headers->get('Turbo-Frame'),
             'graph' => $graph,
             'dirty' => $dirty,
             'saveForm' => $saveForm->createView(),
@@ -125,5 +128,8 @@ class ShowMetricsController extends AppController
             'compares' => MetricCompare::cases(),
             'chartTypes' => MetricChartType::cases(),
         ]);
+        $response->setVary('Turbo-Frame', false);
+
+        return $response;
     }
 }

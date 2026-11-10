@@ -2,12 +2,14 @@ import { Controller } from '@hotwired/stimulus';
 
 const LETTERS = 'ABCDEF';
 const CHECK_DELAY = 300;
+const FORMULA_OWNED = ['metrics-statistic', 'metrics-unit', 'metrics-group'];
 
 /**
- * The formula rows of the Metrics tab. It adds and removes rows, writes the hidden rows and formula
+ * The controls of the Metrics tab. It adds and removes formula rows, writes the hidden rows and formula
  * fields, narrows Unit, Group and each row's Metric list to what every row allows, and asks the server
- * whether the formula can run before the form submits. The rules come from the server, in the joinable
- * map. Only the intersection and the two fallbacks live here, and a visit corrects any difference.
+ * whether the formula can run before the form submits. The form reloads the result frame alone, and
+ * the frame answer corrects the options that depend on the query. The result shows busy from a change
+ * until its graph renders.
  */
 export default class extends Controller {
     static targets = [
@@ -44,8 +46,23 @@ export default class extends Controller {
         this.sequence = 0;
         this.checking = false;
         this.unverified = false;
+        this.waiting = false;
         this.timer = null;
         this.shown = null;
+        document.addEventListener(
+            'turbo:before-stream-render',
+            this.#onStreamRender,
+        );
+        document.addEventListener('turbo:frame-load', this.#onFrameLoad);
+        document.addEventListener(
+            'turbo:before-frame-render',
+            this.#onBeforeFrameRender,
+        );
+        document.addEventListener(
+            'turbo:fetch-request-error',
+            this.#onRequestError,
+        );
+        this.element.addEventListener('turbo:submit-end', this.#onSubmitEnd);
         if (this.openValue) {
             this.narrow();
             this.#updateAddRow();
@@ -59,6 +76,30 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.timer);
+        document.removeEventListener(
+            'turbo:before-stream-render',
+            this.#onStreamRender,
+        );
+        document.removeEventListener('turbo:frame-load', this.#onFrameLoad);
+        document.removeEventListener(
+            'turbo:before-frame-render',
+            this.#onBeforeFrameRender,
+        );
+        document.removeEventListener(
+            'turbo:fetch-request-error',
+            this.#onRequestError,
+        );
+        this.element.removeEventListener('turbo:submit-end', this.#onSubmitEnd);
+    }
+
+    /** A control that needs no check sends the form at once, so no older answer can undo it. */
+    apply() {
+        this.waiting = true;
+        if (this.openValue && this.invalid) {
+            return;
+        }
+        this.#setBusy(true);
+        this.element.requestSubmit();
     }
 
     open() {
@@ -68,6 +109,7 @@ export default class extends Controller {
         this.addFormulaTarget.hidden = true;
         this.singleTargets.forEach((field) => (field.hidden = true));
         this.metricTarget.disabled = true;
+        this.metricTarget.tomselect?.disable();
         this.statisticTarget.disabled = true;
         this.formatTarget.disabled = false;
         this.rowsFieldTarget.disabled = false;
@@ -105,6 +147,7 @@ export default class extends Controller {
         this.sequence += 1;
         this.checking = true;
         this.unverified = false;
+        this.#setBusy(true);
         this.#setSaveDisabled(true);
         this.#compose();
         this.narrow();
@@ -128,16 +171,38 @@ export default class extends Controller {
         this.checking = false;
         this.unverified = false;
         this.#setInvalid(null);
+        this.openValue = false;
+        this.panelTarget.hidden = true;
+        this.addFormulaTarget.hidden = false;
+        this.singleTargets.forEach((field) => (field.hidden = false));
         [
             this.rowsFieldTarget,
             this.formulaFieldTarget,
             this.formatTarget,
         ].forEach((field) => (field.disabled = true));
-        this.#appendHidden('metric', metric);
-        if (null !== statistic) {
-            this.#appendHidden('statistic', statistic);
+        this.metricTarget.disabled = false;
+        this.statisticTarget.disabled = false;
+        const tomSelect = this.metricTarget.tomselect;
+        if (tomSelect) {
+            tomSelect.enable();
+            tomSelect.setValue(metric, true);
+        } else {
+            this.metricTarget.value = metric;
         }
-        this.element.requestSubmit();
+        // The frame answer brings the Statistic list of the metric. An empty list lets the server pick.
+        this.statisticTarget.replaceChildren(
+            ...(null === statistic
+                ? []
+                : [
+                      new Option(
+                          this.labelsValue[statistic] ?? statistic,
+                          statistic,
+                          true,
+                          true,
+                      ),
+                  ]),
+        );
+        this.apply();
     }
 
     /** A formula that cannot run never submits. */
@@ -150,7 +215,14 @@ export default class extends Controller {
             (this.openValue && (this.checking || this.unverified))
         ) {
             event.preventDefault();
+            if (!this.checking) {
+                this.#setBusy(false);
+            }
+            return;
         }
+        this.waiting = false;
+        this.shown = this.openValue ? this.#signature() : null;
+        this.#setBusy(true);
     }
 
     narrow() {
@@ -314,6 +386,7 @@ export default class extends Controller {
                 // A check that never answered proves nothing, so Save stays off.
                 this.checking = false;
                 this.unverified = true;
+                this.#setBusy(false);
                 this.#setSaveDisabled(true);
             }
             return;
@@ -325,8 +398,10 @@ export default class extends Controller {
         if (result.ok) {
             this.#setInvalid(null);
             // An empty row adds nothing to the query, so the graph on the page is still right.
-            if (this.#signature() !== this.shown) {
+            if (this.waiting || this.#signature() !== this.shown) {
                 this.element.requestSubmit();
+            } else {
+                this.#setBusy(false);
             }
         } else {
             this.#setInvalid(result.error);
@@ -343,6 +418,9 @@ export default class extends Controller {
 
     #setInvalid(message) {
         this.invalid = null !== message;
+        if (this.invalid) {
+            this.#setBusy(false);
+        }
         this.errorTarget.hidden = null === message;
         this.errorTarget.textContent = message ?? '';
         this.element.toggleAttribute('data-formula-invalid', this.invalid);
@@ -364,12 +442,77 @@ export default class extends Controller {
         this.addRowTarget.hidden = this.rowTargets.length >= LETTERS.length;
     }
 
-    #appendHidden(name, value) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        this.element.append(input);
+    get #result() {
+        return document
+            .getElementById(this.element.dataset.turboFrame ?? '')
+            ?.closest('[data-metrics-result]');
+    }
+
+    #setBusy(busy) {
+        if (busy) {
+            this.#result?.setAttribute('aria-busy', 'true');
+        } else {
+            this.#result?.removeAttribute('aria-busy');
+        }
+    }
+
+    /**
+     * An answer that lands while a newer change waits to go out must not reset that change. In a
+     * formula the rows narrow Statistic, Unit and Group, so their streams never apply.
+     */
+    #onStreamRender = (event) => {
+        const target = document.getElementById(event.target.target ?? '');
+        if (null === target || !this.element.contains(target)) {
+            return;
+        }
+        if (
+            this.waiting ||
+            (this.openValue && FORMULA_OWNED.includes(target.id))
+        ) {
+            event.preventDefault();
+        }
+    };
+
+    /**
+     * Turbo marks the page busy while it visits another page. A frame answer that lands then would
+     * replace the URL and cancel that visit, so it never renders.
+     */
+    #onBeforeFrameRender = (event) => {
+        if (
+            event.target.id === this.element.dataset.turboFrame &&
+            document.documentElement.hasAttribute('aria-busy')
+        ) {
+            event.preventDefault();
+        }
+    };
+
+    #onFrameLoad = (event) => {
+        if (event.target.id === this.element.dataset.turboFrame) {
+            this.#settle();
+        }
+    };
+
+    #onRequestError = (event) => {
+        if (
+            event.target === this.element ||
+            event.target.id === this.element.dataset.turboFrame
+        ) {
+            this.#settle();
+        }
+    };
+
+    /** A newer submit aborts the older one, which ends with neither a response nor an error. */
+    #onSubmitEnd = (event) => {
+        const { success, fetchResponse, error } = event.detail;
+        if (!success && (fetchResponse || error)) {
+            this.#settle();
+        }
+    };
+
+    #settle() {
+        if (!this.waiting && !this.checking) {
+            this.#setBusy(false);
+        }
     }
 
     #roleOf(row, role) {

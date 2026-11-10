@@ -55,6 +55,39 @@ export async function suppressWidget(page: Page): Promise<void> {
 }
 
 /**
+ * Runs an action that must update the page in place, and fails when it loads a new document or
+ * replaces the body. A frame that writes its URL to the address bar still fires turbo:visit and
+ * framenavigated, so neither event can tell an in-place update from a page visit.
+ */
+export async function expectInPlace(
+    page: Page,
+    action: () => Promise<void>,
+): Promise<void> {
+    let loads = 0;
+    const onLoad = (): void => {
+        loads += 1;
+    };
+    page.on('load', onLoad);
+    await page.evaluate(() => {
+        (document.body as HTMLElement & { inPlace?: boolean }).inPlace = true;
+    });
+    try {
+        await action();
+    } finally {
+        page.off('load', onLoad);
+    }
+    expect(loads, 'the action loaded a new document').toBe(0);
+    expect(
+        await page.evaluate(
+            () =>
+                (document.body as HTMLElement & { inPlace?: boolean })
+                    .inPlace === true,
+        ),
+        'the action replaced the body',
+    ).toBe(true);
+}
+
+/**
  * Stops the pages of a context that sends X-Playwright to every origin from
  * opening the Mercure hub. The hub refuses that header in a preflight, and each
  * retry posts to /mercure/authorize, which slows every other request.

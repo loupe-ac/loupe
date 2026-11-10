@@ -1,9 +1,9 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
- * Asks before the reader leaves a page with unsaved changes. The page says
- * whether it is dirty, because the controls are a GET form that reloads the
- * page on every change, so the browser never holds the change itself.
+ * Asks before the reader leaves a page with unsaved changes. The server says
+ * whether it is dirty, because the controls are a GET form, so the browser
+ * never holds the change itself. Render it where each answer replaces it.
  *
  * Put it on the element that also holds the `modal` controller and its dialog.
  * A link click opens the dialog. A tab close or reload gets the native prompt.

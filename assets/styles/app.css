@@ -7671,8 +7671,39 @@
         @apply hidden;
     }
     /* A formula that cannot run keeps the last graph on the page, dimmed and out of reach. */
-    .lp-metric-controls[data-formula-invalid] ~ .lp-metric-graph {
+    .lp-metric-controls[data-formula-invalid]
+        ~ .lp-metric-result
+        .lp-metric-graph {
         @apply pointer-events-none opacity-50;
+    }
+    /* The result under the controls. A control change reloads its frame alone. */
+    .lp-metric-result {
+        @apply relative;
+    }
+    .lp-metric-result__frame {
+        @apply block transition-opacity;
+    }
+    /* While a change waits for its graph, the old result dims under a loading note in its middle. */
+    .lp-metric-result[aria-busy='true'] .lp-metric-result__frame {
+        @apply pointer-events-none opacity-50;
+    }
+    .lp-metric-result__loading {
+        @apply pointer-events-none absolute top-1/2 left-1/2 z-10 m-0 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1.5 text-xs text-fg-mute shadow-sm;
+    }
+    .lp-metric-result[aria-busy='true'] .lp-metric-result__loading {
+        @apply flex;
+    }
+    .lp-metric-result__spinner {
+        @apply animate-spin;
+    }
+    /* The spinner is the only sign that the graph still loads, so it slows down rather than stopping. */
+    @media (prefers-reduced-motion: reduce) {
+        .lp-metric-result__spinner {
+            animation-duration: 3s;
+        }
+        .lp-metric-result__frame {
+            @apply transition-none;
+        }
     }
     .lp-metric-graph,
     .lp-metric-empty {

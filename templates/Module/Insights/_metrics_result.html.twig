@@ -1,0 +1,77 @@
+{# The result area of the Metrics tab. A control change reloads this frame alone. On a frame request the streams correct the options that depend on the query. #}
+<turbo-frame id="metrics-result" target="_top" class="lp-metric-result__frame">
+    {% if streams %}
+    {# A formula narrows Statistic, Unit and Group in the page, so the server leaves them alone. #}
+    {% if query.formula is null %}
+    <turbo-stream action="update" target="metrics-statistic"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'statistic', options: query.metric.statistics(), query: query} only %}</template></turbo-stream>
+    <turbo-stream action="update" target="metrics-unit"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'unit', options: query.metric.units, query: query} only %}</template></turbo-stream>
+    <turbo-stream action="update" target="metrics-group"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'group', options: query.metric.groups, query: query} only %}</template></turbo-stream>
+    {% endif %}
+    <turbo-stream action="update" target="metrics-bucket"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'bucket', options: buckets, query: query} only %}</template></turbo-stream>
+    <turbo-stream action="update" target="metrics-compare"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'compare', options: compares, query: query} only %}</template></turbo-stream>
+    <turbo-stream action="update" target="metrics-chart"><template>{% include '@Insights/_metrics_field_options.html.twig' with {field: 'chart', options: chartTypes, query: query, view: view} only %}</template></turbo-stream>
+    {% endif %}
+
+    {% if query.formula is not null and query.formula.problem is not null %}
+    {# The problem shows under the Formula field. #}
+    {% elseif view.layout is null %}
+    <twig:Ds:EmptyState icon="lucide:chart-column" :title="'analytics.metrics.empty.title'|trans" class="lp-metric-empty" data-metrics-empty>
+        <p>{{ 'analytics.metrics.empty.description'|trans }}</p>
+    </twig:Ds:EmptyState>
+    {% else %}
+    {% set barsLock = view.locks['stacked-bars'] %}
+    {% if view.chart.fellBack %}
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="switched">{{ ('analytics.metrics.note.switched.' ~ view.chart.reason.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    {% elseif barsLock is not null %}
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="locked">{{ ('analytics.metrics.note.locked.' ~ barsLock.value|replace({'-': '_'}))|trans }}</twig:Ds:Flash>
+    {% endif %}
+    {% for note in view.notes %}
+    <twig:Ds:Flash severity="warning" class="lp-metric-note" data-metrics-note="{{ note.key }}">{{ note.key|trans(note.parameters) }}</twig:Ds:Flash>
+    {% endfor %}
+    {% if query.compare.value == 'previous' and view.chart.type.value in ['bars', 'stacked-bars', 'percent-stacked', 'donut'] %}
+    <twig:Ds:Flash severity="info" class="lp-metric-note" data-metrics-note="previous-in-table">{{ 'analytics.metrics.note.previous_in_table'|trans }}</twig:Ds:Flash>
+    {% endif %}
+
+    <twig:Ds:Panel as="section" class="lp-metric-graph" data-metrics-chart>
+        {# The title holds a template label or a bucket name that a person wrote, so it is rendered escaped. Never add |raw here. #}
+        <div class="lp-metric-graph__head">
+            <h2 class="lp-metric-table__title" data-metrics-title>{{ view.title }}</h2>
+            {# One form serves both saves. Save changes posts to the update route through formaction. A save leaves the frame, so its flash shows. #}
+            {{ form_start(saveForm, {attr: {class: 'lp-metric-save', 'data-save-graph': '', 'data-turbo-frame': '_top'}}) }}
+                {% if capReached %}
+                <span class="lp-metric-save__cap" data-save-cap>{{ 'analytics.metrics.save.cap_reached'|trans({'%limit%': capLimit}) }}</span>
+                {% endif %}
+                {% if graph is null %}
+                <div class="lp-metric-save__name">
+                    {{ form_label(saveForm.name, null, {label_attr: {class: 'sr-only'}}) }}
+                    {{ form_widget(saveForm.name, {attr: {class: ds_input_class(null, false, true)}}) }}
+                </div>
+                <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">
+                    <twig:ux:icon name="lucide:bookmark" class="lp-icon lp-icon--sm" />
+                    {{ 'analytics.metrics.save.button'|trans }}
+                </twig:Ds:Button>
+                {% else %}
+                {% do saveForm.name.setRendered %}
+                <twig:Ds:Button variant="outline" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">{{ 'analytics.metrics.edit.save_new'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-update formaction="{{ path('app_project_analytics_update_graph', {id: project.id, graphId: graph.id}) }}">{{ 'analytics.metrics.edit.save'|trans }}</twig:Ds:Button>
+                {% endif %}
+            {{ form_end(saveForm) }}
+        </div>
+        <twig:Ds:Chart :layout="view.layout" :labels="view.labels" :label="view.title" :valueLabel="query.formula is null ? ('analytics.metrics.statistic.' ~ query.statistic.value)|trans : null" :changeLabel="'analytics.metrics.table.vs_previous'|trans" id="metrics-graph" />
+    </twig:Ds:Panel>
+    {% endif %}
+
+    {% if graph is not null %}
+    {# Inside the frame, so each answer brings the dirty state of the graph it draws. #}
+    <div data-controller="modal leave-guard" data-leave-guard-dirty-value="{{ dirty ? 'true' : 'false' }}">
+        <twig:Ds:Dialog aria-labelledby="leave-graph-title" data-action="cancel->modal#close">
+            <h2 class="lp-dialog-title" id="leave-graph-title">{{ 'analytics.metrics.edit.leave.title'|trans({'%name%': graph.name}) }}</h2>
+            <p class="lp-dialog-desc">{{ 'analytics.metrics.edit.leave.body'|trans }}</p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'analytics.metrics.edit.leave.keep'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" type="button" data-action="click->leave-guard#discard">{{ 'analytics.metrics.edit.leave.discard'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </twig:Ds:Dialog>
+    </div>
+    {% endif %}
+</turbo-frame>

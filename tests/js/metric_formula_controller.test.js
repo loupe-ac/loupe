@@ -40,7 +40,7 @@ function renderedRow(letter, metric) {
 async function mount({ open = false } = {}) {
     application = Application.start();
     application.register('metric-formula', MetricFormulaController);
-    document.body.innerHTML = `<form data-controller="metric-formula" data-action="submit->metric-formula#guard"
+    document.body.innerHTML = `<form data-controller="metric-formula" data-turbo-frame="metrics-result" data-action="submit->metric-formula#guard"
         data-metric-formula-joinable-value='${JSON.stringify(JOINABLE)}'
         data-metric-formula-labels-value='{"sum":"Sum","mean":"Mean","count":"Count"}'
         data-metric-formula-check-url-value="/check"
@@ -68,12 +68,14 @@ async function mount({ open = false } = {}) {
             <input type="hidden" name="formula" data-metric-formula-target="formulaField" disabled>
             <p data-metric-formula-target="error" hidden></p>
         </div>
-        <div data-metric-formula-target="single"><select name="metric" data-metric-formula-target="metric"><option value="cost" selected>Cost</option><option value="stop-rate">Stop rate</option></select></div>
-        <div data-metric-formula-target="single"><select name="statistic" data-metric-formula-target="statistic"><option value="sum">Sum</option></select></div>
-        <select name="unit" data-metric-formula-target="unit"><option value="run">Run</option><option value="card" selected>Card</option></select>
-        <select name="group" data-metric-formula-target="group"><option value="none">None</option><option value="model">Model</option><option value="wake-kind">Wake kind</option></select>
+        <div data-metric-formula-target="single"${open ? ' hidden' : ''}><select id="metrics-metric" name="metric" data-metric-formula-target="metric" data-action="change->metric-formula#apply"${open ? ' disabled' : ''}><option value="cost" selected>Cost</option><option value="wakes">Wakes</option><option value="stop-rate">Stop rate</option></select></div>
+        <div data-metric-formula-target="single"${open ? ' hidden' : ''}><select id="metrics-statistic" name="statistic" data-metric-formula-target="statistic" data-action="change->metric-formula#apply"${open ? ' disabled' : ''}><option value="median">Median</option></select></div>
+        <select id="metrics-unit" name="unit" data-metric-formula-target="unit" data-action="change->metric-formula#apply"><option value="run">Run</option><option value="card" selected>Card</option></select>
+        <select id="metrics-group" name="group" data-metric-formula-target="group" data-action="change->metric-formula#apply"><option value="none">None</option><option value="model">Model</option><option value="wake-kind">Wake kind</option></select>
+        <select id="metrics-bucket" name="bucket" data-action="change->metric-formula#apply"><option value="day">Day</option><option value="week" selected>Week</option></select>
         <div data-metric-formula-target="addFormula"><button type="button" id="open" data-action="click->metric-formula#open"></button><button type="button" id="close" data-action="click->metric-formula#close"></button></div>
-    </form>`;
+    </form>
+    <div data-metrics-result><turbo-frame id="metrics-result"></turbo-frame></div>`;
     await settle();
 
     return document.querySelector('form');
@@ -340,13 +342,22 @@ it('closes onto the earliest row that holds a metric, or onto Cost when none doe
     rows()[0].querySelector('button').click();
     document.querySelector('#close').click();
 
+    const metric = document.querySelector('select[name="metric"]');
+    const statistic = document.querySelector('select[name="statistic"]');
+    expect(metric.value).toBe('wakes');
+    expect(metric.disabled).toBe(false);
+    expect(optionsOf(statistic)).toEqual(['sum']);
+    expect(statistic.disabled).toBe(false);
     expect(
-        form.querySelector('input[name="metric"][type="hidden"]').value,
-    ).toBe('wakes');
-    expect(
-        form.querySelector('input[name="statistic"][type="hidden"]').value,
-    ).toBe('sum');
+        form.querySelectorAll('input[type="hidden"][name="metric"]'),
+    ).toHaveLength(0);
     expect(document.querySelector('[name="rows"]').disabled).toBe(true);
+    expect(
+        document.querySelector('[data-metric-formula-target="panel"]').hidden,
+    ).toBe(true);
+    expect(
+        document.querySelector('[data-metric-formula-target="single"]').hidden,
+    ).toBe(false);
     expect(form.requestSubmit).toHaveBeenCalled();
 });
 
@@ -365,9 +376,8 @@ it('closes onto the lowest letter when a removed letter was added again', async 
     );
     document.querySelector('#close').click();
 
-    expect(
-        form.querySelector('input[name="metric"][type="hidden"]').value,
-    ).toBe('wakes');
+    expect(document.querySelector('select[name="metric"]').value).toBe('wakes');
+    expect(form.requestSubmit).toHaveBeenCalled();
 });
 
 it('closes onto Cost when no row holds a metric', async () => {
@@ -377,10 +387,164 @@ it('closes onto Cost when no row holds a metric', async () => {
     await settle();
     document.querySelector('#close').click();
 
+    expect(document.querySelector('select[name="metric"]').value).toBe('cost');
+    // No statistic goes out, so the server picks the default of Cost.
     expect(
-        form.querySelector('input[name="metric"][type="hidden"]').value,
-    ).toBe('cost');
-    expect(
-        form.querySelector('input[name="statistic"][type="hidden"]'),
-    ).toBeNull();
+        optionsOf(document.querySelector('select[name="statistic"]')),
+    ).toEqual([]);
+    expect(form.requestSubmit).toHaveBeenCalled();
+});
+
+function result() {
+    return document.querySelector('[data-metrics-result]');
+}
+
+function streamRender(target) {
+    const stream = document.createElement('div');
+    stream.target = target;
+    document.body.append(stream);
+    const event = new CustomEvent('turbo:before-stream-render', {
+        bubbles: true,
+        cancelable: true,
+    });
+    stream.dispatchEvent(event);
+    stream.remove();
+
+    return event.defaultPrevented;
+}
+
+it('sends a setting change at once and shows the result busy until the frame renders', async () => {
+    const form = await mount();
+    const unit = document.querySelector('[name="unit"]');
+    unit.value = 'run';
+    unit.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(form.requestSubmit).toHaveBeenCalledTimes(1);
+    expect(result().getAttribute('aria-busy')).toBe('true');
+
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    document
+        .querySelector('turbo-frame')
+        .dispatchEvent(new Event('turbo:frame-load', { bubbles: true }));
+
+    expect(result().hasAttribute('aria-busy')).toBe(false);
+});
+
+it('shows the result busy from a formula change through the check and drops it when the check fails', async () => {
+    const form = await mount({ open: true });
+    const text = document.querySelector(
+        '[data-metric-formula-target="formulaText"]',
+    );
+    text.value = 'A / (B';
+    text.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(result().getAttribute('aria-busy')).toBe('true');
+    expect(fetch).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(fetch).toHaveBeenCalled();
+    expect(result().hasAttribute('aria-busy')).toBe(false);
+    expect(form.hasAttribute('data-formula-invalid')).toBe(true);
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+});
+
+it('drops the busy state when a check fails to answer', async () => {
+    fetch.mockRejectedValue(new Error('offline'));
+    await mount({ open: true });
+    document.querySelector('[data-metric-formula-target="addRow"]').click();
+
+    expect(result().getAttribute('aria-busy')).toBe('true');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(result().hasAttribute('aria-busy')).toBe(false);
+});
+
+it('drops the busy state when an added empty row leaves the query as it is', async () => {
+    fetch.mockResolvedValue({ json: async () => ({ ok: true, error: null }) });
+    const form = await mount({ open: true });
+    document.querySelector('[data-metric-formula-target="addRow"]').click();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+    expect(result().hasAttribute('aria-busy')).toBe(false);
+});
+
+it('keeps the result busy when a newer submit aborts the older one', async () => {
+    const form = await mount();
+    document
+        .querySelector('[name="unit"]')
+        .dispatchEvent(new Event('change', { bubbles: true }));
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', { detail: { success: false } }),
+    );
+
+    expect(result().getAttribute('aria-busy')).toBe('true');
+
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            detail: { success: false, error: new Error('offline') },
+        }),
+    );
+
+    expect(result().hasAttribute('aria-busy')).toBe(false);
+});
+
+it('leaves Statistic, Unit and Group to the formula rows, and applies them to a single metric', async () => {
+    await mount({ open: true });
+
+    expect(streamRender('metrics-unit')).toBe(true);
+    expect(streamRender('metrics-statistic')).toBe(true);
+    expect(streamRender('metrics-bucket')).toBe(false);
+
+    document.querySelector('#close').click();
+    document
+        .querySelector('form')
+        .dispatchEvent(new Event('submit', { cancelable: true }));
+
+    expect(streamRender('metrics-unit')).toBe(false);
+    expect(streamRender('somewhere-else')).toBe(false);
+});
+
+it('keeps a changed setting that waits for the formula when an older answer lands', async () => {
+    fetch.mockResolvedValue({ json: async () => ({ ok: true, error: null }) });
+    const form = await mount({ open: true });
+    const text = document.querySelector(
+        '[data-metric-formula-target="formulaText"]',
+    );
+    text.value = 'A * B';
+    text.dispatchEvent(new Event('input', { bubbles: true }));
+    const bucket = document.querySelector('[name="bucket"]');
+    bucket.value = 'day';
+    bucket.dispatchEvent(new Event('change', { bubbles: true }));
+    const blocked = new Event('submit', { cancelable: true });
+    form.dispatchEvent(blocked);
+
+    expect(blocked.defaultPrevented).toBe(true);
+    expect(streamRender('metrics-bucket')).toBe(true);
+
+    form.requestSubmit.mockClear();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(form.requestSubmit).toHaveBeenCalled();
+});
+
+it('drops a frame answer that lands while the page visits another page', async () => {
+    await mount();
+    const frame = document.querySelector('turbo-frame');
+    const render = () => {
+        const event = new CustomEvent('turbo:before-frame-render', {
+            bubbles: true,
+            cancelable: true,
+        });
+        frame.dispatchEvent(event);
+
+        return event.defaultPrevented;
+    };
+
+    expect(render()).toBe(false);
+    document.documentElement.setAttribute('aria-busy', 'true');
+    expect(render()).toBe(true);
+    document.documentElement.removeAttribute('aria-busy');
 });

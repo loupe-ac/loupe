@@ -8938,6 +8938,7 @@ workflow:
             <trans-unit id="analytics.metrics.form.range"><source>analytics.metrics.form.range</source><target>Range</target></trans-unit>
             <trans-unit id="analytics.metrics.form.bucket"><source>analytics.metrics.form.bucket</source><target>Bucket</target></trans-unit>
             <trans-unit id="analytics.metrics.form.apply"><source>analytics.metrics.form.apply</source><target>Apply</target></trans-unit>
+            <trans-unit id="analytics.metrics.loading"><source>analytics.metrics.loading</source><target>Loading the graph.</target></trans-unit>
             <trans-unit id="analytics.metrics.form.compare"><source>analytics.metrics.form.compare</source><target>Compare to</target></trans-unit>
             <trans-unit id="analytics.metrics.form.chart"><source>analytics.metrics.form.chart</source><target>Chart</target></trans-unit>
             <trans-unit id="analytics.metrics.compare.off"><source>analytics.metrics.compare.off</source><target>Off</target></trans-unit>

@@ -18,8 +18,11 @@ owner can open Analytics.
 
 ## The controls
 
-A row of controls above the chart sets what the page shows. The page loads
-again when you change a control. Without JavaScript, press **Apply**.
+A row of controls above the chart sets what the page shows. When you change a
+control, the chart dims under a loading note and then redraws in place. The
+controls and your formula rows stay as they are. The address bar keeps every
+setting, so a reload or a shared link shows the same view. Without JavaScript,
+press **Apply**.
 
 | Control | Values | Default |
 |---|---|---|
