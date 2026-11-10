@@ -132,6 +132,12 @@ Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at mo
 If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the picker after the change. Otherwise return to the picker and select Refresh list.
 Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens.
 
+#### Repositories you have not picked
+
+When the App reaches a repository through an installation of this project and no project holds it, the Repositories tab says so above the list: "1 more repository is shared with Loupe and is not in this project." The note links to Add repositories. Loupe asks GitHub for this list and keeps the answer for 10 minutes, so a repository you just shared can take that long to count. When GitHub does not answer, the note does not show.
+
+`loupe init` shows the same state for the repository of your folder: "Shared with Loupe, not in this project." Its link opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
+
 #### No access
 
 When GitHub removes a repository from the installation, or someone uninstalls the App, the repository stays in the list. Its row shows No access with the date, and a Fix access on GitHub link. Loupe stops reading it and stops pushing to it, and a No access repository blocks no work.

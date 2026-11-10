@@ -200,6 +200,10 @@ This epic has open child cards. Move each of them to a terminal column first.
 
 A person resolved this item, so it cannot be addressed.
 
+### github_unavailable
+
+GitHub did not answer the call that the route makes. Try again later.
+
 ### idempotency_in_progress
 
 The first request with this key has not finished. Try again later.

@@ -13,6 +13,7 @@ use App\Module\GitHub\GitHubRepositoryRef;
 use App\Module\GitHub\InvalidGitHubDelivery;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\DeliveryAnnouncer;
+use App\Module\GitHub\Service\GitHubFreeRepositories;
 use App\Module\GitHub\Service\RefusedDeliveries;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -33,6 +34,7 @@ final readonly class ReceiveAppDeliveryHandler
         private GitHubInstallationRepository $gitHubInstallations,
         private ForgeRepositories $forgeRepositories,
         private DeliveryAnnouncer $announcer,
+        private GitHubFreeRepositories $freeRepositories,
         private RefusedDeliveries $refusals,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
@@ -86,6 +88,7 @@ final readonly class ReceiveAppDeliveryHandler
 
     private function installationChanged(GitHubInstallation $installation, GitHubDelivery $delivery): void
     {
+        $this->freeRepositories->forget($installation->installationId);
         $this->refresh($installation, $delivery);
 
         switch ($delivery->action()) {
@@ -110,6 +113,7 @@ final readonly class ReceiveAppDeliveryHandler
 
     private function repositoriesChanged(GitHubInstallation $installation, GitHubDelivery $delivery): void
     {
+        $this->freeRepositories->forget($installation->installationId);
         $this->refresh($installation, $delivery);
         $this->em->flush();
 
