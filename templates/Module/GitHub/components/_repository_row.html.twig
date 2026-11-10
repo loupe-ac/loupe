@@ -20,8 +20,8 @@
         </span>
         {% if repository.accessLostAt %}
         <twig:Ds:Tag tone="amber" data-testid="forge-repository-no-access">{{ 'github.repositories.no_access.label'|trans }}</twig:Ds:Tag>
-        {% if repository.sourceRef is not null %}
-        <twig:Ds:Button variant="on-card" size="sm" href="https://github.com/settings/installations/{{ repository.sourceRef }}" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-fix-access">{{ 'github.repositories.no_access.fix'|trans }}</twig:Ds:Button>
+        {% if row.fixAccessUrl is not null %}
+        <twig:Ds:Button variant="on-card" size="sm" href="{{ row.fixAccessUrl }}" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-fix-access">{{ 'github.repositories.no_access.fix'|trans }}</twig:Ds:Button>
         {% endif %}
         {% elseif row.workflowLabelKey %}
         <twig:Ds:Tag tone="neutral" data-testid="forge-repository-workflow">{{ 'github.repositories.row.workflow'|trans({'%workflow%': row.workflowLabelKey|trans}) }}</twig:Ds:Tag>

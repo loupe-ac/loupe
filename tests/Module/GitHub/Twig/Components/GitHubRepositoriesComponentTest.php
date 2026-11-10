@@ -13,6 +13,8 @@ use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositoryRuleset;
 use App\Module\Forge\Settings\RepositorySettings;
+use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\HookSecretKey;
 use App\Module\Workflow\Contract\RepositorySuggestion;
@@ -336,6 +338,10 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $client = static::createClient();
         $owner = $this->signedUpUser('no-access');
         $project = $this->projectOf($owner);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-test', 'client', 'secret', 'hook', null, null));
+        $installation = new GitHubInstallation(9_301, 'acme', GitHubRepositorySelection::All);
+        $installation->accountId = 4_301;
+        $this->em()->persist($installation);
         $repository = new ForgeRepository($project, 'github', '9301', 'acme/lost', ForgeRepositorySource::Installation, '9301');
         $repository->accessLostAt = new \DateTimeImmutable('2026-11-01 10:00:00');
         $this->em()->persist($repository);
@@ -349,9 +355,29 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $row);
         self::assertStringContainsString('No access since 1 Nov 2026', $row->filter('[data-testid="forge-repository-health"]')->text());
         self::assertSame('No access', trim($row->filter('[data-testid="forge-repository-no-access"]')->text()));
-        self::assertSame('https://github.com/settings/installations/9301', $row->filter('[data-testid="forge-repository-fix-access"]')->attr('href'));
+        self::assertSame('https://github.com/apps/loupe-test/installations/new/permissions?target_id=4301', $row->filter('[data-testid="forge-repository-fix-access"]')->attr('href'));
         self::assertCount(0, $row->filter('[data-testid="forge-repository-check"]'));
         self::assertStringContainsString('Remove', $row->text());
+    }
+
+    public function test_a_no_access_row_without_a_known_account_has_no_fix_link(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('no-account');
+        $project = $this->projectOf($owner);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-test', 'client', 'secret', 'hook', null, null));
+        $this->em()->persist(new GitHubInstallation(9_302, 'acme', GitHubRepositorySelection::All));
+        $repository = new ForgeRepository($project, 'github', '9302', 'acme/lost', ForgeRepositorySource::Installation, '9302');
+        $repository->accessLostAt = new \DateTimeImmutable('2026-11-01 10:00:00');
+        $this->em()->persist($repository);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('#repositories [data-forge-repository]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-fix-access"]'));
     }
 
     public function test_the_connections_page_has_no_repository_rows(): void
