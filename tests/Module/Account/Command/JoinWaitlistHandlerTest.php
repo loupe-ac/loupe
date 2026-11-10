@@ -7,9 +7,11 @@ namespace App\Tests\Module\Account\Command;
 use App\Module\Account\Command\JoinWaitlistCommand;
 use App\Module\Account\Command\JoinWaitlistHandler;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Entity\WaitlistBlockPattern;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Entity\WaitlistPick;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Repository\WaitlistBlockPatternRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Module\Account\Service\WaitlistOwnerNotifier;
 use App\Tests\Support\DirectLogging;
@@ -111,7 +113,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('converted-disabled@example.com'));
 
@@ -148,7 +150,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('recorded-join@example.com'));
 
@@ -184,7 +186,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('diag-dupe@example.com'));
         $entry = $repo->findOneByEmail('diag-dupe@example.com');
@@ -228,7 +230,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $users = $container->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $users, $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('fresh@example.com'));
         $handler(new JoinWaitlistCommand('fresh@example.com'));
@@ -255,6 +257,70 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
             ['userId' => (string) $registered->id],
             $audit->record('account.waitlist_join_skipped_existing_account')->context,
         );
+    }
+
+    public function test_a_join_that_matches_a_block_pattern_is_saved_hidden_and_recorded_apart(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $em = $container->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repo = $container->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+        $em->persist(new WaitlistBlockPattern('*@blocked.example'));
+        $em->flush();
+        $audit = new RecordingAuditor($this->actorProvider());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
+
+        $handler(new JoinWaitlistCommand('Spam@Blocked.example', [WaitlistPick::Pi]));
+
+        $entry = $repo->findOneByEmail('spam@blocked.example');
+        self::assertNotNull($entry);
+        self::assertSame(['pi'], $entry->picks);
+        self::assertNull($repo->findOneVisible((string) $entry->id));
+
+        $record = $audit->record('account.waitlist_joined_hidden');
+        self::assertSame(AuditOutcome::Success, $record->outcome);
+        self::assertSame(['entryId' => (string) $entry->id], $record->context);
+        self::assertNotNull($record->subject);
+        self::assertSame('waitlist_entry', $record->subject->type);
+        self::assertSame((string) $entry->id, $record->subject->id);
+        self::assertSame(['account.waitlist_joined_hidden'], $audit->domainLogLines());
+        self::assertStringNotContainsString('blocked.example', json_encode([$audit->sink->events, $audit->domainChannel->records], \JSON_THROW_ON_ERROR));
+    }
+
+    public function test_a_rejoin_that_matches_a_block_pattern_reopens_the_row_and_is_recorded_apart(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $em = $container->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repo = $container->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+        $entry = new WaitlistEntry('returning@blocked.example');
+        $entry->markConverted();
+        $em->persist($entry);
+        $user = new User(fullName: 'Blocked Returning', email: 'returning@blocked.example', password: 'x');
+        $user->disabledAt = new \DateTimeImmutable();
+        $em->persist($user);
+        $em->persist(new WaitlistBlockPattern('*@blocked.example'));
+        $em->flush();
+        $audit = new RecordingAuditor($this->actorProvider());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
+
+        $handler(new JoinWaitlistCommand('returning@blocked.example'));
+
+        self::assertNull($entry->convertedAt);
+        self::assertSame(['account.waitlist_rejoined_hidden'], $audit->domainLogLines());
+        self::assertSame(['entryId' => (string) $entry->id], $audit->record('account.waitlist_rejoined_hidden')->context);
+    }
+
+    private function blockPatterns(): WaitlistBlockPatternRepository
+    {
+        $patterns = self::getContainer()->get(WaitlistBlockPatternRepository::class);
+        self::assertInstanceOf(WaitlistBlockPatternRepository::class, $patterns);
+
+        return $patterns;
     }
 
     private function notifier(): WaitlistOwnerNotifier
@@ -379,7 +445,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         $em->persist(new WaitlistEntry('picks-merge@example.com', $joinedAt));
         $em->flush();
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::Cursor], 'Jujutsu'));
         $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::GitLab], ''));
@@ -402,7 +468,7 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
     {
         [, $repo, $em] = $this->services();
         $audit = new RecordingAuditor($this->actorProvider());
-        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor, $this->notifier(), $this->blockPatterns());
 
         $handler(new JoinWaitlistCommand('picks-same@example.com', [WaitlistPick::Gitea], 'Jujutsu'));
         $audit->forget();

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Account\Command\Admin;
 
 use App\Module\Account\Command\Admin\InviteWaitlistEntriesCommand;
 use App\Module\Account\Command\Admin\InviteWaitlistEntriesHandler;
+use App\Module\Account\Entity\WaitlistBlockPattern;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -54,6 +55,20 @@ final class InviteWaitlistEntriesHandlerTest extends KernelTestCase
         $entries = self::getContainer()->get(WaitlistEntryRepository::class);
         $reloaded = $entries->findOneByEmail('fresh@example.com');
         self::assertNotNull($reloaded?->invitedAt);
+    }
+
+    public function test_an_entry_hidden_by_a_block_pattern_is_skipped(): void
+    {
+        $hidden = new WaitlistEntry('hidden@blocked.example');
+        $this->em->persist($hidden);
+        $this->em->persist(new WaitlistBlockPattern('*@blocked.example'));
+        $this->em->flush();
+
+        $result = ($this->handler)(new InviteWaitlistEntriesCommand([(string) $hidden->id]));
+
+        self::assertSame(0, $result->invited);
+        self::assertSame(1, $result->skipped);
+        self::assertNull($hidden->invitedAt);
     }
 
     public function test_duplicate_ids_are_deduped_and_processed_once(): void

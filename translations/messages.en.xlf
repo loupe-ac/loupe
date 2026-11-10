@@ -3770,6 +3770,66 @@
                 <source>account.admin.waitlist.status.converted</source>
                 <target>Converted</target>
             </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.title">
+                <source>account.admin.waitlist.block_patterns.title</source>
+                <target>Block patterns</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.subtitle">
+                <source>account.admin.waitlist.block_patterns.subtitle</source>
+                <target>Entries whose address matches a pattern stay hidden. They are not in the list, the counts or the invites, and their joins send no email. Remove a pattern to show its entries again.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.hidden_count">
+                <source>account.admin.waitlist.block_patterns.hidden_count</source>
+                <target>{0}No entry is hidden.|{1}One entry is hidden.|]1,Inf[%count% entries are hidden.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.empty">
+                <source>account.admin.waitlist.block_patterns.empty</source>
+                <target>No block pattern yet.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.column.pattern">
+                <source>account.admin.waitlist.block_patterns.column.pattern</source>
+                <target>Pattern</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.column.added">
+                <source>account.admin.waitlist.block_patterns.column.added</source>
+                <target>Added</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.add">
+                <source>account.admin.waitlist.block_patterns.add</source>
+                <target>Add pattern</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.remove">
+                <source>account.admin.waitlist.block_patterns.remove</source>
+                <target>Remove</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.remove_confirm">
+                <source>account.admin.waitlist.block_patterns.remove_confirm</source>
+                <target>Remove the pattern %pattern%? The entries it hides show again.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.flash.added">
+                <source>account.admin.waitlist.block_patterns.flash.added</source>
+                <target>The pattern is added. Matching entries are now hidden.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.flash.removed">
+                <source>account.admin.waitlist.block_patterns.flash.removed</source>
+                <target>The pattern is removed. Its entries show again.</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.block_patterns.error.duplicate">
+                <source>account.admin.waitlist.block_patterns.error.duplicate</source>
+                <target>This pattern already exists.</target>
+            </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.label">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.label</source>
+                <target>New pattern</target>
+            </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.help">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.help</source>
+                <target>Matches the full address and ignores case. A * stands for any text, as in *@mailinator.com, *.ru or spam*@gmail.com.</target>
+            </trans-unit>
+            <trans-unit id="account.form.add_waitlist_block_pattern_form.pattern.placeholder">
+                <source>account.form.add_waitlist_block_pattern_form.pattern.placeholder</source>
+                <target>*@example.com</target>
+            </trans-unit>
 
             <!-- Admin users page -->
             <trans-unit id="account.admin.users.page.title">

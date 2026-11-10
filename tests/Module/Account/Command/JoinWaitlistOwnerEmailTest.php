@@ -10,10 +10,12 @@ use App\Module\Account\Command\ResolveSocialLoginCommand;
 use App\Module\Account\Command\ResolveSocialLoginHandler;
 use App\Module\Account\Entity\SocialProvider;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Entity\WaitlistBlockPattern;
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Entity\WaitlistJoinSource;
 use App\Module\Account\Entity\WaitlistPick;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Account\Repository\WaitlistBlockPatternRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Module\Account\Service\RegistrationGate;
 use App\Module\Account\Service\SocialProfile;
@@ -150,6 +152,37 @@ final class JoinWaitlistOwnerEmailTest extends KernelTestCase
         self::assertNotNull(self::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('visitor@example.com'));
     }
 
+    public function test_a_join_that_matches_a_block_pattern_sends_nothing_and_still_joins(): void
+    {
+        $this->setRecipients('owner@example.com');
+        $this->em()->persist(new WaitlistBlockPattern('*@blocked.example'));
+        $this->em()->flush();
+
+        $this->join(new JoinWaitlistCommand('visitor@blocked.example', [WaitlistPick::Pi]));
+
+        $this->assertQueuedEmailCount(0);
+        self::assertNotNull(self::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('visitor@blocked.example'));
+    }
+
+    public function test_a_rejoin_that_matches_a_block_pattern_sends_nothing(): void
+    {
+        $this->setRecipients('owner@example.com');
+        $em = $this->em();
+        $entry = new WaitlistEntry('returning@blocked.example');
+        $entry->markConverted();
+        $em->persist($entry);
+        $user = new User(fullName: 'Returning', email: 'returning@blocked.example', password: 'x');
+        $user->disabledAt = new \DateTimeImmutable();
+        $em->persist($user);
+        $em->persist(new WaitlistBlockPattern('*@blocked.example'));
+        $em->flush();
+
+        $this->join(new JoinWaitlistCommand('returning@blocked.example'));
+
+        $this->assertQueuedEmailCount(0);
+        self::assertNull($entry->convertedAt);
+    }
+
     public function test_a_lost_uniqueness_race_sends_nothing(): void
     {
         $this->setRecipients('owner@example.com');
@@ -165,7 +198,7 @@ final class JoinWaitlistOwnerEmailTest extends KernelTestCase
         $notifier = self::getContainer()->get(WaitlistOwnerNotifier::class);
         self::assertInstanceOf(WaitlistOwnerNotifier::class, $notifier);
 
-        new JoinWaitlistHandler($repo, $users, $em, $auditor, $notifier)(new JoinWaitlistCommand('racer@example.com'));
+        new JoinWaitlistHandler($repo, $users, $em, $auditor, $notifier, $this->createStub(WaitlistBlockPatternRepository::class))(new JoinWaitlistCommand('racer@example.com'));
 
         $this->assertQueuedEmailCount(0);
     }
