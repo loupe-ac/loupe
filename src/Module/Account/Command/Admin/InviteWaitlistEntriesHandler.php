@@ -26,7 +26,7 @@ final readonly class InviteWaitlistEntriesHandler
         $skipped += count(array_unique($command->entryIds)) - count($ids);
 
         foreach ($ids as $id) {
-            $entry = $this->waitlistEntries->find($id);
+            $entry = $this->waitlistEntries->findOneVisible($id);
             if (null === $entry) {
                 ++$skipped;
                 continue;

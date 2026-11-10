@@ -26,6 +26,7 @@ framework:
             - github-hook-secret-rotate
             - forge-repository-remove
             - github-repository-check
+            - github-repositories-cancel
             - site-review-comment-action
             - board-card-delete
             - worker-run-command
@@ -50,6 +51,7 @@ framework:
             - request-account-deletion
             - confirm-account-deletion
             - admin-waitlist-invite
+            - admin-waitlist-block-pattern-remove
             - admin-user-suspend
             - admin-user-unsuspend
             - admin-user-delete

@@ -1,7 +1,16 @@
 {% if visible %}
 {% do mercure_subscribe(topic) %}
 <twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live" data-repository-checks-live-stopped-value="{{ 'github.repositories.live_stopped'|trans }}">
-    <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
+    <twig:Ds:SectionHeading>
+        {{ 'github.repositories.title'|trans }}
+        <twig:block name="actions">
+            {% if appConfigured and rows is not empty %}
+            <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="forge-repositories-add">
+                <twig:ux:icon name="lucide:plus" />{{ 'github.picker.add'|trans }}
+            </twig:Ds:Button>
+            {% endif %}
+        </twig:block>
+    </twig:Ds:SectionHeading>
     <p class="lp-live-stopped" role="status" data-repository-checks-live-target="status" data-testid="forge-repositories-live-stopped"></p>
 
     {% if not connectionsAvailable %}

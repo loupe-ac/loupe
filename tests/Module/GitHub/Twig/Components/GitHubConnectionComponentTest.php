@@ -126,7 +126,7 @@ final class GitHubConnectionComponentTest extends WebTestCase
         $client->loginUser($owner);
         $crawler = $this->connectPage($client, $project);
 
-        self::assertCount(0, $crawler->filter('#github-connection [data-testid="github-app-install"]'));
+        self::assertCount(0, $crawler->filter('#github-connection [data-testid="github-app-add-repositories"]'));
     }
 
     public function test_with_the_app_the_owner_sees_the_install_link_and_each_installation(): void
@@ -153,8 +153,11 @@ final class GitHubConnectionComponentTest extends WebTestCase
         $crawler = $this->connectPage($client, $project);
 
         $section = $crawler->filter('#github-connection');
-        self::assertSame('/projects/'.$project->id.'/github/install', $section->filter('[data-testid="github-app-install"]')->attr('href'));
-        self::assertStringContainsString('Loupe follows the change', $section->text());
+        $add = $section->filter('[data-testid="github-app-add-repositories"]');
+        self::assertSame('/projects/'.$project->id.'/github/install?from=connect', $add->attr('href'));
+        self::assertSame('Add repositories', trim($add->text()));
+        self::assertSame('false', $add->attr('data-turbo-prefetch'), 'A hover must not start a sign-in.');
+        self::assertStringContainsString('A repository joins this project only when you pick it', $section->text());
         $rows = [];
         $section->filter('[data-github-installation]')->each(static function ($row) use (&$rows): void {
             $rows[trim($row->filter('[data-testid="github-installation-account"]')->text())] = trim($row->filter('[data-testid="github-installation-state"]')->text());

@@ -4,35 +4,31 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Controller;
 
-use App\Module\Board\Entity\BoardColumn;
-use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardPullRequest;
-use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
-use App\Module\GitHub\Command\ConnectGitHubInstallationHandler;
+use App\Module\GitHub\Command\AddGitHubRepositoriesHandler;
+use App\Module\GitHub\Command\SignInGitHubPickerHandler;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
-use App\Module\GitHub\Messenger\ReadRepositoryWorkflowSettings;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
-use App\Module\GitHub\Service\DeliveryAnnouncer;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubInstallSession;
+use App\Module\GitHub\Service\GitHubPickerListing;
 use App\Module\GitHub\Service\GitHubUserApi;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
-use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -46,6 +42,8 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
     private KernelBrowser $client;
 
+    private MockClock $clock;
+
     /** @var list<array<int|string, string>> */
     private array $tokenRequests = [];
 
@@ -57,18 +55,27 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     /** @var list<array<string, mixed>> */
     private array $installations = [];
 
-    /** @var list<array<string, mixed>> */
+    /** @var array<int, list<array<string, mixed>>> */
     private array $repositories = [];
 
     private ?MockResponse $apiFailure = null;
+
+    /** @var list<\Closure(): void> run before the next repository listing is served */
+    private array $beforeListing = [];
+
+    /** @var list<int> */
+    private array $failingRepositoryListings = [];
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
         $this->client->disableReboot();
         $this->tokenResponse = $this->json(['access_token' => self::TOKEN, 'token_type' => 'bearer']);
-        $this->installations = [$this->installation(self::INSTALLATION_ID, 'acme', 'selected')];
+        $this->installations = [$this->installation(self::INSTALLATION_ID, 'acme')];
+        $this->repositories = [self::INSTALLATION_ID => []];
+        $this->clock = new MockClock('2026-11-10 12:00:00');
         $container = static::getContainer();
+        $container->set(ClockInterface::class, $this->clock);
         $container->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-test', 'the-client-id', 'the-client-secret', 'hook', null, null));
         $container->set('github.oauth_client', new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
             self::assertSame('POST', $method);
@@ -91,39 +98,60 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             if ('/user/installations' === $path) {
                 return $this->json(['total_count' => \count($this->installations), 'installations' => \array_slice($this->installations, ($page - 1) * 100, 100)]);
             }
-            if ('/user/installations/'.self::INSTALLATION_ID.'/repositories' === $path) {
-                return $this->json(['total_count' => \count($this->repositories), 'repositories' => \array_slice($this->repositories, ($page - 1) * 100, 100)]);
+            if (1 === preg_match('#^/user/installations/(\d+)/repositories$#', $path, $match)) {
+                if (\in_array((int) $match[1], $this->failingRepositoryListings, true)) {
+                    return new MockResponse('{}', ['http_code' => 503]);
+                }
+
+                $hook = array_shift($this->beforeListing);
+                if (null !== $hook) {
+                    $hook();
+                }
+
+                $repositories = $this->repositories[(int) $match[1]] ?? [];
+
+                return $this->json(['total_count' => \count($repositories), 'repositories' => \array_slice($repositories, ($page - 1) * 100, 100)]);
             }
 
             return new MockResponse('{}', ['http_code' => 404]);
         }, 'https://api.github.com'));
     }
 
-    public function test_the_install_link_sends_the_owner_to_github_with_a_state(): void
+    public function test_add_repositories_sends_the_owner_to_github_with_a_pkce_challenge(): void
     {
-        $owner = $this->signedUpUser('install');
+        $owner = $this->signedUpUser('start');
         $project = $this->projectOf($owner);
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $state = $this->startInstall($project);
+        $authorize = $this->startSignIn($project);
 
-        self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $state);
+        self::assertSame('the-client-id', $authorize['client_id']);
+        self::assertSame('http://localhost/github/app/callback', $authorize['redirect_uri']);
+        self::assertSame('S256', $authorize['code_challenge_method']);
+        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $authorize['code_challenge']);
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $authorize['state']);
     }
 
-    public function test_a_stranger_cannot_start_an_install(): void
+    public function test_a_stranger_cannot_reach_any_picker_route(): void
     {
         $project = $this->projectOf($this->signedUpUser('owner'));
         $stranger = $this->signedUpUser('stranger');
         $this->em()->clear();
 
         $this->client->loginUser($stranger);
-        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install');
+        foreach (['/github/install', '/github/install/account', '/github/repositories'] as $path) {
+            $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.$path);
+            self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN, $path);
+        }
 
+        $this->postPicks($project, [self::INSTALLATION_ID.':101:acme/one']);
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        $this->postAction($this->client, '/projects/'.$project->id.'/github/repositories/cancel');
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
-    public function test_without_the_app_the_install_link_explains_and_goes_back(): void
+    public function test_without_the_app_add_repositories_explains_and_goes_back(): void
     {
         self::ensureKernelShutdown();
         $this->client = static::createClient();
@@ -134,19 +162,32 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install');
+        foreach (['/github/install', '/github/install/account'] as $path) {
+            $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.$path);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
-        self::assertStringContainsString('The operator has not registered a GitHub App', $this->followedText());
+            self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+            self::assertStringContainsString('The operator has not registered a GitHub App', $this->followedText());
+        }
     }
 
-    public function test_the_setup_url_without_a_pending_install_goes_to_the_projects(): void
+    public function test_the_install_link_sends_the_owner_to_github_with_a_state(): void
+    {
+        $owner = $this->signedUpUser('install');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $this->startInstall($project));
+    }
+
+    public function test_the_setup_url_without_a_pending_session_goes_to_the_projects(): void
     {
         $this->client->loginUser($this->signedUpUser('nopending'));
         $this->client->request(Request::METHOD_GET, '/github/app/setup?installation_id='.self::INSTALLATION_ID);
 
         self::assertResponseRedirects('/projects');
-        self::assertStringContainsString('Start the install again', $this->followedText());
+        self::assertStringContainsString('no GitHub sign-in in progress', $this->followedText());
     }
 
     public function test_the_setup_url_needs_a_signed_in_user(): void
@@ -187,7 +228,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringContainsString('GitHub did not return an installation', $this->followedText());
     }
 
-    public function test_the_setup_url_asks_github_to_authorize_with_a_pkce_challenge(): void
+    public function test_the_setup_url_after_an_install_asks_github_to_authorize(): void
     {
         $owner = $this->signedUpUser('setup');
         $project = $this->projectOf($owner);
@@ -197,12 +238,80 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $installState = $this->startInstall($project);
         $authorize = $this->setUpInstallation($installState);
 
-        self::assertSame('the-client-id', $authorize['client_id']);
-        self::assertSame('http://localhost/github/app/callback', $authorize['redirect_uri']);
         self::assertSame('S256', $authorize['code_challenge_method']);
-        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $authorize['code_challenge']);
-        self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $authorize['state']);
         self::assertNotSame($installState, $authorize['state']);
+    }
+
+    public function test_the_setup_url_reopens_the_picker_for_a_live_sign_in_and_ignores_the_installation_id(): void
+    {
+        $owner = $this->signedUpUser('adjust');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $exchanges = \count($this->tokenRequests);
+        $this->client->request(Request::METHOD_GET, '/github/app/setup?'.http_build_query(['installation_id' => 999_999, 'setup_action' => 'update']));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertCount($exchanges, $this->tokenRequests, 'The setup return exchanges no code.');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseIsSuccessful();
+    }
+
+    public function test_the_setup_url_after_the_sign_in_expired_sends_the_owner_through_the_sign_in_again(): void
+    {
+        $owner = $this->signedUpUser('adjustlate');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->clock->modify('+31 minutes');
+        $this->client->request(Request::METHOD_GET, '/github/app/setup?installation_id='.self::INSTALLATION_ID);
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+    }
+
+    public function test_a_refused_sign_in_started_on_connections_returns_to_connections(): void
+    {
+        $owner = $this->signedUpUser('connectstate');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, null, 'connect');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect');
+    }
+
+    public function test_a_cancelled_sign_in_started_on_connections_returns_to_connections(): void
+    {
+        $owner = $this->signedUpUser('connectcancel');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $authorize = $this->startSignIn($project, null, 'connect');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['error' => 'access_denied', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/connect');
+    }
+
+    public function test_an_unknown_starting_tab_returns_to_repositories(): void
+    {
+        $owner = $this->signedUpUser('connectother');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, null, 'elsewhere');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
     }
 
     public function test_the_callback_refuses_a_state_that_does_not_match(): void
@@ -212,16 +321,15 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $this->setUpInstallation($this->startInstall($project));
+        $this->startSignIn($project);
         $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=forged');
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('Loupe could not confirm', $this->followedText());
         self::assertSame([], $this->tokenRequests);
-        self::assertNull($this->installationRow());
     }
 
-    public function test_the_callback_without_a_pending_install_goes_to_the_projects(): void
+    public function test_the_callback_without_a_pending_session_goes_to_the_projects(): void
     {
         $this->client->loginUser($this->signedUpUser('callbacknone'));
         $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=anything');
@@ -230,155 +338,36 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertSame([], $this->tokenRequests);
     }
 
-    public function test_the_callback_refuses_an_installation_the_user_cannot_reach(): void
+    public function test_a_second_callback_for_the_same_sign_in_is_refused(): void
     {
-        $this->installations = [$this->installation(99, 'someone-else', 'all')];
-        $owner = $this->signedUpUser('spoofed');
+        $owner = $this->signedUpUser('replay');
         $project = $this->projectOf($owner);
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $this->completeInstall($project);
+        $authorize = $this->startSignIn($project);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
-        self::assertStringContainsString('GitHub does not list this installation for your account', $this->followedText());
-        self::assertNull($this->installationRow());
-    }
-
-    public function test_the_owner_connects_the_installation_and_its_repositories(): void
-    {
-        $audit = RecordingAuditor::installedIn(static::getContainer());
-        $others = array_map(fn (int $id): array => $this->installation($id, 'other-'.$id, 'all'), range(1, 100));
-        $this->installations = [...$others, $this->installation(self::INSTALLATION_ID, 'acme', 'selected')];
-        $owner = $this->signedUpUser('happy');
-        $project = $this->projectOf($owner);
-        $elsewhere = new ForgeRepository($this->projectOf($this->signedUpUser('elsewhere')), 'github', '303', 'acme/taken', ForgeRepositorySource::Installation, '1');
-        $this->em()->persist($elsewhere);
-        $this->em()->flush();
-        $this->repositories = [
-            ['id' => 101, 'full_name' => 'acme/one'],
-            ['id' => 202, 'full_name' => 'acme/two'],
-            ['id' => 303, 'full_name' => 'acme/taken'],
-        ];
-        $this->em()->clear();
-
-        $this->client->loginUser($owner);
-        $challenge = $this->completeInstall($project);
-
-        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
-        self::assertCount(1, $this->tokenRequests);
-        $exchange = $this->tokenRequests[0];
-        self::assertSame('the-client-id', $exchange['client_id']);
-        self::assertSame('the-client-secret', $exchange['client_secret']);
-        self::assertSame('the-code', $exchange['code']);
-        self::assertSame('http://localhost/github/app/callback', $exchange['redirect_uri']);
-        self::assertSame($challenge, rtrim(strtr(base64_encode(hash('sha256', $exchange['code_verifier'], true)), '+/', '-_'), '='));
-        self::assertSame(['Authorization: Bearer '.self::TOKEN], array_values(array_unique($this->apiAuthorizations)));
-
-        $installation = $this->installationRow();
-        self::assertNotNull($installation);
-        self::assertSame('acme', $installation->accountLogin);
-        self::assertSame(GitHubRepositorySelection::Selected, $installation->repositorySelection);
-        self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
-        $transport = static::getContainer()->get('messenger.transport.jobs');
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
-        $queued = array_values(array_filter(
-            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $transport->getSent()),
-            static fn (object $message): bool => $message instanceof ReadRepositoryWorkflowSettings,
-        ));
-        self::assertCount(2, $queued, 'Each claimed repository queues one read, and the refused one queues none.');
-        self::assertSame(AuditOutcome::Success, $audit->record('github.installation_connected')->outcome);
-
-        $text = $this->followedText();
-        self::assertStringContainsString('Loupe is connected to the GitHub App on acme', $text);
-        self::assertStringContainsString('1 repository belongs to another project', $text);
-        self::assertStringNotContainsString('elsewhere', $text);
-        self::assertStringNotContainsString('may be incomplete', $text);
-        self::assertStringNotContainsString(self::TOKEN, (string) $this->client->getResponse()->getContent());
-
-        $this->client->request(Request::METHOD_GET, '/github/app/callback?code=the-code&state=anything');
         self::assertResponseRedirects('/projects');
+        self::assertCount(1, $this->tokenRequests);
     }
 
-    public function test_a_known_installation_of_this_project_is_refreshed(): void
+    public function test_a_person_who_cancels_on_github_goes_back_with_a_message_and_adds_nothing(): void
     {
-        $owner = $this->signedUpUser('refresh');
-        $project = $this->projectOf($owner);
-        $known = new GitHubInstallation(self::INSTALLATION_ID, 'old-login', GitHubRepositorySelection::All);
-        $known->removedAt = new \DateTimeImmutable('-1 day');
-        $this->em()->persist($known);
-        $this->em()->flush();
-        $this->repositories = [['id' => 101, 'full_name' => 'acme/one']];
-        $this->em()->clear();
-
-        $this->client->loginUser($owner);
-        $this->completeInstall($project);
-
-        $installation = $this->installationRow();
-        self::assertNotNull($installation);
-        self::assertSame('acme', $installation->accountLogin);
-        self::assertSame(GitHubRepositorySelection::Selected, $installation->repositorySelection);
-        self::assertNull($installation->removedAt);
-        self::assertSame(['acme/one'], $this->pathsOf($project));
-    }
-
-    /** A connect claims like a delivery, so a rename GitHub reports here reaches the card links too. */
-    public function test_a_repository_renamed_since_its_last_delivery_repoints_the_card_links(): void
-    {
-        $owner = $this->signedUpUser('renamed');
-        $project = $this->projectOf($owner);
-        $column = new BoardColumn($project, 'Work', 'work', 0);
-        $card = new Card($project, $column, 'Ship it', '', 1);
-        $link = new CardPullRequest($card, 'https://github.com/acme/old-one/pull/4', Forge::GitHub, 'acme/old-one', 4);
-        foreach ([$column, $card, $link, new ForgeRepository($project, 'github', '101', 'acme/old-one', ForgeRepositorySource::Hook)] as $entity) {
-            $this->em()->persist($entity);
-        }
-        $this->em()->flush();
-        $this->repositories = [['id' => 101, 'full_name' => 'acme/one']];
-        $this->em()->clear();
-
-        $this->client->loginUser($owner);
-        $this->completeInstall($project);
-
-        self::assertSame(['acme/one'], $this->pathsOf($project));
-        $this->em()->clear();
-        self::assertSame('acme/one', $this->em()->find(CardPullRequest::class, $link->id)?->repository);
-    }
-
-    public function test_a_repository_list_longer_than_ten_pages_is_reported_as_incomplete(): void
-    {
-        $logger = $this->recordingHandlerLogger();
-        $owner = $this->signedUpUser('many');
-        $project = $this->projectOf($owner);
-        $this->repositories = array_map(static fn (int $id): array => ['id' => $id, 'full_name' => 'acme/repository-'.$id], range(1, 1000));
-        $this->em()->clear();
-
-        $this->client->loginUser($owner);
-        $this->completeInstall($project);
-
-        self::assertStringContainsString('the repository list may be incomplete', $this->followedText());
-        self::assertContains('github.repository_list_truncated', array_column($logger->records, 'message'));
-    }
-
-    public function test_a_second_project_connects_an_installation_that_is_already_known(): void
-    {
-        $other = $this->projectOf($this->signedUpUser('otherowner'));
-        $this->em()->persist(new GitHubInstallation(self::INSTALLATION_ID, 'acme', GitHubRepositorySelection::All));
-        $this->em()->persist(new ForgeRepository($other, 'github', '102', 'acme/two', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
-        $this->em()->flush();
-        $this->repositories = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 102, 'full_name' => 'acme/two']];
-        $owner = $this->signedUpUser('second');
+        $owner = $this->signedUpUser('cancelgithub');
         $project = $this->projectOf($owner);
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $this->completeInstall($project);
+        $authorize = $this->startSignIn($project);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['error' => 'access_denied', 'state' => $authorize['state']]));
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
-        $text = $this->followedText();
-        self::assertStringNotContainsString($other->name, $text);
-        self::assertSame(['acme/one'], $this->pathsOf($project));
-        self::assertSame(['acme/two'], $this->pathsOf($other));
+        self::assertStringContainsString('GitHub did not authorize Loupe', $this->followedText());
+        self::assertSame([], $this->tokenRequests);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
     }
 
     public function test_a_project_the_user_no_longer_manages_is_refused(): void
@@ -390,7 +379,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $newOwner = $this->signedUpUser('newcomer');
 
         $this->client->loginUser($owner);
-        $authorize = $this->setUpInstallation($this->startInstall($project));
+        $authorize = $this->startSignIn($project);
         $this->em()->getConnection()->executeStatement('UPDATE projects SET owner_id = ? WHERE id = ?', [(string) $newOwner->id, (string) $project->id]);
         $this->em()->clear();
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
@@ -398,22 +387,624 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertResponseRedirects('/projects');
         self::assertStringContainsString('You can no longer manage the connections of that project', $this->followedText());
         self::assertSame([], $this->tokenRequests);
-        self::assertNull($this->installationRow());
     }
 
-    public function test_a_person_who_cancels_on_github_goes_back_with_a_message(): void
+    public function test_the_sign_in_exchanges_the_code_with_the_verifier_and_opens_the_picker(): void
     {
-        $owner = $this->signedUpUser('cancel');
+        $owner = $this->signedUpUser('happy');
         $project = $this->projectOf($owner);
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $authorize = $this->setUpInstallation($this->startInstall($project));
-        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['error' => 'access_denied', 'state' => $authorize['state']]));
+        $authorize = $this->startSignIn($project);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertCount(1, $this->tokenRequests);
+        $exchange = $this->tokenRequests[0];
+        self::assertSame('the-code', $exchange['code']);
+        self::assertSame('http://localhost/github/app/callback', $exchange['redirect_uri']);
+        self::assertSame($authorize['code_challenge'], rtrim(strtr(base64_encode(hash('sha256', $exchange['code_verifier'], true)), '+/', '-_'), '='));
+    }
+
+    public function test_the_picker_marks_each_repository_free_in_this_project_or_held_by_another(): void
+    {
+        $owner = $this->signedUpUser('marks');
+        $project = $this->projectOf($owner);
+        $named = $this->projectOf($owner);
+        $stranger = $this->projectOf($this->signedUpUser('strangerproject'));
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/free'],
+            ['id' => 202, 'full_name' => 'acme/mine'],
+            ['id' => 303, 'full_name' => 'acme/named'],
+            ['id' => 404, 'full_name' => 'acme/stranger'],
+            ['id' => 505, 'full_name' => 'acme/hooked'],
+        ];
+        $installation = (string) self::INSTALLATION_ID;
+        foreach ([
+            new ForgeRepository($project, 'github', '202', 'acme/mine', ForgeRepositorySource::Installation, $installation),
+            new ForgeRepository($named, 'github', '303', 'acme/named', ForgeRepositorySource::Installation, $installation),
+            new ForgeRepository($stranger, 'github', '404', 'acme/stranger', ForgeRepositorySource::Installation, $installation),
+            new ForgeRepository($project, 'github', '505', 'acme/hooked', ForgeRepositorySource::Hook),
+        ] as $row) {
+            $this->em()->persist($row);
+        }
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertResponseIsSuccessful();
+        $rows = $this->pickerRows($crawler);
+        self::assertSame('free', $rows['acme/free']['state']);
+        self::assertSame('in-project', $rows['acme/mine']['state']);
+        self::assertSame('other-project', $rows['acme/named']['state']);
+        self::assertSame('other-project', $rows['acme/stranger']['state']);
+        self::assertSame('free', $rows['acme/hooked']['state'], 'A hook row holds nothing, so the pick can take it over.');
+        self::assertCount(1, $crawler->filter('input[name="pick_repositories_form[_token]"]'), 'The form renders its own CSRF token.');
+        self::assertTrue($rows['acme/free']['tickable']);
+        self::assertTrue($rows['acme/hooked']['tickable']);
+        self::assertFalse($rows['acme/mine']['tickable']);
+        self::assertTrue($rows['acme/mine']['checked']);
+        self::assertFalse($rows['acme/named']['tickable']);
+        self::assertFalse($rows['acme/free']['checked'], 'Nothing is ticked at first.');
+        self::assertStringContainsString('In this project', $rows['acme/mine']['text']);
+        self::assertStringContainsString('Used by '.$named->name, $rows['acme/named']['text']);
+        self::assertStringContainsString('Used by another project', $rows['acme/stranger']['text']);
+        self::assertStringNotContainsString($stranger->name, (string) $crawler->filter('body')->text());
+        self::assertStringNotContainsString(self::TOKEN, (string) $this->client->getResponse()->getContent());
+        self::assertSame('no-store', $this->client->getResponse()->headers->getCacheControlDirective('no-store') ? 'no-store' : '');
+    }
+
+    public function test_the_picker_groups_the_repositories_by_account_and_links_to_the_installation_on_github(): void
+    {
+        $this->installations = [
+            $this->installation(self::INSTALLATION_ID, 'acme'),
+            $this->installation(7, 'beta', 'https://github.com/organizations/beta/settings/installations/7'),
+        ];
+        $this->repositories = [
+            self::INSTALLATION_ID => [['id' => 101, 'full_name' => 'acme/one']],
+            7 => [['id' => 701, 'full_name' => 'beta/two']],
+        ];
+        $owner = $this->signedUpUser('accounts');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertSame(['acme', 'beta'], $crawler->filter('[data-testid="github-picker-account"]')->each(static fn (Crawler $node): string => trim($node->text())));
+        self::assertSame(
+            ['https://github.com/settings/installations/'.self::INSTALLATION_ID, 'https://github.com/organizations/beta/settings/installations/7'],
+            $crawler->filter('[data-testid="github-picker-adjust"]')->each(static fn (Crawler $node): string => (string) $node->attr('href')),
+        );
+        self::assertCount(1, $crawler->filter('[data-testid="github-picker-search"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="github-picker-install"][href="/projects/'.$project->id.'/github/install/account"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="github-picker-refresh"]'));
+    }
+
+    public function test_the_picker_ticks_the_repository_the_start_link_named(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api'], ['id' => 202, 'full_name' => 'acme/web']];
+        $owner = $this->signedUpUser('ticked');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project, 'ACME/Web');
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        $rows = $this->pickerRows($crawler);
+        self::assertTrue($rows['acme/web']['checked']);
+        self::assertFalse($rows['acme/api']['checked']);
+        self::assertCount(0, $crawler->filter('[data-testid="github-picker-missing"]'));
+    }
+
+    public function test_the_picker_says_so_when_the_named_repository_is_not_listed(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('missing');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project, 'acme/unshared');
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertStringContainsString('acme/unshared is not in this list', $crawler->filter('[data-testid="github-picker-missing"]')->text());
+    }
+
+    public function test_a_listing_cut_at_one_thousand_repositories_says_so(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = array_map(static fn (int $id): array => ['id' => $id, 'full_name' => 'acme/repository-'.$id], range(1, 1000));
+        $owner = $this->signedUpUser('cut');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertSame(
+            'Showing the first 1,000 repositories of acme. Choose selected repositories on GitHub to see the others.',
+            trim($crawler->filter('[data-testid="github-picker-cut"]')->text()),
+        );
+    }
+
+    public function test_a_short_listing_shows_no_cut_line(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('short');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertCount(0, $crawler->filter('[data-testid="github-picker-cut"]'));
+    }
+
+    public function test_an_owner_with_no_installation_sees_how_to_install(): void
+    {
+        $this->installations = [];
+        $owner = $this->signedUpUser('noinstallation');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertCount(1, $crawler->filter('[data-testid="github-picker-none"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="github-picker-install"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="github-picker-submit"]'));
+    }
+
+    public function test_the_picker_without_a_sign_in_sends_the_owner_to_github(): void
+    {
+        $owner = $this->signedUpUser('nosignin');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+        self::assertSame([], $this->apiAuthorizations);
+    }
+
+    public function test_the_token_works_for_thirty_minutes_and_not_after(): void
+    {
+        $owner = $this->signedUpUser('expiry');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->clock->modify('+29 minutes');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseIsSuccessful();
+
+        $this->clock->modify('+2 minutes');
+        $calls = \count($this->apiAuthorizations);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+        self::assertCount($calls, $this->apiAuthorizations, 'An expired token reaches GitHub no more.');
+
+        $this->clock->modify('-31 minutes');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install', null, 'The expired token was removed, not only ignored.');
+    }
+
+    public function test_a_token_of_another_project_is_not_used(): void
+    {
+        $owner = $this->signedUpUser('twoprojects');
+        $first = $this->projectOf($owner);
+        $second = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($first);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$second->id.'/github/repositories');
+
+        self::assertResponseRedirects('/projects/'.$second->id.'/github/install');
+    }
+
+    public function test_the_owner_adds_the_ticked_repositories_and_the_token_goes(): void
+    {
+        $audit = RecordingAuditor::installedIn(static::getContainer());
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/one'],
+            ['id' => 202, 'full_name' => 'acme/two'],
+            ['id' => 303, 'full_name' => 'acme/three'],
+        ];
+        $owner = $this->signedUpUser('adds');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
-        self::assertStringContainsString('GitHub did not authorize Loupe', $this->followedText());
-        self::assertSame([], $this->tokenRequests);
+        self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
+        $installation = $this->installationRow();
+        self::assertNotNull($installation);
+        self::assertSame('acme', $installation->accountLogin);
+        self::assertSame(GitHubRepositorySelection::Selected, $installation->repositorySelection);
+        self::assertSame(555, $installation->accountId);
+        $rows = static::getContainer()->get(ForgeRepositoryRepository::class)?->findBy(['project' => $project->id]);
+        self::assertNotNull($rows);
+        foreach ($rows as $row) {
+            self::assertSame(ForgeRepositorySource::Installation, $row->source);
+            self::assertSame((string) self::INSTALLATION_ID, $row->sourceRef);
+        }
+        self::assertSame(AuditOutcome::Success, $audit->record('github.repositories_added')->outcome);
+        self::assertStringContainsString('Loupe added 2 repositories', $this->followedText());
+        self::assertSame(['Authorization: Bearer '.self::TOKEN], array_values(array_unique($this->apiAuthorizations)));
+
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install', null, 'Submit removed the token.');
+    }
+
+    public function test_a_hook_row_of_the_project_becomes_an_installation_row_when_picked(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 505, 'full_name' => 'acme/hooked']];
+        $owner = $this->signedUpUser('takeover');
+        $project = $this->projectOf($owner);
+        $this->em()->persist(new ForgeRepository($project, 'github', '505', 'acme/hooked', ForgeRepositorySource::Hook));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['505:acme/hooked']);
+
+        $this->em()->clear();
+        $row = static::getContainer()->get(ForgeRepositoryRepository::class)?->findOneBy(['project' => $project->id]);
+        self::assertNotNull($row);
+        self::assertSame(ForgeRepositorySource::Installation, $row->source);
+    }
+
+    public function test_a_repository_removed_on_github_during_the_pick_is_named_and_the_others_are_added(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 202, 'full_name' => 'acme/two']];
+        $owner = $this->signedUpUser('gone');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 202, 'full_name' => 'acme/two']];
+        $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame(['acme/two'], $this->pathsOf($project));
+        $text = $this->followedText();
+        self::assertStringContainsString('Loupe added 1 repository', $text);
+        self::assertStringContainsString('Loupe could not add acme/one', $text);
+    }
+
+    public function test_a_repository_taken_by_another_project_during_the_pick_is_named_and_the_others_are_added(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 202, 'full_name' => 'acme/two']];
+        $owner = $this->signedUpUser('race');
+        $project = $this->projectOf($owner);
+        $rival = $this->projectOf($this->signedUpUser('rival'));
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        $this->em()->persist(new ForgeRepository($this->em()->find(Project::class, $rival->id) ?? throw new \LogicException('The rival project exists.'), 'github', '101', 'acme/one', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+        $this->em()->flush();
+        $this->em()->clear();
+        $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
+
+        self::assertSame(['acme/two'], $this->pathsOf($project));
+        $text = $this->followedText();
+        self::assertStringContainsString('Loupe could not add acme/one', $text);
+        self::assertStringNotContainsString($rival->name, $text);
+        self::assertSame(['acme/one'], $this->pathsOf($rival));
+    }
+
+    public function test_a_forged_pick_that_the_owner_cannot_reach_is_refused(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('forged');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->postPicks($project, [self::INSTALLATION_ID.':999:evil/secret', '777:101:acme/one']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        $text = $this->followedText();
+        self::assertStringContainsString('evil/secret', $text);
+        self::assertStringContainsString('acme/one', $text);
+        self::assertNull($this->installationRow(777));
+    }
+
+    public function test_the_name_of_a_pick_comes_from_github_and_not_from_the_post(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/real']];
+        $owner = $this->signedUpUser('named');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/posted']);
+
+        self::assertSame(['acme/real'], $this->pathsOf($project));
+    }
+
+    public function test_a_submit_with_nothing_ticked_adds_nothing_and_keeps_the_token(): void
+    {
+        $owner = $this->signedUpUser('nothing');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->postPicks($project, []);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertStringContainsString('Tick at least one repository', $this->followedText());
+    }
+
+    public function test_a_submit_after_the_token_expired_adds_nothing(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('lateadd');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->clock->modify('+31 minutes');
+        $calls = \count($this->apiAuthorizations);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+        self::assertSame([], $this->pathsOf($project));
+        self::assertCount($calls, $this->apiAuthorizations);
+    }
+
+    public function test_a_github_failure_on_submit_adds_nothing_and_keeps_the_token_for_a_retry(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('submitdown');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->apiFailure = new MockResponse('{}', ['http_code' => 503]);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        $this->apiFailure = null;
+        self::assertStringContainsString('Loupe could not reach GitHub', $this->followedText());
+        self::assertSame([], $this->pathsOf($project));
+
+        $this->apiFailure = null;
+        $this->submitPicks($project, ['101:acme/one']);
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+    }
+
+    public function test_a_github_failure_on_a_later_installation_adds_nothing_from_the_earlier_one(): void
+    {
+        $this->installations = [
+            $this->installation(self::INSTALLATION_ID, 'acme'),
+            $this->installation(7, 'beta'),
+        ];
+        $this->repositories = [
+            self::INSTALLATION_ID => [['id' => 101, 'full_name' => 'acme/one']],
+            7 => [['id' => 701, 'full_name' => 'beta/two']],
+        ];
+        $owner = $this->signedUpUser('latedown');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->failingRepositoryListings = [7];
+        $this->postPicks($project, [self::INSTALLATION_ID.':101:acme/one', '7:701:beta/two']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        self::assertNull($this->installationRow());
+
+        $this->failingRepositoryListings = [];
+        $this->postPicks($project, [self::INSTALLATION_ID.':101:acme/one', '7:701:beta/two']);
+        self::assertSame(['acme/one', 'beta/two'], $this->pathsOf($project));
+    }
+
+    public function test_cancel_removes_the_token(): void
+    {
+        $owner = $this->signedUpUser('cancelpick');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->postAction($this->client, '/projects/'.$project->id.'/github/repositories/cancel');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+    }
+
+    public function test_a_fresh_install_with_one_free_repository_adds_it_at_once(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('fresh');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame(['acme/api'], $this->pathsOf($project));
+        self::assertStringContainsString('Connected acme/api. Add more from Repositories.', $this->followedText());
+        self::assertNotNull($this->installationRow());
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install', null, 'The token is gone after the add.');
+    }
+
+    public function test_a_fresh_install_whose_only_repository_is_taken_first_names_it_and_returns_to_the_tab(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('freshrace');
+        $project = $this->projectOf($owner);
+        $rival = $this->projectOf($this->signedUpUser('freshracer'));
+        $this->em()->clear();
+        $listings = 0;
+        $this->beforeListing = [static function (): void {}, function () use ($rival, &$listings): void {
+            ++$listings;
+            $this->em()->persist(new ForgeRepository($this->em()->find(Project::class, $rival->id) ?? throw new \LogicException('The rival project exists.'), 'github', '101', 'acme/api', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+            $this->em()->flush();
+        }];
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertSame(1, $listings);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        self::assertStringContainsString('Loupe could not add acme/api', $this->followedText());
+    }
+
+    public function test_a_fresh_install_counts_only_the_free_repositories_of_the_new_installation(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api'], ['id' => 202, 'full_name' => 'acme/held']];
+        $owner = $this->signedUpUser('freshheld');
+        $project = $this->projectOf($owner);
+        $rival = $this->projectOf($this->signedUpUser('freshrival'));
+        $this->em()->persist(new ForgeRepository($rival, 'github', '202', 'acme/held', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertSame(['acme/api'], $this->pathsOf($project));
+    }
+
+    public function test_a_fresh_install_with_two_free_repositories_opens_the_picker(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api'], ['id' => 202, 'full_name' => 'acme/web']];
+        $owner = $this->signedUpUser('freshtwo');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseIsSuccessful();
+    }
+
+    public function test_a_fresh_install_with_no_free_repository_opens_the_picker(): void
+    {
+        $owner = $this->signedUpUser('freshnone');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+    }
+
+    public function test_a_cut_listing_never_counts_as_exactly_one_free_repository(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = array_map(static fn (int $id): array => ['id' => $id, 'full_name' => 'acme/repository-'.$id], range(1, 1000));
+        $owner = $this->signedUpUser('freshcut');
+        $project = $this->projectOf($owner);
+        $rival = $this->projectOf($this->signedUpUser('freshcutrival'));
+        for ($id = 2; $id <= 1000; ++$id) {
+            $this->em()->persist(new ForgeRepository($rival, 'github', (string) $id, 'acme/repository-'.$id, ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+        }
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertSame([], $this->pathsOf($project));
+    }
+
+    public function test_a_fresh_install_the_user_cannot_reach_is_refused(): void
+    {
+        $this->installations = [$this->installation(99, 'someone-else')];
+        $owner = $this->signedUpUser('spoofed');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertStringContainsString('GitHub does not list this installation for your account', $this->followedText());
+        self::assertNull($this->installationRow());
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+    }
+
+    public function test_a_known_installation_record_is_refreshed_when_a_repository_is_picked(): void
+    {
+        $known = new GitHubInstallation(self::INSTALLATION_ID, 'old-login', GitHubRepositorySelection::All);
+        $known->removedAt = new \DateTimeImmutable('-1 day');
+        $this->em()->persist($known);
+        $this->em()->flush();
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('refresh');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        $installation = $this->installationRow();
+        self::assertNotNull($installation);
+        self::assertSame('acme', $installation->accountLogin);
+        self::assertNull($installation->removedAt);
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+    }
+
+    /** A second project picks from an installation that another project already uses. */
+    public function test_a_second_project_picks_from_a_shared_installation(): void
+    {
+        $other = $this->projectOf($this->signedUpUser('otherowner'));
+        $this->em()->persist(new GitHubInstallation(self::INSTALLATION_ID, 'acme', GitHubRepositorySelection::All));
+        $this->em()->persist(new ForgeRepository($other, 'github', '102', 'acme/two', ForgeRepositorySource::Installation, (string) self::INSTALLATION_ID));
+        $this->em()->flush();
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 102, 'full_name' => 'acme/two']];
+        $owner = $this->signedUpUser('second');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+        self::assertSame(['acme/two'], $this->pathsOf($other));
     }
 
     /** @return iterable<string, array{0: ?MockResponse, 1: ?MockResponse}> */
@@ -428,8 +1019,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         yield 'api body is not JSON' => [null, new MockResponse('<html>', ['response_headers' => ['content-type' => 'text/html']])];
     }
 
-    #[DataProvider('gitHubFailures')]
-    public function test_a_github_failure_redirects_with_a_message_and_logs_no_token(?MockResponse $tokenFailure, ?MockResponse $apiFailure): void
+    /** A fresh install calls GitHub twice, so a failure of either call is covered. */
+    #[\PHPUnit\Framework\Attributes\DataProvider('gitHubFailures')]
+    public function test_a_github_failure_redirects_with_a_message_adds_nothing_and_logs_no_token(?MockResponse $tokenFailure, ?MockResponse $apiFailure): void
     {
         if (null !== $tokenFailure) {
             $this->tokenResponse = $tokenFailure;
@@ -445,17 +1037,54 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('Loupe could not reach GitHub', $this->followedText());
+        self::assertSame([], $this->pathsOf($project));
         self::assertNull($this->installationRow());
         $warnings = array_values(array_filter($logger->records, static fn (array $record): bool => 'warning' === $record['level']));
         self::assertCount(1, $warnings);
         self::assertSame('github.user_api_failed', $warnings[0]['message']);
         self::assertStringNotContainsString(self::TOKEN, (string) json_encode($logger->records));
         self::assertStringNotContainsString('the-client-secret', (string) json_encode($logger->records));
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/install');
+    }
+
+    public function test_a_github_failure_on_the_picker_page_goes_back_to_the_tab(): void
+    {
+        $owner = $this->signedUpUser('pagedown');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->apiFailure = new MockResponse('{}', ['http_code' => 503]);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertStringContainsString('Loupe could not reach GitHub', $this->followedText());
+    }
+
+    /** @return array<int|string, string> */
+    private function startSignIn(Project $project, ?string $repository = null, ?string $from = null): array
+    {
+        $query = array_filter(['repository' => $repository, 'from' => $from], static fn (?string $value): bool => null !== $value);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install'.([] === $query ? '' : '?'.http_build_query($query)));
+        self::assertResponseRedirects();
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://github.com/login/oauth/authorize?', $location);
+
+        return $this->queryOf($location);
+    }
+
+    private function signIn(Project $project, ?string $repository = null): void
+    {
+        $authorize = $this->startSignIn($project, $repository);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
     }
 
     private function startInstall(Project $project): string
     {
-        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install/account');
         self::assertResponseRedirects();
         $location = (string) $this->client->getResponse()->headers->get('Location');
         self::assertStringStartsWith('https://github.com/apps/loupe-test/installations/new?', $location);
@@ -476,13 +1105,46 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         return $this->queryOf($location);
     }
 
-    /** Runs the whole flow and returns the PKCE challenge GitHub was sent. */
-    private function completeInstall(Project $project): string
+    /** Runs the whole install flow up to the callback. */
+    private function completeInstall(Project $project): void
     {
         $authorize = $this->setUpInstallation($this->startInstall($project));
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+    }
 
-        return $authorize['code_challenge'];
+    /** @param list<string> $picks `installationId:repositoryId:path`, as the tickboxes post them */
+    private function postPicks(Project $project, array $picks): void
+    {
+        $this->client->request(
+            Request::METHOD_POST,
+            '/projects/'.$project->id.'/github/repositories',
+            ['pick_repositories_form' => ['repositories' => $picks, '_token' => 'csrf-token']],
+            server: ['HTTP_ORIGIN' => 'http://localhost'],
+        );
+    }
+
+    /** @param list<string> $picks `repositoryId:path`, in installation 424242 */
+    private function submitPicks(Project $project, array $picks): void
+    {
+        $this->postPicks($project, array_map(static fn (string $pick): string => self::INSTALLATION_ID.':'.$pick, $picks));
+    }
+
+    /** @return array<string, array{state: string, tickable: bool, checked: bool, text: string}> */
+    private function pickerRows(Crawler $crawler): array
+    {
+        $rows = [];
+        $crawler->filter('[data-testid="github-picker-repository"]')->each(static function (Crawler $row) use (&$rows): void {
+            $box = $row->filter('input[type="checkbox"]');
+            $name = trim($row->filter('.lp-picker-repo__name')->text());
+            $rows[$name] = [
+                'state' => (string) $row->attr('data-state'),
+                'tickable' => 1 === $box->count() && null === $box->attr('disabled'),
+                'checked' => 1 === $box->count() && null !== $box->attr('checked'),
+                'text' => trim($row->text()),
+            ];
+        });
+
+        return $rows;
     }
 
     /** @return array<int|string, string> */
@@ -499,9 +1161,14 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     }
 
     /** @return array<string, mixed> */
-    private function installation(int $id, string $login, string $selection): array
+    private function installation(int $id, string $login, ?string $htmlUrl = null): array
     {
-        return ['id' => $id, 'account' => ['login' => $login], 'repository_selection' => $selection];
+        return [
+            'id' => $id,
+            'account' => ['login' => $login, 'id' => 555],
+            'repository_selection' => 'selected',
+            'html_url' => $htmlUrl ?? 'https://github.com/settings/installations/'.$id,
+        ];
     }
 
     /** @param array<string, mixed> $body */
@@ -510,13 +1177,13 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         return new MockResponse((string) json_encode($body), ['response_headers' => ['content-type' => 'application/json']]);
     }
 
-    private function installationRow(): ?GitHubInstallation
+    private function installationRow(int $installationId = self::INSTALLATION_ID): ?GitHubInstallation
     {
         $this->em()->clear();
         $installations = static::getContainer()->get(GitHubInstallationRepository::class);
         self::assertInstanceOf(GitHubInstallationRepository::class, $installations);
 
-        return $installations->findOneByInstallationId(self::INSTALLATION_ID);
+        return $installations->findOneByInstallationId($installationId);
     }
 
     /** @return list<string> */
@@ -531,7 +1198,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         return $paths;
     }
 
-    /** Rebuilds the handler around a recording logger, so a test reads every line it logs. */
+    /** Rebuilds the sign-in and add handlers around a recording logger, so a test reads every line they log. */
     private function recordingHandlerLogger(): RecordingLogger
     {
         $container = static::getContainer();
@@ -542,17 +1209,24 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
             return $service;
         };
-        $handler = new ConnectGitHubInstallationHandler(
-            self::narrow($get(ProjectRepository::class), ProjectRepository::class),
-            self::narrow($get('security.authorization_checker'), AuthorizationCheckerInterface::class),
+        $add = new AddGitHubRepositoriesHandler(
+            self::narrow($get(GitHubInstallSession::class), GitHubInstallSession::class),
             self::narrow($get(GitHubUserApi::class), GitHubUserApi::class),
-            self::narrow($get(GitHubInstallationRepository::class), GitHubInstallationRepository::class),
-            self::narrow($get(DeliveryAnnouncer::class), DeliveryAnnouncer::class),
-            self::narrow($get(EntityManagerInterface::class), EntityManagerInterface::class),
+            self::narrow($get(\App\Module\GitHub\Service\GitHubInstallationRecords::class), \App\Module\GitHub\Service\GitHubInstallationRecords::class),
+            self::narrow($get(\App\Module\GitHub\Service\DeliveryAnnouncer::class), \App\Module\GitHub\Service\DeliveryAnnouncer::class),
             self::narrow($get(Auditor::class), Auditor::class),
             $logger,
         );
-        $container->set(ConnectGitHubInstallationHandler::class, $handler);
+        $container->set(AddGitHubRepositoriesHandler::class, $add);
+        $container->set(SignInGitHubPickerHandler::class, new SignInGitHubPickerHandler(
+            self::narrow($get(ProjectRepository::class), ProjectRepository::class),
+            self::narrow($get('security.authorization_checker'), AuthorizationCheckerInterface::class),
+            self::narrow($get(GitHubUserApi::class), GitHubUserApi::class),
+            self::narrow($get(GitHubInstallSession::class), GitHubInstallSession::class),
+            self::narrow($get(GitHubPickerListing::class), GitHubPickerListing::class),
+            $add,
+            $logger,
+        ));
 
         return $logger;
     }

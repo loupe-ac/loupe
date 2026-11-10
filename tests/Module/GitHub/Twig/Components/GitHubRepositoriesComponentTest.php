@@ -241,7 +241,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame(['https://github.com/acme/app/rules/12', 'https://github.com/organizations/acme-org/settings/rules/13'], $hrefs);
     }
 
-    public function test_the_empty_state_with_the_app_invites_to_install_it(): void
+    public function test_the_empty_state_with_the_app_invites_to_add_repositories(): void
     {
         $client = static::createClient();
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-app', 'client', 'secret', 'hook', null, null));
@@ -254,10 +254,29 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
 
         $empty = $crawler->filter('#repositories [data-testid="forge-repositories-empty"]');
         self::assertCount(1, $empty);
-        self::assertStringContainsString('Install the GitHub App on a repository. Loupe then checks that it fits the workflow.', $empty->text());
-        $install = $crawler->filter('#repositories a[data-testid="forge-repositories-install"]');
+        self::assertStringContainsString('Pick a repository from the GitHub accounts you can reach. Loupe then checks that it fits the workflow.', $empty->text());
+        $install = $crawler->filter('#repositories a[data-testid="forge-repositories-empty-add"]');
         self::assertSame('/projects/'.$project->id.'/github/install', $install->attr('href'));
-        self::assertSame('Install the GitHub App', trim($install->text()));
+        self::assertSame('Add repositories', trim($install->text()));
+        self::assertSame('false', $install->attr('data-turbo-prefetch'), 'A hover must not start a sign-in.');
+    }
+
+    public function test_a_page_with_rows_still_offers_add_repositories_when_the_app_is_set_up(): void
+    {
+        $client = static::createClient();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-app', 'client', 'secret', 'hook', null, null));
+        $owner = $this->signedUpUser('addmore');
+        $project = $this->projectOf($owner);
+        $this->repositoryOf($project, 'acme/app');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $add = $crawler->filter('#repositories .lp-section-heading a[data-testid="forge-repositories-add"]');
+        self::assertCount(1, $add);
+        self::assertSame('/projects/'.$project->id.'/github/install', $add->attr('href'));
+        self::assertSame('false', $add->attr('data-turbo-prefetch'));
     }
 
     public function test_the_empty_state_without_the_app_invites_to_connect_a_repository_on_connections(): void
@@ -278,7 +297,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $connect = $crawler->filter('#repositories a[data-testid="forge-repositories-connect"]');
         self::assertSame('/projects/'.$project->id.'/connect', $connect->attr('href'));
         self::assertSame('Connect a repository', trim($connect->text()));
-        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-install"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-add"]'));
     }
 
     public function test_a_stranger_cannot_open_the_page_of_another_project(): void

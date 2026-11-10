@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Command\Admin;
 
+use App\Module\Account\Repository\WaitlistBlockPatternRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use Ubermuda\AdminBundle\Listing\ListPagePagination;
 
@@ -15,6 +16,7 @@ final readonly class ListWaitlistHandler
     public function __construct(
         private WaitlistEntryRepository $waitlistEntries,
         private ListPagePagination $pagination,
+        private WaitlistBlockPatternRepository $waitlistBlockPatterns,
     ) {
     }
 
@@ -36,6 +38,8 @@ final readonly class ListWaitlistHandler
             pageList: $this->pagination->buildPageList($command->page, $totalPages),
             clampedPage: $this->pagination->clampPage('waitlist_entries', $command->page, $total, self::PER_PAGE, []),
             pickCounts: $this->waitlistEntries->pickCounts(),
+            blockPatterns: $this->waitlistBlockPatterns->findAllOrdered(),
+            hiddenCount: $this->waitlistEntries->countHidden(),
         );
     }
 }

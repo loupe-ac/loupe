@@ -1,0 +1,88 @@
+{% extends '@Project/_settings_layout.html.twig' %}
+
+{% block title %}{{ 'github.picker.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans, url: path('app_project_edit', {id: project.id})},
+        {label: 'project.edit.nav.repositories'|trans, url: path('app_project_repositories_settings', {id: project.id})},
+        {label: 'github.picker.page.title'|trans},
+    ]" />
+{% endblock %}
+
+{% block settings_section 'repositories' %}
+
+{% block settings_content %}
+<twig:Ds:Panel as="section" id="github-picker" data-testid="github-picker"
+    data-controller="repository-picker"
+    data-repository-picker-none-value="{{ 'github.picker.submit.none'|trans }}"
+    data-repository-picker-one-value="{{ 'github.picker.submit.one'|trans }}"
+    data-repository-picker-many-value="{{ 'github.picker.submit.many'|trans }}">
+    <twig:Ds:SectionHeading :description="'github.picker.description'|trans">{{ 'github.picker.title'|trans }}</twig:Ds:SectionHeading>
+
+    {% if picker.missingRepository is not null %}
+    <twig:Ds:Flash severity="info" data-testid="github-picker-missing">{{ 'github.picker.missing'|trans({'%repository%': picker.missingRepository}) }}</twig:Ds:Flash>
+    {% endif %}
+
+    {% if picker.accounts is empty %}
+    <twig:Ds:EmptyState icon="lucide:git-pull-request" :title="'github.picker.none.title'|trans" :body="'github.picker.none.body'|trans" compact data-testid="github-picker-none" />
+    {% else %}
+    <twig:Ds:Input type="search" :aria-label="'github.picker.search.label'|trans" :placeholder="'github.picker.search.placeholder'|trans" data-repository-picker-target="search" data-action="input->repository-picker#filter" data-testid="github-picker-search" autocomplete="off" />
+
+    {{ form_start(form, {attr: {id: 'github-picker-form', class: 'lp-picker-form'}}) }}
+        {% for account in picker.accounts %}
+        <section class="lp-picker-account" data-repository-picker-target="account" data-github-installation="{{ account.installation.id }}">
+            <div class="lp-picker-account__head">
+                <h3 class="lp-picker-account__name" data-testid="github-picker-account">{{ account.installation.accountLogin }}</h3>
+                {% if account.adjustUrl is not null %}
+                <a class="lp-workshop-text-link" href="{{ account.adjustUrl }}" rel="noopener" data-turbo="false" data-turbo-prefetch="false" data-testid="github-picker-adjust">{{ 'github.picker.adjust'|trans }}</a>
+                {% endif %}
+            </div>
+            {% if account.repositories is empty %}
+            <p class="lp-connect-hint">{{ 'github.picker.account_empty'|trans }}</p>
+            {% else %}
+            <ul class="lp-picker-list">
+                {% for item in account.repositories %}
+                {% set held = item.state.value != 'free' %}
+                <li class="lp-picker-repo{{ held ? ' lp-picker-repo--held' }}" data-repository-picker-target="repository" data-name="{{ item.repository.fullName|lower }}" data-testid="github-picker-repository" data-state="{{ item.state.value }}">
+                    {% if item.state.value == 'other-project' %}
+                    <span class="lp-picker-repo__gap" aria-hidden="true"></span>
+                    <span class="lp-picker-repo__name">{{ item.repository.fullName }}</span>
+                    <span class="lp-picker-repo__state">{{ (item.holderName is null ? 'github.picker.state.other' : 'github.picker.state.other_named')|trans({'%project%': item.holderName}) }}</span>
+                    {% else %}
+                    <label class="lp-picker-repo__name">
+                        <input type="checkbox" class="lp-picker-repo__check"
+                            {% if held %}checked disabled{% else %}name="{{ form.repositories.vars.full_name }}[]" value="{{ item.pick(account.installation.id) }}"{{ item.ticked ? ' checked' }} data-action="change->repository-picker#update"{% endif %}>
+                        {{ item.repository.fullName }}
+                    </label>
+                    {% if held %}<span class="lp-picker-repo__state">{{ 'github.picker.state.in_project'|trans }}</span>{% endif %}
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if not account.complete %}
+            <p class="lp-connect-hint" data-testid="github-picker-cut">{{ 'github.picker.cut'|trans({'%account%': account.installation.accountLogin, '%count%': '1,000'}) }}</p>
+            {% endif %}
+        </section>
+        {% endfor %}
+        <p class="lp-connect-hint" data-repository-picker-target="empty" hidden>{{ 'github.picker.search.empty'|trans }}</p>
+    {{ form_end(form) }}
+    {% endif %}
+
+    <twig:Ds:FormActions align="between" class="lp-picker-actions">
+        <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_repositories_picker', {id: project.id}) }}" data-turbo-prefetch="false" data-testid="github-picker-refresh">
+            <twig:ux:icon name="lucide:refresh-cw" />{{ 'github.picker.refresh'|trans }}
+        </twig:Ds:Button>
+        <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_app_install', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="github-picker-install">
+            <twig:ux:icon name="lucide:external-link" />{{ 'github.picker.install'|trans }}
+        </twig:Ds:Button>
+        <twig:Ds:ActionForm action="{{ path('app_github_repositories_cancel', {id: project.id}) }}" token="github-repositories-cancel">
+            <twig:Ds:Button variant="ghost" type="submit" data-testid="github-picker-cancel">{{ 'github.picker.cancel'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+        {% if picker.accounts is not empty %}
+        <twig:Ds:Button variant="primary" type="submit" form="github-picker-form" disabled data-repository-picker-target="submit" data-testid="github-picker-submit">{{ 'github.picker.submit.none'|trans }}</twig:Ds:Button>
+        {% endif %}
+    </twig:Ds:FormActions>
+</twig:Ds:Panel>
+{% endblock %}
