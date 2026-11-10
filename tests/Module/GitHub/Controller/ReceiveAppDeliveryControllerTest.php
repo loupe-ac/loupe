@@ -508,6 +508,24 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame('9000619', $row->sourceRef);
     }
 
+    public function test_a_no_access_row_stays_when_the_same_installation_has_no_known_account(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('same-unknown');
+        $this->installation(9_000_625);
+        $this->owned($project, 625, 'acme/unknown', ForgeRepositorySource::Installation, 9_000_625);
+        $this->loseAccessOf(625);
+
+        $this->deliver($client, self::PATH, 'installation_repositories', [
+            'action' => 'added',
+            'installation' => ['id' => 9_000_625],
+            'repositories_added' => [['id' => 625, 'full_name' => 'acme/unknown']],
+        ], self::SECRET);
+
+        self::assertNotNull($this->installationOwnerOf(625)?->accessLostAt);
+    }
+
     public function test_a_delivery_for_a_no_access_row_is_dropped(): void
     {
         $client = static::createClient();

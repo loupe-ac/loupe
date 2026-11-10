@@ -156,7 +156,7 @@ final readonly class ReceiveAppDeliveryHandler
             }
 
             $previous = ctype_digit($row->sourceRef ?? '') ? $this->gitHubInstallations->findOneByInstallationId((int) $row->sourceRef) : null;
-            if (null === $previous || ($previous->installationId !== $installation->installationId && (null === $previous->accountId || $previous->accountId !== $installation->accountId))) {
+            if (null === $previous || null === $previous->accountId || $previous->accountId !== $installation->accountId) {
                 $this->logger->info('github.reconnect_refused', [
                     'installationId' => $installation->installationId,
                     'repositoryId' => $repository->id,
