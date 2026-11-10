@@ -348,6 +348,31 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame('account_unknown', $result->refusal->code());
     }
 
+    /** @return iterable<string, array{string, ?string, ?WorkRequestRefusal}> */
+    public static function claimsOnABridgeWithAppPrompts(): iterable
+    {
+        yield 'an unmapped kind on the app prompts account' => ['discovery', 'prompts', null];
+        yield 'an unmapped kind on another account' => ['discovery', 'work', WorkRequestRefusal::AccountUnknown];
+        yield 'an unmapped kind on no account' => ['discovery', null, WorkRequestRefusal::AccountUnknown];
+        yield 'a mapped kind on the app prompts account' => ['implement', 'prompts', WorkRequestRefusal::AccountUnknown];
+        yield 'a mapped kind on its account' => ['implement', 'work', null];
+    }
+
+    #[DataProvider('claimsOnABridgeWithAppPrompts')]
+    public function test_the_app_prompts_account_claims_the_kinds_the_bridge_does_not_map(string $kind, ?string $account, ?WorkRequestRefusal $refusal): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-app-prompts-account', WorkRequestState::Open);
+        $bridge->workKinds = ['implement', 'fix', 'analysis:implement'];
+        $bridge->accounts[] = ['name' => 'prompts', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => [], 'appPrompts' => true];
+        $request->kind = $kind;
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request, $account);
+
+        self::assertSame($refusal, $result->refusal);
+        self::assertSame(null === $refusal ? WorkRequestState::Claimed : null, $result->request?->state);
+    }
+
     public function test_a_bridge_that_lists_no_account_claims_nothing(): void
     {
         [$owner, $bridge, $request] = $this->scenario('claim-handler-no-accounts', WorkRequestState::Open);
