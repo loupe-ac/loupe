@@ -60,6 +60,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
     private ?MockResponse $apiFailure = null;
 
+    /** @var list<int> */
+    private array $failingRepositoryListings = [];
+
     protected function setUp(): void
     {
         $this->client = static::createClient();
@@ -93,6 +96,10 @@ final class GitHubAppInstallFlowTest extends WebTestCase
                 return $this->json(['total_count' => \count($this->installations), 'installations' => \array_slice($this->installations, ($page - 1) * 100, 100)]);
             }
             if (1 === preg_match('#^/user/installations/(\d+)/repositories$#', $path, $match)) {
+                if (\in_array((int) $match[1], $this->failingRepositoryListings, true)) {
+                    return new MockResponse('{}', ['http_code' => 503]);
+                }
+
                 $repositories = $this->repositories[(int) $match[1]] ?? [];
 
                 return $this->json(['total_count' => \count($repositories), 'repositories' => \array_slice($repositories, ($page - 1) * 100, 100)]);
@@ -745,6 +752,34 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->apiFailure = null;
         $this->submitPicks($project, ['101:acme/one']);
         self::assertSame(['acme/one'], $this->pathsOf($project));
+    }
+
+    public function test_a_github_failure_on_a_later_installation_adds_nothing_from_the_earlier_one(): void
+    {
+        $this->installations = [
+            $this->installation(self::INSTALLATION_ID, 'acme'),
+            $this->installation(7, 'beta'),
+        ];
+        $this->repositories = [
+            self::INSTALLATION_ID => [['id' => 101, 'full_name' => 'acme/one']],
+            7 => [['id' => 701, 'full_name' => 'beta/two']],
+        ];
+        $owner = $this->signedUpUser('latedown');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->failingRepositoryListings = [7];
+        $this->postPicks($project, [self::INSTALLATION_ID.':101:acme/one', '7:701:beta/two']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        self::assertNull($this->installationRow());
+
+        $this->failingRepositoryListings = [];
+        $this->postPicks($project, [self::INSTALLATION_ID.':101:acme/one', '7:701:beta/two']);
+        self::assertSame(['acme/one', 'beta/two'], $this->pathsOf($project));
     }
 
     public function test_cancel_removes_the_token(): void

@@ -49,6 +49,7 @@ final readonly class AddGitHubRepositoriesHandler
         $refused = [];
         try {
             $listed = $this->userApi->installations($token);
+            $plans = [];
             foreach ($byInstallation as $installationId => $picks) {
                 $installation = array_find($listed, static fn ($candidate): bool => $candidate->id === $installationId);
                 if (null === $installation) {
@@ -62,28 +63,7 @@ final readonly class AddGitHubRepositoriesHandler
                     $reached[$repository->id] = $repository;
                 }
 
-                $recorded = false;
-                foreach ($picks as $pick) {
-                    $repository = $reached[$pick->repositoryId] ?? null;
-                    if (null === $repository) {
-                        $refused[] = $pick->path;
-
-                        continue;
-                    }
-
-                    if (!$recorded) {
-                        $this->installationRecords->sync($installation);
-                        $recorded = true;
-                    }
-
-                    if (null === $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId)) {
-                        $refused[] = $repository->fullName;
-
-                        continue;
-                    }
-
-                    $added[] = $repository->fullName;
-                }
+                $plans[] = [$installation, $installationId, $picks, $reached];
             }
         } catch (GitHubUserApiFailed $e) {
             $this->logger->warning('github.user_api_failed', [
@@ -93,6 +73,31 @@ final readonly class AddGitHubRepositoriesHandler
             ]);
 
             throw new DomainErrors(['github' => 'github.app.flash.github_unavailable']);
+        }
+
+        foreach ($plans as [$installation, $installationId, $picks, $reached]) {
+            $recorded = false;
+            foreach ($picks as $pick) {
+                $repository = $reached[$pick->repositoryId] ?? null;
+                if (null === $repository) {
+                    $refused[] = $pick->path;
+
+                    continue;
+                }
+
+                if (!$recorded) {
+                    $this->installationRecords->sync($installation);
+                    $recorded = true;
+                }
+
+                if (null === $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId)) {
+                    $refused[] = $repository->fullName;
+
+                    continue;
+                }
+
+                $added[] = $repository->fullName;
+            }
         }
 
         $this->installSession->clear();
