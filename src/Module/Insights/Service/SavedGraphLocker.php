@@ -45,6 +45,9 @@ final readonly class SavedGraphLocker
         $graph->showLegend = $state['showLegend'];
         $graph->position = $state['position'];
         $graph->removedAt = $state['removedAt'];
+        $graph->formulaRows = $state['formulaRows'];
+        $graph->formula = $state['formula'];
+        $graph->format = $state['format'];
 
         return true;
     }

@@ -3221,6 +3221,36 @@
     .ts-wrapper.focus .ts-control {
         @apply ring-2 ring-accent-ink;
     }
+    /* Tom Select copies the classes of its <select> to its wrapper. Over an .lp-input the wrapper
+       is the field, so the inner control drops its frame. Over an .lp-select it drops its caret too. */
+    .ts-wrapper.lp-input {
+        @apply flex p-0;
+    }
+    .ts-wrapper.lp-input.focus {
+        @apply ring-2 ring-accent-ink;
+    }
+    .ts-wrapper.lp-input .ts-control {
+        @apply min-h-0 flex-1 items-center rounded-none border-0 bg-transparent px-3 py-2.5 ring-0;
+    }
+    .ts-wrapper.lp-select .ts-control {
+        --ts-pr-caret: calc(var(--spacing) * 9);
+    }
+    /* A long choice stays on one line, as in a native select. */
+    .ts-wrapper.lp-input.single .ts-control {
+        @apply flex-nowrap;
+    }
+    .ts-wrapper.lp-input.single .ts-control > .item {
+        @apply min-w-0 truncate;
+    }
+    .ts-wrapper.lp-select .ts-control::after {
+        @apply hidden;
+    }
+    /* While a person types, the field shows the query alone. At rest the input has no placeholder. */
+    .ts-wrapper.lp-input.single.input-active
+        .ts-control:has(> input:not(:placeholder-shown))
+        > .item {
+        @apply hidden;
+    }
     .ts-dropdown {
         @apply mt-1 overflow-hidden rounded-lg border border-line bg-surface-1 font-sans text-sm leading-5 text-ink shadow-card;
     }
@@ -7573,12 +7603,107 @@
     .lp-reports-proposal__dismiss {
         @apply flex flex-wrap items-center gap-2;
     }
-    /* The controls of the Metrics page: a labelled field each, in one grid. */
+    /* The controls of the Metrics page: the metric or the formula, then the settings below. */
     .lp-metric-controls {
-        @apply mt-6 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4;
+        @apply mt-6 flex flex-col gap-3;
     }
     .lp-metric-controls__field {
         @apply flex min-w-0 flex-col gap-1;
+    }
+    /* The single metric: a wide Metric field and its Statistic. */
+    .lp-metric-controls__primary {
+        @apply grid grid-cols-1 gap-2 sm:grid-cols-4;
+    }
+    .lp-metric-controls__primary[hidden] {
+        @apply hidden;
+    }
+    .lp-metric-controls__metric {
+        @apply sm:col-span-3;
+    }
+    .lp-metric-controls__settings {
+        @apply grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6;
+    }
+    /* The formula: lettered rows, the formula with its format, and its error. */
+    .lp-metric-formula {
+        @apply flex flex-col items-start gap-2;
+    }
+    .lp-metric-formula[hidden] {
+        @apply hidden;
+    }
+    .lp-metric-formula__rows {
+        @apply flex w-full flex-col gap-2;
+    }
+    /* One grid for the heads, the lettered rows and the formula, so their columns line up. */
+    .lp-metric-formula__row {
+        @apply grid w-full items-center gap-2;
+        grid-template-columns:
+            calc(var(--spacing) * 7) minmax(0, 1fr) calc(var(--spacing) * 28)
+            calc(var(--spacing) * 9);
+    }
+    @media (width >= 40rem) {
+        .lp-metric-formula__row {
+            grid-template-columns:
+                calc(var(--spacing) * 7) minmax(0, 3fr)
+                minmax(0, 1fr) calc(var(--spacing) * 9);
+        }
+    }
+    .lp-metric-formula__heads {
+        @apply text-xs font-medium text-label;
+    }
+    .lp-metric-formula__letter {
+        @apply text-center font-mono text-sm font-semibold text-ink;
+    }
+    .lp-metric-formula__formula {
+        @apply items-end;
+    }
+    /* The formula mark sits level with the Formula input, under the letters. */
+    .lp-metric-formula__mark {
+        @apply flex h-10.5 items-center justify-center text-fg-mute;
+    }
+    /* Centres the 36px button on the 42px input. */
+    .lp-metric-formula__remove {
+        @apply mb-0.75;
+    }
+    .lp-metric-formula__error {
+        @apply m-0 text-sm text-danger;
+    }
+    .lp-metric-formula__error[hidden] {
+        @apply hidden;
+    }
+    /* A formula that cannot run keeps the last graph on the page, dimmed and out of reach. */
+    .lp-metric-controls[data-formula-invalid]
+        ~ .lp-metric-result
+        .lp-metric-graph {
+        @apply pointer-events-none opacity-50;
+    }
+    /* The result under the controls. A control change reloads its frame alone. */
+    .lp-metric-result {
+        @apply relative;
+    }
+    .lp-metric-result__frame {
+        @apply block transition-opacity;
+    }
+    /* While a change waits for its graph, the old result dims under a loading note in its middle. */
+    .lp-metric-result[aria-busy='true'] .lp-metric-result__frame {
+        @apply pointer-events-none opacity-50;
+    }
+    .lp-metric-result__loading {
+        @apply pointer-events-none absolute top-1/2 left-1/2 z-10 m-0 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1.5 text-xs text-fg-mute shadow-sm;
+    }
+    .lp-metric-result[aria-busy='true'] .lp-metric-result__loading {
+        @apply flex;
+    }
+    .lp-metric-result__spinner {
+        @apply animate-spin;
+    }
+    /* The spinner is the only sign that the graph still loads, so it slows down rather than stopping. */
+    @media (prefers-reduced-motion: reduce) {
+        .lp-metric-result__spinner {
+            animation-duration: 3s;
+        }
+        .lp-metric-result__frame {
+            @apply transition-none;
+        }
     }
     .lp-metric-graph,
     .lp-metric-empty {
@@ -7587,9 +7712,19 @@
     .lp-metric-graph {
         @apply flex flex-col gap-4;
     }
-    /* A note about the chart spans the page and stays quieter than a flash. */
+    /* A label and the alert icon of its note. The tooltip opens on hover and on keyboard focus. */
+    .lp-metric-controls__label {
+        @apply flex items-center gap-1;
+    }
     .lp-metric-note {
-        @apply mx-0 mt-4 py-2 text-xs font-normal text-fg-mute;
+        @apply relative inline-flex rounded-full text-fg-mute outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-metric-note .lp-tooltip {
+        @apply right-0 left-auto;
+    }
+    .lp-metric-note:hover .lp-tooltip,
+    .lp-metric-note:focus-visible .lp-tooltip {
+        @apply visible opacity-100;
     }
     /* The title row of a graph: the title on the left, the save form on the right. */
     .lp-metric-graph__head {

@@ -52,9 +52,30 @@ final readonly class MetricRowSource
             return Metric::AccountUsage === $metric ? $this->readingRows($project, $from, $to) : [];
         }
 
-        return MetricUnit::Run === $unit
-            ? $this->runRows($project, $metric, $group, $from, $to, $shape->key->name)
-            : $this->cardRows($project, $metric, $group, $from, $to, $shape->key->name);
+        return $this->rowsForMany($project, $unit, [$shape], $group, $from, $to)[0];
+    }
+
+    /**
+     * The rows of several built-in metrics over one window, with the facts or the cards loaded once. The answer holds one
+     * list for each shape, in the order of the shapes. Only the run and the card unit read this way.
+     *
+     * @param list<MetricShape> $shapes
+     *
+     * @return list<list<MetricRow>>
+     */
+    public function rowsForMany(Project $project, MetricUnit $unit, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
+    {
+        foreach ($shapes as $shape) {
+            if (null !== $shape->template || true === $shape->key->metric?->isBucketEach()) {
+                throw new \LogicException('Only a built-in metric with a value per run reads in a batch.');
+            }
+        }
+
+        return match ($unit) {
+            MetricUnit::Run => $this->runRowsMany($project, $shapes, $group, $from, $to),
+            MetricUnit::Card => $this->cardRowsMany($project, $shapes, $group, $from, $to),
+            MetricUnit::Reading => throw new \LogicException('A reading is not read in a batch.'),
+        };
     }
 
     /**
@@ -206,25 +227,36 @@ final readonly class MetricRowSource
         );
     }
 
-    /** @return list<MetricRow> */
-    private function runRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, ?string $name): array
+    /**
+     * @param list<MetricShape> $shapes
+     *
+     * @return list<list<MetricRow>>
+     */
+    private function runRowsMany(Project $project, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
         // A stage belongs to the card workflow, so a stage grouping reads card runs alone.
         $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group, $to);
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, self::cardIdsOf($facts)) : [];
-        $times = $this->namedRunValues($facts, $metric, $name);
 
-        return array_map(
-            static fn (WorkerRunFact $fact): MetricRow => new MetricRow(
-                $fact->runId,
-                $fact->cardNumber,
-                self::groupOf($fact, $group, $types),
-                $fact->endedAt ?? $fact->receivedAt,
-                null === $name ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
-                self::keyOf($group, self::groupOf($fact, $group, $types)),
-            ),
-            $facts,
-        );
+        $result = [];
+        foreach ($shapes as $shape) {
+            $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
+            $name = $shape->key->name;
+            $times = $this->namedRunValues($facts, $metric, $name);
+            $result[] = array_map(
+                static fn (WorkerRunFact $fact): MetricRow => new MetricRow(
+                    $fact->runId,
+                    $fact->cardNumber,
+                    self::groupOf($fact, $group, $types),
+                    $fact->endedAt ?? $fact->receivedAt,
+                    null === $name ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
+                    self::keyOf($group, self::groupOf($fact, $group, $types)),
+                ),
+                $facts,
+            );
+        }
+
+        return $result;
     }
 
     /**
@@ -272,12 +304,16 @@ final readonly class MetricRowSource
         return array_map(array_values(...), $variants);
     }
 
-    /** @return list<MetricRow> */
-    private function cardRows(Project $project, Metric $metric, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, ?string $name): array
+    /**
+     * @param list<MetricShape> $shapes
+     *
+     * @return list<list<MetricRow>>
+     */
+    private function cardRowsMany(Project $project, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
         $cards = $this->finishedCards->finishedCards($project, $from, $to);
         if ([] === $cards) {
-            return [];
+            return array_map(static fn (MetricShape $shape): array => [], $shapes);
         }
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
@@ -285,10 +321,11 @@ final readonly class MetricRowSource
         foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
             $factsByCard[(string) $fact->subjectId][] = $fact;
         }
-        $times = $this->namedRunValues(array_merge(...array_values($factsByCard)), $metric, $name);
+        $allFacts = array_merge(...array_values($factsByCard));
         $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
 
-        $rows = [];
+        // The partitions of a card depend on the grouping alone, so every metric shares them.
+        $partitionsOf = [];
         foreach ($cards as $card) {
             $id = (string) $card->id;
             $facts = $factsByCard[$id] ?? [];
@@ -303,20 +340,32 @@ final readonly class MetricRowSource
             } else {
                 $partitions[] = ['group' => $group->isRunGrouping() ? null : $types[$id] ?? null, 'facts' => $facts];
             }
-
-            foreach ($partitions as $partition) {
-                $rows[] = new MetricRow(
-                    $card->id,
-                    $card->number,
-                    $partition['group'],
-                    $card->completedAt,
-                    self::cardValue($partition['facts'], $metric, $name, $times),
-                    self::keyOf($group, $partition['group']),
-                );
-            }
+            $partitionsOf[$id] = $partitions;
         }
 
-        return $rows;
+        $result = [];
+        foreach ($shapes as $shape) {
+            $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
+            $name = $shape->key->name;
+            $times = $this->namedRunValues($allFacts, $metric, $name);
+
+            $rows = [];
+            foreach ($cards as $card) {
+                foreach ($partitionsOf[(string) $card->id] as $partition) {
+                    $rows[] = new MetricRow(
+                        $card->id,
+                        $card->number,
+                        $partition['group'],
+                        $card->completedAt,
+                        self::cardValue($partition['facts'], $metric, $name, $times),
+                        self::keyOf($group, $partition['group']),
+                    );
+                }
+            }
+            $result[] = $rows;
+        }
+
+        return $result;
     }
 
     /**

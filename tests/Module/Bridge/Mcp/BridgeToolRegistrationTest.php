@@ -168,11 +168,11 @@ final class BridgeToolRegistrationTest extends KernelTestCase
         self::assertSame(ListBridgeHostSamplesHandler::PER_PAGE, $schema['properties']['perPage']['default']);
     }
 
-    public function test_metric_query_requires_unit_metric_and_statistic(): void
+    public function test_metric_query_requires_only_the_unit(): void
     {
         $schema = $this->registry->getTool(MetricQueryTool::NAME)->tool->inputSchema;
 
-        self::assertSame(['unit', 'metric', 'statistic'], $schema['required']);
+        self::assertSame(['unit'], $schema['required']);
         self::assertSame('none', $schema['properties']['group']['default']);
         self::assertSame('thirty-days', $schema['properties']['range']['default']);
         self::assertSame('week', $schema['properties']['bucket']['default']);

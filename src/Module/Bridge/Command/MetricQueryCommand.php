@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricGroup;
@@ -26,6 +27,8 @@ final readonly class MetricQueryCommand
         public MetricCompare $compare = MetricCompare::Off,
         /** The clock reading both periods count back from. Null reads the clock once. */
         public ?\DateTimeImmutable $now = null,
+        /** Set for a formula query. The metric and the statistic then hold the earliest row of the formula. */
+        public ?MetricFormula $formula = null,
     ) {
     }
 }

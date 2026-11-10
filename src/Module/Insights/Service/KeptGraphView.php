@@ -30,8 +30,8 @@ final readonly class KeptGraphView
     {
         $query = $kept->query;
         $lines = \count($kept->series);
-        $resolution = MetricChartRules::resolve($query->chart, $query->metric, $query->statistic, $lines);
-        $metricName = $this->metricTitle->metricName($query->metric);
+        $resolution = MetricChartRules::resolve($query->chart, $query->chartMetric(), $query->chartStatistic(), $lines);
+        $metricName = null === $query->formula ? $this->metricTitle->metricName($query->metric) : $this->metricTitle->formulaText($query->formula);
         $labels = array_map(
             fn (MetricSeries $series): string => null === $series->group
                 ? ($lines > 1 ? $this->translator->trans('analytics.metrics.series.none') : $metricName)
@@ -41,9 +41,9 @@ final readonly class KeptGraphView
 
         return new DashboardGraphResult(
             $kept->computedAt,
-            $this->metricTitle->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare),
+            $this->metricTitle->forQuery($query),
             $resolution,
-            MetricChartLayouts::build($resolution->type, $query->metric, $query->statistic, $query->bucket, $kept->series, new MetricValueFormatter($locale), $this->clock->now(), $box),
+            MetricChartLayouts::build($resolution->type, $query->chartMetric(), $query->chartStatistic(), $query->bucket, $kept->series, new MetricValueFormatter($locale), $this->clock->now(), $box),
             $labels,
             array_map(static fn (MetricSeries $series) => $series->groupKey, $kept->series),
             $kept->current,

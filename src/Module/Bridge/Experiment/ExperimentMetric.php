@@ -67,9 +67,9 @@ final readonly class ExperimentMetric
             Metric::Duration === $this->shape?->key->metric => 'minutes',
             default => match ($type) {
                 MetricValueType::Money => 'currency',
-                MetricValueType::Ratio, MetricValueType::Boolean => 'percent',
+                MetricValueType::Ratio, MetricValueType::Boolean, MetricValueType::Fraction => 'percent',
                 MetricValueType::Tokens => 'integer',
-                MetricValueType::Count, MetricValueType::Duration, MetricValueType::Percent => 'decimal',
+                MetricValueType::Count, MetricValueType::Duration, MetricValueType::Percent, MetricValueType::Number => 'decimal',
             },
         };
     }

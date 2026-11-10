@@ -1,0 +1,15 @@
+{# One lettered row of a formula: a searchable Metric field, a Statistic field and a remove button. #}
+<div class="lp-metric-formula__row" data-metric-formula-target="row" data-letter="{{ letter }}">
+    <span class="lp-metric-formula__letter" data-metric-formula-role="letter">{{ letter }}</span>
+    <twig:Ds:Select aria-label="{{ 'analytics.metrics.form.metric'|trans }}" data-metric-formula-role="metric" data-controller="symfony--ux-autocomplete--autocomplete" data-symfony--ux-autocomplete--autocomplete-tom-select-options-value="{{ {maxOptions: 500, refreshThrottle: 0}|json_encode }}" data-action="change->metric-formula#rowMetricChanged">
+        {% include '@Insights/_metric_options.html.twig' with {metrics: metrics, bucketNames: bucketNames, harnessEventKinds: harnessEventKinds, selected: selected, only: joinable, blank: true} only %}
+    </twig:Ds:Select>
+    <twig:Ds:Select aria-label="{{ 'analytics.metrics.form.statistic'|trans }}" data-metric-formula-role="statistic" data-action="change->metric-formula#change">
+        {% for option in (joinable[selected].statistics ?? []) %}
+        <option value="{{ option }}"{{ option == statistic ? ' selected' : '' }}>{{ statisticLabels[option] ?? option }}</option>
+        {% endfor %}
+    </twig:Ds:Select>
+    <twig:Ds:Button type="button" variant="ghost icon" size="sm" aria-label="{{ 'analytics.metrics.formula.row.remove'|trans({'%letter%': letter}) }}" data-action="click->metric-formula#removeRow">
+        <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />
+    </twig:Ds:Button>
+</div>

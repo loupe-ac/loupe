@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Module\Insights\Service;
 
 use App\Exception\DomainErrors;
-use App\Module\Bridge\Command\MetricQueryCommand;
 use App\Module\Bridge\Command\MetricQueryHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\View\MetricChartRules;
@@ -39,8 +38,8 @@ final readonly class SavedGraphSettingsResolver
         /** @var InputBag<string> $posted */
         $posted = new InputBag($settings);
         $query = MetricsQuery::fromQuery($posted, $this->templateMetrics->forProject($project->requireId()));
-        $view = ($this->metricQuery)(new MetricQueryCommand($project, $query->unit, $query->metric, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare));
-        $lock = MetricChartRules::lock($query->chart, $query->metric, $query->statistic, \count($view->series));
+        $view = ($this->metricQuery)($query->command($project));
+        $lock = MetricChartRules::lock($query->chart, $query->chartMetric(), $query->chartStatistic(), \count($view->series));
         if (null !== $lock) {
             throw new DomainErrors(['chart' => self::CHART_LOCKED_PREFIX.str_replace('-', '_', $lock->value)]);
         }
@@ -53,7 +52,7 @@ final readonly class SavedGraphSettingsResolver
     {
         $name = trim($posted ?? '');
         if ('' === $name) {
-            $name = $this->metricTitle->title($query->metric, $query->unit, $query->statistic, $query->group, $query->range, $query->bucket, $query->compare);
+            $name = $this->metricTitle->forQuery($query);
         }
 
         return mb_substr($name, 0, InsightsSavedGraph::MAX_NAME_LENGTH);

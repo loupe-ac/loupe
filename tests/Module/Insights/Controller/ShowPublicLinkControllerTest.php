@@ -30,9 +30,9 @@ final class ShowPublicLinkControllerTest extends WebTestCase
 {
     use InsightsScenario;
 
-    private const string SECRET_ACCOUNT = 'secret-account-zq';
+    private const string SECRET_ACCOUNT = 'secret-account-zqleak';
 
-    private const string SECRET_BRIDGE = 'Dev box / 7 zq';
+    private const string SECRET_BRIDGE = 'Dev box / 7 zqleak';
 
     private string $previousSiteHost = '';
 
@@ -260,7 +260,7 @@ final class ShowPublicLinkControllerTest extends WebTestCase
         self::assertStringContainsString('Account 1', $source);
         self::assertStringContainsString('Account 2', $source);
         self::assertStringNotContainsString(self::SECRET_ACCOUNT, $source);
-        self::assertStringNotContainsString('previous-only-zq', $source);
+        self::assertStringNotContainsString('previous-only-zqleak', $source);
     }
 
     public function test_the_page_source_holds_no_bridge_name_for_a_bridge_split_and_a_usage_split(): void
@@ -291,6 +291,7 @@ final class ShowPublicLinkControllerTest extends WebTestCase
             $source = (string) $client->getResponse()->getContent();
             self::assertStringContainsString('Bridge 1', $source, $graph->name);
             self::assertStringNotContainsString('Dev box', $source);
+            self::assertStringNotContainsString('zqleak', $source);
             self::assertStringNotContainsString(self::SECRET_BRIDGE, $source);
             self::assertStringNotContainsString(self::SECRET_ACCOUNT, $source);
         }
@@ -346,7 +347,7 @@ final class ShowPublicLinkControllerTest extends WebTestCase
     private function seedLeakyRuns(Project $project): void
     {
         $em = $this->em();
-        foreach ([[self::SECRET_ACCOUNT, '-5 days'], ['other-zq', '-6 days'], ['previous-only-zq', '-40 days']] as $index => [$account, $when]) {
+        foreach ([[self::SECRET_ACCOUNT, '-5 days'], ['other-zqleak', '-6 days'], ['previous-only-zqleak', '-40 days']] as $index => [$account, $when]) {
             $run = $this->seedRun($em, $project, cardNumber: $index + 1, endedAt: new \DateTimeImmutable($when));
             $this->seedUsage($em, $run, costUsd: '3.00');
             $em->getConnection()->executeStatement('UPDATE bridge_worker_run_facts SET account = :account WHERE run_id = :run', ['account' => $account, 'run' => (string) $run->id]);

@@ -9,6 +9,7 @@ use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 
 /**
  * The statistic of each bucket as one polyline per series, laid out in the units of an SVG view box.
@@ -25,8 +26,8 @@ final readonly class LineLayout
      * @param list<MetricChartTableRow>    $table
      */
     public function __construct(
-        public MetricShape $metric,
-        public MetricStatistic $statistic,
+        public MetricShape|MetricValueType $metric,
+        public ?MetricStatistic $statistic,
         public MetricBucket $bucket,
         public array $series,
         public array $lines,
@@ -48,7 +49,7 @@ final readonly class LineLayout
      * @param bool               $adds   true when the values add up, as MetricChartRules::valuesAdd() says
      * @param \DateTimeImmutable $at     the time of the read, which decides whether the last bucket is open
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, \DateTimeImmutable $at, ChartBox $box = new ChartBox()): ?self
+    public static function build(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, MetricBucket $bucket, array $series, MetricValueFormatter $formatter, bool $adds, \DateTimeImmutable $at, ChartBox $box = new ChartBox()): ?self
     {
         $axis = MetricChartTimeAxis::forSeries($bucket, $series, withPrevious: true, box: $box);
         if (null === $axis) {

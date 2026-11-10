@@ -7,6 +7,7 @@ namespace App\Module\Insights\View;
 use App\Module\Bridge\Metric\MetricSeries;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 
 /**
  * One slice for each series over the whole range, as a ring in a square SVG view box.
@@ -26,8 +27,8 @@ final readonly class DonutLayout
      * @param list<MetricChartTableRow>    $table
      */
     public function __construct(
-        public MetricShape $metric,
-        public MetricStatistic $statistic,
+        public MetricShape|MetricValueType $metric,
+        public ?MetricStatistic $statistic,
         public array $series,
         public array $slices,
         public array $hoverTargets,
@@ -45,7 +46,7 @@ final readonly class DonutLayout
      *
      * @param list<MetricSeries> $series
      */
-    public static function build(MetricShape $metric, MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): ?self
+    public static function build(MetricShape|MetricValueType $metric, ?MetricStatistic $statistic, array $series, MetricValueFormatter $formatter, ?ChartBox $box = null): ?self
     {
         if ([] === $series) {
             return null;

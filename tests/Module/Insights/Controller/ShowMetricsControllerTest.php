@@ -33,14 +33,14 @@ final class ShowMetricsControllerTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/analytics/metrics', $form->attr('action'));
         self::assertSame('get', $form->attr('method'));
         self::assertSame(
-            ['metric' => 'cost', 'statistic' => 'median', 'unit' => 'card', 'group' => 'none', 'range' => 'ninety-days', 'bucket' => 'week', 'compare' => 'off', 'chart' => 'line'],
+            ['format' => 'auto', 'metric' => 'cost', 'statistic' => 'median', 'unit' => 'card', 'group' => 'none', 'range' => 'ninety-days', 'bucket' => 'week', 'compare' => 'off', 'chart' => 'line'],
             self::selected($form),
         );
         self::assertSame(['run', 'card'], self::options($form, 'unit'));
         self::assertSame('Cost', trim($form->filter('select[name="metric"] option[value="cost"]')->text()));
         self::assertMetricOptionsMatchTheCode(self::options($form, 'metric'));
         self::assertCount(1, $form->filter('select[name="metric"] option[value="peak-context"]'));
-        self::assertSame(['Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
+        self::assertSame(['Formula', 'Format', 'Metric', 'Statistic', 'Unit', 'Group', 'Range', 'Bucket', 'Compare to', 'Chart'], $form->filter('label')->each(static fn (Crawler $label): string => trim($label->text())));
         self::assertCount(1, $form->filter('noscript'));
 
         $empty = $crawler->filter('[data-metrics-empty]');
@@ -66,7 +66,7 @@ final class ShowMetricsControllerTest extends WebTestCase
         $form = $crawler->filter('form[data-metrics-form]');
         self::assertSame(['run'], self::options($form, 'unit'));
         self::assertSame(['mean', 'count'], self::options($form, 'statistic'));
-        self::assertSame(['metric' => 'stop-rate', 'statistic' => 'mean', 'unit' => 'run', 'group' => 'model'], array_slice(self::selected($form), 0, 4));
+        self::assertSame(['metric' => 'stop-rate', 'statistic' => 'mean', 'unit' => 'run', 'group' => 'model'], array_slice(self::selected($form), 1, 4));
     }
 
     public function test_run_rows_fill_the_title_the_line_and_the_table(): void
@@ -384,7 +384,7 @@ final class ShowMetricsControllerTest extends WebTestCase
     private static function selected(Crawler $form): array
     {
         $selected = [];
-        $form->filter('select')->each(static function (Crawler $select) use (&$selected): void {
+        $form->filter('select[name]')->each(static function (Crawler $select) use (&$selected): void {
             $selected[(string) $select->attr('name')] = (string) $select->filter('option[selected]')->attr('value');
         });
 

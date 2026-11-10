@@ -1,0 +1,16 @@
+{# The options of one Metrics control whose choices depend on the query. The page and the result frame both render them. Props: field (statistic, unit, group, bucket, compare or chart), options (list of enum cases), query (MetricsQuery), view (MetricsView, for chart). #}
+{%- for option in options -%}
+    {%- if field == 'statistic' -%}
+        <option value="{{ option.value }}"{{ option == query.statistic ? ' selected' : '' }}>{{ ('analytics.metrics.statistic.' ~ option.value)|trans }}</option>
+    {%- elseif field == 'unit' -%}
+        <option value="{{ option.value }}"{{ option == query.unit ? ' selected' : '' }}>{{ ('analytics.metrics.unit.' ~ option.value)|trans }}</option>
+    {%- elseif field == 'group' -%}
+        <option value="{{ option.value }}"{{ option == query.group ? ' selected' : '' }}>{{ ('analytics.metrics.group.' ~ option.value)|trans }}</option>
+    {%- elseif field == 'bucket' -%}
+        <option value="{{ option.value }}"{{ option == query.bucket ? ' selected' : '' }}{{ option in query.range.allowedBuckets() ? '' : ' disabled' }}>{{ ('analytics.metrics.bucket.' ~ option.value)|trans }}</option>
+    {%- elseif field == 'compare' -%}
+        <option value="{{ option.value }}"{{ option == query.compare ? ' selected' : '' }}{{ option.value == 'previous' and query.range.length() is null ? ' disabled' : '' }}>{{ ('analytics.metrics.compare.' ~ option.value)|trans }}</option>
+    {%- elseif field == 'chart' -%}
+        <option value="{{ option.value }}"{{ option == view.chart.type ? ' selected' : '' }}{{ view.locks[option.value] is null ? '' : ' disabled' }}>{{ ('analytics.metrics.chart_type.' ~ option.value|replace({'-': '_'}))|trans }}</option>
+    {%- endif -%}
+{%- endfor -%}

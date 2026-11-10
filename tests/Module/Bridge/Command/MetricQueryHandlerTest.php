@@ -13,6 +13,9 @@ use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
 use App\Module\Bridge\Metric\CardMilestone;
 use App\Module\Bridge\Metric\CardMilestoneSourceInterface;
+use App\Module\Bridge\Metric\Formula\FormulaProblem;
+use App\Module\Bridge\Metric\Formula\FormulaRow;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricChangeKind;
@@ -1005,9 +1008,159 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertSame([], $this->query(MetricUnit::Run, Metric::BucketTimeEach, MetricStatistic::Mean)->series);
     }
 
+    public function test_a_formula_divides_the_sums_of_two_rows_per_bucket_and_in_total(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', cacheRead: 300, cacheWrite: 100);
+        $this->fact($card, endedAt: '2026-10-01 17:00:00', cacheRead: 100, cacheWrite: 100);
+        $this->fact($card, endedAt: '2026-10-03 08:00:00', cacheRead: 50, cacheWrite: 0);
+        $this->fact($card, endedAt: '2026-10-04 08:00:00', cacheRead: 90, cacheWrite: 30);
+
+        $view = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B');
+
+        self::assertCount(1, $view->series);
+        $series = $view->series[0];
+        self::assertEquals([
+            new MetricPoint(new \DateTimeImmutable('2026-10-01 00:00:00 UTC'), 2.0, 2),
+            new MetricPoint(new \DateTimeImmutable('2026-10-03 00:00:00 UTC'), null, 1),
+            new MetricPoint(new \DateTimeImmutable('2026-10-04 00:00:00 UTC'), 3.0, 1),
+        ], $series->points);
+        self::assertEquals(new MetricPoint(null, 540 / 230, 4), $series->total);
+        self::assertCount(4, $series->rows);
+        self::assertSame([null, null, null, null], array_map(static fn (MetricRow $row): int|float|null => $row->value, $series->rows));
+        self::assertNull($series->comparison);
+    }
+
+    public function test_a_card_formula_divides_the_card_sums_and_splits_by_stage(): void
+    {
+        $first = $this->finishedCard(1, '2026-10-02 10:00:00');
+        $second = $this->finishedCard(2, '2026-10-03 10:00:00');
+        $this->fact($first, endedAt: '2026-09-01 09:00:00', workKind: 'implement', cacheRead: 100, cacheWrite: 10);
+        $this->fact($first, endedAt: '2026-09-02 09:00:00', workKind: 'implement', cacheRead: 100, cacheWrite: 10);
+        $this->fact($first, endedAt: '2026-09-03 09:00:00', workKind: 'review', cacheRead: 40, cacheWrite: 10);
+        $this->fact($second, endedAt: '2026-10-03 09:00:00', workKind: 'implement', cacheRead: 60, cacheWrite: 10);
+
+        $view = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum,C:runs:sum', 'A / B / C', MetricUnit::Card, MetricGroup::Stage);
+
+        self::assertSame(['implement', 'review'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        [$implement, $review] = $view->series;
+        self::assertEquals(new MetricPoint(null, 260 / 30 / 3, 2), $implement->total);
+        self::assertEquals(new MetricPoint(null, 4.0, 1), $review->total);
+        self::assertCount(2, $implement->rows);
+        self::assertSame([null, null], array_map(static fn (MetricRow $row): int|float|null => $row->value, $implement->rows));
+    }
+
+    public function test_a_formula_over_a_group_joins_the_rows_on_the_group(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00', harness: 'claude', cacheRead: 100, cacheWrite: 50);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 10:00:00', harness: 'codex', cacheRead: 10, cacheWrite: 10);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 11:00:00', harness: 'codex', cacheRead: 30, cacheWrite: 10);
+
+        $view = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B', group: MetricGroup::Harness);
+
+        self::assertSame(['claude', 'codex'], array_map(static fn (MetricSeries $series): ?string => $series->group, $view->series));
+        self::assertEquals([2.0, 2.0], array_map(static fn (MetricSeries $series): int|float|null => $series->total->value, $view->series));
+    }
+
+    public function test_a_formula_with_a_count_row_reads_zero_where_a_row_has_no_value(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-01 09:00:00', cost: null, startedAt: null);
+
+        $view = $this->formulaQuery('A:cost:sum,B:cost:count', 'A * B');
+
+        self::assertSame([null], array_map(static fn (MetricPoint $point): int|float|null => $point->value, $view->series[0]->points));
+
+        $view = $this->formulaQuery('A:cost:count,B:cost:count', 'A + B');
+
+        self::assertSame([0], array_map(static fn (MetricPoint $point): int|float|null => $point->value, $view->series[0]->points));
+    }
+
+    public function test_a_formula_compare_moves_the_previous_period_forward_and_gives_a_relative_change(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-08-20 09:00:00', cacheRead: 100, cacheWrite: 100);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-02 09:00:00', cacheRead: 300, cacheWrite: 100);
+
+        $view = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B', compare: MetricCompare::Previous);
+
+        $series = $view->series[0];
+        self::assertNotNull($view->previous);
+        self::assertEquals(new MetricPoint(null, 3.0, 1), $series->total);
+        $comparison = $series->comparison;
+        self::assertNotNull($comparison);
+        self::assertEquals(new MetricPoint(null, 1.0, 1), $comparison->previous);
+        self::assertSame(2.0, $comparison->change);
+        self::assertSame(MetricChangeKind::Relative, $comparison->changeKind);
+        self::assertNull($comparison->sign);
+        self::assertNull($comparison->currentRange);
+        self::assertSame(0, $comparison->currentCards);
+        self::assertCount(1, $series->previousPoints);
+        self::assertEquals(1.0, $series->previousPoints[0]->value);
+    }
+
+    public function test_a_formula_compare_in_percent_is_in_points_and_from_zero_it_is_absolute(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-08-20 09:00:00', cacheRead: 100, cacheWrite: 100);
+        $this->fact(Uuid::v7(), endedAt: '2026-10-02 09:00:00', cacheRead: 300, cacheWrite: 100);
+
+        $points = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B', compare: MetricCompare::Previous, format: 'percent')->series[0]->comparison;
+        self::assertSame(MetricChangeKind::Points, $points?->changeKind);
+        self::assertSame(2.0, $points->change);
+
+        $zero = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A - B', compare: MetricCompare::Previous)->series[0]->comparison;
+        self::assertSame(MetricChangeKind::Absolute, $zero?->changeKind);
+        self::assertSame(200.0, $zero->change);
+    }
+
+    public function test_a_formula_compare_gives_no_change_when_a_period_has_no_value(): void
+    {
+        $this->fact(Uuid::v7(), endedAt: '2026-10-02 09:00:00', cacheRead: 300, cacheWrite: 100);
+
+        $comparison = $this->formulaQuery('A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'A / B', compare: MetricCompare::Previous)->series[0]->comparison;
+
+        self::assertNotNull($comparison);
+        self::assertNull($comparison->change);
+        self::assertNull($comparison->changeKind);
+    }
+
+    public function test_a_formula_refuses_a_unit_that_one_row_does_not_allow(): void
+    {
+        try {
+            $this->formulaQuery('A:cost:sum,B:runs:sum', 'A / B', MetricUnit::Run);
+            self::fail('The Runs metric takes the card unit alone.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['unit' => MetricQueryHandler::UNIT_NOT_ALLOWED], $e->errors);
+        }
+    }
+
+    public function test_a_formula_refuses_a_group_that_one_row_does_not_allow(): void
+    {
+        try {
+            $this->formulaQuery('A:wakes:sum,B:cost:sum', 'A / B', MetricUnit::Run, MetricGroup::WakeGap);
+            self::fail('Cost takes no wake group.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['group' => MetricQueryHandler::GROUP_NOT_ALLOWED], $e->errors);
+        }
+    }
+
+    public function test_a_formula_with_a_problem_is_refused_with_the_key_of_the_problem(): void
+    {
+        try {
+            $this->formulaQuery('A:cost:sum', 'A / (B');
+            self::fail('B has no row.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['formula' => FormulaProblem::UNCLOSED_PARENTHESIS], $e->errors);
+        }
+    }
+
     private function query(MetricUnit $unit, Metric|MetricShape $metric, MetricStatistic $statistic, MetricGroup $group = MetricGroup::None, MetricCompare $compare = MetricCompare::Off, MetricRange $range = MetricRange::ThirtyDays, MetricBucket $bucket = MetricBucket::Day): MetricQueryView
     {
         $shape = $metric instanceof MetricShape ? $metric : new MetricShape(new MetricKey($metric));
+
+        return ($this->handler())(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, $range, $bucket, $compare));
+    }
+
+    private function handler(): MetricQueryHandler
+    {
         $finished = new readonly class($this->finished) implements FinishedCardSourceInterface {
             /** @param list<FinishedCard> $cards */
             public function __construct(
@@ -1102,9 +1255,16 @@ final class MetricQueryHandlerTest extends KernelTestCase
         self::assertInstanceOf(BridgeRepository::class, $bridges);
         $readings = self::getContainer()->get(BridgeAccountReadingRepository::class);
         self::assertInstanceOf(BridgeAccountReadingRepository::class, $readings);
-        $handler = new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values, $bridges, $readings), new MockClock(self::NOW.' UTC'));
 
-        return $handler(new MetricQueryCommand($this->project, $unit, $shape, $statistic, $group, $range, $bucket, $compare));
+        return new MetricQueryHandler(new MetricRowSource($facts, $finished, $reports, $bucketTimes, $workerRuns, $values, $bridges, $readings), new MockClock(self::NOW.' UTC'));
+    }
+
+    private function formulaQuery(string $rows, string $formula, MetricUnit $unit = MetricUnit::Run, MetricGroup $group = MetricGroup::None, MetricCompare $compare = MetricCompare::Off, string $format = 'auto', MetricRange $range = MetricRange::ThirtyDays, MetricBucket $bucket = MetricBucket::Day): MetricQueryView
+    {
+        $parsed = MetricFormula::parse($rows, $formula, $format, new TemplateMetricSet());
+        $earliest = $parsed->earliestRow() ?? new FormulaRow('A', new MetricShape(new MetricKey(Metric::Cost)), MetricStatistic::Sum);
+
+        return ($this->handler())(new MetricQueryCommand($this->project, $unit, $earliest->shape, $earliest->statistic, $group, $range, $bucket, $compare, formula: $parsed));
     }
 
     private function finishedCard(int $number, string $completedAt): Uuid
@@ -1142,6 +1302,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?int $wakeInput = null,
         ?int $wakeRead = null,
         ?int $wakeWrite = null,
+        ?int $cacheRead = null,
+        ?int $cacheWrite = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -1157,6 +1319,8 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'ended_at' => $endedAt,
             'received_at' => $receivedAt ?? $endedAt,
             'cost_micro_usd' => $cost,
+            'tokens_cache_read' => $cacheRead,
+            'tokens_cache_write' => $cacheWrite,
             'usage_source' => null === $cost ? null : 'reported',
             'harness' => $harness,
             'account' => $account,

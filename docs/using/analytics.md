@@ -18,8 +18,11 @@ owner can open Analytics.
 
 ## The controls
 
-A row of controls above the chart sets what the page shows. The page loads
-again when you change a control. Without JavaScript, press **Apply**.
+A row of controls above the chart sets what the page shows. When you change a
+control, the chart dims under a loading note and then redraws in place. The
+controls and your formula rows stay as they are. The address bar keeps every
+setting, so a reload or a shared link shows the same view. Without JavaScript,
+press **Apply**.
 
 | Control | Values | Default |
 |---|---|---|
@@ -40,6 +43,63 @@ address takes the default. A value that the metric does not allow takes the
 default when the metric allows the default. Otherwise it takes the first value
 that the metric allows. For example, `metric=stop-rate&unit=card` shows the stop
 rate per run.
+
+The **Metric** field is a searchable list. Type part of a name, such as
+"cache", to narrow the list. Its headings stay in place.
+
+## Formulas
+
+Press **Add formula** to combine metrics, such as cache reads divided by cache
+writes. The Metric and Statistic controls become lettered rows, and the Formula
+field holds `A / B`. Row A keeps the metric you had, and row B starts empty.
+Both rows start on **Sum**. The page does not load again while a row has no
+metric.
+
+1. Each row has a letter from A to F, a Metric, a Statistic and a remove button.
+   **Add metric** adds a row, up to six. A new row takes the first free letter.
+   Removing a row does not rename the other rows.
+2. A row lists only the metrics that add up across runs. Stop rate, the usage
+   percents, Peak context, Cold wake share, the template metrics and the
+   metrics that draw one line for each bucket are not in the list.
+3. The Formula field takes letters, numbers, `+`, `-`, `*`, `/` and
+   parentheses, in at most 200 characters. A formula that names a letter with
+   no row, adds different kinds of values, or is not valid shows an error under
+   the field. The last graph stays on the page, dimmed, and **Save to
+   dashboard** stays off until the formula works. The page checks the formula
+   after a short pause in typing.
+4. Each row reads its statistic for each bucket and group. The formula then
+   combines the results, so a ratio with **Sum** on both rows is a ratio of
+   sums. A point where a row has no known value, or where a division by zero
+   happens, has no value. The line has a gap there, and the table shows
+   "unknown".
+5. All rows share one Unit and one Group. Each control lists only the values
+   that every row allows, and the Metric list of a row leaves out a metric that
+   shares no Unit with the other rows. For example, a wake grouping goes away
+   when a row reads a metric that is not a wake metric.
+6. **Format** sets how the result reads. **Auto** picks from the rows: money or
+   a duration divided by a count stays money or a duration, and any other
+   formula is a plain number such as 1.3M or 31.6. **Number**, **Percent**,
+   **Money** and **Duration** set it yourself. **Percent** multiplies by 100,
+   as in 0.77%.
+7. A note appears above the graph, and the graph still draws, when **Percent**
+   shows a point above 100%, when the Format you chose differs from what
+   **Auto** would pick, and when a row is not used by the formula. **Percent**
+   always gets the second note, because **Auto** never picks it. The notes
+   appear on the Metrics tab only. A Dashboard tile and a shared address show
+   none.
+8. A formula graph offers **Line**, **Bars** and **Number**. The other charts
+   add the lines together, so they stay locked.
+9. **Compare to** draws the previous period as a dashed line and shows the
+   change, as a percent or as points when the Format is **Percent**. A formula
+   shows no likely range and no sign.
+10. **Remove formula** returns to one metric. It keeps the first row, from the
+    top, that holds a metric. When no row holds a metric, the graph returns to
+    **Cost**.
+
+The title names the metrics instead of the letters, such as "Cache read tokens
+/ Cache write tokens per finished card, last 90 days, per week". A saved graph
+keeps its rows, formula and Format. The `metric_query` and `graph_save` tools
+take the same rows, as [Through the MCP](#through-the-mcp) says.
 
 ## Run rows and card rows
 

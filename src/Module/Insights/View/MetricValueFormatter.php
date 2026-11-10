@@ -40,6 +40,8 @@ final readonly class MetricValueFormatter
             MetricValueType::Money => null !== $moneyDecimals ? $this->money($value, $moneyDecimals, $moneyDecimals) : $this->money($value, 2, self::maxMoneyDecimals($value)),
             MetricValueType::Ratio => $this->number($value, \NumberFormatter::PERCENT, 1, 1),
             MetricValueType::Percent => $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' %',
+            MetricValueType::Number => $this->plainNumber($value),
+            MetricValueType::Fraction => $this->fraction($value),
             MetricValueType::Duration => $inHours
                 ? $this->number($value, \NumberFormatter::DECIMAL, 0, 1).' h'
                 : self::milliseconds((int) round($value)),
@@ -58,7 +60,7 @@ final readonly class MetricValueFormatter
             return $this->format($value, $metric, $statistic, $moneyDecimals) ?? '';
         }
 
-        return $this->number($value, \NumberFormatter::DECIMAL_COMPACT_SHORT, 0, 1);
+        return $this->compact($value);
     }
 
     /** A fraction of a whole as a percentage, with a decimal only when it has one. */
@@ -71,7 +73,7 @@ final readonly class MetricValueFormatter
      * The size of a change with no sign or arrow: a percentage for a relative change, points for a change of
      * rates, and the unit of the metric for an absolute change. The caller adds the direction.
      */
-    public function change(float $change, MetricChangeKind $kind, MetricShape $metric, ?MetricStatistic $statistic): string
+    public function change(float $change, MetricChangeKind $kind, MetricShape|MetricValueType $metric, ?MetricStatistic $statistic): string
     {
         $size = abs($change);
 
@@ -103,6 +105,48 @@ final readonly class MetricValueFormatter
     private static function maxMoneyDecimals(int|float $value): int
     {
         return $value > 0 && $value < 0.005 ? 6 : 2;
+    }
+
+    /** 1.3M, 31.6 or 0.0077: compact from a thousand, one decimal from one, two significant digits under one. */
+    private function plainNumber(int|float $value): string
+    {
+        $size = abs($value);
+        if ($size >= 1000) {
+            return $this->compact($value);
+        }
+        if ($size >= 1 || 0.0 === (float) $value) {
+            return $this->number($value, \NumberFormatter::DECIMAL, 0, 1);
+        }
+
+        return $this->significant($value, 2);
+    }
+
+    /** A fraction times 100, with two significant digits under 1%: 0.77%, 31.6%. */
+    private function fraction(int|float $value): string
+    {
+        $percent = $value * 100;
+        if (abs($percent) >= 1 || 0.0 === (float) $percent) {
+            return $this->number($percent, \NumberFormatter::DECIMAL, 0, 1).'%';
+        }
+
+        return $this->significant($percent, 2).'%';
+    }
+
+    private function significant(int|float $value, int $digits): string
+    {
+        $formatter = new \NumberFormatter($this->locale, \NumberFormatter::DECIMAL);
+        $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, 0);
+        $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 12);
+        $formatter->setAttribute(\NumberFormatter::SIGNIFICANT_DIGITS_USED, 1);
+        $formatter->setAttribute(\NumberFormatter::MAX_SIGNIFICANT_DIGITS, $digits);
+        $formatter->setAttribute(\NumberFormatter::MIN_SIGNIFICANT_DIGITS, 1);
+
+        return (string) $formatter->format($value);
+    }
+
+    private function compact(int|float $value): string
+    {
+        return $this->number($value, \NumberFormatter::DECIMAL_COMPACT_SHORT, 0, 1);
     }
 
     private function money(int|float $value, int $minDecimals, int $maxDecimals): string

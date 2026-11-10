@@ -18,13 +18,36 @@ final readonly class InsightsDataKinds
     ) {
     }
 
-    /** @return list<InsightsDataKind> */
+    /**
+     * The kinds that the metric of a graph reads, or the union over the rows of a formula graph.
+     *
+     * @return list<InsightsDataKind>
+     */
     public function reads(InsightsSavedGraph $graph): array
     {
-        $key = explode(':', $graph->metric, 2)[0];
-        $metric = Metric::tryFrom($key);
+        $kinds = [];
+        foreach ($graph->metricKeys() as $key) {
+            foreach ($this->readsOf($graph, $key) as $kind) {
+                $kinds[$kind->value] = $kind;
+            }
+        }
+
+        return array_values($kinds);
+    }
+
+    /** Whether the sweep keeps the graph fresh: a rolling range, or a template metric that no data event covers. */
+    public function sweeps(InsightsSavedGraph $graph): bool
+    {
+        return MetricRange::All !== $graph->range
+            || array_any($graph->metricKeys(), static fn (string $key): bool => null === Metric::tryFrom(explode(':', $key, 2)[0]));
+    }
+
+    /** @return list<InsightsDataKind> */
+    private function readsOf(InsightsSavedGraph $graph, string $key): array
+    {
+        $metric = Metric::tryFrom(explode(':', $key, 2)[0]);
         if (null === $metric) {
-            return null !== $this->templateMetrics->forProject($graph->project->requireId())->metric($graph->metric)
+            return null !== $this->templateMetrics->forProject($graph->project->requireId())->metric($key)
                 ? [InsightsDataKind::Cards]
                 : [InsightsDataKind::Runs, InsightsDataKind::BucketTimes, InsightsDataKind::Cards, InsightsDataKind::Readings];
         }
@@ -41,12 +64,6 @@ final readonly class InsightsDataKinds
         }
 
         return $kinds;
-    }
-
-    /** Whether the sweep keeps the graph fresh: a rolling range, or a template metric that no data event covers. */
-    public function sweeps(InsightsSavedGraph $graph): bool
-    {
-        return MetricRange::All !== $graph->range || null === Metric::tryFrom(explode(':', $graph->metric, 2)[0]);
     }
 
     /** @return list<string> the keys of the built-in metrics */

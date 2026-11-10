@@ -13,9 +13,12 @@ use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Insights\View\MetricsQuery;
 use App\Module\Insights\View\MetricTitle;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use App\Tests\Support\TemplateMetricSets;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Translation\Loader\XliffFileLoader;
 use Symfony\Component\Translation\Translator;
 
@@ -91,6 +94,42 @@ final class MetricTitleTest extends TestCase
         self::assertSame('Time in each bucket, subagents included', $title->metricName(new MetricShape(new MetricKey(Metric::BucketTimeAllEach))));
         self::assertSame('Calls in each bucket', $title->metricName(new MetricShape(new MetricKey(Metric::BucketCallsEach))));
         self::assertSame('Stop rate', $title->metricName(new MetricShape(new MetricKey(Metric::StopRate))));
+    }
+
+    public function test_a_formula_names_each_row_and_puts_the_statistic_in_parentheses_when_it_is_not_a_sum(): void
+    {
+        $sums = self::formulaQuery(['rows' => 'A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'formula' => 'A / B']);
+        $mixed = self::formulaQuery(['rows' => 'A:cache-read-tokens:mean,B:cache-write-tokens:sum', 'formula' => '(A + B) * 2 / A']);
+
+        self::assertNotNull($sums->formula);
+        self::assertNotNull($mixed->formula);
+        self::assertSame('Cache read tokens / Cache write tokens', self::translator()->formulaText($sums->formula));
+        self::assertSame('(Cache read tokens (mean) + Cache write tokens) * 2 / Cache read tokens (mean)', self::translator()->formulaText($mixed->formula));
+    }
+
+    public function test_a_formula_graph_has_the_title_of_its_formula(): void
+    {
+        $query = self::formulaQuery(['rows' => 'A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'formula' => 'A / B', 'range' => 'ninety-days', 'bucket' => 'week']);
+
+        self::assertSame('Cache read tokens / Cache write tokens per finished card, last 90 days, per week', self::translator()->forQuery($query));
+        self::assertSame(
+            'Cache read tokens / Cache write tokens per finished card, by model, last 90 days, per week',
+            self::translator()->forQuery(self::formulaQuery(['rows' => 'A:cache-read-tokens:sum,B:cache-write-tokens:sum', 'formula' => 'A / B', 'group' => 'model'])),
+        );
+    }
+
+    public function test_a_one_metric_query_has_the_ordinary_title(): void
+    {
+        self::assertSame(
+            'Cost per finished card, median, last 90 days, per week',
+            self::translator()->forQuery(MetricsQuery::fromQuery(new Request()->query, new TemplateMetricSet())),
+        );
+    }
+
+    /** @param array<string, string> $values */
+    private static function formulaQuery(array $values): MetricsQuery
+    {
+        return MetricsQuery::fromQuery(new Request($values)->query, new TemplateMetricSet());
     }
 
     private static function title(MetricShape $metric, MetricUnit $unit, MetricStatistic $statistic, MetricGroup $group, MetricRange $range, MetricBucket $bucket, MetricCompare $compare = MetricCompare::Off): string

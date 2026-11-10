@@ -24,9 +24,9 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
 {
     use ExperimentScenario;
 
-    private const string SECRET_CARD = 'Secret card title zq';
+    private const string SECRET_CARD = 'Secret card title zqleak';
 
-    private const string SECRET_BRIDGE = 'Dev box / 7 zq';
+    private const string SECRET_BRIDGE = 'Dev box / 7 zqleak';
 
     private const string NOTE = "Our **model test**.\n\n<script>alert(1)</script>\n\nSee card:3 for more.";
 
@@ -106,7 +106,7 @@ final class ShowPublicExperimentControllerTest extends WebTestCase
         self::assertStringNotContainsString(self::SECRET_BRIDGE, $source);
         self::assertStringNotContainsString('Riley Chen', $source);
         self::assertStringNotContainsString('example.com', $source);
-        self::assertStringNotContainsString('zq', $source);
+        self::assertStringNotContainsString('zqleak', $source);
     }
 
     public function test_the_note_renders_as_sanitized_markdown(): void

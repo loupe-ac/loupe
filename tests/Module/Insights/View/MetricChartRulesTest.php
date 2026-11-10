@@ -8,6 +8,7 @@ use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricShape;
 use App\Module\Bridge\Metric\MetricStatistic;
+use App\Module\Bridge\Metric\MetricValueType;
 use App\Module\Insights\View\MetricChartLock;
 use App\Module\Insights\View\MetricChartRules;
 use App\Module\Insights\View\MetricChartType;
@@ -146,6 +147,22 @@ final class MetricChartRulesTest extends TestCase
     public function test_the_fallback_is_always_allowed(): void
     {
         self::assertTrue(MetricChartRules::isAllowed(MetricChartRules::fallback(), self::cost(), MetricStatistic::Median, 0));
+    }
+
+    public function test_a_bare_value_type_locks_every_chart_that_adds_the_lines_together(): void
+    {
+        foreach (self::ADDING as $type) {
+            foreach ([MetricValueType::Number, MetricValueType::Fraction, MetricValueType::Money, MetricValueType::Duration] as $valueType) {
+                self::assertSame(MetricChartLock::RateDoesNotAdd, MetricChartRules::lock($type, $valueType, null, 6), $valueType->value);
+            }
+        }
+        self::assertNull(MetricChartRules::lock(MetricChartType::Line, MetricValueType::Number, null, 1));
+        self::assertNull(MetricChartRules::lock(MetricChartType::Number, MetricValueType::Number, null, 1));
+        self::assertFalse(MetricChartRules::valuesAdd(MetricValueType::Money, null, 6));
+
+        $resolution = MetricChartRules::resolve(MetricChartType::Donut, MetricValueType::Number, null, 6);
+        self::assertSame(MetricChartType::Bars, $resolution->type);
+        self::assertSame(MetricChartLock::RateDoesNotAdd, $resolution->reason);
     }
 
     private static function cost(): MetricShape
