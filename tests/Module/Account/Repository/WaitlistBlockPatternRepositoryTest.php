@@ -60,4 +60,21 @@ final class WaitlistBlockPatternRepositoryTest extends KernelTestCase
 
         self::assertFalse($repo->matches('anyone@example.com'));
     }
+
+    public function test_insert_if_absent_stores_a_pattern_once_and_yields_to_an_existing_one(): void
+    {
+        self::bootKernel();
+        $repo = self::getContainer()->get(WaitlistBlockPatternRepository::class);
+        self::assertInstanceOf(WaitlistBlockPatternRepository::class, $repo);
+
+        $first = $repo->insertIfAbsent(' *@Insert-Once.example ');
+        $second = $repo->insertIfAbsent('*@insert-once.example');
+
+        self::assertNotNull($first);
+        self::assertNull($second);
+        $stored = $repo->findOneByPattern('*@insert-once.example');
+        self::assertNotNull($stored);
+        self::assertTrue($first->equals($stored->id));
+        self::assertSame('%@insert-once.example', $stored->likePattern);
+    }
 }
