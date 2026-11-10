@@ -256,7 +256,7 @@ Read `lastDeploy` of the release with `find_releases` through the Sentry MCP to 
 
 Do each step of the deploy notes that an agent can do, and do not ask the owner again. The go of the owner on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
 
-- For a CLI change, run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/`. When it prints a file, push the next `cli/v*` tag at the deployed sha. Then wait for the `CLI release` workflow. Never move a tag, so a failed release gets the next patch tag.
+- For a CLI change, run `git fetch -q --tags origin` first, because a stale local tag hides a release. Then run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/ plugins/`. The CLI release builds `plugins/` into the binary, and `loupe init` runs its skills from that copy. A change to `plugins/` alone therefore needs a CLI release too. When the diff prints a file, push the next `cli/v*` tag at the deployed sha. Then wait for the `CLI release` workflow. Never move a tag, so a failed release gets the next patch tag.
 - For a bridge update, read `~/Library/Application Support/loupe/rules.yaml`, and copy it to a backup file next to it. Edit it when the release changes its format. Then run `loupe update`, and read `loupe --version` and the end of `bridge.log`.
 - A running bridge reads the file only at start and on `loupe bridge reload`. The update preflight reads the file on disk, so edit the file first and update after. Never run `loupe bridge stop` for an update, because it ends every running worker.
 - Run a backfill or a console command in the `web` console, as above.
