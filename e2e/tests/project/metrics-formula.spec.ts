@@ -25,13 +25,20 @@ async function chooseMetric(
     search: string,
     label: string,
 ): Promise<void> {
-    const field = page.locator(`[data-letter="${row}"] .ts-control`);
-    await field.click();
-    await field.locator('input').fill(search);
-    await page
-        .locator(`[data-letter="${row}"] div[role="option"]`)
-        .getByText(label, { exact: true })
-        .click();
+    const wrapper = page.locator(`[data-letter="${row}"] .ts-wrapper`);
+    const field = wrapper.locator('.ts-control');
+    // Choosing a metric in one row narrows the lists of the others, which can close a dropdown
+    // that opened a moment before. Open it again until the option shows.
+    await expect(async () => {
+        await field.click();
+        await field.locator('input').fill(search);
+        await wrapper
+            .locator('div[role="option"]')
+            .getByText(label, { exact: true })
+            .click({ timeout: 2000 });
+    }).toPass({ timeout: 15000 });
+    await expect(wrapper.locator('.item')).toHaveText(label);
+    await expect(wrapper).not.toHaveClass(/dropdown-active/);
 }
 
 test('a formula builds in the page and closes onto the earliest row', async ({
