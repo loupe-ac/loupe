@@ -61,7 +61,7 @@ func TestCheckAppComparesTheOriginWithTheProjectRepositories(t *testing.T) {
 				t.Errorf("need = %v, want %v", got.need, tc.want)
 			}
 			want := "https://app.test/projects/p/github/install"
-			if got.need == appAddRepository && got.repository != "" {
+			if (got.need == appAddRepository || got.need == appInstall) && got.repository != "" {
 				want += "?repository=o%2Fr"
 			}
 			if got.link != want {

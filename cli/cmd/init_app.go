@@ -58,7 +58,7 @@ func checkApp(baseURL, dir string, site api.Site) appCheck {
 			}
 		}
 	}
-	if c.need == appAddRepository && c.repository != "" {
+	if (c.need == appAddRepository || c.need == appInstall) && c.repository != "" {
 		c.link += "?repository=" + url.QueryEscape(c.repository)
 	}
 
