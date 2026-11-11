@@ -151,9 +151,32 @@ another column appends the card to the end of that column, and it renumbers the
 column the card left so no gap remains. A delete renumbers the column the card
 leaves in the same way.
 
-The MCP tools carry no rank argument. `card_create` appends a new card to its
-column, and `card_update` appends a card whose column changed. An agent cannot
-re-rank a column.
+`card_create` appends a new card to its column. `card_update` appends a card
+whose column changed, unless the call also names a place.
+
+An agent sets the rank of one card with `position`, `beforeCard` or `afterCard`
+on `card_update`. `position` counts from 0 at the top, and a position past the
+end puts the card last. `beforeCard` and `afterCard` name a card of the column
+the card ends in, by number or by id, and the card lands just above or just
+below it. A call passes at most one of the three. The change runs the same move
+as a drag on the board.
+
+An agent places a block of cards with `card_reorder`. The block keeps the order
+of the list, and it lands at the `top` or `bottom` of the column, just above a
+card with `beforeCard`, or just below a card with `afterCard`. The other cards
+keep their order around the block. A list that names every card of the column
+reorders the whole column. The call changes ranks only, so every listed card
+must already sit in the column.
+
+A call that names a bad place is refused, and no card moves. A bad place is a
+neighbour that is the card itself or sits in another column, a neighbour that is
+in the list of `card_reorder`, an unknown card, a card listed twice, an empty
+list, a negative `position`, and a terminal column. The error names each card at
+fault. A drop on the board keeps its old behaviour: a drop next to a card that
+left the column puts the card last.
+
+A rank change writes no history row, and it starts no workflow work. An open
+board shows the new order without a reload.
 
 Two cards that tie on rank read oldest first, and then by id, so a column comes
 back in the same order on every read.
@@ -1061,7 +1084,8 @@ An agent drives the board through the MCP endpoint. See
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards`, `requiresHumanReview` and `values` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds`, `relatedCards`, `requiresHumanReview` and `values` are optional. `position`, `beforeCard` and `afterCard` place the card in its column, and a call passes at most one of them. |
+| `card_reorder` | `column` and `cards` are required: the slug of an open column, and the cards of the block from top to bottom, each by number or id. Exactly one of `at` (`top` or `bottom`), `beforeCard` and `afterCard` is required. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |

@@ -328,7 +328,8 @@ Roughly in the order an agent uses them:
 | `card_search` | Search every card's title and body by part of a word, finished ones included |
 | `card_get` | Read one card, with the pull requests and their stored state, the latest agent review of each pull request as `agentReview`, and the feedback linked to it. The `carriedTo` list of `agentReview` names each later head that Loupe made a carried check for. Its `postedAt` is null while that check is not posted yet |
 | `card_get_history` | Read a page of one card's history, newest first: its creation, its moves and the automation's actions |
-| `card_update` | Change a card, or move it to another column |
+| `card_update` | Change a card, move it to another column, or give it a rank in its column with `position`, `beforeCard` or `afterCard` |
+| `card_reorder` | Place a block of cards inside one column, at the top or bottom, or just above or below a card, in one call. See [How cards are ordered](board.md#how-cards-are-ordered) |
 | `card_run_open` | Record an open interactive session on a card, and optionally move the card in the same step. On a Lifecycle board, pass the Implementation slug to start the work yourself with no worker. An older Lifecycle template refuses that move with a message that says the card is managed, so call the tool again with no `status`. A message that starts `worker:` means a worker holds the card, so make no edit. See [Work a card in a session](workflows.md#work-a-card-in-a-session) |
 | `card_run_close` | Close the interactive run a session opened on a card, and ask the bridges for the usage of the run |
 | `artifact_list` | List the stored design artifacts of the project, newest first (off with `artifacts.enabled`, see [Artifact tools](../extending/artifact-tools.md)) |
@@ -618,6 +619,17 @@ the value, and so does the result of `workflow_get`.
 The board has no delete tool. An agent moves a card to a terminal column; only a
 person removes one. `card_update` also refuses to change `reporter`, because
 that field records who first raised the card.
+
+`card_update` sets the place of a card with `position` (a rank counted from 0),
+`beforeCard` or `afterCard`. A call passes at most one of the three. `beforeCard`
+and `afterCard` take the number or the id of a card of the column that the card
+ends in. `card_reorder` takes `column`, `cards` and exactly one of `at`
+(`top` or `bottom`), `beforeCard` and `afterCard`. Each card is named by its
+number or its id. Both tools refuse a bad place and change nothing. They refuse a
+neighbour that sits in another column, a terminal column, and a card that does
+not exist. The error names each card at fault. `card_reorder` answers with the
+placed cards and the card just above and below the block. See
+[How cards are ordered](board.md#how-cards-are-ordered).
 
 `card_update` reads an omitted field as "leave it alone". `pullRequestUrls` is
 the one field where an omitted list and an empty list differ: omit it and the
