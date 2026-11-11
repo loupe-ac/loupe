@@ -848,6 +848,172 @@ final class CardApiTest extends WebTestCase
         self::assertSame('Test key', $released[0]['actor']['apiKey']['name']);
     }
 
+    public function test_a_block_lands_at_the_top_and_a_list_takes_a_number_and_an_id_together(): void
+    {
+        $cards = $this->cardsIn('next', ['A', 'B', 'C', 'D', 'E']);
+
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode(['column' => 'next', 'cards' => [$cards['D']['number'], $cards['B']['cardId']], 'at' => 'top'], \JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->json();
+        self::assertNull($body['above']);
+        self::assertSame([['number' => $cards['D']['number'], 'title' => 'D', 'rank' => 0], ['number' => $cards['B']['number'], 'title' => 'B', 'rank' => 1]], $body['cards']);
+        self::assertSame(['number' => $cards['A']['number'], 'title' => 'A', 'rank' => 2], $body['below']);
+        self::assertSame(['D', 'B', 'A', 'C', 'E'], $this->columnTitles('next'));
+        self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
+    }
+
+    public function test_a_block_takes_a_neighbour_as_a_string_of_digits_or_an_id(): void
+    {
+        $cards = $this->cardsIn('next', ['A', 'B', 'C', 'D']);
+
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode(['column' => 'next', 'cards' => [(string) $cards['D']['number']], 'afterCard' => (string) $cards['A']['number']], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['A', 'D', 'B', 'C'], $this->columnTitles('next'));
+
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode(['column' => 'next', 'cards' => [$cards['A']['number']], 'beforeCard' => $cards['C']['cardId']], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['D', 'B', 'A', 'C'], $this->columnTitles('next'));
+
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode(['column' => 'next', 'cards' => [$cards['D']['number']], 'at' => 'bottom'], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['B', 'A', 'C', 'D'], $this->columnTitles('next'));
+    }
+
+    public function test_a_refused_block_answers_a_code_for_each_fault_and_changes_nothing(): void
+    {
+        $cards = $this->cardsIn('next', ['A', 'B', 'C']);
+        $stranger = $this->createCard('Stranger', ['status' => 'backlog']);
+        $done = $this->createCard('Finished', ['status' => 'done']);
+        $a = $cards['A']['number'];
+        $b = $cards['B']['number'];
+        $unknownId = '0199a0a0-0000-7000-8000-000000000000';
+
+        foreach ([
+            [['column' => 'next', 'cards' => [$a]], 'place_missing'],
+            [['column' => 'next', 'cards' => [$a], 'at' => 'top', 'beforeCard' => $b], 'place_conflict'],
+            [['column' => 'nowhere', 'cards' => [$a], 'at' => 'top'], 'unknown_column'],
+            [['column' => 'done', 'cards' => [$done['number']], 'at' => 'top'], 'terminal_column'],
+            [['column' => 'next', 'cards' => [], 'at' => 'top'], 'list_empty'],
+            [['column' => 'next', 'cards' => [$a, $a], 'at' => 'top'], 'card_listed_twice'],
+            [['column' => 'next', 'cards' => [$a, 999], 'at' => 'top'], 'card_unknown'],
+            [['column' => 'next', 'cards' => [$a], 'beforeCard' => $unknownId], 'card_unknown'],
+            [['column' => 'next', 'cards' => [$a, $stranger['number']], 'at' => 'top'], 'card_not_in_column'],
+            [['column' => 'next', 'cards' => [$a], 'beforeCard' => $a], 'neighbour_in_list'],
+            [['column' => 'next', 'cards' => [$a], 'afterCard' => $stranger['number']], 'neighbour_not_in_column'],
+            [['column' => 'next', 'cards' => [true], 'at' => 'top'], 'cards_0_type'],
+            [['column' => 'next', 'cards' => [$a], 'at' => 'middle'], 'at_choice'],
+        ] as [$payload, $code]) {
+            $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode($payload, \JSON_THROW_ON_ERROR));
+            self::assertResponseStatusCodeSame(422, json_encode($payload, \JSON_THROW_ON_ERROR));
+            self::assertTrue(\in_array($code, array_column($this->json()['errors'] ?? [], 'code'), true), json_encode($payload, \JSON_THROW_ON_ERROR).' answered '.json_encode($this->json(), \JSON_THROW_ON_ERROR));
+        }
+        self::assertSame(['A', 'B', 'C'], $this->columnTitles('next'));
+    }
+
+    public function test_a_block_call_without_the_required_fields_answers_422(): void
+    {
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', '{"at":"top"}');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('validation_failed', $this->json()['code']);
+    }
+
+    public function test_a_card_is_placed_by_rank_or_by_neighbour_through_the_update_route(): void
+    {
+        $cards = $this->cardsIn('next', ['A', 'B', 'C', 'D']);
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$cards['D']['number'], '{"position":0}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(0, $this->json()['position']);
+        self::assertSame(['D', 'A', 'B', 'C'], $this->columnTitles('next'));
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$cards['D']['number'], json_encode(['afterCard' => $cards['B']['number']], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['A', 'B', 'D', 'C'], $this->columnTitles('next'));
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$cards['C']['number'], json_encode(['beforeCard' => $cards['A']['cardId']], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['C', 'A', 'B', 'D'], $this->columnTitles('next'));
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$cards['C']['number'], '{"position":99}');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['A', 'B', 'D', 'C'], $this->columnTitles('next'));
+    }
+
+    public function test_a_status_and_a_place_move_the_card_and_place_it_in_one_call(): void
+    {
+        $this->cardsIn('next', ['A', 'B']);
+        $mover = $this->createCard('Mover', ['status' => 'backlog']);
+
+        $this->send(Request::METHOD_PATCH, $this->base().'/'.$mover['number'], '{"status":"next","position":0}');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['Mover', 'A', 'B'], $this->columnTitles('next'));
+    }
+
+    public function test_a_refused_place_on_the_update_route_answers_a_code_and_moves_nothing(): void
+    {
+        $cards = $this->cardsIn('next', ['A', 'B']);
+        $stranger = $this->createCard('Stranger', ['status' => 'backlog']);
+        $a = $cards['A']['number'];
+
+        foreach ([
+            ['{"position":0,"beforeCard":"'.$cards['B']['number'].'"}', 'place_conflict'],
+            ['{"beforeCard":"'.$stranger['number'].'"}', 'neighbour_not_in_column'],
+            ['{"afterCard":'.$a.'}', 'neighbour_is_card'],
+            ['{"afterCard":999}', 'card_unknown'],
+            ['{"status":"done","position":0}', 'terminal_column'],
+            ['{"position":-1}', 'position_negative'],
+        ] as [$payload, $code]) {
+            $this->send(Request::METHOD_PATCH, $this->base().'/'.$a, $payload);
+            self::assertResponseStatusCodeSame(422, $payload);
+            self::assertTrue(\in_array($code, [$this->json()['code'], ...array_column($this->json()['errors'] ?? [], 'code')], true), $payload.' answered '.json_encode($this->json()));
+        }
+        self::assertSame(['A', 'B'], $this->columnTitles('next'));
+        self::assertSame('next', $this->findCard($a)?->column->slug);
+    }
+
+    public function test_a_card_of_another_project_is_not_a_neighbour(): void
+    {
+        $other = new Project($this->owner, 'cards-other-place');
+        $this->em->persist($other);
+        $this->seedColumns($other);
+        $foreign = new Card($other, $this->column($other, 'next'), 'Foreign', '', 1, 'feature');
+        $this->em->persist($foreign);
+        $this->em->flush();
+        $cards = $this->cardsIn('next', ['A', 'B']);
+
+        $this->send(Request::METHOD_POST, $this->base().'/reorder', json_encode(['column' => 'next', 'cards' => [$cards['A']['number']], 'beforeCard' => (string) $foreign->id], \JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('card_unknown', $this->json()['errors'][0]['code']);
+    }
+
+    /**
+     * @param list<string> $titles
+     *
+     * @return array<string, array<string, mixed>> the created cards by title
+     */
+    private function cardsIn(string $status, array $titles): array
+    {
+        $cards = [];
+        foreach ($titles as $title) {
+            $cards[$title] = $this->createCard($title, ['status' => $status]);
+        }
+
+        return $cards;
+    }
+
+    /** @return list<string> */
+    private function columnTitles(string $status): array
+    {
+        /* @var list<string> */
+        return $this->em->getConnection()->fetchFirstColumn(
+            'SELECT c.title FROM board_cards c JOIN board_columns k ON k.id = c.column_id WHERE k.project_id = :project AND k.slug = :slug ORDER BY c.position, c.created_at, c.id',
+            ['project' => (string) $this->project->id, 'slug' => $status],
+        );
+    }
+
     private function base(): string
     {
         return '/api/v1/projects/'.$this->project->id.'/cards';

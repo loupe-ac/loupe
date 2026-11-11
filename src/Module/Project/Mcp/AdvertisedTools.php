@@ -72,6 +72,7 @@ final class AdvertisedTools
         'card_get',
         'card_get_history',
         'card_update',
+        'card_reorder',
         'card_run_open',
         'card_run_close',
         'artifact_list',

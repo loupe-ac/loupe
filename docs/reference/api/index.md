@@ -301,6 +301,51 @@ The request takes no body. The credential must manage the project. The answer is
    open run. The `detail` says what to change.
 4. The route takes the `Idempotency-Key` header, as the other creates do.
 
+## Place a card in its column
+
+`PATCH /api/v1/projects/{project}/cards/{number}` takes `position`, `beforeCard`
+and `afterCard`. They place the card in the column it ends in, which is the
+column of `status` when the call also sets one. `position` is a rank counted from
+0, and a rank past the end puts the card last. `beforeCard` and `afterCard` name a
+card of that column, by number or by id. A call passes at most one of the three.
+
+`POST /api/v1/projects/{project}/cards/reorder` places a block of cards inside
+one column in one write. The body holds `column`, the slug of an open column, and
+`cards`, the cards of the block from top to bottom, each by number or by id. It
+also holds exactly one of `at` (`top` or `bottom`), `beforeCard` and `afterCard`.
+The other cards keep their order around the block. The answer is `200` with
+`above`, `cards` and `below`. `cards` is the block with the `number`, `title` and
+`rank` of each card. `above` and `below` are the cards next to the block, or null.
+
+```bash
+curl -X POST https://app.example.com/api/v1/projects/loupe/cards/reorder \
+  -H "Authorization: Bearer $LOUPE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"column": "next", "cards": [42, 17, 30], "at": "top"}'
+```
+
+A refusal is `422` `validation_failed`, and no card moves. The `errors[].code`
+values are:
+
+| Code | Cause |
+|---|---|
+| `place_conflict` | The call passes more than one place field. |
+| `place_missing` | `card_reorder` passes none of `at`, `beforeCard` and `afterCard`. |
+| `position_negative` | `position` is below 0. |
+| `terminal_column` | The target column is terminal. It sorts by completion time. |
+| `unknown_column` | The board has no column with the slug in `column`. |
+| `unknown_status` | Another request deleted the column while the call ran. |
+| `list_empty` | `cards` is empty. |
+| `card_listed_twice` | A card appears twice in `cards`. |
+| `card_unknown` | A reference names no card of the project. |
+| `card_not_in_column` | A listed card is not in `column`. Move it with the update route first. |
+| `neighbour_in_list` | `beforeCard` or `afterCard` names a card of `cards`. |
+| `neighbour_not_in_column` | The neighbour is not in the column where the card ends. |
+| `neighbour_is_card` | `beforeCard` or `afterCard` names the card being updated. |
+
+A rank change writes no history row and starts no workflow work. The CLI
+commands are `loupe card update` and `loupe card reorder`.
+
 ## Card values
 
 A card holds one value for each key that its workflow template declares. The

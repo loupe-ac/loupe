@@ -24,6 +24,14 @@ This skill names a column by its role. Match each role to a column of the board 
 
 When no column fits a role, leave the card where it is and tell the owner.
 
+## Order the cards of a column
+
+`card_create` puts a card last, and a change of `status` in `card_update` also puts the card last. To set the rank of one card, pass `position`, `beforeCard` or `afterCard` to `card_update`. Pass at most one of them. `position` counts from 0 at the top. A neighbour is a card of the column where the card ends, named by number or id.
+
+To place several cards, call `card_reorder` once. Pass `column`, `cards` from top to bottom, and exactly one of `at` (`top` or `bottom`), `beforeCard` and `afterCard`. The cards must already sit in the column, and a neighbour must not be in the list. Call `card_update` first to move a card into the column.
+
+Both tools refuse a bad place and move nothing. A terminal column takes no place, because it sorts by completion time. A rank change writes no history row and starts no workflow work.
+
 ## Search before you write a card
 
 Call `card_search` with the words you would use to describe the work, before you call `card_create`. A read of the whole board answers the same question at far more cost, and it is the step a session skips.
@@ -167,6 +175,7 @@ For any other link, an agent or a person moves the card.
 |---|---|
 | Looking for a `card_delete` tool | There is none. Move the card to a terminal column. |
 | Sending only the new value in `pullRequestUrls` or `relatedCards` | The field replaces the whole set. Send the whole list from `card_get`. Omit the field to keep it. |
+| Moving a card out of a column and back to re-rank it | Call `card_reorder`, or pass `position` to `card_update`. A move to a column puts the card last and runs the column rules again. |
 | Sending a short `body` to add a handover note | `body` replaces the whole body. Read the card with `card_get` first. |
 | Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |
 | Carding a lesson so it is not lost | Nobody can finish it. Put it where the instructions of the project say. |

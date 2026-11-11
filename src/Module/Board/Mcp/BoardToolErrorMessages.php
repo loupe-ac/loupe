@@ -9,12 +9,15 @@ use App\Module\Board\Command\ConfigureBoardColumnHandler;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\ReorderBoardColumnsBySlugHandler;
 use App\Module\Board\Command\ReorderBoardColumnsHandler;
+use App\Module\Board\Command\ReorderCardsHandler;
 use App\Module\Board\Command\SaveBoardAutomationSettingsHandler;
+use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Service\BoardColumns;
+use App\Module\Board\Service\CardRefResolver;
 use App\Module\Board\Service\CardValueWriter;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Workflow\Contract\CardValueType;
@@ -78,6 +81,15 @@ final readonly class BoardToolErrorMessages
             'board.card.error.epic_type_locked' => 'This epic has child cards, so its type stays epic. Clear the parent of each child first.',
             'board.card.error.epic_delete_has_children' => 'This epic has child cards, so it cannot be deleted. Delete each child, or clear its parent, first.',
             'board.card.error.column_gone' => 'That column no longer exists on this board. Name another column.',
+            UpdateCardHandler::PLACE_TERMINAL => \sprintf('The %s column sorts by completion time, so it takes no rank or neighbour. Move the card without a place.', $parameters['%column%'] ?? 'terminal'),
+            UpdateCardHandler::PLACE_NEGATIVE => 'A rank counts from 0. Pass 0 or more.',
+            UpdateCardHandler::NEIGHBOUR_SELF => 'A card cannot be placed next to itself.',
+            UpdateCardHandler::NEIGHBOUR_ELSEWHERE => \sprintf('Card %s sits in %s, not in the %s column where this card ends. Name a card of the %3$s column.', $parameters['%card%'] ?? '', $parameters['%where%'] ?? 'no column of this board', $parameters['%column%'] ?? ''),
+            CardRefResolver::UNKNOWN => \sprintf('This project has no card %s. Name a card by its number or its id.', $parameters['%cards%'] ?? ''),
+            ReorderCardsHandler::LIST_EMPTY => 'Name at least one card to place.',
+            ReorderCardsHandler::CARD_REPEATED => \sprintf('These cards appear more than once: %s. Name each card once.', $parameters['%cards%'] ?? ''),
+            ReorderCardsHandler::CARD_ELSEWHERE => \sprintf('These cards are not in the %s column: %s. To move a card into a column, use card_update.', $parameters['%column%'] ?? '', $parameters['%cards%'] ?? ''),
+            ReorderCardsHandler::NEIGHBOUR_LISTED => \sprintf('Card %s is in the list. Name a neighbour that is not in the list.', $parameters['%card%'] ?? ''),
             'board.card.error.run_name_blank' => 'Pass the name of the skill that runs the session, such as loupe-lifecycle:product-design.',
             'board.card.error.run_name_too_long' => \sprintf('A run name must be at most %d characters.', WorkerRun::MAX_WORK_KIND_LENGTH),
             'board.card.error.search_query_blank' => 'Pass a query to search for. To read the whole board instead, call card_list.',
