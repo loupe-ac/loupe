@@ -10,6 +10,8 @@ use App\Exception\DomainErrors;
 use App\Module\Board\Command\CardManaged;
 use App\Module\Board\Command\ChildDesignRefused;
 use App\Module\Board\Command\EpicChildrenOpen;
+use App\Module\Board\Command\ReorderCardsHandler;
+use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Bridge\Command\PauseCardAgentsHandler;
@@ -118,7 +120,16 @@ final readonly class CardApiProblems
             'board.card.error.epic_cannot_have_parent' => ['field' => 'parentCardId', 'code' => 'epic_cannot_have_parent', 'message' => 'A card of a type with the children capability cannot have a parent, because those cards do not nest.'],
             'board.card.error.parent_card_cannot_be_epic' => ['field' => 'type', 'code' => 'parent_card_cannot_be_epic', 'message' => 'A card with a parent cannot take a type with the children capability. Clear its parent with clearParent first.'],
             'board.card.error.epic_type_locked' => ['field' => 'type', 'code' => 'epic_type_locked', 'message' => 'This card has child cards, so its type stays. Clear the parent of each child first.'],
-            'board.card.error.column_gone' => ['field' => 'status', 'code' => 'unknown_status', 'message' => 'That column no longer exists on this board. Name another column.'],
+            'board.card.error.column_gone' => ['field' => 'column' === $field ? 'column' : 'status', 'code' => 'unknown_status', 'message' => 'That column no longer exists on this board. Name another column.'],
+            UpdateCardHandler::PLACE_TERMINAL => ['field' => 'place' === $field ? 'status' : $field, 'code' => 'terminal_column', 'message' => \sprintf('The %s column sorts by completion time, so it takes no rank or neighbour. Move the card without a place.', $parameters['%column%'] ?? 'terminal')],
+            UpdateCardHandler::PLACE_NEGATIVE => ['field' => 'position', 'code' => 'position_negative', 'message' => 'A rank counts from 0. Pass 0 or more.'],
+            UpdateCardHandler::NEIGHBOUR_SELF => ['field' => $field, 'code' => 'neighbour_is_card', 'message' => 'A card cannot be placed next to itself.'],
+            UpdateCardHandler::NEIGHBOUR_ELSEWHERE => ['field' => $field, 'code' => 'neighbour_not_in_column', 'message' => \sprintf('Card %s sits in %s, not in the %s column where this card ends. Name a card of the %3$s column.', $parameters['%card%'] ?? '', $parameters['%where%'] ?? 'no column of this board', $parameters['%column%'] ?? '')],
+            CardRefResolver::UNKNOWN => ['field' => $field, 'code' => 'card_unknown', 'message' => \sprintf('This project has no card %s. Name a card by its number or its id.', $parameters['%cards%'] ?? '')],
+            ReorderCardsHandler::LIST_EMPTY => ['field' => 'cards', 'code' => 'list_empty', 'message' => 'Name at least one card to place.'],
+            ReorderCardsHandler::CARD_REPEATED => ['field' => 'cards', 'code' => 'card_listed_twice', 'message' => \sprintf('These cards appear more than once: %s. Name each card once.', $parameters['%cards%'] ?? '')],
+            ReorderCardsHandler::CARD_ELSEWHERE => ['field' => 'cards', 'code' => 'card_not_in_column', 'message' => \sprintf('These cards are not in the %s column: %s. To move a card into a column, use card_update.', $parameters['%column%'] ?? '', $parameters['%cards%'] ?? '')],
+            ReorderCardsHandler::NEIGHBOUR_LISTED => ['field' => $field, 'code' => 'neighbour_in_list', 'message' => \sprintf('Card %s is in the list. Name a neighbour that is not in the list.', $parameters['%card%'] ?? '')],
             'board.card.error.parent_clear_conflict' => ['field' => 'parentCardId', 'code' => 'parent_clear_conflict', 'message' => 'Pass clearParent or parentCardId, not both.'],
             default => null,
         };

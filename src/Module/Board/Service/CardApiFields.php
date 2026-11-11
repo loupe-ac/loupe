@@ -46,6 +46,15 @@ final readonly class CardApiFields
     }
 
     /**
+     * @throws ApiProblemException `validation_failed` when the board has no column with that slug
+     */
+    public function column(Project $project, string $slug, string $field): BoardColumn
+    {
+        return $this->boardColumns->findOneByProjectAndSlug($project, $slug)
+            ?? throw ApiProblemException::validationFailed([['field' => $field, 'code' => 'unknown_column', 'message' => \sprintf('This board has no column "%s".', $slug)]]);
+    }
+
+    /**
      * A key records a card as raised by the key, or by a person it writes down. A CLI sign-in records an agent,
      * or a person it writes down. The credential decides the default.
      *

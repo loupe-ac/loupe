@@ -40,6 +40,7 @@ use App\Module\Workflow\Contract\CardMoveGuard;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -53,6 +54,10 @@ final readonly class UpdateCardHandler
     public const string COLUMN_CHANGED = 'board.card.error.column_changed';
     public const string HUMAN_REVIEW_RAISE_ONLY = 'board.card.error.human_review_raise_only';
     public const string PARENT_CLEAR_CONFLICT = 'board.card.error.parent_clear_conflict';
+    public const string PLACE_TERMINAL = 'board.card.error.place_terminal';
+    public const string PLACE_NEGATIVE = 'board.card.error.place_negative';
+    public const string NEIGHBOUR_SELF = 'board.card.error.neighbour_self';
+    public const string NEIGHBOUR_ELSEWHERE = 'board.card.error.neighbour_elsewhere';
     private const string NOT_WHERE_EXPECTED = 'not_where_expected';
 
     public function __construct(
@@ -221,6 +226,13 @@ final readonly class UpdateCardHandler
             }
             if (null !== $relatedCards && $this->cardLinkSync->anyCardGone($relatedCards)) {
                 return self::LINKED_CARD_GONE;
+            }
+            // Before any write, so the refusal commits nothing.
+            if ($command->strictPlace) {
+                $refusal = $this->placeRefusal($command, $card, $column);
+                if (null !== $refusal) {
+                    return $refusal;
+                }
             }
             // Only a write that names a type or a parent can break a parent
             // rule, so a plain move pays no extra read.
@@ -501,6 +513,46 @@ final readonly class UpdateCardHandler
         );
 
         return $view;
+    }
+
+    /**
+     * Why the place the command names cannot be kept, or null when it can. Call
+     * it under the lock: the column and its order are read fresh.
+     */
+    private function placeRefusal(UpdateCardCommand $command, Card $card, BoardColumn $column): ?DomainErrors
+    {
+        $neighbours = array_filter(
+            ['beforeCard' => $command->beforeCardId, 'afterCard' => $command->afterCardId],
+            static fn (?string $id): bool => null !== $id,
+        );
+        if (null === $command->position && [] === $neighbours) {
+            return null;
+        }
+        if ($column->terminal) {
+            return new DomainErrors(['place' => self::PLACE_TERMINAL], ['place' => ['%column%' => $column->slug]]);
+        }
+        if (null !== $command->position && $command->position < 0) {
+            return new DomainErrors(['position' => self::PLACE_NEGATIVE]);
+        }
+
+        $own = $card->id?->toRfc4122();
+        $ranked = [] === $neighbours ? [] : $this->cards->rankedIds($column);
+        foreach ($neighbours as $field => $id) {
+            $id = strtolower(trim($id));
+            if ($id === $own) {
+                return new DomainErrors([$field => self::NEIGHBOUR_SELF]);
+            }
+            if (!\in_array($id, $ranked, true)) {
+                $described = Uuid::isValid($id) ? ($this->cards->describeCards($card->project, [$id])[$id] ?? null) : null;
+
+                return new DomainErrors(
+                    [$field => self::NEIGHBOUR_ELSEWHERE],
+                    [$field => ['%card%' => null === $described ? $id : '#'.$described['number'], '%where%' => null === $described ? 'no column of this board' : 'the '.$described['column'].' column', '%column%' => $column->slug]],
+                );
+            }
+        }
+
+        return null;
     }
 
     /**
