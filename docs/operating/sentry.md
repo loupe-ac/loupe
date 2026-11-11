@@ -15,10 +15,24 @@ Copy the DSN from the *Client Keys* page of your Sentry project, and set it in
 | Variable | Default | Purpose |
 |---|---|---|
 | `SENTRY_DSN` | empty | Where events go. **Secret.** Empty turns Sentry off. |
-| `SENTRY_TRACES_SAMPLE_RATE` | `0.05` | The share of web requests, worker messages and console commands that Sentry traces, from `0.0` to `1.0`. A card evaluation message has a fixed rate of `0.05`. |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.05` | The share of web requests, worker messages and console commands that Sentry traces, from `0.0` to `1.0`. A card evaluation message has its own rate, which [Card evaluation rate](#card-evaluation-rate) describes. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | `1.0` | The share of traces that Sentry also profiles, from `0.0` to `1.0`. |
 
 [Environment variables](../reference/environment.md) lists them with the rest.
+
+### Card evaluation rate
+
+The workflow engine evaluates a card each time its facts change, so card
+evaluation messages produce most of the traces of a busy instance. The
+`observability.evaluate_card_trace_rate_permille` feature flag sets their rate
+in units of 0.1%. The default is `10`, which traces 1 card evaluation in 100.
+`0` traces none, and `1000` traces all of them. Loupe clamps a value outside
+`0` to `1000` to the nearest limit.
+
+Change the flag at `/admin/feature-flags`. The next card evaluation reads the
+new value, so the change needs no deploy and no restart. If Loupe cannot read
+the flag, it uses the default. `SENTRY_TRACES_SAMPLE_RATE` has no effect on
+card evaluations.
 
 A malformed DSN does not stop the instance. The Sentry SDK ignores it and
 writes a debug log line, so nothing goes to Sentry. The *Sentry* row on
@@ -206,10 +220,12 @@ Create one metric monitor in Sentry once the first points arrive. Monitor `sum(a
 ## Stay within a Sentry quota
 
 Loupe traces 1 in 20 requests, messages and commands, and profiles each
-traced one. It traces 1 in 20 card evaluations, because the workflow engine
+traced one. It traces 1 in 100 card evaluations, because the workflow engine
 evaluates a card each time its facts change. It sends no savepoint span.
 
-On a busy instance this can still use up a Sentry quota. Lower
-`SENTRY_TRACES_SAMPLE_RATE` first, for example to `0.01`. Lower
+On a busy instance this can still use up a Sentry quota. Look first at the
+card evaluations, which usually send the most spans. Lower the
+`observability.evaluate_card_trace_rate_permille` flag, for example to `2`.
+Then lower `SENTRY_TRACES_SAMPLE_RATE`, for example to `0.01`. Lower
 `SENTRY_PROFILES_SAMPLE_RATE` too if profiles still use too much. Errors are
 not sampled, so each unhandled exception still reaches Sentry.
