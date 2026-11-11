@@ -503,7 +503,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-testid="github-picker-missing"]'));
     }
 
-    public function test_the_picker_says_so_when_the_named_repository_is_not_listed(): void
+    public function test_the_sign_in_starts_the_install_when_the_app_does_not_reach_the_named_repository_and_keeps_it_ticked(): void
     {
         $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
         $owner = $this->signedUpUser('missing');
@@ -511,10 +511,22 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->em()->clear();
 
         $this->client->loginUser($owner);
-        $this->signIn($project, 'acme/unshared');
+        $authorize = $this->startSignIn($project, 'acme/unshared');
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects();
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://github.com/apps/loupe-test/installations/new?', $location);
+
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api'], ['id' => 303, 'full_name' => 'acme/unshared'], ['id' => 404, 'full_name' => 'acme/other']];
+        $authorize = $this->setUpInstallation($this->queryOf($location)['state']);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/repositories');
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/repositories');
 
-        self::assertStringContainsString('acme/unshared is not in this list', $crawler->filter('[data-testid="github-picker-missing"]')->text());
+        $rows = $this->pickerRows($crawler);
+        self::assertTrue($rows['acme/unshared']['checked']);
+        self::assertFalse($rows['acme/other']['checked']);
     }
 
     public function test_a_listing_cut_at_one_thousand_repositories_says_so(): void
@@ -1225,6 +1237,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             self::narrow($get(GitHubInstallSession::class), GitHubInstallSession::class),
             self::narrow($get(GitHubPickerListing::class), GitHubPickerListing::class),
             $add,
+            self::narrow($get(\App\Module\GitHub\Command\StartGitHubAppInstallHandler::class), \App\Module\GitHub\Command\StartGitHubAppInstallHandler::class),
             $logger,
         ));
 

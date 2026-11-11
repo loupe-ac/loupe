@@ -11,6 +11,8 @@ final readonly class GitHubPickerSignIn
         public ?string $connected,
         /** @var list<string> the paths that the fresh install could not add because another project took them first */
         public array $refused = [],
+        /** The install page to open first, because the App does not reach the repository that init asked for. */
+        public ?string $installUrl = null,
     ) {
     }
 }

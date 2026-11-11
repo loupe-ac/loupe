@@ -31,9 +31,9 @@ final readonly class GitHubInstallSession
     }
 
     /** @return string the state to send to GitHub with the install link */
-    public function beginInstall(Project $project): string
+    public function beginInstall(Project $project, ?string $repository = null, ?string $startedFrom = null): string
     {
-        $pending = new PendingGitHubInstall((string) $project->id, bin2hex(random_bytes(16)));
+        $pending = new PendingGitHubInstall((string) $project->id, bin2hex(random_bytes(16)), repository: $repository, startedFrom: $startedFrom);
         $this->store($pending);
 
         return $pending->installState ?? throw new \LogicException('An install pending holds its state.');

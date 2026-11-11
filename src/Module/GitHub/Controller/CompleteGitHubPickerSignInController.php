@@ -74,6 +74,10 @@ class CompleteGitHubPickerSignInController extends AppController
             return \array_key_exists('project', $e->errors) ? $this->redirectToRoute('app_projects') : $tab;
         }
 
+        if (null !== $signedIn->installUrl) {
+            return $this->redirect($signedIn->installUrl);
+        }
+
         if (null !== $signedIn->connected) {
             $this->addFlash('success', $this->translator->trans('github.picker.flash.connected', ['%repository%' => $signedIn->connected]));
 

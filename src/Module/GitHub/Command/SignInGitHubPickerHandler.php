@@ -29,6 +29,7 @@ final readonly class SignInGitHubPickerHandler
         private GitHubInstallSession $installSession,
         private GitHubPickerListing $listing,
         private AddGitHubRepositoriesHandler $addRepositories,
+        private StartGitHubAppInstallHandler $startInstall,
         private LoggerInterface $logger,
     ) {
     }
@@ -46,6 +47,10 @@ final readonly class SignInGitHubPickerHandler
             $token = $this->gitHubUserApi->exchangeCode($command->code, $pending->codeVerifier ?? throw new \LogicException('A sign-in holds its verifier'), $command->redirectUri)->accessToken;
             $this->installSession->signIn($pending, $token);
             if (null === $pending->installationId) {
+                if (null !== $pending->repository && null !== $this->listing->list($project, $token, $pending->repository)->missingRepository) {
+                    return new GitHubPickerSignIn(null, [], ($this->startInstall)(new StartGitHubAppInstallCommand($project, $pending->repository, $pending->startedFrom)));
+                }
+
                 return new GitHubPickerSignIn(null);
             }
 

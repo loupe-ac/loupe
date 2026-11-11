@@ -80,10 +80,9 @@ final readonly class ReceiveAppDeliveryHandler
             return null;
         }
 
-        $installation = new GitHubInstallation($installationId, $login, $delivery->repositorySelection() ?? GitHubRepositorySelection::Selected, $delivery->accountId());
-        $this->em->persist($installation);
+        $this->gitHubInstallations->insertIfAbsent($installationId, $login, $delivery->repositorySelection() ?? GitHubRepositorySelection::Selected, $delivery->accountId());
 
-        return $installation;
+        return $this->gitHubInstallations->findOneByInstallationId($installationId);
     }
 
     private function installationChanged(GitHubInstallation $installation, GitHubDelivery $delivery): void
