@@ -7,6 +7,7 @@ namespace App\Tests\Observability;
 use App\Observability\MessageTracingSubscriber;
 use App\Observability\TracesSampler;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Sentry\ClientBuilder;
 use Sentry\Event;
 use Sentry\SentryBundle\EventListener\MessengerListener;
@@ -21,6 +22,8 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
+use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
+use Ubermuda\FeatureFlagsBundle\Reader\InMemoryFeatureFlagReader;
 
 final class MessageTracingSubscriberTest extends TestCase
 {
@@ -201,7 +204,7 @@ final class MessageTracingSubscriberTest extends TestCase
     {
         $client = ClientBuilder::create([
             'dsn' => $dsn ?? 'https://key@o0.ingest.example/1',
-            'traces_sampler' => new TracesSampler($dsn, 1.0),
+            'traces_sampler' => new TracesSampler($dsn, 1.0, new FeatureFlagService(new InMemoryFeatureFlagReader(), new NullLogger())),
             'default_integrations' => false,
         ])->setTransport($this->transport)->getClient();
 

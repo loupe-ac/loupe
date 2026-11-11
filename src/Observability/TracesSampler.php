@@ -7,6 +7,7 @@ namespace App\Observability;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use Sentry\Tracing\SamplingContext;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 /**
  * With no usable DSN the SDK would still build and profile every transaction, then
@@ -17,8 +18,9 @@ final readonly class TracesSampler
     /** Routes whose traces carry no performance signal: an uptime probe and a per-minute ping. */
     public const array UNTRACED_ROUTES = ['ubermuda_health_check', 'api_bridge_heartbeat'];
 
-    /** Root transactions too frequent for the configured rate, by transaction name. */
-    public const array TRANSACTION_RATES = [EvaluateCard::class => 0.05];
+    /** A card evaluation runs each time the facts of a card change, too often for the configured rate. */
+    public const string EVALUATE_CARD_RATE_FLAG = 'observability.evaluate_card_trace_rate_permille';
+    public const int EVALUATE_CARD_RATE_DEFAULT = 10;
 
     public function __construct(
         #[Autowire('%env(default::SENTRY_DSN)%')]
@@ -26,6 +28,7 @@ final readonly class TracesSampler
 
         #[Autowire('%env(float:SENTRY_TRACES_SAMPLE_RATE)%')]
         private float $sampleRate,
+        private FeatureFlagService $featureFlags,
     ) {
     }
 
@@ -42,7 +45,21 @@ final readonly class TracesSampler
         return match ($context->getParentSampled()) {
             true => 1.0,
             false => 0.0,
-            null => self::TRANSACTION_RATES[$context->getTransactionContext()?->getName() ?? ''] ?? $this->sampleRate,
+            null => EvaluateCard::class === $context->getTransactionContext()?->getName()
+                ? $this->evaluateCardRate()
+                : $this->sampleRate,
         };
+    }
+
+    private function evaluateCardRate(): float
+    {
+        try {
+            $permille = $this->featureFlags->getIntValue(self::EVALUATE_CARD_RATE_FLAG, self::EVALUATE_CARD_RATE_DEFAULT);
+        } catch (\Throwable) {
+            // The sampler must never fail a message, and the table can be missing or unreachable.
+            $permille = self::EVALUATE_CARD_RATE_DEFAULT;
+        }
+
+        return min(1000, max(0, $permille)) / 1000;
     }
 }
