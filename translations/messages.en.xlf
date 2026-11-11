@@ -3064,7 +3064,11 @@
             </trans-unit>
             <trans-unit id="project.connect.tool.card_update">
                 <source>project.connect.tool.card_update</source>
-                <target>Change a card. Omitted fields keep their value, and moving a card to a terminal column stamps its completion time. relatedCards replaces every link that touches the card.</target>
+                <target>Change a card. Omitted fields keep their value, and moving a card to a terminal column stamps its completion time. A rank or a neighbour places the card in its column. relatedCards replaces every link that touches the card.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.card_reorder">
+                <source>project.connect.tool.card_reorder</source>
+                <target>Place a block of cards in one column, in one call. The other cards keep their order around the block. It changes ranks only.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.card_run_open">
                 <source>project.connect.tool.card_run_open</source>
@@ -6939,6 +6943,42 @@ workflow:
             <trans-unit id="board.card.error.column_gone">
                 <source>board.card.error.column_gone</source>
                 <target>That column no longer exists. Choose another column.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.place_terminal">
+                <source>board.card.error.place_terminal</source>
+                <target>The %column% column sorts by completion time, so it takes no rank or neighbour. Move the card without a place.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.place_negative">
+                <source>board.card.error.place_negative</source>
+                <target>A rank counts from 0. Choose 0 or more.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.neighbour_self">
+                <source>board.card.error.neighbour_self</source>
+                <target>A card cannot be placed next to itself.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.neighbour_elsewhere">
+                <source>board.card.error.neighbour_elsewhere</source>
+                <target>Card %card% sits in %where%, not in the %column% column where this card ends. Name a card of the %column% column.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.card_ref_unknown">
+                <source>board.card.error.card_ref_unknown</source>
+                <target>This project has no card %cards%. Name a card by its number or its id.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.order_list_empty">
+                <source>board.card.error.order_list_empty</source>
+                <target>Name at least one card to place.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.order_card_repeated">
+                <source>board.card.error.order_card_repeated</source>
+                <target>These cards appear more than once: %cards%. Name each card once.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.order_card_elsewhere">
+                <source>board.card.error.order_card_elsewhere</source>
+                <target>These cards are not in the %column% column: %cards%. To move a card into a column, use card_update.</target>
+            </trans-unit>
+            <trans-unit id="board.card.error.order_neighbour_listed">
+                <source>board.card.error.order_neighbour_listed</source>
+                <target>Card %card% is in the list. Name a neighbour that is not in the list.</target>
             </trans-unit>
             <trans-unit id="board.card.error.column_changed">
                 <source>board.card.error.column_changed</source>

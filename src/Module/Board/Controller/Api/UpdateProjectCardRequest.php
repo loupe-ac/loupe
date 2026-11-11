@@ -29,7 +29,16 @@ final class UpdateProjectCardRequest
     #[OA\Property(description: 'A type key from the column list.')]
     public string $type;
 
-    #[OA\Property(description: 'The slug of a column on this board. A change appends the card to the end of the column.')]
+    #[OA\Property(description: 'The rank the card takes in the column it ends in, counting from 0 at the top. A rank past the end puts the card last. Pass at most one of `position`, `beforeCard` and `afterCard`.', minimum: 0)]
+    public int $position;
+
+    #[OA\Property(description: 'The number or the id of a card of the column the card ends in. The card lands just above it. A number may be sent as a JSON integer too.', type: 'string')]
+    public int|string $beforeCard;
+
+    #[OA\Property(description: 'The number or the id of a card of the column the card ends in. The card lands just below it. A number may be sent as a JSON integer too.', type: 'string')]
+    public int|string $afterCard;
+
+    #[OA\Property(description: 'The slug of a column on this board. A change appends the card to the end of the column, unless the call also names a place.')]
     public string $status;
 
     /** @var list<string> */
@@ -71,4 +80,17 @@ final class UpdateProjectCardRequest
     /** @var array<string, mixed> */
     #[OA\Property(description: 'Maps a declared key to its value, such as `{"tech-design-interactive": true}`. A key you leave out keeps its value. One bad entry refuses the whole call.', type: 'object', additionalProperties: true)]
     public array $values;
+
+    /**
+     * The place fields the call names.
+     *
+     * @return list<string>
+     */
+    public function placed(): array
+    {
+        return array_values(array_filter(
+            ['position', 'beforeCard', 'afterCard'],
+            fn (string $field): bool => isset($this->{$field}),
+        ));
+    }
 }

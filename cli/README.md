@@ -599,6 +599,8 @@ loupe card list --status next --format json
 loupe card list --state working
 loupe card get 42 --fields url
 loupe card update 42 --status done
+loupe card update 42 --after-card 17
+loupe card reorder --column next --cards 42,17,30 --at top
 loupe experiment cards php-lsp-4 --format json
 loupe experiment exclude php-lsp-4 42 --reason "Changes no PHP"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
@@ -609,6 +611,9 @@ LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
+
+`loupe card reorder` and the `--position`, `--before-card` and `--after-card` flags of
+`loupe card update` need a CLI release after `cli/v2.5.6`.
 
 1. **Credential.** `LOUPE_API_KEY` wins over the login, and `LOUPE_URL` names the
    instance. The CLI never stores a key. Bridge commands ignore the key.

@@ -13,6 +13,7 @@ use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardGetHistoryTool;
 use App\Module\Board\Mcp\CardGetTool;
 use App\Module\Board\Mcp\CardListTool;
+use App\Module\Board\Mcp\CardReorderTool;
 use App\Module\Board\Mcp\CardRunCloseTool;
 use App\Module\Board\Mcp\CardRunOpenTool;
 use App\Module\Board\Mcp\CardSearchTool;
@@ -25,6 +26,7 @@ use App\Module\Board\Mcp\FeedbackListTool;
 use App\Module\Board\Mcp\FeedbackMarkAddressedTool;
 use App\Module\Project\Mcp\AdvertisedTools;
 use Doctrine\ORM\EntityManagerInterface;
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry;
 use Mcp\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -68,6 +70,7 @@ final class BoardToolRegistrationTest extends KernelTestCase
         yield 'card_get' => [CardGetTool::NAME, CardGetTool::class];
         yield 'card_get_history' => [CardGetHistoryTool::NAME, CardGetHistoryTool::class];
         yield 'card_update' => [CardUpdateTool::NAME, CardUpdateTool::class];
+        yield 'card_reorder' => [CardReorderTool::NAME, CardReorderTool::class];
         yield 'feedback_list' => [FeedbackListTool::NAME, FeedbackListTool::class];
         yield 'feedback_mark_addressed' => [FeedbackMarkAddressedTool::NAME, FeedbackMarkAddressedTool::class];
         yield 'card_run_open' => [CardRunOpenTool::NAME, CardRunOpenTool::class];
@@ -103,7 +106,8 @@ final class BoardToolRegistrationTest extends KernelTestCase
         self::assertSame($order[CardGetTool::NAME] + 1, $order[CardGetHistoryTool::NAME]);
         self::assertLessThan($order[CardUpdateTool::NAME], $order[CardGetHistoryTool::NAME]);
         self::assertLessThan($order[FeedbackMarkAddressedTool::NAME], $order[FeedbackListTool::NAME]);
-        self::assertSame($order[CardUpdateTool::NAME] + 1, $order[CardRunOpenTool::NAME]);
+        self::assertSame($order[CardUpdateTool::NAME] + 1, $order[CardReorderTool::NAME]);
+        self::assertSame($order[CardReorderTool::NAME] + 1, $order[CardRunOpenTool::NAME]);
         self::assertSame($order[CardRunOpenTool::NAME] + 1, $order[CardRunCloseTool::NAME]);
         self::assertSame($order[CardRunCloseTool::NAME] + 1, $order[ColumnCreateTool::NAME]);
         self::assertSame($order[ColumnCreateTool::NAME] + 1, $order[ColumnUpdateTool::NAME]);
@@ -186,6 +190,54 @@ final class BoardToolRegistrationTest extends KernelTestCase
             self::assertSame(['inherit', 'own'], $property['enum'], $toolName);
             self::assertNotContains('childDesign', $schema['required'] ?? [], $toolName);
         }
+    }
+
+    public function test_card_update_publishes_a_place_as_an_optional_rank_and_two_card_references(): void
+    {
+        $schema = $this->registry->getTool(CardUpdateTool::NAME)->tool->inputSchema;
+
+        self::assertSame(0, $schema['properties']['position']['minimum']);
+        foreach (['position', 'beforeCard', 'afterCard'] as $name) {
+            self::assertNotContains($name, $schema['required'] ?? [], $name);
+        }
+        foreach (['beforeCard', 'afterCard'] as $name) {
+            $types = (array) $schema['properties'][$name]['type'];
+            self::assertContains('integer', $types, $name);
+            self::assertContains('string', $types, $name);
+        }
+    }
+
+    public function test_card_reorder_publishes_a_column_a_list_of_references_and_one_placement(): void
+    {
+        $schema = $this->registry->getTool(CardReorderTool::NAME)->tool->inputSchema;
+
+        self::assertSame(['column', 'cards'], $schema['required']);
+        self::assertSame(['type' => ['integer', 'string']], $schema['properties']['cards']['items']);
+        self::assertSame(['top', 'bottom'], $schema['properties']['at']['enum']);
+        foreach (['beforeCard', 'afterCard'] as $name) {
+            $types = (array) $schema['properties'][$name]['type'];
+            self::assertContains('integer', $types, $name);
+            self::assertContains('string', $types, $name);
+        }
+    }
+
+    /** A reference is a number or an id. A boolean, a fraction and a negative rank fail the schema. */
+    public function test_the_published_schemas_accept_a_number_or_an_id_and_refuse_the_rest(): void
+    {
+        $validator = new SchemaValidator();
+        $update = $this->registry->getTool(CardUpdateTool::NAME)->tool->inputSchema;
+        $reorder = $this->registry->getTool(CardReorderTool::NAME)->tool->inputSchema;
+        $id = '0199a0a0-0000-7000-8000-000000000000';
+
+        self::assertSame([], $validator->validateAgainstJsonSchema(['number' => 1, 'beforeCard' => 42], $update));
+        self::assertSame([], $validator->validateAgainstJsonSchema(['number' => 1, 'afterCard' => $id], $update));
+        self::assertSame([], $validator->validateAgainstJsonSchema(['column' => 'next', 'cards' => [3, $id, '7'], 'at' => 'top'], $reorder));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['number' => 1, 'beforeCard' => true], $update));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['number' => 1, 'afterCard' => 1.5], $update));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['number' => 1, 'position' => -1], $update));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['column' => 'next', 'cards' => [true], 'at' => 'top'], $reorder));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['column' => 'next', 'cards' => [3], 'at' => 'middle'], $reorder));
+        self::assertNotSame([], $validator->validateAgainstJsonSchema(['cards' => [3], 'at' => 'top'], $reorder));
     }
 
     public function test_card_update_publishes_clear_parent_as_an_optional_boolean(): void

@@ -907,6 +907,57 @@ paths:
           $ref: '#/components/responses/E422ValidationFailed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/cards/reorder:
+    post:
+      operationId: reorderCards
+      summary: Place a block of cards in one column
+      tags:
+      - Cards
+      description: 'The listed cards form one block, in list order, at the place. The other cards keep their order around
+        it. The call changes ranks only: every listed card must already sit in the column, and a terminal column refuses the
+        call. The whole call is refused or applied: nothing changes on a 422. A rank change starts no workflow work and writes
+        no history row. `errors[].code` is `place_missing`, `place_conflict`, `unknown_column`, `terminal_column`, `list_empty`,
+        `card_listed_twice`, `card_unknown`, `card_not_in_column`, `neighbour_in_list` or `neighbour_not_in_column`.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardReorder'
+      responses:
+        '200':
+          description: The placed block and the cards just above and below it.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardReorderResult'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/projects/{project}/cards/{number}:
     get:
       operationId: getCard
@@ -4515,10 +4566,77 @@ components:
         requiresHumanReview:
           type: boolean
           description: True when a person must review the pull request. It defaults to false.
+    CardReorder:
+      type: object
+      required:
+      - column
+      - cards
+      properties:
+        column:
+          type: string
+          description: The slug of an open column of the board.
+        cards:
+          type: array
+          items:
+            type: string
+          description: The cards of the block from top to bottom. Name each card by its number or its id. A number may be sent
+            as a JSON integer too.
+        at:
+          type: string
+          description: 'Where the block goes: `top` or `bottom` of the column. Pass exactly one of `at`, `beforeCard` and `afterCard`.'
+          enum:
+          - top
+          - bottom
+        beforeCard:
+          type: string
+          description: The number or the id of a card of the column that is not in the list. The block lands just above it.
+        afterCard:
+          type: string
+          description: The number or the id of a card of the column that is not in the list. The block lands just below it.
+    CardPlaced:
+      type: object
+      required:
+      - number
+      - title
+      - rank
+      properties:
+        number:
+          type: integer
+          minimum: 1
+          description: The card number.
+        title:
+          type: string
+        rank:
+          type: integer
+          minimum: 0
+          description: The rank in the column, counting from 0 at the top.
+    CardReorderResult:
+      type: object
+      required:
+      - above
+      - cards
+      - below
+      properties:
+        above:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardPlaced'
+          description: The card just above the block, or null when the block is first.
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardPlaced'
+          description: The block, top first.
+        below:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/CardPlaced'
+          description: The card just below the block, or null when the block is last.
     CardUpdate:
       type: object
       description: A field you leave out keeps its value. Reporter and number cannot change. `errors[].code` covers those
-        of card creation, and `parent_card_cannot_be_epic`, `epic_type_locked`, `value_undeclared_key` and `value_wrong_type`.
+        of card creation, and `parent_card_cannot_be_epic`, `epic_type_locked`, `value_undeclared_key` and `value_wrong_type`. A place
+        adds `place_conflict`, `card_unknown`, `neighbour_not_in_column`, `neighbour_is_card`, `position_negative` and `terminal_column`.
       properties:
         title:
           type: string
@@ -4529,9 +4647,23 @@ components:
         type:
           type: string
           description: A type key from the column list.
+        position:
+          type: integer
+          minimum: 0
+          description: 'The rank the card takes in the column it ends in, counting from 0 at the top. A rank past the end puts
+            the card last. Pass at most one of `position`, `beforeCard` and `afterCard`.'
+        beforeCard:
+          type: string
+          description: The number or the id of a card of the column the card ends in. The card lands just above it. A number
+            may be sent as a JSON integer too.
+        afterCard:
+          type: string
+          description: The number or the id of a card of the column the card ends in. The card lands just below it. A number
+            may be sent as a JSON integer too.
         status:
           type: string
-          description: The slug of a column on this board. A change appends the card to the end of the column.
+          description: The slug of a column on this board. A change appends the card to the end of the column, unless the call
+            also names a place.
         pullRequestUrls:
           type: array
           items:

@@ -26,7 +26,11 @@ use App\Module\Workflow\Contract\CardEventCause;
  *
  * $beforeCardId and $afterCardId name a card of the target column that the
  * card lands above or below. A named neighbour wins over $position, and one
- * the column does not hold sends the card to the end.
+ * the column does not hold sends the card to the end, unless $strictPlace is set.
+ *
+ * $strictPlace refuses a place that cannot be kept, under the lock and before any
+ * write: a rank or a neighbour in a terminal column, a negative rank, and a neighbour that
+ * is the card itself or sits in another column. A drag leaves it off.
  *
  * $clearParent removes the parent. Naming a parent too is refused.
  *
@@ -107,6 +111,7 @@ final readonly class UpdateCardCommand
         public bool $clearParent = false,
         public ?string $childDesign = null,
         public bool $requireChildDesign = false,
+        public bool $strictPlace = false,
     ) {
     }
 }

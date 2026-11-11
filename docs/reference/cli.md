@@ -297,7 +297,7 @@ names the ways to choose. It never guesses.
 |---|---|
 | `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
-| `loupe card` | `list`, `get`, `history`, `create`, `update`, `hold`, `release`, `pause-release` |
+| `loupe card` | `list`, `get`, `history`, `create`, `update`, `reorder`, `hold`, `release`, `pause-release` |
 | `loupe experiment` | `cards`, `exclude`, `include` |
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
@@ -320,6 +320,24 @@ their variant, pull request URLs and left-out reasons. `loupe experiment exclude
 need CLI 2.1.0 or later and a server that has the experiment routes.
 
 `loupe github repository status <owner/name> --project <slug>` tells whether the Loupe GitHub App reaches a repository and whether the project holds it. The answer is `in-project`, `free`, `other-project` or `not-shared`. Only the project owner may ask. The command needs CLI 2.6.0 or later and a server that has the lookup route.
+
+`loupe card update` places a card in its column with `--position`, `--before-card`
+or `--after-card`. `loupe card reorder` places a block of cards in one call:
+
+```bash
+loupe card update 42 --position 0
+loupe card update 42 --after-card 17
+loupe card reorder --column next --cards 42,17,30 --at top
+loupe card reorder --column next --cards 42,17 --before-card 30
+```
+
+`--column` is the slug of an open column. `--cards` lists the cards of the block
+from top to bottom, each by number or by id. Pass exactly one of `--at` (`top` or
+`bottom`), `--before-card` and `--after-card`. A neighbour must be a card of the
+column that is not in the list. The command prints the block and the card just
+above and below it. The place flags need a CLI release after `cli/v2.5.6` and a
+server that has the reorder route. The [API reference](api/index.md#place-a-card-in-its-column)
+lists the refusals.
 
 `loupe inbox create` puts one item in the inbox of the owner, and `loupe inbox
 get <itemId>` reads it with the answer. A CI job can run

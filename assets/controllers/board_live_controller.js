@@ -16,6 +16,10 @@ import { on, status } from '../lib/live.js';
  * A failed catch-up or structure update retries with the same waits. After
  * the last retry, the live region says that live updates stopped.
  *
+ * A placement that had to wait leaves the cards below it out of order. When
+ * the queue goes idle, one order check reads the manifest and places each
+ * card that is out of order, except a stale card.
+ *
  * `own` never skips the fetch. A member can send another tab's origin, so the
  * flag may only suppress the mark.
  */
@@ -47,6 +51,11 @@ const STRUCTURE_SETTLE_MILLISECONDS = 300;
 const STRUCTURE_MAX_WAIT_MILLISECONDS = 2000;
 const RENDER_TIMEOUT_MILLISECONDS = 5000;
 const CONNECTED_ATTRIBUTE = 'data-board-live-connected';
+const DRAG_SELECTOR = [
+    '.lp-board--dragging',
+    '.lp-board-card--dragging',
+    '[data-board-drag-target="card"][aria-busy="true"]',
+].join(', ');
 const BUSY_SELECTOR = [
     '.lp-board--dragging',
     '[data-board-drag-target="card"][aria-busy="true"]',
@@ -93,6 +102,8 @@ export default class extends Controller {
         this.resyncRunning = false;
         this.resyncAgain = false;
         this.resyncAttempts = 0;
+        this.orderCheckDue = false;
+        this.catchUpOrderCheck = false;
         this.stopColumns = on(
             'board.columns_changed',
             () => this.resyncStructure(),
@@ -121,6 +132,10 @@ export default class extends Controller {
         this.resyncTimer = undefined;
         clearTimeout(this.catchUpTimer);
         this.catchUpTimer = undefined;
+        clearTimeout(this.orderCheckTimer);
+        this.orderCheckTimer = undefined;
+        this.orderCheckDue = false;
+        this.catchUpOrderCheck = false;
         this.resyncSince = undefined;
         this.resyncRunning = false;
         this.resyncAgain = false;
@@ -165,7 +180,15 @@ export default class extends Controller {
      * After a reconnect, compares the page with the board manifest and places
      * each card that the page missed or shows out of order.
      */
-    async catchUp(attempt = 0) {
+    async catchUp(attempt = 0, { orderCheck = false } = {}) {
+        if (attempt === 0) {
+            // An order check never turns a waiting normal catch-up into one.
+            const normalWaits =
+                (this.catchUpTimer !== undefined ||
+                    this.manifestAbort !== undefined) &&
+                !this.catchUpOrderCheck;
+            this.catchUpOrderCheck = orderCheck && !normalWaits;
+        }
         clearTimeout(this.catchUpTimer);
         this.catchUpTimer = undefined;
         const read = await this.readManifest();
@@ -193,7 +216,10 @@ export default class extends Controller {
 
             return;
         }
-        this.cardPass(manifest, { afterResync: false });
+        this.cardPass(manifest, {
+            afterResync: false,
+            orderCheck: this.catchUpOrderCheck,
+        });
         this.setFailed(false);
     }
 
@@ -396,6 +422,34 @@ export default class extends Controller {
             this.resyncAgain = false;
             this.resyncStructure();
         }
+        this.startOrderCheck();
+    }
+
+    /**
+     * Runs the due order check once the queue is idle, no card is in a drag
+     * and no resync runs. A drag with no card waiting looks again later.
+     */
+    startOrderCheck() {
+        if (
+            !this.orderCheckDue ||
+            this.pending.size > 0 ||
+            this.resyncRunning ||
+            this.resyncTimer !== undefined
+        ) {
+            return;
+        }
+        clearTimeout(this.orderCheckTimer);
+        this.orderCheckTimer = undefined;
+        if (this.element.querySelector(DRAG_SELECTOR) !== null) {
+            this.orderCheckTimer = setTimeout(
+                () => this.startOrderCheck(),
+                BUSY_RETRY_MILLISECONDS,
+            );
+
+            return;
+        }
+        this.orderCheckDue = false;
+        this.catchUp(0, { orderCheck: true });
     }
 
     boardBusy() {
@@ -406,7 +460,7 @@ export default class extends Controller {
      * Places each card that the page misses, shows out of order, in another
      * lane, or with another digest than the manifest has.
      */
-    cardPass(manifest, { afterResync }) {
+    cardPass(manifest, { afterResync, orderCheck = false }) {
         const shown = new Map();
         this.element
             .querySelectorAll('.lp-board-card[data-card-digest]')
@@ -536,13 +590,16 @@ export default class extends Controller {
                 );
             })
             .map(([cardId]) => cardId);
-        const queued = [...removed, ...changed];
+        // An order check leaves a stale card alone, so its retries stay bound.
+        const usable = (cardId) => !orderCheck || !isStale(cardId);
+        const queued = [...removed, ...changed].filter(usable);
         // Any placement rewrites every history link, so one card is enough.
         // With no card face, the structure render rewrites them, once.
         if (queued.length === 0 && staleHistory(manifest.terminalTotals)) {
-            if (faces.length > 0) {
-                queued.push(faces[0][0]);
-            } else if (!afterResync) {
+            const face = faces.find(([cardId]) => usable(cardId));
+            if (face !== undefined) {
+                queued.push(face[0]);
+            } else if (!afterResync && !orderCheck) {
                 this.resyncStructure();
             }
         }
@@ -620,6 +677,7 @@ export default class extends Controller {
         }
         const card = document.getElementById(`board-card-${cardId}`);
         if (this.busyFor(cardId)) {
+            this.orderCheckDue = true;
             entry.inFlight = false;
             entry.again = false;
             this.schedule(cardId, entry, BUSY_RETRY_MILLISECONDS);
@@ -668,6 +726,7 @@ export default class extends Controller {
             return;
         }
         if (this.busyFor(cardId)) {
+            this.orderCheckDue = true;
             entry.remote ||= this.expected.get(cardId)?.remote ?? false;
             entry.again = false;
             this.expected.delete(cardId);
@@ -702,9 +761,11 @@ export default class extends Controller {
             this.pending.delete(cardId);
             this.markStale(cardId);
             this.settle(cardId);
+            this.startOrderCheck();
 
             return;
         }
+        this.orderCheckDue = true;
         this.schedule(cardId, entry, retryWait(entry.attempts - 1));
     }
 
@@ -786,6 +847,7 @@ export default class extends Controller {
         if (!this.pending.has(cardId)) {
             this.settle(cardId);
         }
+        this.startOrderCheck();
         const expected = this.expected.get(cardId);
         if (expected === undefined) {
             return;
@@ -864,6 +926,13 @@ function staleHistory(totals) {
 
         return link !== null && link.dataset.historyTotal !== String(total);
     });
+}
+
+/** Whether any surface of the card carries the stale mark. */
+function isStale(cardId) {
+    return STALE_MARKS.some(
+        ([find]) => find(cardId)?.hasAttribute('data-board-stale') ?? false,
+    );
 }
 
 function laneHeadOf(cardId) {

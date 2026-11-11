@@ -6836,8 +6836,21 @@
                         "description": "A type key from the column list.",
                         "type": "string"
                     },
+                    "position": {
+                        "description": "The rank the card takes in the column it ends in, counting from 0 at the top. A rank past the end puts the card last. Pass at most one of `position`, `beforeCard` and `afterCard`.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "beforeCard": {
+                        "description": "The number or the id of a card of the column the card ends in. The card lands just above it. A number may be sent as a JSON integer too.",
+                        "type": "string"
+                    },
+                    "afterCard": {
+                        "description": "The number or the id of a card of the column the card ends in. The card lands just below it. A number may be sent as a JSON integer too.",
+                        "type": "string"
+                    },
                     "status": {
-                        "description": "The slug of a column on this board. A change appends the card to the end of the column.",
+                        "description": "The slug of a column on this board. A change appends the card to the end of the column, unless the call also names a place.",
                         "type": "string"
                     },
                     "pullRequestUrls": {
@@ -6898,6 +6911,112 @@
                         "description": "Maps a declared key to its value, such as `{\"tech-design-interactive\": true}`. A key you leave out keeps its value. One bad entry refuses the whole call.",
                         "type": "object",
                         "additionalProperties": true
+                    }
+                },
+                "type": "object"
+            },
+            "CardPlaced": {
+                "required": [
+                    "number",
+                    "title",
+                    "rank"
+                ],
+                "properties": {
+                    "number": {
+                        "description": "The card number.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "rank": {
+                        "description": "The rank in the column, counting from 0 at the top.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "CardReorder": {
+                "required": [
+                    "column",
+                    "cards"
+                ],
+                "properties": {
+                    "column": {
+                        "description": "The slug of an open column of the board.",
+                        "type": "string"
+                    },
+                    "cards": {
+                        "description": "The cards of the block from top to bottom. Name each card by its number or its id. A number may be sent as a JSON integer too.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "at": {
+                        "description": "Where the block goes: `top` or `bottom` of the column. Pass exactly one of `at`, `beforeCard` and `afterCard`.",
+                        "type": "string",
+                        "enum": [
+                            "top",
+                            "bottom"
+                        ]
+                    },
+                    "beforeCard": {
+                        "description": "The number or the id of a card of the column that is not in the list. The block lands just above it.",
+                        "type": "string"
+                    },
+                    "afterCard": {
+                        "description": "The number or the id of a card of the column that is not in the list. The block lands just below it.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "CardReorderResult": {
+                "required": [
+                    "above",
+                    "cards",
+                    "below"
+                ],
+                "properties": {
+                    "above": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/CardPlaced"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "description": "The card just above the block, or null when the block is first."
+                    },
+                    "cards": {
+                        "description": "The block, top first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CardPlaced"
+                        }
+                    },
+                    "below": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/CardPlaced"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "description": "The card just below the block, or null when the block is last."
                     }
                 },
                 "type": "object"

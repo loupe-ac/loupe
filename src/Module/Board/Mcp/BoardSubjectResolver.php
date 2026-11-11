@@ -37,6 +37,16 @@ final readonly class BoardSubjectResolver
 {
     use ResolvesBoundProject;
 
+    /** @param list<Card> $cards */
+    public function requireWritable(array $cards): void
+    {
+        foreach ($cards as $card) {
+            if (!$this->authorization->isGranted(McpBoundProjectVoter::CARD_WRITE, $card)) {
+                throw new ToolCallException(\sprintf('Card %d is not accessible.', $card->number));
+            }
+        }
+    }
+
     /**
      * The JSON schema of one relatedCards entry. It allows extra keys, so an
      * entry copied from card_get output passes with its number, title and status.

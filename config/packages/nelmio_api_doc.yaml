@@ -238,6 +238,9 @@ when@dev: &generator
                 - { alias: CardCreate, type: App\Module\Board\Controller\Api\CreateProjectCardRequest }
                 - { alias: CardUpdate, type: App\Module\Board\Controller\Api\UpdateProjectCardRequest }
                 - { alias: CardRelatedInput, type: App\Module\Board\Controller\Api\RelatedCardInput }
+                - { alias: CardPlaced, type: App\Module\Board\Controller\Api\PlacedCardResponse }
+                - { alias: CardReorder, type: App\Module\Board\Controller\Api\ReorderProjectCardsRequest }
+                - { alias: CardReorderResult, type: App\Module\Board\Controller\Api\ReorderProjectCardsResponse }
                 - { alias: CardEvent, type: App\Module\Board\Controller\Api\CardEventResponse }
                 - { alias: CardEventList, type: App\Module\Board\Controller\Api\CardEventListResponse }
                 - { alias: CardHoldResult, type: App\Module\Board\Controller\Api\CardHoldResponse }

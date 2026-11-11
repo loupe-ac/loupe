@@ -113,6 +113,27 @@ final class CardNeighbourRankTest extends KernelTestCase
         self::assertSame(['A', 'B', 'C', 'D', 'Mover'], $this->titles('next'));
     }
 
+    public function test_a_drop_next_to_a_card_that_left_the_column_still_lands_at_the_end(): void
+    {
+        [$a, , , $d] = $this->column4('next');
+        $this->move($d, 'in-progress');
+
+        $this->move($a, 'next', before: $d);
+
+        self::assertSame(['B', 'C', 'A'], $this->titles('next'));
+        self::assertSame(['D'], $this->titles('in-progress'));
+    }
+
+    public function test_a_drop_after_a_card_that_left_the_column_still_lands_at_the_end(): void
+    {
+        [$a, , , $d] = $this->column4('next');
+        $this->move($d, 'in-progress');
+
+        $this->move($a, 'next', after: $d);
+
+        self::assertSame(['B', 'C', 'A'], $this->titles('next'));
+    }
+
     public function test_a_missing_neighbour_sends_the_card_to_the_end(): void
     {
         [$a] = $this->column4('backlog');

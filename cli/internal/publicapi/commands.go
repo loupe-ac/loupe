@@ -32,6 +32,7 @@ var Commands = []Command{
 	{Path: []string{"column", "reorder"}, Op: "reorderBoardColumns"},
 	{Path: []string{"card", "create"}, Op: "createCard", LongText: "body"},
 	{Path: []string{"card", "update"}, Op: "updateCard", LongText: "body"},
+	{Path: []string{"card", "reorder"}, Op: "reorderCards"},
 	{Path: []string{"card", "hold"}, Op: "holdCard"},
 	{Path: []string{"card", "release"}, Op: "releaseCard"},
 	{Path: []string{"card", "pause-release"}, Op: "releaseCardPause"},

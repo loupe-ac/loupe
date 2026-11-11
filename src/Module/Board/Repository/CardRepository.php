@@ -1796,7 +1796,7 @@ class CardRepository extends ServiceEntityRepository
      *
      * @return array<string, int> card id => position, for the whole column
      */
-    public function refreshLoadedRanks(BoardColumn $column, Card $skipped): array
+    public function refreshLoadedRanks(BoardColumn $column, ?Card $skipped): array
     {
         $positions = $this->positionsInColumn($column);
         $em = $this->getEntityManager();
@@ -1815,6 +1815,75 @@ class CardRepository extends ServiceEntityRepository
         }
 
         return $positions;
+    }
+
+    /**
+     * The ids of one column in rank order, read from the rows. The order is the
+     * one findRanked() and rankWithout() use.
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function rankedIds(BoardColumn $column): array
+    {
+        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM board_cards WHERE column_id = :column ORDER BY position, created_at, id',
+            ['column' => (string) $column->id],
+        )));
+    }
+
+    /**
+     * Ranks a whole column from an order in one statement. A card whose rank
+     * already matches is not written. Only a card in $listed gets a new
+     * updated_at, the way a drag stamps the card it moves. A loaded card keeps
+     * its old rank in memory, so call refreshLoadedRanks() once this is done.
+     *
+     * @param list<string> $order  the id of every card of the column, top first
+     * @param list<string> $listed the ids that take $now
+     */
+    public function rankColumn(BoardColumn $column, array $order, array $listed, \DateTimeImmutable $now): void
+    {
+        if ([] === $order) {
+            return;
+        }
+
+        $literal = static fn (array $ids): string => '{'.implode(',', $ids).'}';
+
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE board_cards c
+             SET position = v.ord - 1,
+                 updated_at = CASE WHEN c.id = ANY(CAST(:listed AS uuid[])) THEN :now ELSE c.updated_at END
+             FROM unnest(CAST(:ids AS uuid[])) WITH ORDINALITY AS v(id, ord)
+             WHERE c.id = v.id AND c.column_id = :column AND c.position <> v.ord - 1',
+            ['ids' => $literal($order), 'listed' => $literal($listed), 'now' => $now, 'column' => (string) $column->id],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
+    }
+
+    /**
+     * The number and the column slug of each card, for a message that names it. A scalar read.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, array{number: int, column: string}> card id => number and column slug
+     */
+    public function describeCards(Project $project, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT c.id, c.number, k.slug FROM board_cards c JOIN board_columns k ON k.id = c.column_id WHERE c.project_id = :project AND c.id IN (:ids)',
+            ['project' => (string) $project->id, 'ids' => $ids],
+            ['ids' => ArrayParameterType::STRING],
+        );
+
+        $described = [];
+        foreach ($rows as $row) {
+            $described[(string) $row['id']] = ['number' => (int) $row['number'], 'column' => (string) $row['slug']];
+        }
+
+        return $described;
     }
 
     /** Stamps every card of a column that turned terminal and was not finished yet. */
