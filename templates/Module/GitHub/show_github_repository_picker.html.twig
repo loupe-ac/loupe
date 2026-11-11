@@ -13,7 +13,7 @@
 {% block settings_section 'repositories' %}
 
 {% block settings_content %}
-<twig:Ds:Panel as="section" id="github-picker" data-testid="github-picker"
+<twig:Ds:Panel as="section" id="github-picker" class="lp-picker" data-testid="github-picker"
     data-controller="repository-picker"
     data-repository-picker-none-value="{{ 'github.picker.submit.none'|trans }}"
     data-repository-picker-one-value="{{ 'github.picker.submit.one'|trans }}"
@@ -53,7 +53,7 @@
                     <label class="lp-picker-repo__name">
                         <input type="checkbox" class="lp-picker-repo__check"
                             {% if held %}checked disabled{% else %}name="{{ form.repositories.vars.full_name }}[]" value="{{ item.pick(account.installation.id) }}"{{ item.ticked ? ' checked' }} data-action="change->repository-picker#update"{% endif %}>
-                        {{ item.repository.fullName }}
+                        <span class="lp-picker-repo__label">{{ item.repository.fullName }}</span>
                     </label>
                     {% if held %}<span class="lp-picker-repo__state">{{ 'github.picker.state.in_project'|trans }}</span>{% endif %}
                     {% endif %}

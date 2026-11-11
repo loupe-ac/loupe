@@ -44,6 +44,24 @@
 
     {% if row.suggests and not repository.accessLostAt %}
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
+    <details class="lp-repository-fold"{{ row.blocks or (check is not null and check.failure is not null) ? ' open' }} data-testid="forge-repository-fold">
+    <summary class="lp-repository-fold__summary" data-testid="forge-repository-summary">
+        <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-repository-fold__chevron" />
+        <span class="lp-repository-fold__title">
+            {%- if row.workflowLabelKey -%}
+                {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+            {%- else -%}
+                {{ 'github.repositories.check.heading_unnamed'|trans }}
+            {%- endif -%}
+        </span>
+        {% if check is null %}
+        <twig:Ds:StatusChip modifier="pending" :label="'github.repositories.check.summary.pending'|trans" />
+        {% elseif row.passes %}
+        <twig:Ds:StatusChip modifier="ok" :label="'github.repositories.check.summary.ok'|trans" />
+        {% else %}
+        <twig:Ds:StatusChip modifier="failed" :label="'github.repositories.check.summary.not_ok'|trans" />
+        {% endif %}
+    </summary>
     <div class="lp-repository-check" data-testid="forge-repository-check">
         {% if row.blocks %}
         <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
@@ -73,13 +91,6 @@
         {% endif %}
         {% if row.lines is not empty %}
         <div class="lp-repository-check__head">
-            <h3 class="lp-repository-check__title">
-                {%- if row.workflowLabelKey -%}
-                    {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
-                {%- else -%}
-                    {{ 'github.repositories.check.heading_unnamed'|trans }}
-                {%- endif -%}
-            </h3>
             {% if check.checkedAt %}
             <span class="lp-repository-check__time" data-testid="forge-repository-checked">
                 {{ 'github.repositories.check.checked'|trans }} <twig:Ds:RelativeTime :datetime="check.checkedAt" />
@@ -137,5 +148,6 @@
         <p class="lp-repository-check__checking" data-repository-checking data-testid="forge-repository-checking">{{ 'github.repositories.check.checking'|trans }}</p>
         {% endif %}
     </div>
+    </details>
     {% endif %}
 </div>

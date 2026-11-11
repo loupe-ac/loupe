@@ -103,6 +103,8 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $paused);
         self::assertSame('New work is paused.', trim($paused->filter('.lp-flash__title')->text()));
         self::assertStringContainsString('workflow. Running work finishes.', $paused->text());
+        self::assertSame('Not OK', trim($crawler->filter('[data-testid="forge-repository-summary"] .lp-status-chip')->text()));
+        self::assertCount(1, $crawler->filter('details[data-testid="forge-repository-fold"][open]'));
     }
 
     public function test_a_row_that_fits_has_no_guide_and_keeps_the_check_again_button(): void

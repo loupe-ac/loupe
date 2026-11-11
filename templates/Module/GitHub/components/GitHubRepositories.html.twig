@@ -21,10 +21,12 @@
     <div data-repository-checks-live-target="populated">
         <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
         {% if freeCount > 0 or not freeComplete %}
-        <p class="lp-connect-hint" data-testid="forge-repositories-unpicked">
-            {{ (freeComplete ? 'github.repositories.unpicked' : 'github.repositories.unpicked_partial')|trans({'%count%': freeCount}) }}
-            <a href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false">{{ 'github.picker.add'|trans }}</a>
-        </p>
+        <div class="lp-settings-panel" data-testid="forge-repositories-unpicked">
+            <p class="lp-connect-hint">{{ (freeComplete ? 'github.repositories.unpicked' : 'github.repositories.unpicked_partial')|trans({'%count%': freeCount}) }}</p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false">{{ 'github.picker.add'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </div>
         {% endif %}
         <div class="lp-repository-list">
             {% for row in rows %}

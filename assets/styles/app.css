@@ -5229,6 +5229,12 @@
     }
 
     /* The repository picker: one list for each GitHub account, a tickbox for each repository. */
+    .lp-picker {
+        @apply flex flex-col gap-5;
+    }
+    .lp-picker-form {
+        @apply flex flex-col gap-6;
+    }
     .lp-picker-account {
         @apply flex flex-col gap-2;
     }
@@ -5260,7 +5266,13 @@
         @apply size-4 shrink-0;
     }
     .lp-picker-repo__name {
-        @apply min-w-0 grow truncate;
+        @apply flex min-w-0 grow items-center gap-3;
+    }
+    label.lp-picker-repo__name {
+        @apply cursor-pointer;
+    }
+    .lp-picker-repo__label {
+        @apply min-w-0 truncate;
     }
     .lp-picker-repo__state {
         @apply shrink-0 text-xs text-fg-dim;
@@ -5273,8 +5285,25 @@
     .lp-repository {
         @apply flex flex-col gap-3;
     }
+    .lp-repository-fold {
+        @apply px-4;
+    }
+    .lp-repository-fold__summary {
+        @apply flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-ink;
+    }
+    .lp-repository-fold__summary::-webkit-details-marker {
+        @apply hidden;
+    }
+    .lp-repository-fold__chevron {
+        @apply shrink-0 text-fg-mute transition-transform;
+    }
+    details[open]
+        > .lp-repository-fold__summary
+        > .lp-repository-fold__chevron {
+        @apply rotate-90;
+    }
     .lp-repository-check {
-        @apply flex flex-col gap-2 px-4;
+        @apply flex flex-col gap-2 pt-3;
     }
     .lp-repository-check__head {
         @apply flex items-baseline justify-between gap-3;

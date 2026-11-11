@@ -42,6 +42,17 @@ final readonly class RepositoryRow
         return null !== $this->check && ForgeRepositoryCheck::countBlockingGaps($this->check->items) > 0;
     }
 
+    public function passes(): bool
+    {
+        foreach ($this->lines as $line) {
+            if ('ok' !== $line->modifier) {
+                return false;
+            }
+        }
+
+        return null === $this->check?->failure;
+    }
+
     public static function elementIdOf(ForgeRepository $repository): string
     {
         return 'forge-repository-'.$repository->id;
