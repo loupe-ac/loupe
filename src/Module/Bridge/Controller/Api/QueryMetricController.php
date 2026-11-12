@@ -12,6 +12,7 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\MetricQueryCommand;
 use App\Module\Bridge\Command\MetricQueryHandler;
+use App\Module\Bridge\Metric\Formula\FormulaProblem;
 use App\Module\Bridge\Metric\Formula\FormulaRow;
 use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
@@ -108,7 +109,7 @@ final class QueryMetricController extends AppController
             $formula = MetricFormula::parse($rows, $formulaText, $text('formulaFormat', 'auto'), $templates);
             $earliest = $formula->earliestRow();
             if (null === $earliest) {
-                throw ApiProblemException::validationFailed([['field' => 'formula', 'code' => 'formula_invalid', 'message' => $this->formulaText($formula)]]);
+                throw ApiProblemException::validationFailed([['field' => self::fieldOf($formula), 'code' => 'formula_invalid', 'message' => $this->formulaText($formula)]]);
             }
             [$shape, $parsedStatistic] = [$earliest->shape, $earliest->statistic];
         } else {
@@ -167,6 +168,16 @@ final class QueryMetricController extends AppController
         return $shape ?? throw ApiProblemException::validationFailed([['field' => 'metric', 'code' => 'unknown_metric', 'message' => sprintf('Unknown metric "%s". The metric list route gives the metrics of the project.', mb_substr($metric, 0, 80))]]);
     }
 
+    /** The query parameter that holds the mistake: the rows text, the format, or the formula text. */
+    private static function fieldOf(MetricFormula $formula): string
+    {
+        return match ($formula->problem?->key) {
+            FormulaProblem::NO_ROWS, FormulaProblem::TOO_MANY_ROWS, FormulaProblem::BAD_ROW, FormulaProblem::DUPLICATE_LETTER, FormulaProblem::UNKNOWN_METRIC, FormulaProblem::METRIC_CANNOT_JOIN, FormulaProblem::STATISTIC_NOT_ALLOWED => 'rows',
+            FormulaProblem::UNKNOWN_FORMAT => 'formulaFormat',
+            default => 'formula',
+        };
+    }
+
     private function formulaText(MetricFormula $formula): string
     {
         return ($formula->problem ?? throw new \LogicException('A formula with no row has a problem.'))->english($this->translator);
@@ -179,7 +190,7 @@ final class QueryMetricController extends AppController
         $refusals = [];
         foreach (array_keys($errors->errors) as $field) {
             $refusals[] = match ($field) {
-                MetricQueryHandler::FORMULA_FIELD => ['field' => 'formula', 'code' => 'formula_invalid', 'message' => $this->formulaText($formula ?? throw new \LogicException('Only a formula query has a formula error.'))],
+                MetricQueryHandler::FORMULA_FIELD => ['field' => self::fieldOf($formula ?? throw new \LogicException('Only a formula query has a formula error.')), 'code' => 'formula_invalid', 'message' => $this->formulaText($formula)],
                 'bucket' => ['field' => 'bucket', 'code' => 'bucket_not_allowed', 'message' => sprintf('The range %s does not take the bucket "%s". Use one of: %s.', $command->range->value, $command->bucket->value, self::valuesOf($command->range->allowedBuckets()))],
                 'compare' => ['field' => 'compare', 'code' => 'compare_not_allowed', 'message' => sprintf('The range %s has no previous period to compare with. Use compare off, or another range.', $command->range->value)],
                 'unit' => $this->notAllowed($command, 'unit', $command->unit, $formula?->units() ?? $command->metric->units()),

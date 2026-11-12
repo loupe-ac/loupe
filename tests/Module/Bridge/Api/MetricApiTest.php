@@ -101,6 +101,16 @@ final class MetricApiTest extends WebTestCase
         $this->get($this->base().'/query?unit=run&rows=A:cost:sum&formula='.rawurlencode('A +'));
         self::assertResponseStatusCodeSame(422);
         self::assertSame('formula', $this->json()['errors'][0]['field']);
+
+        foreach (['A:cost' => 'malformed row', 'A:nope:sum' => 'unknown metric', 'Z:cost:sum' => 'bad letter'] as $rows => $case) {
+            $this->get($this->base().'/query?unit=run&formula=A&rows='.rawurlencode($rows));
+            self::assertResponseStatusCodeSame(422, $case);
+            self::assertSame('rows', $this->json()['errors'][0]['field'], $case);
+        }
+
+        $this->get($this->base().'/query?unit=run&rows=A:cost:sum&formula=A&formulaFormat=nope');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('formulaFormat', $this->json()['errors'][0]['field']);
     }
 
     public function test_compare_previous_adds_the_previous_window(): void
