@@ -17,8 +17,13 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The setup URL registered on the App, where GitHub returns a person after an
- * install. It cannot carry the project, so the session names it. The voter
- * runs in the callback, where the project is loaded.
+ * install, and after a change of access when "Redirect on update" is on. It
+ * cannot carry the project, so the session names it. The voter runs in the
+ * callback and on the Repositories settings page, where the project is loaded.
+ *
+ * A return with a live sign-in and no install in progress goes back to that
+ * page, which shows the picker.
+ * It ignores `installation_id`, because anyone can forge that parameter.
  */
 #[Route(
     '/github/app/setup',
@@ -37,10 +42,14 @@ class SetupGitHubAppController extends AppController
     public function __invoke(Request $request): Response
     {
         $pending = $this->installSession->pending();
-        if (null === $pending) {
+        if (null === $pending || (null === $pending->installState && !$pending->hasSignedIn())) {
             $this->addFlash('error', $this->translator->trans('github.app.flash.expired'));
 
             return $this->redirectToRoute('app_projects');
+        }
+
+        if (null === $pending->installState) {
+            return $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
         }
 
         try {
@@ -55,7 +64,7 @@ class SetupGitHubAppController extends AppController
                 $this->addFlash('error', $this->translator->trans($translationKey));
             }
 
-            return $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
+            return $this->redirectToRoute('connect' === $pending->startedFrom ? 'app_project_connect' : 'app_project_repositories_settings', ['id' => $pending->projectId]);
         }
     }
 }

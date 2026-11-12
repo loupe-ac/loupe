@@ -394,6 +394,7 @@ loupe init --repoint             # point a rule file entry that maps another fol
    The command exits with an error when an account that a work entry of this
    project uses fails. A failure in another project, and an account that only
    another project uses, never change the exit status.
+    When the Loupe GitHub App does not cover the repository of the `origin` remote, step 13 asks the server about it with the lookup route of the public API. A repository that the App reaches and no project holds prints `Shared with Loupe, not in this project.`, and the link opens the picker with that repository ticked (`/projects/<id>/github/install?repository=owner/name`). This needs CLI 2.6.0 and a server that has the route. An older server, or a failed call, leaves the plain install link.
 
 ## `loupe discovery start`
 
@@ -608,6 +609,8 @@ LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
 The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
+
+`loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
 
 `loupe card reorder` and the `--position`, `--before-card` and `--after-card` flags of
 `loupe card update` need a CLI release after `cli/v2.5.6`.

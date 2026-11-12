@@ -200,10 +200,11 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
         self::assertSame('installation_suspended', $this->unreadable($repository));
     }
 
-    public function test_an_installation_that_belongs_to_another_project_is_unreadable(): void
+    public function test_a_repository_with_no_access_is_unreadable(): void
     {
-        $this->em->persist(new GitHubInstallation($this->project(), 80_007, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation(80_007, 'loupe-ac', GitHubRepositorySelection::Selected));
         $repository = new ForgeRepository($this->project(), 'github', '80007', 'loupe-ac/loupe', ForgeRepositorySource::Installation, '80007');
+        $repository->accessLostAt = new \DateTimeImmutable();
         $this->em->persist($repository);
         $this->em->flush();
 
@@ -392,7 +393,7 @@ final class GitHubRepositorySettingsReaderTest extends KernelTestCase
     private function installed(string $path, int $installationId): ForgeRepository
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $repository = new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId);
         $this->em->persist($repository);
         $this->em->flush();

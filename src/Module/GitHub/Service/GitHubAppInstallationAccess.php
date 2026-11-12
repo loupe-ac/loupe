@@ -12,6 +12,7 @@ final readonly class GitHubAppInstallationAccess
         public int $id,
         public string $account,
         public array $permissions,
+        public ?int $accountId = null,
     ) {
     }
 

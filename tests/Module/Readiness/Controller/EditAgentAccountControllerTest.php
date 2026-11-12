@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Readiness\Controller;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\Project\Entity\Project;
@@ -98,7 +100,8 @@ final class EditAgentAccountControllerTest extends WebTestCase
         $client = static::createClient();
         $owner = $this->user('agent-account-installer@example.com');
         $project = $this->project($owner, 'Agent account installer');
-        $this->em()->persist(new GitHubInstallation($project, 9_200_001, 'Acme', GitHubRepositorySelection::Selected));
+        $this->em()->persist(new GitHubInstallation(9_200_001, 'Acme', GitHubRepositorySelection::Selected));
+        $this->em()->persist(new ForgeRepository($project, 'github', '9200001', 'acme/one', ForgeRepositorySource::Installation, '9200001'));
         $this->em()->flush();
         $this->em()->clear();
         $client->loginUser($owner);
@@ -116,9 +119,10 @@ final class EditAgentAccountControllerTest extends WebTestCase
         $client = static::createClient();
         $owner = $this->user('agent-account-removed@example.com');
         $project = $this->project($owner, 'Agent account removed');
-        $installation = new GitHubInstallation($project, 9_200_002, 'Acme', GitHubRepositorySelection::Selected);
+        $installation = new GitHubInstallation(9_200_002, 'Acme', GitHubRepositorySelection::Selected);
         $installation->removedAt = new \DateTimeImmutable();
         $this->em()->persist($installation);
+        $this->em()->persist(new ForgeRepository($project, 'github', '9200002', 'acme/two', ForgeRepositorySource::Installation, '9200002'));
         $this->em()->flush();
         $this->em()->clear();
         $client->loginUser($owner);

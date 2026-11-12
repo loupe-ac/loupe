@@ -6,12 +6,15 @@ namespace App\Tests\Module\GitHub\Twig\Components;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Service\RepositorySuggestionCatalog;
 use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositoryRuleset;
 use App\Module\Forge\Settings\RepositorySettings;
+use App\Module\GitHub\Entity\GitHubInstallation;
+use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\HookSecretKey;
 use App\Module\Workflow\Contract\RepositorySuggestion;
@@ -100,6 +103,17 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $paused);
         self::assertSame('New work is paused.', trim($paused->filter('.lp-flash__title')->text()));
         self::assertStringContainsString('workflow. Running work finishes.', $paused->text());
+        $toggle = $crawler->filter('[data-forge-repository] button[data-testid="forge-repository-toggle"]');
+        self::assertCount(1, $toggle);
+        self::assertSame('Not OK', trim($toggle->filter('.lp-status-chip')->text()));
+        self::assertStringContainsString('acme/app', $toggle->text(), 'The repository row itself opens and closes the checks.');
+        self::assertSame('true', $toggle->attr('aria-expanded'));
+        $fold = $crawler->filter('#'.$toggle->attr('aria-controls'));
+        self::assertSame('forge-repository-fold', $fold->attr('data-testid'));
+        self::assertStringContainsString(' open', ' '.$fold->attr('class'));
+        self::assertCount(0, $toggle->filter('button button, a, dialog, form'), 'The remove action stays outside the toggle.');
+        self::assertCount(1, $crawler->filter('[data-forge-repository] > .lp-identity-row > [data-controller="modal"] dialog'));
+        self::assertCount(1, $crawler->filter('[data-forge-repository][data-controller="disclosure"] button[data-action="click->disclosure#toggle"][data-disclosure-target="trigger"]'));
     }
 
     public function test_a_row_that_fits_has_no_guide_and_keeps_the_check_again_button(): void
@@ -122,6 +136,9 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertStringContainsString('Loupe checks every hour. Check again after a change on GitHub to see it now.', $row);
         self::assertStringNotContainsString('pause', $row);
         self::assertCount(0, $crawler->filter('[data-testid="forge-repository-paused"]'));
+        $toggle = $crawler->filter('[data-testid="forge-repository-toggle"]');
+        self::assertSame('false', $toggle->attr('aria-expanded'), 'A row that fits starts closed.');
+        self::assertStringNotContainsString(' open', ' '.$crawler->filter('#'.$toggle->attr('aria-controls'))->attr('class'));
     }
 
     public function test_a_row_with_only_a_warning_gap_does_not_mention_a_pause(): void
@@ -238,7 +255,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame(['https://github.com/acme/app/rules/12', 'https://github.com/organizations/acme-org/settings/rules/13'], $hrefs);
     }
 
-    public function test_the_empty_state_with_the_app_invites_to_install_it(): void
+    public function test_the_empty_state_with_the_app_invites_to_add_repositories(): void
     {
         $client = static::createClient();
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-app', 'client', 'secret', 'hook', null, null));
@@ -251,10 +268,34 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
 
         $empty = $crawler->filter('#repositories [data-testid="forge-repositories-empty"]');
         self::assertCount(1, $empty);
-        self::assertStringContainsString('Install the GitHub App on a repository. Loupe then checks that it fits the workflow.', $empty->text());
-        $install = $crawler->filter('#repositories a[data-testid="forge-repositories-install"]');
+        self::assertStringContainsString('Pick a repository from the GitHub accounts you can reach. Loupe then checks that it fits the workflow.', $empty->text());
+        $install = $crawler->filter('#repositories a[data-testid="forge-repositories-empty-add"]');
         self::assertSame('/projects/'.$project->id.'/github/install', $install->attr('href'));
-        self::assertSame('Install the GitHub App', trim($install->text()));
+        self::assertSame('Add repositories', trim($install->text()));
+        self::assertSame('false', $install->attr('data-turbo-prefetch'), 'A hover must not start a sign-in.');
+    }
+
+    public function test_a_page_with_rows_still_offers_add_repositories_when_the_app_is_set_up(): void
+    {
+        $client = static::createClient();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-app', 'client', 'secret', 'hook', null, null));
+        $owner = $this->signedUpUser('addmore');
+        $project = $this->projectOf($owner);
+        $this->repositoryOf($project, 'acme/app');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $add = $crawler->filter('#repositories [data-repository-checks-live-target="populated"] a[data-testid="forge-repositories-add"]');
+        self::assertCount(1, $add);
+        self::assertSame('/projects/'.$project->id.'/github/install', $add->attr('href'));
+        self::assertSame('false', $add->attr('data-turbo-prefetch'));
+        $links = '#repositories a[href="/projects/'.$project->id.'/github/install"]';
+        self::assertCount(1, $crawler->filter('#repositories template a[href="/projects/'.$project->id.'/github/install"]'), 'The empty state for the last removal keeps its own button.');
+        self::assertCount(2, $crawler->filter($links), 'One Add repositories button on the page, and no notice about shared repositories.');
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-unpicked"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="github-picker"]'));
     }
 
     public function test_the_empty_state_without_the_app_invites_to_connect_a_repository_on_connections(): void
@@ -275,7 +316,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $connect = $crawler->filter('#repositories a[data-testid="forge-repositories-connect"]');
         self::assertSame('/projects/'.$project->id.'/connect', $connect->attr('href'));
         self::assertSame('Connect a repository', trim($connect->text()));
-        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-install"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-add"]'));
     }
 
     public function test_a_stranger_cannot_open_the_page_of_another_project(): void
@@ -328,6 +369,53 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame('Waiting for the first delivery', $rows['acme/waiting']);
         self::assertStringStartsWith('Working', $rows['acme/working']);
         self::assertStringStartsWith('Quiet', $rows['acme/quiet']);
+    }
+
+    public function test_a_repository_with_no_access_shows_the_state_the_fix_link_and_remove(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('no-access');
+        $project = $this->projectOf($owner);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-test', 'client', 'secret', 'hook', null, null));
+        $installation = new GitHubInstallation(9_301, 'acme', GitHubRepositorySelection::All);
+        $installation->accountId = 4_301;
+        $this->em()->persist($installation);
+        $repository = new ForgeRepository($project, 'github', '9301', 'acme/lost', ForgeRepositorySource::Installation, '9301');
+        $repository->accessLostAt = new \DateTimeImmutable('2026-11-01 10:00:00');
+        $this->em()->persist($repository);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        $row = $crawler->filter('#repositories [data-forge-repository]');
+        self::assertCount(1, $row);
+        self::assertStringContainsString('No access since 1 Nov 2026', $row->filter('[data-testid="forge-repository-health"]')->text());
+        self::assertSame('No access', trim($row->filter('[data-testid="forge-repository-no-access"]')->text()));
+        self::assertSame('https://github.com/apps/loupe-test/installations/new/permissions?target_id=4301', $row->filter('[data-testid="forge-repository-fix-access"]')->attr('href'));
+        self::assertCount(0, $row->filter('[data-testid="forge-repository-check"]'));
+        self::assertStringContainsString('Remove', $row->text());
+    }
+
+    public function test_a_no_access_row_without_a_known_account_has_no_fix_link(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('no-account');
+        $project = $this->projectOf($owner);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe-test', 'client', 'secret', 'hook', null, null));
+        $this->em()->persist(new GitHubInstallation(9_302, 'acme', GitHubRepositorySelection::All));
+        $repository = new ForgeRepository($project, 'github', '9302', 'acme/lost', ForgeRepositorySource::Installation, '9302');
+        $repository->accessLostAt = new \DateTimeImmutable('2026-11-01 10:00:00');
+        $this->em()->persist($repository);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $this->repositoriesPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('#repositories [data-forge-repository]'));
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repository-fix-access"]'));
     }
 
     public function test_the_connections_page_has_no_repository_rows(): void
@@ -396,6 +484,8 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame(CheckTrigger::PageOpen, $queued[0]->trigger);
         self::assertCount(1, $crawler->filter('[data-forge-repository] [data-repository-checking]'));
         self::assertSame('Checking…', trim($crawler->filter('[data-testid="forge-repository-checking"]')->text()));
+        self::assertStringContainsString('Not checked yet', $crawler->filter('[data-testid="forge-repository-unchecked"]')->text());
+        self::assertCount(0, $crawler->filter('.lp-repository-check__title'));
     }
 
     public function test_a_page_reopened_within_five_minutes_dispatches_nothing_and_shows_no_checking(): void

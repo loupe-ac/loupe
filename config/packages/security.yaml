@@ -136,6 +136,7 @@ security:
         - { path: '^/api/v1/projects/[^/]+/artifacts(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/artifacts/[^/]+/(versions|files/.+)$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/cards(/[1-9][0-9]{0,8}(/(events|hold|pause))?|/reorder)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/github/repositories/status$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/inbox/items(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/documents(/[^/]+(/(publish|review|versions(/[^/]+)?|comments/[^/]+(/replies)?|decisions/[^/]+|verdicts(/[^/]+)?))?)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/discovery$', roles: ROLE_API_PUBLIC }

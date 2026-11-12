@@ -24,12 +24,12 @@ final readonly class GitHubRepositoryInstallations
     public function for(ForgeRepository $repository): array
     {
         $sourceRef = $repository->sourceRef;
-        if (ForgeRepositorySource::Installation !== $repository->source || null === $sourceRef || !ctype_digit($sourceRef)) {
+        if (ForgeRepositorySource::Installation !== $repository->source || null === $sourceRef || !ctype_digit($sourceRef) || null !== $repository->accessLostAt) {
             throw new GitHubInstallationUnavailable('no_installation');
         }
 
         $installation = $this->gitHubInstallations->findOneByInstallationId((int) $sourceRef);
-        if (null === $installation || null !== $installation->removedAt || !$installation->project->id?->equals($repository->project->id)) {
+        if (null === $installation || null !== $installation->removedAt) {
             throw new GitHubInstallationUnavailable('no_installation');
         }
         if (null !== $installation->suspendedAt) {

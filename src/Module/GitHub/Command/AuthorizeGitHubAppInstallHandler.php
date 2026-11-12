@@ -25,7 +25,7 @@ final readonly class AuthorizeGitHubAppInstallHandler
     public function __invoke(AuthorizeGitHubAppInstallCommand $command): string
     {
         $error = match (true) {
-            null !== $command->state && !hash_equals($command->pending->installState, $command->state) => 'github.app.flash.state_mismatch',
+            null !== $command->state && !hash_equals($command->pending->installState ?? '', $command->state) => 'github.app.flash.state_mismatch',
             $command->installationId <= 0 => 'github.app.flash.no_installation',
             !$this->appConfiguration->isConfigured() => 'github.app.flash.unavailable',
             default => null,

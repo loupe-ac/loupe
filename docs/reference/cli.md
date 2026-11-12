@@ -143,7 +143,7 @@ The steps, in order:
 9. Install the Playwright browser, when the repository uses Playwright.
 10. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
 11. Offer to start discovery, when onboarding is ready.
-12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first.
+12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first. When the App reaches that repository and no project holds it, the line reads `Shared with Loupe, not in this project.` and the link opens the repository picker with that repository ticked. That state needs CLI 2.6.0 and a server that has the lookup route. An older server shows the install link as before.
 
 Each step prints one short line: a mark (`✓` done, `✗` failed, `·` skipped), the name of the step in one fixed-width column, and a short result. Paths under your home folder show as `~/…`. Steps that were set up already fold into one dimmed line, `· Already set up: sign in, MCP server, …`, after the last step. Colour appears only when the output is a terminal and `NO_COLOR` is unset. A pipe gets the same layout with no escape codes.
 
@@ -303,6 +303,7 @@ names the ways to choose. It never guesses.
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
 | `loupe inbox` | `create`, `get` |
+| `loupe github` | `repository status` |
 
 `loupe card list` filters by the state of a card with `--state` and
 `--state-code`: `loupe card list --state working` lists the cards with the
@@ -317,6 +318,8 @@ their variant, pull request URLs and left-out reasons. `loupe experiment exclude
 <experiment> <number> --reason "..."` leaves a card out of the comparison, and
 `loupe experiment include <experiment> <number>` puts it back. These commands
 need CLI 2.1.0 or later and a server that has the experiment routes.
+
+`loupe github repository status <owner/name> --project <slug>` tells whether the Loupe GitHub App reaches a repository and whether the project holds it. The answer is `in-project`, `free`, `other-project` or `not-shared`. Only the project owner may ask. The command needs CLI 2.6.0 or later and a server that has the lookup route.
 
 `loupe card update` places a card in its column with `--position`, `--before-card`
 or `--after-card`. `loupe card reorder` places a block of cards in one call:

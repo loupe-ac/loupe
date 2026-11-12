@@ -301,6 +301,25 @@ The request takes no body. The credential must manage the project. The answer is
    open run. The `detail` says what to change.
 4. The route takes the `Idempotency-Key` header, as the other creates do.
 
+## Read how a GitHub repository stands
+
+`GET /api/v1/projects/{project}/github/repositories/status?path=owner/name` tells
+whether the Loupe GitHub App reaches one repository and whether the project holds
+it. The `loupe github repository status` command calls this route. `loupe init` uses it.
+Only the owner of the project may ask. The answer is `200`:
+
+```json
+{ "path": "acme/api", "status": "free" }
+```
+
+1. `in-project`: the project holds the repository through the App.
+2. `free`: the App reaches the repository and no project holds it.
+3. `other-project`: another project holds it. The answer names no project.
+4. `not-shared`: the App does not reach the repository.
+5. A `path` that is not `owner/name` gets `422`. A GitHub failure gets `502`,
+   with the code `github_unavailable`.
+6. Loupe caches the GitHub answer for ten minutes.
+
 ## Place a card in its column
 
 `PATCH /api/v1/projects/{project}/cards/{number}` takes `position`, `beforeCard`

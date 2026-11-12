@@ -17,6 +17,7 @@ final readonly class RepositoryRow
      * @param bool                      $suggests         whether the workflow suggests any setting, so a check applies at all
      * @param bool                      $checking         whether a read that the page queued has not answered yet
      * @param RepositoryGuide           $guide            the steps to fix the gaps of the stored check
+     * @param string|null               $fixAccessUrl     where the owner restores access for a "No access" row, null when no link works
      */
     public function __construct(
         public ForgeRepository $repository,
@@ -27,6 +28,7 @@ final readonly class RepositoryRow
         public bool $suggests,
         public bool $checking,
         public RepositoryGuide $guide,
+        public ?string $fixAccessUrl = null,
     ) {
     }
 
@@ -38,6 +40,17 @@ final readonly class RepositoryRow
     public function blocks(): bool
     {
         return null !== $this->check && ForgeRepositoryCheck::countBlockingGaps($this->check->items) > 0;
+    }
+
+    public function passes(): bool
+    {
+        foreach ($this->lines as $line) {
+            if ('ok' !== $line->modifier) {
+                return false;
+            }
+        }
+
+        return null === $this->check?->failure;
     }
 
     public static function elementIdOf(ForgeRepository $repository): string

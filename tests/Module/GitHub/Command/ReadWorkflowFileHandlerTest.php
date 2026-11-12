@@ -409,7 +409,7 @@ final class ReadWorkflowFileHandlerTest extends KernelTestCase
         $em = $this->em();
         $project = $em->getReference(Project::class, $this->project->requireId()) ?? throw new \LogicException('No project.');
         if (ForgeRepositorySource::Installation === $source) {
-            $em->persist(new GitHubInstallation($project, self::INSTALLATION, 'acme', GitHubRepositorySelection::All));
+            $em->persist(new GitHubInstallation(self::INSTALLATION, 'acme', GitHubRepositorySelection::All));
         }
         $row = new ForgeRepository($project, 'github', 'ext-'.uniqid(), 'acme/app', $source, ForgeRepositorySource::Installation === $source ? (string) self::INSTALLATION : null);
         $em->persist($row);

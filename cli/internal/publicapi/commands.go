@@ -51,6 +51,7 @@ var Commands = []Command{
 	{Path: []string{"document", "decision-clear"}, Op: "clearDocumentDecision"},
 	{Path: []string{"document", "reply"}, Op: "replyToDocumentComment", LongText: "body"},
 	{Path: []string{"document", "address"}, Op: "markDocumentCommentAddressed"},
+	{Path: []string{"github", "repository", "status"}, Op: "getGitHubRepositoryStatus"},
 	{Path: []string{"inbox", "create"}, Op: "createInboxItem", LongText: "body"},
 }
 

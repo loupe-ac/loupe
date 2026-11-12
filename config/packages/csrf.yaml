@@ -26,6 +26,7 @@ framework:
             - github-hook-secret-rotate
             - forge-repository-remove
             - github-repository-check
+            - github-repositories-cancel
             - site-review-comment-action
             - board-card-delete
             - worker-run-command

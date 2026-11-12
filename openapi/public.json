@@ -7079,6 +7079,232 @@
                 "security": []
             }
         },
+        "/api/v1/projects/{project}/github/repositories/status": {
+            "get": {
+                "tags": [
+                    "GitHub"
+                ],
+                "summary": "Read how one GitHub repository stands for the project",
+                "description": "Asks GitHub whether the Loupe GitHub App reaches the repository, and the project whether it holds it. GitHub answers are cached for ten minutes. Only the project owner may ask.",
+                "operationId": "getGitHubRepositoryStatus",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "path",
+                        "in": "query",
+                        "description": "The repository as owner/name.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "acme/api"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "How the repository stands.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GitHubRepositoryStatus"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Refused: `github_unavailable`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{project}/inbox/items": {
             "post": {
                 "tags": [
@@ -15515,6 +15741,29 @@
                 },
                 "type": "object"
             },
+            "GitHubRepositoryStatus": {
+                "required": [
+                    "path",
+                    "status"
+                ],
+                "properties": {
+                    "path": {
+                        "description": "The path that was asked, as owner/name.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "`in-project`: the project holds the repository through the App. `free`: the App reaches it and no project holds it. `other-project`: another project holds it. `not-shared`: the App does not reach it.",
+                        "type": "string",
+                        "enum": [
+                            "in-project",
+                            "free",
+                            "other-project",
+                            "not-shared"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
             "ExperimentCardRow": {
                 "required": [
                     "cardId",
@@ -18462,6 +18711,10 @@
         {
             "name": "Experiments",
             "description": "Experiments"
+        },
+        {
+            "name": "GitHub",
+            "description": "GitHub"
         },
         {
             "name": "Inbox",

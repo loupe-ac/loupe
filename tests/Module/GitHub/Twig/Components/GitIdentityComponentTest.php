@@ -335,7 +335,7 @@ final class GitIdentityComponentTest extends WebTestCase
         $client = static::createClient();
         $owner = $this->signedUpUser('pushnokey');
         $project = $this->projectOf($owner);
-        $this->em()->persist(new GitHubInstallation($project, 15, 'acme', GitHubRepositorySelection::Selected));
+        $this->em()->persist(new GitHubInstallation(15, 'acme', GitHubRepositorySelection::Selected));
         $this->em()->persist(new ForgeRepository($project, 'github', '9015', 'acme/site', ForgeRepositorySource::Installation, '15'));
         $this->em()->flush();
         $this->em()->clear();

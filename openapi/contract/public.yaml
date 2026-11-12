@@ -45,6 +45,8 @@ tags:
   description: Stored design artifacts. A flag gates them.
 - name: Discovery
   description: The readiness check of a project.
+- name: GitHub
+  description: The GitHub App of the project.
 - name: Inbox
   description: Items for the inbox of the owner. A flag gates them.
 paths:
@@ -2297,6 +2299,53 @@ paths:
           $ref: '#/components/responses/E405MethodNotAllowed'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/github/repositories/status:
+    get:
+      operationId: getGitHubRepositoryStatus
+      summary: Read how one GitHub repository stands for the project
+      tags:
+      - GitHub
+      description: Asks GitHub whether the Loupe GitHub App reaches the repository, and the project whether it holds it. GitHub
+        answers are cached for ten minutes. Only the project owner may ask.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - name: path
+        in: query
+        description: The repository as owner/name.
+        required: true
+        schema:
+          type: string
+        example: acme/api
+      responses:
+        '200':
+          description: How the repository stands.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubRepositoryStatus'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+        '502':
+          $ref: '#/components/responses/E502GithubUnavailable'
   /api/versions:
     get:
       operationId: listApiVersions
@@ -4865,6 +4914,23 @@ components:
           description: The URL of the next page, or null on the last page.
           nullable: true
           format: uri
+    GitHubRepositoryStatus:
+      type: object
+      required:
+      - path
+      - status
+      properties:
+        path:
+          type: string
+          description: The path that was asked, as owner/name.
+        status:
+          type: string
+          description: '`in-project`: the project holds the repository through the App. `free`: the App reaches it and no project holds it. `other-project`: another project holds it. `not-shared`: the App does not reach it.'
+          enum:
+          - in-project
+          - free
+          - other-project
+          - not-shared
     DiscoveryStartResult:
       type: object
       required:
@@ -8099,6 +8165,19 @@ components:
               $ref: '#/components/examples/NameInvalid'
             validation_failed:
               $ref: '#/components/examples/ValidationFailed'
+    E502GithubUnavailable:
+      description: 'Refused: `github_unavailable`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
     E404ProjectNotFoundRouteNotFound:
       description: 'Refused: `project_not_found`, `route_not_found`.'
       headers:

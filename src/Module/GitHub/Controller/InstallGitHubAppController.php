@@ -15,9 +15,10 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+/** "Install on another account": starts a GitHub install. It replaces a live picker session. */
 #[IsGranted(GitHubConnectionVoter::MANAGE, subject: 'project')]
 #[Route(
-    '/projects/{id:project}/github/install',
+    '/projects/{id:project}/github/install/account',
     name: 'app_github_app_install',
     methods: ['GET'],
 )]

@@ -86,7 +86,7 @@ Connect a GitHub repository, and a merge, a review or a check result in it reach
 [The board](board.md#what-github-tells-a-card) says what a card receives.
 
 Loupe knows a repository by the ID GitHub gives it, so a rename or a transfer keeps it in the same project.
-Through the GitHub App, a repository belongs to one project only. When the App of another project already holds a repository, Loupe does not connect it here.
+Through the GitHub App, a repository belongs to one project only. When another project already holds a repository, you cannot add it here. Two projects can still use one installation of the App for different repositories.
 A webhook feeds only the project it belongs to, and it blocks no other project.
 
 Connections offers two methods. The operator of the instance decides which ones are available.
@@ -108,11 +108,42 @@ Select Generate a new secret to replace the secret. The old secret stops working
 
 ### The GitHub App
 
-Select Install on GitHub. On GitHub, choose the account and the repositories the App can reach.
-GitHub then asks you to authorize Loupe. Loupe connects the installation only when GitHub lists it for your account.
-The repositories of the installation that your GitHub account can reach join the list at once. Under "All repositories", each other repository joins on its first delivery.
-When you add or remove a repository in the App settings on GitHub, the list follows.
+An installation belongs to a GitHub account, not to a project. Several projects of your account can use the same installation, each with its own repositories.
+A repository joins a project only when you pick it. A repository that you share with the App later does not join on its own, and a delivery for a repository that no project holds is dropped.
 The section says when GitHub suspends the installation or when someone uninstalls it.
+
+#### Add repositories
+
+Select Add repositories on the Repositories tab or on the Connections tab. GitHub asks you to sign in, which is one click when you already authorized Loupe.
+GitHub then sends you back to the Repositories tab, which shows the picker below the list. The picker lists the repositories of every installation of the Loupe App that your own GitHub user can see. It groups them by GitHub account and has a search box.
+Tick the repositories to add, then select Add N repositories. Nothing is ticked at first, and the picker only adds. Remove a repository on the Repositories tab.
+
+The picker shows what GitHub shows your GitHub user, and that can differ from what the project holds. When the project holds an installation that your GitHub user cannot see, the picker names its account: "Installed on acme, but your GitHub user cannot see it." Only a GitHub user with access to that installation can pick its repositories.
+When GitHub shows your user no installation at all, the picker says so and offers Install on another account.
+
+A repository in the list has one of three states:
+
+- A free repository has a tickbox.
+- A repository of this project shows In this project, ticked and greyed.
+- A repository that another project holds is greyed and has no tickbox. Its label names that project when you can open it. Otherwise it reads Used by another project.
+
+When Loupe adds the repositories, it asks GitHub again whether you still reach each one. When another project took a repository first, or someone removed it from the App on GitHub, Loupe adds the others and names the repository it could not add.
+The picker lists at most 1,000 repositories of one installation. A longer list shows "Showing the first 1,000 repositories of acme". Choose selected repositories on GitHub to narrow the access, and the other repositories show up.
+
+Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at most. It removes the sign-in when you add repositories, when you cancel, when GitHub does not answer, and on the first request after 30 minutes. The tab then shows the Add repositories button again.
+
+If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the Repositories tab after the change. Otherwise return to the tab and select Refresh list.
+Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
+
+#### Repositories you have not picked
+
+`loupe init` says "Shared with Loupe, not in this project." for the repository of your folder when the App reaches it and no project holds it. Its link signs you in to GitHub and opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
+
+#### No access
+
+When GitHub removes a repository from the installation, or someone uninstalls the App, the repository stays in the list. Its row shows No access with the date, and a Fix access on GitHub link. Loupe stops reading it and stops pushing to it, and a No access repository blocks no work.
+The row comes back to life when the same GitHub account shares the repository again. The account is the one that held it before, not a new owner after a transfer. A repository that moved to another account stays as No access until you remove it.
+No other project can connect a No access repository. Select Remove to free it.
 
 The Connect page has a Git identity panel with the switch "Loupe manages the git identity of agents". The switch is on for every project. When it is on, agents push as the Loupe App, so you can approve their pull requests. Agents push with a token of the App that opens the repository of the project and no other. The panel says when agents cannot push, and names the missing installation or the missing write access. A machine whose bridge runs an older CLI keeps its own git setup, and the panel shows it as Not managed until you run `loupe update` there.
 
@@ -126,8 +157,8 @@ Waiting for the first delivery means Loupe has not received anything from the re
 Working shows the time of the last delivery.
 Quiet means no delivery arrived for 30 days. A quiet repository can be a repository with no activity, or a connection that stopped working on GitHub.
 
-Each repository also shows the name of the workflow of the project, such as Lifecycle workflow.
-Below it, Loupe lists what the workflow suggests for the repository, with one line for each finding.
+Each repository also shows the name of the workflow of the project, such as Lifecycle workflow, and whether the repository fits it: OK or Not OK.
+Select the row to open or close what the workflow suggests for the repository, with one line for each finding. A row with a blocking gap or a failed read starts open.
 A line is Blocking, Warning or Fits. A line says what Loupe read, such as the required checks or the merge method.
 Loupe reads the settings with the permissions that the GitHub App has. It never changes a setting on GitHub.
 Loupe reads again when you open the tab, unless the last read is less than 5 minutes old. While a read runs, the row says Checking…
@@ -144,5 +175,5 @@ When an organization ruleset causes a gap, the step names the organization. Only
 Select Check again after a fix. Loupe reads GitHub at once, so the row shows the new result and a pause can end. Loupe allows 6 reads a minute for each repository. A later click shows the time of the last read.
 
 Select Remove to disconnect a repository. Loupe stops updating cards from it.
-With a webhook, or with an App installation on "All repositories", the next delivery from that repository connects it again. So also remove the webhook, or remove the repository from the App on GitHub.
-With an App installation on selected repositories, Loupe ignores the repository until you remove it from the installation on GitHub and select it again.
+With a webhook, the next delivery from that repository connects it again. So also remove the webhook.
+An App delivery never connects a repository. After you remove a repository that the App still reaches, Loupe ignores its deliveries until you connect the repository again.

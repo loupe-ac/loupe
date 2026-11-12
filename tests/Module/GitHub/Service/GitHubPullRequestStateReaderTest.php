@@ -497,13 +497,13 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertSame('no_installation', $this->unreadable($pullRequest));
     }
 
-    public function test_an_installation_of_another_project_is_unreadable(): void
+    public function test_a_repository_with_no_access_is_unreadable(): void
     {
         $pullRequest = $this->tracked('loupe-ac/loupe', 70_009);
-        $other = $this->project();
-        $this->em->persist(new ForgeRepository($other, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Installation, '70009'));
-        $pullRequest = new ForgePullRequest($other, 'github', 'loupe-ac/loupe', 604);
-        $this->em->persist($pullRequest);
+        $rows = self::getContainer()->get(ForgeRepositoryRepository::class);
+        self::assertInstanceOf(ForgeRepositoryRepository::class, $rows);
+        $row = $rows->findOneBy(['externalId' => '70009']) ?? throw new \LogicException('No row.');
+        $row->accessLostAt = new \DateTimeImmutable();
         $this->em->flush();
 
         self::assertSame('no_installation', $this->unreadable($pullRequest));
@@ -522,7 +522,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

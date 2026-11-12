@@ -7343,6 +7343,29 @@
                 },
                 "type": "object"
             },
+            "GitHubRepositoryStatus": {
+                "required": [
+                    "path",
+                    "status"
+                ],
+                "properties": {
+                    "path": {
+                        "description": "The path that was asked, as owner/name.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "`in-project`: the project holds the repository through the App. `free`: the App reaches it and no project holds it. `other-project`: another project holds it. `not-shared`: the App does not reach it.",
+                        "type": "string",
+                        "enum": [
+                            "in-project",
+                            "free",
+                            "other-project",
+                            "not-shared"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
             "ExperimentCardRow": {
                 "required": [
                     "cardId",

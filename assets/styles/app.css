@@ -5228,15 +5228,97 @@
         @apply shrink-0 mt-0.5;
     }
 
-    /* The Repositories section: a row for each repository, then its check list. */
-    .lp-repository-list {
+    /* The repository picker: one list for each GitHub account, a tickbox for each repository. */
+    .lp-picker {
+        @apply flex flex-col gap-5;
+    }
+    .lp-picker-form {
         @apply flex flex-col gap-6;
     }
-    .lp-repository {
+    .lp-picker-account {
+        @apply flex flex-col gap-2;
+    }
+    .lp-picker-account__head {
+        @apply flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1;
+    }
+    .lp-picker-account__name {
+        @apply m-0 text-base font-semibold text-ink;
+    }
+    .lp-picker-account__meta {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-picker-list {
+        @apply m-0 flex list-none flex-col rounded-xl border border-line p-0;
+    }
+    .lp-picker-repo {
+        @apply flex items-center gap-3 border-t border-line-faint px-4 py-2.5 text-sm text-ink first:border-t-0;
+    }
+    .lp-picker-repo[hidden] {
+        @apply hidden;
+    }
+    .lp-picker-repo--held {
+        @apply text-fg-dim;
+    }
+    .lp-picker-repo__check {
+        @apply size-4 m-0 shrink-0 cursor-pointer accent-accent-ink disabled:cursor-default;
+    }
+    .lp-picker-repo__gap {
+        @apply size-4 shrink-0;
+    }
+    .lp-picker-repo__name {
+        @apply flex min-w-0 grow items-center gap-3;
+    }
+    label.lp-picker-repo__name {
+        @apply cursor-pointer;
+    }
+    .lp-picker-repo__label {
+        @apply min-w-0 truncate;
+    }
+    .lp-picker-repo__state {
+        @apply shrink-0 text-xs text-fg-dim;
+    }
+    /* Refresh list reloads the page through Turbo, which sets aria-busy on the form until the page comes back. */
+    .lp-picker-refresh[aria-busy='true'] [type='submit'] {
+        @apply cursor-wait opacity-70;
+    }
+    .lp-picker-refresh[aria-busy='true'] .lp-picker-refresh__icon {
+        @apply motion-safe:animate-spin;
+    }
+
+    /* The Repositories section: a row for each repository, then its check list. */
+    .lp-repository-list {
         @apply flex flex-col gap-3;
     }
+    .lp-repository {
+        @apply flex flex-col rounded-xl bg-surface-3 px-4.5 py-4;
+    }
+    /* The row is the button that opens and closes the checks. The remove
+       action sits beside it, outside the button. */
+    .lp-repository__toggle {
+        @apply flex min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-sm text-left focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-ink;
+    }
+    /* On a phone the tag and the chip drop under the name, so the name keeps its line. */
+    .lp-repository__toggle > .lp-identity-row__text {
+        @apply grow basis-20;
+    }
+    .lp-repository__toggle > .lp-status-chip {
+        @apply shrink-0 whitespace-nowrap;
+    }
+    .lp-repository__chevron {
+        @apply shrink-0 text-fg-mute transition-transform duration-100;
+    }
+    .lp-repository__toggle[aria-expanded='true'] > .lp-repository__chevron {
+        @apply rotate-90;
+    }
+    /* The disclosure controller slides the checks in and out, and adds .open while they show. */
+    .lp-repository-fold {
+        @apply hidden overflow-hidden px-4;
+    }
+    .lp-repository-fold.open {
+        @apply block;
+    }
     .lp-repository-check {
-        @apply flex flex-col gap-2 px-4;
+        @apply flex flex-col gap-2 pt-3;
     }
     .lp-repository-check__head {
         @apply flex items-baseline justify-between gap-3;

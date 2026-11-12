@@ -55,7 +55,7 @@ Ready for discovery:
 
 Ready for pull requests:
 
-- Install the GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
+- Install the GitHub App is done when a repository connects to the project through the GitHub App. The Add repositories action opens the repository picker when the instance has a GitHub App.
 - Who pushes the code is optional, so the count leaves it out. Loupe manages the [git identity of agents](../getting-started/agent-github-account.md) by default, and the agents push as the Loupe GitHub App. The row is done when the owner records the login of an agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the agent account page.
 
 Optional, which the count leaves out:

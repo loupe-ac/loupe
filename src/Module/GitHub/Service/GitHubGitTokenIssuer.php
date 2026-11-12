@@ -112,7 +112,7 @@ final readonly class GitHubGitTokenIssuer
         $otherRepository = false;
         foreach ($this->forgeRepositories->findByProject($project) as $row) {
             $sourceRef = $row->sourceRef;
-            if (GitHubDelivery::FORGE !== $row->forge || ForgeRepositorySource::Installation !== $row->source || null === $sourceRef || !ctype_digit($sourceRef)) {
+            if (GitHubDelivery::FORGE !== $row->forge || ForgeRepositorySource::Installation !== $row->source || null === $sourceRef || !ctype_digit($sourceRef) || null !== $row->accessLostAt) {
                 continue;
             }
 
@@ -122,7 +122,7 @@ final readonly class GitHubGitTokenIssuer
             }
 
             $installation = $this->gitHubInstallations->findOneByInstallationId((int) $sourceRef);
-            if (null === $installation || null !== $installation->removedAt || !$installation->project->id?->equals($project->id)) {
+            if (null === $installation || null !== $installation->removedAt) {
                 continue;
             }
 

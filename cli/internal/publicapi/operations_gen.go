@@ -134,6 +134,11 @@ var Operations = []Operation{
 	{ID: "getFeedback", Method: "GET", Path: "/api/v1/projects/{project}/feedback/{feedback}", Summary: "Read one feedback item", Description: "",
 		PathArgs: []string{"feedback"}, HasProject: true, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: true, Multipart: false, AnswerFields: []string{"id", "url", "pageUrl", "surface", "native", "screenshot", "anchors", "body", "hasDrawing", "status", "context", "createdAt", "cardId", "number", "title"}, TimeFields: []string{"createdAt"}},
+	{ID: "getGitHubRepositoryStatus", Method: "GET", Path: "/api/v1/projects/{project}/github/repositories/status", Summary: "Read how one GitHub repository stands for the project", Description: "Asks GitHub whether the Loupe GitHub App reaches the repository, and the project whether it holds it. GitHub answers are cached for ten minutes. Only the project owner may ask.",
+		PathArgs: nil, HasProject: true, Query: []Param{
+			{Name: "path", Type: "string", Format: "", Items: "", Required: true, Nullable: false, Description: "The repository as owner/name.", Enum: nil},
+		}, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"path", "status"}, TimeFields: nil},
 	{ID: "getInboxItem", Method: "GET", Path: "/api/v1/projects/{project}/inbox/items/{itemId}", Summary: "Read one inbox item and its answer", Description: "Returns the item with the answer of the owner, the same fields as the `inbox_get` MCP tool. `selectedOptions` holds the indexes of the options the owner picked, and `note` holds the words of whoever closed the item. `apiKey` names the key that made an `api-key` item.",
 		PathArgs: []string{"itemId"}, HasProject: true, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"itemId", "number", "kind", "origin", "title", "state", "closedBy", "closeCause", "dismissible", "blocking", "createdAt", "updatedAt", "closedAt", "cardNumbers", "body", "options", "multiple", "freeText", "selectedOptions", "note", "review", "cards", "documents", "asks", "cardId", "waits", "suggestedActions", "actions", "apiKey"}, TimeFields: []string{"createdAt", "updatedAt", "closedAt"}},

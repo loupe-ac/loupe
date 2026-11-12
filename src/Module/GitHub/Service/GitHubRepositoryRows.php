@@ -7,6 +7,7 @@ namespace App\Module\GitHub\Service;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Service\RepositoryChecks;
+use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\View\RepositoryGuide;
 use App\Module\GitHub\View\RepositoryRow;
 use App\Module\Workflow\Contract\RepositorySuggestions;
@@ -26,6 +27,8 @@ final readonly class GitHubRepositoryRows
         private GitHubRepositoryGuide $guide,
         private TranslatorInterface $translator,
         private ClockInterface $clock,
+        private GitHubInstallationRepository $gitHubInstallations,
+        private GitHubAppConfiguration $appConfiguration,
     ) {
     }
 
@@ -50,7 +53,21 @@ final readonly class GitHubRepositoryRows
             $suggests,
             $suggests && $requestCheck && $this->checks->requestPageOpenCheck($repository),
             null === $check ? new RepositoryGuide([]) : $this->guide->forCheck($check),
+            null === $repository->accessLostAt ? null : $this->fixAccessUrl($repository),
         );
+    }
+
+    /** The App install page of the account that held the lost installation. It works for a personal account and for an organization. */
+    private function fixAccessUrl(ForgeRepository $repository): ?string
+    {
+        $slug = $this->appConfiguration->slug;
+        if (null === $slug || '' === $slug || !ctype_digit($repository->sourceRef ?? '')) {
+            return null;
+        }
+
+        $accountId = $this->gitHubInstallations->findOneByInstallationId((int) $repository->sourceRef)?->accountId;
+
+        return null === $accountId ? null : \sprintf('https://github.com/apps/%s/installations/new/permissions?target_id=%d', rawurlencode($slug), $accountId);
     }
 
     private function workflowLabelKey(?string $workflowKey): ?string

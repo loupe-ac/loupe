@@ -1,13 +1,18 @@
-{#- One repository of the Repositories section. Props: row (RepositoryRow), project (Project). -#}
+{#- One repository of the Repositories section. The row opens and closes its checks. Props: row (RepositoryRow), project (Project). -#}
 {% set repository = row.repository %}
 {% set check = row.check %}
-<div class="lp-repository" id="{{ row.elementId }}" data-forge-repository="{{ repository.id }}" data-repository-row-url="{{ path('app_github_repository_row', {id: project.id, repositoryId: repository.id}) }}">
-    <div class="lp-identity-row">
+{% set foldable = row.suggests and not repository.accessLostAt %}
+{% set open = foldable and (row.blocks or (check is not null and check.failure is not null)) %}
+{% set checksId = row.elementId ~ '-checks' %}
+<div class="lp-repository{{ open ? ' disclosure-open' }}" id="{{ row.elementId }}" data-forge-repository="{{ repository.id }}" data-repository-row-url="{{ path('app_github_repository_row', {id: project.id, repositoryId: repository.id}) }}"{% if foldable %} data-controller="disclosure"{% endif %}>
+    {% set identity %}
         <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--md lp-identity-row__glyph" />
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
             <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
-                {%- if row.health == 'working' -%}
+                {%- if repository.accessLostAt -%}
+                    {{ 'github.repositories.no_access.since'|trans({'%time%': repository.accessLostAt|date('j M Y, H:i')}) }}
+                {%- elseif row.health == 'working' -%}
                     {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
                 {%- elseif row.health == 'quiet' -%}
                     {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
@@ -16,7 +21,32 @@
                 {%- endif -%}
             </span>
         </span>
-        {% if row.workflowLabelKey %}
+    {% endset %}
+    <div class="lp-identity-row">
+        {% if foldable %}
+        <button type="button" class="lp-repository__toggle" aria-expanded="{{ open ? 'true' : 'false' }}" aria-controls="{{ checksId }}" data-disclosure-target="trigger" data-action="click->disclosure#toggle" data-testid="forge-repository-toggle">
+            <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-repository__chevron" />
+            {{ identity }}
+            {% if row.workflowLabelKey %}
+            <twig:Ds:Tag tone="neutral" data-testid="forge-repository-workflow">{{ 'github.repositories.row.workflow'|trans({'%workflow%': row.workflowLabelKey|trans}) }}</twig:Ds:Tag>
+            {% endif %}
+            {% if check is null %}
+            <twig:Ds:StatusChip modifier="pending" :label="'github.repositories.check.summary.pending'|trans" />
+            {% elseif row.passes %}
+            <twig:Ds:StatusChip modifier="ok" :label="'github.repositories.check.summary.ok'|trans" />
+            {% else %}
+            <twig:Ds:StatusChip modifier="failed" :label="'github.repositories.check.summary.not_ok'|trans" />
+            {% endif %}
+        </button>
+        {% else %}
+        {{ identity }}
+        {% endif %}
+        {% if repository.accessLostAt %}
+        <twig:Ds:Tag tone="red" data-testid="forge-repository-no-access">{{ 'github.repositories.no_access.label'|trans }}</twig:Ds:Tag>
+        {% if row.fixAccessUrl is not null %}
+        <twig:Ds:Button variant="on-card" size="sm" href="{{ row.fixAccessUrl }}" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-fix-access">{{ 'github.repositories.no_access.fix'|trans }}</twig:Ds:Button>
+        {% endif %}
+        {% elseif row.workflowLabelKey and not foldable %}
         <twig:Ds:Tag tone="neutral" data-testid="forge-repository-workflow">{{ 'github.repositories.row.workflow'|trans({'%workflow%': row.workflowLabelKey|trans}) }}</twig:Ds:Tag>
         {% endif %}
         <div data-controller="modal">
@@ -35,9 +65,21 @@
         </div>
     </div>
 
-    {% if row.suggests %}
+    {% if foldable %}
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
+    <div class="lp-repository-fold{{ open ? ' open' }}" id="{{ checksId }}" data-disclosure-target="content" data-testid="forge-repository-fold">
     <div class="lp-repository-check" data-testid="forge-repository-check">
+        {% if check is null %}
+        <p class="lp-repository-check__detail" data-testid="forge-repository-unchecked">{{ 'github.repositories.check.unchecked'|trans }}</p>
+        {% else %}
+            <h3 class="lp-repository-check__title">
+                {%- if row.workflowLabelKey -%}
+                    {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+                {%- else -%}
+                    {{ 'github.repositories.check.heading_unnamed'|trans }}
+                {%- endif -%}
+            </h3>
+        {% endif %}
         {% if row.blocks %}
         <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
             {%- if row.workflowLabelKey -%}
@@ -66,13 +108,6 @@
         {% endif %}
         {% if row.lines is not empty %}
         <div class="lp-repository-check__head">
-            <h3 class="lp-repository-check__title">
-                {%- if row.workflowLabelKey -%}
-                    {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
-                {%- else -%}
-                    {{ 'github.repositories.check.heading_unnamed'|trans }}
-                {%- endif -%}
-            </h3>
             {% if check.checkedAt %}
             <span class="lp-repository-check__time" data-testid="forge-repository-checked">
                 {{ 'github.repositories.check.checked'|trans }} <twig:Ds:RelativeTime :datetime="check.checkedAt" />
@@ -129,6 +164,7 @@
         {% if row.checking %}
         <p class="lp-repository-check__checking" data-repository-checking data-testid="forge-repository-checking">{{ 'github.repositories.check.checking'|trans }}</p>
         {% endif %}
+    </div>
     </div>
     {% endif %}
 </div>

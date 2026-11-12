@@ -73,7 +73,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $running = $this->runningConnections($project);
         $takers = $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true);
         $github = $this->gitHubReady($project);
-        $installUrl = $github || !$this->gitHubApp->isConfigured() ? null : $this->urls->generate('app_github_app_install', ['id' => (string) $projectId]);
+        $installUrl = $github || !$this->gitHubApp->isConfigured() ? null : $this->urls->generate('app_github_repositories_start', ['id' => (string) $projectId]);
         $discovery = $this->discoveryRuns->latestForProject($project);
 
         return new WorkshopReadiness([
@@ -357,6 +357,6 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             }
         }
 
-        return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']));
+        return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && null === $repository->accessLostAt && isset($live[$repository->sourceRef ?? '']));
     }
 }

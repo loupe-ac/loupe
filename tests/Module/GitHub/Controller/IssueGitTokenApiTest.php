@@ -143,6 +143,18 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertSame('installation_suspended', $this->json()['code']);
     }
 
+    public function test_it_refuses_a_repository_that_lost_access(): void
+    {
+        [$owner, $project] = $this->managedProject('lost-access', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->em()->getConnection()->executeStatement('UPDATE forge_repositories SET access_lost_at = now() WHERE project_id = ?', [(string) $project->id]);
+        $this->em()->clear();
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('no_installation', $this->json()['code']);
+    }
+
     public function test_it_serves_the_repository_of_the_project_and_never_the_one_of_another_project(): void
     {
         [$owner, $project] = $this->managedProject('mine', ['contents' => 'write', 'pull_requests' => 'write']);
@@ -311,7 +323,7 @@ final class IssueGitTokenApiTest extends WebTestCase
     private function installation(Project $project, int $installationId, int $repositoryId, bool $newInstallation = true): void
     {
         if ($newInstallation) {
-            $this->em()->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::Selected));
+            $this->em()->persist(new GitHubInstallation($installationId, 'acme', GitHubRepositorySelection::Selected));
         }
         $this->em()->persist(new ForgeRepository($project, 'github', (string) $repositoryId, 'acme/site-'.$repositoryId, ForgeRepositorySource::Installation, (string) $installationId));
         $this->em()->flush();

@@ -63,7 +63,7 @@ Loupe cannot give a token when the App is not ready. The panel then shows
 
 - The operator of the instance has not finished the setup of the GitHub App.
 - The App is not installed for the repository of the project. The panel has an
-  **Install the GitHub App** button.
+  **Add repositories** button.
 - The installation is suspended. Unsuspend it on GitHub.
 - The installation lacks write access. The panel names the missing permissions.
   Grant them on GitHub.
