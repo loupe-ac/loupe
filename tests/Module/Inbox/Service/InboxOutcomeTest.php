@@ -52,6 +52,7 @@ final class InboxOutcomeTest extends TestCase
         yield 'owner dismissed' => ['inbox.outcome.owner.dismissed', InboxItemKind::Question, InboxItemState::Declined, InboxCloser::Owner, null, null];
         yield 'agent dismissed for the owner' => ['inbox.outcome.agent_for_owner.dismissed', InboxItemKind::Todo, InboxItemState::Declined, InboxCloser::OwnerThroughAgent, null, null];
         yield 'agent withdrew' => ['inbox.outcome.agent.withdrawn', InboxItemKind::Question, $cancelled, InboxCloser::Agent, InboxCloseCause::Withdrawn, null];
+        yield 'key withdrew' => ['inbox.outcome.api_key.withdrawn', InboxItemKind::Question, $cancelled, InboxCloser::OwnerThroughApiKey, InboxCloseCause::Withdrawn, null];
         yield 'card deleted' => ['inbox.outcome.loupe.card_deleted', InboxItemKind::Question, $cancelled, InboxCloser::Loupe, InboxCloseCause::CardDeleted, null];
         yield 'card finished' => ['inbox.outcome.loupe.card_finished', InboxItemKind::Wait, $cancelled, InboxCloser::Loupe, InboxCloseCause::CardFinished, null];
         yield 'rule no longer asks' => ['inbox.outcome.loupe.rule_withdrew', InboxItemKind::Workflow, $cancelled, InboxCloser::Rule, InboxCloseCause::RuleWithdrew, null];

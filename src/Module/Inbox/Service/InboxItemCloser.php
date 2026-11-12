@@ -102,7 +102,7 @@ final readonly class InboxItemCloser
     /**
      * The caller holds the project lock and transaction, and flushes afterward.
      */
-    public function close(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, ?string $note, \DateTimeImmutable $now): bool
+    public function close(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, ?string $note, \DateTimeImmutable $now, ?ApiKeyActor $apiKey = null): bool
     {
         self::assertClosed($state);
         if (InboxItemState::Open !== $item->state) {
@@ -114,6 +114,9 @@ final readonly class InboxItemCloser
         $item->closeCause = $cause;
         $item->note = $note;
         $item->closedAt = $now;
+        $keyed = InboxCloser::OwnerThroughApiKey === $closer ? $apiKey : null;
+        $item->closedApiKeyId = $keyed?->keyId;
+        $item->closedApiKeyName = $keyed?->keyName;
         $item->updatedAt = $now;
         $this->askCloser->closeAsksHolding($item, $closer->outboxActor(), $now);
 

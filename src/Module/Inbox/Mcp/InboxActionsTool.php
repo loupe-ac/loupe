@@ -11,6 +11,7 @@ use App\Module\Inbox\Command\ListInboxActionsHandler;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\InboxLinkResolver;
+use App\Module\Inbox\Service\SuggestibleInboxActions;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 
@@ -23,18 +24,6 @@ use Mcp\Exception\ToolCallException;
 final readonly class InboxActionsTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_actions';
-
-    /** The actions a worker can suggest. Add entry is the owner's own step and has no line here. */
-    private const array EFFECTS = [
-        'resume-run' => 'Wakes the stopped worker so it carries on with its session.',
-        'retry-card' => 'Releases the pause of the card so the workflow runs the rule again.',
-        'review' => 'Opens the page where the owner reviews the work.',
-        'open' => 'Opens the card or the document.',
-        'send-agent' => 'Starts a new worker for the stage work of the column the card sits in.',
-        'start-session' => 'Opens an interactive session on the card, on a bridge that can open one.',
-        'run-command' => 'Asks the bridge of the asking worker to run one named command entry of its rules.yaml after the owner confirms.',
-        'dismiss' => 'Closes the item without an action.',
-    ];
 
     public function __construct(
         private InboxFlagGate $gate,
@@ -76,8 +65,8 @@ final readonly class InboxActionsTool implements FlagGatedToolInterface
                     'effect' => $effect,
                     'fitsCard' => null === $fitting ? null : \in_array(InboxActionKind::from($action), $fitting, true),
                 ],
-                array_keys(self::EFFECTS),
-                self::EFFECTS,
+                array_keys(SuggestibleInboxActions::EFFECTS),
+                SuggestibleInboxActions::EFFECTS,
             )];
         } catch (DomainErrors $e) {
             throw new ToolCallException(\sprintf('cardId: %s', InboxLinkResolver::CARD_UNKNOWN === ($e->errors['cardId'] ?? null) ? 'The card id must name a card of this project.' : InboxToolErrorMessages::UNMAPPED), previous: $e);

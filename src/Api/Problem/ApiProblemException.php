@@ -35,6 +35,12 @@ final class ApiProblemException extends \RuntimeException
         return new self(new ApiProblem(404, 'project_not_found', 'Project not found', 'No project with this id or slug is reachable with this credential.'));
     }
 
+    /** The answer for a path no route serves, also for a route of a feature that is switched off. */
+    public static function routeNotFound(): self
+    {
+        return new self(new ApiProblem(404, 'route_not_found', 'Route not found', 'No route answers this path.'));
+    }
+
     /** @param list<array{field: string, code: string, message: string}> $errors */
     public static function validationFailed(array $errors): self
     {

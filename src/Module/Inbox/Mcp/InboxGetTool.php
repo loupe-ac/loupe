@@ -8,6 +8,7 @@ use App\Mcp\FlagGatedToolInterface;
 use App\Module\Inbox\Command\ShowInboxItemCommand;
 use App\Module\Inbox\Command\ShowInboxItemHandler;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;

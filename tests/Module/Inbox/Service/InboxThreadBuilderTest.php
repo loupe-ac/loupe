@@ -130,6 +130,20 @@ final class InboxThreadBuilderTest extends KernelTestCase
         self::assertNull($thread->closing);
     }
 
+    public function test_a_withdrawal_through_an_api_key_is_a_closing_and_no_response_of_the_owner(): void
+    {
+        $item = $this->item(InboxItemKind::Question, ['JSON']);
+        $this->close($item, InboxItemState::Cancelled, InboxCloser::OwnerThroughApiKey);
+        $item->closeCause = InboxCloseCause::Withdrawn;
+        $item->closedApiKeyName = 'Weekly CI';
+        $this->em->flush();
+
+        $thread = $this->builder->build($item);
+
+        self::assertNull($thread->reply);
+        self::assertSame(InboxCloser::OwnerThroughApiKey, $thread->closing?->closer);
+    }
+
     public function test_a_response_of_the_owner_names_no_key(): void
     {
         $item = $this->item(InboxItemKind::Question, ['JSON']);

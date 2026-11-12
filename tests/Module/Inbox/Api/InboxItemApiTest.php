@@ -274,9 +274,11 @@ final class InboxItemApiTest extends WebTestCase
 
         $this->send(Request::METHOD_POST, $this->base(), ['kind' => 'todo', 'title' => 'Off']);
         self::assertResponseStatusCodeSame(404);
+        self::assertSame('route_not_found', $this->json()['code']);
 
         $this->send(Request::METHOD_GET, $this->base().'/'.$itemId);
         self::assertResponseStatusCodeSame(404);
+        self::assertSame('route_not_found', $this->json()['code']);
         self::assertSame(1, $this->countItems());
     }
 
