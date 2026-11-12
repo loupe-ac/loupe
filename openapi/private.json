@@ -2237,6 +2237,7 @@
                     "Worker runs"
                 ],
                 "summary": "Report how the launch of an interactive session went",
+                "description": "The route is absent while agent push is switched off, except for a run about a project. A repeat for an open run counts as a sign of life.",
                 "operationId": "reportInteractiveLaunch",
                 "parameters": [
                     {

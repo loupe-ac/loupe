@@ -268,6 +268,92 @@ final class InteractiveLaunchApiTest extends WebTestCase
         self::assertSame([], $this->allRuns());
     }
 
+    public function test_a_run_about_the_project_opens_while_push_is_switched_off(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-init@example.com');
+        $project = $this->project($em, $owner, 'Launch Init');
+        $raw = $this->agentToken($client, $owner);
+        $em->getConnection()->executeStatement("UPDATE feature_flag SET value = 'false' WHERE name = ?", [AgentPush::FLAG]);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->initPayload($project));
+
+        self::assertResponseStatusCodeSame(201);
+        $run = $this->onlyRun();
+        self::assertSame(['project', 'init', null], [$run->subjectType, $run->workKind, $run->cardNumber]);
+        self::assertSame((string) $project->id, (string) $run->subjectId);
+    }
+
+    public function test_a_run_about_another_project_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-init-other@example.com');
+        $project = $this->project($em, $owner, 'Launch Init Mine');
+        $other = $this->project($em, $owner, 'Launch Init Other');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->initPayload($other));
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame('subject_not_found', $this->problemCode($client));
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_repeated_launch_of_an_open_run_stamps_its_last_activity(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-renew@example.com');
+        $project = $this->project($em, $owner, 'Launch Renew');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+
+        $this->put($client, $path, $raw, $this->initPayload($project));
+        self::assertResponseStatusCodeSame(201);
+        $first = $this->onlyRun();
+        self::assertNull($first->lastActivityAt);
+
+        $this->put($client, $path, $raw, $this->initPayload($project));
+
+        self::assertResponseStatusCodeSame(200);
+        $renewed = $this->onlyRun();
+        self::assertNotNull($renewed->lastActivityAt);
+        self::assertSame(WorkerRunState::Running, $renewed->state);
+    }
+
+    public function test_a_repeated_launch_of_a_closed_run_returns_it_unchanged(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-renew-closed@example.com');
+        $project = $this->project($em, $owner, 'Launch Renew Closed');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+        $this->put($client, $path, $raw, $this->initPayload($project));
+        $id = $this->idOf($client);
+        $em->getConnection()->executeStatement("UPDATE bridge_worker_runs SET state = 'closed', ended_at = NOW() WHERE id = ?", [$id]);
+
+        $this->put($client, $path, $raw, $this->initPayload($project));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($id, $this->idOf($client));
+        $run = $this->onlyRun();
+        self::assertSame(WorkerRunState::Closed, $run->state);
+        self::assertNull($run->lastActivityAt);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private function initPayload(Project $project, array $overrides = []): array
+    {
+        return $this->payload([...['subjectType' => 'project', 'subjectId' => (string) $project->id, 'cardNumber' => null, 'workKind' => 'init'], ...$overrides]);
+    }
+
     /**
      * @return iterable<string, array{array<string, mixed>}>
      */
