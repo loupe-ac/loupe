@@ -92,6 +92,7 @@ final readonly class InboxOutcome
     {
         return match ($item->closedBy) {
             InboxCloser::Agent => 'inbox.outcome.agent.withdrawn',
+            InboxCloser::OwnerThroughApiKey => 'inbox.outcome.api_key.withdrawn',
             InboxCloser::Loupe, InboxCloser::Rule => match ($item->closeCause) {
                 InboxCloseCause::CardDeleted => 'inbox.outcome.loupe.card_deleted',
                 InboxCloseCause::CardFinished => 'inbox.outcome.loupe.card_finished',

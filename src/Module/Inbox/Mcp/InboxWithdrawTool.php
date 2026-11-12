@@ -10,6 +10,7 @@ use App\Module\Inbox\Command\WithdrawInboxItemCommand;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;

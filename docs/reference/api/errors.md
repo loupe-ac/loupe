@@ -232,6 +232,14 @@ The first request with this key has not finished. Try again later.
 
 This key was used with a different request body.
 
+### item_not_open
+
+The inbox item is closed, so the request cannot change it. A response of the owner is final.
+
+### item_not_withdrawable
+
+Loupe or a workflow rule opened this inbox item, so no caller withdraws it. It closes when what it waits for ends.
+
 ### kind_not_releasable
 
 A pause of kind rule ends only on its own release condition.
@@ -271,6 +279,10 @@ No command waits on the run, or its bridge already read it.
 ### pause_changed
 
 The active pause is not the pause named by pauseId.
+
+### run_digest_stale
+
+The command of the `run-command` action changed since the preview, or the `runDigest` is not the one of the last preview. Read the preview again and send its new digest.
 
 ### run_not_controllable
 

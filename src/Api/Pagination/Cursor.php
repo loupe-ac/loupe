@@ -73,6 +73,31 @@ final readonly class Cursor
     }
 
     /**
+     * The cursor that resumes after a row of a list that sorts on a number that is unique inside the list.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterNumber(string $sort, int $number, array $filters = []): self
+    {
+        return new self($sort, (string) $number, '', $filters);
+    }
+
+    /**
+     * @return int the number of the last row of the previous page of a list that sorts on a number
+     *
+     * @throws ApiProblemException `invalid_cursor` for a position that is not a whole number above zero
+     */
+    public function numberPosition(): int
+    {
+        $number = filter_var($this->sortValue, \FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if (false === $number) {
+            throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+        }
+
+        return $number;
+    }
+
+    /**
      * @return array{?\DateTimeImmutable, string} the time of the last run, null for a row with no run, and the name of the last row of the previous page
      *
      * @throws ApiProblemException `invalid_cursor` for a position that does not parse

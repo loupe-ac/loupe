@@ -15,9 +15,8 @@ use App\Module\Inbox\Command\CreateInboxItemHandler;
 use App\Module\Inbox\Command\ShowInboxItemCommand;
 use App\Module\Inbox\Command\ShowInboxItemHandler;
 use App\Module\Inbox\Entity\InboxItemKind;
-use App\Module\Inbox\Install\InboxInstallFlags;
-use App\Module\Inbox\Mcp\InboxItemPayload;
 use App\Module\Inbox\Service\InboxApiProblems;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
@@ -29,7 +28,6 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[PublicPost(
@@ -52,7 +50,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
     ],
 )]
-#[RequireFeatureFlag(InboxInstallFlags::FLAG_INBOX_ENABLED)]
 #[Route(
     '/api/v1/projects/{project}/inbox/items',
     name: 'api_inbox_item_create',

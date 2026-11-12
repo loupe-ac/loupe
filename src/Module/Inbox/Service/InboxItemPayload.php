@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Module\Inbox\Mcp;
+namespace App\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxAsk;

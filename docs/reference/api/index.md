@@ -380,7 +380,8 @@ the `value_undeclared_key` message leaves out internal keys.
 
 A script, such as a CI job, can put an item in the inbox of the owner of a
 project. The routes work only while the inbox flag is on. With the flag off,
-they answer `404`.
+every inbox route answers `404` with the code `route_not_found`, before the
+request budget and the idempotency key are spent.
 
 1. `POST /api/v1/projects/{project}/inbox/items` makes one item. `kind` is
    `question`, `todo` or `notice`. The item takes `title`, and optionally `body`,
@@ -400,6 +401,44 @@ they answer `404`.
    it to learn the answer. `selectedOptions` holds the indexes of the options
    that the owner picked, and `note` holds a written answer.
 5. The owner can dismiss every item from the API, a notice too.
+6. `GET /api/v1/projects/{project}/inbox/items` lists the items, newest number
+   first, closed items included. The filters are `state`, `card`, `document`,
+   `ask`, `session` and `q`. `q` narrows the walk to the items that match the
+   words and keeps the order of the numbers, so the best match does not come
+   first. A list takes `limit` and `cursor`, as every list does.
+
+### Control routes
+
+A key can also act on the items, as the owner would. Each of these routes
+needs a key of the owner of the project.
+
+1. `POST .../inbox/items/{itemId}/withdrawal` takes `{reason}` and withdraws an
+   open item. The item closes as `cancelled` with the cause `withdrawn`, and the
+   reason becomes its note. A key may withdraw any open question, to-do or
+   review that an agent or a key asked, also an ask that a worker waits on. It
+   cannot withdraw a wait, a notice or a workflow question that Loupe opened.
+   A closed item answers `409` `item_not_open`. An item that no caller
+   withdraws answers `409` `item_not_withdrawable`.
+2. `POST .../inbox/items/{itemId}/actions` takes `{action}` and runs it. The
+   actions are `answer`, `complete`, `dismiss`, `resume-run`, `retry-card`,
+   `send-agent`, `start-session`, `run-command` and `add-entry`. `answer`
+   takes `selectedOptions` and `note`. A response is final, so a second one
+   answers `409` `item_not_open`. An action that does not fit the item now
+   answers `422`.
+3. `run-command` takes two calls. `GET .../inbox/items/{itemId}/command` shows
+   the command, with the entry, the bridge, the branch, the argv, the params
+   and a `runDigest`. Nothing runs. Show it to the owner. Then send the action
+   with the same `branch` and `params` and with the `runDigest`. A request with
+   no `runDigest` answers `422`. A digest that no longer matches the command
+   answers `409` `run_digest_stale`, and the script reads the preview again.
+4. `GET .../inbox/actions` lists the eight actions that a worker can suggest,
+   each with its effect. With `card`, `fitsCard` tells whether each action fits
+   that card now. The list is fixed and has no cursor.
+
+The record names the key. An item that a key closed has `closedBy:
+"owner-through-api-key"`, and the inbox shows "through an API key" with the
+name of the key. A run, resume or retry that a key started carries the key too.
+A signed-in CLI has no key, so its writes read the same and name none.
 
 An item from an API key has `origin: "api-key"`, and `apiKey` holds the id and
 the name of the key. The inbox shows the name of the key as the sender. The
