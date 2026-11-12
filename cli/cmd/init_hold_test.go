@@ -139,8 +139,8 @@ func TestInitRunGoesOnWithNoHoldWhenTheLaunchFails(t *testing.T) {
 	if !strings.Contains(out.String(), "This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.") {
 		t.Errorf("output = %q", out.String())
 	}
-	if ok || len(f.reports) != 1 || len(f.closes) != 0 {
-		t.Errorf("ok = %v, reports = %d, closes = %d; want no hold", ok, len(f.reports), len(f.closes))
+	if ok || len(f.reports) != 1 || len(f.closes) != 1 || f.closes[0] != run.sessionID {
+		t.Errorf("ok = %v, reports = %d, closes = %d; want no hold and one close of the launch session", ok, len(f.reports), len(f.closes))
 	}
 }
 
@@ -338,8 +338,8 @@ func TestInitGoesOnWhenTheServerRefusesTheLaunch(t *testing.T) {
 	}
 	w.launchMu.Lock()
 	defer w.launchMu.Unlock()
-	if w.closes != 0 {
-		t.Errorf("closes = %d, want 0 with no hold", w.closes)
+	if w.closes != 1 {
+		t.Errorf("closes = %d, want one best-effort close of the refused launch", w.closes)
 	}
 }
 

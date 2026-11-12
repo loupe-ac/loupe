@@ -67,8 +67,10 @@ func startInitRun(ctx context.Context, out io.Writer, client initRunClient, proj
 	r.waitSigs = make(chan os.Signal, 1)
 	signal.Notify(r.notify, os.Interrupt, syscall.SIGTERM)
 	bridgeID, err := initBridgeID()
+	launched := false
 	if err == nil {
 		r.bridgeID = bridgeID
+		launched = true
 		_, err = r.send(ctx, nil)
 	}
 	select {
@@ -81,6 +83,12 @@ func startInitRun(ctx context.Context, out io.Writer, client initRunClient, proj
 	if err != nil {
 		signal.Stop(r.notify)
 		r.notify = nil
+		if launched {
+			// The server may have opened the run and lost the response.
+			closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_, _ = client.CloseInteractiveSession(closeCtx, r.sessionID)
+			cancel()
+		}
 		fmt.Fprintln(out, "This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.")
 		close(r.done)
 		r.finished = true
