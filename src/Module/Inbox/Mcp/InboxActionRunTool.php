@@ -14,6 +14,7 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\RunCommandConfirmation;
 use App\Security\McpBoundProjectVoter;

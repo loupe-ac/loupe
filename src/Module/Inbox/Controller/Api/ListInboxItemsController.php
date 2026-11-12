@@ -12,7 +12,7 @@ use App\Api\Pagination\PageRequest;
 use App\Controller\AppController;
 use App\Module\Inbox\Command\PageInboxItemsCommand;
 use App\Module\Inbox\Command\PageInboxItemsHandler;
-use App\Module\Inbox\Mcp\InboxItemPayload;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;

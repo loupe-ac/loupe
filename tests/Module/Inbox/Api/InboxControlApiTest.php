@@ -195,6 +195,19 @@ final class InboxControlApiTest extends WebTestCase
         self::assertSame('item_not_withdrawable', $this->json()['code']);
     }
 
+    public function test_a_closed_automatic_item_is_not_open_rather_than_not_withdrawable(): void
+    {
+        $notice = new InboxItem(project: $this->project, number: 3, kind: InboxItemKind::Notice, title: 'FYI', blocking: false, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($notice);
+        $this->em->flush();
+        $notice->state = InboxItemState::Cancelled;
+        $this->em->flush();
+
+        $this->send(Request::METHOD_POST, $this->base().'/'.$notice->id.'/withdrawal', ['reason' => 'Settled']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('item_not_open', $this->json()['code']);
+    }
+
     public function test_a_withdrawal_needs_a_reason_and_an_item_of_the_project(): void
     {
         $item = $this->question($this->em, $this->project, 1);
