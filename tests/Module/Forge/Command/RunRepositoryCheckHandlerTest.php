@@ -597,6 +597,23 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertSame(0, $this->reader->reads);
     }
 
+    public function test_an_init_check_whose_empty_suggestions_changed_before_the_clear_queues_itself_again(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+
+        $suggestions = new FakeRepositorySuggestions();
+        $suggestions->afterNextRead = static function () use ($suggestions): void {
+            $suggestions->suggestions = [self::blockingSuggestion()];
+        };
+        ($this->handlerWithoutSuggestions($suggestions))(new RunRepositoryCheckCommand($repository, CheckTrigger::InitEnded));
+
+        self::assertSame([], $ended->events());
+        self::assertCount(1, $this->queuedChecks());
+    }
+
     /** @return list<Envelope> */
     private function queuedChecks(): array
     {
@@ -614,10 +631,10 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         return new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking);
     }
 
-    private function handlerWithoutSuggestions(): RunRepositoryCheckHandler
+    private function handlerWithoutSuggestions(?FakeRepositorySuggestions $suggestions = null): RunRepositoryCheckHandler
     {
         return new RunRepositoryCheckHandler(
-            new FakeRepositorySuggestions(),
+            $suggestions ?? new FakeRepositorySuggestions(),
             $this->service(ForgeRepositoryCheckRepository::class),
             new RepositoryChecks($this->service(ForgeRepositoryCheckRepository::class), $this->service(MessageBusInterface::class), $this->clock),
             $this->summaries,

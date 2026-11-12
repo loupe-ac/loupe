@@ -62,9 +62,13 @@ final readonly class RunRepositoryCheckHandler
 
         $suggestions = $this->suggestions->forProject($projectId);
         if ([] === $suggestions) {
-            $this->clearStaleItems($command);
+            $cleared = $this->clearStaleItems($command);
             if (CheckTrigger::InitEnded === $command->trigger) {
-                $this->events->dispatch(new ForgeRepositoryCheckEnded($projectId, $repositoryId));
+                if ($cleared) {
+                    $this->events->dispatch(new ForgeRepositoryCheckEnded($projectId, $repositoryId));
+                } else {
+                    $this->retryAfterInit($command, $repositoryId);
+                }
             }
 
             return;
@@ -148,12 +152,16 @@ final readonly class RunRepositoryCheckHandler
         );
     }
 
-    /** A template copy that drops its last suggestion leaves items that must hold no longer. */
-    private function clearStaleItems(RunRepositoryCheckCommand $command): void
+    /**
+     * A template copy that drops its last suggestion leaves items that must hold no longer.
+     *
+     * @return bool false when a newer read or a changed suggestion dropped the clear
+     */
+    private function clearStaleItems(RunRepositoryCheckCommand $command): bool
     {
         $check = $this->forgeRepositoryChecks->findOneOfRepository($command->repository);
         if (null === $check || [] === $check->items) {
-            return;
+            return true;
         }
 
         $ticket = $this->forgeRepositoryChecks->takeReadTicket($command->repository);
@@ -180,6 +188,8 @@ final readonly class RunRepositoryCheckHandler
             'trigger' => $command->trigger->value,
             'ticket' => $ticket,
         ]);
+
+        return $cleared;
     }
 
     /**

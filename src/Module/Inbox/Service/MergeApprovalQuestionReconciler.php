@@ -63,11 +63,13 @@ final readonly class MergeApprovalQuestionReconciler
 
     public function reconcile(Project $project): void
     {
-        $held = $this->initRuns->isOpen($project->requireId());
-        $answeredByInitPullRequest = $held || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
+        // A cheap read to skip the forge call. The hold that counts is the one read under the lock.
+        $answeredByInitPullRequest = $this->initRuns->isOpen($project->requireId()) || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
 
-        $changed = $this->em->wrapInTransaction(function () use ($project, $held, $answeredByInitPullRequest): bool {
+        $changed = $this->em->wrapInTransaction(function () use ($project, $answeredByInitPullRequest): bool {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+            // Read under the lock of the init launch, so a launch that commits first is seen.
+            $held = $this->initRuns->isOpen($project->requireId());
 
             $now = self::whole($this->clock->now());
             $open = [];
