@@ -31,11 +31,16 @@ loupe init
 7. It starts the bridge in the background.
 8. It offers to install the Playwright browser, when the repository uses
    Playwright.
-9. It starts an agent that looks for blockers with you. A blocker makes a worker
+9. It offers to install the Loupe GitHub App when it is missing, opens the install
+   page and waits until the repository is in the project. Press Enter to stop
+   waiting. On Windows, press Ctrl-C.
+10. It starts an agent that looks for blockers with you. A blocker makes a worker
    fail on its first run, or does damage. The agent writes nothing to
    `.loupe/lifecycle.md`. This step runs only when the workflow of the project
    needs a profile and the file is missing.
-10. It reports the state of each account, and prints what remains.
+    The agent puts the changes you confirm in one pull request from the branch
+    `loupe/init`, and asks whether to merge it.
+11. It reports the state of each account, and prints what remains.
 
 The account report comes before the agent starts. It names each failure with its
 project, reason and fix. A failing account does not stop the agent, and

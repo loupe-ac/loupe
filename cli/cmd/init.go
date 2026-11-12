@@ -227,6 +227,9 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
+	client := apiClient(cfg)
+	run := startInitRun(cmd.Context(), cmd.OutOrStdout(), client, site.ID)
+	defer run.Close()
 	if err := initLink(cmd, dir, site.ID, o); err != nil {
 		return err
 	}
@@ -260,7 +263,11 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 		initPlaywright(cmd, dir)
 	}
 	left.accounts, left.accountCheck = reportAccountsStep(cmd.Context(), cmd.OutOrStdout(), path, site, sites)
-	left.app = refineApp(cmd.Context(), apiClient(cfg).GitHubRepositoryStatus, site, checkApp(cfg.BaseURL, dir, site))
+	left.app = refineApp(cmd.Context(), client.GitHubRepositoryStatus, site, checkApp(cfg.BaseURL, dir, site))
+	if fresh, ok := initWaitForApp(cmd, client.Sites, run, site, left.app); ok {
+		site = fresh
+		left.app = refineApp(cmd.Context(), client.GitHubRepositoryStatus, site, checkApp(cfg.BaseURL, dir, site))
+	}
 	left.profile, left.profileRan = initProfile(cmd, dir, site, o, left.app)
 	initDiscovery(cmd, cfg, dir, site, &left)
 	view.Finish()

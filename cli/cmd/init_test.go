@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -62,6 +63,13 @@ type initWorld struct {
 	// holds the setup files.
 	accounts []accountResult
 	gitClean bool
+
+	// launches holds the body of each launch PUT, and closes counts the closes.
+	// launchStatus answers the PUT; 0 means 201.
+	launchMu     sync.Mutex
+	launches     []map[string]any
+	closes       int
+	launchStatus int
 }
 
 func newInitWorld(t *testing.T, sites string) *initWorld {
@@ -76,6 +84,23 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			fmt.Fprint(rw, `{"token_type":"Bearer","access_token":"eyJ.access","refresh_token":"refresh-1","expires_in":3600}`)
 		case r.URL.Path == "/api/v1/bridge/projects" && r.Method == http.MethodGet:
 			fmt.Fprintf(rw, `{"sites":[%s]}`, w.sites)
+		case strings.Contains(r.URL.Path, "/interactive-runs/") && r.Method == http.MethodPut:
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			w.launchMu.Lock()
+			w.launches = append(w.launches, body)
+			status := w.launchStatus
+			w.launchMu.Unlock()
+			if status == 0 {
+				status = http.StatusCreated
+			}
+			rw.WriteHeader(status)
+			fmt.Fprint(rw, `{}`)
+		case strings.HasPrefix(r.URL.Path, "/api/v1/bridge/interactive-sessions/") && r.Method == http.MethodPost:
+			w.launchMu.Lock()
+			w.closes++
+			w.launchMu.Unlock()
+			fmt.Fprint(rw, `{"closed":1}`)
 		case r.URL.Path == "/api/v1/projects" && r.Method == http.MethodPost:
 			w.created.Add(1)
 			var body map[string]any

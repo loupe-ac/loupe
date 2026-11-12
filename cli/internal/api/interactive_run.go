@@ -17,7 +17,8 @@ import (
 type InteractiveLaunchReport struct {
 	BridgeID string `json:"bridgeId"`
 	// SubjectType is SubjectCard, or SubjectInboxItem for the session of an
-	// inbox item that has no single card. Only a card subject has a card
+	// inbox item that has no single card, or SubjectProject for the run of
+	// `loupe init`. Only a card subject has a card
 	// number, and the item subject sends none.
 	SubjectType string `json:"subjectType"`
 	SubjectID   string `json:"subjectId"`
@@ -35,6 +36,9 @@ type InteractiveLaunchReport struct {
 	Harness string `json:"harness,omitempty"`
 	Account string `json:"account,omitempty"`
 	Model   string `json:"model,omitempty"`
+	// AwaitingInstall is for a session about a project. True marks the wait for
+	// the App install, false ends it, and nil leaves the mark as it is.
+	AwaitingInstall *bool `json:"awaitingInstall,omitempty"`
 }
 
 // ErrInteractiveRunsUnsupported marks a 404 with no error code, which is the
