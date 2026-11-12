@@ -221,7 +221,7 @@ final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
         $this->bindLifecycle($project);
         $rules = self::getContainer()->get(ApprovalRules::class);
         self::assertInstanceOf(ApprovalRules::class, $rules);
-        self::assertTrue($rules->coversConflictResolution($project->id));
+        self::assertTrue($rules->coversConflictResolution($project->id ?? throw new \LogicException('Not flushed.')));
         $handler = self::getContainer()->get(SaveBoardAutomationSettingsHandler::class);
         self::assertInstanceOf(SaveBoardAutomationSettingsHandler::class, $handler);
 
