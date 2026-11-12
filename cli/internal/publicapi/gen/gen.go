@@ -22,6 +22,13 @@ var reserved = map[string]bool{
 	"help": true, "config": true,
 }
 
+// The query parameter `format` is the format of a formula result. The CLI
+// names its flag --formula-format, because --format is the output format.
+const (
+	formulaFormatParam = "format"
+	formulaFormatFlag  = "formula-format"
+)
+
 type spec struct {
 	Paths      map[string]map[string]json.RawMessage `json:"paths"`
 	Components struct {
@@ -351,6 +358,9 @@ func (g *generator) build(path, method string, raw operation) (op, error) {
 	seen := map[string]string{}
 	claim := func(name, where string) error {
 		k := kebab(name)
+		if where == "query parameter" && name == formulaFormatParam {
+			k = formulaFormatFlag
+		}
 		if reserved[k] {
 			return fmt.Errorf("%s %q collides with the shared flag --%s", where, name, k)
 		}

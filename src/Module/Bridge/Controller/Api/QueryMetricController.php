@@ -57,7 +57,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
         new OA\Parameter(name: 'compare', description: 'With `previous`, the answer also reads the period of the same length just before the range. The range all has no previous period.', in: 'query', schema: new OA\Schema(type: 'string', default: 'off', enum: ['off', 'previous'])),
         new OA\Parameter(name: 'rows', description: 'The lettered rows of a formula, as `A:metric:statistic`, separated by commas. The letters are A to F.', in: 'query', schema: new OA\Schema(type: 'string')),
         new OA\Parameter(name: 'formula', description: 'The letters of the rows combined with + - * / and parentheses, such as `A / B`, in at most 200 characters.', in: 'query', schema: new OA\Schema(type: 'string')),
-        new OA\Parameter(name: 'formulaFormat', description: 'How the result of a formula reads. Auto keeps money and duration, and shows every other result as a number.', in: 'query', schema: new OA\Schema(type: 'string', default: 'auto', enum: ['auto', 'number', 'percent', 'money', 'duration'])),
+        new OA\Parameter(name: 'format', description: 'How the result of a formula reads. Auto keeps money and duration, and shows every other result as a number.', in: 'query', schema: new OA\Schema(type: 'string', default: 'auto', enum: ['auto', 'number', 'percent', 'money', 'duration'])),
     ],
     responses: [
         new SuccessResponse(200, 'The series of the metric.', MetricQueryResponse::class),
@@ -86,7 +86,7 @@ final class QueryMetricController extends AppController
         $input = $request->query;
         $text = static fn (string $name, string $default = ''): string => \is_string($value = $input->all()[$name] ?? null) ? $value : $default;
         $errors = [];
-        foreach (['unit', 'metric', 'statistic', 'group', 'range', 'bucket', 'compare', 'rows', 'formula', 'formulaFormat'] as $name) {
+        foreach (['unit', 'metric', 'statistic', 'group', 'range', 'bucket', 'compare', 'rows', 'formula', 'format'] as $name) {
             if (isset($input->all()[$name]) && !\is_string($input->all()[$name])) {
                 $errors[] = ['field' => $name, 'code' => 'invalid_value', 'message' => sprintf('The %s must be given once, as text.', $name)];
             }
@@ -106,7 +106,7 @@ final class QueryMetricController extends AppController
             if ('' !== $metric || '' !== $statistic) {
                 throw ApiProblemException::validationFailed([['field' => 'rows', 'code' => 'metric_and_rows', 'message' => 'Pass metric and statistic, or rows and formula, and not both.']]);
             }
-            $formula = MetricFormula::parse($rows, $formulaText, $text('formulaFormat', 'auto'), $templates);
+            $formula = MetricFormula::parse($rows, $formulaText, $text('format', 'auto'), $templates);
             $earliest = $formula->earliestRow();
             if (null === $earliest) {
                 throw ApiProblemException::validationFailed([['field' => self::fieldOf($formula), 'code' => 'formula_invalid', 'message' => $this->formulaText($formula)]]);
@@ -173,7 +173,7 @@ final class QueryMetricController extends AppController
     {
         return match ($formula->problem?->key) {
             FormulaProblem::NO_ROWS, FormulaProblem::TOO_MANY_ROWS, FormulaProblem::BAD_ROW, FormulaProblem::DUPLICATE_LETTER, FormulaProblem::UNKNOWN_METRIC, FormulaProblem::METRIC_CANNOT_JOIN, FormulaProblem::STATISTIC_NOT_ALLOWED => 'rows',
-            FormulaProblem::UNKNOWN_FORMAT => 'formulaFormat',
+            FormulaProblem::UNKNOWN_FORMAT => 'format',
             default => 'formula',
         };
     }

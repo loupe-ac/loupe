@@ -2010,7 +2010,7 @@ paths:
         in: query
         schema:
           type: string
-      - name: formulaFormat
+      - name: format
         in: query
         schema:
           type: string

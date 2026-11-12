@@ -7394,7 +7394,7 @@
                         }
                     },
                     {
-                        "name": "formulaFormat",
+                        "name": "format",
                         "in": "query",
                         "description": "How the result of a formula reads. Auto keeps money and duration, and shows every other result as a number.",
                         "schema": {

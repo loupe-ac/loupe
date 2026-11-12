@@ -108,9 +108,9 @@ final class MetricApiTest extends WebTestCase
             self::assertSame('rows', $this->json()['errors'][0]['field'], $case);
         }
 
-        $this->get($this->base().'/query?unit=run&rows=A:cost:sum&formula=A&formulaFormat=nope');
+        $this->get($this->base().'/query?unit=run&rows=A:cost:sum&formula=A&format=nope');
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('formulaFormat', $this->json()['errors'][0]['field']);
+        self::assertSame('format', $this->json()['errors'][0]['field']);
     }
 
     public function test_compare_previous_adds_the_previous_window(): void
