@@ -10,7 +10,6 @@ use App\Api\OpenApi\SuccessResponse;
 use App\Controller\AppController;
 use App\Module\Inbox\Command\ShowProjectInboxItemCommand;
 use App\Module\Inbox\Command\ShowProjectInboxItemHandler;
-use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Mcp\InboxItemPayload;
 use App\Module\Inbox\Service\InboxApiProblems;
 use App\Module\Project\Entity\Project;
@@ -21,7 +20,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[PublicGet(
@@ -38,7 +36,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         new ProblemResponse(404, ['project_not_found', 'inbox_item_not_found', 'route_not_found']),
     ],
 )]
-#[RequireFeatureFlag(InboxInstallFlags::FLAG_INBOX_ENABLED)]
 #[Route(
     '/api/v1/projects/{project}/inbox/items/{itemId}',
     name: 'api_inbox_item_show',

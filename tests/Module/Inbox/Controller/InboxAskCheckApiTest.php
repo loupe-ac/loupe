@@ -127,6 +127,7 @@ final class InboxAskCheckApiTest extends WebTestCase
         $this->check($this->agentToken($owner), (string) $project->id, (string) $ask->id);
 
         self::assertResponseStatusCodeSame(404);
+        self::assertSame('route_not_found', $this->body()['code'] ?? null);
     }
 
     public function test_a_request_without_a_token_is_refused(): void
