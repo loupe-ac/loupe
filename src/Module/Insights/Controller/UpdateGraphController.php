@@ -6,8 +6,8 @@ namespace App\Module\Insights\Controller;
 
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Form\SavedGraphFormType;
 use App\Module\Insights\Form\SavedGraphRequest;
 use App\Module\Project\Entity\Project;
@@ -27,7 +27,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class UpdateGraphController extends AppController
 {
     public function __construct(
-        private readonly UpdateSavedGraphHandler $updateGraph,
+        private readonly UpdateSavedGraphFieldsHandler $updateGraph,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -46,7 +46,7 @@ class UpdateGraphController extends AppController
         }
 
         try {
-            $result = ($this->updateGraph)(new UpdateSavedGraphCommand($project, $graphId, $data->name, $data->settings()));
+            $result = ($this->updateGraph)(new UpdateSavedGraphFieldsCommand($project, $graphId, name: $data->name, settings: $data->settings()));
         } catch (DomainErrors $e) {
             foreach ($e->errors as $field => $translationKey) {
                 $this->addFlash('error', $this->translator->trans($translationKey, $e->parameters[$field] ?? []));
@@ -57,6 +57,6 @@ class UpdateGraphController extends AppController
 
         $this->addFlash('success', $this->translator->trans('analytics.metrics.saved_graph.flash.updated'));
 
-        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id, 'graph' => (string) $result->graph->id] + $result->query->routeParams());
+        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id, 'graph' => (string) $result->graph->id] + ($result->query?->routeParams() ?? []));
     }
 }

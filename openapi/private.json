@@ -9010,6 +9010,559 @@
                 },
                 "type": "object"
             },
+            "GraphSettings": {
+                "required": [
+                    "metric",
+                    "unit",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "chart"
+                ],
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric, such as `cost` or `bucket-time:tests`.",
+                        "type": "string"
+                    },
+                    "unit": {
+                        "description": "What one row stands for: `run`, `card` or `reading`.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string"
+                    },
+                    "group": {
+                        "description": "How the graph splits its lines: `stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`.",
+                        "type": "string"
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`.",
+                        "type": "string"
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone.",
+                        "type": "string"
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range.",
+                        "type": "string"
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRow": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "The statistic that reads the metric for each bucket and group.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphFormula": {
+                "required": [
+                    "rows",
+                    "formula",
+                    "format"
+                ],
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRow"
+                        }
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string"
+                    },
+                    "format": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphBroken": {
+                "required": [
+                    "reason",
+                    "name"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "What is gone.",
+                        "type": "string",
+                        "enum": [
+                            "template-metric",
+                            "bucket",
+                            "harness-event"
+                        ]
+                    },
+                    "name": {
+                        "description": "The template metric key, the bucket name or the harness event kind.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Graph": {
+                "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "width",
+                    "showLegend",
+                    "settings",
+                    "formula",
+                    "broken",
+                    "undoUntil"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "position": {
+                        "description": "The place among the graphs on the Dashboard, counted from 0. Null for a removed graph.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "width": {
+                        "description": "How much of the Dashboard row the graph takes.",
+                        "type": "string",
+                        "enum": [
+                            "half",
+                            "full"
+                        ]
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettings"
+                    },
+                    "formula": {
+                        "description": "The formula, or null for a graph that reads one metric.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphFormula"
+                            }
+                        ]
+                    },
+                    "broken": {
+                        "description": "What the graph still reads that the project no longer has, or null.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphBroken"
+                            }
+                        ]
+                    },
+                    "undoUntil": {
+                        "description": "For a removed graph, the time until which `POST /graphs/{graph}/restore` brings it back. Null for a graph on the Dashboard.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Graph"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRemoveResult": {
+                "required": [
+                    "undoUntil"
+                ],
+                "properties": {
+                    "undoUntil": {
+                        "description": "The time until which `POST /graphs/{graph}/restore` brings the graph back.",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphSettingsInput": {
+                "description": "A field you leave out keeps its value on a change, and takes its default on a save.",
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric from the metric list. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 140
+                    },
+                    "unit": {
+                        "description": "`run`, `card` or `reading`. A save needs it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "description": "`stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`. A save defaults to `none`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`. A save defaults to `ninety-days`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone. A save defaults to `week`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range. A save defaults to `off`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`. A save defaults to `line`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRowInput": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphCreate": {
+                "required": [
+                    "settings"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The name of the tile. A blank name takes the title of the graph.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 120
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph, up to six. Leave them out for a graph of one metric.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "default": [],
+                        "maxItems": 6
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 200
+                    },
+                    "formulaFormat": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`. A formula graph defaults to `auto`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SavedGraphWidth": {
+                "type": "string",
+                "enum": [
+                    "half",
+                    "full"
+                ]
+            },
+            "GraphUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "pattern": ".*\\S.*",
+                        "maxLength": 120,
+                        "minLength": 1
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph. They replace all the rows. To turn a one-metric graph into a formula graph, pass both `rows` and `formula`.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "maxItems": 6,
+                        "minItems": 1
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "formulaFormat": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    },
+                    "clearFormula": {
+                        "description": "True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `formulaFormat`.",
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "$ref": "#/components/schemas/SavedGraphWidth"
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "position": {
+                        "description": "The place to take among the graphs on the Dashboard, counted from 0 as the graph list counts it. A place past the last puts the graph last. The other graphs keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRule": {
+                "required": [
+                    "id",
+                    "position",
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "position": {
+                        "description": "The place in the order the rules apply, counted from 0.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name.",
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BucketRule"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleDeleteResult": {
+                "required": [
+                    "deleted"
+                ],
+                "properties": {
+                    "deleted": {
+                        "description": "The id of the deleted rule.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleCreate": {
+                "required": [
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one, such as `LSP` or `mcp__loupe__*`. The rule goes last in the order the rules apply.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name, 1 to 64 characters: lower case letters, digits, underscore and hyphen.",
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleUpdate": {
+                "required": [
+                    "position"
+                ],
+                "properties": {
+                    "position": {
+                        "description": "The place to take in the order the rules apply, counted from 0 as the rule list counts it. A place past the last puts the rule last. The other rules keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettings": {
+                "required": [
+                    "defaultModel",
+                    "defaultEffort",
+                    "collectFullText",
+                    "subcommandPrograms",
+                    "model",
+                    "effort"
+                ],
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultEffort": {
+                        "description": "The effort the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git`. Empty when the project sets none, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "model": {
+                        "description": "The model a new analysis takes when it names none: the project value, else the instance default.",
+                        "type": "string"
+                    },
+                    "effort": {
+                        "description": "The effort a new analysis takes when it names none: `low`, `medium`, `high`, `xhigh` or `max`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettingsUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model a new analysis takes when it names none, one word such as `sonnet` or `opus`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 64
+                    },
+                    "defaultEffort": {
+                        "description": "`low`, `medium`, `high`, `xhigh` or `max`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git` or `npm`. At most 50 names of letters, digits and `. _ + -`. Replaces the list, and an empty list clears it, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 50
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [

@@ -282,6 +282,24 @@ when@dev: &generator
                 - { alias: VerdictSubmit, type: App\Module\Review\Controller\Api\SubmitVerdictRequest }
                 - { alias: VerdictResult, type: App\Module\Review\Controller\Api\VerdictResponse }
                 - { alias: VerdictWithdrawResult, type: App\Module\Review\Controller\Api\VerdictWithdrawResponse }
+                - { alias: GraphSettings, type: App\Module\Insights\Controller\Api\GraphSettingsResponse }
+                - { alias: GraphRow, type: App\Module\Insights\Controller\Api\GraphRowResponse }
+                - { alias: GraphFormula, type: App\Module\Insights\Controller\Api\GraphFormulaResponse }
+                - { alias: GraphBroken, type: App\Module\Insights\Controller\Api\GraphBrokenResponse }
+                - { alias: Graph, type: App\Module\Insights\Controller\Api\GraphResponse }
+                - { alias: GraphList, type: App\Module\Insights\Controller\Api\GraphListResponse }
+                - { alias: GraphRemoveResult, type: App\Module\Insights\Controller\Api\GraphRemovedResponse }
+                - { alias: GraphSettingsInput, type: App\Module\Insights\Controller\Api\GraphSettingsInput }
+                - { alias: GraphRowInput, type: App\Module\Insights\Controller\Api\GraphRowInput }
+                - { alias: GraphCreate, type: App\Module\Insights\Controller\Api\CreateGraphRequest }
+                - { alias: GraphUpdate, type: App\Module\Insights\Controller\Api\UpdateGraphRequest }
+                - { alias: BucketRule, type: App\Module\Insights\Controller\Api\BucketRuleResponse }
+                - { alias: BucketRuleList, type: App\Module\Insights\Controller\Api\BucketRuleListResponse }
+                - { alias: BucketRuleDeleteResult, type: App\Module\Insights\Controller\Api\BucketRuleDeletedResponse }
+                - { alias: BucketRuleCreate, type: App\Module\Insights\Controller\Api\CreateBucketRuleRequest }
+                - { alias: BucketRuleUpdate, type: App\Module\Insights\Controller\Api\UpdateBucketRuleRequest }
+                - { alias: AnalyticsSettings, type: App\Module\Insights\Controller\Api\AnalyticsSettingsResponse }
+                - { alias: AnalyticsSettingsUpdate, type: App\Module\Insights\Controller\Api\UpdateAnalyticsSettingsRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Insights\Controller;
 
 use App\Controller\AppController;
-use App\Module\Insights\Command\SetLegendSavedGraphCommand;
-use App\Module\Insights\Command\SetLegendSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\GraphLegendRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
@@ -30,7 +30,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class SetGraphLegendController extends AppController
 {
     public function __construct(
-        private readonly SetLegendSavedGraphHandler $handler,
+        private readonly UpdateSavedGraphFieldsHandler $handler,
         private readonly DashboardGraphForms $forms,
         private readonly TranslatorInterface $translator,
     ) {
@@ -48,7 +48,7 @@ class SetGraphLegendController extends AppController
         if (!$form->isSubmitted() || !$form->isValid()) {
             $this->addFlash('error', $this->translator->trans('analytics.dashboard.flash.invalid'));
         } else {
-            ($this->handler)(new SetLegendSavedGraphCommand($graph, $data->show ?? throw new \LogicException('A valid choice is not null.')));
+            ($this->handler)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, showLegend: $data->show ?? throw new \LogicException('A valid choice is not null.')));
         }
 
         return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id]);

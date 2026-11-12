@@ -607,6 +607,10 @@ Over the MCP, the group of a bridge is its id, and the page shows its name.
 total, the change, the likely ranges and the sign, as the Metrics tab shows
 them. [The MCP tools](mcp.md#what-the-tools-do) list the fields.
 
+## Through the HTTP API
+
+The public API has routes for the saved graphs, the bucket rules and the analytics settings: `/api/v1/projects/{project}/graphs`, `/bucket-rules` and `/analytics/settings`. The `loupe graph`, `loupe bucket-rule` and `loupe analytics-settings` commands call them. [The API reference](../reference/api/index.md#saved-graphs) lists the rules.
+
 ## Reports
 
 The **Reports** tab lists the analyses of the project, newest first. An

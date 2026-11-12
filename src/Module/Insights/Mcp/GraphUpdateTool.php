@@ -9,23 +9,18 @@ use App\Module\Bridge\Mcp\MetricQueryTool;
 use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
-use App\Module\Insights\Command\RenameSavedGraphCommand;
-use App\Module\Insights\Command\RenameSavedGraphHandler;
-use App\Module\Insights\Command\ResizeSavedGraphCommand;
-use App\Module\Insights\Command\ResizeSavedGraphHandler;
-use App\Module\Insights\Command\SetLegendSavedGraphCommand;
-use App\Module\Insights\Command\SetLegendSavedGraphHandler;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
-use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Service\SavedGraphChangeRefused;
+use App\Module\Insights\Service\SavedGraphSettingsMerger;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Changes the settings, the name, the width or the legend of a saved graph.
+ * Changes the settings, the name, the width or the legend of a saved graph in one write.
  *
  * @phpstan-import-type GraphUpdatedPayload from GraphListTool
  */
@@ -38,55 +33,10 @@ final readonly class GraphUpdateTool
         private InsightsSubjectResolver $subjects,
         private SavedGraphFinder $finder,
         private SavedGraphSettingsCheck $settingsCheck,
-        private UpdateSavedGraphHandler $updateGraph,
-        private RenameSavedGraphHandler $renameGraph,
-        private ResizeSavedGraphHandler $resizeGraph,
-        private SetLegendSavedGraphHandler $setLegend,
+        private UpdateSavedGraphFieldsHandler $updateGraph,
         private ListSavedGraphsHandler $listGraphs,
         private InsightsToolErrorMessages $errorMessages,
     ) {
-    }
-
-    /**
-     * The settings that the graph keeps with the passed ones on top.
-     *
-     * @param array<string, string> $passed        the one-metric settings that the call passed
-     * @param array<string, string> $formulaPassed the rows, the formula and the format that the call passed
-     *
-     * @return array<string, string>
-     *
-     * @throws ToolCallException when the call mixes one metric with a formula
-     */
-    private function merge(InsightsSavedGraph $graph, array $passed, array $formulaPassed, bool $clear): array
-    {
-        $isFormula = null !== $graph->formulaRows;
-        $barePassed = isset($passed['metric']) || isset($passed['statistic']);
-        if ($clear) {
-            if ([] !== $formulaPassed) {
-                throw new ToolCallException('clearFormula cannot go with rows, formula or format. Pass clearFormula alone to go back to one metric.');
-            }
-            if (!$isFormula) {
-                throw new ToolCallException('clearFormula: This graph reads one metric, so it has no formula to clear.');
-            }
-
-            return array_diff_key($passed + $graph->settings(), ['rows' => true, 'formula' => true, 'format' => true]);
-        }
-        if ($isFormula && $barePassed && [] === $formulaPassed) {
-            throw new ToolCallException('metric, statistic: This graph reads a formula, and its metric and statistic are its first row. Pass rows to change the rows, or clearFormula true to go back to one metric.');
-        }
-        if (!$isFormula && [] !== $formulaPassed && !isset($formulaPassed['rows'], $formulaPassed['formula'])) {
-            throw new ToolCallException('rows, formula: To turn this graph into a formula graph, pass both rows and formula.');
-        }
-
-        $merged = $passed + $formulaPassed + $graph->settings();
-        if ($barePassed && isset($merged['rows'])) {
-            $first = MetricFormula::rowParts($merged['rows'])[0] ?? null;
-            if (null === $first || (isset($passed['metric']) && $passed['metric'] !== $first['metric']) || (isset($passed['statistic']) && $passed['statistic'] !== $first['statistic'])) {
-                throw new ToolCallException('metric, statistic: With rows, leave metric and statistic out, or pass the first row: they are the first row of the formula.');
-            }
-        }
-
-        return $merged;
     }
 
     /**
@@ -133,22 +83,29 @@ final readonly class GraphUpdateTool
 
             $graph = $this->finder->findActive($project, $graphId);
             $previous = ['name' => $graph->name, 'settings' => GraphListTool::settingsOf($graph), 'formula' => GraphListTool::formulaOf($graph), 'width' => $graph->width->value, 'showLegend' => $graph->showLegend];
-            $merged = $settingsPassed ? $this->merge($graph, $passed, $formulaPassed, $clear) : $graph->settings();
+            try {
+                $merged = $settingsPassed ? SavedGraphSettingsMerger::merge($graph, $passed, $formulaPassed, $clear) : $graph->settings();
+            } catch (SavedGraphChangeRefused $e) {
+                throw new ToolCallException($e->getMessage(), previous: $e);
+            }
             if ($settingsPassed) {
                 $this->settingsCheck->check($project, $merged);
             }
 
             try {
-                if ($settingsPassed && $merged !== $graph->settings()) {
-                    ($this->updateGraph)(new UpdateSavedGraphCommand($project, $graphId, $name, $merged));
-                } elseif (null !== $name && $name !== $graph->name) {
-                    ($this->renameGraph)(new RenameSavedGraphCommand($graph, $name));
-                }
-                if (null !== $newWidth && $newWidth !== $graph->width) {
-                    ($this->resizeGraph)(new ResizeSavedGraphCommand($graph, $newWidth));
-                }
-                if (null !== $showLegend && $showLegend !== $graph->showLegend) {
-                    ($this->setLegend)(new SetLegendSavedGraphCommand($graph, $showLegend));
+                $changeSettings = $settingsPassed && $merged !== $graph->settings();
+                $changeName = null !== $name && ($changeSettings || $name !== $graph->name);
+                $changeWidth = null !== $newWidth && $newWidth !== $graph->width;
+                $changeLegend = null !== $showLegend && $showLegend !== $graph->showLegend;
+                if ($changeSettings || $changeName || $changeWidth || $changeLegend) {
+                    ($this->updateGraph)(new UpdateSavedGraphFieldsCommand(
+                        $project,
+                        $graphId,
+                        name: $changeName ? $name : null,
+                        settings: $changeSettings ? $merged : null,
+                        width: $changeWidth ? $newWidth : null,
+                        showLegend: $changeLegend ? $showLegend : null,
+                    ));
                 }
             } catch (DomainErrors $e) {
                 throw $this->errorMessages->forAgent($e);

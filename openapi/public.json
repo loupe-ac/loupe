@@ -7794,6 +7794,2735 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/bucket-rules": {
+            "get": {
+                "tags": [
+                    "Bucket rules"
+                ],
+                "summary": "List the time bucket rules of a project",
+                "description": "The rules come in the order they apply. A tool call takes the bucket of the first rule whose pattern matches it. A project holds at most 50 rules.",
+                "operationId": "listBucketRules",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of bucket rules.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketRuleList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Bucket rules"
+                ],
+                "summary": "Add a time bucket rule at the end of the rules",
+                "description": "The rule applies to the tool calls of every run, and the bucket times of the project are computed again. A project holds at most 50 rules.",
+                "operationId": "createBucketRule",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BucketRuleCreate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new rule.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Location": {
+                                "$ref": "#/components/headers/Location"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketRule"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `bucket_rule_limit_reached`, `idempotency_key_reused`, `idempotency_in_progress`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/graphs": {
+            "get": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "List the saved graphs of the Dashboard",
+                "description": "The graphs come in the order the Dashboard draws them. A saved graph is a tile on the Dashboard of the owner. This route draws no chart: read the data of a graph with the metric query.",
+                "operationId": "listGraphs",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "removed",
+                        "in": "query",
+                        "description": "True lists the graphs that were removed less than a day ago and that a restore can bring back, in place of the graphs on the Dashboard.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of saved graphs.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GraphList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "Save a graph as a new tile at the end of the Dashboard",
+                "description": "A saved graph is a tile on the Dashboard of the owner. A graph reads one metric (`settings.metric` and `settings.statistic`) or a formula (`rows`, `formula` and `formulaFormat`), and not both. `settings.unit` is needed. A setting that the metric or the range cannot take is refused with the values that are valid, and nothing is saved. A new graph takes half the width and shows its legend, and a change alters both.",
+                "operationId": "createGraph",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.",
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GraphCreate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new graph.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Location": {
+                                "$ref": "#/components/headers/Location"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Graph"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `dashboard_full`, `idempotency_key_reused`, `idempotency_in_progress`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/bucket-rules/{rule}": {
+            "delete": {
+                "tags": [
+                    "Bucket rules"
+                ],
+                "summary": "Delete a time bucket rule",
+                "description": "The tool calls it matched fall to a later rule or to the other bucket, and the bucket times of the project are computed again.",
+                "operationId": "deleteBucketRule",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "rule",
+                        "in": "path",
+                        "description": "The id of a bucket rule, from the rule list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The rule is deleted.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketRuleDeleteResult"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `bucket_rule_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Bucket rules"
+                ],
+                "summary": "Move a time bucket rule to another place",
+                "description": "A tool call takes the bucket of the first rule that matches it, so the order decides. The bucket times of the project are computed again.",
+                "operationId": "updateBucketRule",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "rule",
+                        "in": "path",
+                        "description": "The id of a bucket rule, from the rule list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BucketRuleUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The rule after the move.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketRule"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `bucket_rule_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/graphs/{graph}": {
+            "get": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "Read one saved graph",
+                "description": "A removed graph answers 404, also when a restore can still bring it back.",
+                "operationId": "getGraph",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "graph",
+                        "in": "path",
+                        "description": "The id of a saved graph, from the graph list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The saved graph.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Graph"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `graph_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "Remove a saved graph from the Dashboard",
+                "description": "The removal takes effect at once, with no confirmation step. A removed graph can come back for one day with a restore.",
+                "operationId": "deleteGraph",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "graph",
+                        "in": "path",
+                        "description": "The id of a saved graph, from the graph list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The graph is removed.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GraphRemoveResult"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `graph_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "Change a saved graph",
+                "description": "Every change commits in one transaction, so a refusal leaves the graph as it was. The settings you pass join the settings the graph keeps, and the whole set must hold together: a setting that the metric or the range cannot take is refused with the values that are valid, also one that the graph kept. A formula graph keeps its first row as `settings.metric` and `settings.statistic`, so a bare metric or statistic on a formula graph is refused: pass `rows` to change the rows, or `clearFormula` to go back to one metric. A removed graph answers 404.",
+                "operationId": "updateGraph",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "graph",
+                        "in": "path",
+                        "description": "The id of a saved graph, from the graph list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GraphUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The graph after the change.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Graph"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `graph_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/graphs/{graph}/restore": {
+            "post": {
+                "tags": [
+                    "Graphs"
+                ],
+                "summary": "Bring a removed graph back to its place on the Dashboard",
+                "description": "A graph can come back for one day after its removal. A graph that is already on the Dashboard stays as it is.",
+                "operationId": "restoreGraph",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "graph",
+                        "in": "path",
+                        "description": "The id of a saved graph, from the graph list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The graph on the Dashboard.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Graph"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `graph_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `restore_expired`, `dashboard_full`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/analytics/settings": {
+            "get": {
+                "tags": [
+                    "Analytics settings"
+                ],
+                "summary": "Read the analytics settings of a project",
+                "operationId": "getAnalyticsSettings",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The analytics settings.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticsSettings"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Analytics settings"
+                ],
+                "summary": "Change the analytics settings of a project",
+                "operationId": "updateAnalyticsSettings",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AnalyticsSettingsUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The settings after the change.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticsSettings"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects": {
             "get": {
                 "tags": [
@@ -17408,6 +20137,559 @@
                 },
                 "type": "object"
             },
+            "GraphSettings": {
+                "required": [
+                    "metric",
+                    "unit",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "chart"
+                ],
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric, such as `cost` or `bucket-time:tests`.",
+                        "type": "string"
+                    },
+                    "unit": {
+                        "description": "What one row stands for: `run`, `card` or `reading`.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string"
+                    },
+                    "group": {
+                        "description": "How the graph splits its lines: `stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`.",
+                        "type": "string"
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`.",
+                        "type": "string"
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone.",
+                        "type": "string"
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range.",
+                        "type": "string"
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRow": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "The statistic that reads the metric for each bucket and group.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphFormula": {
+                "required": [
+                    "rows",
+                    "formula",
+                    "format"
+                ],
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRow"
+                        }
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string"
+                    },
+                    "format": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphBroken": {
+                "required": [
+                    "reason",
+                    "name"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "What is gone.",
+                        "type": "string",
+                        "enum": [
+                            "template-metric",
+                            "bucket",
+                            "harness-event"
+                        ]
+                    },
+                    "name": {
+                        "description": "The template metric key, the bucket name or the harness event kind.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Graph": {
+                "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "width",
+                    "showLegend",
+                    "settings",
+                    "formula",
+                    "broken",
+                    "undoUntil"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "position": {
+                        "description": "The place among the graphs on the Dashboard, counted from 0. Null for a removed graph.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "width": {
+                        "description": "How much of the Dashboard row the graph takes.",
+                        "type": "string",
+                        "enum": [
+                            "half",
+                            "full"
+                        ]
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettings"
+                    },
+                    "formula": {
+                        "description": "The formula, or null for a graph that reads one metric.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphFormula"
+                            }
+                        ]
+                    },
+                    "broken": {
+                        "description": "What the graph still reads that the project no longer has, or null.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphBroken"
+                            }
+                        ]
+                    },
+                    "undoUntil": {
+                        "description": "For a removed graph, the time until which `POST /graphs/{graph}/restore` brings it back. Null for a graph on the Dashboard.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Graph"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRemoveResult": {
+                "required": [
+                    "undoUntil"
+                ],
+                "properties": {
+                    "undoUntil": {
+                        "description": "The time until which `POST /graphs/{graph}/restore` brings the graph back.",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphSettingsInput": {
+                "description": "A field you leave out keeps its value on a change, and takes its default on a save.",
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric from the metric list. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 140
+                    },
+                    "unit": {
+                        "description": "`run`, `card` or `reading`. A save needs it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "description": "`stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`. A save defaults to `none`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`. A save defaults to `ninety-days`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone. A save defaults to `week`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range. A save defaults to `off`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`. A save defaults to `line`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRowInput": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphCreate": {
+                "required": [
+                    "settings"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The name of the tile. A blank name takes the title of the graph.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 120
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph, up to six. Leave them out for a graph of one metric.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "default": [],
+                        "maxItems": 6
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 200
+                    },
+                    "formulaFormat": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`. A formula graph defaults to `auto`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SavedGraphWidth": {
+                "type": "string",
+                "enum": [
+                    "half",
+                    "full"
+                ]
+            },
+            "GraphUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "pattern": ".*\\S.*",
+                        "maxLength": 120,
+                        "minLength": 1
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph. They replace all the rows. To turn a one-metric graph into a formula graph, pass both `rows` and `formula`.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "maxItems": 6,
+                        "minItems": 1
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "formulaFormat": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    },
+                    "clearFormula": {
+                        "description": "True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `formulaFormat`.",
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "$ref": "#/components/schemas/SavedGraphWidth"
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "position": {
+                        "description": "The place to take among the graphs on the Dashboard, counted from 0 as the graph list counts it. A place past the last puts the graph last. The other graphs keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRule": {
+                "required": [
+                    "id",
+                    "position",
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "position": {
+                        "description": "The place in the order the rules apply, counted from 0.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name.",
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BucketRule"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleDeleteResult": {
+                "required": [
+                    "deleted"
+                ],
+                "properties": {
+                    "deleted": {
+                        "description": "The id of the deleted rule.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleCreate": {
+                "required": [
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one, such as `LSP` or `mcp__loupe__*`. The rule goes last in the order the rules apply.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name, 1 to 64 characters: lower case letters, digits, underscore and hyphen.",
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleUpdate": {
+                "required": [
+                    "position"
+                ],
+                "properties": {
+                    "position": {
+                        "description": "The place to take in the order the rules apply, counted from 0 as the rule list counts it. A place past the last puts the rule last. The other rules keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettings": {
+                "required": [
+                    "defaultModel",
+                    "defaultEffort",
+                    "collectFullText",
+                    "subcommandPrograms",
+                    "model",
+                    "effort"
+                ],
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultEffort": {
+                        "description": "The effort the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git`. Empty when the project sets none, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "model": {
+                        "description": "The model a new analysis takes when it names none: the project value, else the instance default.",
+                        "type": "string"
+                    },
+                    "effort": {
+                        "description": "The effort a new analysis takes when it names none: `low`, `medium`, `high`, `xhigh` or `max`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettingsUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model a new analysis takes when it names none, one word such as `sonnet` or `opus`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 64
+                    },
+                    "defaultEffort": {
+                        "description": "`low`, `medium`, `high`, `xhigh` or `max`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git` or `npm`. At most 50 names of letters, digits and `. _ + -`. Replaces the list, and an empty list clears it, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 50
+                    }
+                },
+                "type": "object"
+            },
             "Problem": {
                 "description": "An error, as RFC 9457 `application/problem+json`.",
                 "required": [
@@ -18719,6 +22001,18 @@
         {
             "name": "Inbox",
             "description": "Inbox"
+        },
+        {
+            "name": "Bucket rules",
+            "description": "Bucket rules"
+        },
+        {
+            "name": "Graphs",
+            "description": "Graphs"
+        },
+        {
+            "name": "Analytics settings",
+            "description": "Analytics settings"
         },
         {
             "name": "Projects",

@@ -14,8 +14,9 @@ use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Command\SavedGraphResult;
 use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
+use App\Module\Insights\Command\UpdatedSavedGraph;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
@@ -199,7 +200,7 @@ final class SavedGraphHandlersTest extends KernelTestCase
         self::assertSame(2, $stored->position);
         self::assertSame(SavedGraphWidth::Half, $stored->width);
         self::assertSame((string) $graph->id, (string) $result->graph->id);
-        self::assertSame(MetricStatistic::P90, $result->query->statistic);
+        self::assertSame(MetricStatistic::P90, $result->query?->statistic);
     }
 
     public function test_an_update_without_a_name_keeps_the_name(): void
@@ -240,6 +241,75 @@ final class SavedGraphHandlersTest extends KernelTestCase
 
         $this->em()->clear();
         self::assertSame(['Tests'], $this->names($project));
+    }
+
+    public function test_one_update_changes_the_settings_the_name_the_width_the_legend_and_the_place_together(): void
+    {
+        $project = $this->scenarioProject('graph-update-all');
+        $this->seedSavedGraph($project, 'First', 0);
+        $this->seedSavedGraph($project, 'Second', 1);
+        $third = $this->seedSavedGraph($project, 'Third', 2);
+
+        $result = $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand(
+            $project,
+            (string) $third->id,
+            name: 'Moved up',
+            settings: ['statistic' => 'p90'] + self::SETTINGS,
+            width: SavedGraphWidth::Full,
+            showLegend: false,
+            position: 0,
+        ));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(InsightsSavedGraph::class, $third->id) ?? throw new \LogicException('The graph exists.');
+        self::assertSame('Moved up', $stored->name);
+        self::assertSame(MetricStatistic::P90, $stored->statistic);
+        self::assertSame(SavedGraphWidth::Full, $stored->width);
+        self::assertFalse($stored->showLegend);
+        self::assertSame(['Moved up', 'First', 'Second'], $this->names($project));
+        self::assertSame((string) $third->id, (string) $result->graph->id);
+        self::assertNotNull($result->query);
+    }
+
+    public function test_an_update_without_settings_reads_no_query_and_keeps_the_settings(): void
+    {
+        $project = $this->scenarioProject('graph-update-fields-only');
+        $graph = $this->seedSavedGraph($project, 'Tests', 0);
+
+        $result = $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, width: SavedGraphWidth::Full));
+
+        self::assertNull($result->query);
+        $this->em()->clear();
+        self::assertSame(['Tests'], $this->names($project));
+    }
+
+    public function test_a_place_past_the_last_puts_the_graph_last_and_a_refused_chart_changes_no_other_field(): void
+    {
+        $project = $this->scenarioProject('graph-update-place');
+        $first = $this->seedSavedGraph($project, 'First', 0);
+        $this->seedSavedGraph($project, 'Second', 1);
+
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $first->id, position: 50));
+        $this->em()->clear();
+        self::assertSame(['Second', 'First'], $this->names($project));
+
+        try {
+            $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand(
+                $project,
+                (string) $first->id,
+                name: 'Refused',
+                settings: ['chart' => 'donut', 'statistic' => 'median'] + self::SETTINGS,
+                width: SavedGraphWidth::Full,
+                position: 0,
+            ));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors) {
+        }
+
+        $this->em()->clear();
+        $stored = $this->em()->find(InsightsSavedGraph::class, $first->id) ?? throw new \LogicException('The graph exists.');
+        self::assertSame(SavedGraphWidth::Half, $stored->width);
+        self::assertSame(['Second', 'First'], $this->names($project));
     }
 
     public function test_an_update_of_a_removed_graph_is_a_not_found(): void
@@ -359,9 +429,9 @@ final class SavedGraphHandlersTest extends KernelTestCase
     }
 
     /** @param array<string, string> $settings */
-    private function update(Project $project, string $graphId, ?string $name, array $settings): SavedGraphResult
+    private function update(Project $project, string $graphId, ?string $name, array $settings): UpdatedSavedGraph
     {
-        return $this->service(UpdateSavedGraphHandler::class)(new UpdateSavedGraphCommand($project, $graphId, $name, $settings));
+        return $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, $graphId, name: $name, settings: $settings));
     }
 
     /** @return list<string> the names of the active graphs in order of position, read fresh */
