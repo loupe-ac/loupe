@@ -6303,6 +6303,212 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/runs/{run}/pending-command": {
+            "delete": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Withdraw the command that waits on a worker run",
+                "description": "Withdraws the resume or stop command that waits on the run, before its bridge reads it. A cancel never changes the hold of the card. A cancel by an API key records the key on the command, apart from the person or key that requested it.",
+                "operationId": "cancelWorkerRunCommand",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The command is withdrawn.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunCommandResult"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `nothing_pending`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{project}/experiments/{experiment}/cards/{number}/exclusion": {
             "put": {
                 "tags": [
@@ -6699,6 +6905,234 @@
                     },
                     "403": {
                         "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bridges": {
+            "get": {
+                "tags": [
+                    "Bridges"
+                ],
+                "summary": "List the bridges of the account",
+                "description": "Every CLI bridge of the owner once, ordered by id, with the ids of the projects it serves. A credential bound to one project sees the bridges that serve that project, and `projectIds` then holds that project alone. `GET /api/v1/projects/{project}/bridges` lists the bridges of one project with their runs.",
+                "operationId": "listBridges",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of bridges.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BridgeList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `route_not_found`.",
                         "headers": {
                             "RateLimit-Limit": {
                                 "$ref": "#/components/headers/RateLimit-Limit"
@@ -7278,6 +7712,1543 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/bridges": {
+            "get": {
+                "tags": [
+                    "Bridges"
+                ],
+                "summary": "List the bridges that serve a project",
+                "description": "The CLI bridges that follow the project, ordered by id. A bridge runs the workers of the project on a machine. Each row carries the open runs of this project on the bridge and the work requests of this project that the server refused to it. `GET /api/v1/bridges` lists every bridge of the owner once.",
+                "operationId": "listProjectBridges",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of bridges.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProjectBridgeList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/{run}/host-samples": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "List the host samples of a worker run",
+                "description": "The readings of the machine that ran the bridge, oldest first, from the start of the run to its end, or to now while the run is open. They describe the whole machine, so they cover every run on that bridge in that window, not only this run. A bridge sends samples only when the instance flag `bridge.host_sampling_enabled` is on and its rule file does not set `collect: false`, so a run can have none. `note` says why the list is empty when the run has no bridge or no start.",
+                "operationId": "listWorkerRunHostSamples",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of host samples.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunHostSampleList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/{run}/tool-calls": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "List the tool calls of a worker run",
+                "description": "The calls in the order the worker made them. The bridge reads the calls from the stream of the worker and sends them when the run ends, so an open run, or a run of an older bridge, can have none. `fullText` is null unless the project collects the full text of the calls.",
+                "operationId": "listWorkerRunToolCalls",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of tool calls.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunToolCallList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "List the worker runs",
+                "description": "The runs of the project, the run whose first report came last first. A worker run is one run of a bridge worker on one subject, which is usually a card. A filter narrows the list, and all filters apply together. `endedAfter` and `endedBefore` are inclusive and read the end of a run, or the time of its first report for a run with no end. A date with no time reads as midnight UTC, and a time with no offset reads as UTC. Each row carries the figures of the run: its usage, its model and its metrics. `GET .../runs/{run}` reads one run in full. The state of the project can change between two pages of a walk, so a run that arrives meanwhile can be missed.",
+                "operationId": "listWorkerRuns",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "state",
+                        "in": "query",
+                        "description": "Only runs in one of these states, such as failed, gave-up, blocked, timed-out or lost. Repeat the parameter, or separate the states with commas.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "queued",
+                                    "replaced",
+                                    "resumed",
+                                    "skipped",
+                                    "preparing",
+                                    "running",
+                                    "stopping",
+                                    "stopped",
+                                    "waiting-for-person",
+                                    "dropped",
+                                    "usage-limit",
+                                    "network",
+                                    "succeeded",
+                                    "failed",
+                                    "not-started",
+                                    "no-result",
+                                    "unfinished",
+                                    "blocked",
+                                    "waiting-on-forge",
+                                    "gave-up",
+                                    "timed-out",
+                                    "lost",
+                                    "closed"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "card",
+                        "in": "query",
+                        "description": "Only the runs of the card with this number.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "workKind",
+                        "in": "query",
+                        "description": "Only the runs of work requests of this kind, such as implement or fix.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "bridge",
+                        "in": "query",
+                        "description": "Only the runs of this bridge.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "harness",
+                        "in": "query",
+                        "description": "Only the runs of this harness, such as claude-code or codex.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "account",
+                        "in": "query",
+                        "description": "Only the runs of this harness account.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "model",
+                        "in": "query",
+                        "description": "Only the runs of this model.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "endedAfter",
+                        "in": "query",
+                        "description": "Only runs that ended at or after this ISO 8601 date or time.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "endedBefore",
+                        "in": "query",
+                        "description": "Only runs that ended at or before this ISO 8601 date or time.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Words to find in the card number, the work kind and the output, or a whole run id.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of worker runs.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/{run}/resume": {
+            "post": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Resume a worker run",
+                "description": "Asks the bridge of a run to resume it. A resume continues the session of the run as a new run of the same series. The command waits for the bridge, which resumes the run when it reads the command, and the run list then shows it as `pendingCommand`. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped or waiting-for-person can resume. A resume by an API key records the key on the command. `POST .../runs/resume` resumes up to 50 runs.",
+                "operationId": "resumeWorkerRun",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The resume is requested.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunCommandResult"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `run_not_resumable`, `run_not_controllable`, `no_session`, `no_bridge`, `unknown_bridge`, `bridge_outdated`, `command_pending`, `card_held`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/resume": {
+            "post": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Resume up to 50 worker runs",
+                "description": "Asks the bridge of each run to resume it, each run on its own and in order, so a refused run does not stop the others. The answer is 200 with one row per run id, in the order of the request, so read each row: the status does not show the outcome of a run. A run of another project gets the row `not-found`, as a missing run does. An unexpected failure on a run gives the row `error`, whose outcome is unknown, and the route then stops: each later row is `not-attempted`. Send those runs again. A resume by an API key records the key on each command.",
+                "operationId": "resumeWorkerRuns",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WorkerRunResumeBatch"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "One row per run.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunResumeBatchResult"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/versions": {
             "get": {
                 "tags": [
@@ -7595,6 +9566,470 @@
                     },
                     "404": {
                         "description": "Refused: `project_not_found`, `experiment_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/{run}": {
+            "get": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Read one worker run in full",
+                "description": "The run with its output and its state changes, every run of its series, and every command that a person, an agent or an API key sent to a bridge for a run of the series. A series starts with one run, and each resume of a run starts a new run that continues it. When an older run was deleted, its continuations lose their link to it, and the series lists only the branch of the oldest run that remains. The tool calls and the host samples have their own routes.",
+                "operationId": "getWorkerRun",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The run, its series and its commands.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunShow"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/runs/{run}/stop": {
+            "post": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Stop a worker run",
+                "description": "Asks the bridge of a queued, resumed, preparing or running run to stop it. The command waits for the bridge, which stops the run when it reads the command, and the run list then shows it as `pendingCommand`. A stop ends this run only. It does not make the card unmanaged, so a bridge rule can still start new work on it. PUT the card hold for that. An interactive session closes in Loupe at once and answers `closed` with no `commandId`, because no bridge holds it. A stop by an API key records the key on the command, and on the closed session.",
+                "operationId": "stopWorkerRun",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "run",
+                        "in": "path",
+                        "description": "The id of a worker run of the project, from the run list.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WorkerRunStop"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The stop is requested, or the session is closed.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkerRunStopResult"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `run_not_found`, `route_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Refused: `run_not_stoppable`, `run_not_controllable`, `no_bridge`, `unknown_bridge`, `bridge_outdated`, `command_pending`.",
                         "headers": {
                             "RateLimit-Limit": {
                                 "$ref": "#/components/headers/RateLimit-Limit"
@@ -20671,6 +23106,1117 @@
                 },
                 "type": "object"
             },
+            "WorkerRunRow": {
+                "required": [
+                    "runId",
+                    "runKey",
+                    "kind",
+                    "subjectType",
+                    "subjectId",
+                    "cardNumber",
+                    "workRequestId",
+                    "workKind",
+                    "ruleId",
+                    "state",
+                    "sessionId",
+                    "startedAt",
+                    "endedAt",
+                    "exitCode",
+                    "bridgeId",
+                    "harness",
+                    "account",
+                    "harnessSessionId",
+                    "harnessVersion",
+                    "cliVersion",
+                    "skillVersion",
+                    "pendingCommand",
+                    "reason",
+                    "usage",
+                    "model",
+                    "experiment",
+                    "variant",
+                    "metrics"
+                ],
+                "properties": {
+                    "runId": {
+                        "description": "The id of the run.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runKey": {
+                        "description": "The id the bridge gave the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "description": "Worker for a run of an agent, interactive for a session that a person opened, and command for a command with no agent and so no session.",
+                        "type": "string",
+                        "enum": [
+                            "worker",
+                            "interactive",
+                            "command"
+                        ]
+                    },
+                    "subjectType": {
+                        "description": "What the run is about, such as card.",
+                        "type": "string"
+                    },
+                    "subjectId": {
+                        "description": "The id of the subject. For a card, the card id.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "description": "The number of the card, or null when the subject is no card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "workRequestId": {
+                        "description": "The work request that the run ran, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "workKind": {
+                        "description": "The kind of that work request, such as implement or fix, or the name of an interactive session.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ruleId": {
+                        "description": "The id of the workflow rule that opened the request, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "description": "The state of the run, such as running, failed, gave-up, timed-out or lost.",
+                        "type": "string"
+                    },
+                    "sessionId": {
+                        "description": "The Loupe session of the worker, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "description": "When the run started, or null.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "endedAt": {
+                        "description": "When the run ended, or null while it is open.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "exitCode": {
+                        "description": "The exit code, or null.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "bridgeId": {
+                        "description": "The bridge that ran the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "harness": {
+                        "description": "The harness that ran the run, such as claude-code or codex, or null until the bridge reports it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "account": {
+                        "description": "The named harness account, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessSessionId": {
+                        "description": "The id the harness gave the session, such as a Codex thread id, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessVersion": {
+                        "description": "The version of the harness, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The version of the CLI that ran the run, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "skillVersion": {
+                        "description": "The version of the skill package, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pendingCommand": {
+                        "description": "The command that waits for the bridge, or null.",
+                        "required": [
+                            "commandId",
+                            "kind",
+                            "state"
+                        ],
+                        "properties": {
+                            "commandId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "resume-run",
+                                    "stop-run",
+                                    "rerun-command",
+                                    "collect-session-usage",
+                                    "try-now"
+                                ]
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "pending"
+                                ]
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "description": "The failure reason, or else the last line of the output, cut to 300 characters, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "usage": {
+                        "description": "The tokens of each model the run used. Empty when the bridge sent no usage. `costUsd` is a decimal string in US dollars, or null when the model has no price.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "model",
+                                "source",
+                                "inputTokens",
+                                "outputTokens",
+                                "cacheReadTokens",
+                                "cacheWriteTokens",
+                                "costUsd"
+                            ],
+                            "properties": {
+                                "model": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string",
+                                    "enum": [
+                                        "reported",
+                                        "estimated"
+                                    ]
+                                },
+                                "inputTokens": {
+                                    "type": "integer"
+                                },
+                                "outputTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheReadTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheWriteTokens": {
+                                    "type": "integer"
+                                },
+                                "costUsd": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "model": {
+                        "description": "The model the bridge reported, or else the model with the highest cost, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "experiment": {
+                        "description": "The experiment of the rule that ran the worker, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant of that experiment, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metrics": {
+                        "description": "The sums and the timing of the run, or null when the run has no metrics row. A figure is null when it is unknown. `costUsd` is a number in US dollars. The `concurrentRuns` and host figures are null while the run has no end, or when the bridge sent no sample.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRun": {
+                "required": [
+                    "continuesRunId",
+                    "receivedAt",
+                    "failureReason",
+                    "output",
+                    "stateChanges",
+                    "buckets",
+                    "harnessEvents"
+                ],
+                "type": "object",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/WorkerRunRow"
+                    },
+                    {
+                        "properties": {
+                            "continuesRunId": {
+                                "description": "The run that this run resumes, or null.",
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                            },
+                            "receivedAt": {
+                                "description": "When the first report of the run arrived.",
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "failureReason": {
+                                "description": "The failure reason the bridge gave, or null.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "output": {
+                                "description": "The whole output the bridge reported.",
+                                "type": "string"
+                            },
+                            "stateChanges": {
+                                "description": "Each state the run reached, oldest first.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "state",
+                                        "at"
+                                    ],
+                                    "properties": {
+                                        "state": {
+                                            "type": "string"
+                                        },
+                                        "at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "buckets": {
+                                "description": "The time buckets of the run, largest first, or null for a run with no tool calls. `mainMs` is the time of the main session, `withSubagentsMs` the time of every session, and `calls` every call, subagents included. A figure is null on a row that no recompute has filled.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "bucket",
+                                        "mainMs",
+                                        "withSubagentsMs",
+                                        "calls"
+                                    ],
+                                    "properties": {
+                                        "bucket": {
+                                            "type": "string"
+                                        },
+                                        "mainMs": {
+                                            "type": "integer"
+                                        },
+                                        "withSubagentsMs": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "calls": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "nullable": true
+                            },
+                            "harnessEvents": {
+                                "description": "Each kind of harness event with its count, subagents included, or null when the bridge reported none.",
+                                "type": "object",
+                                "nullable": true,
+                                "additionalProperties": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "WorkerRunList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunBridgeCommand": {
+                "required": [
+                    "commandId",
+                    "runId",
+                    "kind",
+                    "state",
+                    "reason",
+                    "requestedAt",
+                    "expiresAt",
+                    "settledAt"
+                ],
+                "properties": {
+                    "commandId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "resume-run",
+                            "stop-run",
+                            "rerun-command",
+                            "collect-session-usage",
+                            "try-now"
+                        ]
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    },
+                    "reason": {
+                        "description": "The reason the requester gave, until the bridge settles the command with a reason of its own.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "settledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunShow": {
+                "required": [
+                    "run",
+                    "series",
+                    "commands"
+                ],
+                "properties": {
+                    "run": {
+                        "$ref": "#/components/schemas/WorkerRun"
+                    },
+                    "series": {
+                        "description": "Every run of the series of the run, oldest first, the run included. A series starts with one run, and each resume starts a new run that continues it.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "commands": {
+                        "description": "Every command that a person, an agent or a key sent to the bridge for a run of the series, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunBridgeCommand"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCall": {
+                "required": [
+                    "seq",
+                    "tool",
+                    "kind",
+                    "startedAt",
+                    "durationMs",
+                    "isError",
+                    "inSubagent",
+                    "backgroundId",
+                    "waitsOn",
+                    "signatures",
+                    "fullText"
+                ],
+                "properties": {
+                    "seq": {
+                        "description": "The place of the call in the run, from 1.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "tool": {
+                        "description": "The tool, such as Bash, Read or Agent.",
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "Shell for a shell command, subagent for a call that starts a sub-agent, tool for any other call, or null from an older bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "shell",
+                            "subagent",
+                            "tool"
+                        ]
+                    },
+                    "startedAt": {
+                        "description": "When the call started, with milliseconds.",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "durationMs": {
+                        "description": "How long the call took. Null when the stream holds no result of the call.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "isError": {
+                        "description": "Whether the call failed. Null when the stream holds no result of the call.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "inSubagent": {
+                        "description": "True when a subagent made the call.",
+                        "type": "boolean"
+                    },
+                    "backgroundId": {
+                        "description": "The id of the background task that the call started, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "waitsOn": {
+                        "description": "The background id of an earlier call that this call reads, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signatures": {
+                        "description": "The program and its subcommand for each shell command, such as git status, or the tool name for any other tool.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "fullText": {
+                        "description": "The full text of the call. Null unless the project collects the full text of the calls.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCallList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunToolCall"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSample": {
+                "required": [
+                    "sampledAt",
+                    "cpuPct",
+                    "meanCpuPct",
+                    "memUsed",
+                    "memTotal",
+                    "swapUsed",
+                    "batteryPct",
+                    "onAc"
+                ],
+                "properties": {
+                    "sampledAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cpuPct": {
+                        "description": "The use of each core, in percent.",
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    },
+                    "meanCpuPct": {
+                        "description": "The mean of cpuPct, rounded to one decimal, or null when cpuPct is empty.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "memUsed": {
+                        "description": "Memory in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "memTotal": {
+                        "description": "Memory in total, in bytes.",
+                        "type": "integer"
+                    },
+                    "swapUsed": {
+                        "description": "Swap in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "batteryPct": {
+                        "description": "The battery level in percent, or null on a machine with no battery.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "onAc": {
+                        "description": "Whether the machine runs on mains power, or null when it does not say.",
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSampleList": {
+                "required": [
+                    "items",
+                    "next",
+                    "note"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunHostSample"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "note": {
+                        "description": "Why the list is empty when the run has no bridge or no start, and null otherwise.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStop": {
+                "properties": {
+                    "reason": {
+                        "description": "Why the run must stop, which a person reads on the run. At most 1000 characters. A body may leave it out.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 1000
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStopResult": {
+                "required": [
+                    "outcome",
+                    "commandId"
+                ],
+                "properties": {
+                    "outcome": {
+                        "description": "`stopped` when the run asked its bridge to stop it. `closed` when the run is an interactive session: Loupe marks it closed, and the terminal of the person stays open, because no bridge holds it.",
+                        "type": "string",
+                        "enum": [
+                            "stopped",
+                            "closed"
+                        ]
+                    },
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or null for a closed session.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunCommandResult": {
+                "required": [
+                    "commandId"
+                ],
+                "properties": {
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or the id of the command that was withdrawn.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatch": {
+                "required": [
+                    "runIds"
+                ],
+                "properties": {
+                    "runIds": {
+                        "description": "The ids of the runs to resume, from 1 to 50. The route treats each run on its own and in order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 50,
+                        "minItems": 1
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatchResult": {
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "description": "One row per run id. `resumed` carries `commandId`. `refused` carries `code` and `message`. The codes are not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated, pending, not-controllable, no-session, not-resumable and card-held. `error` says that an unexpected failure hit that run and its outcome is unknown. The route then stops, and each later row is `not-attempted`.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "outcome"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string"
+                                },
+                                "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                        "resumed",
+                                        "refused",
+                                        "error",
+                                        "not-attempted"
+                                    ]
+                                },
+                                "commandId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "code": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "gitIdentity",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "acceptsEntries",
+                    "commandEntries",
+                    "workerPools",
+                    "workerPoolsReportedAt",
+                    "accounts",
+                    "accountsReportedAt",
+                    "skills",
+                    "openRuns",
+                    "refusedRequests"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gitIdentity": {
+                        "description": "The git identity of the bridge for this project, or null when it reported none. `pushLogin` is the GitHub login the pushes use, or empty when it is unknown.",
+                        "required": [
+                            "mode",
+                            "commitName",
+                            "pushLogin",
+                            "githubUserId"
+                        ],
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": [
+                                    "agent_account",
+                                    "app_token",
+                                    "machine"
+                                ]
+                            },
+                            "commitName": {
+                                "type": "string"
+                            },
+                            "pushLogin": {
+                                "type": "string"
+                            },
+                            "githubUserId": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "description": "Live while the bridge sends its heartbeat, and quiet when it missed several.",
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "description": "Null for a live bridge. login-expired when a quiet bridge lost the login that can no longer refresh, and unknown for any other quiet bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "description": "The time of its last heartbeat.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "description": "Whether the bridge reported that it is paused, or null when it reported nothing.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "acceptsEntries": {
+                        "description": "True when the bridge adds a proposed command entry to its rule file after the owner confirms.",
+                        "type": "boolean"
+                    },
+                    "commandEntries": {
+                        "description": "Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPools": {
+                        "description": "Each worker pool of the bridge, with `name`, `size`, `inUse` and `queued`, as its last heartbeat reported them. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPoolsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "accounts": {
+                        "description": "Each account the bridge checked, with `name`, `harness`, `state`, `reason`, `used`, `projectFailure` and `otherFailedProjects`. `projectFailure` is the reason the account fails for this project, and `otherFailedProjects` counts the other projects it fails for, without naming them. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "accountsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "skills": {
+                        "description": "Each skill package the bridge installed, with `package`, `version`, `state` and `reason`. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "openRuns": {
+                        "description": "The queued, resumed, preparing, running and stopping runs of this project on the bridge.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "subjectType",
+                                "subjectId",
+                                "cardNumber",
+                                "workKind",
+                                "state"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "cardNumber": {
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "workKind": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "state": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "refusedRequests": {
+                        "description": "The open work requests of this project that the server refused to the bridge. The server refuses a claim when the account it names, or the lack of one, does not match the account that runs the work kind.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "workRequestId",
+                                "subjectType",
+                                "subjectId",
+                                "kind",
+                                "account"
+                            ],
+                            "properties": {
+                                "workRequestId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "kind": {
+                                    "type": "string"
+                                },
+                                "account": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectBridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Bridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "projectIds"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "projectIds": {
+                        "description": "The ids of the projects that the bridge serves. A credential bound to one project sees that project alone.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Bridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "InboxItem": {
                 "required": [
                     "itemId",
@@ -24053,8 +27599,16 @@
             "description": "Feedback"
         },
         {
+            "name": "Worker runs",
+            "description": "Worker runs"
+        },
+        {
             "name": "Experiments",
             "description": "Experiments"
+        },
+        {
+            "name": "Bridges",
+            "description": "Bridges"
         },
         {
             "name": "GitHub",

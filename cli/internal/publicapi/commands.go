@@ -71,6 +71,16 @@ var Commands = []Command{
 	{Path: []string{"bucket-rule", "delete"}, Op: "deleteBucketRule", Confirm: true},
 	{Path: []string{"analytics-settings", "get"}, Op: "getAnalyticsSettings"},
 	{Path: []string{"analytics-settings", "update"}, Op: "updateAnalyticsSettings"},
+	{Path: []string{"run", "list"}, Op: "listWorkerRuns"},
+	{Path: []string{"run", "get"}, Op: "getWorkerRun"},
+	{Path: []string{"run", "tool-calls"}, Op: "listWorkerRunToolCalls"},
+	{Path: []string{"run", "host-samples"}, Op: "listWorkerRunHostSamples"},
+	{Path: []string{"run", "stop"}, Op: "stopWorkerRun"},
+	{Path: []string{"run", "resume"}, Op: "resumeWorkerRun"},
+	{Path: []string{"run", "resume-batch"}, Op: "resumeWorkerRuns"},
+	{Path: []string{"run", "cancel-command"}, Op: "cancelWorkerRunCommand"},
+	{Path: []string{"bridges", "list"}, Op: "listProjectBridges"},
+	{Path: []string{"bridges", "list-account"}, Op: "listBridges"},
 }
 
 // Exceptions names each operation that has no command, with the reason.
