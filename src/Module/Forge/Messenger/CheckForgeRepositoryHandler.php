@@ -26,6 +26,6 @@ final readonly class CheckForgeRepositoryHandler
             return;
         }
 
-        ($this->runRepositoryCheck)(new RunRepositoryCheckCommand($repository, $message->trigger));
+        ($this->runRepositoryCheck)(new RunRepositoryCheckCommand($repository, $message->trigger, $message->attempt));
     }
 }

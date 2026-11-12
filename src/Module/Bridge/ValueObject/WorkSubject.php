@@ -14,6 +14,8 @@ final readonly class WorkSubject
 {
     public const string CARD = 'card';
 
+    public const string PROJECT = 'project';
+
     public const int MAX_TYPE_LENGTH = 40;
 
     public const string TYPE_PATTERN = '/^[a-z][a-z0-9-]{0,39}$/D';

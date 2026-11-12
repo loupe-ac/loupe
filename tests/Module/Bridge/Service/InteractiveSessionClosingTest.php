@@ -7,12 +7,14 @@ namespace App\Tests\Module\Bridge\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\CloseStaleInteractiveRunsCommand;
 use App\Module\Bridge\Command\CloseStaleInteractiveRunsHandler;
+use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Messenger\CollectSessionUsage;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\InteractiveStaleClose;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\FeatureFlags;
@@ -109,6 +111,50 @@ final class InteractiveSessionClosingTest extends KernelTestCase
         self::assertSame(WorkerRunState::Closed, $this->reload($run)->state);
     }
 
+    public function test_an_init_run_closes_as_stale_after_five_minutes_whatever_the_flag_says(): void
+    {
+        [, $project] = $this->scenario('close-stale-init');
+        $quiet = $this->initRun($project);
+        $renewed = $this->initRun($project);
+        $cardRun = $this->runs()->open($project, Uuid::v7(), 1, Uuid::v4(), 'init');
+        $this->setTimes($quiet, '2026-10-28 11:00:00', '2026-10-28 11:54:00');
+        $this->setTimes($renewed, '2026-10-28 11:00:00', '2026-10-28 11:56:00');
+        $this->setTimes($cardRun, '2026-10-28 11:00:00', '2026-10-28 11:54:00');
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+
+        foreach ([0, 43200] as $flag) {
+            $handler = new CloseStaleInteractiveRunsHandler($this->runs(), new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => $flag]), 43200), $clock);
+            $closed = $handler(new CloseStaleInteractiveRunsCommand());
+
+            self::assertSame([(string) $quiet->id], array_map(static fn (WorkerRun $run): string => (string) $run->id, $closed), 'flag '.$flag);
+            self::assertSame(WorkerRunCloseReason::Stale, $this->reload($quiet)->closeReason);
+            self::assertSame(WorkerRunState::Running, $this->reload($renewed)->state);
+            self::assertSame(WorkerRunState::Running, $this->reload($cardRun)->state);
+            if (0 === $flag) {
+                $this->em()->getConnection()->executeStatement("UPDATE bridge_worker_runs SET state = 'running', ended_at = NULL, close_reason = NULL WHERE id = ?", [(string) $quiet->id]);
+                $this->em()->clear();
+            }
+        }
+    }
+
+    public function test_the_flagged_sweep_leaves_an_init_run_to_the_init_sweep(): void
+    {
+        [, $project] = $this->scenario('close-stale-init-split');
+        $init = $this->initRun($project);
+        $this->setTimes($init, '2026-10-01 10:00:00', null);
+
+        self::assertSame([], $this->runs()->closeStale(new \DateTimeImmutable(self::NOW), 10));
+        self::assertCount(1, $this->runs()->closeStaleInit(new \DateTimeImmutable(self::NOW), 10));
+    }
+
+    public function test_the_init_threshold_is_five_minutes(): void
+    {
+        $staleClose = new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => 0]), 43200);
+
+        self::assertSame('2026-10-28 11:55:00', $staleClose->initQuietBefore(new \DateTimeImmutable(self::NOW))->format('Y-m-d H:i:s'));
+    }
+
     public function test_the_stale_threshold_follows_its_flag(): void
     {
         $staleClose = new InteractiveStaleClose(FeatureFlags::service([InteractiveStaleClose::FLAG => 3600]), 43200);
@@ -181,6 +227,13 @@ final class InteractiveSessionClosingTest extends KernelTestCase
         self::assertInstanceOf(InteractiveRuns::class, $runs);
 
         return $runs;
+    }
+
+    private function initRun(Project $project): WorkerRun
+    {
+        [$run] = $this->runs()->recordLaunch($project, new WorkSubject(WorkSubject::PROJECT, $project->id ?? throw new \LogicException('A stored project has an id.')), null, Uuid::v4(), InitRuns::WORK_KIND, Uuid::v4());
+
+        return $run;
     }
 
     private function setTimes(WorkerRun $run, string $startedAt, ?string $lastActivityAt): void

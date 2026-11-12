@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Repository;
 
 use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
@@ -36,6 +37,9 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkerRunRepository extends ServiceEntityRepository
 {
+    /** An init run is a run of work kind init on the project itself. */
+    private const string INIT_RUN_CONDITION = 'r.workKind = :initKind AND r.subjectType = :initSubject';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, WorkerRun::class);
@@ -768,11 +772,47 @@ class WorkerRunRepository extends ServiceEntityRepository
     public function findQuietOpenInteractiveForUpdate(\DateTimeImmutable $quietBefore, int $limit): array
     {
         return array_values(self::forUpdate($this->openInteractive()
+            ->andWhere('NOT ('.self::INIT_RUN_CONDITION.')')
             ->andWhere('COALESCE(r.lastActivityAt, r.startedAt, r.receivedAt) < :quietBefore')
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
             ->setParameter('quietBefore', $quietBefore, MicrosecondDateTimeImmutableType::NAME)
             ->orderBy('r.id', 'ASC')
             ->setMaxResults($limit))
             ->getResult());
+    }
+
+    /**
+     * The open init runs with no sign of life since $quietBefore.
+     *
+     * @return list<WorkerRun> locked until the transaction ends
+     */
+    public function findQuietOpenInitForUpdate(\DateTimeImmutable $quietBefore, int $limit): array
+    {
+        return array_values(self::forUpdate($this->openInteractive()
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->andWhere('COALESCE(r.lastActivityAt, r.startedAt, r.receivedAt) < :quietBefore')
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->setParameter('quietBefore', $quietBefore, MicrosecondDateTimeImmutableType::NAME)
+            ->orderBy('r.id', 'ASC')
+            ->setMaxResults($limit))
+            ->getResult());
+    }
+
+    /** Whether the project has an open init run. */
+    public function hasOpenInit(Uuid $projectId): bool
+    {
+        return null !== $this->openInteractive()
+            ->select('1')
+            ->andWhere('r.project = :projectId')
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('projectId', $projectId, UuidType::NAME)
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
@@ -795,6 +835,21 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->setParameter('interactive', WorkerRunKind::Interactive->value)
             ->setParameter('running', WorkerRunState::Running->value)
             ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->getQuery()
+            ->execute();
+    }
+
+    /** Stamps the run when it is still open, so a concurrent close keeps its state. Returns whether it stamped. */
+    public function renewOpenInteractive(WorkerRun $run, \DateTimeImmutable $at): bool
+    {
+        return 1 === (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(WorkerRun::class, 'r')
+            ->set('r.lastActivityAt', ':at')
+            ->andWhere('r.id = :id')
+            ->andWhere('r.state = :running')
+            ->setParameter('at', $at, MicrosecondDateTimeImmutableType::NAME)
+            ->setParameter('id', $run->id, UuidType::NAME)
+            ->setParameter('running', WorkerRunState::Running->value)
             ->getQuery()
             ->execute();
     }
