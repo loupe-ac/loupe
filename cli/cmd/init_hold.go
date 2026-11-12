@@ -63,12 +63,24 @@ type initRun struct {
 // returns an inert run, because init worked before the hold existed.
 func startInitRun(ctx context.Context, out io.Writer, client initRunClient, projectID string) *initRun {
 	r := &initRun{client: client, projectID: projectID, sessionID: config.NewUUID(), stop: make(chan struct{}), done: make(chan struct{})}
+	r.notify = make(chan os.Signal, 1)
+	r.waitSigs = make(chan os.Signal, 1)
+	signal.Notify(r.notify, os.Interrupt, syscall.SIGTERM)
 	bridgeID, err := initBridgeID()
 	if err == nil {
 		r.bridgeID = bridgeID
 		_, err = r.send(ctx, nil)
 	}
+	select {
+	case sig := <-r.notify:
+		r.exitOn(sig)
+
+		return r
+	default:
+	}
 	if err != nil {
+		signal.Stop(r.notify)
+		r.notify = nil
 		fmt.Fprintln(out, "This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.")
 		close(r.done)
 		r.finished = true
@@ -76,9 +88,6 @@ func startInitRun(ctx context.Context, out io.Writer, client initRunClient, proj
 		return r
 	}
 
-	r.notify = make(chan os.Signal, 1)
-	r.waitSigs = make(chan os.Signal, 1)
-	signal.Notify(r.notify, os.Interrupt, syscall.SIGTERM)
 	go r.loop(initRenewEvery)
 
 	return r
@@ -183,6 +192,12 @@ func (r *initRun) renew() {
 // exitOn closes the run and ends the process the way the signal would have.
 func (r *initRun) exitOn(sig os.Signal) {
 	r.closeRun()
+	initTerminate(sig)
+}
+
+// initTerminate ends the process the way the signal would have. A test
+// replaces it.
+var initTerminate = func(sig os.Signal) {
 	signal.Reset(os.Interrupt, syscall.SIGTERM)
 	if p, err := os.FindProcess(os.Getpid()); err == nil && p.Signal(sig) == nil {
 		time.Sleep(time.Second)
