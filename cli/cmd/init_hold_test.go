@@ -201,7 +201,7 @@ func TestWaitForInstallPollsUntilTheRulesAreRead(t *testing.T) {
 		return []api.Site{installedSite("p", true, true)}, nil
 	}
 
-	site, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "Acme/App", nil, nil)
+	site, ok, _ := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "Acme/App", nil, nil)
 
 	if !ok || step != 4 || site.GitHub.Repositories[0].RulesRead == nil {
 		t.Errorf("ok = %v, step = %d, site = %+v", ok, step, site)
@@ -213,7 +213,7 @@ func TestWaitForInstallStopsWaitingForRulesAfterTheLimit(t *testing.T) {
 	list := func(context.Context) ([]api.Site, error) { return []api.Site{installedSite("p", true, false)}, nil }
 
 	start := time.Now()
-	_, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, nil)
+	_, ok, _ := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, nil)
 
 	if !ok || time.Since(start) < rulesReadWait {
 		t.Errorf("ok = %v after %v", ok, time.Since(start))
@@ -225,13 +225,13 @@ func TestWaitForInstallEndsOnEnterAndOnASignal(t *testing.T) {
 	list := func(context.Context) ([]api.Site, error) { return []api.Site{installedSite("p", false, false)}, nil }
 	enter := make(chan struct{})
 	close(enter)
-	if _, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", enter, nil); ok {
+	if _, ok, _ := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", enter, nil); ok {
 		t.Error("Enter before the install reports an install")
 	}
 
 	sigs := make(chan os.Signal, 1)
 	sigs <- os.Interrupt
-	if _, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, sigs); ok {
+	if _, ok, _ := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, sigs); ok {
 		t.Error("Ctrl-C before the install reports an install")
 	}
 }
@@ -269,6 +269,41 @@ func TestInitWaitForAppMarksTheWaitAndOpensTheLinkWithTheInitValue(t *testing.T)
 	}
 	if countAwaiting(f, true) != 1 || countAwaiting(f, false) != 1 {
 		t.Errorf("wait marks: true %d, false %d; want 1 and 1", countAwaiting(f, true), countAwaiting(f, false))
+	}
+}
+
+func TestInitWaitForAppEndsInitAndClosesTheRunOnCtrlC(t *testing.T) {
+	fastWait(t)
+	useBridgeID(t, holdBridgeID, nil)
+	f := &fakeHoldClient{}
+	var out bytes.Buffer
+	run := startInitRun(context.Background(), &out, f, "p")
+	defer run.Close()
+	var terminated os.Signal
+	oldTerm := initTerminate
+	initTerminate = func(sig os.Signal) { terminated = sig }
+	t.Cleanup(func() { initTerminate = oldTerm })
+	oldOpen := initOpenBrowser
+	initOpenBrowser = func(string) error { return nil }
+	t.Cleanup(func() { initOpenBrowser = oldOpen })
+	list := func(context.Context) ([]api.Site, error) {
+		select {
+		case run.waitSigs <- os.Interrupt:
+		default:
+		}
+
+		return []api.Site{installedSite("p", false, false)}, nil
+	}
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(&out)
+	cmd.SetIn(bufio.NewReader(strings.NewReader("\n")))
+	app := appCheck{need: appInstall, repository: "acme/app", link: "https://l.test/install"}
+
+	_, ok := initWaitForApp(cmd, list, run, api.Site{ID: "p"}, app)
+
+	if ok || terminated != os.Interrupt || !run.isFinished() {
+		t.Errorf("ok = %v, terminated = %v, finished = %v; want Ctrl-C to close the run and end init", ok, terminated, run.isFinished())
 	}
 }
 
@@ -503,7 +538,7 @@ func TestWaitForInstallStopsWhenPollingFailsAfterTheInstall(t *testing.T) {
 	}
 	done := make(chan bool, 1)
 	go func() {
-		_, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, nil)
+		_, ok, _ := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, nil)
 		done <- ok
 	}()
 	select {

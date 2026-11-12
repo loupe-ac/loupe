@@ -79,13 +79,25 @@ func initWaitForApp(cmd *cobra.Command, list siteLister, run *initRun, site api.
 	enter := watchEnter(in)
 	defer enter.Stop()
 
-	return waitForInstall(cmd.Context(), list, site, app.repository, enter.Pressed(), sigs)
+	fresh, installed, interrupted := waitForInstall(cmd.Context(), list, site, app.repository, enter.Pressed(), sigs)
+	if interrupted {
+		run.endWait()
+		if run.held() {
+			run.exitOn(os.Interrupt)
+		} else {
+			initTerminate(os.Interrupt)
+		}
+
+		return site, false
+	}
+
+	return fresh, installed
 }
 
 // waitForInstall polls the project list until repository has the App, then
 // until its rules are read, for at most rulesReadWait. A signal or Enter ends
-// it.
-func waitForInstall(ctx context.Context, list siteLister, site api.Site, repository string, enter <-chan struct{}, sigs <-chan os.Signal) (api.Site, bool) {
+// it. The third result is true when a signal ended the wait.
+func waitForInstall(ctx context.Context, list siteLister, site api.Site, repository string, enter <-chan struct{}, sigs <-chan os.Signal) (api.Site, bool, bool) {
 	tick := time.NewTicker(installPollEvery)
 	defer tick.Stop()
 	var installed *time.Time
@@ -93,15 +105,15 @@ func waitForInstall(ctx context.Context, list siteLister, site api.Site, reposit
 	for {
 		select {
 		case <-ctx.Done():
-			return current, installed != nil
+			return current, installed != nil, false
 		case <-enter:
-			return current, installed != nil
+			return current, installed != nil, false
 		case <-sigs:
-			return current, installed != nil
+			return current, installed != nil, true
 		case <-tick.C:
 		}
 		if installed != nil && time.Since(*installed) >= rulesReadWait {
-			return current, true
+			return current, true, false
 		}
 		sites, err := list(ctx)
 		if err != nil {
@@ -121,7 +133,7 @@ func waitForInstall(ctx context.Context, list siteLister, site api.Site, reposit
 			installed = &now
 		}
 		if repo.RulesRead != nil || time.Since(*installed) >= rulesReadWait {
-			return current, true
+			return current, true, false
 		}
 	}
 }
