@@ -284,3 +284,14 @@ func TestEmptyListNotesOnStderrOfATerminalOnly(t *testing.T) {
 		}
 	})
 }
+
+func TestMetricQueryFormulaFormatFlagSendsTheFormatParameter(t *testing.T) {
+	srv, seen := publicServer(t, `{}`)
+
+	if _, _, err := runPublicCmd(t, srv, "metric", "query", "--project", "p", "--format", "json", "--unit", "run", "--rows", "A:cost:sum", "--formula", "A", "--formula-format", "money"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := (*seen)[0].query, "format=money&formula=A&rows=A%3Acost%3Asum&unit=run"; got != want {
+		t.Errorf("query = %q, want %q", got, want)
+	}
+}

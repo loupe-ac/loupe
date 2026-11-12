@@ -204,8 +204,19 @@ func flagName(s string) string {
 	return b.String()
 }
 
+// queryFlagName is the flag of a query parameter. The parameter `format` is the
+// format of a formula result, and --format is the output format of every
+// command, so the flag reads --formula-format.
+func queryFlagName(p publicapi.Param) string {
+	if p.Name == "format" {
+		return "formula-format"
+	}
+
+	return flagName(p.Name)
+}
+
 func addQueryFlag(flags *pflag.FlagSet, f *publicFlags, p publicapi.Param) {
-	name := flagName(p.Name)
+	name := queryFlagName(p)
 	usage := strings.TrimSpace(p.Description)
 	if len(p.Enum) > 0 {
 		usage += " One of: " + strings.Join(p.Enum, ", ") + "."

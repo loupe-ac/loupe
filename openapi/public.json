@@ -7278,6 +7278,560 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/metrics": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "List the metrics",
+                "description": "The metrics that the metric query reads, by key, with the units, statistics and groups each one takes. The workflow template of the project can declare more metrics. One `bucket-time`, `bucket-time-all` and `bucket-calls` entry exists for each bucket with tool calls on a run of the project, and one `harness-events` entry for each kind of harness event.",
+                "operationId": "listMetrics",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of metrics.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MetricList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/metrics/query": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Read a metric over time",
+                "description": "Reads one metric of the worker runs or the finished cards of the project, or a formula over up to six metrics. Pass `metric` and `statistic`, or `rows` and `formula`, and not both. `rows` is a comma-separated list of `letter:metric:statistic`, such as `A:cache-read-tokens:sum,B:cache-write-tokens:sum`. A metric key can hold a colon, as `bucket-time:tests` does, so the letter is the text before the first colon and the statistic is the text after the last one. The metric list route gives the metrics, and a refused combination names the values to use. A query spends from its own limit of 30 a minute.",
+                "operationId": "queryMetric",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "unit",
+                        "in": "query",
+                        "description": "What one row stands for.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "run",
+                                "card",
+                                "reading"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "metric",
+                        "in": "query",
+                        "description": "A key from the metric list. Leave it out when you pass `rows`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "statistic",
+                        "in": "query",
+                        "description": "How the rows combine. Leave it out when you pass `rows`.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "median",
+                                "mean",
+                                "sum",
+                                "p90",
+                                "count",
+                                "max"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "group",
+                        "in": "query",
+                        "description": "Splits the rows into one series per value.",
+                        "schema": {
+                            "type": "string",
+                            "default": "none"
+                        }
+                    },
+                    {
+                        "name": "range",
+                        "in": "query",
+                        "description": "The window, counted back from now.",
+                        "schema": {
+                            "type": "string",
+                            "default": "thirty-days",
+                            "enum": [
+                                "seven-days",
+                                "thirty-days",
+                                "ninety-days",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "bucket",
+                        "in": "query",
+                        "description": "The size of a point. The range seven-days takes day alone.",
+                        "schema": {
+                            "type": "string",
+                            "default": "week",
+                            "enum": [
+                                "day",
+                                "week",
+                                "month"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "compare",
+                        "in": "query",
+                        "description": "With `previous`, the answer also reads the period of the same length just before the range. The range all has no previous period.",
+                        "schema": {
+                            "type": "string",
+                            "default": "off",
+                            "enum": [
+                                "off",
+                                "previous"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "rows",
+                        "in": "query",
+                        "description": "The lettered rows of a formula, as `A:metric:statistic`, separated by commas. The letters are A to F.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "formula",
+                        "in": "query",
+                        "description": "The letters of the rows combined with + - * / and parentheses, such as `A / B`, in at most 200 characters.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "How the result of a formula reads. Auto keeps money and duration, and shows every other result as a number.",
+                        "schema": {
+                            "type": "string",
+                            "default": "auto",
+                            "enum": [
+                                "auto",
+                                "number",
+                                "percent",
+                                "money",
+                                "duration"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The series of the metric.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MetricQueryResult"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/versions": {
             "get": {
                 "tags": [
@@ -10588,6 +11142,244 @@
                 }
             }
         },
+        "/api/v1/projects/{project}/analyses": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "List the analyses of a project",
+                "description": "The analyses of the project, newest first, each with its cost and its proposals.",
+                "operationId": "listAnalyses",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "The most rows to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 200,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "The opaque position from the `next` URL of the last page.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of analyses.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Link": {
+                                "$ref": "#/components/headers/Link"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalysisList"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_cursor`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `validation_failed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationProblem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{project}/graphs/{graph}/restore": {
             "post": {
                 "tags": [
@@ -10664,6 +11456,191 @@
                     },
                     "409": {
                         "description": "Refused: `restore_expired`, `dashboard_full`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`, `api_key_expired`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            },
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{project}/analyses/{analysis}": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Read one analysis",
+                "description": "The analysis with its cost and its proposals. An analysis of another project answers like a missing one.",
+                "operationId": "getAnalysis",
+                "parameters": [
+                    {
+                        "name": "project",
+                        "in": "path",
+                        "description": "A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "my-project"
+                    },
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "description": "The id of the analysis.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The analysis.",
+                        "headers": {
+                            "RateLimit-Limit": {
+                                "$ref": "#/components/headers/RateLimit-Limit"
+                            },
+                            "RateLimit-Remaining": {
+                                "$ref": "#/components/headers/RateLimit-Remaining"
+                            },
+                            "RateLimit-Reset": {
+                                "$ref": "#/components/headers/RateLimit-Reset"
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Analysis"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `analysis_not_found`.",
                         "headers": {
                             "RateLimit-Limit": {
                                 "$ref": "#/components/headers/RateLimit-Limit"
@@ -20671,6 +21648,358 @@
                 },
                 "type": "object"
             },
+            "MetricListEntry": {
+                "required": [
+                    "key",
+                    "units",
+                    "valueType",
+                    "statistics",
+                    "groups",
+                    "description"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "Pass it as `metric` to the metric query.",
+                        "type": "string"
+                    },
+                    "units": {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "run",
+                                "card",
+                                "reading"
+                            ]
+                        }
+                    },
+                    "valueType": {
+                        "description": "Money is in US dollars, a duration in milliseconds, except a duration the workflow template declares, which is in hours.",
+                        "type": "string",
+                        "enum": [
+                            "money",
+                            "tokens",
+                            "duration",
+                            "count",
+                            "ratio",
+                            "percent"
+                        ]
+                    },
+                    "statistics": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "groups": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The label of a metric that the workflow template declares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "MetricList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MetricListEntry"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MetricQueryResult": {
+                "required": [
+                    "unit",
+                    "metric",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "window",
+                    "series"
+                ],
+                "properties": {
+                    "unit": {
+                        "type": "string",
+                        "enum": [
+                            "run",
+                            "card",
+                            "reading"
+                        ]
+                    },
+                    "metric": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "type": "string"
+                    },
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "seven-days",
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "enum": [
+                            "day",
+                            "week",
+                            "month"
+                        ]
+                    },
+                    "compare": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "previous"
+                        ]
+                    },
+                    "window": {
+                        "description": "The period read (`current`) and the period before it (`previous`, null unless compare is previous). Each has `from` (null for all time) and `to`.",
+                        "type": "object"
+                    },
+                    "series": {
+                        "description": "One series per group. Each has `group`, `total` (`value`, `rows`), `points` (`start`, `value`, `rows`), `rows` (at most 100 rows, newest first: `id`, `cardNumber`, `time`, `value`), `rowsTotal` and, with compare previous, `comparison`.",
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "formula": {
+                        "description": "Set for a formula query: `rows` (`letter`, `metric`, `statistic`), `formula`, `format` and `valueType`.",
+                        "type": "object",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisScope": {
+                "required": [
+                    "range"
+                ],
+                "properties": {
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "experiment": {
+                        "description": "The experiment an experiment analysis compares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisProposal": {
+                "required": [
+                    "id",
+                    "kind",
+                    "title",
+                    "body",
+                    "payload",
+                    "estimatedSaving",
+                    "state",
+                    "dismissReason",
+                    "cardId"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "card",
+                            "bucket-rule"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "description": "What the proposal makes when it is accepted: the card fields, or the bucket rule fields.",
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "estimatedSaving": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "proposed",
+                            "created",
+                            "dismissed"
+                        ]
+                    },
+                    "dismissReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cardId": {
+                        "description": "The card the proposal created.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Analysis": {
+                "required": [
+                    "id",
+                    "topic",
+                    "scope",
+                    "question",
+                    "model",
+                    "effort",
+                    "state",
+                    "reason",
+                    "createdAt",
+                    "finishedAt",
+                    "documentId",
+                    "costUsd",
+                    "proposals"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "topic": {
+                        "type": "string",
+                        "enum": [
+                            "cost",
+                            "time",
+                            "experiment",
+                            "host",
+                            "question"
+                        ]
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/AnalysisScope"
+                    },
+                    "question": {
+                        "description": "The question of a question analysis, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "effort": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "waiting",
+                            "running",
+                            "done",
+                            "failed",
+                            "paused"
+                        ]
+                    },
+                    "reason": {
+                        "description": "Why the analysis failed or paused, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "finishedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "documentId": {
+                        "description": "The report document once the analysis is done.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "costUsd": {
+                        "description": "The cost in US dollars of the runs of this analysis so far. Null when no run has a known cost.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "proposals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalysisProposal"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Analysis"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "InboxItem": {
                 "required": [
                     "itemId",
@@ -24055,6 +25384,10 @@
         {
             "name": "Experiments",
             "description": "Experiments"
+        },
+        {
+            "name": "Analytics",
+            "description": "Analytics"
         },
         {
             "name": "GitHub",

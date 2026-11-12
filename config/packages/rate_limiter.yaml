@@ -127,6 +127,13 @@ framework:
             limit: 10
             interval: '1 minute'
 
+        # Bounds the public metric query. One call reads every run fact of the
+        # project in its window, so a loop of them is the costly case. Keyed per credential.
+        public_metric_query:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
+
         # Bounds discovery starts from the CLI. Each start adds a card and
         # asks a bridge for a worker, and only one run is open at a time, so
         # the limit is far below the shared agent shape. Keyed per credential.
@@ -395,6 +402,10 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             agent_project_create:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            public_metric_query:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

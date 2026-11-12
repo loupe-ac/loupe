@@ -8101,6 +8101,358 @@
                 },
                 "type": "object"
             },
+            "MetricListEntry": {
+                "required": [
+                    "key",
+                    "units",
+                    "valueType",
+                    "statistics",
+                    "groups",
+                    "description"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "Pass it as `metric` to the metric query.",
+                        "type": "string"
+                    },
+                    "units": {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "run",
+                                "card",
+                                "reading"
+                            ]
+                        }
+                    },
+                    "valueType": {
+                        "description": "Money is in US dollars, a duration in milliseconds, except a duration the workflow template declares, which is in hours.",
+                        "type": "string",
+                        "enum": [
+                            "money",
+                            "tokens",
+                            "duration",
+                            "count",
+                            "ratio",
+                            "percent"
+                        ]
+                    },
+                    "statistics": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "groups": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The label of a metric that the workflow template declares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "MetricList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MetricListEntry"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MetricQueryResult": {
+                "required": [
+                    "unit",
+                    "metric",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "window",
+                    "series"
+                ],
+                "properties": {
+                    "unit": {
+                        "type": "string",
+                        "enum": [
+                            "run",
+                            "card",
+                            "reading"
+                        ]
+                    },
+                    "metric": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "type": "string"
+                    },
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "seven-days",
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "enum": [
+                            "day",
+                            "week",
+                            "month"
+                        ]
+                    },
+                    "compare": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "previous"
+                        ]
+                    },
+                    "window": {
+                        "description": "The period read (`current`) and the period before it (`previous`, null unless compare is previous). Each has `from` (null for all time) and `to`.",
+                        "type": "object"
+                    },
+                    "series": {
+                        "description": "One series per group. Each has `group`, `total` (`value`, `rows`), `points` (`start`, `value`, `rows`), `rows` (at most 100 rows, newest first: `id`, `cardNumber`, `time`, `value`), `rowsTotal` and, with compare previous, `comparison`.",
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "formula": {
+                        "description": "Set for a formula query: `rows` (`letter`, `metric`, `statistic`), `formula`, `format` and `valueType`.",
+                        "type": "object",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisScope": {
+                "required": [
+                    "range"
+                ],
+                "properties": {
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "experiment": {
+                        "description": "The experiment an experiment analysis compares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisProposal": {
+                "required": [
+                    "id",
+                    "kind",
+                    "title",
+                    "body",
+                    "payload",
+                    "estimatedSaving",
+                    "state",
+                    "dismissReason",
+                    "cardId"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "card",
+                            "bucket-rule"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "description": "What the proposal makes when it is accepted: the card fields, or the bucket rule fields.",
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "estimatedSaving": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "proposed",
+                            "created",
+                            "dismissed"
+                        ]
+                    },
+                    "dismissReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cardId": {
+                        "description": "The card the proposal created.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Analysis": {
+                "required": [
+                    "id",
+                    "topic",
+                    "scope",
+                    "question",
+                    "model",
+                    "effort",
+                    "state",
+                    "reason",
+                    "createdAt",
+                    "finishedAt",
+                    "documentId",
+                    "costUsd",
+                    "proposals"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "topic": {
+                        "type": "string",
+                        "enum": [
+                            "cost",
+                            "time",
+                            "experiment",
+                            "host",
+                            "question"
+                        ]
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/AnalysisScope"
+                    },
+                    "question": {
+                        "description": "The question of a question analysis, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "effort": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "waiting",
+                            "running",
+                            "done",
+                            "failed",
+                            "paused"
+                        ]
+                    },
+                    "reason": {
+                        "description": "Why the analysis failed or paused, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "finishedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "documentId": {
+                        "description": "The report document once the analysis is done.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "costUsd": {
+                        "description": "The cost in US dollars of the runs of this analysis so far. Null when no run has a known cost.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "proposals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalysisProposal"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Analysis"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "InboxItem": {
                 "required": [
                     "itemId",
