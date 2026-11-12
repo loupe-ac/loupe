@@ -13,6 +13,7 @@ final readonly class ListAgentsView
     public function __construct(
         public Project $project,
         public array $connections,
+        public bool $hasMore = false,
     ) {
     }
 }

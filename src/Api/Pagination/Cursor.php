@@ -90,6 +90,59 @@ final readonly class Cursor
         return [$at, $this->id];
     }
 
+    /**
+     * The cursor that resumes after a row of a list that sorts on a time that is unique within the list.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterTime(string $sort, \DateTimeImmutable $at, array $filters = []): self
+    {
+        return new self($sort, $at->setTimezone(new \DateTimeZone('UTC'))->format(self::TIME_FORMAT), '', $filters);
+    }
+
+    /**
+     * The cursor that resumes after a row of a list that sorts on a whole number.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterNumber(string $sort, int $number, array $filters = []): self
+    {
+        return new self($sort, (string) $number, '', $filters);
+    }
+
+    /**
+     * The cursor that resumes after a row of a list that sorts on an id.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterId(string $sort, Uuid $id, array $filters = []): self
+    {
+        return new self($sort, (string) $id, '', $filters);
+    }
+
+    /** @throws ApiProblemException `invalid_cursor` for a position that does not parse */
+    public function timePosition(): \DateTimeImmutable
+    {
+        return \DateTimeImmutable::createFromFormat(self::TIME_FORMAT, $this->sortValue, new \DateTimeZone('UTC'))
+            ?: throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+    }
+
+    /** @throws ApiProblemException `invalid_cursor` for a position that does not parse */
+    public function numberPosition(): int
+    {
+        return ctype_digit($this->sortValue) && \strlen($this->sortValue) < 19
+            ? (int) $this->sortValue
+            : throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+    }
+
+    /** @throws ApiProblemException `invalid_cursor` for a position that does not parse */
+    public function idPosition(): Uuid
+    {
+        return Uuid::isValid($this->sortValue)
+            ? Uuid::fromString($this->sortValue)
+            : throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+    }
+
     /** The name of the last row of the previous page of a list that sorts on a name. */
     public function namePosition(): string
     {
