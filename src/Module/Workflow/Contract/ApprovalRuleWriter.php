@@ -9,6 +9,9 @@ use Symfony\Component\Uid\Uuid;
 /** Board asks this port to change the approval rule in the template copy of one project. */
 interface ApprovalRuleWriter
 {
-    /** Returns false, and writes nothing, when the project has no workflow. */
+    /**
+     * Returns false, and writes nothing, when the project has no workflow.
+     * Announces nothing: the caller dispatches ApprovalRuleChanged after its transaction commits.
+     */
     public function setCoversConflictResolution(Uuid $projectId, bool $value): bool;
 }

@@ -13,6 +13,7 @@ use App\Module\Board\Repository\BoardAutomationSettingsRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\ApprovalRuleChanged;
 use App\Module\Workflow\Contract\ApprovalRules;
 use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
@@ -135,6 +136,88 @@ final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
         self::assertTrue($definition['approvalCoversConflictResolution'] ?? true);
         self::assertFalse($connection->fetchOne('SELECT id FROM board_automation_settings WHERE project_id = :id', ['id' => (string) $project->id]));
         self::assertSame([], $this->audit->records('board.automation_settings_saved'));
+    }
+
+    public function test_a_failure_after_the_approval_write_announces_no_rule_change(): void
+    {
+        $project = $this->workflowProject('save-automation-no-event');
+        $this->bindLifecycle($project);
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $announced = [];
+        $dispatcher->addListener(ApprovalRuleChanged::class, static function () use (&$announced): void {
+            $announced[] = true;
+        });
+        $handler = $this->failingHandler();
+
+        try {
+            $handler(new SaveBoardAutomationSettingsCommand(project: $project, enabled: false, stuckDelayMinutes: 40, approvalCoversConflictResolution: false));
+            self::fail('The markers update must fail.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertSame([], $announced);
+    }
+
+    public function test_a_committed_approval_change_announces_the_rule_change_once(): void
+    {
+        $project = $this->workflowProject('save-automation-event');
+        $this->bindLifecycle($project);
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $announced = [];
+        $dispatcher->addListener(ApprovalRuleChanged::class, static function () use (&$announced): void {
+            $announced[] = true;
+        });
+        $handler = self::getContainer()->get(SaveBoardAutomationSettingsHandler::class);
+        self::assertInstanceOf(SaveBoardAutomationSettingsHandler::class, $handler);
+
+        $handler(new SaveBoardAutomationSettingsCommand(project: $project, approvalCoversConflictResolution: false));
+        $handler(new SaveBoardAutomationSettingsCommand(project: $project, approvalCoversConflictResolution: false));
+
+        self::assertSame([true], $announced);
+    }
+
+    public function test_a_setting_left_out_keeps_the_value_that_another_save_wrote_meanwhile(): void
+    {
+        $this->save(enabled: true, stuckDelayMinutes: 40);
+        $stale = $this->stored();
+        self::assertSame(40, $stale->stuckDelayMinutes);
+        $this->em->getConnection()->executeStatement('UPDATE board_automation_settings SET enabled = false, stuck_delay_minutes = 90 WHERE project_id = :id', ['id' => (string) $this->project->id]);
+
+        $handler = self::getContainer()->get(SaveBoardAutomationSettingsHandler::class);
+        self::assertInstanceOf(SaveBoardAutomationSettingsHandler::class, $handler);
+        $handler(new SaveBoardAutomationSettingsCommand(project: $this->project, enabled: null, stuckDelayMinutes: 120));
+
+        $stored = $this->stored();
+        self::assertFalse($stored->enabled);
+        self::assertSame(120, $stored->stuckDelayMinutes);
+
+        $handler(new SaveBoardAutomationSettingsCommand(project: $this->project, enabled: true));
+        self::assertSame(120, $this->stored()->stuckDelayMinutes);
+        self::assertTrue($this->stored()->enabled);
+    }
+
+    private function failingHandler(): SaveBoardAutomationSettingsHandler
+    {
+        $container = self::getContainer();
+
+        return new SaveBoardAutomationSettingsHandler(
+            $container->get(BoardAutomation::class),
+            $this->em,
+            $this->audit->auditor,
+            $container->get(EventDispatcherInterface::class),
+            $container->get(CardRepository::class),
+            new class implements ClockInterface {
+                #[\Override]
+                public function now(): \DateTimeImmutable
+                {
+                    throw new \RuntimeException('The markers update fails.');
+                }
+            },
+            $container->get(ApprovalRules::class),
+            $container->get(ApprovalRuleWriter::class),
+        );
     }
 
     private function save(bool $enabled, int $stuckDelayMinutes = BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES): void

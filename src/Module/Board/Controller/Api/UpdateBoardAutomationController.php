@@ -58,13 +58,11 @@ final class UpdateBoardAutomationController extends AppController
 
     public function __invoke(#[ReachableProject] Project $project, #[MapRequestPayload] UpdateBoardAutomationRequest $payload): JsonResponse
     {
-        $current = ($this->showAutomation)(new ShowBoardAutomationCommand($project));
-
         try {
             ($this->saveSettings)(new SaveBoardAutomationSettingsCommand(
                 project: $project,
-                enabled: $payload->enabled ?? $current->enabled,
-                stuckDelayMinutes: $payload->stuckDelayMinutes ?? $current->stuckDelayMinutes,
+                enabled: $payload->enabled ?? null,
+                stuckDelayMinutes: $payload->stuckDelayMinutes ?? null,
                 approvalCoversConflictResolution: $payload->approvalCoversConflictResolution ?? null,
             ));
         } catch (DomainErrors $e) {
