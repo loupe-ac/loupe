@@ -38,14 +38,16 @@ final readonly class ResumeWorkerRunsHandler
                 $results[] = ['runId' => $entry->runId, 'outcome' => 'not-attempted'];
                 continue;
             }
-            if (null === $entry->run) {
-                $results[] = $this->refusals->notFound($entry->runId);
-                continue;
-            }
 
             try {
+                $run = ($entry->resolve)();
+                if (null === $run) {
+                    $results[] = $this->refusals->notFound($entry->runId);
+                    continue;
+                }
+
                 $request = ($this->requestCommand)(new RequestBridgeCommandCommand(
-                    run: $entry->run,
+                    run: $run,
                     kind: BridgeCommandKind::ResumeRun,
                     requestedBy: $command->requestedBy,
                     cause: $command->cause,

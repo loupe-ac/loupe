@@ -49,7 +49,7 @@ final class ResumeWorkerRunsHandlerTest extends KernelTestCase
         $view = $this->handler()(new ResumeWorkerRunsCommand(
             $this->project->owner,
             BridgeCommandCause::ApiKey,
-            [new ResumeWorkerRunsEntry('a', $first), new ResumeWorkerRunsEntry('b', $second)],
+            [new ResumeWorkerRunsEntry('a', static fn (): WorkerRun => $first), new ResumeWorkerRunsEntry('b', static fn (): WorkerRun => $second)],
             $key,
         ));
 
@@ -67,7 +67,7 @@ final class ResumeWorkerRunsHandlerTest extends KernelTestCase
     {
         $run = $this->runOn($this->bridge);
 
-        $this->handler()(new ResumeWorkerRunsCommand($this->project->owner, BridgeCommandCause::Agent, [new ResumeWorkerRunsEntry('a', $run)]));
+        $this->handler()(new ResumeWorkerRunsCommand($this->project->owner, BridgeCommandCause::Agent, [new ResumeWorkerRunsEntry('a', static fn (): WorkerRun => $run)]));
 
         $command = $this->commands()[0];
         self::assertSame(BridgeCommandCause::Agent, $command->cause);
@@ -80,9 +80,9 @@ final class ResumeWorkerRunsHandlerTest extends KernelTestCase
         $good = $this->runOn($this->bridge);
 
         $view = $this->handler()(new ResumeWorkerRunsCommand($this->project->owner, BridgeCommandCause::ApiKey, [
-            new ResumeWorkerRunsEntry('missing', null),
-            new ResumeWorkerRunsEntry('done', $succeeded),
-            new ResumeWorkerRunsEntry('good', $good),
+            new ResumeWorkerRunsEntry('missing', static fn (): ?WorkerRun => null),
+            new ResumeWorkerRunsEntry('done', static fn (): WorkerRun => $succeeded),
+            new ResumeWorkerRunsEntry('good', static fn (): WorkerRun => $good),
         ]));
 
         self::assertSame('not-found', $view->results[0]['code'] ?? null);
@@ -115,14 +115,29 @@ final class ResumeWorkerRunsHandlerTest extends KernelTestCase
         $handler = new ResumeWorkerRunsHandler($request, self::getContainer()->get(BridgeCommandRefusals::class), $logger);
 
         $view = $handler(new ResumeWorkerRunsCommand($this->project->owner, BridgeCommandCause::ApiKey, [
-            new ResumeWorkerRunsEntry('before', $before),
-            new ResumeWorkerRunsEntry('failing', $failing),
-            new ResumeWorkerRunsEntry('after', $after),
+            new ResumeWorkerRunsEntry('before', static fn (): WorkerRun => $before),
+            new ResumeWorkerRunsEntry('failing', static fn (): WorkerRun => $failing),
+            new ResumeWorkerRunsEntry('after', static fn (): WorkerRun => $after),
         ]));
 
         self::assertSame('resumed', $view->results[0]['outcome']);
         self::assertSame('error', $view->results[1]['outcome']);
         self::assertSame(['runId' => 'after', 'outcome' => 'not-attempted'], $view->results[2]);
+        self::assertCount(1, $this->commands());
+    }
+
+    public function test_a_failed_lookup_is_an_error_row_and_stops_the_batch(): void
+    {
+        $before = $this->runOn($this->bridge);
+        $after = $this->runOn($this->bridge, WorkerRunState::GaveUp);
+
+        $view = $this->handler()(new ResumeWorkerRunsCommand($this->project->owner, BridgeCommandCause::Agent, [
+            new ResumeWorkerRunsEntry('before', static fn (): WorkerRun => $before),
+            new ResumeWorkerRunsEntry('broken', static fn (): WorkerRun => throw new \RuntimeException('lookup failed')),
+            new ResumeWorkerRunsEntry('after', static fn (): WorkerRun => $after),
+        ]));
+
+        self::assertSame(['resumed', 'error', 'not-attempted'], array_column($view->results, 'outcome'));
         self::assertCount(1, $this->commands());
     }
 

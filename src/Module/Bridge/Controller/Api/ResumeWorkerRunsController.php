@@ -12,6 +12,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\ResumeWorkerRunsCommand;
 use App\Module\Bridge\Command\ResumeWorkerRunsEntry;
 use App\Module\Bridge\Command\ResumeWorkerRunsHandler;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\WorkerRunLookup;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Project\Entity\Project;
@@ -63,7 +64,7 @@ final class ResumeWorkerRunsController extends AppController
         $key = $this->currentKey->current();
 
         $entries = array_map(
-            fn (string $runId): ResumeWorkerRunsEntry => new ResumeWorkerRunsEntry($runId, $this->lookup->find($project, $runId)),
+            fn (string $runId): ResumeWorkerRunsEntry => new ResumeWorkerRunsEntry($runId, fn (): ?WorkerRun => $this->lookup->find($project, $runId)),
             $body->runIds,
         );
         if ([] === $entries) {

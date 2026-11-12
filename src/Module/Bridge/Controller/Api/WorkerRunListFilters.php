@@ -99,6 +99,24 @@ final readonly class WorkerRunListFilters
         );
     }
 
+    /**
+     * The query of the next link. It writes the states in the one form the cursor holds, because PHP parses `state=a&state=b` to the last state and `state[]=a` to an array that http_build_query writes as `state[0]`.
+     *
+     * @return array<mixed>
+     */
+    public function nextQuery(Request $request): array
+    {
+        $query = $request->query->all();
+        $states = $this->cursorFilters['state'] ?? null;
+        if (null === $states) {
+            unset($query['state']);
+        } else {
+            $query['state'] = $states;
+        }
+
+        return $query;
+    }
+
     private static function text(Request $request, string $name): ?string
     {
         $value = $request->query->all()[$name] ?? null;

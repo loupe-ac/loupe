@@ -20,6 +20,7 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -81,6 +82,40 @@ final class WorkerRunApiTest extends WebTestCase
 
         $this->send(Request::METHOD_GET, $this->runs().'?state[]=failed&state[]=succeeded');
         self::assertCount(4, $this->json()['items']);
+    }
+
+    #[DataProvider('repeatedStateForms')]
+    public function test_the_next_link_keeps_repeated_state_filters(string $query): void
+    {
+        $failed = [
+            $this->runIn(WorkerRunState::Failed, receivedAt: '2026-01-01 10:00:00'),
+            $this->runIn(WorkerRunState::TimedOut, receivedAt: '2026-01-02 10:00:00'),
+            $this->runIn(WorkerRunState::Failed, receivedAt: '2026-01-03 10:00:00'),
+        ];
+        $this->runIn(WorkerRunState::Succeeded, receivedAt: '2026-01-04 10:00:00');
+
+        $this->send(Request::METHOD_GET, $this->runs().'?limit=2&'.$query);
+        self::assertResponseStatusCodeSame(200);
+        $first = $this->json();
+        self::assertCount(2, $first['items']);
+        self::assertIsString($first['next']);
+
+        $this->send(Request::METHOD_GET, $first['next']);
+        self::assertResponseStatusCodeSame(200);
+        $second = $this->json();
+        self::assertEqualsCanonicalizing(
+            array_map(static fn (WorkerRun $run): string => (string) $run->id, $failed),
+            array_column([...$first['items'], ...$second['items']], 'runId'),
+        );
+        self::assertNull($second['next']);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function repeatedStateForms(): iterable
+    {
+        yield 'repeated' => ['state=failed&state=timed-out'];
+        yield 'brackets' => ['state[]=failed&state[]=timed-out'];
+        yield 'commas' => ['state=failed,timed-out'];
     }
 
     public function test_a_row_carries_the_pending_command(): void

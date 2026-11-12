@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ResumeWorkerRunsCommand;
 use App\Module\Bridge\Command\ResumeWorkerRunsEntry;
 use App\Module\Bridge\Command\ResumeWorkerRunsHandler;
 use App\Module\Bridge\Command\ResumeWorkerRunsView;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -53,9 +54,10 @@ final readonly class WorkerRunResumeTool
                 }
                 $parsed[] = [$runId, $this->subjects->parseRunId($runId)];
             }
+            $this->subjects->requireProject();
             $entries = [];
             foreach ($parsed as [$runId, $id]) {
-                $entries[] = new ResumeWorkerRunsEntry($runId, $this->subjects->findRun($id, McpBoundProjectVoter::WORKER_RUN_WRITE));
+                $entries[] = new ResumeWorkerRunsEntry($runId, fn (): ?WorkerRun => $this->subjects->findRun($id, McpBoundProjectVoter::WORKER_RUN_WRITE));
             }
 
             $view = ($this->resumeRuns)(new ResumeWorkerRunsCommand($this->subjects->requireUser(), BridgeCommandCause::Agent, $entries));

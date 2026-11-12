@@ -88,6 +88,6 @@ final class ListWorkerRunsController extends AppController
             $next = Cursor::afterCreated(self::SORT, $last->receivedAt, $last->id ?? throw new \LogicException('A stored run has an id.'), $filters->cursorFilters);
         }
 
-        return new Page($view->runs, $next)->toResponse($request, fn (WorkerRun $run): array => $this->payload->forRow($run, $view->pending[(string) $run->id] ?? null, $readings));
+        return new Page($view->runs, $next)->toResponse($request, fn (WorkerRun $run): array => $this->payload->forRow($run, $view->pending[(string) $run->id] ?? null, $readings), query: $filters->nextQuery($request));
     }
 }
