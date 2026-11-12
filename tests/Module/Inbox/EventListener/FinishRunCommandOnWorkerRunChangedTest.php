@@ -160,6 +160,23 @@ final class FinishRunCommandOnWorkerRunChangedTest extends KernelTestCase
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 
+    public function test_a_resume_after_a_keyed_run_command_keeps_the_key(): void
+    {
+        [$item] = $this->waitItem();
+        $run = $this->commandRun($item, WorkerRunState::Succeeded);
+        $action = $this->actionOf($item);
+        $key = Uuid::v7();
+        $action->apiKeyId = $key;
+        $action->apiKeyName = 'Weekly CI';
+        $this->em()->flush();
+
+        $this->changed($run);
+
+        $command = $this->em()->find(BridgeCommand::class, $this->actionOf($item)->bridgeCommandId);
+        self::assertInstanceOf(BridgeCommand::class, $command);
+        self::assertSame([(string) $key, 'Weekly CI', BridgeCommandCause::InboxAction], [(string) $command->apiKeyId, $command->apiKeyName, $command->cause]);
+    }
+
     public function test_a_second_event_does_not_queue_a_second_resume(): void
     {
         [$item] = $this->waitItem();

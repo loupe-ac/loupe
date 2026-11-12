@@ -182,7 +182,7 @@ final readonly class RunInboxActionHandler
         $verdict = $command->verdict ?? '';
         $reviewNote = '' === $note ? null : $note;
         if (InboxReviewTargetKind::PullRequest === $review?->targetKind) {
-            ($this->submitPullRequestReview)(new SubmitInboxPullRequestReviewCommand($command->item, $command->user, $verdict, $command->expectedUrl ?? '', $reviewNote));
+            ($this->submitPullRequestReview)(new SubmitInboxPullRequestReviewCommand($command->item, $command->user, $verdict, $command->expectedUrl ?? '', $reviewNote, $command->closedBy, $command->apiKey));
         } else {
             ($this->submitDocumentReview)(new SubmitInboxDocumentReviewCommand(
                 $command->item,
@@ -191,6 +191,7 @@ final readonly class RunInboxActionHandler
                 $command->versionNumber ?? throw new DomainErrors(['versionNumber' => 'inbox.review.error.target_changed']),
                 $command->expectedReviewId,
                 $reviewNote,
+                $command->apiKey,
             ));
         }
 

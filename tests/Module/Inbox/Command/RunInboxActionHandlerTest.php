@@ -439,6 +439,39 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame([InboxItemState::Resolved, InboxCloser::Owner], [$item->state, $item->closedBy]);
     }
 
+    public function test_a_pull_request_verdict_through_an_api_key_names_the_key_on_the_item(): void
+    {
+        $target = new CardPullRequest($this->card, 'https://github.com/example/project/pull/13');
+        $item = new InboxItem($this->project, ++$this->number, InboxItemKind::Review, 'Review the pull request', true, origin: InboxAskOrigin::Agent);
+        foreach ([$target, $item, new InboxReview($item, $target)] as $entity) {
+            $this->em()->persist($entity);
+        }
+        $this->em()->flush();
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+
+        ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::SubmitReview, '', $this->project->owner, closedBy: InboxCloser::OwnerThroughApiKey, apiKey: $key, verdict: 'approved', expectedUrl: $target->url));
+
+        self::assertSame([InboxCloser::OwnerThroughApiKey, (string) $key->keyId, 'Weekly CI'], [$item->closedBy, (string) $item->closedApiKeyId, $item->closedApiKeyName]);
+    }
+
+    public function test_a_document_verdict_through_an_api_key_names_the_key_on_the_item_and_the_review(): void
+    {
+        $document = new Document($this->project->owner, $this->project, 'The design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $item = new InboxItem($this->project, ++$this->number, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
+        $inboxReview = new InboxReview($item, $document);
+        foreach ([$document, $item, $inboxReview] as $entity) {
+            $this->em()->persist($entity);
+        }
+        $this->em()->flush();
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+
+        ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::SubmitReview, '', $this->project->owner, closedBy: InboxCloser::OwnerThroughApiKey, apiKey: $key, verdict: 'approved', versionNumber: 1));
+
+        self::assertSame([InboxCloser::OwnerThroughApiKey, (string) $key->keyId, 'Weekly CI'], [$item->closedBy, (string) $item->closedApiKeyId, $item->closedApiKeyName]);
+        self::assertSame((string) $key->keyId, (string) $inboxReview->documentReview?->apiKeyId);
+    }
+
     public function test_a_kind_that_is_not_run_here_is_refused_even_when_it_fits(): void
     {
         $item = $this->runItem();
