@@ -55,7 +55,7 @@ the bridge keeps its pins and its variant assignment. A worker run that Loupe
 records for the first time after the archive brings the experiment back to the
 main list. A run that was already working when you archived does not. The
 `experiment_archive` and `experiment_unarchive` tools do the same from an agent,
-and `experiment_get` reports the `archived` state.
+and `experiment_get` reports the `archived` state. A script can do the same with `PATCH /api/v1/projects/{project}/experiments/{experiment}` or `loupe experiment update`, and list the experiments with `loupe experiment list`. See the [API reference](../reference/api/index.md#experiments-tags-and-series).
 
 Archiving also switches off the [public link](#share-an-experiment-publicly) of
 the experiment. The link stays off when a new run or **Unarchive** brings the

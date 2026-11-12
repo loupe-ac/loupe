@@ -15,6 +15,12 @@ final readonly class ListSeriesHandler
 
     public function __invoke(ListSeriesCommand $command): ListSeriesView
     {
-        return new ListSeriesView($this->series->findByProjectWithDocumentCounts($command->project));
+        if (null === $command->limit) {
+            return new ListSeriesView($this->series->findByProjectWithDocumentCounts($command->project));
+        }
+
+        $rows = $this->series->pageByProjectWithDocumentCounts($command->project, $command->afterNormalizedName, $command->limit + 1);
+
+        return new ListSeriesView(\array_slice($rows, 0, $command->limit), \count($rows) > $command->limit);
     }
 }
