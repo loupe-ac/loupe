@@ -65,6 +65,11 @@ final readonly class DocumentApiProblems
         return new ApiProblemException(new ApiProblem(404, 'document_not_found', 'Document not found', 'This project has no document with this id.'));
     }
 
+    public static function seriesNotFound(): ApiProblemException
+    {
+        return new ApiProblemException(new ApiProblem(404, 'series_not_found', 'Series not found', 'This project has no series with this name.'));
+    }
+
     public static function versionNotFound(): ApiProblemException
     {
         return new ApiProblemException(new ApiProblem(404, 'document_version_not_found', 'Document version not found', 'This document has no version with this number.'));
