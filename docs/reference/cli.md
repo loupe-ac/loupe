@@ -299,6 +299,8 @@ names the ways to choose. It never guesses.
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
 | `loupe card` | `list`, `get`, `history`, `create`, `update`, `reorder`, `hold`, `release`, `pause-release` |
 | `loupe experiment` | `cards`, `exclude`, `include` |
+| `loupe metric` | `list`, `query` |
+| `loupe analysis` | `list`, `get` |
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
@@ -318,6 +320,8 @@ their variant, pull request URLs and left-out reasons. `loupe experiment exclude
 <experiment> <number> --reason "..."` leaves a card out of the comparison, and
 `loupe experiment include <experiment> <number>` puts it back. These commands
 need CLI 2.1.0 or later and a server that has the experiment routes.
+
+`loupe metric list` lists the metrics of the project. `loupe metric query --unit run --metric cost --statistic sum` reads one metric over time, and `--rows` with `--formula` reads a formula. `--formula-format` sets how a formula result reads. `loupe analysis list` and `loupe analysis get <analysis>` read the analyses with their proposals. These commands need CLI 2.7.0 or later and a server that has the metric and analysis routes. The query has its own limit of 30 requests a minute.
 
 `loupe github repository status <owner/name> --project <slug>` tells whether the Loupe GitHub App reaches a repository and whether the project holds it. The answer is `in-project`, `free`, `other-project` or `not-shared`. Only the project owner may ask. The command needs CLI 2.6.0 or later and a server that has the lookup route.
 

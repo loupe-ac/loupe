@@ -607,6 +607,10 @@ Over the MCP, the group of a bridge is its id, and the page shows its name.
 total, the change, the likely ranges and the sign, as the Metrics tab shows
 them. [The MCP tools](mcp.md#what-the-tools-do) list the fields.
 
+## Through the API
+
+A script reads the same numbers with an API key. `GET /api/v1/projects/{project}/metrics` lists the metrics, and `GET /api/v1/projects/{project}/metrics/query` reads one metric or a formula. `GET /api/v1/projects/{project}/analyses` lists the analyses, and `GET /api/v1/projects/{project}/analyses/{analysis}` reads one with its proposals. The [API reference](../reference/api/index.md#metrics-and-analyses) holds the parameters and the limits.
+
 ## Reports
 
 The **Reports** tab lists the analyses of the project, newest first. An
